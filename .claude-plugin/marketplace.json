@@ -1,0 +1,13 @@
+{
+  "name": "onto-review",
+  "owner": {
+    "name": "kangmin"
+  },
+  "plugins": [
+    {
+      "name": "onto-review",
+      "source": ".",
+      "description": "Ontology verification system using 6+1 agent panel. Verifies logical consistency, structural completeness, dependency integrity, semantic accuracy, practical usability, and evolution fitness across any domain."
+    }
+  ]
+}

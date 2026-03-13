@@ -4,7 +4,7 @@
 
 ## 에이전트 구성
 
-### 온톨로지 검증 에이전트 (6인)
+### 온톨로지 검증 에이전트 (7인)
 | ID | 역할 | 검증 차원 |
 |---|---|---|
 | `onto_logic` | 논리적 일관성 검증자 | 모순, 타입 충돌, 제약 상충 |
@@ -13,11 +13,12 @@
 | `onto_semantics` | 의미적 정확성 검증자 | 이름-의미 일치, 동의어/동형이의어 |
 | `onto_pragmatics` | 활용 적합성 검증자 | 질의 가능성, 역량 질문 테스트 |
 | `onto_evolution` | 확장·진화 적합성 검증자 | 새 데이터/도메인 추가 시 깨짐 |
+| `onto_coverage` | 도메인 포괄성 검증자 | 누락 하위 영역, 개념 편중, 표준 대비 빈 영역 |
 
 ### 종합자 (1인)
 | ID | 역할 |
 |---|---|
-| `philosopher` | 6인의 판단을 종합, 간과된 전제 탐지 |
+| `philosopher` | 7인의 판단을 종합, 간과된 전제 탐지 |
 
 ### 도메인 문서
 각 에이전트는 실행 시 해당 도메인의 문서를 읽습니다:
@@ -28,7 +29,8 @@
   ├── dependency_rules.md   ← onto_dependency
   ├── concepts.md           ← onto_semantics
   ├── competency_qs.md      ← onto_pragmatics
-  └── extension_cases.md    ← onto_evolution
+  ├── extension_cases.md    ← onto_evolution
+  └── domain_scope.md       ← onto_coverage
 ```
 
 ### 도메인 판별 규칙
@@ -149,7 +151,7 @@ Agent tool로 해당 에이전트를 **1인 실행**합니다.
    - 프로젝트의 도메인을 확인합니다.
    - `~/.claude/agent-memory/domains/{domain}/` 하위 문서를 수집합니다.
 
-4. **에이전트 파일 수집** (7인 각각):
+4. **에이전트 파일 수집** (8인 각각):
    - 정의: `~/.claude/plugins/onto-review/agents/{agent-id}.md`
    - 방법론 학습: `~/.claude/agent-memory/methodology/{agent-id}.md`
    - 도메인 학습 (글로벌): `~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md`
@@ -158,10 +160,10 @@ Agent tool로 해당 에이전트를 **1인 실행**합니다.
    - 소통 학습 (개별): `~/.claude/agent-memory/communication/{agent-id}.md`
    - 파일이 없으면 무시합니다.
 
-### 2. Round 1 — 6인 독립 리뷰
+### 2. Round 1 — 7인 독립 리뷰
 
-Agent tool로 6인(philosopher 제외)을 **병렬 실행**합니다.
-하나의 메시지에서 6개의 Agent tool call을 동시에 보냅니다.
+Agent tool로 7인(philosopher 제외)을 **병렬 실행**합니다.
+하나의 메시지에서 7개의 Agent tool call을 동시에 보냅니다.
 
 각 에이전트에게 전달할 내용:
 
@@ -210,7 +212,7 @@ Agent tool로 6인(philosopher 제외)을 **병렬 실행**합니다.
 
 ### 3. Philosopher 종합
 
-6인의 리뷰 결과를 Philosopher 관점에서 종합합니다.
+7인의 리뷰 결과를 Philosopher 관점에서 종합합니다.
 이 단계는 메인 컨텍스트에서 직접 수행합니다 (별도 에이전트 아님).
 
 Philosopher의 정의(`~/.claude/plugins/onto-review/agents/philosopher.md`)와
@@ -222,7 +224,7 @@ Philosopher의 정의(`~/.claude/plugins/onto-review/agents/philosopher.md`)와
 ## Philosopher 종합
 
 ### 합의된 사항
-- (6인 중 다수가 동의한 판단)
+- (7인 중 다수가 동의한 판단)
 
 ### 모순되는 의견
 - (상충하는 판단 + 각 근거 요약)
@@ -234,9 +236,9 @@ Philosopher의 정의(`~/.claude/plugins/onto-review/agents/philosopher.md`)와
 - (Round 2에서 각 에이전트가 재검토해야 할 항목)
 ```
 
-### 4. Round 2 — 6인 재응답
+### 4. Round 2 — 7인 재응답
 
-Philosopher 종합을 포함하여 6인을 다시 **병렬 실행**합니다.
+Philosopher 종합을 포함하여 7인을 다시 **병렬 실행**합니다.
 
 ```
 당신은 {역할}입니다.
@@ -272,12 +274,12 @@ Round 2 결과를 Philosopher 관점에서 최종 종합합니다.
 출력 형식:
 
 ```markdown
-## 7-Agent Panel Review 결과
+## 8-Agent Panel Review 결과
 
 ### 리뷰 대상
 {리뷰 대상 요약}
 
-### 합의 (7/7 또는 N/7)
+### 합의 (8/8 또는 N/8)
 - (전원 합의된 판단 목록)
 
 ### 조건부 합의
@@ -295,7 +297,7 @@ Round 2 결과를 Philosopher 관점에서 최종 종합합니다.
 
 ### 6. 학습 저장
 
-7인 전원의 학습을 저장합니다. 아래 "학습 저장 규칙"을 따릅니다.
+8인 전원의 학습을 저장합니다. 아래 "학습 저장 규칙"을 따릅니다.
 
 ---
 
@@ -349,7 +351,7 @@ Round 2 결과를 Philosopher 관점에서 최종 종합합니다.
 
 ## 코드 기반 온톨로지 구축 프로세스
 
-코드베이스를 6인 에이전트가 다관점으로 분석하여 온톨로지를 구축합니다.
+코드베이스를 7인 에이전트가 다관점으로 분석하여 온톨로지를 구축합니다.
 추출 결과에서 독립적으로 수렴하는 항목일수록 높은 신뢰도를 부여합니다 (귀납적 수렴 원리).
 
 ### Phase 0: Schema Negotiation
@@ -427,9 +429,9 @@ element_types:
     has: [parameters, returnType]
 ```
 
-### Phase 1: 6인 병렬 추출
+### Phase 1: 7인 병렬 추출
 
-Agent tool로 6인(philosopher 제외)을 **병렬 실행**합니다.
+Agent tool로 7인(philosopher 제외)을 **병렬 실행**합니다.
 
 각 에이전트에게 전달할 내용:
 
@@ -474,6 +476,7 @@ Agent tool로 6인(philosopher 제외)을 **병렬 실행**합니다.
 - onto_logic: 제약 조건, 불변 조건, 타입 충돌, 상태 전이 규칙
 - onto_pragmatics: 실제 사용 패턴, 역량 질문(이 온톨로지로 답할 수 있는 질문), 접근 경로
 - onto_evolution: 확장 지점, 변동 가능 영역, 현재 구조의 확장 한계
+- onto_coverage: 도메인 하위 영역 포괄 여부, 개념 범주 편중, 표준 대비 누락 영역
 
 [보고 형식]
 YAML 형식으로 보고하세요:
@@ -514,7 +517,7 @@ learnings:
 
 ### Phase 2: Philosopher 종합
 
-6인의 추출 결과를 Philosopher 관점에서 **하나의 Raw Ontology로 통합**합니다.
+7인의 추출 결과를 Philosopher 관점에서 **하나의 Raw Ontology로 통합**합니다.
 이 단계는 메인 컨텍스트에서 직접 수행합니다.
 
 Philosopher의 정의(`~/.claude/plugins/onto-review/agents/philosopher.md`)와
@@ -524,11 +527,11 @@ Philosopher의 정의(`~/.claude/plugins/onto-review/agents/philosopher.md`)와
 
 1. **수렴도 산출**: 각 추출 항목에 대해, 몇 인의 에이전트가 독립적으로 식별했는가를 계산합니다.
    - 동일 개념: 이름이 다르더라도 같은 코드 위치를 참조하거나 의미가 동일하면 하나로 통합합니다.
-   - 수렴도 = 해당 항목을 식별한 에이전트 수 / 전체 에이전트 수 (6)
+   - 수렴도 = 해당 항목을 식별한 에이전트 수 / 전체 에이전트 수 (7)
 
 2. **신뢰도 등급 부여**:
-   - 확정 (4인 이상 독립 식별): 높은 신뢰도. 그대로 포함.
-   - 추정 (2~3인 식별): 중간 신뢰도. 근거를 명시하여 포함.
+   - 확정 (5인 이상 독립 식별): 높은 신뢰도. 그대로 포함.
+   - 추정 (2~4인 식별): 중간 신뢰도. 근거를 명시하여 포함.
    - 후보 (1인만 식별): 낮은 신뢰도. 별도 섹션에 분리.
 
 3. **모순 처리**: 에이전트 간 상충하는 추출이 있으면:
@@ -550,16 +553,16 @@ Philosopher의 정의(`~/.claude/plugins/onto-review/agents/philosopher.md`)와
 
 ---
 
-### 확정 항목 (수렴도 4/6 이상) — N건
+### 확정 항목 (수렴도 5/7 이상) — N건
 | # | 유형 | 이름 | 수렴도 | 요약 |
 |---|---|---|---|---|
-| 1 | {type} | {name} | {N}/6 | {한 줄 설명} |
+| 1 | {type} | {name} | {N}/7 | {한 줄 설명} |
 
-### 추정 항목 (수렴도 2~3/6) — N건
+### 추정 항목 (수렴도 2~4/7) — N건
 | # | 유형 | 이름 | 수렴도 | 식별 에이전트 | 요약 |
 |---|---|---|---|---|---|
 
-### 후보 항목 (수렴도 1/6) — N건
+### 후보 항목 (수렴도 1/7) — N건
 | # | 유형 | 이름 | 식별 에이전트 | 포함 여부 |
 |---|---|---|---|---|
 
@@ -592,7 +595,7 @@ meta:
   domain: {domain}
   source: {분석 대상 경로}
   date: {날짜}
-  agents: [onto_logic, onto_structure, onto_dependency, onto_semantics, onto_pragmatics, onto_evolution]
+  agents: [onto_logic, onto_structure, onto_dependency, onto_semantics, onto_pragmatics, onto_evolution, onto_coverage]
 
 elements:
   - id: {요소 ID}
@@ -601,7 +604,7 @@ elements:
     definition: {정의}
     confidence: confirmed | estimated | candidate
     convergence:
-      score: {N}/6
+      score: {N}/7
       agents:
         {agent-id}: {해당 에이전트의 근거 — 1문장}
         # ... 식별한 에이전트만 포함
@@ -623,7 +626,7 @@ relations:
     type: {관계 유형}
     direction: {forward | backward | bidirectional}
     convergence:
-      score: {N}/6
+      score: {N}/7
       agents:
         {agent-id}: {근거}
     source:
@@ -636,7 +639,7 @@ constraints:
     applies_to: {요소 ID 또는 관계 ID}
     description: {제약 내용}
     convergence:
-      score: {N}/6
+      score: {N}/7
       agents:
         {agent-id}: {근거}
     source:
@@ -658,7 +661,7 @@ issues:
 
 ### Phase 5: 학습 저장
 
-6인 전원의 학습을 저장합니다. "학습 저장 규칙"을 따릅니다.
+7인 전원의 학습을 저장합니다. "학습 저장 규칙"을 따릅니다.
 
 완료 보고:
 
@@ -679,7 +682,7 @@ issues:
 
 ### 다음 단계
 - `/onto-transform` — 원하는 형식으로 변환
-- `/onto-review .claude/ontology/raw.yml` — 구축된 온톨로지를 7인 패널로 검증
+- `/onto-review .claude/ontology/raw.yml` — 구축된 온톨로지를 8인 패널로 검증
 ```
 
 ---
@@ -812,7 +815,7 @@ Raw Ontology를 어떤 형식으로 변환할까요?
 | 글로벌 도메인 문서 | {N개 존재 / 미존재 (자동 축적 예정)} |
 
 ### 다음 단계
-- `/onto-review {대상}` — 7인 패널 리뷰 실행
+- `/onto-review {대상}` — 8인 패널 리뷰 실행
 - `/onto-{dimension} {질문}` — 개별 전문가 질문
 - 학습이 쌓이면 `/promote-learnings` — 프로젝트 학습을 글로벌에 반영
 ```

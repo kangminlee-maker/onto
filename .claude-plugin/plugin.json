@@ -3,21 +3,5 @@
   "description": "Ontology verification system using 7+1 agent panel. Verifies logical consistency, structural completeness, dependency integrity, semantic accuracy, practical usability, evolution fitness, and domain coverage across any domain.",
   "author": {
     "name": "kangmin"
-  },
-  "commands": [
-    "./commands/onto-review.md",
-    "./commands/onto-logic.md",
-    "./commands/onto-structure.md",
-    "./commands/onto-dependency.md",
-    "./commands/onto-semantics.md",
-    "./commands/onto-pragmatics.md",
-    "./commands/onto-evolution.md",
-    "./commands/onto-coverage.md",
-    "./commands/onto-philosopher.md",
-    "./commands/onto-buildfromcode.md",
-    "./commands/onto-transform.md",
-    "./commands/onto-onboard.md",
-    "./commands/onto-promotelearnings.md"
-  ],
-  "agents": "./agents/"
+  }
 }

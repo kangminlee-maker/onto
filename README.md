@@ -6,14 +6,11 @@
 
 ## 설치
 
-```bash
-claude plugin add kangminlee-maker/onto-review
+Claude Code에서 아래 명령어를 순서대로 실행합니다:
+
 ```
-
-또는 직접 클론:
-
-```bash
-git clone https://github.com/kangminlee-maker/onto-review.git ~/.claude/plugins/onto-review
+/plugin marketplace add kangminlee-maker/onto-review
+/plugin install onto-review@kangminlee-maker/onto-review
 ```
 
 ## 에이전트 구성

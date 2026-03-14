@@ -36,10 +36,11 @@
 ### 3. 일반화 가능성 검수
 
 승격 후보(신규 + 모순)를 3인 에이전트 패널로 검수합니다.
-`process.md`의 **Agent Teams 실행 방식**을 따릅니다.
+`process.md`의 **Agent Teams 실행 방식**을 따릅니다 (에러 처리 규칙, 구조 조율자 역할 포함).
 TeamCreate로 팀(`onto-promote`)을 생성하고, 3인을 teammate로 생성합니다.
 초기 prompt: `process.md`의 **Teammate 초기 prompt 템플릿** 사용 (팀명: `onto-promote`).
-team lead가 3인에게 SendMessage로 검수 지시를 **개별 전달**합니다.
+team lead(구조 조율자)가 3인에게 SendMessage로 검수 지시를 **개별 전달**합니다.
+검수 에이전트 미응답 시, 해당 에이전트를 제외하고 나머지로 합의 판정 (분모 조정).
 
 **검수 에이전트 선정**:
 - 해당 학습을 생성한 에이전트 본인

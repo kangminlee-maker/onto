@@ -1,9 +1,9 @@
 # 코드 기반 온톨로지 구축 프로세스
 
-> 코드베이스를 8인 에이전트가 다관점으로 분석하여 온톨로지를 구축합니다.
+> 코드베이스를 7인 reviewer + Philosopher가 다관점으로 분석하여 온톨로지를 구축합니다.
 > 관련: 구축 후 `/onto-transform`으로 변환, `/onto-review`로 검증 가능.
 
-코드베이스를 7인 에이전트가 다관점으로 분석하여 온톨로지를 구축합니다.
+코드베이스를 7인 reviewer가 다관점으로 추출하고, Philosopher가 종합합니다.
 추출 결과에서 독립적으로 수렴하는 항목일수록 높은 신뢰도를 부여합니다 (귀납적 수렴 원리).
 
 ### Phase 0: Schema Negotiation
@@ -83,11 +83,12 @@ element_types:
 
 ### Phase 1: 7인 병렬 추출
 
-`process.md`의 **Agent Teams 실행 방식**을 따릅니다.
+`process.md`의 **Agent Teams 실행 방식**을 따릅니다 (에러 처리 규칙, 구조 조율자 역할 포함).
 TeamCreate로 팀(`onto-buildfromcode`)을 생성하고, 7인 reviewer + Philosopher를 teammate로 생성합니다.
 초기 prompt: `process.md`의 **Teammate 초기 prompt 템플릿** 사용 (팀명: `onto-buildfromcode`).
 
-team lead가 7인 reviewer에게 SendMessage로 추출 지시를 **개별 전달**합니다.
+team lead(구조 조율자)가 7인 reviewer에게 SendMessage로 추출 지시를 **개별 전달**합니다.
+추출 결과를 Philosopher에게 전달할 때 **수정/요약 없이 원문 그대로** 전달합니다.
 
 각 reviewer에게 전달할 SendMessage 내용:
 
@@ -143,8 +144,9 @@ issues:
 
 learnings:
   communication: {소통 학습. 없으면 "없음"}
-  methodology: {방법론 학습. 없으면 "없음"}
-  domain: {도메인 학습. 없으면 "없음"}
+  methodology: "[{유형}] {학습 내용}. 없으면 '없음'"
+  domain: "[{유형}] {학습 내용}. 없으면 '없음'"
+  # {유형}: 사실 또는 판단
 ```
 ```
 
@@ -164,7 +166,7 @@ Philosopher가 **하나의 Raw Ontology로 통합**합니다.
 
 1. **수렴도 산출**: 각 추출 항목에 대해, 몇 인의 에이전트가 독립적으로 식별했는가를 계산합니다.
    - 동일 개념: 이름이 다르더라도 같은 코드 위치를 참조하거나 의미가 동일하면 하나로 통합합니다.
-   - 수렴도 = 해당 항목을 식별한 에이전트 수 / 전체 에이전트 수 (7)
+   - 수렴도 = 해당 항목을 식별한 에이전트 수 / 실제 응답한 에이전트 수 (에러로 제외된 에이전트는 분모에서 제외)
 
 2. **신뢰도 등급 부여**:
    - 확정 (5인 이상 독립 식별): 높은 신뢰도. 그대로 포함.

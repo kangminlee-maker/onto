@@ -5,6 +5,8 @@
 
 ### 1. Context Gathering
 
+`process.md`의 **에러 처리 규칙**을 따릅니다: 에이전트 정의/질문 대상 읽기 실패 시 프로세스 중단. 학습/도메인 문서 부재 시 "아직 없음"으로 처리하고 계속 진행.
+
 1. **에이전트 파일 수집**:
    - 정의: `~/.claude/plugins/onto-review/agents/{agent-id}.md`
    - 방법론 학습: `~/.claude/agent-memory/methodology/{agent-id}.md`

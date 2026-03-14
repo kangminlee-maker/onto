@@ -6,12 +6,12 @@
 `process.md`의 **Agent Teams 실행 방식**을 따릅니다.
 
 **팀 구성**:
-- **Team lead**: 메인 컨텍스트 (순수 오케스트레이터)
+- **Team lead**: 메인 컨텍스트 (구조 조율자)
 - **Teammates**: 7인 reviewer + Philosopher = 8인
 
-### 1. Context Gathering
+### 1. Context Gathering (team lead가 수행)
 
-리뷰 대상($ARGUMENTS)을 파악합니다.
+team lead가 아래 항목만 수집합니다. 에이전트별 학습/도메인 문서는 teammate가 자기 로딩합니다.
 
 1. **리뷰 대상 수집**:
    - 파일/디렉토리인 경우: 해당 코드를 읽습니다.
@@ -20,21 +20,12 @@
 2. **프로젝트 컨텍스트 수집**:
    - CLAUDE.md, README.md 등에서 시스템 목적과 원칙을 파악합니다.
 
-3. **도메인 판별**:
+3. **도메인 판별 + 경로 resolve**:
    - 프로젝트의 도메인을 확인합니다.
-   - `~/.claude/agent-memory/domains/{domain}/` 하위 문서를 수집합니다.
+   - 플러그인 경로를 확인합니다. (teammate 초기 prompt의 경로 변수에 사용)
 
-4. **에이전트 파일 수집** (8인 각각):
-   - 정의: `~/.claude/plugins/onto-review/agents/{agent-id}.md`
-   - 방법론 학습: `~/.claude/agent-memory/methodology/{agent-id}.md`
-   - 소통 학습 (공통): `~/.claude/agent-memory/communication/common.md`
-   - 소통 학습 (개별): `~/.claude/agent-memory/communication/{agent-id}.md`
-   - 파일이 없으면 무시합니다.
-
-5. **도메인 학습 수집** (8인 각각, 반드시 수행):
-   - 글로벌: `~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md`
-   - **프로젝트**: `{project}/.claude/learnings/{agent-id}.md` — 해당 프로젝트에서 축적된 학습. **이 디렉토리가 존재하면 반드시 읽어야 합니다.**
-   - 파일이 없으면 무시합니다.
+4. **에이전트 정의 수집** (8인 각각):
+   - `~/.claude/plugins/onto-review/agents/{agent-id}.md` — 에이전트당 ~14행. team lead가 읽어서 초기 prompt에 직접 포함합니다.
 
 ### 2. Team 생성
 
@@ -47,10 +38,18 @@ Agent tool로 8인의 teammate를 **하나의 메시지에서 동시에** 생성
 - 각 teammate의 `team_name`: `onto-review`
 - 초기 prompt: `process.md`의 **Teammate 초기 prompt 템플릿** 사용 (팀명: `onto-review 팀 리뷰`)
 
-### 3. Round 1 — 7인 독립 리뷰
+### 3. Round 1 — 7인 독립 리뷰 (1단계: 형식 검증 포함)
 
 team lead가 7인 reviewer에게 SendMessage로 리뷰 지시를 **개별 전달**합니다.
 Philosopher는 이 단계에서 대기합니다.
+
+각 reviewer는 리뷰 시 다음 **형식 검증 체크리스트**를 먼저 수행합니다:
+- [ ] 분류 항목들 사이에 겹침(ME 위반)이 있는가?
+- [ ] 각 항목의 정의가 명시되어 있는가? (이름만 나열되어 있지 않은가)
+- [ ] 분류에 사용된 축(기준)이 무엇인지 명시되어 있는가?
+- [ ] 학습 항목에 유형 태깅([사실]/[판단])이 되어 있는가?
+
+형식 검증은 도메인 지식 없이 수행 가능합니다. 형식 검증 후, 각 에이전트의 전문 관점에서 내용 검증을 수행합니다.
 
 각 reviewer에게 전달할 SendMessage 내용:
 

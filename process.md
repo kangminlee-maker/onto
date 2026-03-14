@@ -4,7 +4,7 @@
 
 ## 에이전트 구성
 
-### 온톨로지 검증 에이전트 (7인)
+### 검증 에이전트 (7인)
 | ID | 역할 | 검증 차원 |
 |---|---|---|
 | `onto_logic` | 논리적 일관성 검증자 | 모순, 타입 충돌, 제약 상충 |
@@ -136,6 +136,21 @@ Agent tool로 해당 에이전트를 **1인 실행**합니다.
 
 ## 팀 리뷰 모드
 
+### 실행 방식
+
+팀 리뷰는 **Agent Teams**를 우선 사용합니다.
+TeamCreate 실패 시, 기존 Agent tool(subagent) 방식으로 fallback합니다. fallback 시에도 프로세스 흐름은 동일하되, TeamCreate/SendMessage 대신 Agent tool을 사용하고, Round 3(직접 토론)은 생략합니다.
+
+**팀 구성**:
+- **Team lead**: 메인 컨텍스트 (순수 오케스트레이터)
+- **Teammates**: 7인 reviewer + Philosopher = 8인
+
+**Team lead 행동 규칙**:
+- 수집한 결과를 전달할 때 내용을 수정하거나 요약하지 않는다.
+- 자신의 판단을 리뷰에 개입시키지 않는다.
+- Round 1~2에서 teammate 간 결과를 교차 공유하지 않는다 (독립성 보장).
+- 팀 생명주기를 관리한다 (생성 → 작업 할당 → 종료).
+
 ### 1. Context Gathering
 
 리뷰 대상($ARGUMENTS)을 파악합니다.
@@ -160,16 +175,21 @@ Agent tool로 해당 에이전트를 **1인 실행**합니다.
    - 소통 학습 (개별): `~/.claude/agent-memory/communication/{agent-id}.md`
    - 파일이 없으면 무시합니다.
 
-### 2. Round 1 — 7인 독립 리뷰
+### 2. Team 생성
 
-Agent tool로 7인(philosopher 제외)을 **병렬 실행**합니다.
-하나의 메시지에서 7개의 Agent tool call을 동시에 보냅니다.
+TeamCreate로 팀을 생성합니다:
+- team_name: `onto-review`
+- description: `8-Agent Panel Review: {리뷰 대상 요약}`
 
-각 에이전트에게 전달할 내용:
+Agent tool로 8인의 teammate를 **하나의 메시지에서 동시에** 생성합니다:
+- 각 teammate의 `name`: agent-id (예: `onto_logic`, `philosopher`)
+- 각 teammate의 `team_name`: `onto-review`
+
+각 teammate에게 전달할 초기 prompt (에이전트 정체성 + 컨텍스트 설정):
 
 ```
 당신은 {역할}입니다.
-아래 내용을 당신의 전문 영역 관점에서 리뷰하세요.
+onto-review 팀 리뷰에 참여합니다.
 
 [당신의 정의]
 {~/.claude/plugins/onto-review/agents/{agent-id}.md 내용}
@@ -185,6 +205,25 @@ Agent tool로 7인(philosopher 제외)을 **병렬 실행**합니다.
 
 [소통 학습]
 {공통 + 개별 소통 학습 내용. 없으면 "아직 없음"}
+
+[팀 규칙]
+- team lead가 SendMessage로 작업을 할당합니다. 작업을 받으면 수행하고 결과를 team lead에게 SendMessage로 보고하세요.
+- team lead가 허용하기 전에는 다른 teammate에게 직접 메시지를 보내지 마세요.
+- 한국어(존댓말)로 답변하세요.
+- 비유/은유를 사용하지 마세요.
+```
+
+TeamCreate 실패 시: 이후 모든 단계에서 Agent tool(subagent) 방식으로 fallback합니다. 이 경우 각 Agent tool call에 위 초기 prompt + 작업 지시를 합쳐서 전달합니다.
+
+### 3. Round 1 — 7인 독립 리뷰
+
+team lead가 7인 reviewer에게 SendMessage로 리뷰 지시를 **개별 전달**합니다.
+Philosopher는 이 단계에서 대기합니다.
+
+각 reviewer에게 전달할 SendMessage 내용:
+
+```
+Round 1 리뷰를 시작하세요.
 
 [리뷰 대상]
 {리뷰 대상 내용}
@@ -210,17 +249,24 @@ Agent tool로 7인(philosopher 제외)을 **병렬 실행**합니다.
 없으면 각각 "없음"으로 표기하세요.
 ```
 
-### 3. Philosopher 종합
+### 4. Philosopher 종합 + 관점 제시
 
-7인의 리뷰 결과를 Philosopher 관점에서 종합합니다.
-이 단계는 메인 컨텍스트에서 직접 수행합니다 (별도 에이전트 아님).
+team lead가 7인의 리뷰 결과를 **수정/요약 없이 원문 그대로** Philosopher teammate에게 SendMessage로 전달합니다.
 
-Philosopher의 정의(`~/.claude/plugins/onto-review/agents/philosopher.md`)와
-과거 학습(방법론 + 도메인)도 참고합니다.
+Philosopher에게 전달할 SendMessage 내용:
 
-종합 형식:
+```
+7인의 Round 1 리뷰 결과를 종합하고, 시스템 목적 관점에서 새로운 관점을 제시하세요.
 
-```markdown
+[7인의 리뷰 결과]
+{7인의 결과 전문 — 수정/요약 없이 원문 그대로}
+
+[시스템 목적과 원칙]
+{CLAUDE.md/README.md 내용}
+
+[지시]
+아래 형식으로 종합하세요:
+
 ## Philosopher 종합
 
 ### 합의된 사항
@@ -234,42 +280,116 @@ Philosopher의 정의(`~/.claude/plugins/onto-review/agents/philosopher.md`)와
 
 ### 미해결 쟁점
 - (Round 2에서 각 에이전트가 재검토해야 할 항목)
+
+### 새로운 관점
+- (시스템의 목적과 철학적 원칙에서 도출되는, 7인이 아직 고려하지 않은 관점)
 ```
 
-### 4. Round 2 — 7인 재응답
+### 5. Round 2 — 7인 재응답
 
-Philosopher 종합을 포함하여 7인을 다시 **병렬 실행**합니다.
+team lead가 Philosopher의 종합 + 관점 제시를 각 reviewer에게 SendMessage로 **개별 전달**합니다.
+각 reviewer는 자신의 Round 1 맥락을 유지한 채 응답합니다 (teammate가 유지되므로 맥락 손실 없음).
+
+각 reviewer에게 전달할 SendMessage 내용:
 
 ```
-당신은 {역할}입니다.
-Philosopher가 Round 1 리뷰를 종합했습니다.
+Round 2 리뷰를 시작하세요.
+Philosopher가 Round 1 리뷰를 종합하고 새로운 관점을 제시했습니다.
 
-[당신의 Round 1 리뷰]
-{자신의 Round 1 결과}
-
-[Philosopher 종합]
-{종합 내용}
+[Philosopher 종합 + 관점 제시]
+{Philosopher의 보고 전문}
 
 [지시]
 - Philosopher의 종합을 읽고, 자신의 의견을 유지하거나 수정하세요.
 - 모순되는 의견에 대해: 자신의 입장을 근거와 함께 재진술하거나, 상대 의견을 수용하세요.
 - 간과된 전제에 대해: 자신의 관점에서 의견을 추가하세요.
 - 미해결 쟁점에 대해: 명확한 판단을 제시하세요.
+- Philosopher가 제시한 새로운 관점에 대해: 자신의 전문 영역에서 의견을 추가하세요.
 - 최종 판단을 "유지" 또는 "수정(이유)" 형태로 제출하세요.
 
 [보고 형식]
 리뷰 결과 마지막에 아래 섹션을 반드시 포함하세요:
 
-### 새로 배운 것 (최종)
+### 새로 배운 것
 - 소통 학습: (사용자 선호/소통 방식에 대한 발견)
 - 방법론 학습: (어떤 도메인에서든 적용 가능한 검증 원칙)
 - 도메인 학습: (이 도메인에서만 유효한 학습)
 없으면 각각 "없음"으로 표기하세요.
 ```
 
-### 5. 최종 합의 정리
+### 6. Philosopher 종합 (Round 2) + 목적/철학 부합 확인
 
-Round 2 결과를 Philosopher 관점에서 최종 종합합니다.
+team lead가 7인의 Round 2 결과를 Philosopher에게 전달합니다.
+Philosopher는 종합과 함께, **합의 여부와 관계없이** 결론이 시스템 목적에 부합하는지 검증합니다.
+
+Philosopher에게 전달할 SendMessage 내용:
+
+```
+7인의 Round 2 결과를 종합하고, 결론이 시스템 목적에 부합하는지 검증하세요.
+
+[7인의 Round 2 결과]
+{7인의 결과 전문}
+
+[시스템 목적과 원칙]
+{CLAUDE.md/README.md 내용}
+
+[지시]
+1. Round 2 결과를 종합하세요.
+2. 합의 여부와 관계없이, 도출된 결론이 시스템의 목적과 철학에 부합하는지 검증하세요.
+3. 미합의 항목이 있는지 판별하세요.
+
+아래 형식으로 보고하세요:
+
+## Philosopher 종합 (Round 2)
+
+### 합의 (8/8 또는 N/8)
+- (전원 합의된 판단 목록)
+
+### 조건부 합의
+- (다수 합의 + 소수 유보. 유보 사유 명시)
+
+### 미합의
+- (합의에 도달하지 못한 항목. 각 입장 + 근거)
+
+### 목적 부합 검증
+- (결론들이 시스템 목적에 부합하는지 여부와 근거)
+- (부합하지 않는 항목이 있다면 어떤 점에서 벗어나는지)
+
+### Round 3 필요 여부
+- 필요 / 불필요
+- (필요한 경우: 미합의 항목 목록과 토론에 참여해야 할 에이전트)
+```
+
+### 7. Round 3 — 쟁점 토론 (미합의 시)
+
+Philosopher가 "Round 3 필요"로 판정한 경우에만 실행합니다.
+
+이 단계에서는 **teammate 간 직접 SendMessage를 허용**합니다.
+team lead가 해당 에이전트들(Philosopher 포함)에게 토론 개시를 통보합니다:
+
+```
+Round 3 쟁점 토론을 시작합니다.
+아래 미합의 항목에 대해 해당 에이전트들과 직접 토론하세요.
+
+[미합의 항목]
+{Philosopher가 지정한 미합의 항목 목록}
+
+[토론 참여 에이전트]
+{Philosopher가 지정한 에이전트 목록}
+
+[토론 규칙]
+- 상대의 논거에 직접 반응하세요. 자신의 입장만 반복하지 마세요.
+- 상대의 논거가 타당하면 수용하세요.
+- 양측의 논거를 결합한 새로운 대안이 가능하면 제시하세요.
+- 3회 왕복 후에도 합의되지 않으면 각자 최종 입장을 team lead에게 보고하세요.
+```
+
+team lead는 토론 종료 후 결과를 수집합니다.
+
+### 8. 최종 합의 정리
+
+team lead가 최종 결과를 사용자에게 출력합니다.
+Round 3를 거치지 않은 경우 Philosopher 종합 (Round 2)의 결과를, Round 3를 거친 경우 토론 결과를 반영합니다.
 
 출력 형식:
 
@@ -288,6 +408,9 @@ Round 2 결과를 Philosopher 관점에서 최종 종합합니다.
 ### 미합의
 - (합의에 도달하지 못한 항목. 각 입장 + 근거)
 
+### 목적 부합 검증
+- (Philosopher의 목적 부합 판정)
+
 ### 즉시 조치 필요
 - (합의된 수정 사항 중 바로 반영해야 할 것)
 
@@ -295,9 +418,15 @@ Round 2 결과를 Philosopher 관점에서 최종 종합합니다.
 - (합의된 개선 사항 중 이후 반영 가능한 것)
 ```
 
-### 6. 학습 저장
+### 9. Team 종료
+
+team lead가 8인 전원에게 shutdown_request를 보냅니다.
+전원 종료 후 TeamDelete로 팀을 정리합니다.
+
+### 10. 학습 저장
 
 8인 전원의 학습을 저장합니다. 아래 "학습 저장 규칙"을 따릅니다.
+Round 3를 거친 경우, 토론 과정에서 발생한 학습도 포함합니다.
 
 ---
 
@@ -431,9 +560,14 @@ element_types:
 
 ### Phase 1: 7인 병렬 추출
 
-Agent tool로 7인(philosopher 제외)을 **병렬 실행**합니다.
+팀 리뷰 모드의 "실행 방식"과 동일하게 Agent Teams를 우선 사용합니다.
+TeamCreate로 팀(`onto-buildfromcode`)을 생성하고, 7인 reviewer + Philosopher를 teammate로 생성합니다.
+teammate 초기 prompt는 팀 리뷰 모드의 "Team 생성" 단계와 동일합니다.
+TeamCreate 실패 시 Agent tool(subagent) 방식으로 fallback합니다.
 
-각 에이전트에게 전달할 내용:
+team lead가 7인 reviewer에게 SendMessage로 추출 지시를 **개별 전달**합니다.
+
+각 reviewer에게 전달할 SendMessage 내용:
 
 ```
 당신은 {역할}입니다.
@@ -517,8 +651,8 @@ learnings:
 
 ### Phase 2: Philosopher 종합
 
-7인의 추출 결과를 Philosopher 관점에서 **하나의 Raw Ontology로 통합**합니다.
-이 단계는 메인 컨텍스트에서 직접 수행합니다.
+team lead가 7인의 추출 결과를 Philosopher teammate에게 SendMessage로 전달합니다.
+Philosopher가 **하나의 Raw Ontology로 통합**합니다.
 
 Philosopher의 정의(`~/.claude/plugins/onto-review/agents/philosopher.md`)와
 과거 학습(방법론 + 도메인)도 참고합니다.
@@ -857,7 +991,9 @@ Raw Ontology를 어떤 형식으로 변환할까요?
 ### 3. 일반화 가능성 검수
 
 승격 후보(신규 + 모순)를 3인 에이전트 패널로 검수합니다.
-Agent tool로 3인을 **병렬 실행**합니다.
+Agent Teams를 우선 사용합니다. TeamCreate로 팀(`onto-promote`)을 생성하고 3인을 teammate로 생성합니다.
+TeamCreate 실패 시 Agent tool(subagent) 방식으로 fallback합니다.
+team lead가 3인에게 SendMessage로 검수 지시를 **개별 전달**합니다.
 
 **검수 에이전트 선정**:
 - 해당 학습을 생성한 에이전트 본인

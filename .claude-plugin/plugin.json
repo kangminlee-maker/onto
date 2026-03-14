@@ -97,7 +97,7 @@
     },
     {
       "id": "philosopher",
-      "name": "종합자",
+      "name": "목적 정합성 검증자",
       "file": "agents/philosopher.md"
     }
   ]

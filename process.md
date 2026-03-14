@@ -77,8 +77,7 @@
 TeamCreate 실패 시, Agent tool(subagent) 방식으로 fallback합니다. 프로세스의 **목적과 출력 형식**은 동일하되, 실행 방식은 다릅니다:
 - TeamCreate/SendMessage 대신 Agent tool을 사용합니다.
 - 각 Agent tool call에 에이전트 정의 + 컨텍스트 + 작업 지시를 합쳐서 전달합니다. (teammate가 자기 로딩할 수 없으므로 team lead가 내용을 직접 포함)
-- Round 2에서 "자신의 Round 1 맥락을 유지한 채 응답"이 불가능하므로, team lead가 해당 에이전트의 Round 1 결과를 Round 2 prompt에 포함시킵니다.
-- 직접 토론(Round 3 등)은 생략합니다. Philosopher가 "Round 3 필요"로 판정하더라도, 미합의 항목은 그대로 최종 보고에 포함합니다.
+- 쟁점 토론(직접 SendMessage)은 생략합니다. Philosopher가 "쟁점 토론 필요"로 판정하더라도, 미합의 항목은 그대로 최종 보고에 포함합니다.
 - Fallback 시 team lead가 각 Agent tool call에 포함해야 하는 내용: 에이전트 정의 + 방법론 학습 + 도메인 문서 + 도메인 학습 + 소통 학습 + 작업 지시. (자기 로딩이 불가능하므로 모든 컨텍스트를 직접 포함)
 
 ### 에러 처리 규칙

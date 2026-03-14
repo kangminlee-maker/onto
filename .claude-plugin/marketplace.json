@@ -7,7 +7,7 @@
     {
       "name": "onto-review",
       "source": ".",
-      "description": "Ontology verification system using 7+1 agent panel. Verifies logical consistency, structural completeness, dependency integrity, semantic accuracy, practical usability, evolution fitness, and domain coverage across any domain."
+      "description": "Ontology verification system using 7+1 agent panel. Verifies logical consistency, structural completeness, dependency integrity, semantic accuracy, practical usability, evolution fitness, and domain coverage across any domain. Includes 13 commands: 8 individual agent queries, team review, code-based ontology building, format transformation, project onboarding, and learning promotion."
     }
   ]
 }

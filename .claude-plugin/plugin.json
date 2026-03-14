@@ -4,5 +4,101 @@
   "process": "process.md",
   "author": {
     "name": "kangmin"
-  }
+  },
+  "commands": [
+    {
+      "name": "onto-review",
+      "description": "8인 에이전트 패널로 온톨로지 리뷰를 실행합니다"
+    },
+    {
+      "name": "onto-logic",
+      "description": "논리적 일관성 검증자에게 질문합니다"
+    },
+    {
+      "name": "onto-structure",
+      "description": "구조적 완전성 검증자에게 질문합니다"
+    },
+    {
+      "name": "onto-dependency",
+      "description": "의존성 무결성 검증자에게 질문합니다"
+    },
+    {
+      "name": "onto-semantics",
+      "description": "의미적 정확성 검증자에게 질문합니다"
+    },
+    {
+      "name": "onto-pragmatics",
+      "description": "활용 적합성 검증자에게 질문합니다"
+    },
+    {
+      "name": "onto-evolution",
+      "description": "확장·진화 적합성 검증자에게 질문합니다"
+    },
+    {
+      "name": "onto-coverage",
+      "description": "도메인 포괄성 검증자에게 질문합니다"
+    },
+    {
+      "name": "onto-philosopher",
+      "description": "Philosopher(종합자)에게 질문합니다"
+    },
+    {
+      "name": "onto-buildfromcode",
+      "description": "코드베이스를 분석하여 온톨로지를 구축합니다"
+    },
+    {
+      "name": "onto-transform",
+      "description": "Raw Ontology를 원하는 형식으로 변환합니다"
+    },
+    {
+      "name": "onto-onboard",
+      "description": "프로젝트에 onto-review 환경을 설정합니다"
+    },
+    {
+      "name": "onto-promotelearnings",
+      "description": "프로젝트 학습을 글로벌 수준으로 승격합니다"
+    }
+  ],
+  "agents": [
+    {
+      "id": "onto_logic",
+      "name": "논리적 일관성 검증자",
+      "file": "agents/onto_logic.md"
+    },
+    {
+      "id": "onto_structure",
+      "name": "구조적 완전성 검증자",
+      "file": "agents/onto_structure.md"
+    },
+    {
+      "id": "onto_dependency",
+      "name": "의존성 무결성 검증자",
+      "file": "agents/onto_dependency.md"
+    },
+    {
+      "id": "onto_semantics",
+      "name": "의미적 정확성 검증자",
+      "file": "agents/onto_semantics.md"
+    },
+    {
+      "id": "onto_pragmatics",
+      "name": "활용 적합성 검증자",
+      "file": "agents/onto_pragmatics.md"
+    },
+    {
+      "id": "onto_evolution",
+      "name": "확장·진화 적합성 검증자",
+      "file": "agents/onto_evolution.md"
+    },
+    {
+      "id": "onto_coverage",
+      "name": "도메인 포괄성 검증자",
+      "file": "agents/onto_coverage.md"
+    },
+    {
+      "id": "philosopher",
+      "name": "종합자",
+      "file": "agents/philosopher.md"
+    }
+  ]
 }

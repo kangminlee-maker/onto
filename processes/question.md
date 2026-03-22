@@ -8,7 +8,7 @@
 `process.md`의 **에러 처리 규칙**을 따릅니다: 에이전트 정의/질문 대상 읽기 실패 시 프로세스 중단. 학습/도메인 문서 부재 시 "아직 없음"으로 처리하고 계속 진행.
 
 1. **에이전트 파일 수집**:
-   - 정의: `~/.claude/plugins/onto-review/agents/{agent-id}.md`
+   - 정의: `~/.claude/plugins/onto-review/roles/{agent-id}.md`
    - 방법론 학습: `~/.claude/agent-memory/methodology/{agent-id}.md`
    - 소통 학습 (공통): `~/.claude/agent-memory/communication/common.md`
    - 소통 학습 (개별): `~/.claude/agent-memory/communication/{agent-id}.md`
@@ -37,7 +37,7 @@ Agent tool로 해당 에이전트를 **1인 실행**합니다.
 아래 질문에 당신의 전문 영역 관점에서 답하세요.
 
 [당신의 정의]
-{~/.claude/plugins/onto-review/agents/{agent-id}.md 내용}
+{~/.claude/plugins/onto-review/roles/{agent-id}.md 내용}
 
 [과거 학습 — 방법론]
 {~/.claude/agent-memory/methodology/{agent-id}.md 내용. 없으면 "아직 없음"}

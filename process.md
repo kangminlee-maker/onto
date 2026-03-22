@@ -117,7 +117,7 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 {팀명} 팀에 참여합니다.
 
 [당신의 정의]
-{~/.claude/plugins/onto-review/agents/{agent-id}.md 내용}
+{~/.claude/plugins/onto-review/roles/{agent-id}.md 내용}
 
 [컨텍스트 자기 로딩]
 아래 파일들을 직접 읽고 자신의 컨텍스트를 구성하세요. 파일이 없으면 무시하세요:
@@ -150,7 +150,7 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 - 비유/은유를 사용하지 마세요.
 ```
 
-**에이전트 정의**(agents/{agent-id}.md)는 team lead가 읽어서 초기 prompt에 직접 포함합니다 (에이전트당 ~14행, 부담 경미). 나머지 컨텍스트는 teammate가 자기 로딩합니다.
+**에이전트 정의**(roles/{agent-id}.md)는 team lead가 읽어서 초기 prompt에 직접 포함합니다 (에이전트당 ~14행, 부담 경미). 나머지 컨텍스트는 teammate가 자기 로딩합니다.
 
 ---
 

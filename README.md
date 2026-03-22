@@ -85,7 +85,7 @@ onto-review/
 │   ├── transform.md        # 온톨로지 변환
 │   ├── onboard.md          # 온보딩
 │   └── promote.md          # 학습 승격
-├── agents/
+├── roles/
 │   ├── onto_logic.md       # 논리적 일관성
 │   ├── onto_structure.md   # 구조적 완전성
 │   ├── onto_dependency.md  # 의존성 무결성

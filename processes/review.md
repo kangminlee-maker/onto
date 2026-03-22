@@ -31,7 +31,7 @@ team lead가 아래 항목만 수집합니다. 에이전트별 학습/도메인 
    - 플러그인 경로를 확인합니다. (teammate 초기 prompt의 경로 변수에 사용)
 
 4. **에이전트 정의 수집** (8인 각각):
-   - `~/.claude/plugins/onto-review/agents/{agent-id}.md` — 에이전트당 ~14행. team lead가 읽어서 초기 prompt에 직접 포함합니다.
+   - `~/.claude/plugins/onto-review/roles/{agent-id}.md` — 에이전트당 ~14행. team lead가 읽어서 초기 prompt에 직접 포함합니다.
 
 ---
 

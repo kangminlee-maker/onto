@@ -13,6 +13,33 @@ Claude Code에서 아래 명령어를 순서대로 실행합니다:
 /plugin install onto-review@kangminlee-maker/onto-review
 ```
 
+## 도메인 기본 문서 설치 (선택)
+
+플러그인에 포함된 도메인 기본 문서를 설치하면, 리뷰 시 도메인별 전문 기준이 적용됩니다.
+
+```bash
+# 대화형 — 도메인 선택
+./setup-domains.sh
+
+# 전체 설치
+./setup-domains.sh --all
+
+# 특정 도메인만 설치
+./setup-domains.sh software-engineering finance
+```
+
+| 도메인 | 설명 |
+|---|---|
+| `software-engineering` | 코드 품질, 아키텍처, 타입 안전성, 테스트 전략 |
+| `llm-native-development` | LLM 친화적 파일/폴더 구조, ontology-as-code |
+| `finance` | 재무제표, XBRL, 회계 항등식, 기업 간 비교 |
+| `business` | 경영 전략, 매출 인식, ROI, 변화관리 |
+| `market-intelligence` | 시장 분석, 경쟁 정보, 위험 평가, 데이터 신뢰도 |
+| `accounting` | K-IFRS, 복식부기, 세무 조정, 감사 |
+| `ontology` | 온톨로지 설계, OWL/RDFS/SKOS, 분류 일관성 |
+
+도메인 문서 없이도 사용 가능합니다 (범용 원칙으로 검증). `/onto-onboard` 실행 시에도 설치를 안내합니다.
+
 ## 에이전트 구성
 
 | ID | 역할 | 검증 차원 |

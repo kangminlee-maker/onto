@@ -113,7 +113,7 @@ TeamCreate 전에 `~/.claude/teams/{프로세스 이름}-*` 패턴으로 기존 
 
 #### 팀 종료 절차 (필수 준수)
 
-1. **전원 shutdown 확인**: 모든 teammate에게 shutdown_request를 전송합니다.
+1. **전원 shutdown 확인**: 모든 teammate에게 shutdown_request를 **개별 SendMessage로** 전송합니다 (구조화된 메시지는 `to: "*"` 브로드캐스트 불가).
 2. **응답 대기**: 각 teammate의 shutdown_approved를 확인합니다.
 3. **미응답 처리**: 30초 내 미응답 시 재전송합니다 (최대 3회).
 4. **전원 종료 후 TeamDelete**: 모든 teammate가 종료된 후에만 TeamDelete를 실행합니다.

@@ -37,15 +37,18 @@ team lead가 아래 항목만 수집합니다. 에이전트별 학습/도메인 
 
 ### 2. Team 생성 + Round 1 — 7인 독립 리뷰
 
-TeamCreate로 팀을 생성합니다:
-- team_name: `onto-review-{세션 ID}` (process.md의 팀 생성 규칙에 따라 `{YYYYMMDD}-{hash8}` 형태)
+**Step 1 — 세션 ID 생성**: `$(date +%Y%m%d)-$(openssl rand -hex 4)` (예: `20260325-a3f7b2c1`)
+
+**Step 2 — 세션 디렉토리 생성**: `{project}/.claude/sessions/review/{세션 ID}/round1/`
+
+**Step 3 — TeamCreate로 팀 생성**:
+- team_name: `onto-review-{세션 ID}`
 - description: `8-Agent Panel Review: {리뷰 대상 요약}`
 
-Agent tool로 8인의 teammate를 **하나의 메시지에서 동시에** 생성합니다. 초기 prompt에 정체성 + 자기 로딩 + 작업 지시를 통합하여, **생성 즉시 Round 1을 시작**합니다 (별도 SendMessage 불필요).
-
+**Step 4 — 8인 teammate 생성**: TeamCreate 후, Agent tool로 8인의 teammate를 **하나의 메시지에서 동시에** 생성합니다. 초기 prompt에 정체성 + 자기 로딩 + 작업 지시를 통합하여, **생성 즉시 Round 1을 시작**합니다.
 - 각 teammate의 `name`: agent-id (예: `onto_logic`, `philosopher`)
-- 각 teammate의 `team_name`: 위에서 생성한 타임스탬프 포함 team_name
-- 초기 prompt: `process.md`의 **Teammate 초기 prompt 템플릿** 사용
+- 각 teammate의 `team_name`: Step 3에서 생성한 team_name
+- 초기 prompt: `process.md`의 **Teammate 초기 prompt 템플릿** 사용 (세션 경로 포함)
 
 7인 reviewer의 초기 prompt에 포함할 **[작업 지시]** 섹션:
 

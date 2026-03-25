@@ -38,14 +38,14 @@ team lead가 아래 항목만 수집합니다. 에이전트별 학습/도메인 
 ### 2. Team 생성 + Round 1 — 7인 독립 리뷰
 
 TeamCreate로 팀을 생성합니다:
-- team_name: `onto-review`
+- team_name: `onto-review-{세션 ID}` (process.md의 팀 생성 규칙에 따라 `{YYYYMMDD}-{hash8}` 형태)
 - description: `8-Agent Panel Review: {리뷰 대상 요약}`
 
 Agent tool로 8인의 teammate를 **하나의 메시지에서 동시에** 생성합니다. 초기 prompt에 정체성 + 자기 로딩 + 작업 지시를 통합하여, **생성 즉시 Round 1을 시작**합니다 (별도 SendMessage 불필요).
 
 - 각 teammate의 `name`: agent-id (예: `onto_logic`, `philosopher`)
-- 각 teammate의 `team_name`: `onto-review`
-- 초기 prompt: `process.md`의 **Teammate 초기 prompt 템플릿** 사용 (팀명: `onto-review 팀 리뷰`)
+- 각 teammate의 `team_name`: 위에서 생성한 타임스탬프 포함 team_name
+- 초기 prompt: `process.md`의 **Teammate 초기 prompt 템플릿** 사용
 
 7인 reviewer의 초기 prompt에 포함할 **[작업 지시]** 섹션:
 
@@ -96,15 +96,25 @@ Philosopher의 초기 prompt에 포함할 **[작업 지시]** 섹션:
 
 ### 3. Philosopher 종합 + 판정
 
-team lead가 7인의 리뷰 결과를 **수정/요약 없이 원문 그대로** Philosopher teammate에게 SendMessage로 전달합니다.
+team lead가 7인의 리뷰 결과 파일 경로를 Philosopher teammate에게 SendMessage로 전달합니다. **원문은 파일에 보존되어 있으므로, team lead가 원문을 메시지에 포함하지 않습니다.**
 
 Philosopher에게 전달할 SendMessage 내용:
 
 ```
 7인의 Round 1 리뷰 결과를 종합하고, 시스템 목적 관점에서 판정하세요.
 
-[7인의 리뷰 결과]
-{7인의 결과 전문 — 수정/요약 없이 원문 그대로}
+[7인의 리뷰 결과 파일]
+아래 경로의 파일 7개를 Read 도구로 직접 읽으세요:
+{세션 경로}/round1/onto_logic.md
+{세션 경로}/round1/onto_structure.md
+{세션 경로}/round1/onto_dependency.md
+{세션 경로}/round1/onto_semantics.md
+{세션 경로}/round1/onto_pragmatics.md
+{세션 경로}/round1/onto_evolution.md
+{세션 경로}/round1/onto_coverage.md
+
+※ Write 실패로 파일이 없는 에이전트의 결과는 아래에 직접 포함합니다:
+{Write 실패 에이전트의 원문 (해당 시에만)}
 
 [시스템 목적과 원칙]
 {CLAUDE.md/README.md 내용}

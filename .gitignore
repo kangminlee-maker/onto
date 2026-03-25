@@ -1,0 +1,5 @@
+# Review session data (generated at runtime)
+.claude/sessions/
+
+# Ontology build outputs (project-specific)
+.claude/ontology/

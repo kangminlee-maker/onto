@@ -762,3 +762,147 @@ process.md ← processes/*.md ← commands/*.md
 **현재: 축적기**
 
 학습 축적이 우선이며, 프로세스 세분화(promote 분리 등)는 실행 경험이 충분히 쌓인 성숙기에 검토합니다. promote를 1회 이상 실행한 후, 실제 마찰을 기반으로 구조 변경을 판단합니다.
+
+---
+
+## 13. MCP 서버 외부화 설계 (미구현)
+
+> **상태**: 설계 문서. 구현 시작 전.
+> **동기**: onto-review를 Codex, Cursor 등 Claude Code 외의 MCP 호환 호스트에서도 사용 가능하게 만들기.
+> **참고 모델**: Ouroboros 플러그인의 MCP 서버 아키텍처.
+
+### 13.1 현재 구조의 플랫폼 종속성
+
+현재 onto-review는 오케스트레이션(에이전트 생성, 병렬 실행, 메시지 라우팅)을 **호스트(Claude Code)**에 의존합니다:
+
+| 기능 | 사용하는 호스트 기능 |
+|---|---|
+| 8인 병렬 실행 | Agent Teams (TeamCreate) 또는 Agent tool |
+| 에이전트 간 통신 | SendMessage |
+| 에이전트 자기 로딩 | teammate가 Read 도구로 파일 직접 읽기 |
+| 학습 저장 | teammate가 Write 도구로 파일 직접 쓰기 |
+
+이 기능들은 Claude Code 전용이므로, 다른 플랫폼(Codex, Cursor 등)에서는 작동하지 않습니다.
+
+### 13.2 설계 원칙: 오케스트레이션 소유권 이전
+
+**핵심 변경**: 오케스트레이션을 호스트에서 MCP 서버로 이전합니다.
+
+```
+[현재]
+호스트(Claude Code)가 오케스트레이션 소유
+  → TeamCreate, Agent tool, SendMessage로 에이전트 관리
+  → 호스트 없으면 작동 불가
+
+[변경 후]
+MCP 서버가 오케스트레이션 소유
+  → 서버가 직접 LLM API 호출하여 에이전트 실행
+  → 서버 내부에서 병렬 실행, 메시지 라우팅, 학습 저장
+  → 호스트는 stateless 클라이언트 (MCP tool만 호출)
+```
+
+### 13.3 아키텍처
+
+```
+[호스트: Claude Code / Codex / Cursor]     ← stateless
+         ↓ JSON-RPC over stdio (MCP 프로토콜)
+[onto-review MCP 서버]                     ← stateful
+  ├─ 에이전트 실행 엔진
+  │   ├─ 8인 병렬 실행 (async)
+  │   ├─ 에이전트 간 메시지 라우팅
+  │   └─ LLM API 직접 호출 (Claude API / OpenAI API)
+  ├─ 세션 관리
+  │   └─ {project}/.onto-review/{프로세스}/{세션 ID}/
+  ├─ 학습 저장 체계
+  │   └─ ~/.claude/agent-memory/ (기존 구조 유지)
+  └─ 도메인 문서 관리
+      └─ ~/.claude/agent-memory/domains/{domain}/
+```
+
+### 13.4 MCP Tool 설계
+
+호스트에 노출되는 도구:
+
+| Tool | 입력 | 출력 | 설명 |
+|---|---|---|---|
+| `onto_review_start` | target, domain, purpose | session_id | 8인 패널 리뷰 시작 (non-blocking) |
+| `onto_review_status` | session_id | 진행 상황 (단계, 완료 에이전트 수) | 폴링용 |
+| `onto_review_result` | session_id | 최종 리뷰 결과 전문 | 완료 후 결과 수신 |
+| `onto_question` | dimension, question, domain | 답변 | 개별 에이전트 질문 (blocking) |
+| `onto_build_start` | path_or_url, schema | session_id | 코드 기반 온톨로지 구축 시작 |
+| `onto_build_status` | session_id | 진행 상황 (라운드, 커버리지) | 폴링용 |
+| `onto_build_result` | session_id | 온톨로지 결과 | 완료 후 결과 수신 |
+| `onto_session_list` | — | 세션 목록 | 활성/완료 세션 조회 |
+
+**non-blocking 패턴** (Ouroboros와 동일):
+```
+호스트: onto_review_start(target="process.md") → session_id
+호스트: onto_review_status(session_id) → "Round 1: 5/7 완료"
+호스트: onto_review_status(session_id) → "Philosopher 종합 중"
+호스트: onto_review_result(session_id) → 최종 결과
+```
+
+### 13.5 서버가 LLM을 직접 호출
+
+현재 onto-review에서 호스트의 Agent tool이 하는 일을, MCP 서버가 직접 수행합니다:
+
+```
+[현재]
+호스트 → Agent tool(prompt="당신은 onto_logic입니다...") → Claude Code 내부 LLM 호출
+
+[MCP 서버]
+서버 → Claude API / OpenAI API (직접 호출)
+     → 에이전트 역할 prompt + 리뷰 대상 + 도메인 문서를 조합
+     → 7인 async 병렬 호출
+     → 결과를 세션 디렉토리에 저장
+     → Philosopher에게 7인 결과 전달 (서버 내부)
+```
+
+이로써:
+- **Claude API 사용 시**: 현재와 동일한 품질
+- **OpenAI API 사용 시**: 모델 선택의 자유
+- **호스트가 무엇이든 상관없음**: MCP 지원만 하면 됨
+
+### 13.6 부수 효과: 기존 문제의 구조적 해소
+
+| 기존 문제 | MCP 서버에서의 상태 |
+|---|---|
+| **Issue 1-A** (team-lead 컨텍스트 포화) | 해소됨. 서버가 에이전트 결과를 직접 관리하므로 호스트 컨텍스트에 적재되지 않음 |
+| **Issue 1-B** (세션 간 에이전트 누수) | 해소됨. 서버가 세션을 격리 관리. ~/.claude/teams/ 미사용 |
+| 파일 기반 전달의 복잡성 | 해소됨. 서버 내부 메모리에서 전달. 파일은 결과 보존용으로만 사용 |
+| Fallback 분기 (Teams → Agent tool) | 해소됨. 서버가 단일 실행 경로를 소유 |
+
+### 13.7 트레이드오프
+
+**얻는 것:**
+- 플랫폼 독립 (MCP 지원 호스트 전부)
+- 호스트 컨텍스트 포화 근본 해결
+- 실행 경로 단순화 (Teams/Agent tool/Fallback 분기 제거)
+- 모델 선택의 자유 (Claude, OpenAI, 기타)
+
+**비용:**
+- MCP 서버 구현 필요 (Python 또는 TypeScript)
+- 사용자가 LLM API 키를 별도 설정해야 함
+- process.md/review.md의 프로세스 로직을 실행 가능한 코드로 번역해야 함
+- 배포 복잡도 증가 (플러그인 + MCP 서버)
+- 디버깅 난이도 증가 (서버 로그 확인 필요)
+
+### 13.8 현재 플러그인과의 공존
+
+MCP 서버 전환 후에도, 현재 플러그인 구조(commands/, roles/, processes/)는 유지합니다:
+
+- **commands/*.md**: MCP 서버가 없는 환경에서의 fallback으로 유지 (기존 Claude Code 전용 모드)
+- **roles/*.md**: MCP 서버가 에이전트 prompt를 조합할 때 참조
+- **processes/*.md**: MCP 서버의 오케스트레이션 로직의 원본 정의 (코드와 문서 이중 유지)
+- **domains/**: 기존 도메인 문서 설치 스크립트 유지
+
+### 13.9 구현 단계 (계획)
+
+| 단계 | 범위 | 설명 |
+|---|---|---|
+| **1단계** | 개별 질문 | `onto_question` tool 구현. 단일 에이전트 호출만으로 가장 단순 |
+| **2단계** | 8인 패널 리뷰 | `onto_review_start/status/result` 구현. 핵심 가치 |
+| **3단계** | 학습 체계 | 학습 저장/로딩을 서버가 관리 |
+| **4단계** | build 프로세스 | 적분형 탐색 루프를 서버가 관리 |
+
+각 단계는 기존 플러그인 모드와 병행 운영 가능합니다. MCP 서버가 설정되어 있으면 서버 모드, 없으면 기존 플러그인 모드로 동작합니다.

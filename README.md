@@ -182,12 +182,12 @@ onto-review/
 ### 런타임 생성 디렉토리
 
 ```
-{project}/.claude/
-├── sessions/               # 리뷰/빌드 세션 데이터 (런타임 생성, gitignored)
+{project}/
+├── .onto-review/           # 리뷰/빌드 세션 데이터 (런타임 생성, gitignored)
 │   └── review/{session-id}/
 │       ├── round1/         # 7인 reviewer 결과 파일
 │       └── philosopher_summary.md
-└── learnings/              # 프로젝트 수준 학습
+└── .claude/learnings/      # 프로젝트 수준 학습
 ```
 
 ## 학습 체계

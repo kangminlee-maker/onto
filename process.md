@@ -10,7 +10,7 @@
 |---|---|---|---|
 | 온보딩 | `processes/onboard.md` | 프로젝트에 onto-review 환경 설정 | → 리뷰, 질문 |
 | 개별 질문 | `processes/question.md` | 1인 에이전트에게 질문 | 학습 → 승격 |
-| 팀 리뷰 | `processes/review.md` | 8인 패널 리뷰 (Agent Teams) | 학습 → 승격 |
+| 팀 리뷰 | `processes/review.md` | 에이전트 패널 리뷰 (Agent Teams) | 학습 → 승격 |
 | 코드 기반 구축 | `processes/build.md` | 코드에서 온톨로지 추출 (Agent Teams) | → 변환, 리뷰 |
 | 변환 | `processes/transform.md` | Raw Ontology 형식 변환 | 구축 → |
 | 학습 승격 | `processes/promote.md` | 프로젝트 학습을 글로벌로 승격 (Agent Teams) | 리뷰/질문 → |
@@ -19,7 +19,11 @@
 
 ## 에이전트 구성
 
-### 검증 에이전트 (7인)
+### 설계 원칙
+
+이 에이전트들은 MECE 분류가 아닌, 경험적으로 유효한 독립 검증 관점의 집합입니다. 단일 분류 축을 의도적으로 사용하지 않으며, 각 관점의 유지 정당성은 고유 탐지 영역의 존재 여부로 검증합니다.
+
+### 검증 에이전트
 | ID | 역할 | 검증 차원 |
 |---|---|---|
 | `onto_logic` | 논리적 일관성 검증자 | 모순, 타입 충돌, 제약 상충 |
@@ -29,11 +33,28 @@
 | `onto_pragmatics` | 활용 적합성 검증자 | 질의 가능성, 역량 질문 테스트 |
 | `onto_evolution` | 확장·진화 적합성 검증자 | 새 데이터/도메인 추가 시 깨짐 |
 | `onto_coverage` | 도메인 포괄성 검증자 | 누락 하위 영역, 개념 편중, 표준 대비 빈 영역 |
+| `onto_conciseness` | 간결성 검증자 | 중복 정의, 과잉 명세, 불필요한 구분 |
+
+### 검증 차원 포괄성 체크리스트
+
+에이전트 구성의 포괄성을 확인하기 위한 메타 도구입니다. 에이전트 구성 축이 아니라, 현재 에이전트들이 모든 검증 차원을 빠짐없이 포괄하는지 확인하는 참조 프레임입니다.
+
+| 검증 차원 | 검증 질문 | 포괄 에이전트 | 표준 프레임워크 대응 |
+|-----------|----------|-------------|-------------------|
+| 형식적 정합성 | 정의 간 모순이 없는가? | onto_logic, onto_dependency | Gomez-Perez: Consistency, Obrst: L4 |
+| 의미적 정확성 | 각 개념이 대상을 정확히 표현하는가? | onto_semantics | Obrst: L1, OntoClean: Rigidity/Identity |
+| 구조적 완전성 | 내부 연결이 빠짐없이 존재하는가? | onto_structure | Obrst: L2-L3, Gomez-Perez: Completeness (내부) |
+| 도메인 포괄성 | 모든 관련 개념이 표현되었는가? | onto_coverage | Gomez-Perez: Completeness (외부) |
+| 최소성 | 불필요한 요소가 없는가? | onto_conciseness | Gomez-Perez: Conciseness |
+| 화용적 적합성 | 실제 사용 목적에 부합하는가? | onto_pragmatics | Brank: Application-based |
+| 진화 적응성 | 변경 시 적응할 수 있는가? | onto_evolution | — |
+
+> 검증 차원과 에이전트는 다대다(N:M) 관계입니다. 에이전트는 "독립 관점 집합"이므로, 한 에이전트가 여러 차원을 포괄하거나 한 차원이 여러 에이전트에 걸칠 수 있습니다.
 
 ### 목적 정합성 검증자 (1인)
 | ID | 역할 |
 |---|---|
-| `philosopher` | 시스템 목적 기반 메타 관점 제공, 7인의 판단을 목적 관점에서 종합·재정의, 새로운 관점 제시 |
+| `philosopher` | 시스템 목적 기반 메타 관점 제공, 검증 에이전트들의 판단을 목적 관점에서 종합·재정의, 새로운 관점 제시 |
 
 ### 도메인 문서
 각 에이전트는 실행 시 해당 도메인의 문서를 읽습니다 (파일이 없으면 범용 원칙으로 검증):
@@ -47,6 +68,7 @@
 | **규칙 정의형** | `structure_spec.md` | onto_structure | 성능 저하 (LLM 대체 가능) | 사용자 직접 작성/수정 |
 | **규칙 정의형** | `dependency_rules.md` | onto_dependency | 성능 저하 (LLM 대체 가능) | 사용자 직접 작성/수정 |
 | **규칙 정의형** | `extension_cases.md` | onto_evolution | 성능 저하 (LLM 대체 가능) | 사용자 직접 작성/수정 |
+| **규칙 정의형** | `conciseness_rules.md` | onto_conciseness | 성능 저하 (LLM 대체 가능) | 사용자 직접 작성/수정 |
 
 경로: `~/.claude/agent-memory/domains/{domain}/`
 
@@ -58,6 +80,12 @@
 2. **다중 도메인**: `secondary_domains:`가 선언되어 있으면, 주 도메인 문서를 우선 참조하고, 보조 도메인 문서를 추가로 참조합니다. 규칙이 충돌하면 주 도메인이 우선합니다.
 3. **선언 없음**: 프로젝트에 도메인 선언이 없으면 사용자에게 질문합니다.
 4. **도메인 문서 없음**: 선언된 도메인의 문서(`~/.claude/agent-memory/domains/{domain}/`)가 존재하지 않으면, 도메인 규칙 없이 범용 원칙만으로 검증합니다.
+5. **도메인 확장 시 에이전트 재평가**: 아래 조건에 해당하는 도메인에 진입하면, 에이전트 구성의 재평가가 필요합니다.
+
+| 조건 | 이유 | 재평가 대상 |
+|------|------|------------|
+| 인간/집단을 분류하는 도메인 (의료, 교육, 법률, HR) | 윤리학/가치론의 검증이 필요 — "이 분류가 특정 집단에 불이익을 주는가" | 규범적 판단 에이전트 추가 검토 |
+| 금융/행정 도메인 | 사회적 존재론의 비중 증가 — 제도적 구성물의 존재 방식이 핵심 | onto_semantics의 존재 유형 검증 비중 조정 |
 
 ---
 
@@ -173,6 +201,7 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 | onto_pragmatics | competency_qs.md |
 | onto_evolution | extension_cases.md |
 | onto_coverage | domain_scope.md |
+| onto_conciseness | conciseness_rules.md |
 | philosopher | (없음) |
 
 [작업 지시]

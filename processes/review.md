@@ -149,6 +149,14 @@ Philosopher에게 전달할 SendMessage 내용:
 
 모두 해당 없으면 "불필요" — 이 경우 아래 최종 출력을 직접 작성하세요:
 
+---
+session_id: {세션 ID}
+process: review
+target: "{리뷰 대상 요약}"
+domain: {domain / 없음}
+date: {YYYY-MM-DD}
+---
+
 ## 8-Agent Panel Review 결과
 
 ### 리뷰 대상
@@ -225,6 +233,14 @@ Philosopher가 유형별로 분류한 항목:
 {토론 결과 전문}
 
 [출력 형식]
+---
+session_id: {세션 ID}
+process: review
+target: "{리뷰 대상 요약}"
+domain: {domain / 없음}
+date: {YYYY-MM-DD}
+---
+
 ## 8-Agent Panel Review 결과
 
 ### 리뷰 대상

@@ -1,6 +1,12 @@
 #!/bin/bash
-# onto-review 세션 디렉토리 마이그레이션 스크립트
-# .claude/sessions/ → .onto-review/ 로 기존 세션 데이터를 이동합니다.
+# onto-review 마이그레이션 스크립트
+# 이전 버전의 런타임 데이터를 새 .onto-review/ 구조로 이동합니다.
+#
+# 마이그레이션 대상:
+#   1. .claude/sessions/   → .onto-review/review/ 및 .onto-review/builds/
+#   2. .claude/learnings/  → .onto-review/learnings/
+#   3. .claude/ontology/   → .onto-review/builds/{세션ID}/
+#   4. .onto-review/sessions/ 중간 계층 제거 (sessions/review/ → review/)
 #
 # 사용법:
 #   ./migrate-sessions.sh                # 현재 디렉토리의 프로젝트를 마이그레이션
@@ -42,111 +48,209 @@ PROJECT_DIR="$(cd "$PROJECT_DIR" 2>/dev/null && pwd)" || {
     exit 1
 }
 
-OLD_DIR="$PROJECT_DIR/.claude/sessions"
 NEW_DIR="$PROJECT_DIR/.onto-review"
 
 echo ""
-echo -e "${CYAN}━━━ onto-review 세션 디렉토리 마이그레이션 ━━━${NC}"
+echo -e "${CYAN}━━━ onto-review 마이그레이션 ━━━${NC}"
 echo ""
 echo "프로젝트: $PROJECT_DIR"
-echo "이전 경로: .claude/sessions/"
-echo "새 경로:   .onto-review/"
 echo ""
 
-# 이전 디렉토리 존재 확인
-if [ ! -d "$OLD_DIR" ]; then
-    echo -e "${GREEN}마이그레이션 불필요 — .claude/sessions/ 디렉토리가 없습니다.${NC}"
-    echo ""
-    exit 0
-fi
+TOTAL_ACTIONS=0
 
-# 기존 세션 데이터 확인
-SESSION_COUNT=0
-FILE_COUNT=0
+# ─── 1단계: .claude/sessions/ → .onto-review/{프로세스}/ ───
 
-echo -e "${CYAN}발견된 세션 데이터:${NC}"
-echo ""
+OLD_SESSIONS="$PROJECT_DIR/.claude/sessions"
 
-for process_dir in "$OLD_DIR"/*/; do
-    [ -d "$process_dir" ] || continue
-    process_name=$(basename "$process_dir")
+if [ -d "$OLD_SESSIONS" ]; then
+    echo -e "${CYAN}[1/4] .claude/sessions/ 발견${NC}"
 
-    for session_dir in "$process_dir"*/; do
-        [ -d "$session_dir" ] || continue
-        session_id=$(basename "$session_dir")
-        file_count=$(find "$session_dir" -type f | wc -l | tr -d ' ')
+    for process_dir in "$OLD_SESSIONS"/*/; do
+        [ -d "$process_dir" ] || continue
+        process_name=$(basename "$process_dir")
+        # buildfromcode → builds 변환
+        [ "$process_name" = "buildfromcode" ] && process_name="builds"
 
-        echo -e "  ${process_name}/${session_id} (${file_count}개 파일)"
-        ((SESSION_COUNT++))
-        FILE_COUNT=$((FILE_COUNT + file_count))
+        for session_dir in "$process_dir"*/; do
+            [ -d "$session_dir" ] || continue
+            session_id=$(basename "$session_dir")
+            file_count=$(find "$session_dir" -type f | wc -l | tr -d ' ')
+            echo -e "  ${process_name}/${session_id} (${file_count}개 파일)"
+            ((TOTAL_ACTIONS++))
+
+            if [ "$DRY_RUN" = false ]; then
+                dst="$NEW_DIR/$process_name/$session_id"
+                if [ -d "$dst" ]; then
+                    # 이미 존재하면 라운드 디렉토리를 병합
+                    for sub in "$session_dir"*/; do
+                        [ -d "$sub" ] || continue
+                        sub_name=$(basename "$sub")
+                        if [ ! -d "$dst/$sub_name" ]; then
+                            mv "$sub" "$dst/$sub_name"
+                        fi
+                    done
+                else
+                    mkdir -p "$(dirname "$dst")"
+                    mv "$session_dir" "$dst"
+                fi
+                echo -e "    ${GREEN}→ .onto-review/${process_name}/${session_id}${NC}"
+            fi
+        done
     done
-done
 
-if [ $SESSION_COUNT -eq 0 ]; then
-    echo -e "  (세션 데이터 없음)"
+    if [ "$DRY_RUN" = false ]; then
+        rm -rf "$OLD_SESSIONS"
+        echo -e "  ${GREEN}.claude/sessions/ 삭제 완료${NC}"
+    fi
     echo ""
-    echo -e "${GREEN}마이그레이션 불필요 — 세션 데이터가 비어 있습니다.${NC}"
-    echo ""
-    exit 0
-fi
-
-echo ""
-echo "총 ${SESSION_COUNT}개 세션, ${FILE_COUNT}개 파일"
-echo ""
-
-# dry-run 모드
-if [ "$DRY_RUN" = true ]; then
-    echo -e "${YELLOW}[dry-run] 실제 이동은 수행하지 않습니다.${NC}"
-    echo ""
-    exit 0
-fi
-
-# 새 디렉토리가 이미 존재하고 내용이 있는 경우
-if [ -d "$NEW_DIR" ] && [ "$(ls -A "$NEW_DIR" 2>/dev/null)" ]; then
-    echo -e "${YELLOW}주의: .onto-review/ 디렉토리에 기존 데이터가 있습니다.${NC}"
-    echo "기존 데이터를 유지하면서 병합합니다 (동일 경로의 파일은 덮어쓰지 않습니다)."
-    echo ""
-fi
-
-# 마이그레이션 실행
-moved=0
-skipped=0
-
-for process_dir in "$OLD_DIR"/*/; do
-    [ -d "$process_dir" ] || continue
-    process_name=$(basename "$process_dir")
-
-    for session_dir in "$process_dir"*/; do
-        [ -d "$session_dir" ] || continue
-        session_id=$(basename "$session_dir")
-
-        dst="$NEW_DIR/$process_name/$session_id"
-
-        if [ -d "$dst" ]; then
-            echo -e "${YELLOW}  건너뜀: ${process_name}/${session_id} (이미 존재)${NC}"
-            ((skipped++))
-        else
-            mkdir -p "$(dirname "$dst")"
-            mv "$session_dir" "$dst"
-            echo -e "${GREEN}  이동됨: ${process_name}/${session_id}${NC}"
-            ((moved++))
-        fi
-    done
-done
-
-echo ""
-
-# 이전 디렉토리 정리
-remaining=$(find "$OLD_DIR" -type f 2>/dev/null | wc -l | tr -d ' ')
-if [ "$remaining" -eq 0 ]; then
-    rmdir "$OLD_DIR"/*/ 2>/dev/null || true
-    rmdir "$OLD_DIR" 2>/dev/null || true
-    echo -e "${GREEN}이전 디렉토리(.claude/sessions/) 정리 완료${NC}"
 else
-    echo -e "${YELLOW}이전 디렉토리에 ${remaining}개 파일이 남아 있습니다 (건너뛴 세션).${NC}"
-    echo "수동 확인 후 삭제하세요: $OLD_DIR"
+    echo -e "[1/4] .claude/sessions/ — 없음 (건너뜀)"
+    echo ""
+fi
+
+# ─── 2단계: .claude/learnings/ → .onto-review/learnings/ ───
+
+OLD_LEARNINGS="$PROJECT_DIR/.claude/learnings"
+
+if [ -d "$OLD_LEARNINGS" ]; then
+    file_count=$(find "$OLD_LEARNINGS" -type f -name "*.md" | wc -l | tr -d ' ')
+    echo -e "${CYAN}[2/4] .claude/learnings/ 발견 (${file_count}개 파일)${NC}"
+    ((TOTAL_ACTIONS++))
+
+    if [ "$DRY_RUN" = false ]; then
+        mkdir -p "$NEW_DIR/learnings"
+        for f in "$OLD_LEARNINGS"/*.md; do
+            [ -f "$f" ] || continue
+            fname=$(basename "$f")
+            if [ ! -f "$NEW_DIR/learnings/$fname" ]; then
+                mv "$f" "$NEW_DIR/learnings/$fname"
+                echo -e "  ${GREEN}이동: $fname${NC}"
+            else
+                echo -e "  ${YELLOW}건너뜀: $fname (이미 존재)${NC}"
+            fi
+        done
+        # .gitkeep 등 남은 파일 처리
+        remaining=$(find "$OLD_LEARNINGS" -type f | wc -l | tr -d ' ')
+        if [ "$remaining" -eq 0 ]; then
+            rm -rf "$OLD_LEARNINGS"
+            echo -e "  ${GREEN}.claude/learnings/ 삭제 완료${NC}"
+        fi
+    fi
+    echo ""
+else
+    echo -e "[2/4] .claude/learnings/ — 없음 (건너뜀)"
+    echo ""
+fi
+
+# ─── 3단계: .claude/ontology/ → .onto-review/builds/{세션ID}/ ───
+
+OLD_ONTOLOGY="$PROJECT_DIR/.claude/ontology"
+
+if [ -d "$OLD_ONTOLOGY" ]; then
+    file_count=$(find "$OLD_ONTOLOGY" -type f | wc -l | tr -d ' ')
+    echo -e "${CYAN}[3/4] .claude/ontology/ 발견 (${file_count}개 파일)${NC}"
+    ((TOTAL_ACTIONS++))
+
+    # 기존 build 세션 찾기 (가장 최근 builds 세션에 매핑)
+    BUILD_SESSION=""
+    if [ -d "$NEW_DIR/builds" ]; then
+        BUILD_SESSION=$(ls -1 "$NEW_DIR/builds/" 2>/dev/null | sort -r | head -1)
+    fi
+
+    if [ -z "$BUILD_SESSION" ]; then
+        # build 세션이 없으면 새로 생성
+        BUILD_SESSION="migrated-$(date +%Y%m%d)"
+        echo -e "  기존 build 세션 없음 → builds/${BUILD_SESSION}/ 생성"
+    else
+        echo -e "  기존 build 세션 발견 → builds/${BUILD_SESSION}/ 에 병합"
+    fi
+
+    if [ "$DRY_RUN" = false ]; then
+        dst="$NEW_DIR/builds/$BUILD_SESSION"
+        mkdir -p "$dst"
+        for item in "$OLD_ONTOLOGY"/*; do
+            [ -e "$item" ] || continue
+            item_name=$(basename "$item")
+            if [ ! -e "$dst/$item_name" ]; then
+                mv "$item" "$dst/$item_name"
+                echo -e "  ${GREEN}이동: $item_name${NC}"
+            else
+                echo -e "  ${YELLOW}건너뜀: $item_name (이미 존재)${NC}"
+            fi
+        done
+        remaining=$(find "$OLD_ONTOLOGY" -type f 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$remaining" -eq 0 ]; then
+            rm -rf "$OLD_ONTOLOGY"
+            echo -e "  ${GREEN}.claude/ontology/ 삭제 완료${NC}"
+        fi
+    fi
+    echo ""
+else
+    echo -e "[3/4] .claude/ontology/ — 없음 (건너뜀)"
+    echo ""
+fi
+
+# ─── 4단계: .onto-review/sessions/ 중간 계층 제거 ───
+
+OLD_SESSIONS_LAYER="$NEW_DIR/sessions"
+
+if [ -d "$OLD_SESSIONS_LAYER" ]; then
+    echo -e "${CYAN}[4/4] .onto-review/sessions/ 중간 계층 발견 — 제거합니다${NC}"
+    ((TOTAL_ACTIONS++))
+
+    for process_dir in "$OLD_SESSIONS_LAYER"/*/; do
+        [ -d "$process_dir" ] || continue
+        process_name=$(basename "$process_dir")
+        # buildfromcode → builds 변환
+        [ "$process_name" = "buildfromcode" ] && process_name="builds"
+        [ "$process_name" = "build" ] && process_name="builds"
+
+        for session_dir in "$process_dir"*/; do
+            [ -d "$session_dir" ] || continue
+            session_id=$(basename "$session_dir")
+            echo -e "  sessions/${process_name}/${session_id}"
+
+            if [ "$DRY_RUN" = false ]; then
+                dst="$NEW_DIR/$process_name/$session_id"
+                mkdir -p "$dst"
+                for sub in "$session_dir"*/; do
+                    [ -d "$sub" ] || continue
+                    sub_name=$(basename "$sub")
+                    if [ ! -d "$dst/$sub_name" ]; then
+                        mv "$sub" "$dst/$sub_name"
+                    fi
+                done
+                echo -e "    ${GREEN}→ .onto-review/${process_name}/${session_id}${NC}"
+            fi
+        done
+    done
+
+    if [ "$DRY_RUN" = false ]; then
+        rm -rf "$OLD_SESSIONS_LAYER"
+        echo -e "  ${GREEN}.onto-review/sessions/ 삭제 완료${NC}"
+    fi
+    echo ""
+else
+    echo -e "[4/4] .onto-review/sessions/ — 없음 (건너뜀)"
+    echo ""
+fi
+
+# ─── 완료 ───
+
+if [ $TOTAL_ACTIONS -eq 0 ]; then
+    echo -e "${GREEN}마이그레이션 불필요 — 이전 버전의 데이터가 없습니다.${NC}"
+else
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "${YELLOW}[dry-run] 실제 이동은 수행하지 않았습니다.${NC}"
+    else
+        echo -e "${GREEN}마이그레이션 완료.${NC}"
+    fi
 fi
 
 echo ""
-echo -e "${GREEN}마이그레이션 완료: ${moved}개 이동, ${skipped}개 건너뜀${NC}"
+echo "최종 구조:"
+echo "  .onto-review/"
+echo "  ├── review/{세션ID}/round1/     # review 라운드 결과 + 산출물"
+echo "  ├── builds/{세션ID}/round0~N/   # build 라운드 결과 + 산출물"
+echo "  └── learnings/                   # 프로젝트 수준 학습"
 echo ""

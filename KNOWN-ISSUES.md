@@ -45,7 +45,7 @@
 [변경]  Reviewer → Write(파일) → team-lead에 경로만 보고 → Philosopher → Read × 7(파일)
 ```
 
-세션 디렉토리: `{project}/.claude/sessions/review/{YYYYMMDD}-{hash8}/round1/{agent-id}.md`
+세션 디렉토리: `{project}/.onto-review/review/{YYYYMMDD}-{hash8}/round1/{agent-id}.md`
 - 세션 ID(`{YYYYMMDD}-{hash8}`)는 team_name과 동일 (팀 생성 시 한 번 생성, 충돌 없음)
 - team-lead가 세션 디렉토리를 생성하고 경로를 reviewer 초기 prompt에 포함
 

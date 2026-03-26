@@ -39,7 +39,7 @@ team lead가 아래 항목만 수집합니다. 에이전트별 학습/도메인 
 
 **Step 1 — 세션 ID 생성**: `$(date +%Y%m%d)-$(openssl rand -hex 4)` (예: `20260325-a3f7b2c1`)
 
-**Step 2 — 세션 디렉토리 생성**: `{project}/.claude/sessions/review/{세션 ID}/round1/`
+**Step 2 — 세션 디렉토리 생성**: `{project}/.onto-review/review/{세션 ID}/round1/`
 
 **Step 3 — TeamCreate로 팀 생성**:
 - team_name: `onto-review-{세션 ID}`

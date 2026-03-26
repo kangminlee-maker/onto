@@ -51,7 +51,7 @@
 | 검증 에이전트 (N인) | 방향 제시자 | delta를 labeling하고, 자기 축에서 부족한 부분의 epsilon을 제시. **코드를 직접 읽지 않음**. non-deterministic fact의 certainty를 세분화 |
 | `philosopher` | 조율자 | 검증 에이전트들의 epsilon을 통합 지시로 조율, 수렴 판정, 온톨로지 일관성 관리, patch 적용 |
 
-검증 에이전트 정의(`roles/{agent-id}.md`)는 review와 동일합니다. build에서는 "검증"이 아니라 "자기 축에서의 빈 영역 식별 + label 부여"로 역할이 전환됩니다. 현재 검증 에이전트는 7인(onto_logic, onto_structure, onto_dependency, onto_semantics, onto_pragmatics, onto_evolution, onto_coverage)이며, 에이전트 목록은 `process.md`의 에이전트 구성 테이블에서 관리합니다.
+검증 에이전트 정의(`roles/{agent-id}.md`)는 review와 동일합니다. build에서는 "검증"이 아니라 "자기 축에서의 빈 영역 식별 + label 부여"로 역할이 전환됩니다. 현재 검증 에이전트 목록은 `process.md`의 에이전트 구성 테이블에서 관리합니다.
 
 ---
 

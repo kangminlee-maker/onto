@@ -211,7 +211,13 @@ onto-review/
 
 ## 마이그레이션
 
-기존 버전에서 세션 데이터가 `.claude/sessions/`에 저장되어 있는 경우, 아래 스크립트로 `.onto-review/`로 이동할 수 있습니다.
+이전 버전에서 런타임 데이터가 `.claude/` 하위에 저장되어 있는 경우, 아래 스크립트로 `.onto-review/`로 이동할 수 있습니다.
+
+마이그레이션 대상:
+- `.claude/sessions/` → `.onto-review/review/`, `.onto-review/builds/`
+- `.claude/learnings/` → `.onto-review/learnings/`
+- `.claude/ontology/` → `.onto-review/builds/{세션ID}/`
+- `.onto-review/sessions/` 중간 계층 → 제거 (직접 `review/`, `builds/` 아래로)
 
 ```bash
 # 대상 확인 (실제 이동 없음)
@@ -224,7 +230,7 @@ onto-review/
 ./migrate-sessions.sh /path/to/project
 ```
 
-`.claude/sessions/`가 없으면 자동으로 건너뜁니다.
+이전 데이터가 없으면 자동으로 건너뜁니다.
 
 ## 시작하기
 

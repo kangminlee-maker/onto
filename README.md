@@ -211,6 +211,23 @@ onto-review/
 | 축적 가능형 | `concepts.md`, `competency_qs.md` | 성능 저하 | promote 제안 → 사용자 승인 |
 | 규칙 정의형 | `logic_rules.md`, `structure_spec.md`, `dependency_rules.md`, `extension_cases.md` | 성능 저하 (LLM 대체 가능) | 사용자 직접 작성 |
 
+## 마이그레이션
+
+기존 버전에서 세션 데이터가 `.claude/sessions/`에 저장되어 있는 경우, 아래 스크립트로 `.onto-review/`로 이동할 수 있습니다.
+
+```bash
+# 대상 확인 (실제 이동 없음)
+./migrate-sessions.sh --dry-run
+
+# 마이그레이션 실행
+./migrate-sessions.sh
+
+# 다른 프로젝트 지정
+./migrate-sessions.sh /path/to/project
+```
+
+`.claude/sessions/`가 없으면 자동으로 건너뜁니다.
+
 ## 시작하기
 
 ```

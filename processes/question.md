@@ -19,7 +19,7 @@
 
 3. **도메인 학습 수집** (반드시 수행):
    - 글로벌: `~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md`
-   - **프로젝트**: `{project}/.claude/learnings/{agent-id}.md` — 해당 프로젝트에서 축적된 학습. **이 디렉토리가 존재하면 반드시 읽어야 합니다.**
+   - **프로젝트**: `{project}/.onto-review/learnings/{agent-id}.md` — 해당 프로젝트에서 축적된 학습. **이 디렉토리가 존재하면 반드시 읽어야 합니다.**
    - 파일이 없으면 무시합니다.
 
 3. **질문 대상 수집**:

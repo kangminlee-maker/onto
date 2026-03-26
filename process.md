@@ -159,7 +159,7 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 1. 방법론 학습: ~/.claude/agent-memory/methodology/{agent-id}.md
 2. 도메인 문서: ~/.claude/agent-memory/domains/{domain}/{해당 도메인 문서}
 3. 도메인 학습 (글로벌): ~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md
-4. 도메인 학습 (프로젝트): {project}/.claude/learnings/{agent-id}.md
+4. 도메인 학습 (프로젝트): {project}/.onto-review/learnings/{agent-id}.md
 5. 소통 학습 (공통): ~/.claude/agent-memory/communication/common.md
 6. 소통 학습 (개별): ~/.claude/agent-memory/communication/{agent-id}.md
 
@@ -231,7 +231,7 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 
 **도메인 학습**:
 - 저장 경로 판별:
-  - 프로젝트에 `.claude/learnings/` 디렉토리가 존재하면: `{project}/.claude/learnings/{agent-id}.md` (프로젝트 수준)
+  - 프로젝트에 `.onto-review/learnings/` 디렉토리가 존재하면: `{project}/.onto-review/learnings/{agent-id}.md` (프로젝트 수준)
   - 존재하지 않으면: `~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md` (글로벌 수준)
 - "도메인 학습" 항목을 파일 끝에 추가합니다.
 - 해당 도메인/프로젝트에서만 유효한 학습입니다.

@@ -351,14 +351,14 @@ build에서 발견한 모든 사실에는 확실성 등급이 부여됩니다.
 진행 순서:
 1. **진단**: 학습 디렉토리 존재 여부, CLAUDE.md의 도메인 선언 여부, 글로벌 도메인 문서 존재 여부, 에이전트 메모리 현황
 2. **사용자 확인**: 진단 결과를 보여주고, 설정할 항목을 확인
-3. **환경 설정**: `.claude/learnings/` 디렉토리 생성, CLAUDE.md에 도메인 선언 추가, 도메인 문서 설치 제안, 범위 문서 초안 생성
+3. **환경 설정**: `.onto-review/learnings/` 디렉토리 생성, CLAUDE.md에 도메인 선언 추가, 도메인 문서 설치 제안, 범위 문서 초안 생성
 
 ---
 
 ### 4.6 학습 승격 (promote)
 
 **명령어**: `/onto-promotelearnings`
-**입력**: 프로젝트 수준 학습 (`{project}/.claude/learnings/`)
+**입력**: 프로젝트 수준 학습 (`{project}/.onto-review/learnings/`)
 **출력**: 검수를 거쳐 글로벌 수준으로 승격된 학습
 
 프로젝트에서 축적된 학습 중 "다른 프로젝트에서도 유효한 것"을 글로벌 수준(도메인 전체)으로 격상합니다.
@@ -429,7 +429,7 @@ build에서 발견한 모든 사실에는 확실성 등급이 부여됩니다.
 |---|---|---|---|
 | **소통 학습** | `~/.claude/agent-memory/communication/` | 사용자의 소통 선호 | "이 사용자는 비유를 싫어한다", "요약 없이 diff만 원한다" |
 | **방법론 학습** | `~/.claude/agent-memory/methodology/{agent-id}.md` | 도메인에 무관한 검증 원칙 | "단일 책임 위반 여부는 클래스명보다 의존 수로 판단하는 것이 정확하다" |
-| **도메인 학습** | `{project}/.claude/learnings/{agent-id}.md` (프로젝트) 또는 `~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md` (글로벌) | 특정 도메인/프로젝트에서만 유효한 교훈 | "이 프로젝트의 Payment 모듈은 이벤트 소싱을 사용한다" |
+| **도메인 학습** | `{project}/.onto-review/learnings/{agent-id}.md` (프로젝트) 또는 `~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md` (글로벌) | 특정 도메인/프로젝트에서만 유효한 교훈 | "이 프로젝트의 Payment 모듈은 이벤트 소싱을 사용한다" |
 
 ### 6.2 유형 태깅
 
@@ -586,20 +586,19 @@ onto-review/
 
 ```
 {project}/
-├── .onto-review/                 # 세션 데이터 (gitignored)
-│   ├── review/{session-id}/
-│   │   ├── round1/               #   7인 reviewer 결과 파일 ({agent-id}.md)
+├── .onto-review/                 # 런타임 데이터 (gitignored)
+│   ├── sessions/                 #   에이전트 라운드별 결과
+│   │   ├── review/{session-id}/round1/{agent-id}.md
+│   │   └── builds/{session-id}/round{N}/{agent-id}.yml
+│   ├── review/{session-id}/      #   review 산출물
 │   │   └── philosopher_summary.md
-│   └── onto-buildfromcode/{session-id}/
-│       ├── round1/               #   build 라운드별 결과
-│       └── ...
-├── .claude/learnings/            # 프로젝트 수준 학습 ({agent-id}.md)
-└── .claude/ontology/             # 구축된 온톨로지
-    ├── schema.yml            #   온톨로지 구조 정의
-    ├── context_brief.yml     #   build 맥락 요약
-    ├── wip.yml               #   build 진행 중 온톨로지 (완료 시 삭제)
-    ├── deltas/               #   Explorer의 delta 원문 (완료 시 삭제)
-    └── raw.yml               #   완성된 온톨로지
+│   ├── builds/{session-id}/      #   build 산출물
+│   │   ├── schema.yml            #     온톨로지 구조 정의
+│   │   ├── context_brief.yml     #     build 맥락 요약
+│   │   ├── wip.yml               #     진행 중 온톨로지 (완료 시 삭제)
+│   │   ├── deltas/               #     Explorer의 delta 원문 (완료 시 삭제)
+│   │   └── raw.yml               #     완성된 온톨로지
+│   └── learnings/                #   프로젝트 수준 학습 ({agent-id}.md)
 ```
 
 ### 8.3 글로벌 저장소 (사용자 홈 디렉토리)
@@ -698,7 +697,7 @@ onto-review/
 ### 온톨로지 변환
 
 ```
-/onto-transform .claude/ontology/raw.yml
+/onto-transform .onto-review/builds/{세션 ID}/raw.yml
 ```
 
 ### 학습 승격

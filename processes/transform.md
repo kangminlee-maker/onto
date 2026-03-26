@@ -3,11 +3,11 @@
 > Raw Ontology를 사용자가 원하는 형식으로 변환합니다.
 > 관련: `/onto-buildfromcode`로 구축된 Raw Ontology가 입력. 변환 후 `/onto-review`로 검증 가능.
 
-Raw Ontology(`.claude/ontology/raw.yml`)를 사용자가 원하는 형식으로 변환합니다.
+Raw Ontology(`.onto-review/builds/{세션 ID}/raw.yml`)를 사용자가 원하는 형식으로 변환합니다.
 
 ### 1. 원본 확인
 
-- $ARGUMENTS로 지정된 파일, 또는 `{project}/.claude/ontology/raw.yml`을 읽습니다.
+- $ARGUMENTS로 지정된 파일, 또는 `{project}/.onto-review/builds/{세션 ID}/raw.yml`을 읽습니다.
 - 파일이 없으면 안내하고 중단합니다: "`/onto-buildfromcode`를 먼저 실행하여 Raw Ontology를 구축해 주세요."
 - schema.yml도 함께 읽어 온톨로지 구조를 파악합니다.
 
@@ -45,7 +45,7 @@ Raw Ontology를 어떤 형식으로 변환할까요?
 
 ### 4. 저장
 
-- 변환 결과를 `{project}/.claude/ontology/{형식별 파일명}`에 저장합니다.
+- 변환 결과를 `{project}/.onto-review/builds/{세션 ID}/{형식별 파일명}`에 저장합니다.
   - 예: `ontology.md`, `ontology.mermaid`, `ontology.jsonld`, `ontology.owl`
 - 파일명이 겹치면 사용자에게 확인합니다.
 
@@ -61,5 +61,5 @@ Raw Ontology를 어떤 형식으로 변환할까요?
 | 포함 범위 | {전체 / 확정만 / ...} |
 | 탈락 정보 | {있으면 명시 / 없음} |
 
-저장 경로: `.claude/ontology/{파일명}`
+저장 경로: `.onto-review/builds/{세션 ID}/{파일명}`
 ```

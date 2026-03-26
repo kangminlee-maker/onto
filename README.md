@@ -182,12 +182,11 @@ onto-review/
 ### 런타임 생성 디렉토리
 
 ```
-{project}/
-├── .onto-review/           # 리뷰/빌드 세션 데이터 (런타임 생성, gitignored)
-│   └── review/{session-id}/
-│       ├── round1/         # 7인 reviewer 결과 파일
-│       └── philosopher_summary.md
-└── .claude/learnings/      # 프로젝트 수준 학습
+{project}/.onto-review/           # 런타임 데이터 (gitignored)
+├── sessions/                     #   에이전트 라운드별 결과
+├── review/{session-id}/          #   review 산출물
+├── builds/{session-id}/          #   build 산출물 (schema, raw.yml 등)
+└── learnings/                    #   프로젝트 수준 학습
 ```
 
 ## 학습 체계
@@ -198,7 +197,7 @@ onto-review/
 |---|---|---|---|
 | 소통 학습 | `~/.claude/agent-memory/communication/` | 사용자 소통 선호 | — |
 | 방법론 학습 | `~/.claude/agent-memory/methodology/` | 도메인 무관 검증 원칙 | [사실] / [판단] |
-| 도메인 학습 | `{project}/.claude/learnings/` (프로젝트) 또는 `~/.claude/agent-memory/domains/{domain}/learnings/` (글로벌) | 특정 도메인/프로젝트 학습 | [사실] / [판단] |
+| 도메인 학습 | `{project}/.onto-review/learnings/` (프로젝트) 또는 `~/.claude/agent-memory/domains/{domain}/learnings/` (글로벌) | 특정 도메인/프로젝트 학습 | [사실] / [판단] |
 
 - 프로젝트 수준 학습은 `/onto-promotelearnings`로 글로벌 수준에 승격할 수 있습니다
 - 도메인 문서는 사용자의 명시적 승인 없이 자동 수정되지 않습니다

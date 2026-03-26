@@ -60,7 +60,7 @@
 온톨로지의 구조를 사용자와 협의하여 결정합니다. **탐색보다 반드시 먼저 실행**합니다.
 
 **0.1 기존 schema 확인**
-- `{project}/.claude/ontology/schema.yml`이 이미 존재하면 내용을 보여주고 재사용 여부를 확인합니다.
+- `{project}/.onto-review/builds/{세션 ID}/schema.yml`이 이미 존재하면 내용을 보여주고 재사용 여부를 확인합니다.
 - 존재하지 않으면 0.2로 진행합니다.
 
 **0.2 구조 선택지 제시**
@@ -96,7 +96,7 @@
 
 **0.3 Schema 확정 및 저장**
 
-사용자가 선택/커스터마이징한 구조를 `{project}/.claude/ontology/schema.yml`에 저장합니다.
+사용자가 선택/커스터마이징한 구조를 `{project}/.onto-review/builds/{세션 ID}/schema.yml`에 저장합니다.
 
 ```yaml
 name: {구조 이름}
@@ -135,7 +135,7 @@ element_types:
 
 **0.5.4 맥락 요약 작성**
 
-수집한 맥락을 `{project}/.claude/ontology/context_brief.yml`에 저장합니다:
+수집한 맥락을 `{project}/.onto-review/builds/{세션 ID}/context_brief.yml`에 저장합니다:
 
 ```yaml
 context_brief:
@@ -379,8 +379,8 @@ patch:
 - 동일 type의 복수 에이전트 label (update): labeled_by 목록에 에이전트 추가 (합의로 간주)
 - 기존 element과 모순되는 label (conflict): issues에 기록, Philosopher가 Phase 2에서 판정
 
-온톨로지는 `{project}/.claude/ontology/wip.yml`에 라운드마다 갱신됩니다.
-Delta 원문은 `{project}/.claude/ontology/deltas/d-{round}-{seq}.yml`에 저장됩니다.
+온톨로지는 `{project}/.onto-review/builds/{세션 ID}/wip.yml`에 라운드마다 갱신됩니다.
+Delta 원문은 `{project}/.onto-review/builds/{세션 ID}/deltas/d-{round}-{seq}.yml`에 저장됩니다.
 
 ```yaml
 # wip.yml — 라운드마다 갱신
@@ -643,7 +643,7 @@ wip.yml을 최종 검토하세요.
 
 사용자가 확인하면 Raw Ontology를 저장합니다.
 
-**저장 파일**: `{project}/.claude/ontology/raw.yml`
+**저장 파일**: `{project}/.onto-review/builds/{세션 ID}/raw.yml`
 
 ```yaml
 # Raw Ontology — 적분형 탐색으로 생성됨
@@ -716,7 +716,7 @@ issues:
 ```
 
 **저장 규칙**:
-- schema.yml이 없으면 `.claude/ontology/` 디렉토리와 함께 생성
+- schema.yml이 없으면 `.onto-review/builds/{세션 ID}/` 디렉토리와 함께 생성
 - raw.yml이 이미 존재하면 덮어쓰기 전에 사용자에게 확인
 - wip.yml, deltas/ 디렉토리는 raw.yml 저장 후 삭제
 - context_brief.yml은 유지 (향후 재실행 시 참조)
@@ -746,12 +746,12 @@ Explorer는 학습을 저장하지 않습니다 (해석을 하지 않으므로).
 | 이슈 | N건 |
 
 저장 경로:
-- Schema: `.claude/ontology/schema.yml`
-- Raw Ontology: `.claude/ontology/raw.yml`
+- Schema: `.onto-review/builds/{세션 ID}/schema.yml`
+- Raw Ontology: `.onto-review/builds/{세션 ID}/raw.yml`
 
 ### 다음 단계
 - `/onto-transform` — 원하는 형식으로 변환
-- `/onto-review .claude/ontology/raw.yml` — 구축된 온톨로지를 패널로 검증
+- `/onto-review .onto-review/builds/{세션 ID}/raw.yml` — 구축된 온톨로지를 패널로 검증
 ```
 
 ---

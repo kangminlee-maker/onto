@@ -11,7 +11,7 @@
 
 | 확인 항목 | 경로 | 상태값 |
 |---|---|---|
-| 프로젝트 학습 디렉토리 | `{project}/.claude/learnings/` | 존재 / 미존재 |
+| 프로젝트 학습 디렉토리 | `{project}/.onto-review/learnings/` | 존재 / 미존재 |
 | 도메인 선언 | `{project}/CLAUDE.md` 내 `domain:` 또는 `agent-domain:` | 선언됨 / 미선언 |
 | 글로벌 도메인 문서 | `~/.claude/agent-memory/domains/{domain}/` | 존재 / 미존재 / 해당없음(도메인 미선언) |
 | 글로벌 에이전트 메모리 | `~/.claude/agent-memory/` 하위 디렉토리들 | 존재하는 파일 목록 |
@@ -37,8 +37,8 @@
 사용자가 승인하면 다음을 실행합니다:
 
 **3.1 프로젝트 학습 디렉토리 생성**
-- `.claude/learnings/` 디렉토리가 없으면 생성합니다.
-- `.claude/learnings/.gitkeep` 파일을 생성합니다 (빈 디렉토리의 Git 추적용).
+- `.onto-review/learnings/` 디렉토리가 없으면 생성합니다.
+- `.onto-review/learnings/.gitkeep` 파일을 생성합니다 (빈 디렉토리의 Git 추적용).
 
 **3.2 도메인 설정**
 - CLAUDE.md에 `domain:` 선언이 없으면 사용자에게 질문합니다:
@@ -78,7 +78,7 @@
 
 | 항목 | 결과 |
 |---|---|
-| `.claude/learnings/` | {생성됨 / 이미 존재} |
+| `.onto-review/learnings/` | {생성됨 / 이미 존재} |
 | 도메인 | {domain / 없음 (범용 모드)} |
 | 보조 도메인 | {domains / 없음} |
 | 글로벌 도메인 문서 | {N개 존재 / 미존재 (자동 축적 예정)} |

@@ -3,11 +3,11 @@
 > 프로젝트 수준 학습을 검수하여 글로벌 수준으로 승격합니다.
 > 관련: 리뷰(`processes/review.md`)나 질문(`processes/question.md`)에서 축적된 학습이 대상.
 
-프로젝트 수준 도메인 학습(`{project}/.claude/learnings/`)을 검수하여 글로벌 수준(`~/.claude/agent-memory/domains/{domain}/learnings/`)으로 승격합니다.
+프로젝트 수준 도메인 학습(`{project}/.onto-review/learnings/`)을 검수하여 글로벌 수준(`~/.claude/agent-memory/domains/{domain}/learnings/`)으로 승격합니다.
 
 ### 전제 조건
 
-- `{project}/.claude/learnings/` 디렉토리가 존재해야 합니다.
+- `{project}/.onto-review/learnings/` 디렉토리가 존재해야 합니다.
 - CLAUDE.md에 `domain:`이 선언되어 있어야 합니다.
 - 프로젝트 학습 파일이 1개 이상 존재해야 합니다.
 - 조건 미충족 시 사용자에게 안내하고 중단합니다.
@@ -15,12 +15,12 @@
 ### 1. 대상 수집
 
 **$ARGUMENTS가 있는 경우**: 지정된 에이전트의 학습 파일만 수집합니다.
-- 예: `/promote-learnings onto_logic` → `{project}/.claude/learnings/onto_logic.md`만 대상
+- 예: `/promote-learnings onto_logic` → `{project}/.onto-review/learnings/onto_logic.md`만 대상
 
-**$ARGUMENTS가 없는 경우**: `.claude/learnings/` 하위의 모든 `*.md` 파일을 수집합니다.
+**$ARGUMENTS가 없는 경우**: `.onto-review/learnings/` 하위의 모든 `*.md` 파일을 수집합니다.
 
 각 파일에 대해:
-- 프로젝트 학습: `{project}/.claude/learnings/{agent-id}.md`의 각 항목
+- 프로젝트 학습: `{project}/.onto-review/learnings/{agent-id}.md`의 각 항목
 - 글로벌 학습: `~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md`의 기존 항목
 
 ### 2. 사전 분석

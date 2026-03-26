@@ -183,9 +183,8 @@ onto-review/
 
 ```
 {project}/.onto-review/           # 런타임 데이터 (gitignored)
-├── sessions/                     #   에이전트 라운드별 결과
-├── review/{session-id}/          #   review 산출물
-├── builds/{session-id}/          #   build 산출물 (schema, raw.yml 등)
+├── review/{session-id}/          #   review 세션 (round1/ + philosopher_synthesis.md)
+├── builds/{session-id}/          #   build 세션 (round0~N/ + schema, raw.yml 등)
 └── learnings/                    #   프로젝트 수준 학습
 ```
 

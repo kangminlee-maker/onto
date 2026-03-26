@@ -584,19 +584,37 @@ onto-review/
 
 ### 8.2 런타임 생성 디렉토리 (실행 시 만들어지는 것)
 
+**분류 축**:
+
+| 축 | 역할 | 예시 |
+|---|---|---|
+| 1차: 프로세스 유형 | 데이터의 종류를 구분 | `review/`, `builds/`, `learnings/` |
+| 2차: 세션 ID | 동일 프로세스의 실행 인스턴스를 격리 | `20260326-3be34f0f/` |
+| 3차: 라운드 번호 | 에이전트 실행 단계를 구분 | `round1/` |
+
+**디렉토리 역할 정의**:
+
+| 디렉토리 | 역할 | 포함 내용 | 생명주기 |
+|---|---|---|---|
+| `review/{session-id}/` | 하나의 review 세션에 속한 모든 데이터 | 라운드 결과 + Philosopher 종합 | 세션 종료 후 영구 보존 |
+| `builds/{session-id}/` | 하나의 build 세션에 속한 모든 데이터 | 라운드 결과 + 온톨로지 산출물 | 세션 종료 후 영구 보존 (wip, deltas는 완료 시 삭제) |
+| `learnings/` | 프로젝트 수준 학습 축적 | 에이전트별 학습 파일 | 세션 횡단, 프로젝트 수명과 동일 |
+
+**round 번호 체계**: review는 `round1`(1-indexed), build는 `round0`(0-indexed). review의 round1은 "첫 번째 독립 검증 라운드"를 의미하고, build의 round0은 "초기 탐색 라운드(Phase 0에서 시작)"를 의미합니다.
+
 ```
 {project}/
 ├── .onto-review/                 # 런타임 데이터 (gitignored)
-│   ├── sessions/                 #   에이전트 라운드별 결과
-│   │   ├── review/{session-id}/round1/{agent-id}.md
-│   │   └── builds/{session-id}/round{N}/{agent-id}.yml
-│   ├── review/{session-id}/      #   review 산출물
-│   │   └── philosopher_summary.md
-│   ├── builds/{session-id}/      #   build 산출물
+│   ├── review/{session-id}/      #   review 세션 (라운드 결과 + 산출물 통합)
+│   │   ├── round1/               #     7인 reviewer 결과 ({agent-id}.md)
+│   │   └── philosopher_synthesis.md  # Philosopher 종합 판정
+│   ├── builds/{session-id}/      #   build 세션 (라운드 결과 + 산출물 통합)
+│   │   ├── round0~N/             #     라운드별 에이전트 결과 ({agent-id}.yml)
 │   │   ├── schema.yml            #     온톨로지 구조 정의
 │   │   ├── context_brief.yml     #     build 맥락 요약
 │   │   ├── wip.yml               #     진행 중 온톨로지 (완료 시 삭제)
 │   │   ├── deltas/               #     Explorer의 delta 원문 (완료 시 삭제)
+│   │   ├── _repos/               #     분석 대상 레포 클론 (외부 URL 시)
 │   │   └── raw.yml               #     완성된 온톨로지
 │   └── learnings/                #   프로젝트 수준 학습 ({agent-id}.md)
 ```

@@ -602,6 +602,21 @@ onto-review/
 
 **round 번호 체계**: review는 `round1`(1-indexed), build는 `round0`(0-indexed). review의 round1은 "첫 번째 독립 검증 라운드"를 의미하고, build의 round0은 "초기 탐색 라운드(Phase 0에서 시작)"를 의미합니다.
 
+**세션 메타데이터**: 각 프로세스의 최종 산출물에 YAML 형식으로 메타데이터를 포함합니다.
+- review: `philosopher_synthesis.md`의 YAML frontmatter (`---` 블록)
+- build: `raw.yml`의 `meta:` 키 (기존 방식 유지)
+
+review frontmatter 형식:
+```yaml
+---
+session_id: "{세션 ID}"
+process: review
+target: "{리뷰 대상 요약}"
+domain: "{domain / 없음}"
+date: "{YYYY-MM-DD}"
+---
+```
+
 ```
 {project}/
 ├── .onto-review/                 # 런타임 데이터 (gitignored)

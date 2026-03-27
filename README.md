@@ -17,6 +17,23 @@ Claude Code에서 아래 명령어를 순서대로 실행합니다:
 /plugin install onto-review@kangminlee-maker/onto-review
 ```
 
+## 업데이트
+
+```bash
+cd ~/.claude/plugins/onto-review && git pull
+```
+
+이전 버전에서 업그레이드 시, 글로벌 데이터 경로가 변경되었으므로 마이그레이션을 실행하세요:
+
+```bash
+./migrate-sessions.sh
+```
+
+마이그레이션 대상:
+- `~/.claude/agent-memory/` → `~/.onto-review/` (글로벌 학습·도메인 문서)
+- `.claude/sessions/` → `.onto-review/` (프로젝트 세션 데이터)
+- CLAUDE.md의 `domain:` → `.onto-review/config.yml` (도메인 설정 분리)
+
 ## 도메인 기본 문서 설치 (선택)
 
 플러그인에 포함된 도메인 기본 문서를 설치하면, 리뷰 시 도메인별 전문 기준이 적용됩니다.

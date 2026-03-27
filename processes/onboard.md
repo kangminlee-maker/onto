@@ -1,7 +1,7 @@
 # 온보딩 프로세스
 
 > 프로젝트에 onto 플러그인 환경을 설정합니다. 최초 1회 실행.
-> 관련: 온보딩 후 `/onto-review`, `/onto-{dimension}` 등 모든 명령어 사용 가능.
+> 관련: 온보딩 후 `/onto:review`, `/onto:ask-{dimension}` 등 모든 명령어 사용 가능.
 
 프로젝트에 onto 환경을 설정합니다.
 
@@ -84,7 +84,7 @@
 | 글로벌 도메인 문서 | {N개 존재 / 미존재 (자동 축적 예정)} |
 
 ### 다음 단계
-- `/onto-review {대상}` — 에이전트 패널 리뷰 실행
-- `/onto-{dimension} {질문}` — 개별 전문가 질문
-- 학습이 쌓이면 `/promote-learnings` — 프로젝트 학습을 글로벌에 반영
+- `/onto:review {대상}` — 에이전트 패널 리뷰 실행
+- `/onto:ask-{dimension} {질문}` — 개별 전문가 질문
+- 학습이 쌓이면 `/onto:promote` — 프로젝트 학습을 글로벌에 반영
 ```

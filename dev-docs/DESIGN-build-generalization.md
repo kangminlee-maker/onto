@@ -164,7 +164,7 @@ labels:
 | `process.md` | 부분 수정 (certainty 용어, Teammate prompt) |
 | `README.md` | 부분 수정 (명령어, certainty) |
 | `BLUEPRINT.md` | 부분 수정 (용어, certainty, Explorer) |
-| `commands/onto-build.md` | 완료 |
+| `commands/build.md` | 완료 |
 
 ### 변경하지 않는 것
 

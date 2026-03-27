@@ -1,7 +1,7 @@
 # 온톨로지 구축 프로세스 (적분형 탐색)
 
 > Explorer가 소스를 탐색하고, 검증 에이전트들이 탐색 방향을 제시하는 반복 루프로 온톨로지를 점진적으로 구축합니다.
-> 관련: 구축 후 `/onto-transform`으로 변환, `/onto-review`로 검증 가능.
+> 관련: 구축 후 `/onto:transform`으로 변환, `/onto:review`로 검증 가능.
 
 ## 범용화 범위
 
@@ -979,8 +979,8 @@ Explorer는 학습을 저장하지 않습니다 (해석을 하지 않으므로).
 - Raw Ontology: `.onto/builds/{세션 ID}/raw.yml`
 
 ### 다음 단계
-- `/onto-transform` — 원하는 형식으로 변환
-- `/onto-review .onto-review/builds/{세션 ID}/raw.yml` — 구축된 온톨로지를 패널로 검증
+- `/onto:transform` — 원하는 형식으로 변환
+- `/onto:review .onto/builds/{세션 ID}/raw.yml` — 구축된 온톨로지를 패널로 검증
 ```
 
 ---

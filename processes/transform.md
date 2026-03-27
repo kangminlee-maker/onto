@@ -1,14 +1,14 @@
 # 온톨로지 변환 프로세스
 
 > Raw Ontology를 사용자가 원하는 형식으로 변환합니다.
-> 관련: `/onto-build`로 구축된 Raw Ontology가 입력. 변환 후 `/onto-review`로 검증 가능.
+> 관련: `/onto:build`로 구축된 Raw Ontology가 입력. 변환 후 `/onto:review`로 검증 가능.
 
 Raw Ontology(`.onto/builds/{세션 ID}/raw.yml`)를 사용자가 원하는 형식으로 변환합니다.
 
 ### 1. 원본 확인
 
 - $ARGUMENTS로 지정된 파일, 또는 `{project}/.onto/builds/{세션 ID}/raw.yml`을 읽습니다.
-- 파일이 없으면 안내하고 중단합니다: "`/onto-build`를 먼저 실행하여 Raw Ontology를 구축해 주세요."
+- 파일이 없으면 안내하고 중단합니다: "`/onto:build`를 먼저 실행하여 Raw Ontology를 구축해 주세요."
 - schema.yml도 함께 읽어 온톨로지 구조를 파악합니다.
 
 ### 2. 출력 형식 협의

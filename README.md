@@ -64,7 +64,7 @@ cd ~/.claude/plugins/onto && git pull
 | `accounting` | K-IFRS, 복식부기, 세무 조정, 감사 |
 | `ontology` | 온톨로지 설계, OWL/RDFS/SKOS, 분류 일관성 |
 
-도메인 문서 없이도 사용 가능합니다 (범용 원칙으로 검증). `/onto-onboard` 실행 시에도 설치를 안내합니다.
+도메인 문서 없이도 사용 가능합니다 (범용 원칙으로 검증). `/onto:onboard` 실행 시에도 설치를 안내합니다.
 
 ## 에이전트 구성
 
@@ -85,31 +85,31 @@ cd ~/.claude/plugins/onto && git pull
 ### 팀 리뷰
 | 명령어 | 설명 |
 |---|---|
-| `/onto-review {대상}` | 에이전트 패널로 대상을 다관점 리뷰 |
+| `/onto:review {대상}` | 에이전트 패널로 대상을 다관점 리뷰 |
 
 ### 개별 질문
 | 명령어 | 설명 |
 |---|---|
-| `/onto-logic {질문}` | 논리적 일관성 관점 |
-| `/onto-structure {질문}` | 구조적 완전성 관점 |
-| `/onto-dependency {질문}` | 의존성 무결성 관점 |
-| `/onto-semantics {질문}` | 의미적 정확성 관점 |
-| `/onto-pragmatics {질문}` | 활용 적합성 관점 |
-| `/onto-evolution {질문}` | 확장·진화 적합성 관점 |
-| `/onto-coverage {질문}` | 도메인 포괄성 관점 |
-| `/onto-philosopher {질문}` | 목적 정합성 관점 |
+| `/onto:ask-logic {질문}` | 논리적 일관성 관점 |
+| `/onto:ask-structure {질문}` | 구조적 완전성 관점 |
+| `/onto:ask-dependency {질문}` | 의존성 무결성 관점 |
+| `/onto:ask-semantics {질문}` | 의미적 정확성 관점 |
+| `/onto:ask-pragmatics {질문}` | 활용 적합성 관점 |
+| `/onto:ask-evolution {질문}` | 확장·진화 적합성 관점 |
+| `/onto:ask-coverage {질문}` | 도메인 포괄성 관점 |
+| `/onto:ask-philosopher {질문}` | 목적 정합성 관점 |
 
 ### 온톨로지 구축/변환
 | 명령어 | 설명 |
 |---|---|
-| `/onto-build {경로\|URL}` | 분석 대상에서 온톨로지 구축 (적분형 탐색) |
-| `/onto-transform {파일}` | Raw Ontology를 원하는 형식으로 변환 |
+| `/onto:build {경로\|URL}` | 분석 대상에서 온톨로지 구축 (적분형 탐색) |
+| `/onto:transform {파일}` | Raw Ontology를 원하는 형식으로 변환 |
 
 ### 환경 관리
 | 명령어 | 설명 |
 |---|---|
-| `/onto-onboard` | 프로젝트에 onto 환경 설정 |
-| `/onto-promotelearnings` | 프로젝트 학습을 글로벌 수준으로 승격 |
+| `/onto:onboard` | 프로젝트에 onto 환경 설정 |
+| `/onto:promote` | 프로젝트 학습을 글로벌 수준으로 승격 |
 
 ## 팀 리뷰 흐름 (6단계)
 
@@ -246,7 +246,7 @@ onto/
 - 하나의 아이템에 복수 축 태그 허용 (예: `[methodology]`와 `[domain/SE]` 동시 부착)
 - 아이템 형식: `- [사실|판단] [methodology] [domain/SE] 학습 내용 (출처: ...)`
 - 소통 학습은 `~/.onto/communication/common.md`에 별도 저장 (변경 없음)
-- 프로젝트 수준 학습은 `/onto-promotelearnings`로 글로벌 수준에 승격할 수 있습니다
+- 프로젝트 수준 학습은 `/onto:promote`로 글로벌 수준에 승격할 수 있습니다
 - 도메인 문서는 사용자의 명시적 승인 없이 자동 수정되지 않습니다
 
 ## 도메인 문서 (7종)
@@ -303,8 +303,8 @@ onto/
 ## 시작하기
 
 ```
-/onto-onboard                        # 프로젝트 환경 설정
-/onto-review {대상}                   # 에이전트 패널 리뷰 실행
-/onto-logic {질문}                    # 개별 에이전트에게 질문
-/onto-build {경로|GitHub URL}  # 분석 대상에서 온톨로지 구축
+/onto:onboard                        # 프로젝트 환경 설정
+/onto:review {대상}                   # 에이전트 패널 리뷰 실행
+/onto:ask-logic {질문}                # 개별 에이전트에게 질문
+/onto:build {경로|GitHub URL}  # 분석 대상에서 온톨로지 구축
 ```

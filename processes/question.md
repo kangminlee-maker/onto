@@ -9,16 +9,14 @@ Follows the **error handling rules** in `process.md`: halts the process on agent
 
 1. **Agent file collection**:
    - Definition: `~/.claude/plugins/onto/roles/{agent-id}.md`
-   - Methodology learning: `~/.onto/methodology/{agent-id}.md`
-   - Communication learning (common): `~/.onto/communication/common.md`
-   - Communication learning (individual): `~/.onto/communication/{agent-id}.md`
+   - Verification learning: `~/.onto/learnings/{agent-id}.md`
+   - Communication learning: `~/.onto/communication/common.md`
    - Skip if file does not exist.
 
 2. **Domain document collection**:
    - After domain determination, reads the agent's domain document from `~/.onto/domains/{domain}/`.
 
-3. **Domain learning collection** (mandatory):
-   - Global: `~/.onto/domains/{domain}/learnings/{agent-id}.md`
+3. **Project-level learning collection** (mandatory):
    - **Project**: `{project}/.onto/learnings/{agent-id}.md` — learnings accumulated in the project. **Must be read if this directory exists.**
    - Skip if file does not exist.
 
@@ -39,17 +37,14 @@ Answer the question below from your specialized perspective.
 [Your Definition]
 {Content of ~/.claude/plugins/onto/roles/{agent-id}.md}
 
-[Past Learnings — Methodology]
-{Content of ~/.onto/methodology/{agent-id}.md. "Not yet available" if absent}
-
-[Past Learnings — Domain]
-{Domain learning (global + project) content. "Not yet available" if absent}
+[Past Learnings — Verification]
+{Content of ~/.onto/learnings/{agent-id}.md + {project}/.onto/learnings/{agent-id}.md. "Not yet available" if absent}
 
 [Domain Rules]
 {Content of the agent's domain document. "No domain document" if absent}
 
 [Communication Learning]
-{Common + individual communication learning content. "Not yet available" if absent}
+{Content of ~/.onto/communication/common.md. "Not yet available" if absent}
 
 [Question]
 {$ARGUMENTS}

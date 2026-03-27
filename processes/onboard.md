@@ -61,7 +61,7 @@ Executes the following upon user approval:
 > **Note**: Default domains included in the plugin can be installed in bulk via `setup-domains.sh --all`, or selectively via `setup-domains.sh {domain1} {domain2}`.
 
 **3.4 Global learning status notification**
-- If global learnings for the domain (`~/.onto/domains/{domain}/learnings/`) exist, notifies:
+- If global learnings (`~/.onto/learnings/`) exist, notifies:
   "There are {N} global learnings for domain `{domain}`. Verification experience accumulated from previous projects will also be utilized in reviews for this project."
 - If none exist, does not notify.
 

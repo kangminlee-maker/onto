@@ -939,7 +939,7 @@ issues:
 ```
 
 **Schema B/D raw.yml format**: follows the structure of the corresponding golden example. Uses each schema's sections directly under the meta header.
-- Schema B: structure of `golden/object-types.yaml` + `golden/action-types.yaml` (enums, object_types, link_types, actors, action_types, functions, domain_flows)
+- Schema B: structure of `golden/b-action-centric.yaml` (enums, object_types, link_types, actors, action_types, functions, domain_flows)
 - Schema D: structure of `golden/d-domain-driven.yaml` (bounded_contexts, aggregates, entities, value_objects, domain_events, commands, queries, sagas, relationships)
 
 **Save rules**:

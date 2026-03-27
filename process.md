@@ -29,7 +29,7 @@ These agents are not a MECE classification but a set of empirically validated in
 | `onto_logic` | Logical consistency verifier | Contradictions, type conflicts, constraint conflicts |
 | `onto_structure` | Structural completeness verifier | Isolated elements, broken paths, missing relations |
 | `onto_dependency` | Dependency integrity verifier | Cycles, reverse direction, diamond dependencies |
-| `onto_semantics` | Semantic accuracy verifier | Name-meaning alignment, synonyms/homographs |
+| `onto_semantics` | Semantic accuracy verifier | Name-meaning alignment, synonyms/homonyms |
 | `onto_pragmatics` | Pragmatic fitness verifier | Queryability, competency question testing |
 | `onto_evolution` | Evolution fitness verifier | Breakage when adding new data/domains |
 | `onto_coverage` | Domain coverage verifier | Missing sub-areas, concept bias, gaps against standards |

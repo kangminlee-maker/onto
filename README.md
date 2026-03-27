@@ -63,8 +63,19 @@ Installing the domain base documents included with the plugin applies domain-spe
 | `market-intelligence` | Market analysis, competitive intelligence, risk assessment, data reliability |
 | `accounting` | K-IFRS, double-entry bookkeeping, tax adjustments, auditing |
 | `ontology` | Ontology design, OWL/RDFS/SKOS, classification consistency |
+| `ui-design` | UI layout, interaction patterns, accessibility, responsive design |
+| `visual-design` | Visual hierarchy, color systems, typography, brand consistency |
 
 Usable without domain documents (verified using general principles). Domain document installation is also suggested when running `/onto:onboard`.
+
+## Getting Started
+
+```
+/onto:onboard                        # Set up project environment
+/onto:review {target}                # Run agent panel review
+/onto:ask-logic {question}           # Ask an individual agent
+/onto:build {path|GitHub URL}        # Build ontology from analysis target
+```
 
 ## Agent Configuration
 
@@ -97,6 +108,7 @@ Usable without domain documents (verified using general principles). Domain docu
 | `/onto:ask-pragmatics {question}` | Pragmatic fitness perspective |
 | `/onto:ask-evolution {question}` | Evolution fitness perspective |
 | `/onto:ask-coverage {question}` | Domain coverage perspective |
+| `/onto:ask-conciseness {question}` | Conciseness perspective |
 | `/onto:ask-philosopher {question}` | Purpose alignment perspective |
 
 ### Ontology Build/Transform
@@ -207,7 +219,7 @@ onto/
 |   +-- onto_conciseness.md  # Conciseness
 |   +-- philosopher.md       # Purpose alignment
 +-- explorers/               # Explorer profiles for build process
-+-- domains/                 # Domain base documents (7-8 per domain)
++-- domains/                 # Domain base documents (8 per domain)
 +-- golden/                  # Golden examples per schema + schema templates
 +-- dev-docs/                # Design documents, issues, philosophical foundations
 |   +-- BLUEPRINT.md
@@ -217,6 +229,7 @@ onto/
 +-- commands/                # Command definitions
 +-- setup-domains.sh         # Domain base document installation
 +-- migrate-sessions.sh      # Previous version data migration
++-- migrate-learnings.sh     # Learning storage structure migration
 +-- .claude-plugin/          # Plugin metadata
 ```
 
@@ -252,15 +265,17 @@ Each learning item is tagged with a type tag and axis tags:
 - Project-level learnings can be promoted to global-level via `/onto:promote`
 - Domain documents are never auto-modified without explicit user approval
 
-## Domain Documents (7 types)
+## Domain Documents (8 types)
 
 | Type | Document | When Absent | Update Method |
 |---|---|---|---|
 | Scope-defining | `domain_scope.md` | Role becomes ineffective | Promote suggestion -> user approval |
 | Accumulable | `concepts.md`, `competency_qs.md` | Reduced performance | Promote suggestion -> user approval |
-| Rule-defining | `logic_rules.md`, `structure_spec.md`, `dependency_rules.md`, `extension_cases.md` | Reduced performance (LLM can substitute) | User writes directly |
+| Rule-defining | `logic_rules.md`, `structure_spec.md`, `dependency_rules.md`, `extension_cases.md`, `conciseness_rules.md` | Reduced performance (LLM can substitute) | User writes directly |
 
 ## Migration
+
+> **Note**: If this is a fresh installation, skip this section. Migration is only needed when upgrading from the deprecated `onto-review` plugin.
 
 If runtime data from a previous version is stored under `.claude/`, the following scripts can move it to `.onto/`.
 
@@ -303,11 +318,3 @@ Changes:
 
 Automatically skipped if no previous structure exists.
 
-## Getting Started
-
-```
-/onto:onboard                        # Set up project environment
-/onto:review {target}                # Run agent panel review
-/onto:ask-logic {question}           # Ask an individual agent
-/onto:build {path|GitHub URL}        # Build ontology from analysis target
-```

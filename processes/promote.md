@@ -149,7 +149,7 @@ Automatically detects items among promoted domain learnings that match the follo
 
 | Condition | Target Document | Judgment Criteria |
 |---|---|---|
-| Learnings about concept definitions, term mappings, synonyms/homographs | `concepts.md` | When the learning is from `onto_semantics` and concerns term definitions/distinctions/mappings |
+| Learnings about concept definitions, term mappings, synonyms/homonyms | `concepts.md` | When the learning is from `onto_semantics` and concerns term definitions/distinctions/mappings |
 | Learnings about competency questions, query paths, usage scenarios | `competency_qs.md` | When the learning is from `onto_pragmatics` and is in the form "should be able to answer this question" |
 | Learnings about domain scope, sub-areas, required concept categories | `domain_scope.md` | When the learning is from `onto_coverage` and concerns domain scope/sub-areas/reference standards |
 

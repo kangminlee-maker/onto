@@ -8,7 +8,7 @@
 ### 전제 조건
 
 - `{project}/.onto-review/learnings/` 디렉토리가 존재해야 합니다.
-- CLAUDE.md에 `domain:`이 선언되어 있어야 합니다.
+- `.onto-review/config.yml` 또는 CLAUDE.md에 `domain:`이 선언되어 있어야 합니다.
 - 프로젝트 학습 파일이 1개 이상 존재해야 합니다.
 - 조건 미충족 시 사용자에게 안내하고 중단합니다.
 

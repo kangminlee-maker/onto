@@ -43,9 +43,9 @@ team lead가 아래 항목만 수집합니다. 에이전트별 학습/도메인 
 
 **Step 3 — TeamCreate로 팀 생성**:
 - team_name: `onto-review-{세션 ID}`
-- description: `8-Agent Panel Review: {리뷰 대상 요약}`
+- description: `Agent Panel Review: {리뷰 대상 요약}`
 
-**Step 4 — 전체 teammate 생성**: TeamCreate 후, Agent tool로 8인의 teammate를 **하나의 메시지에서 동시에** 생성합니다. 초기 prompt에 정체성 + 자기 로딩 + 작업 지시를 통합하여, **생성 즉시 Round 1을 시작**합니다.
+**Step 4 — 전체 teammate 생성**: TeamCreate 후, Agent tool로 전체 teammate를 **하나의 메시지에서 동시에** 생성합니다. 초기 prompt에 정체성 + 자기 로딩 + 작업 지시를 통합하여, **생성 즉시 Round 1을 시작**합니다.
 - 각 teammate의 `name`: agent-id (예: `onto_logic`, `philosopher`)
 - 각 teammate의 `team_name`: Step 3에서 생성한 team_name
 - 초기 prompt: `process.md`의 **Teammate 초기 prompt 템플릿** 사용 (세션 경로 포함)
@@ -107,7 +107,7 @@ Philosopher에게 전달할 SendMessage 내용:
 검증 에이전트들의 Round 1 리뷰 결과를 종합하고, 시스템 목적 관점에서 판정하세요.
 
 [검증 에이전트들의 리뷰 결과 파일]
-아래 경로의 파일 7개를 Read 도구로 직접 읽으세요:
+아래 경로의 파일을 Read 도구로 직접 읽으세요:
 {세션 경로}/round1/onto_logic.md
 {세션 경로}/round1/onto_structure.md
 {세션 경로}/round1/onto_dependency.md
@@ -115,6 +115,7 @@ Philosopher에게 전달할 SendMessage 내용:
 {세션 경로}/round1/onto_pragmatics.md
 {세션 경로}/round1/onto_evolution.md
 {세션 경로}/round1/onto_coverage.md
+{세션 경로}/round1/onto_conciseness.md
 
 ※ Write 실패로 파일이 없는 에이전트의 결과는 아래에 직접 포함합니다:
 {Write 실패 에이전트의 원문 (해당 시에만)}
@@ -172,7 +173,7 @@ domain: {domain / 없음}
 date: {YYYY-MM-DD}
 ---
 
-## 8-Agent Panel Review 결과
+## Agent Panel Review 결과
 
 ### 리뷰 대상
 {리뷰 대상 요약}
@@ -267,7 +268,7 @@ domain: {domain / 없음}
 date: {YYYY-MM-DD}
 ---
 
-## 8-Agent Panel Review 결과
+## Agent Panel Review 결과
 
 ### 리뷰 대상
 ### 검증 컨텍스트

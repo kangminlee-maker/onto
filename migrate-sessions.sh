@@ -255,7 +255,7 @@ if [ -f "$CLAUDE_MD" ] && [ ! -f "$CONFIG_YML" ]; then
             mkdir -p "$NEW_DIR"
             echo "domain: $DOMAIN" > "$CONFIG_YML"
             if [ -n "$SECONDARY" ]; then
-                echo "secondary_domains:$SECONDARY" >> "$CONFIG_YML"
+                echo "secondary_domains: $SECONDARY" >> "$CONFIG_YML"
             fi
             echo -e "  ${GREEN}→ .onto-review/config.yml 생성 완료${NC}"
             echo -e "  ${YELLOW}CLAUDE.md의 domain/secondary_domains 줄은 수동으로 제거해 주세요.${NC}"

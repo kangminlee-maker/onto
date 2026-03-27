@@ -102,7 +102,7 @@ Claude Code에서 아래 명령어를 순서대로 실행합니다:
 ```
 
 - Round 1: 완전 독립 — 다른 에이전트의 관점을 모른 채, 구조 점검(ME+CE) 후 내용 검증
-- **파일 기반 전달**: reviewer가 결과를 세션 디렉토리에 Write → team-lead에 경로만 보고 → Philosopher가 Read로 직접 읽기 (team-lead 컨텍스트 포화 방지)
+- **파일 기반 전달**: 검증 에이전트가 결과를 세션 디렉토리에 Write → team-lead에 경로만 보고 → Philosopher가 Read로 직접 읽기 (team-lead 컨텍스트 포화 방지)
 - **세션 ID**: `{YYYYMMDD}-{hash8}` 형태로 team_name과 세션 디렉토리를 고유하게 식별 (세션 간 충돌 방지, git commit처럼 추적 가능)
 - 쟁점 토론: 모순/간과된 전제가 있을 때만 해당 에이전트 간 직접 소통
 - Fallback: TeamCreate 실패 시 Agent tool(subagent) 방식으로 전환 (파일 기반 전달은 동일 적용)
@@ -172,22 +172,27 @@ onto-review/
 │   ├── onboard.md          # 온보딩
 │   └── promote.md          # 학습 승격
 ├── roles/
-│   ├── onto_logic.md       # 논리적 일관성
-│   ├── onto_structure.md   # 구조적 완전성
-│   ├── onto_dependency.md  # 의존성 무결성
-│   ├── onto_semantics.md   # 의미적 정확성
-│   ├── onto_pragmatics.md  # 활용 적합성
-│   ├── onto_evolution.md   # 확장·진화 적합성
-│   ├── onto_coverage.md    # 도메인 포괄성
-│   └── philosopher.md      # 목적 정합성
-├── golden/                 # 스키마별 golden example + 스키마 템플릿
-├── dev-docs/               # 설계 문서, 이슈, 철학적 기반
+│   ├── onto_logic.md        # 논리적 일관성
+│   ├── onto_structure.md    # 구조적 완전성
+│   ├── onto_dependency.md   # 의존성 무결성
+│   ├── onto_semantics.md    # 의미적 정확성
+│   ├── onto_pragmatics.md   # 활용 적합성
+│   ├── onto_evolution.md    # 확장·진화 적합성
+│   ├── onto_coverage.md     # 도메인 포괄성
+│   ├── onto_conciseness.md  # 간결성
+│   └── philosopher.md       # 목적 정합성
+├── explorers/               # build 프로세스용 Explorer 프로파일
+├── domains/                 # 도메인별 기본 문서 (7~8종/도메인)
+├── golden/                  # 스키마별 golden example + 스키마 템플릿
+├── dev-docs/                # 설계 문서, 이슈, 철학적 기반
 │   ├── BLUEPRINT.md
 │   ├── KNOWN-ISSUES.md
 │   ├── DESIGN-build-generalization.md
 │   └── philosophical-foundations-of-ontology.md
-├── commands/               # 명령어 정의
-└── .claude-plugin/         # 플러그인 메타데이터
+├── commands/                # 명령어 정의
+├── setup-domains.sh         # 도메인 기본 문서 설치
+├── migrate-sessions.sh      # 이전 버전 데이터 마이그레이션
+└── .claude-plugin/          # 플러그인 메타데이터
 ```
 
 ### 런타임 생성 디렉토리

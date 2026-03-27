@@ -10,7 +10,7 @@ set -e
 # 경로 설정
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DOMAINS_SRC="$SCRIPT_DIR/domains"
-DOMAINS_DST="$HOME/.claude/agent-memory/domains"
+DOMAINS_DST="$HOME/.onto-review/domains"
 
 # 색상
 GREEN='\033[0;32m'
@@ -120,7 +120,7 @@ main() {
     echo ""
     echo -e "${CYAN}━━━ onto-review 도메인 기본 문서 설치 ━━━${NC}"
     echo ""
-    echo "도메인 기본 문서를 ~/.claude/agent-memory/domains/에 설치합니다."
+    echo "도메인 기본 문서를 ~/.onto-review/domains/에 설치합니다."
     echo "기존 learnings(학습 축적)는 보존됩니다."
     echo ""
 

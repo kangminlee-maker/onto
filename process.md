@@ -11,7 +11,7 @@
 | 온보딩 | `processes/onboard.md` | 프로젝트에 onto-review 환경 설정 | → 리뷰, 질문 |
 | 개별 질문 | `processes/question.md` | 1인 에이전트에게 질문 | 학습 → 승격 |
 | 팀 리뷰 | `processes/review.md` | 에이전트 패널 리뷰 (Agent Teams) | 학습 → 승격 |
-| 코드 기반 구축 | `processes/build.md` | 코드에서 온톨로지 추출 (Agent Teams) | → 변환, 리뷰 |
+| 온톨로지 구축 | `processes/build.md` | 분석 대상에서 온톨로지 구축 (Agent Teams) | → 변환, 리뷰 |
 | 변환 | `processes/transform.md` | Raw Ontology 형식 변환 | 구축 → |
 | 학습 승격 | `processes/promote.md` | 프로젝트 학습을 글로벌로 승격 (Agent Teams) | 리뷰/질문 → |
 

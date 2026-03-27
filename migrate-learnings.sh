@@ -1,10 +1,10 @@
 #!/bin/bash
-# onto-review 학습 저장 구조 마이그레이션 스크립트
+# onto 학습 저장 구조 마이그레이션 스크립트
 # 이전 3경로 구조를 새 2경로 + 축 태그 모델로 변환합니다.
 #
 # 마이그레이션 대상:
-#   1. ~/.onto-review/methodology/{agent-id}.md → ~/.onto-review/learnings/{agent-id}.md ([methodology] 태그 부착)
-#   2. ~/.onto-review/domains/{domain}/learnings/{agent-id}.md → ~/.onto-review/learnings/{agent-id}.md ([domain/{domain}] 태그 부착)
+#   1. ~/.onto/methodology/{agent-id}.md → ~/.onto/learnings/{agent-id}.md ([methodology] 태그 부착)
+#   2. ~/.onto/domains/{domain}/learnings/{agent-id}.md → ~/.onto/learnings/{agent-id}.md ([domain/{domain}] 태그 부착)
 #
 # 사용법:
 #   ./migrate-learnings.sh              # 마이그레이션 실행
@@ -35,7 +35,7 @@ for arg in "$@"; do
     esac
 done
 
-GLOBAL_DIR="$HOME/.onto-review"
+GLOBAL_DIR="$HOME/.onto"
 METHODOLOGY_DIR="$GLOBAL_DIR/methodology"
 DOMAINS_DIR="$GLOBAL_DIR/domains"
 LEARNINGS_DIR="$GLOBAL_DIR/learnings"
@@ -309,7 +309,7 @@ fi
 echo ""
 echo "새 학습 구조:"
 echo ""
-echo "  ~/.onto-review/"
+echo "  ~/.onto/"
 echo "  ├── learnings/{agent-id}.md        # 통합 학습 (축 태그 포함)"
 echo "  ├── communication/common.md        # 소통 학습 (변경 없음)"
 echo "  └── domains/{domain}/              # 도메인 문서 (learnings/ 제거됨)"

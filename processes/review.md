@@ -31,7 +31,7 @@ team lead가 아래 항목만 수집합니다. 에이전트별 학습/도메인 
    - 플러그인 경로를 확인합니다. (teammate 초기 prompt의 경로 변수에 사용)
 
 4. **에이전트 정의 수집** (전원 각각):
-   - `~/.claude/plugins/onto-review/roles/{agent-id}.md` — 에이전트당 ~14행. team lead가 읽어서 초기 prompt에 직접 포함합니다.
+   - `~/.claude/plugins/onto/roles/{agent-id}.md` — 에이전트당 ~14행. team lead가 읽어서 초기 prompt에 직접 포함합니다.
 
 ---
 
@@ -39,10 +39,10 @@ team lead가 아래 항목만 수집합니다. 에이전트별 학습/도메인 
 
 **Step 1 — 세션 ID 생성**: `$(date +%Y%m%d)-$(openssl rand -hex 4)` (예: `20260325-a3f7b2c1`)
 
-**Step 2 — 세션 디렉토리 생성**: `{project}/.onto-review/review/{세션 ID}/round1/`
+**Step 2 — 세션 디렉토리 생성**: `{project}/.onto/review/{세션 ID}/round1/`
 
 **Step 3 — TeamCreate로 팀 생성**:
-- team_name: `onto-review-{세션 ID}`
+- team_name: `onto-{세션 ID}`
 - description: `Agent Panel Review: {리뷰 대상 요약}`
 
 **Step 4 — 전체 teammate 생성**: TeamCreate 후, Agent tool로 전체 teammate를 **하나의 메시지에서 동시에** 생성합니다. 초기 prompt에 정체성 + 자기 로딩 + 작업 지시를 통합하여, **생성 즉시 Round 1을 시작**합니다.

@@ -1,11 +1,11 @@
 {
-  "name": "onto-review",
+  "name": "onto",
   "owner": {
     "name": "kangmin"
   },
   "plugins": [
     {
-      "name": "onto-review",
+      "name": "onto",
       "source": "./",
       "description": "Ontology verification system using 8+1 agent panel. Verifies logical consistency, structural completeness, dependency integrity, semantic accuracy, practical usability, evolution fitness, domain coverage, and conciseness across any domain. Includes 14 commands: 9 individual agent queries, team review, code-based ontology building, format transformation, project onboarding, and learning promotion."
     }

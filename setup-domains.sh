@@ -1,5 +1,5 @@
 #!/bin/bash
-# onto-review 도메인 기본 문서 설치 스크립트
+# onto 도메인 기본 문서 설치 스크립트
 # 사용법:
 #   ./setup-domains.sh              # 대화형 — 도메인 선택
 #   ./setup-domains.sh --all        # 전체 설치
@@ -10,7 +10,7 @@ set -e
 # 경로 설정
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DOMAINS_SRC="$SCRIPT_DIR/domains"
-DOMAINS_DST="$HOME/.onto-review/domains"
+DOMAINS_DST="$HOME/.onto/domains"
 
 # 색상
 GREEN='\033[0;32m'
@@ -118,9 +118,9 @@ show_domains() {
 # 메인 로직
 main() {
     echo ""
-    echo -e "${CYAN}━━━ onto-review 도메인 기본 문서 설치 ━━━${NC}"
+    echo -e "${CYAN}━━━ onto 도메인 기본 문서 설치 ━━━${NC}"
     echo ""
-    echo "도메인 기본 문서를 ~/.onto-review/domains/에 설치합니다."
+    echo "도메인 기본 문서를 ~/.onto/domains/에 설치합니다."
     echo "기존 learnings(학습 축적)는 보존됩니다."
     echo ""
 

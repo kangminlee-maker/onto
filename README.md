@@ -13,14 +13,14 @@
 Claude Code에서 아래 명령어를 순서대로 실행합니다:
 
 ```
-/plugin marketplace add kangminlee-maker/onto-review
-/plugin install onto-review@kangminlee-maker/onto-review
+/plugin marketplace add kangminlee-maker/onto
+/plugin install onto@kangminlee-maker/onto
 ```
 
 ## 업데이트
 
 ```bash
-cd ~/.claude/plugins/onto-review && git pull
+cd ~/.claude/plugins/onto && git pull
 ```
 
 이전 버전에서 업그레이드 시, 글로벌 데이터 경로가 변경되었으므로 마이그레이션을 실행하세요:
@@ -35,9 +35,9 @@ cd ~/.claude/plugins/onto-review && git pull
 ```
 
 마이그레이션 대상:
-- `~/.claude/agent-memory/` → `~/.onto-review/` (글로벌 학습·도메인 문서)
-- `.claude/sessions/` → `.onto-review/` (프로젝트 세션 데이터)
-- CLAUDE.md의 `domain:` → `.onto-review/config.yml` (도메인 설정 분리)
+- `~/.claude/agent-memory/` → `~/.onto/` (글로벌 학습·도메인 문서)
+- `.claude/sessions/` → `.onto/` (프로젝트 세션 데이터)
+- CLAUDE.md의 `domain:` → `.onto/config.yml` (도메인 설정 분리)
 
 ## 도메인 기본 문서 설치 (선택)
 
@@ -108,7 +108,7 @@ cd ~/.claude/plugins/onto-review && git pull
 ### 환경 관리
 | 명령어 | 설명 |
 |---|---|
-| `/onto-onboard` | 프로젝트에 onto-review 환경 설정 |
+| `/onto-onboard` | 프로젝트에 onto 환경 설정 |
 | `/onto-promotelearnings` | 프로젝트 학습을 글로벌 수준으로 승격 |
 
 ## 팀 리뷰 흐름 (6단계)
@@ -184,7 +184,7 @@ cd ~/.claude/plugins/onto-review && git pull
 ## 디렉토리 구조
 
 ```
-onto-review/
+onto/
 ├── process.md              # 공통 정의 (에이전트 구성, 도메인 규칙, Agent Teams, 학습 저장)
 ├── processes/
 │   ├── review.md           # 팀 리뷰 모드 (6단계)
@@ -220,7 +220,7 @@ onto-review/
 ### 런타임 생성 디렉토리
 
 ```
-{project}/.onto-review/           # 런타임 데이터 (gitignored)
+{project}/.onto/           # 런타임 데이터 (gitignored)
 ├── review/{session-id}/          #   review 세션 (round1/ + philosopher_synthesis.md)
 ├── builds/{session-id}/          #   build 세션 (round0~N/ + schema, raw.yml 등)
 └── learnings/                    #   프로젝트 수준 학습
@@ -232,8 +232,8 @@ onto-review/
 
 | 저장 위치 | 범위 |
 |---|---|
-| `~/.onto-review/learnings/{agent-id}.md` | 글로벌 학습 |
-| `{project}/.onto-review/learnings/{agent-id}.md` | 프로젝트 수준 학습 |
+| `~/.onto/learnings/{agent-id}.md` | 글로벌 학습 |
+| `{project}/.onto/learnings/{agent-id}.md` | 프로젝트 수준 학습 |
 
 각 학습 아이템에는 유형 태그와 축 태그가 부착됩니다:
 
@@ -245,7 +245,7 @@ onto-review/
 
 - 하나의 아이템에 복수 축 태그 허용 (예: `[methodology]`와 `[domain/SE]` 동시 부착)
 - 아이템 형식: `- [사실|판단] [methodology] [domain/SE] 학습 내용 (출처: ...)`
-- 소통 학습은 `~/.onto-review/communication/common.md`에 별도 저장 (변경 없음)
+- 소통 학습은 `~/.onto/communication/common.md`에 별도 저장 (변경 없음)
 - 프로젝트 수준 학습은 `/onto-promotelearnings`로 글로벌 수준에 승격할 수 있습니다
 - 도메인 문서는 사용자의 명시적 승인 없이 자동 수정되지 않습니다
 
@@ -259,13 +259,13 @@ onto-review/
 
 ## 마이그레이션
 
-이전 버전에서 런타임 데이터가 `.claude/` 하위에 저장되어 있는 경우, 아래 스크립트로 `.onto-review/`로 이동할 수 있습니다.
+이전 버전에서 런타임 데이터가 `.claude/` 하위에 저장되어 있는 경우, 아래 스크립트로 `.onto/`로 이동할 수 있습니다.
 
 마이그레이션 대상:
-- `.claude/sessions/` → `.onto-review/review/`, `.onto-review/builds/`
-- `.claude/learnings/` → `.onto-review/learnings/`
-- `.claude/ontology/` → `.onto-review/builds/{세션ID}/`
-- `.onto-review/sessions/` 중간 계층 → 제거 (직접 `review/`, `builds/` 아래로)
+- `.claude/sessions/` → `.onto/review/`, `.onto/builds/`
+- `.claude/learnings/` → `.onto/learnings/`
+- `.claude/ontology/` → `.onto/builds/{세션ID}/`
+- `.onto/sessions/` 중간 계층 → 제거 (직접 `review/`, `builds/` 아래로)
 
 ```bash
 # 대상 확인 (실제 이동 없음)
@@ -293,10 +293,10 @@ onto-review/
 ```
 
 변경 내용:
-- `~/.onto-review/methodology/{agent}.md` → `~/.onto-review/learnings/{agent}.md`에 `[methodology]` 태그 부착 후 병합
-- `~/.onto-review/domains/{domain}/learnings/{agent}.md` → `~/.onto-review/learnings/{agent}.md`에 `[domain/{domain}]` 태그 부착 후 병합
+- `~/.onto/methodology/{agent}.md` → `~/.onto/learnings/{agent}.md`에 `[methodology]` 태그 부착 후 병합
+- `~/.onto/domains/{domain}/learnings/{agent}.md` → `~/.onto/learnings/{agent}.md`에 `[domain/{domain}]` 태그 부착 후 병합
 - 태그 위치 정규화: `- [유형] [축태그...] 학습 내용 (출처: ...)`
-- 기존 파일은 `~/.onto-review/_backup_migration_{date}/`에 백업
+- 기존 파일은 `~/.onto/_backup_migration_{date}/`에 백업
 
 이전 구조가 없으면 자동으로 건너뜁니다.
 

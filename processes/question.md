@@ -8,18 +8,18 @@
 `process.md`의 **에러 처리 규칙**을 따릅니다: 에이전트 정의/질문 대상 읽기 실패 시 프로세스 중단. 학습/도메인 문서 부재 시 "아직 없음"으로 처리하고 계속 진행.
 
 1. **에이전트 파일 수집**:
-   - 정의: `~/.claude/plugins/onto-review/roles/{agent-id}.md`
-   - 방법론 학습: `~/.onto-review/methodology/{agent-id}.md`
-   - 소통 학습 (공통): `~/.onto-review/communication/common.md`
-   - 소통 학습 (개별): `~/.onto-review/communication/{agent-id}.md`
+   - 정의: `~/.claude/plugins/onto/roles/{agent-id}.md`
+   - 방법론 학습: `~/.onto/methodology/{agent-id}.md`
+   - 소통 학습 (공통): `~/.onto/communication/common.md`
+   - 소통 학습 (개별): `~/.onto/communication/{agent-id}.md`
    - 파일이 없으면 무시합니다.
 
 2. **도메인 문서 수집**:
-   - 도메인 판별 후, `~/.onto-review/domains/{domain}/` 하위에서 해당 에이전트의 도메인 문서를 읽습니다.
+   - 도메인 판별 후, `~/.onto/domains/{domain}/` 하위에서 해당 에이전트의 도메인 문서를 읽습니다.
 
 3. **도메인 학습 수집** (반드시 수행):
-   - 글로벌: `~/.onto-review/domains/{domain}/learnings/{agent-id}.md`
-   - **프로젝트**: `{project}/.onto-review/learnings/{agent-id}.md` — 해당 프로젝트에서 축적된 학습. **이 디렉토리가 존재하면 반드시 읽어야 합니다.**
+   - 글로벌: `~/.onto/domains/{domain}/learnings/{agent-id}.md`
+   - **프로젝트**: `{project}/.onto/learnings/{agent-id}.md` — 해당 프로젝트에서 축적된 학습. **이 디렉토리가 존재하면 반드시 읽어야 합니다.**
    - 파일이 없으면 무시합니다.
 
 3. **질문 대상 수집**:
@@ -37,10 +37,10 @@ Agent tool로 해당 에이전트를 **1인 실행**합니다.
 아래 질문에 당신의 전문 영역 관점에서 답하세요.
 
 [당신의 정의]
-{~/.claude/plugins/onto-review/roles/{agent-id}.md 내용}
+{~/.claude/plugins/onto/roles/{agent-id}.md 내용}
 
 [과거 학습 — 방법론]
-{~/.onto-review/methodology/{agent-id}.md 내용. 없으면 "아직 없음"}
+{~/.onto/methodology/{agent-id}.md 내용. 없으면 "아직 없음"}
 
 [과거 학습 — 도메인]
 {도메인 학습 (글로벌 + 프로젝트) 내용. 없으면 "아직 없음"}

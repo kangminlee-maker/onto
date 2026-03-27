@@ -1,14 +1,14 @@
 #!/bin/bash
-# onto-review 마이그레이션 스크립트
-# 이전 버전의 런타임 데이터를 새 .onto-review/ 구조로 이동합니다.
+# onto 마이그레이션 스크립트
+# 이전 버전의 런타임 데이터를 새 .onto/ 구조로 이동합니다.
 #
 # 마이그레이션 대상:
-#   1. .claude/sessions/   → .onto-review/review/ 및 .onto-review/builds/
-#   2. .claude/learnings/  → .onto-review/learnings/
-#   3. .claude/ontology/   → .onto-review/builds/{세션ID}/
-#   4. .onto-review/sessions/ 중간 계층 제거 (sessions/review/ → review/)
-#   5. CLAUDE.md의 domain 설정 → .onto-review/config.yml (CLAUDE.md 비침습)
-#   6. ~/.claude/agent-memory/ → ~/.onto-review/ (글로벌 데이터 분리)
+#   1. .claude/sessions/   → .onto/review/ 및 .onto/builds/
+#   2. .claude/learnings/  → .onto/learnings/
+#   3. .claude/ontology/   → .onto/builds/{세션ID}/
+#   4. .onto/sessions/ 중간 계층 제거 (sessions/review/ → review/)
+#   5. CLAUDE.md의 domain 설정 → .onto/config.yml (CLAUDE.md 비침습)
+#   6. ~/.claude/agent-memory/ → ~/.onto/ (글로벌 데이터 분리)
 #
 # 사용법:
 #   ./migrate-sessions.sh                # 현재 디렉토리의 프로젝트를 마이그레이션
@@ -50,17 +50,17 @@ PROJECT_DIR="$(cd "$PROJECT_DIR" 2>/dev/null && pwd)" || {
     exit 1
 }
 
-NEW_DIR="$PROJECT_DIR/.onto-review"
+NEW_DIR="$PROJECT_DIR/.onto"
 
 echo ""
-echo -e "${CYAN}━━━ onto-review 마이그레이션 ━━━${NC}"
+echo -e "${CYAN}━━━ onto 마이그레이션 ━━━${NC}"
 echo ""
 echo "프로젝트: $PROJECT_DIR"
 echo ""
 
 TOTAL_ACTIONS=0
 
-# ─── 1단계: .claude/sessions/ → .onto-review/{프로세스}/ ───
+# ─── 1단계: .claude/sessions/ → .onto/{프로세스}/ ───
 
 OLD_SESSIONS="$PROJECT_DIR/.claude/sessions"
 
@@ -95,7 +95,7 @@ if [ -d "$OLD_SESSIONS" ]; then
                     mkdir -p "$(dirname "$dst")"
                     mv "$session_dir" "$dst"
                 fi
-                echo -e "    ${GREEN}→ .onto-review/${process_name}/${session_id}${NC}"
+                echo -e "    ${GREEN}→ .onto/${process_name}/${session_id}${NC}"
             fi
         done
     done
@@ -110,7 +110,7 @@ else
     echo ""
 fi
 
-# ─── 2단계: .claude/learnings/ → .onto-review/learnings/ ───
+# ─── 2단계: .claude/learnings/ → .onto/learnings/ ───
 
 OLD_LEARNINGS="$PROJECT_DIR/.claude/learnings"
 
@@ -144,7 +144,7 @@ else
     echo ""
 fi
 
-# ─── 3단계: .claude/ontology/ → .onto-review/builds/{세션ID}/ ───
+# ─── 3단계: .claude/ontology/ → .onto/builds/{세션ID}/ ───
 
 OLD_ONTOLOGY="$PROJECT_DIR/.claude/ontology"
 
@@ -192,12 +192,12 @@ else
     echo ""
 fi
 
-# ─── 4단계: .onto-review/sessions/ 중간 계층 제거 ───
+# ─── 4단계: .onto/sessions/ 중간 계층 제거 ───
 
 OLD_SESSIONS_LAYER="$NEW_DIR/sessions"
 
 if [ -d "$OLD_SESSIONS_LAYER" ]; then
-    echo -e "${CYAN}[4/4] .onto-review/sessions/ 중간 계층 발견 — 제거합니다${NC}"
+    echo -e "${CYAN}[4/4] .onto/sessions/ 중간 계층 발견 — 제거합니다${NC}"
     ((TOTAL_ACTIONS++))
 
     for process_dir in "$OLD_SESSIONS_LAYER"/*/; do
@@ -222,22 +222,22 @@ if [ -d "$OLD_SESSIONS_LAYER" ]; then
                         mv "$sub" "$dst/$sub_name"
                     fi
                 done
-                echo -e "    ${GREEN}→ .onto-review/${process_name}/${session_id}${NC}"
+                echo -e "    ${GREEN}→ .onto/${process_name}/${session_id}${NC}"
             fi
         done
     done
 
     if [ "$DRY_RUN" = false ]; then
         rm -rf "$OLD_SESSIONS_LAYER"
-        echo -e "  ${GREEN}.onto-review/sessions/ 삭제 완료${NC}"
+        echo -e "  ${GREEN}.onto/sessions/ 삭제 완료${NC}"
     fi
     echo ""
 else
-    echo -e "[4/4] .onto-review/sessions/ — 없음 (건너뜀)"
+    echo -e "[4/4] .onto/sessions/ — 없음 (건너뜀)"
     echo ""
 fi
 
-# ─── 5단계: CLAUDE.md domain 설정 → .onto-review/config.yml ───
+# ─── 5단계: CLAUDE.md domain 설정 → .onto/config.yml ───
 
 CLAUDE_MD="$PROJECT_DIR/CLAUDE.md"
 CONFIG_YML="$NEW_DIR/config.yml"
@@ -257,7 +257,7 @@ if [ -f "$CLAUDE_MD" ] && [ ! -f "$CONFIG_YML" ]; then
             if [ -n "$SECONDARY" ]; then
                 echo "secondary_domains: $SECONDARY" >> "$CONFIG_YML"
             fi
-            echo -e "  ${GREEN}→ .onto-review/config.yml 생성 완료${NC}"
+            echo -e "  ${GREEN}→ .onto/config.yml 생성 완료${NC}"
             echo -e "  ${YELLOW}CLAUDE.md의 domain/secondary_domains 줄은 수동으로 제거해 주세요.${NC}"
             echo -e "  ${YELLOW}(하위 호환: 제거하지 않아도 동작에 문제는 없습니다)${NC}"
         fi
@@ -267,22 +267,22 @@ if [ -f "$CLAUDE_MD" ] && [ ! -f "$CONFIG_YML" ]; then
         echo ""
     fi
 elif [ -f "$CONFIG_YML" ]; then
-    echo -e "[5/6] .onto-review/config.yml 이미 존재 (건너뜀)"
+    echo -e "[5/6] .onto/config.yml 이미 존재 (건너뜀)"
     echo ""
 else
     echo -e "[5/6] CLAUDE.md 없음 (건너뜀)"
     echo ""
 fi
 
-# ─── 6단계: ~/.claude/agent-memory/ → ~/.onto-review/ (글로벌 데이터) ───
+# ─── 6단계: ~/.claude/agent-memory/ → ~/.onto/ (글로벌 데이터) ───
 
 OLD_GLOBAL="$HOME/.claude/agent-memory"
-NEW_GLOBAL="$HOME/.onto-review"
+NEW_GLOBAL="$HOME/.onto"
 
 if [ -d "$OLD_GLOBAL" ]; then
     file_count=$(find "$OLD_GLOBAL" -type f | wc -l | tr -d ' ')
     echo -e "${CYAN}[6/6] ~/.claude/agent-memory/ 발견 (${file_count}개 파일)${NC}"
-    echo "  → ~/.onto-review/ 로 이동합니다."
+    echo "  → ~/.onto/ 로 이동합니다."
     ((TOTAL_ACTIONS++))
 
     if [ "$DRY_RUN" = false ]; then
@@ -342,12 +342,12 @@ fi
 echo ""
 echo "최종 구조:"
 echo ""
-echo "  글로벌 (~/.onto-review/):"
+echo "  글로벌 (~/.onto/):"
 echo "  ├── methodology/{agent-id}.md    # 방법론 학습"
 echo "  ├── communication/               # 소통 학습"
 echo "  └── domains/{domain}/            # 도메인 문서 + 글로벌 학습"
 echo ""
-echo "  프로젝트 ({project}/.onto-review/):"
+echo "  프로젝트 ({project}/.onto/):"
 echo "  ├── config.yml                   # 도메인 설정"
 echo "  ├── review/{세션ID}/round1/     # review 결과"
 echo "  ├── builds/{세션ID}/round0~N/   # build 결과"

@@ -17,3 +17,4 @@
   - Law: Conflation of everyday meaning and legal meaning of terms, same term defined differently across statutes
   - Accounting: Conflation of "revenue" and "sales," term mapping errors between IFRS and K-GAAP
 - **Domain document**: `domains/{domain}/concepts.md`
+- **Domain document**: Read `domains/{domain}/concepts.md` and include domain-specific concept dictionaries and standard mappings in the verification criteria.

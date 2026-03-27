@@ -146,7 +146,7 @@ When TeamCreate fails, fall back to the Agent tool (subagent) approach. The **pu
 
 Errors are classified into 2 categories for response:
 - **Process-halting**: Review target read failure, agent definition file read failure -> halt the process + inform the user.
-- **Graceful degradation**: Teammate non-response/failure, learning file absence, domain document absence -> exclude the affected agent or mark as "not yet available" and continue with remaining agents. Adjusts the consensus denominator during adjudication.
+- **Graceful degradation**: Teammate non-response/failure, learning file absence, domain document absence -> exclude the affected agent or mark as "not yet available" and continue with remaining agents. Adjusts the consensus denominator during determination.
 
 **Per-process error handling extension**: If an irreplaceable single role within a process (e.g., Explorer in build, Philosopher) fails, it is classified as process-halting. This is specified in the respective process file.
 
@@ -294,7 +294,7 @@ Entry format:
 - A single learning can be tagged with both `[methodology]` and `[domain/{name}]`
 - **Tag absence = open-world**: The absence of a specific axis tag does not mean "invalid for that axis." It means "validity for that axis has not yet been confirmed."
 
-**Axis tag adjudication criteria** (mandatory before storage, bidirectional):
+**Axis tag determination criteria** (mandatory before storage, bidirectional):
 1. "If domain-specific terms are removed from this learning, does the principle still hold?" -> If yes, assign `[methodology]` tag
 2. "Did this learning arise from or is it valid in the context of a specific domain?" -> If yes, assign `[domain/{name}]` tag
 3. If both apply, assign both tags

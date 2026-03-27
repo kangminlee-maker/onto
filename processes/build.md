@@ -37,7 +37,7 @@ The purpose of this classification is to **determine the action type** to presen
 
 > This section is the **single source of truth (SSOT)** for certainty level definitions. Other locations (Label/Epsilon format, Phase 3 output, etc.) reference this definition.
 
-**Stage 1 adjudication (Explorer)**:
+**Stage 1 classification (Explorer)**:
 
 | Level | Definition | Determination Criteria |
 |---|---|---|
@@ -46,7 +46,7 @@ The purpose of this classification is to **determine the action type** to presen
 
 Boundary case: A hardcoded constant (e.g., MIN_PAYMENT=500) is `observed` (the value itself is verifiable from the source). The rationale for that constant (why 500) is `pending`.
 
-**Stage 2 adjudication (verification agents refine `pending` when assigning labels)**:
+**Stage 2 classification (verification agents refine `pending` when assigning labels)**:
 
 | Level | Definition | Downstream Action |
 |---|---|---|
@@ -57,9 +57,9 @@ Boundary case: A hardcoded constant (e.g., MIN_PAYMENT=500) is `observed` (the v
 
 `ambiguous` determination criteria: "Do 2 or more equally valid interpretations exist, with no evidence in the current source to narrow down to one?" → if yes, `ambiguous`. If one is more valid, judge as `inferred` and mention alternative interpretations in the rationale.
 
-If a verification agent determines that the Explorer's Stage 1 adjudication was incorrect, they report a "certainty reclassification request" in issues. The Philosopher reflects this when applying patches.
+If a verification agent determines that the Explorer's Stage 1 classification was incorrect, they report a "certainty reclassification request" in issues. The Philosopher reflects this when applying patches.
 
-**abduction_quality** (required for `inferred` adjudications):
+**abduction_quality** (required for `inferred` classifications):
 
 Self-evaluates the quality of inference. Used for prioritizing user decision items in Phase 3:
 ```yaml
@@ -296,8 +296,8 @@ If structuring is not possible, report with statement + detail only.
 [Structural Recognition Examples]
 {profile's "structural recognition examples" — correct reporting / what not to do}
 
-[Certainty Adjudication Rules]
-Perform only Stage 1 adjudication for each fact:
+[Certainty Classification Rules]
+Perform only Stage 1 classification for each fact:
 - observed: a fact directly observed from the source (structure, value, relation, constraint)
 - pending: a fact that cannot be fully confirmed from the source alone
 
@@ -550,7 +550,7 @@ patch:
       conflicting_label: {conflicting label content}
       reported_by: {reporting agent}
       resolution: pending | resolved
-      # If pending, record in issues; Philosopher makes final adjudication in Phase 2
+      # If pending, record in issues; Philosopher makes final determination in Phase 2
 
     - operation: demote
       target_id: {existing element ID}
@@ -993,3 +993,16 @@ Save path:
 - Exclude binaries, node_modules, .git, and build artifacts.
 - Include non-code text files (migrations, Proto, ADR) in exploration targets.
 - The Explorer reports module_inventory in Round 0. If 50 or more, narrow the initial exploration scope based on Phase 0.5's context_brief, while maintaining the full list in module_inventory.
+
+---
+
+## Change Propagation Checklist
+
+When modifying this file (build.md), the following documents must be synchronized:
+
+| Document | Sections to Synchronize |
+|---|---|
+| `README.md` | Line 3 (description), agent table, "Ontology Build" section, certainty description, directory structure |
+| `dev-docs/BLUEPRINT.md` | Section 2 (term definitions), Section 3.6 (Explorer), Section 4.3 (build), certainty table, directory structure, MCP interface |
+| `process.md` | Certainty-related content in Teammate prompt template, agent-domain document mapping |
+| `explorers/*.md` | Source-type profiles — if certainty level names/formats in build.md change, synchronize the examples in the profiles |

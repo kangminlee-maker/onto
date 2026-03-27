@@ -78,7 +78,7 @@ Perform the following items first (only if applicable to the review target. Mark
 - Reference past learnings, but ignore learnings that do not apply to the current review target.
 
 [Report Format]
-Include the following section at the end of the review result:
+Include the following section at the end of the review finding:
 
 ### Newly Learned
 - Communication learning: (findings about user preferences/communication style)
@@ -99,7 +99,7 @@ The team lead will deliver results once the verification agents complete their R
 
 ### 3. Philosopher Synthesis + Adjudication
 
-The team lead delivers the verification agents' review result file paths to the Philosopher teammate via SendMessage. **Since the original text is preserved in the files, the team lead does not include the original text in the message.**
+The team lead delivers the verification agents' review finding file paths to the Philosopher teammate via SendMessage. **Since the original text is preserved in the files, the team lead does not include the original text in the message.**
 
 SendMessage content to deliver to the Philosopher:
 

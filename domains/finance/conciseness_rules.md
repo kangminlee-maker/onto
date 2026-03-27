@@ -1,123 +1,123 @@
-# 간결성 규칙 (finance)
+# Conciseness Rules (finance)
 
-이 문서는 onto_conciseness가 간결성 검증 시 참조하는 도메인별 규칙입니다.
-간결성 판정의 **유형(허용/제거) → 검증 기준 → 역할 경계 → 측정 방법** 순으로 구성됩니다.
-
----
-
-## 1. 허용되는 중복
-
-각 규칙에 강도를 태깅합니다:
-- **[MUST-ALLOW]**: 제거 시 체계가 깨지는 중복. 유지 필수.
-- **[MAY-ALLOW]**: 편의상 유지하는 중복. 통합 가능하나, 통합 비용 대비 이득이 명확할 때만 제거.
-
-### 보고 단위 관련
-
-- [MUST-ALLOW] 연결재무제표와 별도재무제표의 병행 — 동일 계정과목(예: 매출액)이 연결 기준과 별도 기준에 각각 존재. 연결 범위에는 종속기업 합산·내부거래 제거가 포함되므로 별도와 수치·의미가 다르다. 하나를 제거하면 보고 단위 간 비교 및 연결 조정 검증 불가.
-- [MUST-ALLOW] 세그먼트별 보고와 연결 전체 수치의 병행 — 사업부문별 매출·영업이익은 연결 전체 수치의 구성 요소이나, 세그먼트 간 내부거래·미배분 항목이 존재하므로 단순 합산과 일치하지 않는다. 세그먼트 수치를 제거하면 부문별 성과 분석 불가.
-
-### 시점 속성 관련
-
-- [MUST-ALLOW] instant/duration 속성의 이중 분류 — 동일 계정과목이라도 시점(instant) 항목과 기간(duration) 항목은 시간 귀속 방식이 다르다. 예: 현금및현금성자산은 재무상태표에서 instant(기말 잔액), 현금흐름표에서 duration(기간 변동)으로 각각 표현. 하나의 속성으로 통합하면 시간 차원 정보 소실.
-- [MAY-ALLOW] 재무상태표 항목의 기초·기말 잔액 병행 기재 — 비교 목적으로 전기말(기초)과 당기말(기말) 잔액을 동시 표시. 전기 재무제표에서 동일 수치를 참조할 수 있으나, 비교 가독성 목적이면 유지.
-
-### 계정과목 분류 관련
-
-- [MUST-ALLOW] 유동/비유동 구분에 의한 동일 계정의 이중 존재 — 기타금융자산이 유동·비유동으로 분리되는 것은 만기/회수 기간이 다르므로 별개 사실(Fact)이다. 통합 시 유동성 분석 불가.
-- [MAY-ALLOW] 한글 라벨과 택소노미 요소 ID의 병행 기재 — 택소노미 요소 ID가 1차 식별자이나, 한글 라벨은 사람의 가독성을 위해 유지. 라벨만 존재하고 택소노미 ID가 없으면 제거 대상.
-
-### 외부 참조 관련
-
-- [MUST-ALLOW] IFRS 택소노미 매핑과 FIBO 매핑의 병행 — 동일 개념이 IFRS 택소노미와 FIBO에 각각 매핑. 두 표준은 목적(재무보고 vs 금융산업 온톨로지)과 구조가 다르므로 하나의 매핑으로 통합 불가.
-- [MAY-ALLOW] 기업 확장 계정과 표준 택소노미 계정의 병행 — 원본 보존 원칙에 따라 기업 고유 라벨을 유지하면서 정규화 명칭으로도 매핑. 단, 확장 계정이 표준 계정과 완전 동일하고 추가 정보가 없으면 통합 가능.
+This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+It is organized in the order: **type (allow/remove) -> verification criteria -> role boundaries -> measurement methods**.
 
 ---
 
-## 2. 제거 대상 패턴
+## 1. Allowed Redundancy
 
-각 규칙에 강도를 태깅합니다:
-- **[MUST-REMOVE]**: 존재 자체가 오류를 유발하거나 잘못된 추론을 일으키는 중복.
-- **[SHOULD-REMOVE]**: 해가 크지 않으나 불필요한 복잡도를 추가하는 중복.
+Each rule is tagged with a severity level:
+- **[MUST-ALLOW]**: Redundancy that breaks the system if removed. Must be retained.
+- **[MAY-ALLOW]**: Redundancy kept for convenience. Can be consolidated, but only remove when the benefit clearly outweighs the consolidation cost.
 
-### 택소노미 중복
+### Reporting Unit Related
 
-- [MUST-REMOVE] 동일 택소노미 요소의 다중 라벨 중복 정의 — 하나의 택소노미 요소 ID에 대해 여러 라벨(예: "매출액", "수익(매출액)", "영업수익")이 별개 개념으로 등록된 경우, concepts.md의 동의어 매핑을 기준으로 정규화 명칭 하나만 유지. 다중 라벨을 별개 개념으로 취급하면 집계·비교 시 이중 계상 발생.
-- [MUST-REMOVE] 표준 택소노미에 이미 존재하는 계정을 확장 계정으로 중복 생성 — 표준 요소와 동일한 의미·제약을 갖는 확장 요소가 별도로 존재하면 매핑 불일치 발생. 표준 요소를 우선 사용.
+- [MUST-ALLOW] Parallel consolidated and separate financial statements — the same account (e.g., revenue) exists in both consolidated and separate bases. The consolidated scope includes subsidiary aggregation and intercompany elimination, so the figures and meaning differ from separate. Removing either makes inter-reporting-unit comparison and consolidation adjustment verification impossible.
+- [MUST-ALLOW] Parallel segment reporting and consolidated totals — segment-level revenue and operating income are components of consolidated totals, but intercompany transactions between segments and unallocated items mean they do not simply sum to the total. Removing segment figures makes divisional performance analysis impossible.
 
-### 관계 중복
+### Temporal Attribute Related
 
-- [MUST-REMOVE] 동일 계정 간의 다중 경로 합산 — 예: 유동자산 소계→자산총계 경로와, 유동자산 개별 항목→자산총계 직접 경로가 동시에 존재하면 합산 로직이 이중 적용되어 금액 불일치 발생.
-- [SHOULD-REMOVE] 회계 항등식이 이미 보장하는 관계의 명시적 재선언 — 자산=부채+자본이 logic_rules.md에서 보장되면, 개별 노드에서 "자본은 자산에서 부채를 뺀 것"을 별도 관계로 재정의할 필요 없음.
+- [MUST-ALLOW] Dual classification of instant/duration attributes — even for the same account, instant (point-in-time) and duration (period) items have different temporal attribution. Example: Cash and cash equivalents is expressed as instant (closing balance) on the Statement of Financial Position and as duration (period change) on the Cash Flow Statement. Consolidating into a single attribute causes loss of temporal dimension information.
+- [MAY-ALLOW] Parallel presentation of opening and closing balances for Statement of Financial Position items — prior period-end (opening) and current period-end (closing) balances are displayed simultaneously for comparison purposes. The same figures can be referenced from prior period financial statements, but retain for comparison readability purposes.
 
-### 분류 중복
+### Account Classification Related
 
-- [SHOULD-REMOVE] 하위 계정이 1개뿐인 중간 분류 노드 — 예: "기타비유동자산" 하위에 단일 항목만 존재하면 중간 노드를 상위와 병합. 단, 향후 확장을 위한 예약(extension_cases.md 참조)이면 유지.
-- [SHOULD-REMOVE] 실제 금액 데이터(Fact)가 존재하지 않는 분류 노드 — 어떤 보고 주체에서도 사용되지 않는 빈 계정 분류는 제거. 단, 표준 택소노미의 필수 요소이면 유지.
+- [MUST-ALLOW] Dual existence of the same account due to current/non-current classification — other financial assets split into current and non-current are separate Facts because their maturity/recovery periods differ. Consolidation makes liquidity analysis impossible.
+- [MAY-ALLOW] Parallel presentation of labels and taxonomy element IDs — the taxonomy element ID is the primary identifier, but labels are retained for human readability. If only labels exist without taxonomy IDs, they are removal targets.
 
-### 정의 중복
+### External Reference Related
 
-- [MUST-REMOVE] 동일 파생 지표의 다중 산출 경로 정의 — 예: ROE를 "당기순이익/자본총계"와 "당기순이익/평균자본"으로 동시에 정의하면 산출 결과가 달라짐. 하나의 정의를 정본으로 지정.
-- [SHOULD-REMOVE] 동일 검증 로직(예: 항등식 검증)이 여러 재무제표 모듈에 복사 — 공통 검증 모듈로 추출 필요.
-
----
-
-## 3. 최소 세분화 기준
-
-하위 분류는 아래 중 **하나 이상**을 충족해야 허용됩니다. 하나도 충족하지 않으면 상위와 병합합니다.
-
-1. **역량 질문 차이**: competency_qs.md의 질문에 대해 다른 답을 생성하는가?
-2. **제약 조건 차이**: 다른 제약 조건(시점 속성, 유동/비유동 분류, 정상 잔액 방향, cardinality)이 적용되는가?
-3. **의존 관계 차이**: 다른 재무제표·세그먼트·보고 단위에 귀속되거나, 다른 택소노미 요소에 매핑되는가?
-
-예시:
-- `유동기타금융자산`과 `비유동기타금융자산`은 다른 제약(만기 1년 기준, 유동성 분류)이 적용되므로 분류 정당.
-- `자산총계`와 `총자산`이 동일 택소노미 요소(ifrs:Assets)에 매핑되고 동일 제약이 적용되면 병합 대상.
+- [MUST-ALLOW] Parallel IFRS taxonomy mapping and FIBO mapping — the same concept is mapped to both IFRS taxonomy and FIBO. The two standards have different purposes (financial reporting vs. financial industry ontology) and structures, so they cannot be consolidated into a single mapping.
+- [MAY-ALLOW] Parallel company extension accounts and standard taxonomy accounts — per the original preservation principle, company-specific labels are retained while also mapped to canonical names. However, if the extension account is completely identical to the standard account with no additional information, consolidation is possible.
 
 ---
 
-## 4. 경계 — 도메인 특화 적용 사례
+## 2. Removal Target Patterns
 
-경계 정의의 정본은 `roles/onto_conciseness.md`입니다. 이 섹션은 finance 도메인에서의 구체적 적용 사례만 기술합니다.
+Each rule is tagged with a severity level:
+- **[MUST-REMOVE]**: Redundancy whose mere existence causes errors or incorrect inferences.
+- **[SHOULD-REMOVE]**: Redundancy that is not very harmful but adds unnecessary complexity.
 
-### onto_pragmatics 경계
+### Taxonomy Redundancy
 
-- onto_conciseness: 불필요한 요소가 **존재**하는가 (구조 수준)
-- onto_pragmatics: 불필요한 정보가 질의 실행을 **방해**하는가 (실행 수준)
-- 예: 재무제표 조회 시 미사용 주석 항목이 응답에 포함됨 → onto_pragmatics. 미사용 계정과목이 택소노미 구조에 정의됨 → onto_conciseness.
+- [MUST-REMOVE] Duplicate definition of multiple labels for the same taxonomy element as separate concepts — when several labels (e.g., "Revenue," "Sales," "Operating revenue") for a single taxonomy element ID are registered as separate concepts, use the synonym mappings in concepts.md to retain only the canonical name. Treating multiple labels as separate concepts causes double-counting in aggregation and comparison.
+- [MUST-REMOVE] Creating extension accounts that duplicate accounts already existing in the standard taxonomy — when an extension element exists with the same meaning and constraints as a standard element, mapping inconsistencies arise. Use the standard element first.
 
-### onto_coverage 경계
+### Relation Redundancy
 
-- onto_conciseness: 없어야 할 것이 있는가 (축소 방향)
-- onto_coverage: 있어야 할 것이 없는가 (확장 방향)
-- 예: 주석 체계가 누락되어 회계정책 공시가 불가 → onto_coverage. 동일 회계정책이 여러 주석에 중복 기술됨 → onto_conciseness.
+- [MUST-REMOVE] Multiple path aggregation between the same accounts — example: when both a current assets subtotal -> total assets path and individual current asset items -> total assets direct path exist simultaneously, aggregation logic is applied twice, causing amount inconsistencies.
+- [SHOULD-REMOVE] Explicit redeclaration of relationships already guaranteed by accounting identities — when Assets = Liabilities + Equity is guaranteed in logic_rules.md, there is no need to separately redefine "equity is assets minus liabilities" as a separate relationship on individual nodes.
 
-### onto_logic 경계 (선행/후행 관계)
+### Classification Redundancy
 
-- onto_logic 선행: 논리적 동치(함의) 여부를 판별
-- onto_conciseness 후행: 동치 확인 후 제거 여부를 판단
-- 예: 회계 항등식(자산=부채+자본)이 자본의 정의를 이미 함의 → onto_logic이 동치 판별 → onto_conciseness가 "자본에 대한 별도 산출 관계 재선언 불필요" 판정.
+- [SHOULD-REMOVE] Intermediate classification nodes with only 1 child account — example: when only a single item exists under "Other non-current assets," merge the intermediate node with the parent. However, retain if reserved for future expansion (see extension_cases.md).
+- [SHOULD-REMOVE] Classification nodes with no actual amount data (Facts) — empty account classifications unused by any reporting entity should be removed. However, retain if they are mandatory elements of the standard taxonomy.
 
-### onto_semantics 경계 (선행/후행 관계)
+### Definition Redundancy
 
-- onto_semantics 선행: 의미 동일성(동의어 여부)을 판별
-- onto_conciseness 후행: 동의어 확인 후 병합 필요성을 판단
-- 예: "매출액"/"수익(매출액)"/"영업수익"이 동일 택소노미 요소 → onto_semantics가 동의어 판별 → onto_conciseness가 "정규화 명칭 하나로 통합" 판정.
+- [MUST-REMOVE] Multiple calculation path definitions for the same derived metric — example: when ROE is simultaneously defined as "net income / total equity" and "net income / average equity," the results differ. Designate one definition as the authoritative version.
+- [SHOULD-REMOVE] Same verification logic (e.g., identity verification) copied across multiple financial statement modules — extraction to a common verification module is needed.
 
 ---
 
-## 5. 정량 기준
+## 3. Minimum Granularity Criteria
 
-도메인에서 관찰된 임계값이 축적되면 기록합니다.
+A sub-classification is permitted only if it satisfies **at least one** of the following. If none are satisfied, merge with the parent.
 
-- (아직 정의되지 않음 — 리뷰를 통해 축적됩니다)
+1. **Competency question difference**: Does it generate a different answer to a question in competency_qs.md?
+2. **Constraint difference**: Do different constraints (temporal attribute, current/non-current classification, normal balance direction, cardinality) apply?
+3. **Dependency difference**: Does it belong to a different financial statement, segment, or reporting unit, or map to a different taxonomy element?
+
+Examples:
+- `Current other financial assets` and `Non-current other financial assets` are justified as separate classifications because different constraints (1-year maturity criterion, liquidity classification) apply.
+- If `Total assets` and `Assets total` both map to the same taxonomy element (ifrs:Assets) with the same constraints, they are candidates for merging.
 
 ---
 
-## 관련 문서
+## 4. Boundaries — Domain-Specific Application Cases
 
-- `concepts.md` — 용어 정의, 동의어 매핑, 동형이의어 목록 (중복 판별의 의미 기준)
-- `structure_spec.md` — 고립 노드 규칙, 필수 관계 요건 (구조적 관점의 제거 기준)
-- `competency_qs.md` — 역량 질문 목록 (최소 세분화의 "실제 차이" 판단 기준)
-- `dependency_rules.md` — 외부 표준 참조 규칙 (택소노미 매핑 병행 허용 근거)
-- `logic_rules.md` — 회계 항등식 및 시점/기간 규칙 (논리적 동치 판별 기준)
-- `extension_cases.md` — 확장 계정 처리 시나리오 (분류 노드 유지/제거 판단 근거)
+The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the finance domain.
+
+### onto_pragmatics boundary
+
+- onto_conciseness: Does an unnecessary element **exist**? (structural level)
+- onto_pragmatics: Does unnecessary information **hinder** query execution? (execution level)
+- Example: Unused note items are included in financial statement query responses -> onto_pragmatics. Unused accounts are defined in the taxonomy structure -> onto_conciseness.
+
+### onto_coverage boundary
+
+- onto_conciseness: Does something exist that should not? (reduction direction)
+- onto_coverage: Is something missing that should exist? (expansion direction)
+- Example: Notes system is missing, making accounting policy disclosure impossible -> onto_coverage. The same accounting policy is duplicated across multiple notes -> onto_conciseness.
+
+### onto_logic boundary (predecessor/successor relationship)
+
+- onto_logic predecessor: determines logical equivalence (entailment)
+- onto_conciseness successor: decides whether to remove after equivalence is confirmed
+- Example: The accounting identity (Assets = Liabilities + Equity) already entails the definition of equity -> onto_logic determines equivalence -> onto_conciseness determines "separate calculation relationship redeclaration for equity is unnecessary."
+
+### onto_semantics boundary (predecessor/successor relationship)
+
+- onto_semantics predecessor: determines semantic identity (synonym status)
+- onto_conciseness successor: decides whether merging is needed after synonym confirmation
+- Example: "Revenue"/"Sales"/"Operating revenue" are the same taxonomy element -> onto_semantics determines they are synonyms -> onto_conciseness determines "consolidate to a single canonical name."
+
+---
+
+## 5. Quantitative Criteria
+
+Observed thresholds from the domain are recorded as they accumulate.
+
+- (Not yet defined — accumulated through reviews)
+
+---
+
+## Related Documents
+
+- `concepts.md` — term definitions, synonym mappings, homonym lists (semantic criteria for redundancy determination)
+- `structure_spec.md` — isolated node rules, required relationship requirements (structural removal criteria)
+- `competency_qs.md` — competency question list (criteria for "actual difference" in minimum granularity determination)
+- `dependency_rules.md` — external standard reference rules (basis for allowing parallel taxonomy mappings)
+- `logic_rules.md` — accounting identities and point-in-time/period rules (criteria for logical equivalence determination)
+- `extension_cases.md` — extension account processing scenarios (basis for classification node retain/remove decisions)

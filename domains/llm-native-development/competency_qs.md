@@ -1,53 +1,53 @@
-# LLM-Native Development Domain — 역량 질문 (Competency Questions)
+# LLM-Native Development Domain — Competency Questions
 
-이 도메인의 체계가 답할 수 있어야 하는 핵심 질문 목록입니다.
-onto_pragmatics 에이전트가 각 질문에 대해 실제 추론 경로를 검증합니다.
+A list of core questions that this domain's system must be able to answer.
+The onto_pragmatics agent verifies the actual reasoning path for each question.
 
-분류 축: **LLM이 체계와 상호작용하는 단계** (탐색 → 이해 → 검증 → 활용 → 변경 → 자동화 → 도메인 적합성)
+Classification axis: **Stage at which the LLM interacts with the system** (exploration → understanding → verification → utilization → change → automation → domain fitness)
 
-## 진입 및 탐색
+## Entry and Exploration
 
-- Q1: 체계의 진입점 파일이 structure_spec.md에서 명시적으로 지정되어 있으며, 디렉토리 최상위에서 즉시 식별 가능한가?
-- Q2: 임의의 개념 X에 대해, 진입점에서 X를 정의한 파일까지 도달하는 경로가 명시되어 있는가?
-- Q3: 디렉토리 구조만 보고 이 체계가 다루는 도메인과 하위 영역을 파악할 수 있는가?
+- Q1: Is the system's entry point file explicitly designated in structure_spec.md and immediately identifiable at the top level of the directory?
+- Q2: For any concept X, is the path from the entry point to the file defining X specified?
+- Q3: Can the domain and sub-areas covered by this system be determined by looking at the directory structure alone?
 
-## 개념 이해
+## Concept Understanding
 
-- Q4: 임의의 도메인 용어가 정확히 하나의 파일에서 정의되어 있는가? (정의 중복 또는 정의 누락 없음)
-- Q5: 개념 A와 개념 B의 관계를 frontmatter 또는 본문의 명시적 참조로 확인할 수 있는가?
-- Q6: 동형이의어가 사용된 맥락에서, 어떤 의미인지를 문서 자체에서 구분할 수 있는가?
+- Q4: Is any domain term defined in exactly one file? (no duplicate definitions or missing definitions)
+- Q5: Can the relationship between concept A and concept B be confirmed through frontmatter or explicit references in the body?
+- Q6: When a homonym is used in context, can the intended meaning be distinguished from the document itself?
 
-## 구조 정합성
+## Structural Conformance
 
-- Q7: 모든 개념 파일이 적어도 하나의 다른 파일에서 참조되거나, 메타 파일(INDEX.md)에 등록되어 있는가? (고립 문서 없음)
-- Q8: frontmatter에 선언된 관계(depends_on, related_to)의 대상 파일이 실제로 존재하는가?
-- Q9: 디렉토리 깊이가 structure_spec.md에서 정의한 상한을 초과하는 곳이 없는가?
+- Q7: Is every concept file referenced by at least one other file, or registered in a meta file (INDEX.md)? (no isolated documents)
+- Q8: Do the target files for relationships declared in frontmatter (depends_on, related_to) actually exist?
+- Q9: Is there no place where directory depth exceeds the upper limit defined in structure_spec.md?
 
-## 컨텍스트 효율
+## Context Efficiency
 
-- Q10: 단일 파일이 structure_spec.md에서 정의한 줄 수 상한을 초과하지 않는가?
-- Q11: 하나의 작업(extension_cases.md의 시나리오 단위)을 수행하기 위해 읽어야 하는 파일이 structure_spec.md에서 정의한 참조 체인 상한을 초과하지 않는가?
-- Q12: 반복되는 내용이 여러 파일에 중복 기재되어 있지 않는가? (단일 진실 원천)
+- Q10: Does no single file exceed the line count upper limit defined in structure_spec.md?
+- Q11: Does the number of files that must be read to perform one task (per scenario in extension_cases.md) not exceed the reference chain upper limit defined in structure_spec.md?
+- Q12: Is repeated content not duplicated across multiple files? (single source of truth)
 
-## 변경 대응
+## Change Response
 
-- Q13: 새 개념을 추가할 때, 메타 파일(INDEX.md) 외에 기존 개념 파일을 수정하지 않고 완료 가능한가? (동형이의어 등록이 필요한 경우 concepts.md 갱신 포함)
-- Q14: 개념의 정의가 변경될 때, 영향받는 참조 파일 목록을 기계적으로 추출할 수 있는가?
-- Q15: 문서의 최종 갱신 시점과 갱신 이유를 확인할 수 있는가? (git commit 위임 또는 frontmatter 기록)
+- Q13: When adding a new concept, can it be completed by modifying only the meta file (INDEX.md) without modifying existing concept files? (concepts.md update is included when homonym registration is needed)
+- Q14: When a concept's definition changes, can the list of affected referencing files be mechanically extracted?
+- Q15: Can the last update time and update reason for a document be verified? (delegated to git commit or recorded in frontmatter)
 
-## 자동화 가능성
+## Automation Potential
 
-- Q16: frontmatter의 형식이 일관되어, 스크립트로 전체 문서의 메타데이터를 파싱할 수 있는가?
-- Q17: 파일명 규칙이 일관되어, 파일명만으로 문서 유형(개념 파일 vs 메타 파일)을 판별할 수 있는가?
-- Q18: 참조 무결성(존재하지 않는 파일에 대한 참조)을 자동으로 검증할 수 있는가?
+- Q16: Is the frontmatter format consistent enough that a script can parse metadata from all documents?
+- Q17: Is the filename convention consistent enough that the document type (concept file vs meta file) can be determined from the filename alone?
+- Q18: Can referential integrity (references to non-existent files) be automatically verified?
 
-## 도메인 적합성
+## Domain Fitness
 
-- Q19: domain_scope.md의 관심사 영역이 LLM-native development의 주요 관심사를 빠짐없이 포괄하는가?
-- Q20: concepts.md의 용어가 이 도메인에서 실제로 사용되는 핵심 용어인가?
-- Q21: logic_rules.md의 규칙이 이 도메인의 실제 제약 조건을 반영하는가?
+- Q19: Do the concern areas in domain_scope.md comprehensively cover the key concerns of LLM-native development?
+- Q20: Are the terms in concepts.md the core terms actually used in this domain?
+- Q21: Do the rules in logic_rules.md reflect the actual constraints of this domain?
 
-## 관련 문서
-- structure_spec.md — Q9, Q10, Q11의 정량적 기준의 근거
-- extension_cases.md — Q11의 "작업" 단위 정의
-- dependency_rules.md — Q14의 기계적 추출 경로
+## Related Documents
+- structure_spec.md — Basis for the quantitative criteria in Q9, Q10, Q11
+- extension_cases.md — "Task" unit definition for Q11
+- dependency_rules.md — Mechanical extraction path for Q14

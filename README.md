@@ -1,310 +1,313 @@
 # Onto Review
 
-에이전트 패널(검증 에이전트 + Philosopher)로 논리 체계를 다관점 검증하고, 분석 대상에서 온톨로지를 자동 구축하는 Claude Code 플러그인.
+A Claude Code plugin that performs multi-perspective verification of logical systems using an agent panel (verification agents + Philosopher) and automatically builds ontologies from analysis targets.
 
-온톨로지 구조에서 영감을 받아 설계되었으며, 소프트웨어, 법률, 회계 등 도메인에 관계없이 적용 가능합니다.
+Designed with inspiration from ontology structures, applicable across domains regardless of field -- software, law, accounting, and more.
 
-**두 가지 핵심 기능**:
-- **검증 (review)**: 범위가 확정된 대상을 에이전트 패널이 독립 병렬로 다관점 검증
-- **구축 (build)**: 범위가 미확정인 분석 대상(코드, 스프레드시트, DB, 문서)에서 적분형 탐색으로 온톨로지를 점진적 구축
+**Two core capabilities**:
+- **Verification (review)**: The agent panel independently and in parallel performs multi-perspective verification on scope-defined targets
+- **Build**: Incrementally constructs ontologies from scope-undefined analysis targets (code, spreadsheets, databases, documents) using integral exploration
 
-## 설치
+## Installation
 
-Claude Code에서 아래 명령어를 순서대로 실행합니다:
+Run the following commands in order within Claude Code:
 
 ```
 /plugin marketplace add kangminlee-maker/onto
 /plugin install onto@kangminlee-maker/onto
 ```
 
-## 업데이트
+## Update
 
 ```bash
 cd ~/.claude/plugins/onto && git pull
 ```
 
-이전 버전에서 업그레이드 시, 글로벌 데이터 경로가 변경되었으므로 마이그레이션을 실행하세요:
+When upgrading from a previous version, run the migration since the global data path has changed:
 
 ```bash
 ./migrate-sessions.sh
 ```
 
-학습 저장 구조가 변경된 경우 (3경로 → 2경로 + 축 태그):
+If the learning storage structure has changed (3-path to 2-path + axis tag):
 ```bash
 ./migrate-learnings.sh
 ```
 
-마이그레이션 대상:
-- `~/.claude/agent-memory/` → `~/.onto/` (글로벌 학습·도메인 문서)
-- `.claude/sessions/` → `.onto/` (프로젝트 세션 데이터)
-- CLAUDE.md의 `domain:` → `.onto/config.yml` (도메인 설정 분리)
+Migration targets:
+- `~/.claude/agent-memory/` to `~/.onto/` (global learnings and domain documents)
+- `.claude/sessions/` to `.onto/` (project session data)
+- `domain:` in CLAUDE.md to `.onto/config.yml` (domain configuration separation)
 
-## 도메인 기본 문서 설치 (선택)
+## Domain Document Installation (Optional)
 
-플러그인에 포함된 도메인 기본 문서를 설치하면, 리뷰 시 도메인별 전문 기준이 적용됩니다.
+Installing the domain base documents included with the plugin applies domain-specific expert criteria during reviews.
 
 ```bash
-# 대화형 — 도메인 선택
+# Interactive -- select domains
 ./setup-domains.sh
 
-# 전체 설치
+# Install all
 ./setup-domains.sh --all
 
-# 특정 도메인만 설치
+# Install specific domains only
 ./setup-domains.sh software-engineering finance
 ```
 
-| 도메인 | 설명 |
+| Domain | Description |
 |---|---|
-| `software-engineering` | 코드 품질, 아키텍처, 타입 안전성, 테스트 전략 |
-| `llm-native-development` | LLM 친화적 파일/폴더 구조, ontology-as-code |
-| `finance` | 재무제표, XBRL, 회계 항등식, 기업 간 비교 |
-| `business` | 경영 전략, 매출 인식, ROI, 변화관리 |
-| `market-intelligence` | 시장 분석, 경쟁 정보, 위험 평가, 데이터 신뢰도 |
-| `accounting` | K-IFRS, 복식부기, 세무 조정, 감사 |
-| `ontology` | 온톨로지 설계, OWL/RDFS/SKOS, 분류 일관성 |
+| `software-engineering` | Code quality, architecture, type safety, testing strategy |
+| `llm-native-development` | LLM-friendly file/folder structure, ontology-as-code |
+| `finance` | Financial statements, XBRL, accounting equation, cross-company comparison |
+| `business` | Business strategy, revenue recognition, ROI, change management |
+| `market-intelligence` | Market analysis, competitive intelligence, risk assessment, data reliability |
+| `accounting` | K-IFRS, double-entry bookkeeping, tax adjustments, auditing |
+| `ontology` | Ontology design, OWL/RDFS/SKOS, classification consistency |
 
-도메인 문서 없이도 사용 가능합니다 (범용 원칙으로 검증). `/onto:onboard` 실행 시에도 설치를 안내합니다.
+Usable without domain documents (verified using general principles). Domain document installation is also suggested when running `/onto:onboard`.
 
-## 에이전트 구성
+## Agent Configuration
 
-| ID | 역할 | 검증 차원 |
+| ID | Role | Verification Dimension |
 |---|---|---|
-| `onto_logic` | 논리적 일관성 검증자 | 모순, 타입 충돌, 제약 상충 |
-| `onto_structure` | 구조적 완전성 검증자 | 고립된 요소, 끊어진 경로, 누락 관계 |
-| `onto_dependency` | 의존성 무결성 검증자 | 순환, 역방향, 다이아몬드 의존 |
-| `onto_semantics` | 의미적 정확성 검증자 | 이름-의미 일치, 동의어/동형이의어 |
-| `onto_pragmatics` | 활용 적합성 검증자 | 질의 가능성, 역량 질문 테스트 |
-| `onto_evolution` | 확장·진화 적합성 검증자 | 새 데이터/도메인 추가 시 깨짐 |
-| `onto_coverage` | 도메인 포괄성 검증자 | 누락 하위 영역, 개념 편중, 표준 대비 빈 영역 |
-| `onto_conciseness` | 간결성 검증자 | 중복 정의, 과잉 명세, 불필요한 구분 |
-| `philosopher` | 목적 정합성 검증자 | 세부 매몰 방지, 목적 복귀, 새로운 관점 제시 |
+| `onto_logic` | Logical consistency verifier | Contradictions, type conflicts, constraint clashes |
+| `onto_structure` | Structural completeness verifier | Isolated elements, broken paths, missing relations |
+| `onto_dependency` | Dependency integrity verifier | Circular, reverse, diamond dependencies |
+| `onto_semantics` | Semantic accuracy verifier | Name-meaning alignment, synonyms/homonyms |
+| `onto_pragmatics` | Pragmatic fitness verifier | Queryability, competency question testing |
+| `onto_evolution` | Evolution fitness verifier | Breakage on new data/domain addition |
+| `onto_coverage` | Domain coverage verifier | Missing subdomains, concept bias, gaps vs. standards |
+| `onto_conciseness` | Conciseness verifier | Duplicate definitions, over-specification, unnecessary distinctions |
+| `philosopher` | Purpose alignment verifier | Preventing fixation on details, returning to purpose, presenting new perspectives |
 
-## 명령어
+## Commands
 
-### 팀 리뷰
-| 명령어 | 설명 |
+### Team Review
+| Command | Description |
 |---|---|
-| `/onto:review {대상}` | 에이전트 패널로 대상을 다관점 리뷰 |
+| `/onto:review {target}` | Multi-perspective review of target by agent panel |
 
-### 개별 질문
-| 명령어 | 설명 |
+### Individual Query
+| Command | Description |
 |---|---|
-| `/onto:ask-logic {질문}` | 논리적 일관성 관점 |
-| `/onto:ask-structure {질문}` | 구조적 완전성 관점 |
-| `/onto:ask-dependency {질문}` | 의존성 무결성 관점 |
-| `/onto:ask-semantics {질문}` | 의미적 정확성 관점 |
-| `/onto:ask-pragmatics {질문}` | 활용 적합성 관점 |
-| `/onto:ask-evolution {질문}` | 확장·진화 적합성 관점 |
-| `/onto:ask-coverage {질문}` | 도메인 포괄성 관점 |
-| `/onto:ask-philosopher {질문}` | 목적 정합성 관점 |
+| `/onto:ask-logic {question}` | Logical consistency perspective |
+| `/onto:ask-structure {question}` | Structural completeness perspective |
+| `/onto:ask-dependency {question}` | Dependency integrity perspective |
+| `/onto:ask-semantics {question}` | Semantic accuracy perspective |
+| `/onto:ask-pragmatics {question}` | Pragmatic fitness perspective |
+| `/onto:ask-evolution {question}` | Evolution fitness perspective |
+| `/onto:ask-coverage {question}` | Domain coverage perspective |
+| `/onto:ask-philosopher {question}` | Purpose alignment perspective |
 
-### 온톨로지 구축/변환
-| 명령어 | 설명 |
+### Ontology Build/Transform
+| Command | Description |
 |---|---|
-| `/onto:build {경로\|URL}` | 분석 대상에서 온톨로지 구축 (적분형 탐색) |
-| `/onto:transform {파일}` | Raw Ontology를 원하는 형식으로 변환 |
+| `/onto:build {path\|URL}` | Build ontology from analysis target (integral exploration) |
+| `/onto:transform {file}` | Transform Raw Ontology to desired format |
 
-### 환경 관리
-| 명령어 | 설명 |
+### Environment Management
+| Command | Description |
 |---|---|
-| `/onto:onboard` | 프로젝트에 onto 환경 설정 |
-| `/onto:promote` | 프로젝트 학습을 글로벌 수준으로 승격 |
+| `/onto:onboard` | Set up onto environment for a project |
+| `/onto:promote` | Promote project-level learnings to global-level |
 
-## 팀 리뷰 흐름 (6단계)
+## Team Review Flow (6 Steps)
 
 ```
 1. Context Gathering (team lead)
-2. Team 생성 + Round 1 — 검증 에이전트 독립 리뷰 (구조 점검 포함)
-3. Philosopher 종합 + 판정
-   ├── 합의 명확 → 최종 출력
-   └── 쟁점 존재 → 4. 직접 토론 → 최종 출력
-5. 최종 출력
-6. 마무리 (학습 저장 + 승격 안내 + Team 종료)
+2. Team creation + Round 1 -- verification agents perform independent review (including structural inspection)
+3. Philosopher synthesis + adjudication
+   +-- Consensus clear -> final output
+   +-- Contested points exist -> 4. Direct deliberation -> final output
+5. Final output
+6. Wrap-up (learning storage + promotion guidance + Team shutdown)
 ```
 
-- Round 1: 완전 독립 — 다른 에이전트의 관점을 모른 채, 구조 점검(ME+CE) 후 내용 검증
-- **파일 기반 전달**: 검증 에이전트가 결과를 세션 디렉토리에 Write → team-lead에 경로만 보고 → Philosopher가 Read로 직접 읽기 (team-lead 컨텍스트 포화 방지)
-- **세션 ID**: `{YYYYMMDD}-{hash8}` 형태로 team_name과 세션 디렉토리를 고유하게 식별 (세션 간 충돌 방지, git commit처럼 추적 가능)
-- 쟁점 토론: 모순/간과된 전제가 있을 때만 해당 에이전트 간 직접 소통
-- Fallback: TeamCreate 실패 시 Agent tool(subagent) 방식으로 전환 (파일 기반 전달은 동일 적용)
+- Round 1: Fully independent -- agents review after structural inspection (ME+CE) without knowing other agents' perspectives
+- **File-based relay**: Verification agents write results to session directory -> report only the path to team lead -> Philosopher reads directly via Read (prevents team lead context saturation)
+- **Session ID**: Format `{YYYYMMDD}-{hash8}`, uniquely identifies team_name and session directory (prevents inter-session collision, traceable like git commits)
+- Deliberation: Direct communication between specific agents only when contradictions or overlooked premises exist
+- Fallback: If TeamCreate fails, switches to Agent tool (subagent) mode (file-based relay still applies)
 
-## 온톨로지 구축 (적분형 탐색)
+## Ontology Build (Integral Exploration)
 
-검증(review)과 달리, 구축(build)은 범위가 미확정이므로 **적분형 탐색** 구조를 사용합니다:
-
-```
-┌─────────────────────────────────────────────┐
-│            Explorer (소스 탐색자)              │
-│  소스를 직접 탐색하고 delta(도메인 사실 보고)를 생성 │
-└──────────┬───────────────────┬──────────────┘
-           │ delta 보고         │ epsilon 수신
-           ▼                   ▲
-┌─────────────────────────────────────────────┐
-│        검증 에이전트 (방향 제시자)               │
-│  delta에 label(온톨로지 유형) 부착              │
-│  자기 축에서 빈 영역의 epsilon(다음 방향) 제시    │
-│  소스를 직접 탐색하지 않음                       │
-└──────────┬───────────────────┬──────────────┘
-           │ epsilon 보고       │ 통합 지시
-           ▼                   ▲
-┌─────────────────────────────────────────────┐
-│          Philosopher (조율자)                 │
-│  epsilon 통합, 수렴 판정, 온톨로지 일관성 관리    │
-└─────────────────────────────────────────────┘
-
-종료 = (모든 모듈 최소 1회 탐색) AND (새 fact = 0)
-```
-
-### 목적: 정밀 재현
-
-온톨로지 구축의 목적은 **분석 대상을 정밀하게 재현**하는 것입니다. 온톨로지로 새 문제를 판단하는 것이 아닙니다.
-
-- **소스에서 직접 관찰 가능**: 구조적 사실 → `observed`
-- **소스에 구현되어 있으나 근거 없음**: 비즈니스 정책 → `rationale-absent`
-- **합리적 추론이지만 직접 확인 불가**: 패턴에서 추론 → `inferred` (추론 품질 함께 제시)
-- **복수 해석이 가능**: 동등하게 타당한 해석이 갈림 → `ambiguous` (사용자 선택 대상)
-- **소스에 없음**: 설계 의도, 사용자 경험 → `not-in-source` (사용자 결정 대상)
-
-### 구축 흐름
+Unlike verification (review), build deals with undefined scope, so it uses an **integral exploration** structure:
 
 ```
-0.  Schema 협의 (사용자와 온톨로지 구조 선택)
-0.5 Context Gathering (문서, 사용자 맥락, 관련 레포 수집)
-1.  적분형 탐색 루프 — 2개 Stage로 진행
-    ├── Stage 1: Structure (Entity, Enum, Relation, Property 식별, 최대 5라운드)
-    └── Stage 2: Behavior (State Machine, Command, Query, Policy, Flow 식별, 최대 5라운드)
-    Stage 1 수렴 후 Stage 2 진행. Stage 2는 Stage 1의 확정 결과를 참조합니다.
-2.  최종화 (Philosopher 검토, wip.yml → raw.yml)
-3.  사용자 확인 (certainty 분포, 커버리지, 결정 필요 항목 제시)
-4.  저장
-5.  학습 저장
++---------------------------------------------+
+|            Explorer (source traverser)       |
+|  Directly traverses source and generates     |
+|  deltas (domain fact reports)                |
++----------+-------------------+--------------+
+           | delta report       | epsilon received
+           v                   ^
++---------------------------------------------+
+|     Verification agents (direction guides)   |
+|  Attach labels (ontology types) to deltas    |
+|  Suggest epsilons (next directions)          |
+|  from their own axis gaps                    |
+|  Do NOT directly traverse the source         |
++----------+-------------------+--------------+
+           | epsilon report     | integrated directive
+           v                   ^
++---------------------------------------------+
+|          Philosopher (coordinator)           |
+|  Integrates epsilons, judges convergence,    |
+|  manages ontology consistency                |
++---------------------------------------------+
+
+Termination = (all modules explored at least once) AND (new facts = 0)
 ```
 
-## 디렉토리 구조
+### Purpose: Precise Reproduction
+
+The purpose of ontology build is to **precisely reproduce the analysis target**. It is not about judging new problems using the ontology.
+
+- **Directly observable from source**: Structural facts -> `observed`
+- **Implemented in source but without rationale**: Business policies -> `rationale-absent`
+- **Reasonable inference but not directly verifiable**: Inferred from patterns -> `inferred` (inference quality presented alongside)
+- **Multiple valid interpretations**: Equally valid interpretations diverge -> `ambiguous` (subject to user selection)
+- **Not in source**: Design intent, user experience -> `not-in-source` (subject to user decision)
+
+### Build Flow
+
+```
+0.  Schema negotiation (select ontology structure with user)
+0.5 Context Gathering (collect documents, user context, related repos)
+1.  Integral exploration loop -- proceeds in 2 Stages
+    +-- Stage 1: Structure (identify Entity, Enum, Relation, Property; max 5 rounds)
+    +-- Stage 2: Behavior (identify State Machine, Command, Query, Policy, Flow; max 5 rounds)
+    Stage 2 proceeds after Stage 1 converges. Stage 2 references Stage 1's confirmed results.
+2.  Finalization (Philosopher review, wip.yml -> raw.yml)
+3.  User confirmation (certainty distribution, coverage, items requiring decisions)
+4.  Storage
+5.  Learning storage
+```
+
+## Directory Structure
 
 ```
 onto/
-├── process.md              # 공통 정의 (에이전트 구성, 도메인 규칙, Agent Teams, 학습 저장)
-├── processes/
-│   ├── review.md           # 팀 리뷰 모드 (6단계)
-│   ├── question.md         # 개별 질문 모드
-│   ├── build.md            # 온톨로지 구축 (적분형 탐색)
-│   ├── transform.md        # 온톨로지 변환
-│   ├── onboard.md          # 온보딩
-│   └── promote.md          # 학습 승격
-├── roles/
-│   ├── onto_logic.md        # 논리적 일관성
-│   ├── onto_structure.md    # 구조적 완전성
-│   ├── onto_dependency.md   # 의존성 무결성
-│   ├── onto_semantics.md    # 의미적 정확성
-│   ├── onto_pragmatics.md   # 활용 적합성
-│   ├── onto_evolution.md    # 확장·진화 적합성
-│   ├── onto_coverage.md     # 도메인 포괄성
-│   ├── onto_conciseness.md  # 간결성
-│   └── philosopher.md       # 목적 정합성
-├── explorers/               # build 프로세스용 Explorer 프로파일
-├── domains/                 # 도메인별 기본 문서 (7~8종/도메인)
-├── golden/                  # 스키마별 golden example + 스키마 템플릿
-├── dev-docs/                # 설계 문서, 이슈, 철학적 기반
-│   ├── BLUEPRINT.md
-│   ├── KNOWN-ISSUES.md
-│   ├── DESIGN-build-generalization.md
-│   └── philosophical-foundations-of-ontology.md
-├── commands/                # 명령어 정의
-├── setup-domains.sh         # 도메인 기본 문서 설치
-├── migrate-sessions.sh      # 이전 버전 데이터 마이그레이션
-└── .claude-plugin/          # 플러그인 메타데이터
++-- process.md              # Common definitions (agent configuration, domain rules, Agent Teams, learning storage)
++-- processes/
+|   +-- review.md           # Team review mode (6 steps)
+|   +-- question.md         # Individual query mode
+|   +-- build.md            # Ontology build (integral exploration)
+|   +-- transform.md        # Ontology transform
+|   +-- onboard.md          # Onboarding
+|   +-- promote.md          # Learning promotion
++-- roles/
+|   +-- onto_logic.md        # Logical consistency
+|   +-- onto_structure.md    # Structural completeness
+|   +-- onto_dependency.md   # Dependency integrity
+|   +-- onto_semantics.md    # Semantic accuracy
+|   +-- onto_pragmatics.md   # Pragmatic fitness
+|   +-- onto_evolution.md    # Evolution fitness
+|   +-- onto_coverage.md     # Domain coverage
+|   +-- onto_conciseness.md  # Conciseness
+|   +-- philosopher.md       # Purpose alignment
++-- explorers/               # Explorer profiles for build process
++-- domains/                 # Domain base documents (7-8 per domain)
++-- golden/                  # Golden examples per schema + schema templates
++-- dev-docs/                # Design documents, issues, philosophical foundations
+|   +-- BLUEPRINT.md
+|   +-- KNOWN-ISSUES.md
+|   +-- DESIGN-build-generalization.md
+|   +-- philosophical-foundations-of-ontology.md
++-- commands/                # Command definitions
++-- setup-domains.sh         # Domain base document installation
++-- migrate-sessions.sh      # Previous version data migration
++-- .claude-plugin/          # Plugin metadata
 ```
 
-### 런타임 생성 디렉토리
+### Runtime-Generated Directories
 
 ```
-{project}/.onto/           # 런타임 데이터 (gitignored)
-├── review/{session-id}/          #   review 세션 (round1/ + philosopher_synthesis.md)
-├── builds/{session-id}/          #   build 세션 (round0~N/ + schema, raw.yml 등)
-└── learnings/                    #   프로젝트 수준 학습
+{project}/.onto/           # Runtime data (gitignored)
++-- review/{session-id}/          #   review session (round1/ + philosopher_synthesis.md)
++-- builds/{session-id}/          #   build session (round0~N/ + schema, raw.yml, etc.)
++-- learnings/                    #   Project-level learnings
 ```
 
-## 학습 체계
+## Learning System
 
-에이전트는 리뷰/질문을 통해 학습을 축적합니다. 학습은 2경로 + 축 태그 모델로 저장됩니다:
+Agents accumulate learnings through reviews and queries. Learnings are stored using a 2-path + axis tag model:
 
-| 저장 위치 | 범위 |
+| Storage Location | Scope |
 |---|---|
-| `~/.onto/learnings/{agent-id}.md` | 글로벌 학습 |
-| `{project}/.onto/learnings/{agent-id}.md` | 프로젝트 수준 학습 |
+| `~/.onto/learnings/{agent-id}.md` | Global learnings |
+| `{project}/.onto/learnings/{agent-id}.md` | Project-level learnings |
 
-각 학습 아이템에는 유형 태그와 축 태그가 부착됩니다:
+Each learning item is tagged with a type tag and axis tags:
 
-| 태그 종류 | 태그 | 설명 |
+| Tag Category | Tag | Description |
 |---|---|---|
-| 유형 태그 | `[사실]` / `[판단]` | 학습의 성격 분류 |
-| 축 태그 | `[methodology]` | 도메인 무관 검증 기법 |
-| 축 태그 | `[domain/{name}]` | 특정 도메인에 귀속된 학습 |
+| Type tag | `[fact]` / `[judgment]` | Classification of the learning's nature |
+| Axis tag | `[methodology]` | Domain-independent verification technique |
+| Axis tag | `[domain/{name}]` | Learning attributed to a specific domain |
 
-- 하나의 아이템에 복수 축 태그 허용 (예: `[methodology]`와 `[domain/SE]` 동시 부착)
-- 아이템 형식: `- [사실|판단] [methodology] [domain/SE] 학습 내용 (출처: ...)`
-- 소통 학습은 `~/.onto/communication/common.md`에 별도 저장 (변경 없음)
-- 프로젝트 수준 학습은 `/onto:promote`로 글로벌 수준에 승격할 수 있습니다
-- 도메인 문서는 사용자의 명시적 승인 없이 자동 수정되지 않습니다
+- Multiple axis tags allowed per item (e.g., `[methodology]` and `[domain/SE]` simultaneously)
+- Item format: `- [fact\|judgment] [methodology] [domain/SE] learning content (source: ...)`
+- Communication learnings are stored separately at `~/.onto/communication/common.md` (unchanged)
+- Project-level learnings can be promoted to global-level via `/onto:promote`
+- Domain documents are never auto-modified without explicit user approval
 
-## 도메인 문서 (7종)
+## Domain Documents (7 types)
 
-| 유형 | 문서 | 부재 시 | 갱신 방식 |
+| Type | Document | When Absent | Update Method |
 |---|---|---|---|
-| 범위 정의형 | `domain_scope.md` | 역할 무력화 | promote 제안 → 사용자 승인 |
-| 축적 가능형 | `concepts.md`, `competency_qs.md` | 성능 저하 | promote 제안 → 사용자 승인 |
-| 규칙 정의형 | `logic_rules.md`, `structure_spec.md`, `dependency_rules.md`, `extension_cases.md` | 성능 저하 (LLM 대체 가능) | 사용자 직접 작성 |
+| Scope-defining | `domain_scope.md` | Role becomes ineffective | Promote suggestion -> user approval |
+| Accumulable | `concepts.md`, `competency_qs.md` | Reduced performance | Promote suggestion -> user approval |
+| Rule-defining | `logic_rules.md`, `structure_spec.md`, `dependency_rules.md`, `extension_cases.md` | Reduced performance (LLM can substitute) | User writes directly |
 
-## 마이그레이션
+## Migration
 
-이전 버전에서 런타임 데이터가 `.claude/` 하위에 저장되어 있는 경우, 아래 스크립트로 `.onto/`로 이동할 수 있습니다.
+If runtime data from a previous version is stored under `.claude/`, the following scripts can move it to `.onto/`.
 
-마이그레이션 대상:
-- `.claude/sessions/` → `.onto/review/`, `.onto/builds/`
-- `.claude/learnings/` → `.onto/learnings/`
-- `.claude/ontology/` → `.onto/builds/{세션ID}/`
-- `.onto/sessions/` 중간 계층 → 제거 (직접 `review/`, `builds/` 아래로)
+Migration targets:
+- `.claude/sessions/` to `.onto/review/`, `.onto/builds/`
+- `.claude/learnings/` to `.onto/learnings/`
+- `.claude/ontology/` to `.onto/builds/{session-id}/`
+- `.onto/sessions/` intermediate layer removed (directly under `review/`, `builds/`)
 
 ```bash
-# 대상 확인 (실제 이동 없음)
+# Preview targets (no actual moves)
 ./migrate-sessions.sh --dry-run
 
-# 마이그레이션 실행
+# Run migration
 ./migrate-sessions.sh
 
-# 다른 프로젝트 지정
+# Specify another project
 ./migrate-sessions.sh /path/to/project
 ```
 
-이전 데이터가 없으면 자동으로 건너뜁니다.
+Automatically skipped if no previous data exists.
 
-### 학습 저장 구조 마이그레이션
+### Learning Storage Structure Migration
 
-이전 버전에서 학습이 3경로(`methodology/`, `domains/{domain}/learnings/`, `communication/`)에 분산 저장된 경우:
+If learnings from a previous version are spread across 3 paths (`methodology/`, `domains/{domain}/learnings/`, `communication/`):
 
 ```bash
-# 대상 확인 (실제 변경 없음)
+# Preview targets (no actual changes)
 ./migrate-learnings.sh --dry-run
 
-# 마이그레이션 실행
+# Run migration
 ./migrate-learnings.sh
 ```
 
-변경 내용:
-- `~/.onto/methodology/{agent}.md` → `~/.onto/learnings/{agent}.md`에 `[methodology]` 태그 부착 후 병합
-- `~/.onto/domains/{domain}/learnings/{agent}.md` → `~/.onto/learnings/{agent}.md`에 `[domain/{domain}]` 태그 부착 후 병합
-- 태그 위치 정규화: `- [유형] [축태그...] 학습 내용 (출처: ...)`
-- 기존 파일은 `~/.onto/_backup_migration_{date}/`에 백업
+Changes:
+- `~/.onto/methodology/{agent}.md` -> merged into `~/.onto/learnings/{agent}.md` with `[methodology]` tag
+- `~/.onto/domains/{domain}/learnings/{agent}.md` -> merged into `~/.onto/learnings/{agent}.md` with `[domain/{domain}]` tag
+- Tag position normalized: `- [type] [axis-tag...] learning content (source: ...)`
+- Original files backed up to `~/.onto/_backup_migration_{date}/`
 
-이전 구조가 없으면 자동으로 건너뜁니다.
+Automatically skipped if no previous structure exists.
 
-## 시작하기
+## Getting Started
 
 ```
-/onto:onboard                        # 프로젝트 환경 설정
-/onto:review {대상}                   # 에이전트 패널 리뷰 실행
-/onto:ask-logic {질문}                # 개별 에이전트에게 질문
-/onto:build {경로|GitHub URL}  # 분석 대상에서 온톨로지 구축
+/onto:onboard                        # Set up project environment
+/onto:review {target}                # Run agent panel review
+/onto:ask-logic {question}           # Ask an individual agent
+/onto:build {path|GitHub URL}        # Build ontology from analysis target
 ```

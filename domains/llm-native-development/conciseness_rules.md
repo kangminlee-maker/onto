@@ -1,120 +1,120 @@
-# 간결성 규칙 (llm-native-development)
+# Conciseness Rules (llm-native-development)
 
-이 문서는 onto_conciseness가 간결성 검증 시 참조하는 도메인별 규칙입니다.
-간결성 판정의 **유형(허용/제거) → 검증 기준 → 역할 경계 → 측정 방법** 순으로 구성됩니다.
-
----
-
-## 1. 허용되는 중복
-
-각 규칙에 강도를 태깅합니다:
-- **[MUST-ALLOW]**: 제거 시 체계가 깨지는 중복. 유지 필수.
-- **[MAY-ALLOW]**: 편의상 유지하는 중복. 통합 가능하나, 통합 비용 대비 이득이 명확할 때만 제거.
-
-### 추적성 (Traceability)
-
-- [MUST-ALLOW] 스펙→구현→프론트매터 3중 추적 — spec.md의 요구사항, 구현 파일의 코드, frontmatter의 메타데이터가 동일 사실을 각각 다른 형식으로 표현. 세 계층은 소비자가 다르므로(사람의 판단, LLM의 생성, 기계의 검증) 하나라도 제거하면 추적 관계가 단절됨.
-- [MUST-ALLOW] AI/사람 이중 소비 경로 — 동일 정보가 사람용 문서(README, 설명문)와 LLM용 구조(frontmatter, system map)에 병존. 소비자의 읽기 방식이 다르므로 통합 시 한쪽의 접근성이 파괴됨.
-
-### 탐색 구조 (Navigation)
-
-- [MUST-ALLOW] 시스템 맵(ARCHITECTURE.md)과 탐색 인덱스(INDEX.md)의 파일 목록 중복 — 시스템 맵은 전체 구조의 개요를, 탐색 인덱스는 디렉토리 단위 상세를 제공. 목적과 탐색 깊이가 다르므로 독립 유지 필수.
-- [MAY-ALLOW] frontmatter의 관계 선언과 본문의 관련 문서 링크가 동일 파일을 가리킴. frontmatter는 기계 검증용, 본문 링크는 사람의 탐색용이므로 유지 가능하나, 갱신 시 불일치 위험 있음.
-
-### 역할과 도메인 문서 (Role-Document Mapping)
-
-- [MUST-ALLOW] 에이전트 역할 정의(roles/*.md)와 프로세스 문서(process.md)의 역할-문서 매핑이 역할명을 중복 언급. 역할 파일은 판단 기준을, 프로세스 문서는 실행 순서를 정의하므로 관심사가 다름.
-- [MAY-ALLOW] 여러 에이전트의 도메인 문서 목록에 동일 파일(예: concepts.md)이 등장. 에이전트별 참조 맥락이 다르면 유지, 단순 나열이면 공통 참조로 추출 가능.
-
-### 학습과 승격 (Learning & Promote)
-
-- [MAY-ALLOW] 프로젝트 학습 항목과 승격된 도메인 문서에 동일 내용이 일시적으로 공존. 승격 완료 후 프로젝트 학습 항목에서 제거해야 하나, 승격 과정 중의 일시적 중복은 허용.
+This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+It is organized in the order of **type (allow/remove) → verification criteria → role boundaries → measurement method**.
 
 ---
 
-## 2. 제거 대상 패턴
+## 1. Allowed Duplication
 
-각 규칙에 강도를 태깅합니다:
-- **[MUST-REMOVE]**: 존재 자체가 오류를 유발하거나 잘못된 추론을 일으키는 중복.
-- **[SHOULD-REMOVE]**: 해가 크지 않으나 불필요한 복잡도를 추가하는 중복.
+Each rule is tagged with a strength level:
+- **[MUST-ALLOW]**: Duplication that breaks the system if removed. Must be retained.
+- **[MAY-ALLOW]**: Duplication retained for convenience. Can be consolidated, but only remove when the benefit clearly outweighs the consolidation cost.
 
-### 역할 중복
+### Traceability
 
-- [MUST-REMOVE] 동일 역할의 중복 에이전트 정의 — 이름이 다르지만 판단 기준과 담당 문서가 동일한 에이전트가 2개 이상 존재. 양쪽 유지 시 검증 결과 충돌 또는 불필요한 반복 실행 발생.
-- [SHOULD-REMOVE] 역할 정의 파일과 프로세스 문서에서 판단 기준을 중복 기술 — 판단 기준의 정본은 역할 정의 파일이므로, 프로세스 문서에서는 역할명만 참조해야 함.
+- [MUST-ALLOW] Spec → implementation → frontmatter triple traceability — spec.md requirements, implementation file code, and frontmatter metadata express the same facts in different formats. The three layers have different consumers (human judgment, LLM generation, machine verification), so removing any one severs the traceability chain.
+- [MUST-ALLOW] AI/human dual consumption paths — The same information coexists in human-facing documents (README, explanatory text) and LLM-facing structures (frontmatter, system map). Since consumers read differently, consolidation destroys accessibility for one side.
 
-### 탐색과 이력의 혼합
+### Navigation Structure
 
-- [MUST-REMOVE] 네비게이션 인덱스에 변경 이력이 혼합 — INDEX.md가 파일 목록(탐색)과 변경 로그(이력)를 함께 기술. 탐색 구조와 변경 이력은 갱신 주기와 소비 목적이 다르므로 분리 필수.
-- [SHOULD-REMOVE] frontmatter에 변경 이력 필드와 탐색 관계 필드가 혼재 — frontmatter는 현재 상태의 메타데이터를 기술하는 곳이므로, 변경 이력은 git 또는 별도 이력 파일에 위임.
+- [MUST-ALLOW] File list overlap between system map (ARCHITECTURE.md) and navigation index (INDEX.md) — The system map provides a structural overview of the whole, while the navigation index provides per-directory detail. Since their purposes and navigation depth differ, independent maintenance is mandatory.
+- [MAY-ALLOW] Frontmatter relationship declarations and body "Related Documents" links pointing to the same file. Frontmatter is for machine verification, body links are for human navigation, so retention is acceptable, but there is a risk of inconsistency during updates.
 
-### 구조 중복
+### Role and Domain Document (Role-Document Mapping)
 
-- [MUST-REMOVE] 동일 개념 파일의 다중 경로 존재 — 같은 개념이 서로 다른 디렉토리에 다른 파일명으로 존재. "File = Concept" 등식에 의해 하나의 개념은 하나의 파일로만 표현되어야 함.
-- [SHOULD-REMOVE] 시스템 맵의 구조 설명이 개별 파일의 frontmatter와 완전히 동일한 정보만 나열 — 시스템 맵은 개요와 관계를 보여야 하며, frontmatter의 단순 복사는 갱신 누락의 원인.
+- [MUST-ALLOW] Agent role definitions (roles/*.md) and process document (process.md) role-document mapping both mentioning role names. Role files define judgment criteria while process documents define execution order, so their concerns differ.
+- [MAY-ALLOW] The same file (e.g., concepts.md) appearing in multiple agents' domain document lists. If the reference context differs per agent, retain; if it is mere listing, extraction into a common reference is possible.
 
-### 제약 중복
+### Learning and Promotion
 
-- [SHOULD-REMOVE] structure_spec.md의 규칙을 개별 파일의 본문에서 재기술 — 제약 조건의 정본은 structure_spec.md이므로, 개별 파일에서는 참조만 유지.
-
----
-
-## 3. 최소 세분화 기준
-
-하위 분류는 아래 중 **하나 이상**을 충족해야 허용됩니다. 하나도 충족하지 않으면 상위와 병합합니다.
-
-1. **역량 질문 차이**: competency_qs.md의 질문에 대해 다른 답을 생성하는가?
-2. **제약 조건 차이**: 다른 제약 조건(토큰 예산, frontmatter 스키마, 탐색 깊이 제한)이 적용되는가?
-3. **소비자 차이**: 다른 소비자(사람, LLM, 자동화 스크립트)가 해당 분류를 필요로 하는가?
-
-예시:
-- `개념 파일`과 `메타 파일`은 다른 제약(frontmatter 스키마, "File = Concept" 등식 적용 여부)이 적용되므로 분류 정당.
-- `탐색 인덱스`와 `시스템 맵`이 동일 디렉토리의 동일 파일만 나열하고 부가 정보 없으면 병합 대상.
+- [MAY-ALLOW] The same content temporarily coexisting in project learning items and promoted domain documents. Project learning items should be removed after promotion is complete, but temporary duplication during the promotion process is allowed.
 
 ---
 
-## 4. 경계 — 도메인 특화 적용 사례
+## 2. Removal Target Patterns
 
-경계 정의의 정본은 `roles/onto_conciseness.md`입니다. 이 섹션은 llm-native-development 도메인에서의 구체적 적용 사례만 기술합니다.
+Each rule is tagged with a strength level:
+- **[MUST-REMOVE]**: Duplication whose existence causes errors or incorrect reasoning.
+- **[SHOULD-REMOVE]**: Duplication that is not significantly harmful but adds unnecessary complexity.
 
-### onto_pragmatics 경계
+### Role Duplication
 
-- onto_conciseness: 불필요한 요소가 **존재**하는가 (구조 수준)
-- onto_pragmatics: 불필요한 정보가 LLM의 컨텍스트 윈도우를 **낭비**하는가 (실행 수준)
-- 예: 폐기된 개념 파일이 디렉토리에 잔존 → onto_conciseness. 유효하지만 현재 작업에 불필요한 파일이 참조 체인에 포함됨 → onto_pragmatics.
+- [MUST-REMOVE] Duplicate agent definitions for the same role — Agents with different names but identical judgment criteria and assigned documents existing in 2 or more instances. Maintaining both causes verification result conflicts or unnecessary repeated execution.
+- [SHOULD-REMOVE] Judgment criteria duplicately described in both role definition files and process documents — The authoritative source for judgment criteria is the role definition file, so process documents should reference only the role name.
 
-### onto_coverage 경계
+### Navigation and History Mixing
 
-- onto_conciseness: 없어야 할 것이 있는가 (축소 방향)
-- onto_coverage: 있어야 할 것이 없는가 (확장 방향)
-- 예: 에이전트 역할이 정의되었으나 담당 도메인 문서가 없음 → onto_coverage. 동일 판단 기준의 에이전트가 두 개 정의됨 → onto_conciseness.
+- [MUST-REMOVE] Change history mixed into navigation index — INDEX.md describing both file lists (navigation) and change logs (history). Since navigation structure and change history have different update cycles and consumption purposes, separation is mandatory.
+- [SHOULD-REMOVE] Change history fields and navigation relationship fields mixed in frontmatter — Frontmatter describes current-state metadata, so change history should be delegated to git or a separate history file.
 
-### onto_logic 경계 (선행/후행 관계)
+### Structural Duplication
 
-- onto_logic 선행: 논리적 동치(함의) 여부를 판별
-- onto_conciseness 후행: 동치 확인 후 제거 여부를 판단
-- 예: structure_spec.md의 규칙이 개별 파일 본문의 제약을 함의 → onto_logic이 동치 판별 → onto_conciseness가 "개별 파일의 재기술 불필요" 판정.
+- [MUST-REMOVE] Multiple paths to the same concept file — The same concept existing in different directories under different filenames. By the "File = Concept" equation, one concept must be expressed as exactly one file.
+- [SHOULD-REMOVE] System map structural descriptions that list only information completely identical to individual file frontmatter — The system map should show overviews and relationships; simple copies of frontmatter cause update omissions.
 
-### onto_semantics 경계 (선행/후행 관계)
+### Constraint Duplication
 
-- onto_semantics 선행: 의미 동일성(동의어 여부)을 판별
-- onto_conciseness 후행: 동의어 확인 후 병합 필요성을 판단
-- 예: system map/architecture overview/구조 안내가 동일 개념 → onto_semantics가 동의어 판별 → onto_conciseness가 "하나의 정규 용어로 통합" 판정.
+- [SHOULD-REMOVE] Rules from structure_spec.md re-described in individual file bodies — The authoritative source for constraints is structure_spec.md, so individual files should maintain only references.
 
 ---
 
-## 5. 정량 기준
+## 3. Minimum Granularity Criteria
 
-도메인에서 관찰된 임계값이 축적되면 기록합니다.
+A sub-classification is allowed only if it satisfies **one or more** of the following. If none are satisfied, merge with the parent.
 
-- (아직 정의되지 않음 — 리뷰를 통해 축적됩니다)
+1. **Competency question difference**: Does it produce a different answer to a question in competency_qs.md?
+2. **Constraint difference**: Do different constraints (token budget, frontmatter schema, traversal depth limit) apply?
+3. **Consumer difference**: Do different consumers (humans, LLMs, automation scripts) require the classification?
+
+Examples:
+- `Concept file` and `meta file` have different constraints (frontmatter schema, "File = Concept" equation applicability), so the classification is justified.
+- If `navigation index` and `system map` list only the same files in the same directory with no additional information, they are candidates for merging.
 
 ---
 
-## 관련 문서
+## 4. Boundaries — Domain-Specific Application Cases
 
-- `concepts.md` — 용어 정의, 동의어 매핑, 동형이의어 목록 (중복 판별의 의미 기준)
-- `structure_spec.md` — frontmatter 규격, 파일 유형 분류 (구조적 관점의 제거 기준)
-- `competency_qs.md` — 역량 질문 목록 (최소 세분화의 "실제 차이" 판단 기준)
-- `dependency_rules.md` — 참조 체인과 방향 규칙 (참조 사본 허용 근거)
-- `domain_scope.md` — 도메인 범위, 필수 개념 범주 (중복 판별 시 범위 확인)
+The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the llm-native-development domain.
+
+### onto_pragmatics Boundary
+
+- onto_conciseness: Does an unnecessary element **exist**? (structural level)
+- onto_pragmatics: Does unnecessary information **waste** the LLM's context window? (execution level)
+- Example: A deprecated concept file remains in the directory → onto_conciseness. A valid but currently unnecessary file is included in the reference chain → onto_pragmatics.
+
+### onto_coverage Boundary
+
+- onto_conciseness: Is there something that should not be there? (reduction direction)
+- onto_coverage: Is there something missing that should be there? (expansion direction)
+- Example: An agent role is defined but has no assigned domain document → onto_coverage. Two agents with identical judgment criteria are defined → onto_conciseness.
+
+### onto_logic Boundary (preceding/following relationship)
+
+- onto_logic precedes: Determines logical equivalence (implication)
+- onto_conciseness follows: Decides whether to remove after equivalence is confirmed
+- Example: A rule in structure_spec.md implies a constraint in an individual file body → onto_logic determines equivalence → onto_conciseness determines "re-description in individual file is unnecessary."
+
+### onto_semantics Boundary (preceding/following relationship)
+
+- onto_semantics precedes: Determines semantic identity (synonym status)
+- onto_conciseness follows: Decides whether merging is needed after synonym is confirmed
+- Example: system map / architecture overview / structure guide are the same concept → onto_semantics determines synonym → onto_conciseness determines "consolidate into one canonical term."
+
+---
+
+## 5. Quantitative Criteria
+
+Thresholds observed in this domain are recorded as they accumulate.
+
+- (Not yet defined — accumulated through reviews)
+
+---
+
+## Related Documents
+
+- `concepts.md` — Term definitions, synonym mappings, homonym list (semantic criteria for duplication determination)
+- `structure_spec.md` — Frontmatter specifications, file type classification (structural-perspective removal criteria)
+- `competency_qs.md` — Competency question list (criteria for judging "actual difference" in minimum granularity)
+- `dependency_rules.md` — Reference chains and direction rules (basis for allowing reference copies)
+- `domain_scope.md` — Domain scope, required concept categories (scope reference for duplication determination)

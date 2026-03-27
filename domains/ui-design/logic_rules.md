@@ -1,77 +1,77 @@
-# UI Design Domain — 논리 규칙
+# UI Design Domain — Logic Rules
 
-## 내비게이션 논리
+## Navigation Logic
 
-- 사용자는 3가지 질문에 항상 답할 수 있어야 한다: "나는 어디에 있는가?", "어디로 갈 수 있는가?", "어떻게 돌아가는가?" 이 중 하나라도 답할 수 없으면 내비게이션 실패
-- 내비게이션 항목의 명칭(label)은 사용자의 언어로 작성해야 한다. 시스템 내부 용어(예: "인스턴스 관리")는 사용자의 심적 모형과 불일치
-- 내비게이션 계층의 깊이가 증가할수록 사용자의 이탈 확률이 증가한다. 깊이를 줄일 수 없으면, 각 단계에서 정보 향기(information scent)를 강화해야 한다
-- 글로벌 내비게이션은 모든 화면에서 일관되어야 한다. 특정 화면에서 글로벌 내비게이션이 사라지면 사용자가 위치감을 상실
-- 모바일에서 햄버거 메뉴(≡)는 발견 가능성이 낮다. 핵심 내비게이션 항목은 바텀 내비게이션 등 항상 보이는 위치에 배치하고, 부수 항목만 햄버거에 포함
-- 브라우저 뒤로가기와 앱 내 뒤로가기의 동작이 일치해야 한다. 불일치하면 사용자의 예측이 실패
+- Users must always be able to answer 3 questions: "Where am I?", "Where can I go?", "How do I go back?" If any one of these cannot be answered, navigation has failed
+- Navigation item labels must be written in the user's language. Internal system terminology (e.g., "Instance Management") conflicts with the user's mental model
+- As navigation hierarchy depth increases, user abandonment probability increases. If depth cannot be reduced, information scent must be strengthened at each level
+- Global navigation must be consistent across all screens. If global navigation disappears on a specific screen, users lose their sense of location
+- On mobile, hamburger menus (≡) have low discoverability. Core navigation items should be placed in always-visible positions like bottom navigation, with only secondary items in the hamburger
+- Browser back and in-app back behavior must be consistent. Inconsistency causes user prediction to fail
 
-## 폼 설계 논리
+## Form Design Logic
 
-- 폼의 필드 수는 완료율에 반비례한다. 불필요한 필드를 제거하거나, 선택 필드로 전환하거나, 단계를 분할해야 한다
-- 필수 필드와 선택 필드의 표시 방식: 필수가 대다수이면 선택 필드에 "(선택)" 표시, 선택이 대다수이면 필수 필드에 "*" 표시. 둘 다 표시하면 시각적 노이즈
-- 인라인 검증의 타이밍: 입력 중(on input)에 에러를 표시하면 아직 입력이 완료되지 않은 상태에서 경고가 나타남. 필드 이탈 시(on blur)가 일반적으로 적합. 단, 비밀번호 강도 표시 등 안내성 피드백은 실시간이 유효
-- 에러 메시지는 긍정적 지시로 작성한다. "잘못된 이메일" → "이메일 형식으로 입력해 주세요 (예: name@example.com)". 무엇이 틀렸는지보다 어떻게 고칠 수 있는지가 더 중요
-- 다단계 폼에서 각 단계는 논리적으로 완결된 단위여야 한다. 관련 없는 필드가 같은 단계에 혼합되면 사용자의 맥락이 흐트러짐
-- 자동완성(autofill)을 방해하면 안 된다. 브라우저의 자동완성은 사용자의 입력 효율을 크게 높인다. autocomplete 속성을 올바르게 지정해야 한다
+- The number of form fields is inversely proportional to completion rate. Remove unnecessary fields, convert them to optional, or divide into steps
+- Required/optional field indication: If most are required, mark optional fields with "(optional)"; if most are optional, mark required fields with "*". Marking both creates visual noise
+- Inline validation timing: Showing errors during input (on input) displays warnings before input is complete. On blur is generally appropriate. However, real-time feedback like password strength indicators is valid
+- Error messages should be written as positive instructions. "Invalid email" → "Please enter in email format (e.g., name@example.com)." How to fix it is more important than what went wrong
+- In multi-step forms, each step should be a logically complete unit. Mixing unrelated fields in the same step disrupts the user's context
+- Autofill must not be obstructed. Browser autofill greatly increases user input efficiency. The autocomplete attribute must be correctly specified
 
-## 피드백 논리
+## Feedback Logic
 
-- 피드백의 지속성은 긴급도에 비례해야 한다. 성공 → 일시적(3~5초 후 자동 소멸), 정보 → 일시적/지속 선택, 경고 → 사용자 확인까지 지속, 에러 → 원인 해소까지 지속
-- 로딩 상태의 표현은 예상 소요 시간에 따라 다르다. 0~300ms → 표시 불필요(즉각 응답으로 인식), 300ms~1s → 스피너, 1s~10s → 스켈레톤 또는 프로그레스 바, 10s 이상 → 배경 처리 + 완료 알림
-- 스켈레톤 스크린은 최종 레이아웃을 반영해야 한다. 실제 콘텐츠와 무관한 스켈레톤은 로딩 완료 시 레이아웃 점프(layout shift)를 유발
-- 낙관적 업데이트는 실패 확률이 낮은 행동에만 적용한다. 실패 빈도가 높으면 롤백이 잦아져 사용자 신뢰를 저하
-- 알림(notification)은 쌓이면 무시된다. 알림의 빈도와 중요도를 관리하지 않으면 알림 피로(notification fatigue) 발생. 긴급한 알림과 정보성 알림을 구분해야 한다
-- 빈 상태의 3가지 유형에 대한 안내:
-  - 최초 사용(zero state): "아직 항목이 없습니다" + 첫 행동 유도 (CTA)
-  - 데이터 없음: "조건에 맞는 항목이 없습니다" + 조건 변경 안내
-  - 에러로 인한 빈 상태: "데이터를 불러올 수 없습니다" + 재시도 또는 대안
+- Feedback persistence should be proportional to urgency. Success → transient (auto-dismiss after 3~5 seconds), info → transient/persistent by choice, warning → persistent until user acknowledgment, error → persistent until cause is resolved
+- Loading state representation depends on expected duration. 0~300ms → no display needed (perceived as instant response), 300ms~1s → spinner, 1s~10s → skeleton or progress bar, 10s+ → background processing + completion notification
+- Skeleton screens must reflect the final layout. A skeleton unrelated to actual content causes a layout shift on load completion
+- Optimistic updates should be applied only to actions with low failure probability. Frequent failures cause frequent rollbacks, undermining user trust
+- Notifications become ignored when they accumulate. Without managing notification frequency and importance, notification fatigue occurs. Urgent and informational notifications must be distinguished
+- Guidance for the 3 types of empty states:
+  - First use (zero state): "No items yet" + first action CTA
+  - No data: "No items matching the criteria" + criteria change guidance
+  - Error-caused empty state: "Could not load data" + retry or alternative
 
-## 모달 논리
+## Modal Logic
 
-- 모달 사용 기준: (1) 사용자의 즉각적 주의가 필요하고, (2) 독립된 맥락에서의 입력/확인이 필요하며, (3) 배경 상호작용이 현재 작업을 방해하는 경우에만 사용
-- 모달 안에 모달(stacked modal)은 사용하지 않는다. 중첩 모달은 사용자의 맥락 추적을 어렵게 하고, 포커스/접근성 관리를 복잡하게 한다
-- 모달의 닫기 수단은 3가지 이상 제공: (1) X 버튼, (2) ESC 키, (3) 행동 완료/취소 버튼. 배경 클릭 닫기는 데이터 손실 위험이 없는 경우에만
-- 모달 내 폼에서 입력 도중 실수로 닫히면 데이터 손실이 발생한다. 입력이 있는 모달은 닫기 전 확인(unsaved changes warning)이 필요
-- 모바일에서 전체 화면을 차지하는 모달은 새 화면과 구분이 어렵다. 바텀시트 또는 별도 화면 이동이 더 적합할 수 있다
+- Modal usage criteria: Use only when (1) the user's immediate attention is needed, (2) input/confirmation in an independent context is needed, and (3) background interaction would disrupt the current task
+- Stacked modals (a modal on top of a modal) must not be used. Nested modals make context tracking difficult and complicate focus/accessibility management
+- Modals must provide 3 or more close mechanisms: (1) X button, (2) ESC key, (3) action completion/cancel button. Background click to close only when there is no data loss risk
+- If a modal with a form is accidentally closed during input, data loss occurs. Modals with input require an unsaved changes warning before closing
+- On mobile, modals that occupy the full screen are difficult to distinguish from a new screen. A bottom sheet or separate screen navigation may be more appropriate
 
-## 행동 유도 논리
+## Action Guidance Logic
 
-- 한 화면에 주요 행동(primary action)은 1개여야 한다. 2개 이상이 동등하게 강조되면 사용자가 우선순위를 판단할 수 없다
-- Fitts의 법칙 적용: 주요 행동은 시각적으로 크고, 사용자의 현재 주의 위치와 가깝게. 파괴적 행동은 주요 행동에서 물리적으로 떨어뜨려 오클릭 방지
-- 파괴적 행동의 확인 다이얼로그에서 확인 버튼의 라벨은 구체적이어야 한다. "확인" 대신 "삭제", "해지" 등 행동을 명시. "확인"은 사용자가 내용을 읽지 않고 클릭할 위험
-- 되돌리기(undo)가 가능한 행동은 확인 다이얼로그 없이 즉시 실행 + undo 제공이 더 나은 경험. 확인 다이얼로그는 흐름을 끊지만, undo는 행동의 결과를 먼저 보여줌
-- 온보딩/코치마크는 한꺼번에 5개 이상 표시하면 사용자가 모두 건너뛴다. 점진적 공개 원칙에 따라, 사용자가 기능을 실제로 사용하는 시점에 안내
+- There should be 1 primary action per screen. If 2 or more are equally emphasized, users cannot determine priority
+- Fitts's Law applied: Primary actions should be visually large and close to the user's current attention. Destructive actions should be physically distanced from primary actions to prevent misclicks
+- In destructive action confirmation dialogs, the confirm button label must be specific. Instead of "OK," use "Delete," "Cancel Account," etc. to state the action. "OK" risks users clicking without reading the content
+- For actions where undo is possible, immediate execution + undo is a better experience than confirmation dialogs. Confirmation dialogs interrupt flow, while undo shows the action's result first
+- Displaying 5 or more onboarding/coach marks at once causes users to skip all of them. Following the progressive disclosure principle, guide at the point when users actually use the feature
 
-## 데이터 표시 논리
+## Data Display Logic
 
-- 테이블 vs 카드 선택 기준: 항목 간 속성 비교가 필요하면 테이블, 각 항목의 개별 탐색이 중심이면 카드. 속성이 3개 이하이면 리스트가 충분
-- 페이지네이션 vs 무한 스크롤 선택 기준: 특정 항목 재방문이 필요하면 페이지네이션(위치 기억 가능), 탐색/소비 중심이면 무한 스크롤(흐름 유지). 무한 스크롤에서는 footer 접근이 어려우므로 footer 콘텐츠를 다른 위치로 이동
-- 필터 적용 방식: 필터 수가 적고 결과 반환이 빠르면 즉시 적용, 필터가 복잡하거나 서버 요청이 필요하면 "적용" 버튼 방식. 즉시 적용 시에도 활성 필터 표시와 초기화 수단 필수
-- 정렬 기본값은 사용자에게 가장 유용한 순서여야 한다. 기술적으로 편한 순서(ID 오름차순 등)를 기본으로 하면 사용자가 매번 정렬을 변경해야 한다
-- 빈 테이블/리스트에 컬럼 헤더만 표시하면 깨진 UI로 보인다. 빈 상태 메시지와 다음 행동 안내가 필요
+- Table vs card selection criteria: Tables when attribute comparison between items is needed, cards when individual item browsing is central. Lists are sufficient when attributes are 3 or fewer
+- Pagination vs infinite scroll selection criteria: Pagination when specific item revisiting is needed (position recall possible), infinite scroll when browsing/consumption-focused (flow maintenance). In infinite scroll, footer content must be relocated since footer access is difficult
+- Filter application method: Apply immediately when there are few filters and results return quickly; use an "Apply" button when filters are complex or server requests are needed. Even with immediate application, active filter display and reset mechanism are mandatory
+- The default sort order should be the most useful order for users. Using a technically convenient order (ID ascending, etc.) as default forces users to change sorting every time
+- A table/list showing only column headers with no data appears as broken UI. An empty state message and next-action guidance are needed
 
-## 접근성 인터랙션 논리
+## Accessible Interaction Logic
 
-- 네이티브 HTML 요소를 사용할 수 있으면 커스텀 컴포넌트를 만들지 않는다. `<button>`, `<select>`, `<input>` 등은 기본적으로 키보드/스크린 리더를 지원. 커스텀으로 만들면 접근성을 처음부터 구현해야 한다
-- ARIA는 네이티브 시맨틱이 불충분할 때만 사용한다. "ARIA 없음이 잘못된 ARIA보다 낫다" — 잘못된 ARIA 역할/상태는 스크린 리더 사용자를 더 혼란에 빠뜨린다
-- 탭 순서는 DOM 순서를 따른다. CSS로 시각적 위치만 변경하고 DOM 순서를 변경하지 않으면, 키보드 사용자의 탭 이동이 시각적 순서와 불일치
-- tabindex="0"은 자연 탭 순서에 추가, tabindex="-1"은 프로그래매틱 포커스용(탭으로 도달 불가), tabindex > 0은 사용하지 않는다. 양수 tabindex는 전체 탭 순서를 어지럽힌다
-- 라이브 영역(aria-live)의 긴급도 선택: 대부분의 업데이트는 "polite"(현재 읽기 완료 후 알림), 긴급한 에러만 "assertive"(즉시 알림). assertive 남용은 스크린 리더 사용 경험을 해침
+- If a native HTML element can be used, do not create a custom component. `<button>`, `<select>`, `<input>`, etc. natively support keyboard/screen reader. Custom implementations require building accessibility from scratch
+- ARIA should be used only when native semantics are insufficient. "No ARIA is better than bad ARIA" — incorrect ARIA roles/states cause more confusion for screen reader users
+- Tab order follows DOM order. Changing only visual position with CSS without changing DOM order causes keyboard users' tab movement to be inconsistent with visual order
+- tabindex="0" adds to natural tab order, tabindex="-1" is for programmatic focus (not reachable by tab), tabindex > 0 should not be used. Positive tabindex disrupts the entire tab order
+- Live region (aria-live) urgency selection: Most updates use "polite" (notification after current reading completes); only urgent errors use "assertive" (immediate notification). Overusing assertive degrades screen reader user experience
 
-## 제약 상충 검사
+## Constraint Conflict Checks
 
-- 보안(재인증)과 사용 편의(자동 로그인)가 상충하면 → 위험도에 따라 구간 설정. 열람은 자동 로그인 허용, 결제/삭제는 재인증 요구
-- 정보 밀도(효율)와 인지 부하(과부하)가 상충하면 → 사용자 유형에 따라 구분. 전문 사용자에게는 밀도 높은 UI(대시보드), 일반 사용자에게는 점진적 공개
-- 일관성(모든 화면 동일 패턴)과 맥락 적합성(이 화면은 다른 패턴이 유효)이 상충하면 → 맥락이 우선할 수 있으나, 이탈의 이유를 문서화하고 사용자 학습 지원 필요
-- 간결함(최소 UI)과 발견 가능성(기능이 보여야 함)이 상충하면 → 핵심 기능은 항상 가시적, 부수 기능은 점진적 공개. "깔끔함"을 위해 핵심 기능을 숨기면 사용성 실패
-- 플랫폼 관행 준수(Jakob의 법칙)와 차별화(독창적 경험)가 상충하면 → 핵심 인터랙션(내비게이션, 폼, 시스템 제스처)은 관행 준수, 고유 기능(핵심 가치 제공 영역)에서 차별화
-- 접근성과 시각적 간결함이 상충하면 → 접근성이 우선. 포커스 표시자, 레이블, 에러 메시지는 "시각적 노이즈"가 아니라 필수 정보
+- When security (re-authentication) and convenience (auto-login) conflict → Set thresholds by risk level. Allow auto-login for viewing, require re-authentication for payments/deletion
+- When information density (efficiency) and cognitive load (overload) conflict → Differentiate by user type. Dense UI (dashboard) for expert users, progressive disclosure for general users
+- When consistency (same pattern on all screens) and contextual appropriateness (different pattern is effective for this screen) conflict → Context may take precedence, but the deviation reason must be documented and user learning support is needed
+- When simplicity (minimal UI) and discoverability (features must be visible) conflict → Core features are always visible, secondary features use progressive disclosure. Hiding core features for "cleanliness" is a usability failure
+- When platform convention adherence (Jakob's Law) and differentiation (unique experience) conflict → Follow conventions for core interactions (navigation, forms, system gestures); differentiate in unique features (core value delivery area)
+- When accessibility and visual simplicity conflict → Accessibility takes precedence. Focus indicators, labels, and error messages are not "visual noise" but essential information
 
-## 관련 문서
-- concepts.md — 사용성, 내비게이션, 폼, 피드백, 모달, 접근성 용어 정의
-- dependency_rules.md — 행동-피드백, 폼-검증, 모달-포커스 간 의존 규칙
-- competency_qs.md — 각 논리 규칙과 연결된 검증 질문
+## Related Documents
+- concepts.md — Usability, navigation, form, feedback, modal, accessibility term definitions
+- dependency_rules.md — Action–feedback, form–validation, modal–focus dependency rules
+- competency_qs.md — Verification questions linked to each logic rule

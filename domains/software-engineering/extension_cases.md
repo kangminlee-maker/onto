@@ -1,64 +1,64 @@
-# Software Engineering Domain — 확장 시나리오
+# Software Engineering Domain — Extension Cases
 
-onto_evolution 에이전트가 각 시나리오를 시뮬레이션하여 기존 구조의 깨짐 여부를 검증합니다.
+The onto_evolution agent simulates each scenario to verify whether the existing structure breaks.
 
-## Case 1: 새 기능 추가
+## Case 1: Adding a New Feature
 
-- 기존 모듈 구조에 새로운 기능을 추가
-- 검증: 기존 모듈을 수정하지 않고 새 모듈로 추가할 수 있는가? (Open-Closed)
-- 검증: 기존 테스트가 영향받지 않는가?
-- 검증: 공개 API에 변경이 필요한가? 필요하다면 하위 호환인가?
-- 영향 파일: structure_spec.md (모듈 구조), dependency_rules.md (의존 방향)
+- Adding new functionality to the existing module structure
+- Verification: Can it be added as a new module without modifying existing modules? (Open-Closed)
+- Verification: Are existing tests unaffected?
+- Verification: Does the public API require changes? If so, are they backward compatible?
+- Affected files: structure_spec.md (module structure), dependency_rules.md (dependency direction)
 
-## Case 2: 외부 의존 변경
+## Case 2: External Dependency Change
 
-- 사용 중인 라이브러리/프레임워크의 메이저 버전 업그레이드
-- 검증: 내부 코드가 라이브러리와 직접 결합되어 있는가, 추상화 계층이 있는가?
-- 검증: API 시그니처 변경 시 영향 범위를 파악할 수 있는가?
-- 검증: 마이그레이션 경로가 존재하는가?
-- 영향 파일: dependency_rules.md (외부 의존 관리)
+- Major version upgrade of a library/framework in use
+- Verification: Is internal code directly coupled to the library, or is there an abstraction layer?
+- Verification: When API signatures change, can the impact scope be determined?
+- Verification: Does a migration path exist?
+- Affected files: dependency_rules.md (external dependency management)
 
-## Case 3: 스키마/데이터 모델 변경
+## Case 3: Schema/Data Model Change
 
-- 기존 데이터 모델에 필드 추가/제거/타입 변경
-- 검증: 마이그레이션이 기존 데이터를 보존하는가?
-- 검증: 해당 모델을 참조하는 모든 코드가 변경에 대응하는가?
-- 검증: API 응답 형식의 하위 호환이 유지되는가?
-- 검증: 식별자 형식 변경인 경우, 참조 무결성 체계 전체에 대한 영향이 파악되었는가?
-- 영향 파일: logic_rules.md (타입 체계), dependency_rules.md (참조 무결성)
+- Adding/removing fields or changing types in an existing data model
+- Verification: Does the migration preserve existing data?
+- Verification: Does all code referencing the model accommodate the change?
+- Verification: Is backward compatibility of the API response format maintained?
+- Verification: If the change involves identifier formats, has the impact on the entire referential integrity system been assessed?
+- Affected files: logic_rules.md (type system), dependency_rules.md (referential integrity)
 
-## Case 4: 규모 확장
+## Case 4: Scale Expansion
 
-- 사용자/데이터/트래픽이 10배 증가
-- 검증: 병목 지점(DB 쿼리, 동기 처리, 메모리 사용)이 식별 가능한가?
-- 검증: 수평 확장(인스턴스 추가)이 가능한 구조인가?
-- 검증: 상태 공유(세션, 캐시)가 확장을 방해하지 않는가?
-- 영향 파일: structure_spec.md (모듈 구조)
+- 10x increase in users/data/traffic
+- Verification: Can bottleneck points (DB queries, synchronous processing, memory usage) be identified?
+- Verification: Is the structure capable of horizontal scaling (adding instances)?
+- Verification: Does shared state (sessions, cache) not impede scaling?
+- Affected files: structure_spec.md (module structure)
 
-## Case 5: 새 배포 환경
+## Case 5: New Deployment Environment
 
-- 현재 환경 외에 새로운 배포 대상 추가 (온프레미스→클라우드, 단일→멀티 리전)
-- 검증: 환경별 설정이 코드와 분리되어 있는가?
-- 검증: 환경 의존적 코드(파일 경로, OS 호출)가 추상화되어 있는가?
-- 영향 파일: structure_spec.md (설정/환경)
+- Adding a new deployment target beyond the current environment (on-premises -> cloud, single -> multi-region)
+- Verification: Are environment-specific settings separated from code?
+- Verification: Is environment-dependent code (file paths, OS calls) abstracted?
+- Affected files: structure_spec.md (configuration/environment)
 
-## Case 6: 팀/조직 확장
+## Case 6: Team/Organization Expansion
 
-- 개발자 수가 증가하여 동시 작업 빈도 증가
-- 검증: 모듈 경계가 명확하여 독립적 작업이 가능한가?
-- 검증: 공유 코드의 변경이 다른 팀의 작업을 블로킹하지 않는가?
-- 검증: CI/CD 파이프라인이 병렬 빌드/테스트를 지원하는가?
-- 영향 파일: structure_spec.md, dependency_rules.md
+- Increase in developer count leading to higher concurrent work frequency
+- Verification: Are module boundaries clear enough to allow independent work?
+- Verification: Do changes to shared code not block other teams' work?
+- Verification: Does the CI/CD pipeline support parallel builds/tests?
+- Affected files: structure_spec.md, dependency_rules.md
 
-## Case 7: 이벤트 소싱 확장 (해당 시)
+## Case 7: Event Sourcing Extension (when applicable)
 
-- 이벤트 소싱 시스템에 새 이벤트 유형, 상태, 재개 기능 추가
-- 검증: 새 이벤트 추가 시 기존 Projector가 unknown event를 안전하게 처리하는가?
-- 검증: 재개 시점에 외부 입력이 변경되었을 때의 처리가 정의되어 있는가?
-- 검증: 파이프라인 단계 추가 시 Touch Point가 단계 수에 비례하여 증가하는가, 고정인가? (리스트/체인 패턴 사용 여부)
-- 영향 파일: logic_rules.md (상태 관리, 터미널 상태), concepts.md (Terminal State)
+- Adding new event types, states, and resume functionality to an Event Sourcing system
+- Verification: When a new event is added, do existing Projectors safely handle unknown events?
+- Verification: Is handling defined for when external inputs have changed at the point of resumption?
+- Verification: When adding pipeline stages, do Touch Points grow proportionally to the number of stages, or remain fixed? (Whether list/chain pattern is used)
+- Affected files: logic_rules.md (state management, terminal state), concepts.md (Terminal State)
 
-## 관련 문서
-- structure_spec.md — 모듈 구조, 계층 원칙
-- dependency_rules.md — 의존 방향, 외부 의존, source of truth
-- logic_rules.md — 타입 체계, 상태 관리 논리
+## Related Documents
+- structure_spec.md — module structure, layer principles
+- dependency_rules.md — dependency direction, external dependencies, source of truth
+- logic_rules.md — type system, state management logic

@@ -1,126 +1,126 @@
-# 간결성 규칙 (visual-design)
+# Conciseness Rules (visual-design)
 
-이 문서는 onto_conciseness가 간결성 검증 시 참조하는 도메인별 규칙입니다.
-간결성 판정의 **유형(허용/제거) → 검증 기준 → 역할 경계 → 측정 방법** 순으로 구성됩니다.
-
----
-
-## 1. 허용되는 중복
-
-각 규칙에 강도를 태깅합니다:
-- **[MUST-ALLOW]**: 제거 시 체계가 깨지는 중복. 유지 필수.
-- **[MAY-ALLOW]**: 편의상 유지하는 중복. 통합 가능하나, 통합 비용 대비 이득이 명확할 때만 제거.
-
-### 다크 모드 / 테마
-
-- [MUST-ALLOW] 라이트 모드와 다크 모드의 이중 시맨틱 토큰 정의 — 동일한 시맨틱 이름(예: `color-surface-primary`)이 라이트/다크 두 맥락에서 각각 다른 프리미티브 토큰을 참조. 하나로 통합하면 테마 전환이 불가능해진다.
-- [MUST-ALLOW] 브랜드 테마별 토큰 재정의 — 멀티 브랜드 시스템에서 동일 시맨틱 토큰이 브랜드마다 다른 프리미티브 값을 참조. 브랜드 간 시각적 독립성의 필수 조건.
-
-### 타이포그래피 + 그리드 통합 참조
-
-- [MUST-ALLOW] 타이포그래피 스케일과 그리드 간격 체계가 동일 기본 단위(예: 8px)를 각각 재참조 — 타이포그래피의 행간/크기와 그리드의 거터/마진이 동일 기본 단위를 공유하되, 각 체계에서 독립적으로 정의되어야 한다. 하나의 정의로 통합하면 타이포그래피 변경 시 레이아웃이 의도치 않게 연동된다.
-- [MAY-ALLOW] 반응형 브레이크포인트별 타이포그래피 스케일 재정의 — 뷰포트마다 별도의 크기 단계를 정의하는 것은 가독성 유지 목적이면 허용. 단, 브레이크포인트 간 차이가 없는 단계는 통합 가능.
-
-### Source of Truth 관련
-
-- [MUST-ALLOW] 디자인 도구(Figma 등)의 컴포넌트와 코드 컴포넌트가 동일 시각 명세를 각각 보유 — 디자인 도구는 디자이너의 작업 환경이고, 코드는 구현 환경이므로 양쪽이 독립적으로 명세를 유지해야 한다. 동기화 주기와 불일치 허용 범위가 별도로 정의되어야 한다.
-- [MAY-ALLOW] 스타일 가이드(브랜드)와 디자인 시스템(제품)이 동일 색상/서체를 각각 기술 — 브랜드 스타일 가이드는 매체 전반을 대상으로 하고, 디자인 시스템은 디지털 제품에 한정되므로 범위가 다르다. 완전히 동일한 서술이면 한쪽에서 다른 쪽을 참조하는 방식으로 통합 가능.
-
-### 접근성
-
-- [MUST-ALLOW] 접근성 기준(명도 대비, 포커스 표시자 등)이 색채 체계와 컴포넌트 명세 양쪽에서 반복 — 색채 체계에서는 팔레트 수준의 대비 적합성을, 컴포넌트 명세에서는 개별 컴포넌트의 상태별 대비를 검증한다. 검증 대상과 맥락이 다르므로 양쪽 유지 필수.
+This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+It is organized in the order of **type (allow/remove) → verification criteria → role boundaries → measurement method**.
 
 ---
 
-## 2. 제거 대상 패턴
+## 1. Allowed Duplication
 
-각 규칙에 강도를 태깅합니다:
-- **[MUST-REMOVE]**: 존재 자체가 오류를 유발하거나 잘못된 추론을 일으키는 중복.
-- **[SHOULD-REMOVE]**: 해가 크지 않으나 불필요한 복잡도를 추가하는 중복.
+Each rule is tagged with a strength level:
+- **[MUST-ALLOW]**: Duplication that breaks the system if removed. Must be retained.
+- **[MAY-ALLOW]**: Duplication retained for convenience. Can be consolidated, but only remove when the benefit clearly outweighs the consolidation cost.
 
-### 토큰 계층 중복
+### Dark Mode / Themes
 
-- [MUST-REMOVE] 프리미티브 → 시맨틱 → 컴포넌트 토큰 사이에 기능적 차이 없이 단순 전달만 하는 중간 계층 — 예: `blue-500` → `color-brand-blue` → `button-color-brand` 경로에서 `color-brand-blue`가 어떤 시맨틱 의미도 추가하지 않고 `blue-500`을 그대로 전달하면 중간 계층 제거. 갱신 시 누락 지점만 증가시킨다.
-- [SHOULD-REMOVE] 시맨틱 토큰과 컴포넌트 토큰이 1:1 대응하며 값이 동일한 경우 — 시맨틱 토큰을 직접 참조하면 충분한 상황에서 컴포넌트 토큰을 별도로 두면 불필요한 간접 참조만 추가.
+- [MUST-ALLOW] Dual semantic token definitions for light mode and dark mode — The same semantic name (e.g., `color-surface-primary`) references different primitive tokens in light/dark contexts. Consolidating into one makes theme switching impossible.
+- [MUST-ALLOW] Token redefinition per brand theme — In a multi-brand system, the same semantic token references different primitive values for each brand. A necessary condition for visual independence between brands.
 
-### 브랜드와 접근성 미분리
+### Typography + Grid Integration Reference
 
-- [MUST-REMOVE] 브랜드 색상 정의와 접근성 대비 요건이 하나의 명세에 혼합 — 브랜드 색상은 마케팅/아이덴티티 의사결정이고, 접근성 대비는 사용자 인식 가능성 요건이다. 혼합 시 브랜드 색상 변경이 접근성 검증을 우회하거나, 접근성 보정이 브랜드 의도를 훼손하는 충돌이 발생. 별도 체계로 분리하고 교차 검증해야 한다.
-- [SHOULD-REMOVE] 접근성 기준이 색채 체계에만 내장되어 있고 독립 검증 체계가 없는 경우 — 접근성은 색채뿐 아니라 타이포그래피(최소 크기), 모션(reduced-motion), 포커스 표시자 등 다수 영역에 걸친다. 색채에 종속시키면 나머지 영역의 접근성 검증이 누락된다.
+- [MUST-ALLOW] Typography scale and grid spacing system each re-referencing the same base unit (e.g., 8px) — Typography line-height/size and grid gutter/margin share the same base unit, but must be independently defined in each system. Consolidating into one definition causes layout to unintentionally change when typography changes.
+- [MAY-ALLOW] Typography scale redefinition per responsive breakpoint — Defining separate size steps per viewport is allowed when the purpose is readability maintenance. However, steps with no difference between breakpoints can be consolidated.
 
-### 관계 중복
+### Source of Truth Related
 
-- [MUST-REMOVE] 동일 시각 속성의 다중 경로 정의 — 컴포넌트의 배경색이 토큰 참조와 하드코딩된 값 양쪽으로 정의되면, 토큰 변경 시 하드코딩 값과 불일치 발생. 하나의 경로만 유지.
-- [MUST-REMOVE] 상위 컴포넌트가 이미 보장하는 시각 속성을 하위 요소에서 재선언 — 예: 카드 컴포넌트가 `border-radius: 8px`을 정의하면, 내부 콘텐츠 영역이 동일 값을 재선언할 필요 없음.
+- [MUST-ALLOW] Design tool (Figma, etc.) components and code components each maintaining the same visual specification — The design tool is the designer's working environment and code is the implementation environment, so both must independently maintain specifications. Synchronization frequency and acceptable discrepancy range must be separately defined.
+- [MAY-ALLOW] Style guide (brand) and design system (product) each describing the same colors/typefaces — Brand style guides target all media while design systems are limited to digital products, so their scopes differ. If the descriptions are completely identical, consolidation by having one reference the other is possible.
 
-### 분류 중복
+### Accessibility
 
-- [SHOULD-REMOVE] 인스턴스가 1개뿐인 컴포넌트 변형(variant) — 변형이 1개이면 분류 의미가 없으므로 기본값으로 병합. 단, 향후 확장이 명시적으로 계획된 경우 유지 가능.
-- [SHOULD-REMOVE] 동일 시각 표현의 다른 이름 정의 — concepts.md의 동의어 매핑을 기준으로, `card-shadow`와 `elevation-1`이 동일 그림자 값이면 하나의 정규 토큰으로 통합.
-
-### 정의 중복
-
-- [MUST-REMOVE] 동일 시각 요소를 다른 경로/이름으로 중복 정의 — concepts.md의 동의어 매핑을 기준으로 판별.
-- [SHOULD-REMOVE] 동일 접근성 검증 로직이 여러 컴포넌트 명세에 복사 — 공통 접근성 검증 기준으로 추출 필요.
+- [MUST-ALLOW] Accessibility criteria (contrast ratio, focus indicator, etc.) repeated in both the color system and component specifications — The color system verifies palette-level contrast suitability, while component specifications verify per-state contrast for individual components. Since the verification targets and contexts differ, maintaining both is mandatory.
 
 ---
 
-## 3. 최소 세분화 기준
+## 2. Removal Target Patterns
 
-하위 분류는 아래 중 **하나 이상**을 충족해야 허용됩니다. 하나도 충족하지 않으면 상위와 병합합니다.
+Each rule is tagged with a strength level:
+- **[MUST-REMOVE]**: Duplication whose existence causes errors or incorrect reasoning.
+- **[SHOULD-REMOVE]**: Duplication that is not significantly harmful but adds unnecessary complexity.
 
-1. **역량 질문 차이**: competency_qs.md의 질문에 대해 다른 답을 생성하는가?
-2. **제약 조건 차이**: 다른 제약 조건(명도 대비, 최소 크기, 비율, 사용 맥락)이 적용되는가?
-3. **의존 관계 차이**: 다른 토큰/컴포넌트/체계에 의존하거나, 다른 토큰/컴포넌트/체계가 의존하는가?
+### Token Layer Duplication
 
-예시:
-- `button-primary`와 `button-secondary`는 다른 색상 토큰과 시각적 위계를 가지므로 분류 정당.
-- `icon-small`과 `icon-compact`가 동일 크기(16px)이고 동일 그리드를 사용하면 병합 대상.
+- [MUST-REMOVE] Intermediate layers between primitive → semantic → component tokens that simply pass through without adding functional difference — Example: In the path `blue-500` → `color-brand-blue` → `button-color-brand`, if `color-brand-blue` adds no semantic meaning and simply passes through `blue-500`, remove the intermediate layer. It only increases potential points for update omissions.
+- [SHOULD-REMOVE] Semantic tokens and component tokens in 1:1 correspondence with identical values — When directly referencing the semantic token would suffice, maintaining a separate component token only adds unnecessary indirection.
 
----
+### Brand and Accessibility Unseparated
 
-## 4. 경계 — 도메인 특화 적용 사례
+- [MUST-REMOVE] Brand color definitions and accessibility contrast requirements mixed in a single specification — Brand colors are marketing/identity decisions, while accessibility contrast is a user perceivability requirement. When mixed, brand color changes may bypass accessibility verification, or accessibility corrections may compromise brand intent. Separate them into distinct systems and cross-verify.
+- [SHOULD-REMOVE] Accessibility criteria embedded only within the color system with no independent verification system — Accessibility spans multiple areas including typography (minimum size), motion (reduced-motion), and focus indicators, not just color. Subordinating it to color causes accessibility verification omissions in other areas.
 
-경계 정의의 정본은 `roles/onto_conciseness.md`입니다. 이 섹션은 visual-design 도메인에서의 구체적 적용 사례만 기술합니다.
+### Relationship Duplication
 
-### onto_pragmatics 경계
+- [MUST-REMOVE] Multiple path definitions of the same visual property — If a component's background color is defined through both a token reference and a hardcoded value, changing the token creates inconsistency with the hardcoded value. Maintain only one path.
+- [MUST-REMOVE] Redundant re-declarations of visual properties in child elements already guaranteed by the parent component — Example: If a card component defines `border-radius: 8px`, the internal content area does not need to re-declare the same value.
 
-- onto_conciseness: 불필요한 요소가 **존재**하는가 (구조 수준)
-- onto_pragmatics: 불필요한 정보가 질의 실행을 **방해**하는가 (실행 수준)
-- 예: 컴포넌트에 사용되지 않는 변형(variant)이 명세에 포함 → onto_conciseness. 변형이 너무 많아 디자이너가 올바른 변형을 선택하기 어려움 → onto_pragmatics.
+### Classification Duplication
 
-### onto_coverage 경계
+- [SHOULD-REMOVE] Component variants with only 1 instance — If there is only 1 variant, it has no classification significance and should be merged into the default. However, retention is possible if future extension is explicitly planned.
+- [SHOULD-REMOVE] Different name definitions for the same visual expression — Based on synonym mapping in concepts.md, if `card-shadow` and `elevation-1` are the same shadow value, consolidate into one canonical token.
 
-- onto_conciseness: 없어야 할 것이 있는가 (축소 방향)
-- onto_coverage: 있어야 할 것이 없는가 (확장 방향)
-- 예: 색채 체계와 타이포그래피는 있으나 간격 체계가 미정의 → onto_coverage. 간격 체계에 동일 값이 다른 이름으로 중복 정의 → onto_conciseness.
+### Definition Duplication
 
-### onto_logic 경계 (선행/후행 관계)
-
-- onto_logic 선행: 논리적 동치(함의) 여부를 판별
-- onto_conciseness 후행: 동치 확인 후 제거 여부를 판단
-- 예: 상위 컴포넌트의 `border-radius`가 하위 요소의 `border-radius`를 함의 → onto_logic이 동치 판별 → onto_conciseness가 "하위 재선언 불필요" 판정.
-
-### onto_semantics 경계 (선행/후행 관계)
-
-- onto_semantics 선행: 의미 동일성(동의어 여부)을 판별
-- onto_conciseness 후행: 동의어 확인 후 병합 필요성을 판단
-- 예: `elevation-1`과 `card-shadow`가 동일 시각 효과 → onto_semantics가 동의어 판별 → onto_conciseness가 "하나의 정규 토큰으로 통합" 판정.
+- [MUST-REMOVE] Duplicate definitions of the same visual element under different paths/names — Determined by the synonym mapping in concepts.md.
+- [SHOULD-REMOVE] The same accessibility verification logic copied across multiple component specifications — Extraction into common accessibility verification criteria is needed.
 
 ---
 
-## 5. 정량 기준
+## 3. Minimum Granularity Criteria
 
-도메인에서 관찰된 임계값이 축적되면 기록합니다.
+A sub-classification is allowed only if it satisfies **one or more** of the following. If none are satisfied, merge with the parent.
 
-- (아직 정의되지 않음 — 리뷰를 통해 축적됩니다)
+1. **Competency question difference**: Does it produce a different answer to a question in competency_qs.md?
+2. **Constraint difference**: Do different constraints (contrast ratio, minimum size, ratio, usage context) apply?
+3. **Dependency difference**: Does it depend on different tokens/components/systems, or do different tokens/components/systems depend on it?
+
+Examples:
+- `button-primary` and `button-secondary` have different color tokens and visual hierarchy, so the classification is justified.
+- If `icon-small` and `icon-compact` are the same size (16px) and use the same grid, they are candidates for merging.
 
 ---
 
-## 관련 문서
+## 4. Boundaries — Domain-Specific Application Cases
 
-- `concepts.md` — 용어 정의, 동의어 매핑, 동형이의어 목록 (중복 판별의 의미 기준)
-- `structure_spec.md` — 시각 디자인 체계의 구조적 요건 (구조적 관점의 제거 기준)
-- `competency_qs.md` — 역량 질문 목록 (최소 세분화의 "실제 차이" 판단 기준)
-- `domain_scope.md` — 도메인 범위 정의 (토큰 계층, 접근성 영역 등 참조)
-- `logic_rules.md` — 색채 논리, 타이포그래피 논리, 접근성 관련 규칙 (논리적 동치 판별 기준)
+The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the visual-design domain.
+
+### onto_pragmatics Boundary
+
+- onto_conciseness: Does an unnecessary element **exist**? (structural level)
+- onto_pragmatics: Does unnecessary information **impede** query execution? (execution level)
+- Example: An unused variant is included in a component specification → onto_conciseness. Too many variants make it difficult for designers to select the correct one → onto_pragmatics.
+
+### onto_coverage Boundary
+
+- onto_conciseness: Is there something that should not be there? (reduction direction)
+- onto_coverage: Is there something missing that should be there? (expansion direction)
+- Example: A color system and typography exist but a spacing system is not defined → onto_coverage. The spacing system has the same value duplicately defined under different names → onto_conciseness.
+
+### onto_logic Boundary (preceding/following relationship)
+
+- onto_logic precedes: Determines logical equivalence (implication)
+- onto_conciseness follows: Decides whether to remove after equivalence is confirmed
+- Example: A parent component's `border-radius` implies a child element's `border-radius` → onto_logic determines equivalence → onto_conciseness determines "child re-declaration unnecessary."
+
+### onto_semantics Boundary (preceding/following relationship)
+
+- onto_semantics precedes: Determines semantic identity (synonym status)
+- onto_conciseness follows: Decides whether merging is needed after synonym is confirmed
+- Example: `elevation-1` and `card-shadow` are the same visual effect → onto_semantics determines synonym → onto_conciseness determines "consolidate into one canonical token."
+
+---
+
+## 5. Quantitative Criteria
+
+Thresholds observed in this domain are recorded as they accumulate.
+
+- (Not yet defined — accumulated through reviews)
+
+---
+
+## Related Documents
+
+- `concepts.md` — Term definitions, synonym mappings, homonym list (semantic criteria for duplication determination)
+- `structure_spec.md` — Visual design system structural requirements (structural-perspective removal criteria)
+- `competency_qs.md` — Competency question list (criteria for judging "actual difference" in minimum granularity)
+- `domain_scope.md` — Domain scope definition (token layers, accessibility areas, etc.)
+- `logic_rules.md` — Color logic, typography logic, accessibility rules (criteria for logical equivalence determination)

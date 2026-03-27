@@ -1,77 +1,77 @@
-# Visual Design Domain — 논리 규칙
+# Visual Design Domain — Logic Rules
 
-## 시각적 위계 논리
+## Visual Hierarchy Logic
 
-- 시각적 위계는 크기, 굵기, 색상, 대비, 위치의 조합으로 구성된다. 하나의 수단만으로 위계를 표현하면 구분력이 약하다
-- 위계의 단계 수는 사용자가 즉각 인지할 수 있는 범위(일반적으로 3~5단계) 이내여야 한다. 단계가 많을수록 인접 단계 간 구분이 어려워진다
-- "모든 요소가 강조되면 아무것도 강조되지 않는다" — 강조 요소가 화면의 30%를 초과하면 강조 효과가 상실된다
-- 시선 이동 경로(F-pattern, Z-pattern 등)를 고려하지 않은 배치는 핵심 정보의 인지 실패를 유발한다
+- Visual hierarchy is composed through a combination of size, weight, color, contrast, and position. Using only one means makes the hierarchy weak in distinguishing power
+- The number of hierarchy levels should be within the range users can immediately perceive (generally 3~5 levels). More levels make adjacent levels harder to distinguish
+- "When everything is emphasized, nothing is emphasized" — If emphasized elements exceed 30% of the screen, the emphasis effect is lost
+- Placement that does not consider gaze movement patterns (F-pattern, Z-pattern, etc.) causes failure to perceive critical information
 
-## 타이포그래피 논리
+## Typography Logic
 
-- 타이포그래피 스케일은 일관된 비율(ratio)에 기반해야 한다. 임의 크기 조합은 시각적 리듬을 깨뜨린다
-- 서체 조합은 대비 원칙에 따른다. 유사한 서체 2개를 조합하면 "어설픈 유사"로 인지되어 의도가 불명확해진다. 산세리프+세리프, 기하학적+인간적 등 명확한 대비가 필요
-- 한 디자인 체계에서 사용하는 서체 수는 2~3개 이내가 적절하다. 초과 시 시각적 산만함과 일관성 저하
-- 행장(measure)이 최적 범위를 벗어나면(영문 75자 초과, 45자 미만) 가독성이 저하된다. 행장이 너무 길면 다음 줄 찾기가 어렵고, 너무 짧으면 시선 이동이 잦아진다
-- 행간(line-height)이 부족하면 행 간 글자가 충돌하고, 과다하면 행 간 연결감이 끊긴다. 본문 텍스트 기준 1.4~1.6배가 일반적 범위
-- 모든 텍스트 양쪽 정렬(justify)은 단어 간격 불균등을 유발한다. 좁은 컬럼에서의 양쪽 정렬은 "리버(river)" 현상(빈 공간이 세로로 이어짐)을 초래
+- Type scale must be based on a consistent ratio. Arbitrary size combinations break visual rhythm
+- Typeface pairing follows the contrast principle. Combining two similar typefaces is perceived as "awkward similarity," making the intent unclear. Clear contrast is needed, such as sans-serif + serif, geometric + humanist
+- The number of typefaces used in one design system should be 2~3 at most. Exceeding this causes visual clutter and reduced consistency
+- When measure exceeds the optimal range (over 75 characters for English, under 45 characters), readability declines. If measure is too long, finding the next line is difficult; if too short, gaze movement is excessive
+- Insufficient line-height causes characters between lines to collide, while excessive line-height breaks the sense of connection between lines. Body text at 1.4~1.6x is the general range
+- Full text justification causes uneven word spacing. Justify on narrow columns causes the "river" effect (empty spaces running vertically)
 
-## 색채 논리
+## Color Logic
 
-- 색상 팔레트의 색상 수가 많을수록 조화 유지가 어렵다. 주색 1개, 보조색 1~2개, 강조색 1개가 기본 구성
-- 60-30-10 비율에서 강조색(10%)은 사용자 행동 유도(CTA 등)에 집중 배분해야 한다. 강조색이 여러 용도로 분산되면 행동 유도력이 감소
-- 보색 조합(complementary)은 강한 대비를 제공하지만, 넓은 면적에서 동시 사용 시 시각적 진동(vibration)을 일으킨다. 하나를 주색으로, 다른 하나를 강조로 제한
-- 채도(saturation)가 높은 색상을 배경에 넓게 사용하면 눈의 피로를 유발한다. 넓은 면적에는 저채도, 좁은 면적(강조)에는 고채도가 적절
-- 색상에만 의존하는 정보 전달은 접근성 위반이다(WCAG 1.4.1). 적록 색약 사용자(남성 약 8%)는 error(빨강)와 success(초록)를 구분하지 못할 수 있다
+- The more colors in a palette, the harder it is to maintain harmony. The basic composition is 1 primary, 1~2 secondary, and 1 accent color
+- In the 60-30-10 ratio, accent color (10%) should be concentrated on user action guidance (CTA, etc.). Distributing accent across multiple uses reduces action guidance power
+- Complementary combinations provide strong contrast, but simultaneous use on large areas causes visual vibration. Limit one as primary and the other as accent
+- Using high-saturation colors widely on backgrounds causes eye fatigue. Low saturation for large areas, high saturation for small areas (accents) is appropriate
+- Conveying information through color alone is an accessibility violation (WCAG 1.4.1). Red-green color blind users (approximately 8% of males) may not distinguish error (red) from success (green)
 
-## 접근성 논리
+## Accessibility Logic
 
-- WCAG 명도 대비 기준: 일반 텍스트(18px 미만) 4.5:1 이상, 대형 텍스트(18px 이상 또는 14px bold 이상) 3:1 이상. AA 기준이며, AAA는 각각 7:1, 4.5:1
-- 포커스 표시자는 키보드 탐색의 유일한 시각 피드백이다. 포커스 표시자가 없거나 불명확하면 키보드 사용자의 탐색이 불가능하다
-- 텍스트 크기의 200% 확대 시에도 콘텐츠가 잘리거나 기능이 상실되지 않아야 한다 (WCAG 1.4.4)
-- 터치 대상(touch target)의 최소 크기: 44×44px (WCAG 2.5.5 AAA) 또는 24×24px (WCAG 2.5.8 AA). 인접 터치 대상 간 간격도 고려해야 한다
-- 자동으로 움직이거나 깜박이는 콘텐츠는 일시정지 수단을 제공해야 한다 (WCAG 2.2.2). 1초에 3회 이상 깜박임은 발작을 유발할 수 있다 (WCAG 2.3.1)
-- 접근성과 심미성이 상충할 때, 접근성이 우선한다. 접근성은 "좋으면 좋은 것"이 아니라 "없으면 사용할 수 없는 것"이다
+- WCAG contrast ratio criteria: Normal text (under 18px) 4.5:1 or above, large text (18px or above, or 14px bold or above) 3:1 or above. These are AA criteria; AAA is 7:1 and 4.5:1 respectively
+- Focus indicator is the only visual feedback for keyboard navigation. Without a focus indicator or with an unclear one, keyboard user navigation is impossible
+- Content must not be clipped and functionality must not be lost at 200% text size enlargement (WCAG 1.4.4)
+- Minimum touch target size: 44×44px (WCAG 2.5.5 AAA) or 24×24px (WCAG 2.5.8 AA). Spacing between adjacent touch targets must also be considered
+- Automatically moving or flashing content must provide a pause mechanism (WCAG 2.2.2). Flashing more than 3 times per second can trigger seizures (WCAG 2.3.1)
+- When accessibility and aesthetics conflict, accessibility takes precedence. Accessibility is not "nice to have" but "without it, the product is unusable"
 
-## 그리드와 간격 논리
+## Grid and Spacing Logic
 
-- 그리드는 제약이지 감옥이 아니다. 의도적인 그리드 이탈(breaking the grid)은 강조 수단으로 유효하지만, 그 의도가 명시되어야 한다
-- 간격 체계는 일관된 기본 단위(base unit)의 배수여야 한다. 8px 기반이 일반적(4, 8, 12, 16, 24, 32, 48, 64). 임의 간격은 시각적 리듬을 파괴
-- Gestalt의 근접성 원리: 가까운 요소는 관련된 것으로 인지된다. 따라서 관련 요소 간 간격은 비관련 요소 간 간격보다 반드시 좁아야 한다. 이 차이가 불명확하면 그룹 인지가 실패
-- 거터(gutter) 크기가 마진(margin)보다 크면 콘텐츠 블록 간 분리가 페이지 가장자리 분리보다 강해져, 시각적 구조가 역전
+- A grid is a constraint, not a prison. Intentional grid breaking is a valid emphasis technique, but the intent must be stated
+- Spacing system must be multiples of a consistent base unit. 8px base is common (4, 8, 12, 16, 24, 32, 48, 64). Arbitrary spacing destroys visual rhythm
+- Gestalt proximity principle: Closer elements are perceived as related. Therefore, spacing between related elements must always be narrower than spacing between unrelated elements. If this difference is unclear, group perception fails
+- If gutter size is larger than margin, the separation between content blocks becomes stronger than page edge separation, visually inverting the structure
 
-## 컴포넌트 논리
+## Component Logic
 
-- 동일 기능의 컴포넌트는 동일한 시각 표현을 가져야 한다 (일관성 원칙). "파란 버튼이 때로는 확인, 때로는 취소"이면 사용자 학습이 실패한다
-- 컴포넌트의 상태(state)는 시각적으로 구분 가능해야 한다. default와 hover의 차이가 미미하면 인터랙션 피드백이 없는 것과 같다
-- disabled 상태는 "존재하지만 사용 불가"를 전달해야 한다. 완전히 숨기면(hidden) 인터페이스 예측이 불가능하고, 일반 상태와 동일하면 사용 실패 시 좌절감을 유발
-- 컴포넌트 변형(variant)의 수는 관리 가능한 범위 이내여야 한다. 변형이 과도하면 선택 기준이 불명확해지고, 디자인 시스템의 복잡도가 증가
-- Atomic Design에서 상위 계층(Organism 이상)은 하위 계층(Atom, Molecule)으로 구성된다. 상위 계층이 하위 계층을 우회하여 원시 요소를 직접 포함하면 재사용성이 상실된다
+- Components with the same function must have the same visual expression (consistency principle). "A blue button is sometimes confirm, sometimes cancel" causes user learning failure
+- Component states must be visually distinguishable. If the difference between default and hover is minimal, it is the same as having no interaction feedback
+- The disabled state must convey "exists but unusable." Completely hiding (hidden) makes interface prediction impossible; looking identical to the normal state causes frustration on use failure
+- The number of component variants must be within a manageable range. Excessive variants make selection criteria unclear and increase design system complexity
+- In Atomic Design, upper layers (Organism and above) are composed of lower layers (Atom, Molecule). If upper layers bypass lower layers and directly include raw elements, reusability is lost
 
-## 모션 논리
+## Motion Logic
 
-- 모션의 지속 시간은 요소의 이동 거리와 복잡도에 비례해야 한다. 작은 변화(버튼 상태)는 100~200ms, 큰 변화(페이지 전환)는 300~500ms
-- 이징(easing)은 물리적 자연스러움을 제공한다. 선형(linear) 이징은 기계적으로 느껴지며, ease-out은 등장, ease-in은 퇴장에 적합
-- 동시에 여러 애니메이션이 실행되면 인지 부하가 급증한다. 동시 모션은 2개 이내로 제한하거나, 순차적(stagger)으로 실행
-- 모션이 정보를 전달하지 않으면 제거해야 한다. "보기 좋다"는 모션 존재의 충분 조건이 아니다
-- prefers-reduced-motion 설정 시 모션을 완전히 제거하는 것이 아니라, 즉각적 전환(0ms 또는 최소 시간)으로 대체한다. 상태 변화 자체는 전달해야 한다
+- Motion duration should be proportional to the element's movement distance and complexity. Small changes (button state) are 100~200ms; large changes (page transition) are 300~500ms
+- Easing provides physical naturalness. Linear easing feels mechanical; ease-out is appropriate for appearances, ease-in for exits
+- Multiple simultaneous animations rapidly increase cognitive load. Limit simultaneous motions to 2 or run them sequentially (stagger)
+- If motion does not convey information, it should be removed. "Looking good" is not a sufficient condition for motion to exist
+- When prefers-reduced-motion is set, do not completely remove motion but replace with instant transition (0ms or minimal time). The state change itself must still be communicated
 
-## 브랜드 정합성 논리
+## Brand Alignment Logic
 
-- 브랜드 톤앤매너는 시각 요소 선택의 상위 제약이다. "따뜻하고 친근한" 브랜드에서 차가운 색조와 기하학적 서체는 모순
-- 로고의 보호 공간(clear space) 침범은 어떤 맥락에서도 허용되지 않는다. 공간이 부족하면 로고를 축소하거나 레이아웃을 변경해야 한다
-- 브랜드 컬러를 접근성 기준이 충족되지 않는 조합으로 사용해야 하는 경우, 브랜드 컬러를 조정하거나 사용 맥락을 변경해야 한다. 접근성 기준을 낮추는 것은 해법이 아니다
-- 공동 브랜딩(co-branding) 시 양측 브랜드의 시각 규칙이 충돌하면, 우선순위와 적용 범위를 사전 합의해야 한다
+- Brand tone and manner is a higher-level constraint on visual element selection. Cold tones and geometric typefaces contradict a "warm and friendly" brand
+- Logo clear space violation is never permitted in any context. If space is insufficient, reduce the logo or change the layout
+- When brand colors must be used in combinations that do not meet accessibility criteria, either adjust the brand colors or change the usage context. Lowering accessibility standards is not a solution
+- In co-branding, when both brands' visual rules conflict, priorities and application scopes must be agreed upon in advance
 
-## 제약 상충 검사
+## Constraint Conflict Checks
 
-- 접근성 기준과 브랜드 가이드라인이 상충하면 → 접근성이 우선하며, 브랜드 측에서 조정
-- 심미성과 가독성이 상충하면 → 가독성이 우선. 읽히지 않는 디자인은 목적을 달성할 수 없다
-- 일관성과 맥락 적합성이 상충하면 → 맥락이 일관성보다 우선할 수 있으나, 이탈의 이유가 문서화되어야 한다
-- 디자인 시스템의 규범과 특정 화면의 요구가 상충하면 → 디자인 시스템을 확장(새 변형 추가)하여 해결하는 것이 우선. 일회성 예외는 시스템을 침식한다
-- 모션의 풍부함과 접근성(reduced motion)이 상충하면 → 대체 표현을 제공하여 양립
+- When accessibility criteria and brand guidelines conflict → Accessibility takes precedence; the brand side adjusts
+- When aesthetics and readability conflict → Readability takes precedence. An unreadable design cannot achieve its purpose
+- When consistency and contextual appropriateness conflict → Context may take precedence over consistency, but the deviation reason must be documented
+- When design system norms and a specific screen's requirements conflict → Extending the design system (adding new variants) is preferred. One-off exceptions erode the system
+- When motion richness and accessibility (reduced motion) conflict → Provide alternative expressions to achieve coexistence
 
-## 관련 문서
-- concepts.md — 시각적 위계, 색채, 타이포그래피, 접근성 용어 정의
-- dependency_rules.md — 토큰-컴포넌트, 색채-접근성 간 의존 규칙
-- competency_qs.md — 각 논리 규칙과 연결된 검증 질문
+## Related Documents
+- concepts.md — Visual hierarchy, color, typography, accessibility term definitions
+- dependency_rules.md — Token–component, color–accessibility dependency rules
+- competency_qs.md — Verification questions linked to each logic rule

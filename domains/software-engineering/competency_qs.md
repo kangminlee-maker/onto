@@ -1,59 +1,59 @@
-# Software Engineering Domain — 역량 질문 (Competency Questions)
+# Software Engineering Domain — Competency Questions
 
-이 도메인의 체계가 답할 수 있어야 하는 핵심 질문 목록입니다.
-onto_pragmatics 에이전트가 각 질문에 대해 실제 추론 경로를 검증합니다.
+This is a list of core questions that this domain's system must be able to answer.
+The onto_pragmatics agent verifies the actual reasoning path for each question.
 
-분류 축: **검증 관심사** — 소프트웨어 시스템 리뷰 시 답해야 하는 질문의 관심사에 따라 분류합니다.
+Classification axis: **verification concern** — classified by the concern that questions must address when reviewing a software system.
 
-## 구조 파악
+## Structural Understanding
 
-- Q1: 시스템의 주요 모듈과 그 역할을 열거할 수 있는가?
-- Q2: 특정 모듈이 어떤 모듈에 의존하는지 도출할 수 있는가?
-- Q3: 공개 API(외부에 노출되는 인터페이스)의 목록을 추출할 수 있는가?
+- Q1: Can the system's major modules and their roles be enumerated?
+- Q2: Can the modules that a specific module depends on be derived?
+- Q3: Can the list of public APIs (externally exposed interfaces) be extracted?
 
-## 데이터 흐름
+## Data Flow
 
-- Q4: 특정 사용자 입력이 시스템을 통과하는 경로를 추적할 수 있는가?
-- Q5: 특정 데이터가 어디서 생성되고, 어디서 변환되고, 어디서 소비되는지 식별할 수 있는가?
-- Q6: 상태 변경이 발생할 때 영향받는 범위를 파악할 수 있는가?
-- Q7: source of truth가 지정되어 있고, 데이터 불일치 시 어느 소스가 우선하는지 명시되어 있는가?
+- Q4: Can the path that a specific user input takes through the system be traced?
+- Q5: Can it be identified where specific data is created, where it is transformed, and where it is consumed?
+- Q6: Can the scope of impact when a state change occurs be determined?
+- Q7: Is a source of truth designated, and is it specified which source takes priority when data inconsistencies arise?
 
-## 변경 영향
+## Change Impact
 
-- Q8: 특정 모듈/함수의 시그니처가 변경될 때 영향받는 소비자를 열거할 수 있는가?
-- Q9: 새 기능 추가 시 기존 로직과 충돌하는지 사전 검증할 수 있는가?
-- Q10: 외부 의존(라이브러리, API)이 변경될 때 내부 영향 범위를 파악할 수 있는가?
+- Q8: When a specific module/function's signature changes, can the affected consumers be enumerated?
+- Q9: When adding a new feature, can it be pre-verified whether it conflicts with existing logic?
+- Q10: When an external dependency (library, API) changes, can the internal impact scope be determined?
 
-## 에러 처리
+## Error Handling
 
-- Q11: 특정 실패 시나리오에서 시스템이 어떻게 복구하는지 추적할 수 있는가?
-- Q12: 에러가 전파되는 경로를 식별할 수 있는가?
-- Q13: 사용자에게 전달되는 에러 메시지가 원인과 대응 방법을 포함하는가?
+- Q11: Can it be traced how the system recovers in a specific failure scenario?
+- Q12: Can the path through which an error propagates be identified?
+- Q13: Do error messages delivered to users include the cause and recommended actions?
 
-## 타입과 제약
+## Types and Constraints
 
-- Q14: discriminated union을 switch하는 모든 함수에서 exhaustive check가 적용되어 있는가?
-- Q15: hard constraint와 soft constraint가 구분되어 있고, hard constraint는 코드로 강제되는가?
-- Q16: 터미널 상태가 정의된 경우, 각 터미널 상태에 전이 이벤트, 처리 분기, 허용 후속 행동이 모두 존재하는가?
+- Q14: Is an exhaustive check applied in every function that switches on a discriminated union?
+- Q15: Are hard constraints and soft constraints distinguished, and are hard constraints enforced by code?
+- Q16: When terminal states are defined, do all terminal states have transition events, processing branches, and allowed subsequent actions?
 
-## 테스트/검증
+## Testing/Verification
 
-- Q17: 특정 기능에 대한 테스트가 존재하는지 확인할 수 있는가?
-- Q18: 테스트가 커버하지 않는 코드 경로를 식별할 수 있는가?
-- Q19: 정상 경로와 예외 경로가 각각 별도로 검증되는가? (리팩터링 동치성 검증 포함)
+- Q17: Can the existence of tests for a specific feature be confirmed?
+- Q18: Can code paths not covered by tests be identified?
+- Q19: Are the happy path and error path each verified separately? (Including refactoring equivalence verification)
 
-## 배포/운영
+## Deployment/Operations
 
-- Q20: 현재 코드가 어떤 환경에서 어떤 버전으로 실행되는지 파악할 수 있는가?
-- Q21: 설정(환경 변수, 설정 파일)이 코드와 분리되어 환경별로 관리되는가?
+- Q20: Can it be determined which version of the code is running in which environment?
+- Q21: Are configurations (environment variables, config files) separated from code and managed per environment?
 
-## AI 에이전트 협업 (해당 시)
+## AI Agent Collaboration (when applicable)
 
-- Q22: AI 에이전트가 실행할 명세가 self-contained인가? (다른 세션의 맥락에 의존하지 않는가)
-- Q23: AI 에이전트와 사람 양쪽이 문서를 소비할 때, 각 독자의 읽기 경로가 명시되어 있는가?
-- Q24: AI가 생성한 산출물의 검증 기준이 "모호함 탐지" 수준으로 정의되어 있는가? (증명이 아닌 탐지)
+- Q22: Is the specification that an AI agent will execute self-contained? (Does it not depend on context from other sessions?)
+- Q23: When both AI agents and humans consume documentation, is the reading path for each audience specified?
+- Q24: Is the verification criteria for AI-generated output defined at the "ambiguity detection" level? (Detection, not proof)
 
-## 관련 문서
-- domain_scope.md — 질문들이 다루는 영역의 상위 정의
-- logic_rules.md — Q14~Q16의 타입/제약 관련 규칙
-- structure_spec.md — Q1~Q3의 구조 관련 규칙
+## Related Documents
+- domain_scope.md — top-level definition of the areas these questions cover
+- logic_rules.md — rules related to types/constraints for Q14-Q16
+- structure_spec.md — rules related to structure for Q1-Q3

@@ -1,62 +1,62 @@
-# Accounting Domain — 의존성 규칙
+# Accounting Domain — Dependency Rules
 
-## 재무제표 간 연결 관계
+## Inter-Financial-Statement Linkage
 
-- 포괄손익계산서의 당기순이익 → 자본변동표의 이익잉여금 변동: 필수 일치
-- 자본변동표의 기말 자본 → 재무상태표의 자본 총계: 필수 일치
-- 현금흐름표의 현금 변동 → 재무상태표의 현금및현금성자산 변동: 필수 일치
-- 포괄손익계산서의 기타포괄손익 → 자본변동표의 기타포괄손익누계액 변동: 필수 일치
-- 이 4개 연결 중 하나라도 불일치하면 재무제표 전체의 무결성이 훼손된다
+- Net income on the Statement of Comprehensive Income (포괄손익계산서) -> Retained Earnings (이익잉여금) change on the Statement of Changes in Equity (자본변동표): must match
+- Closing equity on the Statement of Changes in Equity (자본변동표) -> Total equity on the Statement of Financial Position (재무상태표): must match
+- Cash change on the Statement of Cash Flows (현금흐름표) -> Cash and Cash Equivalents (현금및현금성자산) change on the Statement of Financial Position (재무상태표): must match
+- Other Comprehensive Income (기타포괄손익) on the Statement of Comprehensive Income (포괄손익계산서) -> Accumulated Other Comprehensive Income (기타포괄손익누계액) change on the Statement of Changes in Equity (자본변동표): must match
+- If any of these 4 linkages is inconsistent, the integrity of the entire financial statements is compromised
 
-## 방향 규칙
+## Direction Rules
 
-- 거래 발생 → 분개 → 전기 → 시산표 → 재무제표: 단방향 흐름. 역방향 수정은 수정분개를 통해서만 허용
-- 재무제표 → 주석: 본문이 주석을 참조. 주석이 본문의 인식/측정을 변경할 수 없음
-- K-IFRS 기준서 → 회계정책 → 개별 거래 처리: 상위에서 하위로의 적용 방향
-- 세무조정: K-IFRS 재무제표 → 세무조정 → 과세소득. 세무 기준이 재무제표를 변경하지 않음
+- Transaction occurrence -> Journal Entry (분개) -> Posting (전기) -> Trial Balance (시산표) -> Financial statements: unidirectional flow. Reverse modifications are only permitted through Adjusting Entries (수정분개)
+- Financial statements -> Notes: the main statements reference notes. Notes cannot change the recognition/measurement of main statement items
+- K-IFRS standards -> Accounting policies -> Individual transaction treatment: application direction from higher to lower level
+- Tax adjustments: K-IFRS financial statements -> Tax Adjustment (세무조정) -> Taxable income. Tax standards do not modify the financial statements
 
-## 기준서 간 의존
+## Inter-Standard Dependencies
 
-- IFRS 15(수익인식)와 IFRS 16(리스): 계약에 리스 요소와 비리스 요소가 혼합된 경우, 분리 후 각각 적용
-- IFRS 9(금융상품)와 IFRS 15(수익인식): 매출채권의 최초 인식은 IFRS 15, 후속 측정(손상)은 IFRS 9
-- IFRS 9(금융상품)와 IFRS 16(리스): 리스채권의 손상은 IFRS 9의 기대신용손실 모형 적용
-- 기준서 간 적용 우선순위: 특정 거래에 대해 개별 기준서가 명시적 요구사항을 가지면 해당 기준서 우선
+- IFRS 15 (Revenue Recognition) and IFRS 16 (Leases): when a contract contains both lease and non-lease components, they are separated and each standard is applied respectively
+- IFRS 9 (Financial Instruments) and IFRS 15 (Revenue Recognition): initial recognition of trade receivables follows IFRS 15; subsequent measurement (impairment) follows IFRS 9
+- IFRS 9 (Financial Instruments) and IFRS 16 (Leases): impairment of lease receivables uses IFRS 9's Expected Credit Loss (기대신용손실) model
+- Inter-standard application priority: when a specific standard has explicit requirements for a particular transaction, that standard takes precedence
 
-## 기간 의존
+## Period Dependencies
 
-- 전기 재무제표의 기말 잔액 = 당기 재무제표의 기초 잔액: 필수 일치 (이월 정합성)
-- 비교 재무제표: 당기와 전기를 함께 표시. 회계정책 변경 시 전기 재무제표 소급 재작성
-- 중간 보고(분기/반기)와 연간 보고의 합산 정합성: 4개 분기 합산 ≠ 연간 (연간 결산 수정사항 존재 가능)
+- Prior period financial statement closing balances = current period financial statement opening balances: must match (carryover consistency)
+- Comparative financial statements: current and prior periods are presented together. When accounting policies change, prior period financial statements are restated retrospectively
+- Consistency between interim reporting (quarterly/semi-annual) and annual reporting summation: 4 quarters summed ≠ annual (year-end closing adjustments may exist)
 
-## 계정과목 간 의존
+## Inter-Account Dependencies
 
-- 매출과 매출채권: 외상 매출 시 동시 발생. 매출채권 회수 시 매출채권 감소/현금 증가
-- 감가상각비와 감가상각누계액: 비용 인식과 자산 차감이 동시 발생
-- 재고자산과 매출원가: 판매 시 재고자산 감소/매출원가 증가
-- 이연법인세 자산/부채와 법인세비용: 일시적차이 변동에 따라 연동
+- Revenue and trade receivables: arise simultaneously for credit sales. When receivables are collected, receivables decrease and cash increases
+- Depreciation expense and accumulated depreciation: expense recognition and asset reduction occur simultaneously
+- Inventories and cost of goods sold: upon sale, inventories decrease and cost of goods sold increases
+- Deferred Tax (이연법인세) assets/liabilities and income tax expense: linked to Temporary Difference (일시적차이) changes
 
-## 참조 무결성
+## Referential Integrity
 
-- 분개에서 참조하는 계정과목이 계정과목표에 존재해야 한다
-- 주석에서 참조하는 재무제표 항목이 본문에 존재해야 한다
-- 세무조정에서 참조하는 회계 항목이 재무제표에 존재해야 한다
-- 연결 재무제표에서 참조하는 종속기업이 연결 범위에 포함되어 있어야 한다
+- Accounts referenced in Journal Entries (분개) must exist in the chart of accounts
+- Financial statement items referenced in notes must exist in the main statements
+- Accounting items referenced in Tax Adjustments (세무조정) must exist in the financial statements
+- Subsidiaries referenced in consolidated financial statements must be included in the consolidation scope
 
-## Source of Truth 관리
+## Source of Truth Management
 
-- 개별 거래의 source of truth: 분개장. 원장과 재무제표는 분개장에서 집계/도출
-- 회계정책의 source of truth: 주석에 기술된 중요한 회계정책. 개별 처리는 이 정책에 종속
-- 세무 기준의 source of truth: 법인세법/소득세법. K-IFRS 기준과 독립적으로 적용
-- source of truth 간 불일치 시: 목적에 따라 적용 (재무보고 목적 → K-IFRS, 세무 목적 → 세법)
+- Source of truth for individual transactions: the journal. Ledgers and financial statements are aggregated/derived from the journal
+- Source of truth for accounting policies: significant accounting policies described in the notes. Individual treatments are subordinate to these policies
+- Source of truth for tax standards: Corporate Tax Law/Income Tax Law. Applied independently from K-IFRS standards
+- When sources of truth conflict: apply based on purpose (financial reporting purpose -> K-IFRS; tax purpose -> tax law)
 
-## 외부 의존 관리
+## External Dependency Management
 
-- K-IFRS 기준서 개정: 개정 시 회계정책 변경 여부 검토, 소급 적용/전진 적용 구분
-- 세법 개정: 세율 변경 시 이연법인세 재계산 필요
-- 환율 변동: 외화 거래/외화 환산 시 적용 환율의 시점 기준 명시 필요
-- 감정평가: 공정가치 측정 시 외부 전문가 평가의 독립성과 적격성 확인
+- K-IFRS standard amendments: when amended, review whether accounting policy changes are required, distinguish retrospective vs. prospective application
+- Tax law amendments: when tax rates change, Deferred Tax (이연법인세) recalculation is required
+- Exchange rate fluctuations: the point-in-time basis for applicable exchange rates must be stated for foreign currency transactions/translations
+- Appraisals: when measuring Fair Value (공정가치), the independence and qualification of external experts must be verified
 
-## 관련 문서
-- concepts.md — 재무제표, 기준서 관련 용어 정의
-- structure_spec.md — 재무제표 구조, 계층 원칙
-- logic_rules.md — 인식/측정 논리, 세무-회계 차이 논리
+## Related Documents
+- concepts.md — definitions of financial statement and standards-related terms
+- structure_spec.md — financial statement structure and hierarchy principles
+- logic_rules.md — recognition/measurement logic and tax-accounting difference logic

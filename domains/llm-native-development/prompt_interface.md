@@ -1,42 +1,42 @@
-# LLM-Native Development Domain — 프롬프트/인터페이스 설계
+# LLM-Native Development Domain — Prompt/Interface Design
 
-이 문서는 LLM에게 지시를 내리는 구조 — 시스템 프롬프트, 도구 정의, 역할 정의, 응답 형식 — 의 설계 기준을 정의합니다.
-기존 7파일이 "지식을 기술하는 체계의 구조"를 다루는 반면, 이 파일은 "지식 소비 방식의 설계"라는 별도의 관심사 차원을 다룹니다.
+This document defines the design criteria for structures that issue instructions to LLMs — system prompts, tool definitions, role definitions, and response formats.
+While the existing 7 files cover "the structure of a system that describes knowledge," this file covers the separate concern dimension of "designing the knowledge consumption method."
 
-## 시스템 프롬프트 구조
+## System Prompt Structure
 
-- 프롬프트는 역할 정의(who) → 컨텍스트(what) → 작업 지시(how) → 제약(constraints) 순서로 구성한다
-- 역할 정의는 roles/ 디렉토리의 개별 파일에서 관리한다. 프롬프트에 인라인하지 않고 파일을 읽어서 포함한다
-- 컨텍스트 로딩은 자기 로딩(에이전트가 직접 파일을 읽음) 또는 주입(team lead가 내용을 포함) 중 선택한다. 선택 기준은 에이전트의 파일 읽기 능력에 의존한다
+- Prompts are structured in the order of role definition (who) → context (what) → task instructions (how) → constraints
+- Role definitions are managed in individual files within the roles/ directory. They are not inlined into the prompt but read from files and included
+- Context loading is either self-loading (agent reads files directly) or injection (team lead includes content). The choice depends on the agent's file reading capability
 
-## 역할 정의 파일 구조
+## Role Definition File Structure
 
-역할 정의 파일(roles/{agent-id}.md)은 다음 요소를 포함한다:
-- **전문 영역**: 이 역할이 검증/수행하는 관심사
-- **역할 설명**: 이 역할이 답하는 핵심 질문
-- **핵심 질문**: 3~6개. 역할의 판단 축을 정의
-- **도메인 문서 매핑**: 이 역할이 참조하는 도메인 문서 (최소 1개)
+Role definition files (roles/{agent-id}.md) include the following elements:
+- **Specialization**: The concern this role verifies/performs
+- **Role Description**: The core question this role answers
+- **Core Questions**: 3~6 items. Define the judgment axes of the role
+- **Domain Document Mapping**: Domain documents this role references (at least 1)
 
-## 도구 정의 (Tool Schema)
+## Tool Definition (Tool Schema)
 
-- 도구 정의는 JSON Schema 형식을 따른다
-- 도구의 이름은 동작을 직접 표현한다 (예: `search_files`, `read_document`)
-- 도구의 description은 LLM이 도구 선택을 판단할 수 있을 만큼 구체적이어야 한다
-- 필수 파라미터와 선택 파라미터를 명확히 구분한다
+- Tool definitions follow JSON Schema format
+- Tool names directly express the action (e.g., `search_files`, `read_document`)
+- Tool descriptions must be specific enough for the LLM to judge tool selection
+- Required parameters and optional parameters are clearly distinguished
 
-## 응답 형식 제약 (Structured Output)
+## Response Format Constraints (Structured Output)
 
-- 구조화된 출력이 필요한 경우, 출력 형식을 프롬프트에 명시한다
-- 형식 명시 방법: 예시(example) 또는 스키마(JSON Schema) 중 선택
-- 형식이 복잡하면 별도 파일(templates/ 디렉토리)로 분리하고 프롬프트에서 참조한다
+- When structured output is needed, specify the output format in the prompt
+- Format specification methods: choose between examples or schemas (JSON Schema)
+- When the format is complex, separate it into a file (templates/ directory) and reference from the prompt
 
-## 컨텍스트 윈도우 활용 전략
+## Context Window Utilization Strategy
 
-- 프롬프트 크기는 전체 컨텍스트 윈도우의 30% 이하를 권장. 나머지는 작업 대상과 응답에 할당
-- 반복 실행되는 프롬프트는 정적 부분(역할, 규칙)과 동적 부분(작업 대상, 이전 결과)을 분리한다
-- 정적 부분이 변경되지 않으면 캐싱 또는 압축을 고려한다
+- Prompt size is recommended to be 30% or less of the total context window. The remainder is allocated to work targets and responses
+- For repeatedly executed prompts, separate static parts (role, rules) from dynamic parts (work target, previous results)
+- When static parts do not change, consider caching or compression
 
-## 관련 문서
-- concepts.md — 프롬프트에서 사용되는 용어의 정의
-- structure_spec.md — 역할 파일의 물리적 위치 규칙
-- domain_scope.md — "소비 인터페이스" 관심사 영역의 상위 정의
+## Related Documents
+- concepts.md — Definitions of terms used in prompts
+- structure_spec.md — Physical location rules for role files
+- domain_scope.md — Higher-level definition of the "Consumption Interface" concern area

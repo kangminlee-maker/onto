@@ -1,304 +1,304 @@
-# 팀 리뷰 모드
+# Team Review Mode
 
-> 에이전트 패널(검증 에이전트 + Philosopher)이 대상을 다관점으로 리뷰합니다.
-> 관련: 리뷰 후 학습이 쌓이면 `processes/promote.md`로 승격 가능.
+> The agent panel (verification agents + Philosopher) reviews a target from multiple perspectives.
+> Related: If learnings accumulate after review, promotion is possible via `processes/promote.md`.
 
-`process.md`의 **Agent Teams 실행 방식**을 따릅니다.
+Follows the **Agent Teams Execution** in `process.md`.
 
-**팀 구성**:
-- **Team lead**: 메인 컨텍스트 (구조 조율자)
-- **Teammates**: 검증 에이전트 + Philosopher
+**Team composition**:
+- **Team lead**: main context (structure coordinator)
+- **Teammates**: verification agents + Philosopher
 
-**실행 경로**:
-- **기본** (합의 명확): 1→2→3→5→6
-- **확장** (쟁점 존재): 1→2→3→4→5→6
-
----
-
-### 1. Context Gathering (team lead가 수행)
-
-team lead가 아래 항목만 수집합니다. 에이전트별 학습/도메인 문서는 teammate가 자기 로딩합니다.
-
-1. **리뷰 대상 수집**:
-   - 파일/디렉토리인 경우: 해당 코드를 읽습니다.
-   - 설계/결정인 경우: 관련 문서를 읽습니다.
-
-2. **프로젝트 컨텍스트 수집**:
-   - CLAUDE.md, README.md 등에서 시스템 목적과 원칙을 파악합니다.
-
-3. **도메인 판별 + 경로 resolve**:
-   - 프로젝트의 도메인을 확인합니다.
-   - 플러그인 경로를 확인합니다. (teammate 초기 prompt의 경로 변수에 사용)
-
-4. **에이전트 정의 수집** (전원 각각):
-   - `~/.claude/plugins/onto/roles/{agent-id}.md` — 에이전트당 ~14행. team lead가 읽어서 초기 prompt에 직접 포함합니다.
+**Execution paths**:
+- **Default** (consensus clear): 1→2→3→5→6
+- **Extended** (contested points exist): 1→2→3→4→5→6
 
 ---
 
-### 2. Team 생성 + Round 1 — 검증 에이전트 독립 리뷰
+### 1. Context Gathering (performed by team lead)
 
-**Step 1 — 세션 ID 생성**: `$(date +%Y%m%d)-$(openssl rand -hex 4)` (예: `20260325-a3f7b2c1`)
+The team lead collects only the items below. Per-agent learnings/domain documents are self-loaded by the teammate.
 
-**Step 2 — 세션 디렉토리 생성**: `{project}/.onto/review/{세션 ID}/round1/`
+1. **Review target collection**:
+   - If file/directory: reads the relevant code.
+   - If design/decision: reads the related documents.
 
-**Step 3 — TeamCreate로 팀 생성**:
-- team_name: `onto-{세션 ID}`
-- description: `Agent Panel Review: {리뷰 대상 요약}`
+2. **Project context collection**:
+   - Identifies the system purpose and principles from CLAUDE.md, README.md, etc.
 
-**Step 4 — 전체 teammate 생성**: TeamCreate 후, Agent tool로 전체 teammate를 **하나의 메시지에서 동시에** 생성합니다. 초기 prompt에 정체성 + 자기 로딩 + 작업 지시를 통합하여, **생성 즉시 Round 1을 시작**합니다.
-- 각 teammate의 `name`: agent-id (예: `onto_logic`, `philosopher`)
-- 각 teammate의 `team_name`: Step 3에서 생성한 team_name
-- 초기 prompt: `process.md`의 **Teammate 초기 prompt 템플릿** 사용 (세션 경로 포함)
+3. **Domain determination + path resolution**:
+   - Identifies the project's domain.
+   - Identifies the plugin path. (Used for path variables in teammate initial prompt)
 
-검증 에이전트의 초기 prompt에 포함할 **[작업 지시]** 섹션:
-
-```
-Round 1 리뷰를 시작하세요.
-
-[구조 점검 체크리스트]
-먼저 아래 항목을 수행하세요 (해당 항목이 리뷰 대상에 존재하는 경우에만. 해당 없으면 N/A):
-- [ ] 분류 항목들 사이에 겹침(ME 위반)이 있는가?
-- [ ] 분류 기준으로 포괄되지 않는 사례(CE 위반)가 있는가?
-- [ ] 각 항목의 정의가 명시되어 있는가?
-- [ ] 분류에 사용된 축(기준)이 무엇인지 명시되어 있는가?
-- [ ] 학습 항목에 유형 태깅([사실]/[판단])이 되어 있는가? (학습 관련 리뷰 시에만)
-
-[리뷰 대상]
-{리뷰 대상 내용}
-
-[시스템 목적과 원칙]
-{CLAUDE.md/README.md 내용}
-
-[지시]
-- 구조 점검 후, 자신의 전문 관점에서 내용 검증을 수행하세요.
-- 핵심 질문 각각에 대해 구체적으로 답하세요.
-- 문제를 발견하면: (1) 무엇이 문제인지, (2) 왜 문제인지, (3) 어떻게 수정해야 하는지를 명시하세요.
-- 문제가 없으면 "문제 없음"이 아니라, 왜 올바른지 근거를 제시하세요.
-- 다른 에이전트의 관점은 모릅니다. 오직 자신의 관점에서만 판단하세요.
-- 과거 학습을 참고하되, 현재 리뷰 대상에 맞지 않는 학습은 무시하세요.
-
-[보고 형식]
-리뷰 결과 마지막에 아래 섹션을 반드시 포함하세요:
-
-### 새로 배운 것
-- 소통 학습: (사용자 선호/소통 방식에 대한 발견)
-- 방법론 학습: (어떤 도메인에서든 적용 가능한 검증 원칙)
-- 도메인 학습: (이 도메인에서만 유효한 학습)
-없으면 각각 "없음"으로 표기하세요.
-```
-
-Philosopher의 초기 prompt에 포함할 **[작업 지시]** 섹션:
-
-```
-검증 에이전트들의 Round 1 리뷰가 완료되면 team lead가 결과를 전달합니다. 그때까지 대기하세요.
-```
-
-**이것이 유일한 독립 Round입니다.** 이후 단계에서는 Philosopher 종합을 통해 다른 에이전트의 관점이 공유됩니다.
+4. **Agent definition collection** (for all agents individually):
+   - `~/.claude/plugins/onto/roles/{agent-id}.md` — ~14 lines per agent. The team lead reads and includes directly in the initial prompt.
 
 ---
 
-### 3. Philosopher 종합 + 판정
+### 2. Team Creation + Round 1 — Verification Agent Independent Review
 
-team lead가 검증 에이전트들의 리뷰 결과 파일 경로를 Philosopher teammate에게 SendMessage로 전달합니다. **원문은 파일에 보존되어 있으므로, team lead가 원문을 메시지에 포함하지 않습니다.**
+**Step 1 — Session ID generation**: `$(date +%Y%m%d)-$(openssl rand -hex 4)` (e.g., `20260325-a3f7b2c1`)
 
-Philosopher에게 전달할 SendMessage 내용:
+**Step 2 — Session directory creation**: `{project}/.onto/review/{session ID}/round1/`
+
+**Step 3 — Team creation via TeamCreate**:
+- team_name: `onto-{session ID}`
+- description: `Agent Panel Review: {review target summary}`
+
+**Step 4 — Create all teammates**: After TeamCreate, create all teammates **simultaneously in a single message** via Agent tool. The initial prompt combines identity + self-loading + task directives, so **Round 1 begins immediately upon creation**.
+- Each teammate's `name`: agent-id (e.g., `onto_logic`, `philosopher`)
+- Each teammate's `team_name`: team_name created in Step 3
+- Initial prompt: use the **Teammate Initial Prompt Template** from `process.md` (including session path)
+
+**[Task Directives]** section to include in verification agents' initial prompt:
 
 ```
-검증 에이전트들의 Round 1 리뷰 결과를 종합하고, 시스템 목적 관점에서 판정하세요.
+Begin Round 1 review.
 
-[검증 에이전트들의 리뷰 결과 파일]
-아래 경로의 파일을 Read 도구로 직접 읽으세요:
-{세션 경로}/round1/onto_logic.md
-{세션 경로}/round1/onto_structure.md
-{세션 경로}/round1/onto_dependency.md
-{세션 경로}/round1/onto_semantics.md
-{세션 경로}/round1/onto_pragmatics.md
-{세션 경로}/round1/onto_evolution.md
-{세션 경로}/round1/onto_coverage.md
-{세션 경로}/round1/onto_conciseness.md
+[Structural Inspection Checklist]
+Perform the following items first (only if applicable to the review target. Mark N/A if not applicable):
+- [ ] Are there overlaps (ME violation) between classification items?
+- [ ] Are there cases not covered by the classification criteria (CE violation)?
+- [ ] Is each item's definition explicitly stated?
+- [ ] Is the axis (criteria) used for classification explicitly stated?
+- [ ] Are learning items tagged with type tags ([fact]/[judgment])? (Only for learning-related reviews)
 
-※ Write 실패로 파일이 없는 에이전트의 결과는 아래에 직접 포함합니다:
-{Write 실패 에이전트의 원문 (해당 시에만)}
+[Review Target]
+{review target content}
 
-[시스템 목적과 원칙]
-{CLAUDE.md/README.md 내용}
+[System Purpose and Principles]
+{CLAUDE.md/README.md content}
 
-[지시]
-1단계 — 종합:
+[Directives]
+- After the structural inspection, perform content verification from your specialized perspective.
+- Answer each core question specifically.
+- If an issue is found: specify (1) what the issue is, (2) why it is an issue, and (3) how to fix it.
+- If no issues are found, do not just state "no issues" — provide rationale for why it is correct.
+- You do not know other agents' perspectives. Judge only from your own perspective.
+- Reference past learnings, but ignore learnings that do not apply to the current review target.
 
-## Philosopher 종합
+[Report Format]
+Include the following section at the end of the review result:
 
-### 합의된 사항
-- (검증 에이전트 중 다수가 동의한 판단)
+### Newly Learned
+- Communication learning: (findings about user preferences/communication style)
+- Methodology learning: (verification principles applicable in any domain)
+- Domain learning: (learnings valid only in this domain)
+Mark each as "none" if there is nothing to report.
+```
 
-### 모순되는 의견
-- (상충하는 판단 + 각 근거 요약)
+**[Task Directives]** section to include in the Philosopher's initial prompt:
 
-### 간과된 전제
-- (어떤 에이전트도 언급하지 않았지만 시스템 목적/원칙상 검토가 필요한 사항)
-- process.md의 "검증 차원 포괄성 체크리스트"를 참조하여, 어떤 검증 차원도 에이전트가 포괄하지 못한 것이 없는지 확인하세요.
+```
+The team lead will deliver results once the verification agents complete their Round 1 review. Wait until then.
+```
 
-### 새로운 관점
-- (시스템의 목적과 철학적 원칙에서 도출되는, 검증 에이전트들이 아직 고려하지 않은 관점)
-
-3단계 — 고유 발견 태깅:
-각 검증 에이전트의 발견을 "고유 발견 / 공유 발견 / 교차 검증"으로 분류하세요. 최종 출력의 "고유 발견 태깅" 섹션에 포함합니다.
-
-4단계 — 판정:
-
-### 판단 충돌 처리 규칙
-
-검증 에이전트 간 판단 충돌은 다음 규칙으로 처리합니다:
-
-**일반 규칙**: 판단 충돌은 오류 탐지 신호로 활용합니다. 동일 대상에 대해 복수 에이전트가 상반된 판정을 내리면, 이를 "오류 가능성이 높은 지점"으로 표시하고 Philosopher가 시스템 목적 관점에서 판정합니다.
-
-**특수 규칙 — 제거 vs 유지 충돌**: onto_conciseness가 "제거 필요"로 판정하고 다른 에이전트가 "유지 필요"로 판정할 경우:
-1. 양측의 근거를 Philosopher가 비교합니다.
-2. 시스템 목적(검증 대상의 품질 향상)에 비추어 판정합니다.
-3. 단순 다수결로 결정하지 않습니다 — conciseness의 "제거" 관점은 구조적으로 소수이므로, 다수결은 항상 "유지"가 되어 conciseness의 기능이 무력화됩니다.
-
-### 쟁점 토론 필요 여부
-아래 조건 중 하나라도 해당하면 "필요":
-- 모순되는 의견이 존재하는가?
-- 간과된 전제가 발견되었는가?
-- 새로운 관점이 추가 검토를 요구하는가?
-
-모두 해당 없으면 "불필요" — 이 경우 아래 최종 출력을 직접 작성하세요:
+**This is the only independent round.** In subsequent steps, other agents' perspectives are shared through Philosopher synthesis.
 
 ---
-session_id: {세션 ID}
+
+### 3. Philosopher Synthesis + Adjudication
+
+The team lead delivers the verification agents' review result file paths to the Philosopher teammate via SendMessage. **Since the original text is preserved in the files, the team lead does not include the original text in the message.**
+
+SendMessage content to deliver to the Philosopher:
+
+```
+Synthesize the verification agents' Round 1 review results and adjudicate from the perspective of system purpose.
+
+[Verification Agents' Review Result Files]
+Read the files at the paths below directly using the Read tool:
+{session path}/round1/onto_logic.md
+{session path}/round1/onto_structure.md
+{session path}/round1/onto_dependency.md
+{session path}/round1/onto_semantics.md
+{session path}/round1/onto_pragmatics.md
+{session path}/round1/onto_evolution.md
+{session path}/round1/onto_coverage.md
+{session path}/round1/onto_conciseness.md
+
+※ Results from agents whose Write failed are included directly below:
+{Original text of Write-failed agents (only if applicable)}
+
+[System Purpose and Principles]
+{CLAUDE.md/README.md content}
+
+[Directives]
+Step 1 — Synthesis:
+
+## Philosopher Synthesis
+
+### Consensus Items
+- (Judgments agreed upon by a majority of verification agents)
+
+### Contradicting Opinions
+- (Conflicting judgments + summary of each rationale)
+
+### Overlooked Premises
+- (Items not mentioned by any agent but requiring examination given the system purpose/principles)
+- Refer to the "Verification Dimension Coverage Checklist" in process.md to confirm that no verification dimension has gone uncovered by any agent.
+
+### New Perspectives
+- (Perspectives derived from the system's purpose and philosophical principles that verification agents have not yet considered)
+
+Step 3 — Unique Finding Tagging:
+Classify each verification agent's findings as "unique finding / shared finding / cross-verified finding." Include in the "Unique Finding Tagging" section of the final output.
+
+Step 4 — Adjudication:
+
+### Judgment Conflict Resolution Rules
+
+Judgment conflicts between verification agents are resolved by the following rules:
+
+**General rule**: Judgment conflicts are used as error detection signals. If multiple agents render opposing judgments on the same target, mark it as a "high-probability error point" and the Philosopher adjudicates from the perspective of system purpose.
+
+**Special rule — removal vs. retention conflict**: If onto_conciseness judges "removal needed" and another agent judges "retention needed":
+1. The Philosopher compares both sides' rationale.
+2. Adjudicates in light of the system's purpose (improving the quality of the review target).
+3. Does not decide by simple majority — since the conciseness "removal" perspective is structurally in the minority, majority rule would always result in "retention," neutralizing the function of conciseness.
+
+### Deliberation Necessity
+If any of the following conditions are met, answer "needed":
+- Do contradicting opinions exist?
+- Were overlooked premises discovered?
+- Do new perspectives require additional examination?
+
+If none apply, answer "not needed" — in this case, write the final output directly:
+
+---
+session_id: {session ID}
 process: review
-target: "{리뷰 대상 요약}"
-domain: {domain / 없음}
+target: "{review target summary}"
+domain: {domain / none}
 date: {YYYY-MM-DD}
 ---
 
-## Agent Panel Review 결과
+## Agent Panel Review Result
 
-### 리뷰 대상
-{리뷰 대상 요약}
+### Review Target
+{review target summary}
 
-### 검증 컨텍스트
-- 도메인: {domain / 없음}
-- 도메인 규칙 문서: {N}/7종 로딩됨 {부재 문서 목록}
-- (도메인 문서 부재 시) "도메인 규칙 문서 없이 범용 원칙으로 검증되었습니다. `/onto:onboard`로 도메인 문서를 생성하면 검증 정밀도가 향상됩니다."
+### Verification Context
+- Domain: {domain / none}
+- Domain rule documents: {N}/7 loaded {list of absent documents}
+- (If domain documents are absent) "Verified using general principles (no domain document). Creating domain documents via `/onto:onboard` will improve verification precision."
 
-### 합의 (N/{참여 에이전트 수})
-- (전원 합의된 판단 목록)
+### Consensus (N/{participating agent count})
+- (List of judgments with full consensus)
 
-### 조건부 합의
-- (다수 합의 + 소수 유보. 유보 사유 명시)
+### Conditional Consensus
+- (Majority consensus + minority reservations. Reservation reasons specified)
 
-### 목적 부합 검증
-- (결론들이 시스템 목적에 부합하는지 여부와 근거)
+### Purpose Alignment Verification
+- (Whether conclusions align with the system purpose, with rationale)
 
-### 즉시 조치 필요
-- (합의된 수정 사항 중 바로 반영해야 할 것)
+### Immediate Actions Required
+- (Among consensus items, those that should be applied immediately)
 
-### 권장 사항
-- (합의된 개선 사항 중 이후 반영 가능한 것)
+### Recommendations
+- (Among consensus items, those that can be applied later)
 
-### 고유 발견 태깅
-각 검증 에이전트의 발견을 아래 3가지로 분류하세요. "고유 발견"이란 다른 에이전트가 발견하지 못한, 해당 에이전트의 검증 축에서만 탐지 가능한 이슈를 의미합니다.
+### Unique Finding Tagging
+Classify each verification agent's findings into the 3 categories below. A "unique finding" is an issue that no other agent discovered, detectable only from that agent's verification dimension.
 
-| 에이전트 | 고유 발견 | 공유 발견 | 교차 검증 |
+| Agent | Unique Finding | Shared Finding | Cross-Verified Finding |
 |---------|----------|----------|----------|
-| (각 에이전트별로 건수와 대표 사례 1건을 기록) | | | |
+| (Record the count and one representative case per agent) | | | |
 
-- **고유 발견**: 해당 에이전트만 발견한 이슈 (다른 에이전트가 동일 이슈를 보고하지 않음)
-- **공유 발견**: 2인 이상의 에이전트가 동일 이슈를 각자의 관점에서 보고한 경우
-- **교차 검증**: 한 에이전트의 발견이 다른 에이전트의 발견과 결합되어 새로운 판단을 도출한 경우
+- **Unique finding**: an issue discovered only by that agent (no other agent reported the same issue)
+- **Shared finding**: an issue independently reported by 2 or more agents from their respective perspectives
+- **Cross-verified finding**: a case where one agent's finding combines with another agent's finding to produce a new insight
 ```
 
-**Philosopher가 "불필요"로 판정하면** → 최종 출력이 이미 작성됨. 5단계로 직행.
-**Philosopher가 "필요"로 판정하면** → 4단계(쟁점 토론) 진행.
+**If the Philosopher judges "not needed"** → the final output has already been written. Proceed directly to Step 5.
+**If the Philosopher judges "needed"** → proceed to Step 4 (deliberation).
 
 ---
 
-### 4. 쟁점 토론 (조건부)
+### 4. Deliberation (Conditional)
 
-Philosopher가 "쟁점 토론 필요"로 판정한 경우에만 실행합니다.
+Executed only if the Philosopher judges "deliberation needed."
 
-이 단계에서는 **teammate 간 직접 SendMessage를 허용**합니다.
-team lead가 해당 에이전트들(Philosopher 포함)에게 토론 개시를 통보합니다:
-
-```
-쟁점 토론을 시작합니다.
-아래 토론 항목에 대해 해당 에이전트들과 직접 토론하세요.
-
-[토론 항목]
-Philosopher가 유형별로 분류한 항목:
-
-**모순되는 의견** (해소 방식: 대립 에이전트 간 직접 교환)
-{해당 항목. 없으면 "없음"}
-
-**간과된 전제** (해소 방식: 관련 에이전트에 추가 검증 요청)
-{해당 항목. 없으면 "없음"}
-
-**새로운 관점** (해소 방식: 관련 에이전트에 타당성 평가 요청)
-{해당 항목. 없으면 "없음"}
-
-[토론 참여 에이전트]
-{Philosopher가 지정한 에이전트 목록}
-
-[토론 규칙]
-- 토론 시작 전, 쟁점에 사용된 핵심 용어의 정의가 참여 에이전트 간 일치하는지 먼저 확인하세요. 정의 합의는 1회 왕복 내 시도합니다. 미합의 시 각 에이전트가 자신의 정의를 명시한 상태로 토론을 진행합니다. 이 왕복은 3회 제한에 산입하지 않습니다.
-- 상대의 논거에 직접 반응하세요. 자신의 입장만 반복하지 마세요.
-- 상대의 논거가 타당하면 수용하세요.
-- 양측의 논거를 결합한 새로운 대안이 가능하면 제시하세요.
-- 토론 중 원래 참여자의 전문 영역을 벗어나는 파생 쟁점이 발생하면, team lead에게 해당 영역의 전문 에이전트 추가 참여를 요청하세요. 추가 불가 시, 해당 쟁점을 "미검증 항목"으로 기록합니다.
-- 왕복 정의: team lead가 쟁점을 전달하고, 해당 에이전트들이 응답을 반환하면 1회 왕복. team lead가 왕복 횟수를 관리합니다.
-- 3회 왕복 후에도 합의되지 않으면 각자 최종 입장을 team lead에게 보고하세요.
-```
-
-토론 종료 후, team lead가 결과를 Philosopher에게 전달하여 **최종 출력을 작성**하게 합니다:
+In this step, **direct SendMessage between teammates is permitted**.
+The team lead notifies the relevant agents (including the Philosopher) of deliberation commencement:
 
 ```
-쟁점 토론 결과를 반영하여 최종 출력을 작성하세요.
+Deliberation begins.
+Engage in direct deliberation with the relevant agents on the items below.
 
-[토론 결과]
-{토론 결과 전문}
+[Deliberation Items]
+Items classified by type by the Philosopher:
 
-[출력 형식]
+**Contradicting opinions** (resolution method: direct exchange between opposing agents)
+{applicable items. "None" if none}
+
+**Overlooked premises** (resolution method: request additional verification from related agents)
+{applicable items. "None" if none}
+
+**New perspectives** (resolution method: request validity assessment from related agents)
+{applicable items. "None" if none}
+
+[Deliberation Participants]
+{Agent list designated by the Philosopher}
+
+[Deliberation Rules]
+- Before starting deliberation, first confirm whether the definitions of key terms used in contested points are aligned among participating agents. Attempt definition alignment within 1 round-trip. If alignment is not reached, proceed with each agent stating their own definition. This round-trip does not count toward the 3-trip limit.
+- Respond directly to the counterpart's arguments. Do not merely repeat your own position.
+- If the counterpart's argument is valid, accept it.
+- If a new alternative combining both sides' arguments is possible, propose it.
+- If a derived contested point arises during deliberation that falls outside the original participants' areas of expertise, request the team lead to include the relevant specialist agent. If addition is not possible, record the contested point as an "unverified item."
+- Round-trip definition: the team lead delivers the contested point and the relevant agents return their responses — this constitutes 1 round-trip. The team lead manages the round-trip count.
+- If consensus is not reached after 3 round-trips, each party reports their final position to the team lead.
+```
+
+After deliberation concludes, the team lead delivers the results to the Philosopher to **write the final output**:
+
+```
+Write the final output reflecting the deliberation results.
+
+[Deliberation Results]
+{full deliberation results}
+
+[Output Format]
 ---
-session_id: {세션 ID}
+session_id: {session ID}
 process: review
-target: "{리뷰 대상 요약}"
-domain: {domain / 없음}
+target: "{review target summary}"
+domain: {domain / none}
 date: {YYYY-MM-DD}
 ---
 
-## Agent Panel Review 결과
+## Agent Panel Review Result
 
-### 리뷰 대상
-### 검증 컨텍스트
-### 합의 (N/{참여 에이전트 수})
-### 조건부 합의
-### 미합의
-각 미합의 항목에 유형을 태깅합니다:
-- **[사실 불일치]** — 외부 참조(코드, 문서)로 확인 가능. PO 행동: 추가 정보 수집
-- **[기준 불일치]** — 상위 원칙 적용으로 판정 가능. PO 행동: 상위 원칙 확인/결정
-- **[가치 불일치]** — 합의 도달 조건 부재, 반복으로 해소 불가. PO 행동: 직접 가치 판단
-### 미검증
-검증 범위 밖으로 분류된 항목 (파생 쟁점의 전문 에이전트 추가가 불가했던 경우 등). PO 행동: 해당 영역 전문가에게 별도 검증 요청, 또는 수용 가능한 위험으로 판단.
-### 목적 부합 검증
-### 즉시 조치 필요
-### 권장 사항
+### Review Target
+### Verification Context
+### Consensus (N/{participating agent count})
+### Conditional Consensus
+### Disagreement
+Tag each disagreement item with a type:
+- **[Factual discrepancy]** — verifiable via external reference (code, documents). PO action: gather additional information
+- **[Criteria discrepancy]** — resolvable by applying a higher-level principle. PO action: confirm/decide on the higher-level principle
+- **[Value discrepancy]** — no conditions for reaching consensus, unresolvable through repetition. PO action: make a direct value judgment
+### Unverified
+Items classified as outside the verification scope (e.g., cases where adding a specialist agent for derived contested points was not possible). PO action: request separate verification from a domain expert, or accept as tolerable risk.
+### Purpose Alignment Verification
+### Immediate Actions Required
+### Recommendations
 ```
 
 ---
 
-### 5. 최종 출력
+### 5. Final Output
 
-team lead가 Philosopher의 최종 출력을 **수정 없이** 사용자에게 전달합니다.
+The team lead delivers the Philosopher's final output to the user **without modification**.
 
 ---
 
-### 6. 마무리 (학습 저장 + Team 종료)
+### 6. Wrap-Up (Learning Storage + Team Shutdown)
 
-1. **학습 저장**: 전원의 학습을 저장합니다. `process.md`의 "학습 저장 규칙"을 따릅니다. 쟁점 토론을 거친 경우, 토론 과정에서 발생한 학습도 포함합니다. **학습 데이터 수집은 팀 종료 이전에 완료해야 합니다.**
+1. **Learning storage**: Stores learnings from all members. Follows the "Learning Storage Rules" in `process.md`. If deliberation occurred, also includes learnings generated during the deliberation process. **Learning data collection must be completed before team shutdown.**
 
-2. **승격 안내** (조건부): 이번 리뷰에서 새로운 도메인 학습이 저장된 경우에만 안내합니다:
-   "프로젝트 도메인 학습이 {N}건 축적되었습니다. 글로벌 승격이 필요하면 `/onto:promote`를 실행하세요."
+2. **Promotion guidance** (conditional): Provide guidance only if new domain learnings were stored in this review:
+   "Project domain learnings have accumulated to {N} entries. If promotion is needed, run `/onto:promote`."
 
-3. **Team 종료**: team lead가 전원에게 shutdown_request를 **개별 SendMessage로** 보냅니다 (구조화된 메시지는 `to: "*"` 브로드캐스트 불가). 전원 종료 후 TeamDelete로 팀을 정리합니다.
+3. **Team shutdown**: The team lead sends shutdown_request to all members via **individual SendMessage** (structured messages cannot use `to: "*"` broadcast). After all members have shut down, clean up the team via TeamDelete.

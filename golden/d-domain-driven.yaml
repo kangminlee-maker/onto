@@ -1,8 +1,8 @@
 ---
-# EduConnect — Domain-Driven Design 온톨로지
-# canonical.yaml을 Bounded Context, Aggregate, Entity, ValueObject,
-# DomainEvent, Command, Query, Saga, Relationship 구조로 변환
-# 주의: 가상 도메인이며 실제 서비스와 무관합니다
+# EduConnect — Domain-Driven Design Ontology
+# canonical.yaml converted to Bounded Context, Aggregate, Entity, ValueObject,
+# DomainEvent, Command, Query, Saga, Relationship structure
+# Note: This is a fictional domain and unrelated to any real service
 
 meta:
   schema: Domain-Driven Design
@@ -12,429 +12,429 @@ meta:
   created: 2026-03-26
 
 # ============================================================
-# BOUNDED CONTEXTS (5개)
+# BOUNDED CONTEXTS (5)
 # ============================================================
 bounded_contexts:
   - name: AccountContext
-    description: 학생/강사 계정 관리. 인증, 프로필, 가입/탈퇴를 담당
+    description: Student/instructor account management. Responsible for authentication, profiles, registration/withdrawal
     domains: [account]
 
   - name: SessionContext
-    description: 수업 세션 관리. 예약, 수업 진행, 일정 관리를 담당
+    description: Lesson session management. Responsible for booking, lesson delivery, and schedule management
     domains: [session]
 
   - name: BillingContext
-    description: 결제/구독 관리. 수업권, 구독 계약, 결제 처리를 담당
+    description: Payment/subscription management. Responsible for credits, subscription contracts, and payment processing
     domains: [billing]
 
   - name: PromotionContext
-    description: 프로모션 관리. 쿠폰 정의, 발급, 적용을 담당
+    description: Promotion management. Responsible for coupon definition, issuance, and application
     domains: [promotion]
 
   - name: AssessmentContext
-    description: AI 학습 평가. 수업 후 자동 평가 및 리포트 생성을 담당
+    description: AI learning assessment. Responsible for auto-assessment and report generation after lessons
     domains: [assessment]
 
 # ============================================================
-# AGGREGATES (5개 — Session, Contract, Payment, Student, Instructor)
+# AGGREGATES (5 — Session, Contract, Payment, Student, Instructor)
 # ============================================================
 aggregates:
   - name: SessionAggregate
     bounded_context: SessionContext
     root_entity: Session
-    description: 수업 세션 Aggregate. Session을 루트로 Booking을 포함. 수업 생명주기 관리
+    description: Lesson session Aggregate. Contains Booking with Session as root. Manages lesson lifecycle
     db_table: sessions
     code_mapping:
       canonical: Session
       code_entity: Lesson
       legacy_aliases: [Class, Lecture]
       fk_variants: [session_id, lesson_id]
-      note: "코드에서는 Lesson으로 사용하나, 도메인 용어는 Session이 정규 이름"
+      note: "Lesson is used in code, but Session is the canonical domain term"
     properties:
       - name: id
-        display_name: 세션 ID
+        display_name: Session ID
         type: bigint
         required: true
         description: PK
       - name: student_id
-        display_name: 수강생 ID
+        display_name: Student ID
         type: bigint
         required: true
-        description: 수강생 FK
+        description: Student FK
       - name: instructor_id
-        display_name: 강사 ID
+        display_name: Instructor ID
         type: bigint
         required: false
-        description: 강사 FK (PENDING 시 null)
+        description: Instructor FK (null when PENDING)
       - name: course_id
-        display_name: 교육 과정 ID
+        display_name: Course ID
         type: bigint
         required: true
-        description: 교육 과정 FK
+        description: Course FK
       - name: credit_id
-        display_name: 수업권 ID
+        display_name: Credit ID
         type: bigint
         required: false
-        description: 사용된 수업권 FK
+        description: Used credit FK
       - name: status
-        display_name: 세션 상태
+        display_name: Session status
         type: enum
         required: true
-        description: 세션 상태
+        description: Session status
         enum_ref: SessionStatus
       - name: scheduled_at
-        display_name: 예정 시각
+        display_name: Scheduled time
         type: datetime
         required: true
-        description: 예정 시각
+        description: Scheduled time
       - name: started_at
-        display_name: 시작 시각
+        display_name: Start time
         type: datetime
         required: false
-        description: 실제 시작 시각
+        description: Actual start time
       - name: ended_at
-        display_name: 종료 시각
+        display_name: End time
         type: datetime
         required: false
-        description: 실제 종료 시각
+        description: Actual end time
       - name: reschedule_count
-        display_name: 일정 변경 횟수
+        display_name: Reschedule count
         type: integer
         required: true
-        description: 일정 변경 횟수
+        description: Reschedule count
     state_machine:
       field: status
       states: [PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW]
       transitions:
         - from: PENDING
           to: CONFIRMED
-          trigger: 강사 배정 및 수업권 차감
-          side_effects: [Credit 차감, 학생/강사 알림 발송]
+          trigger: Instructor assignment and credit deduction
+          side_effects: [Credit deduction, Student/instructor notification sent]
         - from: CONFIRMED
           to: IN_PROGRESS
-          trigger: 수업 시작 시각 도달
-          side_effects: [WebRTC 세션 생성]
+          trigger: Lesson start time reached
+          side_effects: [WebRTC session created]
         - from: IN_PROGRESS
           to: COMPLETED
-          trigger: 수업 정상 종료
-          side_effects: [Assessment QUEUED 생성, 수업 완료 알림]
+          trigger: Lesson completed normally
+          side_effects: [Assessment QUEUED created, Lesson completion notification]
         - from: CONFIRMED
           to: CANCELLED
-          trigger: 학생 또는 강사 취소
-          guard: ["CANCELLATION_DEADLINE_HOURS(4)시간 전이면 무료 취소"]
-          side_effects: [Credit 복원, 취소 알림 발송]
+          trigger: Student or instructor cancellation
+          guard: ["Free cancellation if CANCELLATION_DEADLINE_HOURS(4) hours before lesson start"]
+          side_effects: [Credit restoration, Cancellation notification sent]
         - from: CONFIRMED
           to: NO_SHOW
-          trigger: 접속 없이 10분 초과
+          trigger: No connection for over 10 minutes
           guard: ["NOSHOW_TIMEOUT_MINUTES=10"]
-          side_effects: [미참석 알림 발송]
+          side_effects: [No-show notification sent]
     invariants:
-      - "reschedule_count는 MAX_RESCHEDULE_COUNT(2)를 초과할 수 없음"
-      - "CONFIRMED 상태에서만 취소/미참석 전이 가능"
-      - "IN_PROGRESS에서만 COMPLETED 전이 가능"
+      - "reschedule_count cannot exceed MAX_RESCHEDULE_COUNT(2)"
+      - "Cancellation/no-show transition only allowed from CONFIRMED status"
+      - "COMPLETED transition only allowed from IN_PROGRESS"
 
   - name: ContractAggregate
     bounded_context: BillingContext
     root_entity: Contract
-    description: 구독 계약 Aggregate. Contract를 루트로 Credit 발급을 관리
+    description: Subscription contract Aggregate. Manages Credit issuance with Contract as root
     db_table: contracts
     code_mapping:
       canonical: Contract
       code_entity: SubscriptionMapping
       legacy_aliases: [Plan, Agreement]
       fk_variants: [contract_id, subscription_mapping_id]
-      note: "코드에서 SubscriptionMapping이란 긴 이름으로 사용, 정규화하여 Contract로 통일"
+      note: "SubscriptionMapping is the long name in code; normalized to Contract"
     properties:
       - name: id
-        display_name: 계약 ID
+        display_name: Contract ID
         type: bigint
         required: true
         description: PK
       - name: student_id
-        display_name: 수강생 ID
+        display_name: Student ID
         type: bigint
         required: true
-        description: 수강생 FK
+        description: Student FK
       - name: subscription_id
-        display_name: 구독 상품 ID
+        display_name: Subscription product ID
         type: bigint
         required: true
-        description: 구독 상품 FK
+        description: Subscription product FK
       - name: card_id
-        display_name: 결제 카드 ID
+        display_name: Payment card ID
         type: bigint
         required: false
-        description: 결제 카드 FK
+        description: Payment card FK
       - name: status
-        display_name: 계약 상태
+        display_name: Contract status
         type: enum
         required: true
-        description: 계약 상태
+        description: Contract status
         enum_ref: ContractStatus
       - name: started_at
-        display_name: 계약 시작일
+        display_name: Contract start date
         type: datetime
         required: true
-        description: 계약 시작일
+        description: Contract start date
       - name: expires_at
-        display_name: 계약 만료일
+        display_name: Contract expiration date
         type: datetime
         required: true
-        description: 계약 만료일
+        description: Contract expiration date
       - name: next_billing_at
-        display_name: 다음 결제일
+        display_name: Next billing date
         type: datetime
         required: false
-        description: 다음 결제일
+        description: Next billing date
       - name: pause_count
-        display_name: 정지 횟수
+        display_name: Pause count
         type: integer
         required: true
-        description: 일시 정지 횟수
+        description: Pause count
     state_machine:
       field: status
       states: [TRIAL, ACTIVE, PAUSED, EXPIRED, CANCELLED, TERMINATED]
       transitions:
         - from: TRIAL
           to: ACTIVE
-          trigger: 첫 결제 처리 완료
-          side_effects: [Credit 발급, 활성화 알림]
+          trigger: First payment processing completed
+          side_effects: [Credit issuance, Activation notification]
         - from: ACTIVE
           to: PAUSED
-          trigger: 학생 일시 정지 요청
+          trigger: Student pause request
           guard: ["MAX_PAUSE_COUNT=2"]
-          side_effects: [다음 결제일 연기, 정지 알림]
+          side_effects: [Next billing date postponed, Pause notification]
         - from: PAUSED
           to: ACTIVE
-          trigger: 재개 요청
-          side_effects: [다음 결제일 재계산, 재개 알림]
+          trigger: Resume request
+          side_effects: [Next billing date recalculated, Resume notification]
         - from: ACTIVE
           to: EXPIRED
-          trigger: 기간 만료, 갱신 없음
-          side_effects: [만기 알림]
+          trigger: Period expired, no renewal
+          side_effects: [Expiration notification]
         - from: ACTIVE
           to: CANCELLED
-          trigger: 학생 해지 요청
-          side_effects: [비례 환불 계산, 해지 알림]
+          trigger: Student cancellation request
+          side_effects: [Prorated refund calculation, Cancellation notification]
         - from: CANCELLED
           to: TERMINATED
-          trigger: 환불 처리 완료
-          guard: ["30일 보존 기간 후 종료"]
-          side_effects: [데이터 보존 마킹]
+          trigger: Refund processing completed
+          guard: ["Terminated after 30-day retention period"]
+          side_effects: [Data retention marking]
     invariants:
-      - "pause_count는 MAX_PAUSE_COUNT(2)를 초과할 수 없음"
-      - "TRIAL에서는 ACTIVE로만 전이 가능"
-      - "TERMINATED는 최종 상태"
+      - "pause_count cannot exceed MAX_PAUSE_COUNT(2)"
+      - "From TRIAL, only transition to ACTIVE is allowed"
+      - "TERMINATED is a terminal state"
 
   - name: PaymentAggregate
     bounded_context: BillingContext
     root_entity: Payment
-    description: 결제 Aggregate. PG 연동 결제 트랜잭션 생명주기 관리
+    description: Payment Aggregate. Manages PG-integrated payment transaction lifecycle
     db_table: payments
     properties:
       - name: id
-        display_name: 결제 ID
+        display_name: Payment ID
         type: bigint
         required: true
         description: PK
       - name: student_id
-        display_name: 수강생 ID
+        display_name: Student ID
         type: bigint
         required: true
-        description: 수강생 FK
+        description: Student FK
       - name: contract_id
-        display_name: 계약 ID
+        display_name: Contract ID
         type: bigint
         required: false
-        description: 구독 계약 FK
+        description: Subscription contract FK
       - name: amount
-        display_name: 결제 금액
+        display_name: Payment amount
         type: decimal
         required: true
-        description: 결제 금액
+        description: Payment amount
       - name: discount_amount
-        display_name: 할인 금액
+        display_name: Discount amount
         type: decimal
         required: true
-        description: 할인 금액
+        description: Discount amount
       - name: method
-        display_name: 결제 수단
+        display_name: Payment method
         type: enum
         required: true
-        description: 결제 수단
+        description: Payment method
         enum_ref: PaymentMethod
       - name: status
-        display_name: 결제 상태
+        display_name: Payment status
         type: enum
         required: true
-        description: 결제 상태
+        description: Payment status
         enum_ref: PaymentStatus
       - name: pg_transaction_id
-        display_name: PG 거래 ID
+        display_name: PG transaction ID
         type: string
         required: false
-        description: PG사 거래 ID
+        description: PG transaction ID
       - name: created_at
-        display_name: 생성일시
+        display_name: Creation datetime
         type: datetime
         required: true
-        description: 결제 생성일시
+        description: Payment creation datetime
       - name: captured_at
-        display_name: 정산 확정일시
+        display_name: Settlement capture datetime
         type: datetime
         required: false
-        description: 정산 확정일시
+        description: Settlement capture datetime
     state_machine:
       field: status
       states: [INITIATED, AUTHORIZED, CAPTURED, FAILED, REFUNDED, PARTIALLY_REFUNDED]
       transitions:
         - from: INITIATED
           to: AUTHORIZED
-          trigger: PG 인증 성공
-          side_effects: [PG사 인증 토큰 저장]
+          trigger: PG authentication successful
+          side_effects: [PG authentication token stored]
         - from: AUTHORIZED
           to: CAPTURED
-          trigger: 정산 확정
-          side_effects: [Credit 발급 트리거, Contract 활성화 트리거, 결제 완료 알림]
+          trigger: Settlement captured
+          side_effects: [Credit issuance triggered, Contract activation triggered, Payment completion notification]
         - from: CAPTURED
           to: REFUNDED
-          trigger: 전액 환불 요청
-          side_effects: [PG사 환불 API 호출, Credit 회수, 환불 알림]
+          trigger: Full refund request
+          side_effects: [PG refund API called, Credit retrieval, Refund notification]
         - from: CAPTURED
           to: PARTIALLY_REFUNDED
-          trigger: 부분 환불 요청
-          side_effects: [PG사 부분 환불 API 호출, 부분 환불 알림]
+          trigger: Partial refund request
+          side_effects: [PG partial refund API called, Partial refund notification]
         - from: AUTHORIZED
           to: FAILED
-          trigger: PG 인증 실패
-          side_effects: [결제 실패 알림]
+          trigger: PG authentication failed
+          side_effects: [Payment failure notification]
     invariants:
-      - "FAILED, REFUNDED는 최종 상태"
-      - "CAPTURED에서만 환불(전액/부분) 전이 가능"
+      - "FAILED, REFUNDED are terminal states"
+      - "Refund (full/partial) transition only allowed from CAPTURED"
 
   - name: StudentAggregate
     bounded_context: AccountContext
     root_entity: Student
-    description: 학생 Aggregate. 학생 계정과 관련 PaymentCard를 관리
+    description: Student Aggregate. Manages student account and related PaymentCards
     db_table: users
     code_mapping:
       canonical: Student
       code_entity: User
       legacy_aliases: [Learner, Member]
       fk_variants: [student_id, user_id, learner_id]
-      note: "시스템 전반에서 User로 사용되나 도메인 정규 이름은 Student"
+      note: "User is used throughout the system, but Student is the canonical domain term"
     properties:
       - name: id
-        display_name: 학생 ID
+        display_name: Student ID
         type: bigint
         required: true
         description: PK
       - name: email
-        display_name: 이메일
+        display_name: Email
         type: string
         required: true
-        description: 이메일 (로그인 ID)
+        description: Email (login ID)
       - name: name
-        display_name: 이름
+        display_name: Name
         type: string
         required: true
-        description: 표시 이름
+        description: Display name
       - name: phone
-        display_name: 전화번호
+        display_name: Phone number
         type: string
         required: false
-        description: 전화번호
+        description: Phone number
       - name: language
-        display_name: 학습 언어
+        display_name: Learning language
         type: enum
         required: true
-        description: 학습 대상 언어
+        description: Target learning language
         enum_ref: Language
       - name: timezone
-        display_name: 시간대
+        display_name: Timezone
         type: string
         required: true
-        description: 시간대 (IANA)
+        description: Timezone (IANA)
       - name: registered_at
-        display_name: 가입일시
+        display_name: Registration datetime
         type: datetime
         required: true
-        description: 가입일시
+        description: Registration datetime
       - name: is_active
-        display_name: 활성 여부
+        display_name: Active status
         type: boolean
         required: true
-        description: 활성 여부
+        description: Active status
     invariants:
-      - "탈퇴 시 활성 Contract가 없어야 함"
-      - "email은 시스템 내 고유해야 함"
+      - "No active Contract must exist at withdrawal"
+      - "Email must be unique within the system"
 
   - name: InstructorAggregate
     bounded_context: AccountContext
     root_entity: Instructor
-    description: 강사 Aggregate. 강사 프로필과 가용 시간대를 관리
+    description: Instructor Aggregate. Manages instructor profile and availability slots
     db_table: instructors
     code_mapping:
       canonical: Instructor
       code_entity: Tutor
       legacy_aliases: [Teacher, Coach]
       fk_variants: [instructor_id, tutor_id]
-      note: "DB는 instructors이나 코드 클래스명은 Tutor"
+      note: "DB is instructors but code class name is Tutor"
     properties:
       - name: id
-        display_name: 강사 ID
+        display_name: Instructor ID
         type: bigint
         required: true
         description: PK
       - name: name
-        display_name: 이름
+        display_name: Name
         type: string
         required: true
-        description: 표시 이름
+        description: Display name
       - name: email
-        display_name: 이메일
+        display_name: Email
         type: string
         required: true
-        description: 이메일
+        description: Email
       - name: tier
-        display_name: 등급
+        display_name: Tier
         type: enum
         required: true
-        description: 강사 등급
+        description: Instructor tier
         enum_ref: InstructorTier
       - name: language
-        display_name: 교육 언어
+        display_name: Teaching language
         type: enum
         required: true
-        description: 교육 가능 언어
+        description: Available teaching language
         enum_ref: Language
       - name: bio
-        display_name: 자기소개
+        display_name: Bio
         type: text
         required: false
-        description: 자기소개
+        description: Bio
       - name: rating
-        display_name: 평점
+        display_name: Rating
         type: decimal
         required: false
-        description: 평균 평점 (1.0~5.0)
+        description: Average rating (1.0~5.0)
       - name: is_available
-        display_name: 활동 가능
+        display_name: Available
         type: boolean
         required: true
-        description: 현재 활동 가능 여부
+        description: Currently available
     invariants:
-      - "rating은 1.0~5.0 범위"
+      - "Rating must be in range 1.0~5.0"
 
 # ============================================================
-# ENTITIES — Aggregate 내 하위 또는 독립 엔티티 (10개)
+# ENTITIES — Sub-entities within Aggregates or independent entities (10)
 # ============================================================
 entities:
   - name: Booking
     bounded_context: SessionContext
     aggregate: SessionAggregate
     domain: session
-    description: 예약 스케줄. Session Aggregate 내 하위 엔티티
+    description: Booking schedule. Sub-entity within Session Aggregate
     db_table: bookings
     properties:
       - name: id
@@ -444,25 +444,25 @@ entities:
       - name: session_id
         type: bigint
         required: true
-        description: 수업 세션 FK
+        description: Lesson session FK
       - name: slot_id
         type: bigint
         required: true
-        description: 가용 시간대 FK
+        description: Availability slot FK
       - name: booked_at
         type: datetime
         required: true
-        description: 예약일시
+        description: Booking datetime
       - name: cancelled_at
         type: datetime
         required: false
-        description: 취소일시
+        description: Cancellation datetime
 
   - name: AvailabilitySlot
     bounded_context: SessionContext
     aggregate: InstructorAggregate
     domain: session
-    description: 강사 가용 시간대. Instructor Aggregate 내 하위 엔티티
+    description: Instructor availability slot. Sub-entity within Instructor Aggregate
     db_table: availability_slots
     properties:
       - name: id
@@ -472,29 +472,29 @@ entities:
       - name: instructor_id
         type: bigint
         required: true
-        description: 강사 FK
+        description: Instructor FK
       - name: start_time
         type: datetime
         required: true
-        description: 시작 시각
+        description: Start time
       - name: end_time
         type: datetime
         required: true
-        description: 종료 시각
+        description: End time
       - name: is_booked
         type: boolean
         required: true
-        description: 예약 점유 여부
+        description: Booking occupied
       - name: day_of_week
         type: integer
         required: true
-        description: 요일 (1=월 ~ 7=일)
+        description: Day of week (1=Mon ~ 7=Sun)
 
   - name: Course
     bounded_context: SessionContext
     aggregate: null
     domain: session
-    description: 교육 과정. 독립 엔티티 (참조 데이터)
+    description: Course. Independent entity (reference data)
     db_table: courses
     properties:
       - name: id
@@ -504,35 +504,35 @@ entities:
       - name: name
         type: string
         required: true
-        description: 과정명
+        description: Course name
       - name: category
         type: enum
         required: true
-        description: 과정 분류
+        description: Course category
         enum_ref: CourseCategory
       - name: language
         type: enum
         required: true
-        description: 대상 언어
+        description: Target language
         enum_ref: Language
       - name: description
         type: text
         required: false
-        description: 과정 설명
+        description: Course description
       - name: level
         type: integer
         required: true
-        description: 난이도 (1~10)
+        description: Difficulty level (1~10)
       - name: is_active
         type: boolean
         required: true
-        description: 활성 여부
+        description: Active status
 
   - name: Credit
     bounded_context: BillingContext
     aggregate: ContractAggregate
     domain: billing
-    description: 수업권. Contract Aggregate의 하위 엔티티로 발급 관리
+    description: Credit. Managed as sub-entity of Contract Aggregate for issuance
     db_table: credits
     code_entity: Ticket
     properties:
@@ -543,45 +543,45 @@ entities:
       - name: student_id
         type: bigint
         required: true
-        description: 수강생 FK
+        description: Student FK
       - name: payment_id
         type: bigint
         required: false
-        description: 결제 FK (체험권은 null)
+        description: Payment FK (null for trial credits)
       - name: contract_id
         type: bigint
         required: false
-        description: 구독 계약 FK
+        description: Subscription contract FK
       - name: total_count
         type: integer
         required: true
-        description: 발급된 총 횟수
+        description: Total issued count
       - name: used_count
         type: integer
         required: true
-        description: 사용된 횟수
+        description: Used count
       - name: total_minutes
         type: integer
         required: true
-        description: 발급된 총 분수
+        description: Total issued minutes
       - name: used_minutes
         type: integer
         required: true
-        description: 사용된 분수
+        description: Used minutes
       - name: expires_at
         type: datetime
         required: true
-        description: 만료일시
+        description: Expiration datetime
       - name: issued_at
         type: datetime
         required: true
-        description: 발급일시
+        description: Issuance datetime
 
   - name: Subscription
     bounded_context: BillingContext
     aggregate: null
     domain: billing
-    description: 구독 상품 정의. 독립 엔티티 (참조 데이터)
+    description: Subscription product definition. Independent entity (reference data)
     db_table: subscriptions
     properties:
       - name: id
@@ -591,33 +591,33 @@ entities:
       - name: name
         type: string
         required: true
-        description: 상품명
+        description: Product name
       - name: price
         type: decimal
         required: true
-        description: 월 가격
+        description: Monthly price
       - name: credit_count
         type: integer
         required: true
-        description: 포함 수업 횟수
+        description: Included lesson count
       - name: credit_minutes
         type: integer
         required: true
-        description: 포함 수업 분수
+        description: Included lesson minutes
       - name: duration_days
         type: integer
         required: true
-        description: 구독 기간 (일)
+        description: Subscription duration (days)
       - name: is_active
         type: boolean
         required: true
-        description: 현재 판매 중 여부
+        description: Currently on sale
 
   - name: PaymentCard
     bounded_context: BillingContext
     aggregate: StudentAggregate
     domain: billing
-    description: 등록 카드. Student Aggregate의 하위 엔티티
+    description: Registered card. Sub-entity within Student Aggregate
     db_table: payment_cards
     properties:
       - name: id
@@ -627,33 +627,33 @@ entities:
       - name: student_id
         type: bigint
         required: true
-        description: 수강생 FK
+        description: Student FK
       - name: card_number_masked
         type: string
         required: true
-        description: 마스킹된 카드 번호
+        description: Masked card number
       - name: card_brand
         type: string
         required: true
-        description: 카드 브랜드 (VISA, MASTER 등)
+        description: Card brand (VISA, MASTER, etc.)
       - name: billing_key
         type: string
         required: true
-        description: PG사 빌링키
+        description: PG billing key
       - name: is_default
         type: boolean
         required: true
-        description: 기본 결제 수단 여부
+        description: Default payment method
       - name: registered_at
         type: datetime
         required: true
-        description: 등록일시
+        description: Registration datetime
 
   - name: Coupon
     bounded_context: PromotionContext
     aggregate: null
     domain: promotion
-    description: 발행된 쿠폰. 독립 엔티티
+    description: Issued coupon. Independent entity
     db_table: coupons
     properties:
       - name: id
@@ -663,37 +663,37 @@ entities:
       - name: template_id
         type: bigint
         required: true
-        description: 쿠폰 정의 FK
+        description: Coupon template FK
       - name: student_id
         type: bigint
         required: true
-        description: 수강생 FK
+        description: Student FK
       - name: payment_id
         type: bigint
         required: false
-        description: 사용된 결제 FK (미사용 시 null)
+        description: Used payment FK (null if unused)
       - name: code
         type: string
         required: true
-        description: 쿠폰 코드
+        description: Coupon code
       - name: is_used
         type: boolean
         required: true
-        description: 사용 여부
+        description: Usage status
       - name: issued_at
         type: datetime
         required: true
-        description: 발급일시
+        description: Issuance datetime
       - name: expires_at
         type: datetime
         required: true
-        description: 만료일시
+        description: Expiration datetime
 
   - name: CouponTemplate
     bounded_context: PromotionContext
     aggregate: null
     domain: promotion
-    description: 쿠폰 정의. 독립 엔티티 (참조 데이터)
+    description: Coupon definition. Independent entity (reference data)
     db_table: coupon_templates
     properties:
       - name: id
@@ -703,39 +703,39 @@ entities:
       - name: name
         type: string
         required: true
-        description: 쿠폰 이름
+        description: Coupon name
       - name: category
         type: enum
         required: true
-        description: 쿠폰 분류
+        description: Coupon category
         enum_ref: CouponCategory
       - name: discount_type
         type: enum
         required: true
-        description: 할인 유형
+        description: Discount type
         enum_ref: DiscountType
       - name: discount_value
         type: decimal
         required: true
-        description: 할인 값
+        description: Discount value
       - name: min_purchase_amount
         type: decimal
         required: false
-        description: 최소 결제 금액
+        description: Minimum purchase amount
       - name: max_issue_count
         type: integer
         required: false
-        description: 최대 발급 수
+        description: Maximum issue count
       - name: is_active
         type: boolean
         required: true
-        description: 활성 여부
+        description: Active status
 
   - name: Assessment
     bounded_context: AssessmentContext
     aggregate: null
     domain: assessment
-    description: AI 학습 평가. 독립 엔티티
+    description: AI learning assessment. Independent entity
     db_table: assessments
     properties:
       - name: id
@@ -745,38 +745,38 @@ entities:
       - name: session_id
         type: bigint
         required: true
-        description: 수업 세션 FK
+        description: Lesson session FK
       - name: stage
         type: enum
         required: true
-        description: 처리 단계
+        description: Processing stage
         enum_ref: AssessmentStage
       - name: transcript
         type: text
         required: false
-        description: 수업 전사 텍스트
+        description: Lesson transcript text
       - name: score
         type: decimal
         required: false
-        description: 종합 점수 (0~100)
+        description: Overall score (0~100)
       - name: feedback
         type: text
         required: false
-        description: AI 피드백 내용
+        description: AI feedback content
       - name: created_at
         type: datetime
         required: true
-        description: 생성일시
+        description: Creation datetime
       - name: completed_at
         type: datetime
         required: false
-        description: 평가 완료일시
+        description: Assessment completion datetime
 
   - name: Notification
     bounded_context: AccountContext
     aggregate: null
     domain: notification
-    description: 알림. 독립 엔티티
+    description: Notification. Independent entity
     db_table: notifications
     normalization_status: normalized
     properties:
@@ -787,285 +787,285 @@ entities:
       - name: recipient_id
         type: bigint
         required: true
-        description: 수신자 FK (학생 또는 강사)
+        description: Recipient FK (student or instructor)
       - name: recipient_type
         type: string
         required: true
-        description: "수신자 유형 (Student | Instructor)"
+        description: "Recipient type (Student | Instructor)"
       - name: title
         type: string
         required: true
-        description: 알림 제목
+        description: Notification title
       - name: body
         type: text
         required: true
-        description: 알림 내용
+        description: Notification body
       - name: channel
         type: string
         required: true
-        description: "채널 (PUSH | EMAIL | SMS)"
+        description: "Channel (PUSH | EMAIL | SMS)"
       - name: is_read
         type: boolean
         required: true
-        description: 읽음 여부
+        description: Read status
       - name: sent_at
         type: datetime
         required: true
-        description: 발송일시
+        description: Sent datetime
 
 # ============================================================
-# VALUE OBJECTS — Enums (10개)
+# VALUE OBJECTS — Enums (10)
 # ============================================================
 value_objects:
   - name: Language
     type: enum
-    description: 지원 언어
+    description: Supported languages
     values: [EN, JP, KR, CN]
 
   - name: SessionStatus
     type: enum
-    description: 수업 세션 상태
+    description: Lesson session status
     values: [PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW]
 
   - name: InstructorTier
     type: enum
-    description: 강사 등급
+    description: Instructor tier
     values: [STANDARD, PREMIUM, ELITE]
 
   - name: PaymentMethod
     type: enum
-    description: 결제 수단
+    description: Payment method
     values: [CREDIT_CARD, BANK_TRANSFER, MOBILE_PAY]
 
   - name: PaymentStatus
     type: enum
-    description: 결제 상태
+    description: Payment status
     values: [INITIATED, AUTHORIZED, CAPTURED, FAILED, REFUNDED, PARTIALLY_REFUNDED]
 
   - name: ContractStatus
     type: enum
-    description: 구독 계약 상태
+    description: Subscription contract status
     values: [TRIAL, ACTIVE, PAUSED, EXPIRED, CANCELLED, TERMINATED]
 
   - name: CouponCategory
     type: enum
-    description: 쿠폰 분류
+    description: Coupon category
     values: [WELCOME, REFERRAL, SEASONAL, LOYALTY, RECOVERY]
 
   - name: DiscountType
     type: enum
-    description: 할인 유형
+    description: Discount type
     values: [PERCENTAGE, FIXED_AMOUNT]
 
   - name: AssessmentStage
     type: enum
-    description: AI 평가 처리 단계
+    description: AI assessment processing stage
     values: [QUEUED, TRANSCRIBING, ANALYZING, COMPLETE, ERROR]
 
   - name: CourseCategory
     type: enum
-    description: 교육 과정 분류
+    description: Course category
     values: [BASIC_CONVERSATION, BUSINESS, EXAM_PREP, FREE_TALK]
 
 # ============================================================
-# DOMAIN EVENTS (16개 — 상태 전이 기반)
+# DOMAIN EVENTS (16 — state transition based)
 # ============================================================
 domain_events:
   # Session Events
   - id: evt_session_confirmed
     name: SessionConfirmed
     aggregate: SessionAggregate
-    trigger: 강사 배정 및 수업권 차감
+    trigger: Instructor assignment and credit deduction
     from_state: [PENDING]
     to_state: CONFIRMED
     guard: []
-    side_effects: [Credit 차감, 학생/강사 알림 발송]
+    side_effects: [Credit deduction, Student/instructor notification sent]
     source_code: "SessionGateway.confirmSession()"
 
   - id: evt_session_started
     name: SessionStarted
     aggregate: SessionAggregate
-    trigger: 수업 시작 시각 도달
+    trigger: Lesson start time reached
     from_state: [CONFIRMED]
     to_state: IN_PROGRESS
     guard: []
-    side_effects: [WebRTC 세션 생성]
+    side_effects: [WebRTC session created]
     source_code: "SessionGateway.startSession()"
 
   - id: evt_session_completed
     name: SessionCompleted
     aggregate: SessionAggregate
-    trigger: 수업 정상 종료
+    trigger: Lesson completed normally
     from_state: [IN_PROGRESS]
     to_state: COMPLETED
     guard: []
-    side_effects: [Assessment QUEUED 생성, 수업 완료 알림]
+    side_effects: [Assessment QUEUED created, Lesson completion notification]
     source_code: "SessionGateway.completeSession()"
 
   - id: evt_session_cancelled
     name: SessionCancelled
     aggregate: SessionAggregate
-    trigger: 학생 또는 강사 취소
+    trigger: Student or instructor cancellation
     from_state: [CONFIRMED]
     to_state: CANCELLED
     guard:
-      - "취소 시점이 CANCELLATION_DEADLINE_HOURS(4)시간 전이면 무료 취소"
-    side_effects: [Credit 복원, 취소 알림 발송]
+      - "Free cancellation if cancellation time is CANCELLATION_DEADLINE_HOURS(4) hours before lesson start"
+    side_effects: [Credit restoration, Cancellation notification sent]
     source_code: "SessionGateway.cancelSession()"
 
   - id: evt_session_no_show
     name: SessionNoShow
     aggregate: SessionAggregate
-    trigger: 접속 없이 10분 초과
+    trigger: No connection for over 10 minutes
     from_state: [CONFIRMED]
     to_state: NO_SHOW
     guard:
       - "NOSHOW_TIMEOUT_MINUTES=10"
-    side_effects: [미참석 알림 발송]
+    side_effects: [No-show notification sent]
     source_code: "SessionGateway.markNoShow()"
 
   # Contract Events
   - id: evt_contract_activated
     name: ContractActivated
     aggregate: ContractAggregate
-    trigger: 첫 결제 처리 완료
+    trigger: First payment processing completed
     from_state: [TRIAL]
     to_state: ACTIVE
     guard: []
-    side_effects: [Credit 발급, 활성화 알림]
+    side_effects: [Credit issuance, Activation notification]
     source_code: "ContractService.activate()"
 
   - id: evt_contract_paused
     name: ContractPaused
     aggregate: ContractAggregate
-    trigger: 학생 일시 정지 요청
+    trigger: Student pause request
     from_state: [ACTIVE]
     to_state: PAUSED
     guard:
-      - "MAX_PAUSE_COUNT=2 (현재 pause_count < 2)"
-    side_effects: [다음 결제일 연기, 정지 알림]
+      - "MAX_PAUSE_COUNT=2 (current pause_count < 2)"
+    side_effects: [Next billing date postponed, Pause notification]
     source_code: "ContractService.pause()"
 
   - id: evt_contract_resumed
     name: ContractResumed
     aggregate: ContractAggregate
-    trigger: 재개 요청
+    trigger: Resume request
     from_state: [PAUSED]
     to_state: ACTIVE
     guard: []
-    side_effects: [다음 결제일 재계산, 재개 알림]
+    side_effects: [Next billing date recalculated, Resume notification]
     source_code: "ContractService.resume()"
 
   - id: evt_contract_expired
     name: ContractExpired
     aggregate: ContractAggregate
-    trigger: 기간 만료, 갱신 없음
+    trigger: Period expired, no renewal
     from_state: [ACTIVE]
     to_state: EXPIRED
     guard: []
-    side_effects: [만기 알림]
+    side_effects: [Expiration notification]
     source_code: "ContractService.expire()"
 
   - id: evt_contract_cancelled
     name: ContractCancelled
     aggregate: ContractAggregate
-    trigger: 학생 해지 요청
+    trigger: Student cancellation request
     from_state: [ACTIVE]
     to_state: CANCELLED
     guard: []
-    side_effects: [비례 환불 계산, 해지 알림]
+    side_effects: [Prorated refund calculation, Cancellation notification]
     source_code: "ContractService.cancel()"
 
   - id: evt_contract_terminated
     name: ContractTerminated
     aggregate: ContractAggregate
-    trigger: 환불 처리 완료
+    trigger: Refund processing completed
     from_state: [CANCELLED]
     to_state: TERMINATED
     guard:
-      - "30일 보존 기간 후 종료"
-    side_effects: [데이터 보존 마킹]
+      - "Terminated after 30-day retention period"
+    side_effects: [Data retention marking]
     source_code: "ContractService.terminate()"
 
   # Payment Events
   - id: evt_payment_authorized
     name: PaymentAuthorized
     aggregate: PaymentAggregate
-    trigger: PG 인증 성공
+    trigger: PG authentication successful
     from_state: [INITIATED]
     to_state: AUTHORIZED
     guard: []
-    side_effects: [PG사 인증 토큰 저장]
+    side_effects: [PG authentication token stored]
     source_code: "PaymentProcessor.authorize()"
 
   - id: evt_payment_captured
     name: PaymentCaptured
     aggregate: PaymentAggregate
-    trigger: 정산 확정
+    trigger: Settlement captured
     from_state: [AUTHORIZED]
     to_state: CAPTURED
     guard: []
-    side_effects: [Credit 발급 트리거, Contract 활성화 트리거, 결제 완료 알림]
+    side_effects: [Credit issuance triggered, Contract activation triggered, Payment completion notification]
     source_code: "PaymentProcessor.capture()"
 
   - id: evt_payment_refunded
     name: PaymentRefunded
     aggregate: PaymentAggregate
-    trigger: 전액 환불 요청
+    trigger: Full refund request
     from_state: [CAPTURED]
     to_state: REFUNDED
     guard: []
-    side_effects: [PG사 환불 API 호출, Credit 회수, 환불 알림]
+    side_effects: [PG refund API called, Credit retrieval, Refund notification]
     source_code: "PaymentProcessor.refund()"
 
   - id: evt_payment_partially_refunded
     name: PaymentPartiallyRefunded
     aggregate: PaymentAggregate
-    trigger: 부분 환불 요청
+    trigger: Partial refund request
     from_state: [CAPTURED]
     to_state: PARTIALLY_REFUNDED
     guard: []
-    side_effects: [PG사 부분 환불 API 호출, 부분 환불 알림]
+    side_effects: [PG partial refund API called, Partial refund notification]
     source_code: "PaymentProcessor.partialRefund()"
 
   - id: evt_payment_failed
     name: PaymentFailed
     aggregate: PaymentAggregate
-    trigger: PG 인증 실패
+    trigger: PG authentication failed
     from_state: [AUTHORIZED]
     to_state: FAILED
     guard: []
-    side_effects: [결제 실패 알림]
+    side_effects: [Payment failure notification]
     source_code: "PaymentProcessor.handleFailure()"
 
 # ============================================================
-# COMMANDS (20개)
+# COMMANDS (20)
 # ============================================================
 commands:
   # AUTH
   - id: cmd_register_student
     name: RegisterStudent
-    display_name: 학생 회원가입
+    display_name: Student registration
     actor: anonymous
     target_aggregate: StudentAggregate
     preconditions:
-      - "이메일 중복 없음"
+      - "No duplicate email"
     emits_events: []
     source_code: "AuthController.register()"
 
   - id: cmd_login_student
     name: LoginStudent
-    display_name: 학생 로그인
+    display_name: Student login
     actor: student
     target_aggregate: StudentAggregate
     preconditions:
-      - "이메일/비밀번호 일치"
+      - "Email/password match"
     emits_events: []
     source_code: "AuthController.login()"
 
   - id: cmd_logout_student
     name: LogoutStudent
-    display_name: 학생 로그아웃
+    display_name: Student logout
     actor: student
     target_aggregate: StudentAggregate
     preconditions: []
@@ -1074,678 +1074,678 @@ commands:
 
   - id: cmd_withdraw_student
     name: WithdrawStudent
-    display_name: 학생 탈퇴
+    display_name: Student withdrawal
     actor: student
     target_aggregate: StudentAggregate
     preconditions:
-      - "활성 Contract가 없거나 해지 완료"
+      - "No active Contract or cancellation completed"
     emits_events: []
     source_code: "AuthController.withdraw()"
 
   # SESSION
   - id: cmd_book_session
     name: BookSession
-    display_name: 수업 예약
+    display_name: Lesson booking
     actor: student
     target_aggregate: SessionAggregate
     preconditions:
-      - "사용 가능한 Credit 잔여 존재"
-      - "선택한 AvailabilitySlot이 미예약 상태"
+      - "Available Credit remaining"
+      - "Selected AvailabilitySlot is not booked"
     emits_events: [evt_session_confirmed]
     source_code: "SessionGateway.bookSession()"
 
   - id: cmd_cancel_session
     name: CancelSession
-    display_name: 수업 취소
+    display_name: Lesson cancellation
     actor: student
     target_aggregate: SessionAggregate
     preconditions:
-      - "Session 상태가 PENDING 또는 CONFIRMED"
-      - "취소 시점 검증 (CANCELLATION_DEADLINE_HOURS)"
+      - "Session status is PENDING or CONFIRMED"
+      - "Cancellation time validation (CANCELLATION_DEADLINE_HOURS)"
     emits_events: [evt_session_cancelled]
     source_code: "SessionGateway.cancelSession()"
 
   - id: cmd_complete_session
     name: CompleteSession
-    display_name: 수업 완료
+    display_name: Lesson completion
     actor: system
     target_aggregate: SessionAggregate
     preconditions:
-      - "Session 상태가 IN_PROGRESS"
+      - "Session status is IN_PROGRESS"
     emits_events: [evt_session_completed]
     source_code: "SessionGateway.completeSession()"
 
   - id: cmd_reschedule_session
     name: RescheduleSession
-    display_name: 수업 일정 변경
+    display_name: Lesson reschedule
     actor: student
     target_aggregate: SessionAggregate
     preconditions:
       - "reschedule_count < MAX_RESCHEDULE_COUNT(2)"
-      - "Session 상태가 CONFIRMED"
+      - "Session status is CONFIRMED"
     emits_events: []
     source_code: "SessionGateway.rescheduleSession()"
 
   - id: cmd_mark_no_show
     name: MarkNoShow
-    display_name: 미참석 처리
+    display_name: No-show processing
     actor: system
     target_aggregate: SessionAggregate
     preconditions:
-      - "CONFIRMED 상태에서 NOSHOW_TIMEOUT_MINUTES(10)분 초과"
+      - "NOSHOW_TIMEOUT_MINUTES(10) minutes exceeded in CONFIRMED status"
     emits_events: [evt_session_no_show]
     source_code: "SessionGateway.markNoShow()"
 
   # PAYMENT
   - id: cmd_initiate_payment
     name: InitiatePayment
-    display_name: 결제 시작
+    display_name: Payment initiation
     actor: student
     target_aggregate: PaymentAggregate
     preconditions:
-      - "유효한 결제 수단 존재"
+      - "Valid payment method exists"
     emits_events: []
     source_code: "PaymentProcessor.initiate()"
 
   - id: cmd_capture_payment
     name: CapturePayment
-    display_name: 결제 확정
+    display_name: Payment capture
     actor: system
     target_aggregate: PaymentAggregate
     preconditions:
-      - "Payment 상태가 AUTHORIZED"
+      - "Payment status is AUTHORIZED"
     emits_events: [evt_payment_captured]
     source_code: "PaymentProcessor.capture()"
 
   - id: cmd_refund_payment
     name: RefundPayment
-    display_name: 결제 환불
+    display_name: Payment refund
     actor: admin
     target_aggregate: PaymentAggregate
     preconditions:
-      - "Payment 상태가 CAPTURED"
+      - "Payment status is CAPTURED"
     emits_events: [evt_payment_refunded]
     source_code: "PaymentProcessor.refund()"
 
   - id: cmd_retry_payment
     name: RetryPayment
-    display_name: 결제 재시도
+    display_name: Payment retry
     actor: student
     target_aggregate: PaymentAggregate
     preconditions:
-      - "이전 Payment가 FAILED 상태"
+      - "Previous Payment is in FAILED status"
     emits_events: []
     source_code: "PaymentProcessor.retry()"
 
   # SUBSCRIPTION
   - id: cmd_create_contract
     name: CreateContract
-    display_name: 구독 계약 생성
+    display_name: Subscription contract creation
     actor: student
     target_aggregate: ContractAggregate
     preconditions:
-      - "선택한 Subscription이 활성 상태"
+      - "Selected Subscription is active"
     emits_events: []
     source_code: "ContractService.create()"
 
   - id: cmd_pause_contract
     name: PauseContract
-    display_name: 구독 일시 정지
+    display_name: Subscription pause
     actor: student
     target_aggregate: ContractAggregate
     preconditions:
-      - "Contract 상태가 ACTIVE"
+      - "Contract status is ACTIVE"
       - "pause_count < MAX_PAUSE_COUNT(2)"
     emits_events: [evt_contract_paused]
     source_code: "ContractService.pause()"
 
   - id: cmd_resume_contract
     name: ResumeContract
-    display_name: 구독 재개
+    display_name: Subscription resume
     actor: student
     target_aggregate: ContractAggregate
     preconditions:
-      - "Contract 상태가 PAUSED"
+      - "Contract status is PAUSED"
     emits_events: [evt_contract_resumed]
     source_code: "ContractService.resume()"
 
   - id: cmd_cancel_contract
     name: CancelContract
-    display_name: 구독 해지
+    display_name: Subscription cancellation
     actor: student
     target_aggregate: ContractAggregate
     preconditions:
-      - "Contract 상태가 ACTIVE"
+      - "Contract status is ACTIVE"
     emits_events: [evt_contract_cancelled]
     source_code: "ContractService.cancel()"
 
   - id: cmd_renew_contract
     name: RenewContract
-    display_name: 구독 갱신
+    display_name: Subscription renewal
     actor: system
     target_aggregate: ContractAggregate
     preconditions:
-      - "Contract 상태가 ACTIVE"
-      - "만료일 도래"
+      - "Contract status is ACTIVE"
+      - "Expiration date reached"
     emits_events: []
     source_code: "ContractService.renew()"
 
   # COUPON
   - id: cmd_issue_coupon
     name: IssueCoupon
-    display_name: 쿠폰 발급
+    display_name: Coupon issuance
     actor: system
     target_aggregate: null
     preconditions:
-      - "CouponTemplate이 활성 상태"
-      - "발급 한도 미초과"
+      - "CouponTemplate is active"
+      - "Issue limit not exceeded"
     emits_events: []
     source_code: "CouponService.issue()"
 
   - id: cmd_apply_coupon
     name: ApplyCoupon
-    display_name: 쿠폰 적용
+    display_name: Coupon application
     actor: student
     target_aggregate: null
     preconditions:
-      - "Coupon이 미사용 상태"
-      - "Coupon 만료 전"
-      - "최소 결제 금액 충족"
+      - "Coupon is unused"
+      - "Coupon not expired"
+      - "Minimum purchase amount met"
     emits_events: []
     source_code: "CouponService.apply()"
 
 # ============================================================
-# QUERIES (15개)
+# QUERIES (15)
 # ============================================================
 queries:
   - id: qry_get_student_profile
-    name: 학생 프로필 조회
+    name: Get student profile
     domain: account
     target_entities: [Student]
     endpoint: "GET /api/students/me"
     actor: student
 
   - id: qry_get_instructor_profile
-    name: 강사 프로필 조회
+    name: Get instructor profile
     domain: account
     target_entities: [Instructor]
     endpoint: "GET /api/instructors/:id"
     actor: student
 
   - id: qry_list_sessions
-    name: 수업 목록 조회
+    name: List lessons
     domain: session
     target_entities: [Session, Instructor, Course]
     endpoint: "GET /api/sessions"
     actor: student
 
   - id: qry_get_session_detail
-    name: 수업 상세 조회
+    name: Get lesson detail
     domain: session
     target_entities: [Session, Instructor, Course, Assessment]
     endpoint: "GET /api/sessions/:id"
     actor: student
 
   - id: qry_list_contracts
-    name: 구독 계약 목록 조회
+    name: List subscription contracts
     domain: billing
     target_entities: [Contract, Subscription]
     endpoint: "GET /api/contracts"
     actor: student
 
   - id: qry_get_contract_detail
-    name: 구독 계약 상세 조회
+    name: Get subscription contract detail
     domain: billing
     target_entities: [Contract, Subscription, Payment]
     endpoint: "GET /api/contracts/:id"
     actor: student
 
   - id: qry_list_payments
-    name: 결제 내역 조회
+    name: List payment history
     domain: billing
     target_entities: [Payment]
     endpoint: "GET /api/payments"
     actor: student
 
   - id: qry_get_payment_detail
-    name: 결제 상세 조회
+    name: Get payment detail
     domain: billing
     target_entities: [Payment, Coupon]
     endpoint: "GET /api/payments/:id"
     actor: student
 
   - id: qry_get_credit_balance
-    name: 수업권 잔액 조회
+    name: Get credit balance
     domain: billing
     target_entities: [Credit]
     endpoint: "GET /api/credits/balance"
     actor: student
 
   - id: qry_list_credits
-    name: 수업권 내역 조회
+    name: List credit history
     domain: billing
     target_entities: [Credit, Payment]
     endpoint: "GET /api/credits"
     actor: student
 
   - id: qry_list_coupons
-    name: 보유 쿠폰 조회
+    name: List owned coupons
     domain: promotion
     target_entities: [Coupon, CouponTemplate]
     endpoint: "GET /api/coupons"
     actor: student
 
   - id: qry_get_available_coupons
-    name: 사용 가능 쿠폰 조회
+    name: List available coupons
     domain: promotion
     target_entities: [Coupon, CouponTemplate]
     endpoint: "GET /api/coupons/available"
     actor: student
 
   - id: qry_get_assessment_report
-    name: AI 평가 리포트 조회
+    name: Get AI assessment report
     domain: assessment
     target_entities: [Assessment, Session]
     endpoint: "GET /api/assessments/:id"
     actor: student
 
   - id: qry_get_instructor_schedule
-    name: 강사 스케줄 조회
+    name: Get instructor schedule
     domain: session
     target_entities: [AvailabilitySlot, Booking, Session]
     endpoint: "GET /api/instructors/me/schedule"
     actor: instructor
 
   - id: qry_get_available_slots
-    name: 예약 가능 시간대 조회
+    name: List available time slots
     domain: session
     target_entities: [AvailabilitySlot, Instructor]
     endpoint: "GET /api/slots/available"
     actor: student
 
 # ============================================================
-# SAGAS (5개 — Domain Flows를 DDD Saga로 변환)
+# SAGAS (5 — Domain Flows converted to DDD Saga)
 # ============================================================
 sagas:
   - name: SessionBookingSaga
-    description: 학생이 수업을 예약하는 전체 흐름. 여러 Aggregate를 가로지르는 프로세스
+    description: Complete flow for a student booking a lesson. A process spanning multiple Aggregates
     external_dependencies:
-      - WebRTC 서버 (수업 시작 시)
+      - WebRTC server (at lesson start)
     involved_aggregates: [StudentAggregate, SessionAggregate, InstructorAggregate, ContractAggregate]
     involved_entities: [Credit, AvailabilitySlot, Booking]
     steps:
       - step: 1
-        action: Credit 잔여 확인
+        action: Credit remaining check
         aggregate: ContractAggregate
-        description: 학생의 사용 가능한 수업권 잔여를 확인
+        description: Checks the student's available credit remaining
       - step: 2
-        action: 시간대 선택
+        action: Time slot selection
         aggregate: InstructorAggregate
-        description: 가용 시간대 목록에서 원하는 시간 선택
+        description: Selects desired time from available time slots
       - step: 3
-        action: 강사 매칭
+        action: Instructor matching
         aggregate: InstructorAggregate
-        description: 선택 시간대의 강사를 배정
+        description: Assigns instructor for the selected time slot
       - step: 4
-        action: Booking 생성
+        action: Booking created
         aggregate: SessionAggregate
-        description: 예약 레코드 생성 및 AvailabilitySlot 점유
+        description: Creates booking record and occupies AvailabilitySlot
       - step: 5
-        action: Session 생성
+        action: Session created
         aggregate: SessionAggregate
-        description: "Session(PENDING) 생성 → 강사 배정 시 CONFIRMED"
+        description: "Session(PENDING) created -> CONFIRMED on instructor assignment"
 
   - name: PaymentSaga
-    description: 구독 상품 결제부터 수업권 발급까지의 흐름
+    description: Flow from subscription product payment to credit issuance
     external_dependencies:
-      - PG사 결제 API
+      - PG payment API
     involved_aggregates: [StudentAggregate, PaymentAggregate, ContractAggregate]
     involved_entities: [Coupon, Credit, Subscription]
     steps:
       - step: 1
-        action: 상품 선택 및 쿠폰 적용
+        action: Product selection and coupon application
         aggregate: null
-        description: 구독 상품 선택 후 보유 쿠폰 적용
+        description: Selects subscription product and applies owned coupon
       - step: 2
         action: Payment INITIATED
         aggregate: PaymentAggregate
-        description: 결제 레코드 생성
+        description: Creates payment record
       - step: 3
-        action: PG 인증 요청
+        action: PG authentication request
         aggregate: PaymentAggregate
-        description: PG사에 결제 인증 요청 (AUTHORIZED)
+        description: Requests PG payment authentication (AUTHORIZED)
       - step: 4
-        action: 정산 확정
+        action: Settlement captured
         aggregate: PaymentAggregate
-        description: PG 인증 성공 시 CAPTURED
+        description: CAPTURED on PG authentication success
       - step: 5
-        action: Credit 발급
+        action: Credit issuance
         aggregate: ContractAggregate
-        description: 구독 상품에 정의된 수업권 발급
+        description: Issues credits defined in subscription product
       - step: 6
-        action: Contract 활성화
+        action: Contract activation
         aggregate: ContractAggregate
         description: "Contract TRIAL → ACTIVE"
 
   - name: SubscriptionRenewalSaga
-    description: 구독 자동 갱신 흐름
+    description: Subscription auto-renewal flow
     external_dependencies:
-      - PG사 정기 결제 API
+      - PG recurring payment API
     involved_aggregates: [ContractAggregate, PaymentAggregate]
     involved_entities: [PaymentCard, Credit, Subscription]
     steps:
       - step: 1
-        action: 만기 도래 확인
+        action: Expiration check
         aggregate: ContractAggregate
-        description: next_billing_at 도래한 Contract 검색
+        description: Searches for Contracts where next_billing_at has arrived
       - step: 2
-        action: 자동 결제
+        action: Auto payment
         aggregate: PaymentAggregate
-        description: 등록 카드로 정기 결제 실행
+        description: Executes recurring payment with registered card
       - step: 3
-        action: Credit 발급
+        action: Credit issuance
         aggregate: ContractAggregate
-        description: 갱신 분량의 수업권 발급
+        description: Issues renewal credits
       - step: 4
-        action: 다음 결제일 갱신
+        action: Next billing date updated
         aggregate: ContractAggregate
-        description: next_billing_at 업데이트
+        description: Updates next_billing_at
 
   - name: SessionCompletionSaga
-    description: 수업 종료 후 평가 및 알림까지의 흐름
+    description: Flow from lesson completion to assessment and notification
     external_dependencies:
-      - AI 분석 서비스 (STT, NLP)
+      - AI analysis service (STT, NLP)
     involved_aggregates: [SessionAggregate]
     involved_entities: [Assessment, Notification]
     steps:
       - step: 1
-        action: 수업 종료
+        action: Lesson end
         aggregate: SessionAggregate
         description: "Session IN_PROGRESS → COMPLETED"
       - step: 2
-        action: Assessment 생성
+        action: Assessment creation
         aggregate: null
-        description: Assessment(QUEUED) 생성 및 AI 파이프라인 트리거
+        description: Creates Assessment(QUEUED) and triggers AI pipeline
       - step: 3
-        action: 음성 전사
+        action: Speech transcription
         aggregate: null
         description: "QUEUED → TRANSCRIBING → ANALYZING"
       - step: 4
-        action: 리포트 생성
+        action: Report generation
         aggregate: null
-        description: "ANALYZING → COMPLETE, 점수 및 피드백 기록"
+        description: "ANALYZING -> COMPLETE, score and feedback recorded"
       - step: 5
-        action: 알림 발송
+        action: Notification sent
         aggregate: null
-        description: 학생에게 평가 완료 알림
+        description: Assessment completion notification sent to student
 
   - name: NewStudentOnboardingSaga
-    description: 신규 학생 가입부터 첫 수업 예약까지의 온보딩 흐름
+    description: Onboarding flow from new student registration to first lesson booking
     external_dependencies: []
     involved_aggregates: [StudentAggregate, ContractAggregate, SessionAggregate]
     involved_entities: [Credit, Coupon, CouponTemplate, Booking]
     steps:
       - step: 1
-        action: 회원가입
+        action: Registration
         aggregate: StudentAggregate
-        description: RegisterStudent 실행, Student 생성
+        description: Executes RegisterStudent, creates Student
       - step: 2
-        action: 체험 Credit 발급
+        action: Trial Credit issued
         aggregate: ContractAggregate
-        description: "TRIAL_CREDIT_COUNT(1)회 체험 수업권 자동 발급"
+        description: "Auto-issues TRIAL_CREDIT_COUNT(1) trial credits"
       - step: 3
-        action: Welcome 쿠폰 발급
+        action: Welcome coupon issued
         aggregate: null
-        description: WELCOME 카테고리 쿠폰 자동 발급
+        description: Auto-issues WELCOME category coupon
       - step: 4
-        action: 첫 수업 예약
+        action: First lesson booking
         aggregate: SessionAggregate
-        description: 체험 수업권으로 SessionBookingSaga 실행
+        description: Executes SessionBookingSaga with trial credit
       - step: 5
-        action: 온보딩 완료 알림
+        action: Onboarding completion notification
         aggregate: null
-        description: 온보딩 가이드 알림 발송
+        description: Sends onboarding guide notification
 
 # ============================================================
-# RELATIONSHIPS (40개)
+# RELATIONSHIPS (40)
 # ============================================================
 relationships:
   - from: Student
     to: Session
-    type: 수강
+    type: takes_lesson
     cardinality: "1:N"
     fk_column: sessions.student_id
 
   - from: Instructor
     to: Session
-    type: 진행
+    type: conducts
     cardinality: "1:N"
     fk_column: sessions.instructor_id
 
   - from: Session
     to: Course
-    type: 소속
+    type: belongs_to
     cardinality: "N:1"
     fk_column: sessions.course_id
 
   - from: Session
     to: Credit
-    type: 사용
+    type: uses
     cardinality: "N:1"
     fk_column: sessions.credit_id
 
   - from: Student
     to: Credit
-    type: 보유
+    type: owns
     cardinality: "1:N"
     fk_column: credits.student_id
 
   - from: Credit
     to: Payment
-    type: 구매
+    type: purchases
     cardinality: "N:1"
     fk_column: credits.payment_id
 
   - from: Credit
     to: Contract
-    type: 발급
+    type: issues
     cardinality: "N:1"
     fk_column: credits.contract_id
 
   - from: Student
     to: Contract
-    type: 계약
+    type: contracts
     cardinality: "1:N"
     fk_column: contracts.student_id
 
   - from: Contract
     to: Subscription
-    type: 기반
+    type: based_on
     cardinality: "N:1"
     fk_column: contracts.subscription_id
 
   - from: Contract
     to: PaymentCard
-    type: 결제수단
+    type: payment_method
     cardinality: "N:1"
     fk_column: contracts.card_id
 
   - from: Student
     to: PaymentCard
-    type: 등록
+    type: registers
     cardinality: "1:N"
     fk_column: payment_cards.student_id
 
   - from: Student
     to: Payment
-    type: 결제
+    type: pays
     cardinality: "1:N"
     fk_column: payments.student_id
 
   - from: Payment
     to: Contract
-    type: 계약
+    type: contracts
     cardinality: "N:1"
     fk_column: payments.contract_id
 
   - from: Contract
     to: Payment
-    type: 결제내역
+    type: payment_history
     cardinality: "1:N"
     fk_column: payments.contract_id
 
   - from: Coupon
     to: CouponTemplate
-    type: 정의
+    type: defines
     cardinality: "N:1"
     fk_column: coupons.template_id
 
   - from: Coupon
     to: Student
-    type: 대상자
+    type: recipient_ref
     cardinality: "N:1"
     fk_column: coupons.student_id
 
   - from: Student
     to: Coupon
-    type: 보유쿠폰
+    type: owned_coupons
     cardinality: "1:N"
     fk_column: coupons.student_id
 
   - from: Coupon
     to: Payment
-    type: 적용
+    type: applies
     cardinality: "N:1"
     fk_column: coupons.payment_id
 
   - from: Session
     to: Assessment
-    type: 평가
+    type: assesses
     cardinality: "1:1"
     fk_column: assessments.session_id
 
   - from: Session
     to: Booking
-    type: 예약
+    type: books
     cardinality: "1:1"
     fk_column: bookings.session_id
 
   - from: Instructor
     to: AvailabilitySlot
-    type: 가용
+    type: available
     cardinality: "1:N"
     fk_column: availability_slots.instructor_id
 
   - from: Booking
     to: AvailabilitySlot
-    type: 점유
+    type: occupies
     cardinality: "N:1"
     fk_column: bookings.slot_id
 
   - from: Student
     to: Notification
-    type: 수신
+    type: receives
     cardinality: "1:N"
     fk_column: "notifications.recipient_id (recipient_type=Student)"
 
   - from: Instructor
     to: Notification
-    type: 수신
+    type: receives
     cardinality: "1:N"
     fk_column: "notifications.recipient_id (recipient_type=Instructor)"
 
   - from: Session
     to: Student
-    type: 수강생
+    type: student_ref
     cardinality: "N:1"
     fk_column: sessions.student_id
 
   - from: Session
     to: Instructor
-    type: 담당강사
+    type: instructor_ref
     cardinality: "N:1"
     fk_column: sessions.instructor_id
 
   - from: Assessment
     to: Session
-    type: 대상세션
+    type: session_ref
     cardinality: "N:1"
     fk_column: assessments.session_id
 
   - from: Booking
     to: Session
-    type: 대상세션
+    type: session_ref
     cardinality: "N:1"
     fk_column: bookings.session_id
 
   - from: Credit
     to: Student
-    type: 소유자
+    type: owner_ref
     cardinality: "N:1"
     fk_column: credits.student_id
 
   - from: Contract
     to: Student
-    type: 계약자
+    type: contractor_ref
     cardinality: "N:1"
     fk_column: contracts.student_id
 
   - from: Payment
     to: Student
-    type: 결제자
+    type: payer_ref
     cardinality: "N:1"
     fk_column: payments.student_id
 
   - from: PaymentCard
     to: Student
-    type: 소유자
+    type: owner_ref
     cardinality: "N:1"
     fk_column: payment_cards.student_id
 
   - from: AvailabilitySlot
     to: Instructor
-    type: 소속강사
+    type: instructor_ref
     cardinality: "N:1"
     fk_column: availability_slots.instructor_id
 
   - from: Course
     to: Session
-    type: 수업들
+    type: lessons
     cardinality: "1:N"
     fk_column: sessions.course_id
 
   - from: Subscription
     to: Contract
-    type: 가입들
+    type: subscriptions
     cardinality: "1:N"
     fk_column: contracts.subscription_id
 
   - from: CouponTemplate
     to: Coupon
-    type: 발행들
+    type: issuances
     cardinality: "1:N"
     fk_column: coupons.template_id
 
   - from: PaymentCard
     to: Contract
-    type: 연결계약들
+    type: linked_contracts
     cardinality: "1:N"
     fk_column: contracts.card_id
 
   - from: AvailabilitySlot
     to: Booking
-    type: 예약들
+    type: bookings
     cardinality: "1:N"
     fk_column: bookings.slot_id
 
   - from: Course
     to: Language
-    type: 대상언어
+    type: target_language
     cardinality: "N:1"
     fk_column: courses.language
 
   - from: Student
     to: Language
-    type: 학습언어
+    type: learning_language
     cardinality: "N:1"
     fk_column: users.language

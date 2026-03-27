@@ -1,91 +1,91 @@
-# Finance Domain — 핵심 개념 정의
+# Finance Domain — Core Concept Definitions
 
-## 분류 축
+## Classification Axes
 
-| 축 | 값 | 설명 |
+| Axis | Values | Description |
 |---|---|---|
-| 매핑 유형 | 동의어 / 동형이의어 / 확장 계정 | 개념 간 관계의 성격 |
-| 계정 분류 | 자산 / 부채 / 자본 / 수익 / 비용 | 5대 재무제표 요소 분류 |
-| 시점 속성 | instant / duration | 재무 항목의 시간 귀속 |
+| Mapping type | Synonym / Homonym / Extension account | Nature of the inter-concept relationship |
+| Account classification | Assets / Liabilities / Equity / Revenue / Expenses | 5 major financial statement element classifications |
+| Temporal attribute | instant / duration | Time attribution of financial items |
 
-## 계정 분류 원칙 (5대 요소)
+## Account Classification Principles (5 Elements)
 
-| 요소 | 정의 | 재무제표 | 시점 속성 | 정상 잔액 |
+| Element | Definition | Financial Statement | Temporal Attribute | Normal Balance |
 |---|---|---|---|---|
-| 자산(Assets) | 과거 사건의 결과로 기업이 통제하는 자원 | 재무상태표 | instant | 차변 |
-| 부채(Liabilities) | 과거 사건으로 발생한 현재 의무 | 재무상태표 | instant | 대변 |
-| 자본(Equity) | 자산에서 부채를 차감한 잔여 지분 | 재무상태표 | instant | 대변 |
-| 수익(Revenue) | 경제적 효익의 유입으로 자본이 증가하는 것 | 손익계산서 | duration | 대변 |
-| 비용(Expense) | 경제적 효익의 유출로 자본이 감소하는 것 | 손익계산서 | duration | 차변 |
+| Assets | Resources controlled by the entity as a result of past events | Statement of Financial Position | instant | Debit |
+| Liabilities | Present obligations arising from past events | Statement of Financial Position | instant | Credit |
+| Equity | Residual interest after deducting liabilities from assets | Statement of Financial Position | instant | Credit |
+| Revenue | Increases in equity from inflows of economic benefits | Income Statement | duration | Credit |
+| Expenses | Decreases in equity from outflows of economic benefits | Income Statement | duration | Debit |
 
-## 핵심 동의어 매핑 (5개)
+## Core Synonym Mappings (5)
 
-| 정규화 명칭 | IFRS 택소노미 | 흔히 사용되는 한글 라벨 | 비고 |
+| Canonical Name | IFRS Taxonomy | Commonly Used Labels | Notes |
 |---|---|---|---|
-| Revenue | ifrs:Revenue | 매출액, 수익(매출액), 영업수익 | 영업수익 포함 여부는 업종별 상이 |
-| Assets | ifrs:Assets | 자산총계, 총자산 | instant 속성 |
-| Equity | ifrs:Equity | 자본총계, 자기자본 | instant 속성 |
-| CashAndCashEquivalents | ifrs:CashAndCashEquivalents | 현금및현금성자산 | 재무상태표·현금흐름표 양쪽 출현 |
-| ProfitLoss | ifrs:ProfitLoss | 당기순이익(손실) | duration 속성 |
+| Revenue | ifrs:Revenue | Revenue, Sales, Operating revenue | Inclusion of operating revenue varies by industry |
+| Assets | ifrs:Assets | Total assets | instant attribute |
+| Equity | ifrs:Equity | Total equity, Shareholders' equity | instant attribute |
+| CashAndCashEquivalents | ifrs:CashAndCashEquivalents | Cash and cash equivalents | Appears in both Statement of Financial Position and Cash Flow Statement |
+| ProfitLoss | ifrs:ProfitLoss | Net income (loss) | duration attribute |
 
-## 동형이의어 (5개)
+## Homonyms (5)
 
-| 용어 | 맥락 A | 맥락 B | 구분 기준 |
+| Term | Context A | Context B | Distinguishing Criterion |
 |---|---|---|---|
-| 기타금융자산 | 유동 기타금융자산 (1년 이내 회수) | 비유동 기타금융자산 (1년 초과) | 유동/비유동 분류 |
-| 충당부채 | 제품보증충당부채 | 소송충당부채 | 충당 사유별 세분류 |
-| 차입금 | 단기차입금 | 장기차입금 (유동성 대체 포함) | 만기 기준 |
-| 기타 | 기타수익 (영업 관련) | 기타포괄손익 (자본 직접 반영) | 손익계산서 vs 포괄손익계산서 |
-| 합계/소계 | 자산총계 (최상위 합계) | 유동자산 소계 (중간 합계) | 계층 위치 |
+| Other financial assets | Current other financial assets (recoverable within 1 year) | Non-current other financial assets (over 1 year) | Current/non-current classification |
+| Provisions | Product warranty provisions | Litigation provisions | Sub-classification by provision reason |
+| Borrowings | Short-term borrowings | Long-term borrowings (including current portion reclassification) | Maturity basis |
+| Other | Other income (operating-related) | Other comprehensive income (recognized directly in equity) | Income Statement vs. Statement of Comprehensive Income |
+| Total/Subtotal | Total assets (top-level total) | Current assets subtotal (intermediate total) | Hierarchy position |
 
-> 동일 라벨이 서로 다른 택소노미 요소에 부여되는 사례가 다수 존재하므로, 라벨이 아닌 택소노미 요소 ID를 1차 식별자로 사용해야 한다.
+> Many cases exist where the same label is assigned to different taxonomy elements. Therefore, the taxonomy element ID, not the label, must be used as the primary identifier.
 
-## 확장 계정 처리
+## Extension Account Handling
 
-기업이 표준 택소노미 계정 외에 자체 확장 계정을 사용하는 것은 일반적이다. 확장 계정의 비율이 높을수록 기업 간 비교를 위한 정규화 작업이 중요해진다.
+It is common for companies to use proprietary extension accounts beyond the standard taxonomy accounts. The higher the proportion of extension accounts, the more important normalization work becomes for inter-entity comparison.
 
-### 정규화 전략
+### Normalization Strategy
 
-- **원본 보존:** 원본 택소노미 요소·라벨 그대로 저장
-- **동의어 매핑:** 동일 개념의 기업별 상이한 라벨을 정규화 명칭으로 매핑
-- **통합 개념:** 기업 간 비교 가능한 상위 개념 체계로 집약
-- 개념(Concept) 정규화가 관계(Relation) 정규화보다 선행되어야 한다 — 개념이 불안정하면 관계도 불안정
+- **Original preservation:** Store the original taxonomy element and label as-is
+- **Synonym mapping:** Map company-specific labels for the same concept to the canonical name
+- **Unified concept:** Aggregate into a higher-level concept system for inter-entity comparison
+- Concept normalization must precede relation normalization — if concepts are unstable, relations are also unstable
 
-### 세그먼트 차원
+### Segment Dimension
 
-- 대규모 기업은 사업부문(세그먼트) 차원이 존재
-- 세그먼트별 매출·영업이익은 연결 기준 전체 수치와 별도 개념으로 취급
-- 세그먼트 라벨도 기업별 확장이므로 정규화 매핑 대상
+- Large companies have a segment (business division) dimension
+- Segment-level revenue and operating income are treated as concepts separate from consolidated totals
+- Segment labels are also company-specific extensions and are subject to normalization mapping
 
-## 회계정책 차이 (4가지)
+## Accounting Policy Differences (4)
 
-| 항목 | 선택지 | 영향 |
+| Item | Options | Impact |
 |---|---|---|
-| 재고자산 평가 | 선입선출 / 가중평균 | 매출원가, 기말재고 금액 차이 |
-| 감가상각 방법 | 정액법 / 정률법 | 영업이익, 자산 장부가 차이 |
-| 수익 인식 시점 | 인도기준 / 진행기준 (IFRS 15) | 매출 시기 차이 |
-| 리스 회계처리 | 사용권자산 인식 여부 (IFRS 16) | 자산·부채 총액 차이 |
+| Inventory valuation | FIFO / Weighted average | Differences in cost of goods sold and ending inventory amounts |
+| Depreciation method | Straight-line / Declining balance | Differences in operating income and asset carrying amounts |
+| Revenue recognition timing | Delivery basis / Progress basis (IFRS 15) | Differences in revenue timing |
+| Lease accounting | Whether right-of-use asset is recognized (IFRS 16) | Differences in total assets and liabilities |
 
-## 외부 표준 매핑
+## External Standard Mappings
 
-| 내부 개념 | FIBO 매핑 | 매핑 수준 |
+| Internal Concept | FIBO Mapping | Mapping Level |
 |---|---|---|
-| Revenue | fibo-be-le:Revenue | 직접 대응 |
-| Assets | fibo-be-le:Asset | 직접 대응 |
-| Equity | fibo-be-le:Equity | 직접 대응 |
-| CashAndCashEquivalents | fibo-be-le:CashInstrument | 부분 대응 |
-| ProfitLoss | — | 직접 대응 없음 |
+| Revenue | fibo-be-le:Revenue | Direct correspondence |
+| Assets | fibo-be-le:Asset | Direct correspondence |
+| Equity | fibo-be-le:Equity | Direct correspondence |
+| CashAndCashEquivalents | fibo-be-le:CashInstrument | Partial correspondence |
+| ProfitLoss | — | No direct correspondence |
 
-## 해석 원칙 (3개)
+## Interpretation Principles (3)
 
-1. **택소노미 요소 우선:** 한글 라벨이 아닌 IFRS/DART 택소노미 요소 ID를 1차 식별자로 사용한다
-2. **맥락 완전성:** 동일 금액이라도 연결/별도, 유동/비유동, 기간/시점이 다르면 별개 사실(Fact)이다
-3. **정책 명시:** 회계정책 차이가 존재하는 항목은 비교 시 정책 정보를 함께 제시한다
+1. **Taxonomy element priority:** Use the IFRS/DART taxonomy element ID, not labels, as the primary identifier
+2. **Context completeness:** Even for the same amount, differences in consolidated/separate, current/non-current, or period/point-in-time make it a distinct Fact
+3. **Policy disclosure:** For items where accounting policy differences exist, present policy information together during comparison
 
-## 관련 문서
+## Related Documents
 
-- [domain_scope.md](domain_scope.md) — 분류 축 정의 및 핵심 영역
-- [logic_rules.md](logic_rules.md) — 핵심 개념 간 수학적 제약 관계
-- [structure_spec.md](structure_spec.md) — 개념이 온톨로지 노드로 실현되는 구조
-- [competency_qs.md](competency_qs.md) — 개념 매핑이 실제 적용되는 질의 사례
-- [extension_cases.md](extension_cases.md) — 택소노미 변경·확장 계정 시나리오
+- [domain_scope.md](domain_scope.md) — classification axis definitions and core areas
+- [logic_rules.md](logic_rules.md) — mathematical constraint relationships between core concepts
+- [structure_spec.md](structure_spec.md) — the structure in which concepts are realized as ontology nodes
+- [competency_qs.md](competency_qs.md) — query cases where concept mapping is applied in practice
+- [extension_cases.md](extension_cases.md) — taxonomy change and extension account scenarios

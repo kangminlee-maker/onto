@@ -1,59 +1,59 @@
-# Visual Design Domain — 의존성 규칙
+# Visual Design Domain — Dependency Rules
 
-## 토큰-컴포넌트 의존
+## Token–Component Dependency
 
-- Primitive Token → Semantic Token → Component Token: 토큰은 반드시 하위 → 상위 방향으로 참조한다. 시맨틱 토큰이 원시값을 직접 포함하면 테마 전환이 불가능
-- Component → Semantic Token: 컴포넌트의 시각 속성은 시맨틱 토큰을 참조한다. 하드코딩된 값을 직접 사용하면 일관성 유지가 불가능
-- Semantic Token 변경 → 참조하는 모든 컴포넌트에 전파: 시맨틱 토큰 값을 변경하면 해당 토큰을 참조하는 모든 컴포넌트가 영향받는다. 변경 전 영향 범위 확인 필수
-- 새 토큰 추가 시: 기존 토큰으로 표현 가능한지 먼저 확인한다. 불필요한 토큰 증가는 시스템 복잡도를 높이고 일관성을 해친다
+- Primitive Token → Semantic Token → Component Token: Tokens must reference in the direction of lower → upper. If semantic tokens directly contain raw values, theme switching becomes impossible
+- Component → Semantic Token: A component's visual properties reference semantic tokens. Using hardcoded values directly makes consistency maintenance impossible
+- Semantic Token Change → Propagates to all referencing components: Changing a semantic token value affects all components referencing that token. Impact scope verification before change is mandatory
+- When adding a new token: First verify whether an existing token can express it. Unnecessary token growth increases system complexity and undermines consistency
 
-## 타이포그래피-레이아웃 의존
+## Typography–Layout Dependency
 
-- Type Scale → 시각적 위계: 타이포그래피 스케일이 정의되어야 제목/본문/캡션 간 시각적 위계가 성립한다
-- Type Scale → 간격 체계: 텍스트 크기가 주변 간격의 기준을 제공한다. 타이포그래피 변경 시 간격 재검토 필요
-- 행장(measure) → 그리드 컬럼 너비: 최적 가독성을 위한 행장이 그리드 컬럼 너비를 제약한다. 그리드 설계가 가독성을 무시하면 안 됨
-- 서체 변경 → 전체 타이포그래피 체계 재검증: 서체의 x-height, 자폭(width), 행간 특성이 다르므로, 서체 변경 시 스케일, 행간, 행장을 모두 재검증해야 한다
+- Type Scale → Visual Hierarchy: A type scale must be defined for visual hierarchy between headings/body/captions to be established
+- Type Scale → Spacing System: Text size provides the basis for surrounding spacing. Typography changes require spacing review
+- Measure → Grid Column Width: The optimal readability measure constrains grid column width. Grid design must not ignore readability
+- Typeface Change → Full Typography System Re-verification: Since x-height, character width, and line-height characteristics differ between typefaces, changing a typeface requires re-verification of scale, line-height, and measure
 
-## 색채-접근성 의존
+## Color–Accessibility Dependency
 
-- 색상 팔레트 정의 → 명도 대비 검증: 색상을 정의한 후 사용 맥락(텍스트/배경 조합)에서 WCAG 대비 기준을 충족하는지 검증해야 한다
-- 색상 팔레트 변경 → 접근성 재검증: 팔레트의 어떤 색상이든 변경되면, 해당 색상을 사용하는 모든 조합의 대비 재검증 필요
-- 시맨틱 색상 → 보조 수단: 시맨틱 색상(error, success 등)은 반드시 색상 외 보조 수단(아이콘, 텍스트, 형태)과 동반해야 한다
-- 다크 모드 추가 → 전체 색상 체계 재정의: 다크 모드는 밝은 모드의 색상을 반전하는 것이 아니라, 별도의 시맨틱 토큰 매핑을 요구한다
+- Color Palette Definition → Contrast Ratio Verification: After defining colors, verify that WCAG contrast criteria are met in usage contexts (text/background combinations)
+- Color Palette Change → Accessibility Re-verification: If any color in the palette changes, contrast re-verification of all combinations using that color is needed
+- Semantic Color → Supplementary Means: Semantic colors (error, success, etc.) must always be accompanied by supplementary means other than color (icons, text, shapes)
+- Dark Mode Addition → Full Color System Redefinition: Dark mode is not an inversion of light mode colors but requires a separate semantic token mapping
 
-## 브랜드-시각 체계 의존
+## Brand–Visual System Dependency
 
-- 브랜드 컬러 → 색채 체계: 브랜드 컬러가 색채 체계의 주색/강조색을 제약한다. 브랜드 컬러와 무관한 주색 선택은 브랜드 정합성 위반
-- 브랜드 서체 → 타이포그래피 체계: 브랜드 서체가 지정되면 타이포그래피 체계의 서체 선택을 제약한다
-- 브랜드 톤앤매너 → 이미지/아이콘 스타일: 톤앤매너가 "전문적이고 절제된"이면 화려한 일러스트레이션이 부적합
-- 브랜드 가이드라인 변경 → 시각 체계 전체 재검토: 브랜드 아이덴티티는 시각 체계의 상위 제약 조건이므로, 변경 시 전파 범위가 크다
+- Brand Colors → Color System: Brand colors constrain the primary/accent colors of the color system. Choosing primary colors unrelated to brand colors violates brand alignment
+- Brand Typeface → Typography System: When a brand typeface is designated, it constrains the typeface selection in the typography system
+- Brand Tone and Manner → Image/Icon Style: If the tone and manner is "professional and restrained," elaborate illustrations are inappropriate
+- Brand Guideline Change → Full Visual System Review: Brand identity is a higher-level constraint on the visual system, so changes have a large propagation scope
 
-## 컴포넌트-상태 의존
+## Component–State Dependency
 
-- 컴포넌트 정의 → 상태 정의: 모든 인터랙티브 컴포넌트는 최소 default, hover, active, focus, disabled 상태가 정의되어야 한다
-- 상태 정의 → 모션 정의: 상태 간 전이가 있으면, 전이의 이징과 지속 시간이 정의되어야 한다
-- 컴포넌트 변형(variant) 추가 → 모든 상태에 대한 시각 명세 필요: 새 변형을 추가하면 해당 변형의 모든 상태를 정의해야 한다. 부분 정의는 구현 시 임의 해석을 유발
+- Component Definition → State Definition: All interactive components must have at least default, hover, active, focus, and disabled states defined
+- State Definition → Motion Definition: If state transitions exist, the easing and duration of the transition must be defined
+- Component Variant Addition → Visual Specification for All States Required: When adding a new variant, all states of that variant must be defined. Partial definition causes arbitrary interpretation during implementation
 
-## 디자인 도구-코드 의존
+## Design Tool–Code Dependency
 
-- 디자인 도구 컴포넌트 → 코드 컴포넌트: 디자인 도구에서 정의한 컴포넌트는 코드로 구현되어야 한다. 양방향 동기화 주기가 정의되어야 한다
-- 디자인 토큰 → 코드 변수: 디자인 토큰은 코드의 CSS 변수, 스타일 상수 등으로 변환된다. 변환 파이프라인이 존재해야 한다
-- 불일치 발생 시: 디자인 도구와 코드 중 어느 쪽이 source of truth인지 사전 합의가 필요하다. 미합의 시 불일치가 양쪽에서 독립적으로 진화하여 분기(drift) 발생
+- Design Tool Component → Code Component: Components defined in design tools must be implemented in code. A bidirectional synchronization frequency must be defined
+- Design Token → Code Variable: Design tokens are converted to CSS variables, style constants, etc. in code. A conversion pipeline must exist
+- When discrepancy occurs: A prior agreement on which side (design tool or code) is the source of truth is needed. Without agreement, discrepancies evolve independently on both sides, causing drift
 
-## 접근성-모션 의존
+## Accessibility–Motion Dependency
 
-- 모션 정의 → prefers-reduced-motion 대응: 모션이 포함된 모든 요소는 감소 모션(reduced motion) 대체 표현을 정의해야 한다
-- 자동 재생 콘텐츠 → 일시정지 수단: 자동으로 움직이는 콘텐츠는 사용자가 일시정지할 수 있어야 한다 (WCAG 2.2.2)
-- 깜박임(flash) → 제한: 1초에 3회 이상 깜박이는 콘텐츠는 발작(seizure)을 유발할 수 있다 (WCAG 2.3.1)
+- Motion Definition → prefers-reduced-motion Support: All elements with motion must have a reduced motion alternative expression defined
+- Auto-playing Content → Pause Mechanism: Automatically moving content must be pausable by the user (WCAG 2.2.2)
+- Flashing → Restriction: Content that flashes more than 3 times per second can trigger seizures (WCAG 2.3.1)
 
-## Source of Truth 관리
+## Source of Truth Management
 
-- 디자인 의사결정의 source of truth: 디자인 시스템 문서 (토큰 정의, 컴포넌트 명세)
-- 브랜드 관련 의사결정의 source of truth: 브랜드 가이드라인
-- 접근성 기준의 source of truth: WCAG 공식 문서 및 조직의 접근성 정책
-- source of truth 간 충돌 시: 접근성 기준 > 디자인 시스템 > 브랜드 가이드라인. 접근성은 양보할 수 없는 기본 요건
+- Source of truth for design decisions: Design system documentation (token definitions, component specifications)
+- Source of truth for brand-related decisions: Brand guidelines
+- Source of truth for accessibility criteria: WCAG official documentation and the organization's accessibility policy
+- When sources of truth conflict: Accessibility criteria > Design system > Brand guidelines. Accessibility is a non-negotiable baseline requirement
 
-## 관련 문서
-- concepts.md — 토큰, 컴포넌트, 색채, 타이포그래피 용어 정의
-- structure_spec.md — 토큰 계층, 컴포넌트 계층, 디자인 시스템 구조
-- logic_rules.md — 색채/타이포그래피/접근성/모션 논리
+## Related Documents
+- concepts.md — Token, component, color, typography term definitions
+- structure_spec.md — Token layers, component layers, design system structure
+- logic_rules.md — Color/typography/accessibility/motion logic

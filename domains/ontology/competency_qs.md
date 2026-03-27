@@ -1,60 +1,60 @@
-# Ontology Domain — 역량 질문 (Competency Questions)
+# Ontology Domain — Competency Questions
 
-이 도메인의 체계가 답할 수 있어야 하는 핵심 질문 목록입니다.
-onto_pragmatics 에이전트가 각 질문에 대해 실제 추론 경로를 검증합니다.
+A list of core questions that this domain's system must be able to answer.
+The onto_pragmatics agent verifies the actual reasoning path for each question.
 
-분류 축: **검증 관심사** — 온톨로지 설계 리뷰 시 답해야 하는 질문의 관심사에 따라 분류합니다.
+Classification axis: **verification concern** — classified by the concern of questions that must be answered during ontology design review.
 
-## 개체 정의
+## Entity Definition
 
-- Q1: 온톨로지에 정의된 모든 클래스를 열거할 수 있는가?
-- Q2: 각 클래스에 자연어 정의(label, comment)가 존재하는가?
-- Q3: 개체의 고유 식별자 체계(URI/IRI)가 일관되게 적용되어 있는가?
+- Q1: Can all classes defined in the ontology be enumerated?
+- Q2: Does each class have a natural language definition (label, comment)?
+- Q3: Is the entity's unique identifier system (URI/IRI) applied consistently?
 
-## 관계 구조
+## Relation Structure
 
-- Q4: 두 클래스 사이에 어떤 관계가 존재하는지 도출할 수 있는가?
-- Q5: 관계의 도메인(정의역)과 레인지(치역)가 명시되어 있는가?
-- Q6: 관계의 방향성과 역관계(inverse)가 정의되어 있는가?
-- Q7: 이행적(transitive), 대칭적(symmetric) 등 관계의 논리적 특성이 선언되어 있는가?
+- Q4: Can we derive what relations exist between two classes?
+- Q5: Are the domain and range of relations specified?
+- Q6: Are the directionality and inverse relations defined?
+- Q7: Are the logical characteristics of relations (transitive, symmetric, etc.) declared?
 
-## 분류 일관성
+## Classification Consistency
 
-- Q8: 분류 기준(축)이 명시되어 있고, 동일 계층 내에서 단일 기준이 사용되는가?
-- Q9: 하위 클래스가 상위 클래스의 모든 특성을 만족하는가? (is-a 관계의 정당성)
-- Q10: 배타적이어야 하는 클래스들이 disjoint로 선언되어 있는가?
-- Q11: 분류 체계가 완전한가? (상위 클래스의 모든 인스턴스가 하위 클래스 중 하나에 속하는가)
+- Q8: Are the classification criteria (axes) stated, and is a single criterion used within the same hierarchy level?
+- Q9: Do subclasses satisfy all characteristics of their superclass? (Justification of the is-a relation)
+- Q10: Are classes that should be mutually exclusive declared as disjoint?
+- Q11: Is the classification system exhaustive? (Does every instance of a superclass belong to one of its subclasses?)
 
-## 제약 검증
+## Constraint Verification
 
-- Q12: 필수 속성(minimum cardinality ≥ 1)이 정의된 경우, 인스턴스가 이를 만족하는가?
-- Q13: 상호 배타적 제약(disjoint)이 위반되는 인스턴스가 없는가?
-- Q14: 도메인/레인지 제약이 선언되었을 때, 실제 인스턴스가 이를 준수하는가?
-- Q15: 추론기를 실행했을 때 일관성(consistency)이 유지되는가?
+- Q12: When required properties (minimum cardinality >= 1) are defined, do instances satisfy them?
+- Q13: Are there no instances violating mutual exclusivity constraints (disjoint)?
+- Q14: When domain/range constraints are declared, do actual instances comply?
+- Q15: Is consistency maintained when a reasoner is executed?
 
-## 범위와 목적
+## Scope and Purpose
 
-- Q16: 온톨로지의 적용 범위(scope)가 명시되어 있는가?
-- Q17: 범위 밖의 개념이 포함되어 있지 않은가? (과설계 탐지)
-- Q18: 범위 안의 핵심 개념이 누락되어 있지 않은가? (과소설계 탐지)
+- Q16: Is the ontology's scope explicitly stated?
+- Q17: Are no out-of-scope concepts included? (Over-design detection)
+- Q18: Are no core in-scope concepts missing? (Under-design detection)
 
-## 상호운용성
+## Interoperability
 
-- Q19: 외부 온톨로지와의 매핑/정렬이 필요한 경우, 대응 관계가 명시되어 있는가?
-- Q20: 표준 어휘(Dublin Core, SKOS 등)를 재사용하고 있는가, 불필요하게 재정의하고 있는가?
+- Q19: When mapping/alignment with external ontologies is needed, are the correspondence relations specified?
+- Q20: Are standard vocabularies (Dublin Core, SKOS, etc.) reused, or are they unnecessarily redefined?
 
-## 변경 대응
+## Change Readiness
 
-- Q21: 새 클래스/속성 추가 시 기존 제약과 충돌하지 않는지 사전 검증이 가능한가?
-- Q22: 폐기(deprecation)된 개념에 대한 대체 경로가 명시되어 있는가?
-- Q23: 버전 변경 시 하위 호환성이 평가되었는가?
+- Q21: When adding new classes/properties, can pre-verification be performed to ensure no conflict with existing constraints?
+- Q22: Are replacement paths specified for deprecated concepts?
+- Q23: Has backward compatibility been assessed for version changes?
 
-## 활용 적합성
+## Pragmatic Fitness
 
-- Q24: 온톨로지가 목표로 하는 질의(query)를 실제로 실행할 수 있는가?
-- Q25: 추론기가 합리적인 시간 내에 결과를 반환하는가? (계산 복잡도)
+- Q24: Can the ontology actually execute the queries it targets?
+- Q25: Does the reasoner return results within a reasonable time? (Computational complexity)
 
-## 관련 문서
-- domain_scope.md — 질문들이 다루는 영역의 상위 정의
-- logic_rules.md — Q12~Q15의 제약/추론 관련 규칙
-- structure_spec.md — Q1~Q3, Q8~Q11의 구조/분류 관련 규칙
+## Related Documents
+- domain_scope.md — the upper-level definition of the areas these questions cover
+- logic_rules.md — constraint/reasoning rules related to Q12~Q15
+- structure_spec.md — structure/classification rules related to Q1~Q3, Q8~Q11

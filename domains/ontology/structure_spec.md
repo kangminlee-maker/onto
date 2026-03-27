@@ -1,56 +1,56 @@
-# Ontology Domain — 구조 명세
+# Ontology Domain — Structure Specification
 
-## 온톨로지 구조 필수 요소
+## Ontology Structure Required Elements
 
-- **네임스페이스(Namespace)**: 온톨로지 내 개체를 고유하게 식별하는 URI/IRI 공간. 외부 온톨로지와 충돌 방지
-- **클래스 계층(Class Hierarchy)**: is-a 관계로 조직된 클래스의 트리 또는 DAG 구조
-- **속성 정의(Property Definitions)**: Object Property와 Data Property의 목록, 각각의 도메인/레인지/특성
-- **제약 선언(Constraint Declarations)**: 공리, 기수 제약, disjoint 선언 등 형식적 규칙
-- **메타데이터(Metadata)**: 생성자, 버전, 라이선스, 적용 범위 등 온톨로지 자체에 대한 정보
+- **Namespace**: A URI/IRI space for uniquely identifying entities within the ontology. Prevents conflicts with external ontologies
+- **Class Hierarchy**: A tree or DAG structure of classes organized by is-a relations
+- **Property Definitions**: Lists of Object Properties and Data Properties, with their respective domains/ranges/characteristics
+- **Constraint Declarations**: Formal rules including axioms, cardinality constraints, disjoint declarations, etc.
+- **Metadata**: Information about the ontology itself, including creator, version, license, and scope
 
-## 필수 관계
+## Required Relations
 
-- 모든 클래스는 최소 1개의 속성 또는 관계를 가져야 한다 (빈 클래스 금지)
-- 모든 속성은 도메인과 레인지가 명시되어야 한다
-- 모든 인스턴스는 최소 1개의 클래스에 소속되어야 한다 (rdf:type 필수)
-- 클래스 계층에서 루트 클래스(owl:Thing 제외)는 온톨로지의 최상위 도메인 개념을 나타내야 한다
+- Every class must have at least 1 property or relation (empty classes are prohibited)
+- Every property must have its domain and range specified
+- Every instance must belong to at least 1 class (rdf:type is required)
+- Root classes (excluding owl:Thing) in the class hierarchy must represent the top-level domain concepts of the ontology
 
-## 계층 구조 원칙
+## Hierarchy Structure Principles
 
-- 상위 클래스(일반) → 하위 클래스(구체): 구체화 방향. 상위 클래스의 속성/제약을 하위가 상속
-- 하위 클래스에서 상위 클래스의 속성을 재정의(override)할 때는 제약 강화만 허용. 제약 완화는 is-a 위반
-- 계층 깊이가 7 이상이면 중간 클래스의 필요성을 재검토. 과도한 깊이는 탐색과 유지보수를 어렵게 함
-- 형제 클래스(sibling)는 동일 분류 기준으로 구분되어야 한다
+- Superclass (general) -> Subclass (specific): the direction of specialization. Subclasses inherit superclass properties/constraints
+- When a subclass redefines (overrides) a superclass property, only constraint tightening is allowed. Constraint relaxation is an is-a violation
+- When hierarchy depth is 7 or more, the necessity of intermediate classes should be reviewed. Excessive depth makes navigation and maintenance difficult
+- Sibling classes must be distinguished by the same classification criterion
 
-## 분류 기준 설계
+## Classification Criteria Design
 
-- 분류 축(dimension)을 명시적으로 선언해야 한다 (예: "유형별", "기능별", "생명주기별")
-- 동일 계층에서는 단일 분류 축만 사용한다. 복수 축이 필요하면 별도 계층 또는 속성으로 분리
-- 분류의 완전성(exhaustive)과 배타성(mutually exclusive)을 각각 명시해야 한다. MECE(Mutually Exclusive, Collectively Exhaustive)가 기본이지만, 의도적 불완전은 허용하되 명시
-- 분류 기준이 시간에 따라 변하는 경우(예: 기술 분류), 변경 절차를 정의
+- Classification axes (dimensions) must be explicitly declared (e.g., "by type," "by function," "by lifecycle")
+- Only a single classification axis is used at the same hierarchy level. If multiple axes are needed, separate into distinct hierarchies or properties
+- Both completeness (exhaustive) and exclusiveness (mutually exclusive) of classification must be stated. MECE (Mutually Exclusive, Collectively Exhaustive) is the default, but intentional incompleteness is allowed if stated
+- When classification criteria change over time (e.g., technology classification), a change procedure must be defined
 
-## 명명 규칙
+## Naming Conventions
 
-- 클래스명: PascalCase 또는 도메인 관례. 단수형 사용 (예: Person, 아닌 Persons)
-- 속성명: camelCase. 관계의 방향을 표현 (예: hasAuthor, isPartOf)
-- URI: 인간이 읽을 수 있는 형태 권장. 의미 없는 ID(auto-increment)는 지양
-- 자연어 레이블(rdfs:label): 모든 클래스/속성에 필수. 다국어 지원 시 언어 태그(@ko, @en) 사용
+- Class names: PascalCase or domain convention. Use singular form (e.g., Person, not Persons)
+- Property names: camelCase. Express the direction of the relation (e.g., hasAuthor, isPartOf)
+- URI: human-readable form recommended. Meaningless IDs (auto-increment) should be avoided
+- Natural language labels (rdfs:label): required for all classes/properties. Use language tags (@ko, @en) for multilingual support
 
-## 검증 구조
+## Verification Structure
 
-- 구문 검증: 온톨로지 파일이 유효한 OWL/RDF 형식인지 파싱 검증
-- 구조 검증: 빈 클래스, 고립 노드, 도메인/레인지 미지정 등 구조적 결함 탐지
-- 논리 검증: 추론기를 통한 일관성 검사, 불만족 클래스(unsatisfiable class) 탐지
-- 의미 검증: 자연어 정의와 형식적 표현의 일치 여부를 전문가가 검토. 자동화 범위 밖
+- Syntactic verification: parsing verification that the ontology file is in valid OWL/RDF format
+- Structural verification: detecting structural defects such as empty classes, isolated nodes, and unspecified domain/range
+- Logical verification: consistency checking via reasoners, detecting unsatisfiable classes
+- Semantic verification: expert review of whether natural language definitions match formal representations. Outside the scope of automation
 
-## 고립 노드 금지
+## Isolated Node Prohibition
 
-- 어떤 관계에도 참여하지 않는 클래스 → 경고 (고립 클래스)
-- 인스턴스가 없고 하위 클래스도 없는 리프 클래스 → 경고 (사용되지 않는 개념)
-- 도메인/레인지에서 참조되지 않는 속성 → 경고 (미사용 속성)
-- 어떤 클래스에도 속하지 않는 인스턴스 → 경고 (미분류 인스턴스)
+- A class not participating in any relation -> warning (isolated class)
+- A leaf class with no instances and no subclasses -> warning (unused concept)
+- A property not referenced in any domain/range -> warning (unused property)
+- An instance not belonging to any class -> warning (unclassified instance)
 
-## 관련 문서
-- concepts.md — 클래스, 속성, 네임스페이스 등 용어 정의
-- dependency_rules.md — 온톨로지 간 의존, 매핑 관련 규칙
-- competency_qs.md — Q1~Q3 (개체 정의), Q8~Q11 (분류 일관성 질문)
+## Related Documents
+- concepts.md — definitions of classes, properties, namespaces, and other terms
+- dependency_rules.md — inter-ontology dependencies and mapping-related rules
+- competency_qs.md — Q1~Q3 (entity definition), Q8~Q11 (classification consistency questions)

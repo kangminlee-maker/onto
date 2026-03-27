@@ -1,332 +1,332 @@
-# 온톨로지의 철학적 기반: 25개 분야 종합
+# Philosophical Foundations of Ontology: A Synthesis of 25 Fields
 
-온톨로지를 구축·활용·검증하는 데 관여하는 철학 분야를 체계적으로 정리한 문서입니다.
-
----
-
-## 목차
-
-1. [핵심 7개 분야](#1-핵심-7개-분야)
-2. [개념화 근접 영역 7개 분야](#2-개념화-근접-영역-7개-분야)
-3. [구축·활용·검증 확장 11개 분야](#3-구축활용검증-확장-11개-분야)
-4. [온톨로지 평가의 표준 프레임워크](#4-온톨로지-평가의-표준-프레임워크)
-5. [전체 구조도](#5-전체-구조도)
+A systematic compilation of the philosophical fields involved in building, using, and verifying ontologies.
 
 ---
 
-## 1. 핵심 7개 분야
+## Table of Contents
 
-개념화(Conceptualization)를 직접적으로 다루는 철학 분야들입니다.
-
-### 1.1 존재론 (Ontology)
-
-- **무엇인가:** "존재하는 것은 무엇인가"를 묻는 분야. 세계를 구성하는 범주(category)—개체, 속성, 관계, 사건, 과정—를 식별하고 분류한다.
-- **개념화와의 관계:** 가장 직접적이다. 온톨로지는 "어떤 종류의 것들이 있는가"를 체계적으로 정리하는 작업 자체이다. 소프트웨어 온톨로지(OWL, RDF 등)는 이 철학 분야를 공학적으로 구현한 것이다.
-- **주요 질문:** 클래스와 인스턴스의 구분은 실재하는가? 관계는 독립적으로 존재하는가?
-
-### 1.2 인식론 (Epistemology)
-
-- **무엇인가:** "우리가 아는 것을 어떻게 정당화할 수 있는가"를 묻는 분야.
-- **개념화와의 관계:** 개념이 형성되려면, 그 개념이 지식으로서 타당한지 판단하는 기준이 필요하다. "이 개념 구분이 정당한가", "이 분류 기준은 근거가 있는가"라는 질문을 제공한다.
-- **주요 질문:** 직접 관찰할 수 없는 개념(예: "시스템 안정성")을 어떻게 정의할 수 있는가?
-
-### 1.3 논리학 (Logic)
-
-- **무엇인가:** 추론의 형식적 규칙을 다루는 분야. 명제, 술어, 양화사(∀, ∃), 연결사(∧, ∨, →)의 체계를 정의한다.
-- **개념화와의 관계:** 개념 간의 관계를 형식적으로 표현하고 검증하는 도구를 제공한다. "모든 X는 Y이다"라는 문장이 다른 정의와 모순되는지를 판별할 수 있게 한다. OWL-DL(Description Logic)이 이 분야의 직접적 적용이다.
-- **주요 질문:** 이 개념 체계 내에서 도출 가능한 결론은 무엇인가? 모순은 없는가?
-
-### 1.4 언어철학 (Philosophy of Language)
-
-- **무엇인가:** 언어가 의미를 갖는 방식을 탐구하는 분야. 지시(reference), 의미(sense), 맥락(context)의 관계를 다룬다.
-- **개념화와의 관계:** 개념은 용어(term)로 표현된다. 같은 용어가 다른 맥락에서 다른 의미를 갖는 문제(다의성), 다른 용어가 같은 대상을 가리키는 문제(동의어)는 언어철학의 핵심 주제이다. 온톨로지에서 label, synonym, definition을 구분하는 이유가 여기에 있다.
-- **주요 질문:** "서버"라는 용어가 하드웨어와 소프트웨어 프로세스를 동시에 지칭할 때, 이것은 하나의 개념인가 두 개인가?
-
-### 1.5 현상학 (Phenomenology)
-
-- **무엇인가:** 의식에 나타나는 경험의 구조를 분석하는 분야. 후설(Husserl)이 체계화했다.
-- **개념화와의 관계:** 개념이 형성되기 이전 단계를 다룬다. 우리가 세계를 경험하는 방식이 개념 구분에 선행한다는 입장이다. "왜 이 구분이 자연스럽게 느껴지는가"라는 질문에 답한다.
-- **주요 질문:** 사용자가 "직관적"이라고 느끼는 분류 체계는 어떤 경험 구조에 근거하는가?
-
-### 1.6 범주론 (Theory of Categories)
-
-- **무엇인가:** 아리스토텔레스에서 시작된 분야로, 존재를 분류하는 최상위 범주(top-level categories)를 정의한다. 현대 존재론의 하위 분야이면서 독립적 전통이기도 하다.
-- **개념화와의 관계:** 온톨로지의 최상위 구조—실체(Substance), 속성(Quality), 과정(Process), 관계(Relation) 등—를 결정한다. 상위 온톨로지(Upper Ontology)인 BFO, DOLCE, SUMO는 이 철학적 범주론을 직접 반영한 것이다.
-- **주요 질문:** "이벤트"는 "개체"와 같은 수준의 범주인가, 하위 범주인가?
-
-### 1.7 과학철학 (Philosophy of Science)
-
-- **무엇인가:** 과학적 이론과 개념이 어떻게 형성되고 변화하는지를 다루는 분야.
-- **개념화와의 관계:** 개념 체계가 시간에 따라 변화하고 대체되는 과정(패러다임 전환, 이론 적재성)을 설명한다. 온톨로지의 버전 관리와 진화(evolution) 문제에 직접 대응된다.
-- **주요 질문:** 기존 개념 체계를 확장할 것인가, 새로 구축할 것인가?
+1. [Core 7 Fields](#1-core-7-fields)
+2. [7 Fields Adjacent to Conceptualization](#2-7-fields-adjacent-to-conceptualization)
+3. [11 Extended Fields for Building, Using, and Verifying](#3-11-extended-fields-for-building-using-and-verifying)
+4. [Standard Frameworks for Ontology Evaluation](#4-standard-frameworks-for-ontology-evaluation)
+5. [Overall Structure Diagram](#5-overall-structure-diagram)
 
 ---
 
-## 2. 개념화 근접 영역 7개 분야
+## 1. Core 7 Fields
 
-핵심 7개 분야 사이의 연결 조직 역할을 하는 분야들입니다.
+Philosophical fields that directly address conceptualization.
 
-### 2.1 기호학 (Semiotics)
+### 1.1 Ontology
 
-- **무엇인가:** 기호(sign)가 의미를 전달하는 구조를 연구하는 분야. 퍼스(Peirce)와 소쉬르(Saussure)가 체계화했다.
-- **개념화와의 관계:** 개념은 기호를 통해 외부로 표현된다. 기호학은 기호를 세 층위로 분해한다.
-  - **Syntactics (구문):** 기호 간의 형식적 관계 (= 온톨로지의 구조)
-  - **Semantics (의미):** 기호와 대상의 관계 (= 개념의 정의)
-  - **Pragmatics (화용):** 기호와 사용자의 관계 (= 개념의 실제 활용)
-- **언어철학과의 차이:** 언어철학은 자연어의 의미에 집중한다. 기호학은 언어뿐 아니라 다이어그램, 코드, 아이콘 등 모든 표현 체계를 포괄한다.
+- **What it is:** The field that asks "what exists?" It identifies and classifies the categories that constitute the world -- entities, properties, relations, events, processes.
+- **Relation to conceptualization:** The most direct. Ontology is the very act of systematically organizing "what kinds of things there are." Software ontologies (OWL, RDF, etc.) are engineering implementations of this philosophical field.
+- **Key questions:** Is the distinction between classes and instances real? Do relations exist independently?
 
-### 2.2 메레올로지 (Mereology)
+### 1.2 Epistemology
 
-- **무엇인가:** 부분(part)과 전체(whole)의 관계를 형식적으로 다루는 분야. 레슈니에프스키(Leśniewski)가 시작하고, 현대 형식 존재론에서 활발히 사용된다.
-- **개념화와의 관계:** "A는 B의 부분이다(part-of)" 관계는 온톨로지에서 is-a 관계만큼 기본적이다. 부분-전체 관계는 종류가 다양하다.
-  - 심장은 신체의 **구성 요소(component)**
-  - 손잡이는 문의 **기능적 부분(functional part)**
-  - 1장은 책의 **구획(portion)**
-- 이 구분이 없으면, 서로 다른 성격의 part-of를 하나로 뭉뚱그려서 잘못된 추론이 발생한다.
+- **What it is:** The field that asks "how can we justify what we know?"
+- **Relation to conceptualization:** For a concept to form, there must be criteria for judging whether that concept is valid as knowledge. It provides questions such as "is this conceptual distinction justified?" and "is there a basis for this classification criterion?"
+- **Key questions:** How can we define concepts that cannot be directly observed (e.g., "system stability")?
 
-### 2.3 형이상학 (Metaphysics)
+### 1.3 Logic
 
-- **무엇인가:** 실재(reality)의 근본 구조를 탐구하는 분야. 존재론은 형이상학의 한 부분이다.
-- **개념화와의 관계:** 존재론이 "어떤 종류의 것이 있는가"를 묻는다면, 형이상학은 그보다 넓은 질문을 다룬다.
-  - **인과(Causation):** A가 B를 일으킨다는 것은 무엇인가 → 온톨로지에서 causes, triggers 관계의 근거
-  - **양상(Modality):** "가능한" 것과 "필연적인" 것의 차이 → 제약조건(constraint)의 강도 구분
-  - **시간(Temporal):** 개체가 시간에 따라 변할 때 동일성은 유지되는가 → 버전 관리, 상태 변화 모델링
+- **What it is:** The field that addresses the formal rules of reasoning. It defines the systems of propositions, predicates, quantifiers (for-all, exists), and connectives (and, or, implies).
+- **Relation to conceptualization:** Provides tools for formally expressing and verifying relationships between concepts. It enables determining whether the statement "all X are Y" contradicts other definitions. OWL-DL (Description Logic) is a direct application of this field.
+- **Key questions:** What conclusions can be derived within this conceptual system? Are there contradictions?
 
-### 2.4 심리철학 / 인지철학 (Philosophy of Mind / Cognitive Philosophy)
+### 1.4 Philosophy of Language
 
-- **무엇인가:** 마음, 의식, 인지 과정의 본질을 탐구하는 분야.
-- **개념화와의 관계:** 인간이 개념을 형성하는 인지적 과정 자체를 다룬다.
-  - **개념은 정의(definition)인가, 원형(prototype)인가?** — 고전 이론은 개념을 필요충분조건으로 정의한다. 로쉬(Rosch)의 원형 이론은 "전형적 사례"를 중심으로 개념이 형성된다고 본다.
-  - **체화된 인지(Embodied Cognition):** 개념이 신체 경험에 기반한다는 입장. "위/아래" 같은 공간 개념이 추상적 개념(상위/하위 클래스)에도 영향을 미친다고 본다.
-- **현상학과의 차이:** 현상학은 경험의 구조를 1인칭에서 기술한다. 인지철학은 그 과정을 3인칭 관점에서 메커니즘으로 설명하려 한다.
+- **What it is:** The field that explores how language acquires meaning. It addresses the relationships among reference, sense, and context.
+- **Relation to conceptualization:** Concepts are expressed through terms. The problem of the same term having different meanings in different contexts (polysemy) and different terms referring to the same object (synonymy) are core topics in philosophy of language. This is why ontologies distinguish between label, synonym, and definition.
+- **Key questions:** When the term "server" simultaneously refers to hardware and a software process, is this one concept or two?
 
-### 2.5 윤리학 / 가치론 (Ethics / Axiology)
+### 1.5 Phenomenology
 
-- **무엇인가:** 가치, 규범, 당위를 다루는 분야.
-- **개념화와의 관계:** 개념 체계를 구축할 때, 무엇을 포함하고 무엇을 배제할 것인가는 가치 판단이다.
-  - 의료 온톨로지에서 인종 분류를 어떻게 할 것인가
-  - 장애를 "결함(deficiency)"으로 분류할 것인가, "다양성(diversity)"으로 분류할 것인가
-  - AI 학습 데이터의 분류 체계가 특정 집단에 불이익을 주는가
-- 이 문제들은 논리적 정합성만으로는 답할 수 없고, 가치론적 판단이 필요하다.
+- **What it is:** The field that analyzes the structure of experience as it appears to consciousness. Systematized by Husserl.
+- **Relation to conceptualization:** Addresses the stage before concepts form. The position that the way we experience the world precedes conceptual distinctions. It answers the question "why does this distinction feel natural?"
+- **Key questions:** What experiential structure underlies a classification system that users find "intuitive"?
 
-### 2.6 해석학 (Hermeneutics)
+### 1.6 Theory of Categories
 
-- **무엇인가:** 텍스트와 의미의 해석 과정을 다루는 분야. 가다머(Gadamer)가 체계화했다.
-- **개념화와의 관계:** 기존 개념 체계를 이해하고 재해석하는 과정을 설명한다.
-  - **해석학적 순환(Hermeneutic Circle):** 전체를 이해하려면 부분을 알아야 하고, 부분을 이해하려면 전체를 알아야 한다 → 온톨로지를 처음 접하는 사람이 겪는 이해의 어려움을 설명
-  - **선이해(Pre-understanding):** 해석자는 항상 기존 지식을 갖고 접근한다 → 도메인 전문가와 엔지니어가 같은 온톨로지를 다르게 읽는 이유
+- **What it is:** A field originating from Aristotle that defines the top-level categories for classifying existence. It is both a subfield of modern ontology and an independent tradition.
+- **Relation to conceptualization:** Determines the top-level structure of ontologies -- Substance, Quality, Process, Relation, etc. Upper ontologies such as BFO, DOLCE, and SUMO directly reflect this philosophical theory of categories.
+- **Key questions:** Is "event" a category at the same level as "entity," or a subcategory?
 
-### 2.7 실용주의 (Pragmatism)
+### 1.7 Philosophy of Science
 
-- **무엇인가:** 개념과 이론의 의미를 그 실제적 결과(practical consequence)로 판단하는 분야. 퍼스(Peirce), 제임스(James), 듀이(Dewey)가 대표적이다.
-- **개념화와의 관계:** "이 개념 구분이 실제로 차이를 만드는가?"라는 질문을 제공한다. 논리적으로 가능한 구분이라도, 실제 사용에서 아무 차이를 만들지 않는다면 불필요하다고 판단한다. 온톨로지에서 과도한 세분화(over-specification)를 경계하는 근거이다.
+- **What it is:** The field that addresses how scientific theories and concepts are formed and change.
+- **Relation to conceptualization:** Explains the process by which conceptual systems change and are replaced over time (paradigm shifts, theory-ladenness). Directly corresponds to version management and evolution problems in ontologies.
+- **Key questions:** Should the existing conceptual system be extended, or rebuilt from scratch?
 
 ---
 
-## 3. 구축·활용·검증 확장 11개 분야
+## 2. 7 Fields Adjacent to Conceptualization
 
-온톨로지 작업의 각 단계에서 필요한 추가 분야들입니다.
+Fields that serve as connective tissue between the core 7 fields.
 
-### 구축 단계
+### 2.1 Semiotics
 
-#### 3.1 사회적 존재론 (Social Ontology)
+- **What it is:** The field that studies the structure by which signs convey meaning. Systematized by Peirce and Saussure.
+- **Relation to conceptualization:** Concepts are expressed externally through signs. Semiotics decomposes signs into three layers.
+  - **Syntactics:** Formal relationships among signs (= ontology structure)
+  - **Semantics:** Relationships between signs and objects (= concept definitions)
+  - **Pragmatics:** Relationships between signs and users (= actual use of concepts)
+- **Difference from philosophy of language:** Philosophy of language focuses on the meaning of natural language. Semiotics encompasses all representational systems including diagrams, code, and icons.
 
-- **무엇인가:** 사회적으로 구성된 존재자—화폐, 법률, 조직, 제도—의 존재 방식을 탐구한다. 설(Searle)의 "제도적 사실(institutional fact)" 이론이 대표적이다.
-- **온톨로지 작업에서의 역할:** 소프트웨어 도메인에는 물리적 실체가 아닌 것들이 많다. "계약", "권한", "역할"은 사람들의 합의에 의해 존재한다. 이런 개체는 물리적 개체와 존재 방식이 근본적으로 다르다. "계약"은 종이가 파기되어도 존재할 수 있고, 모든 당사자가 잊으면 사실상 소멸한다. 이 특성을 무시하고 물리적 개체와 동일하게 모델링하면 부정확한 온톨로지가 된다.
+### 2.2 Mereology
 
-#### 3.2 과정철학 (Process Philosophy)
+- **What it is:** The field that formally addresses the relationship between parts and wholes. Initiated by Lesniewski and actively used in modern formal ontology.
+- **Relation to conceptualization:** The "A is part of B (part-of)" relation is as fundamental in ontology as the is-a relation. Part-whole relationships come in various kinds.
+  - The heart is a **component** of the body
+  - A handle is a **functional part** of a door
+  - Chapter 1 is a **portion** of a book
+- Without this distinction, different kinds of part-of are conflated, leading to incorrect inferences.
 
-- **무엇인가:** 세계의 근본 단위를 "것(thing)"이 아니라 "과정(process)"으로 보는 입장. 화이트헤드(Whitehead)가 체계화했다.
-- **온톨로지 작업에서의 역할:** 전통적 온톨로지는 개체(entity) 중심이다. 그러나 어떤 도메인은 과정 중심이 더 자연스럽다.
-  - "빌드"는 개체인가, 과정인가?
-  - "배포"는 완료된 결과물인가, 진행 중인 활동인가?
-  - BFO(Basic Formal Ontology)는 이 관점을 반영하여 **continuant(지속체)**와 **occurrent(발생체)**를 최상위에서 구분한다.
+### 2.3 Metaphysics
 
-#### 3.3 수리철학 (Philosophy of Mathematics)
+- **What it is:** The field that explores the fundamental structure of reality. Ontology is one part of metaphysics.
+- **Relation to conceptualization:** While ontology asks "what kinds of things exist?", metaphysics addresses broader questions.
+  - **Causation:** What does it mean for A to cause B -> the basis for causes, triggers relations in ontology
+  - **Modality:** The difference between "possible" and "necessary" -> distinguishing the strength of constraints
+  - **Temporality:** Does identity persist when an entity changes over time -> version management, state change modeling
 
-- **무엇인가:** 수학적 대상(수, 집합, 함수)의 존재 방식과 수학적 진리의 본질을 탐구한다.
-- **온톨로지 작업에서의 역할:** 온톨로지는 집합론, 그래프 이론, 격자(lattice) 이론 등 수학적 구조를 사용한다.
-  - 클래스는 집합인가? (집합론적 해석 vs. 비집합론적 해석)
-  - 빈 클래스(인스턴스가 0개인 클래스)는 존재하는가?
-  - 무한 계층 구조를 허용할 것인가?
-  - OWL-DL이 집합론의 특정 제약을 따르는 이유가 여기에 있다.
+### 2.4 Philosophy of Mind / Cognitive Philosophy
 
-#### 3.4 위상학적 사고 / 경계의 철학 (Topology / Philosophy of Boundaries)
+- **What it is:** The field that explores the nature of mind, consciousness, and cognitive processes.
+- **Relation to conceptualization:** Addresses the cognitive process of concept formation itself.
+  - **Are concepts definitions or prototypes?** -- Classical theory defines concepts by necessary and sufficient conditions. Rosch's prototype theory holds that concepts form around "typical cases."
+  - **Embodied Cognition:** The position that concepts are grounded in bodily experience. Spatial concepts like "up/down" also influence abstract concepts (superclass/subclass).
+- **Difference from phenomenology:** Phenomenology describes the structure of experience from the first person. Cognitive philosophy seeks to explain that process as a mechanism from a third-person perspective.
 
-- **무엇인가:** 연속과 불연속, 경계와 연결의 문제를 다룬다. 스미스(Barry Smith)와 바렐라(Varzi)의 작업이 대표적이다.
-- **온톨로지 작업에서의 역할:** 개념 간의 경계를 어디에 그을 것인가는 근본적인 문제이다.
-  - "서버"와 "서비스"의 경계는 어디인가?
-  - "모듈 A"와 "모듈 B" 사이의 인터페이스는 어느 쪽에 속하는가?
-  - 연속적인 스펙트럼(예: 성능 등급)을 이산적 범주로 나눌 때 경계를 어디에 놓는가?
+### 2.5 Ethics / Axiology
 
-### 활용 단계
+- **What it is:** The field that addresses values, norms, and obligation.
+- **Relation to conceptualization:** When building a conceptual system, deciding what to include and what to exclude is a value judgment.
+  - How to classify race in a medical ontology
+  - Whether to classify disability as "deficiency" or "diversity"
+  - Whether AI training data classification systems disadvantage certain groups
+- These problems cannot be answered by logical consistency alone and require axiological judgment.
 
-#### 3.5 행위 이론 (Action Theory)
+### 2.6 Hermeneutics
 
-- **무엇인가:** 인간 행위의 구조—의도(intention), 이유(reason), 결과(consequence)—를 분석하는 분야.
-- **온톨로지 작업에서의 역할:** 소프트웨어 온톨로지에는 "사용자 행위"를 모델링해야 하는 경우가 많다.
-  - "클릭"은 행위인가, 사건인가?
-  - "승인"은 단일 행위인가, 일련의 행위인가?
-  - 의도 없이 발생한 결과(버그로 인한 데이터 삭제)를 행위로 분류할 것인가?
+- **What it is:** The field that addresses the process of interpreting texts and meaning. Systematized by Gadamer.
+- **Relation to conceptualization:** Explains the process of understanding and reinterpreting existing conceptual systems.
+  - **Hermeneutic Circle:** Understanding the whole requires knowing the parts, and understanding the parts requires knowing the whole -> explains the difficulty a newcomer faces when first encountering an ontology
+  - **Pre-understanding:** Interpreters always approach with existing knowledge -> explains why domain experts and engineers read the same ontology differently
 
-#### 3.6 정보철학 (Philosophy of Information)
+### 2.7 Pragmatism
 
-- **무엇인가:** 정보의 본질, 정보와 의미의 관계, 정보의 윤리를 다루는 분야. 플로리디(Floridi)가 체계화했다.
-- **온톨로지 작업에서의 역할:** 온톨로지 자체가 "정보를 조직하는 구조"이다.
-  - **정보의 수준(Levels of Abstraction):** 같은 대상을 어떤 추상화 수준에서 기술할 것인가
-  - **의미 있는 정보와 데이터의 구분:** 모든 데이터가 온톨로지에 포함될 필요는 없다. "의미 있는 구분"만 포함해야 한다.
-
-#### 3.7 기술철학 (Philosophy of Technology)
-
-- **무엇인가:** 기술적 인공물(artifact)의 본질과 기술이 인간·사회에 미치는 영향을 탐구한다.
-- **온톨로지 작업에서의 역할:** 소프트웨어 온톨로지가 다루는 대상 중 상당수가 인공물이다.
-  - **이중 본성(Dual Nature):** 인공물은 물리적 구조와 기능적 목적을 동시에 갖는다. "API"는 코드(물리적)이면서 동시에 통신 계약(기능적)이다.
-  - **설계 의도(Design Intent):** 인공물은 "왜 만들어졌는가"가 본질의 일부이다. 자연물에는 없는 속성이다.
-
-### 검증 단계
-
-#### 3.8 변증법 (Dialectics)
-
-- **무엇인가:** 대립하는 관점(정-반)의 충돌을 통해 더 나은 종합(합)에 도달하는 사유 방식. 헤겔(Hegel)이 체계화했다.
-- **온톨로지 작업에서의 역할:** 온톨로지 검증에서 다중 관점의 충돌과 종합이 필요하다.
-  - 도메인 전문가 A는 "배포"를 "코드 전달"로 정의하고, B는 "환경 구성 포함"으로 정의할 때, 어느 쪽이 맞는가가 아니라 두 관점의 종합이 필요하다.
-  - 7-Agent Panel Review가 여러 관점(구조, 의미, 논리 등)을 독립적으로 평가한 뒤 종합하는 구조는 변증법적 접근이다.
-
-#### 3.9 오류론 (Fallibilism / Theory of Error)
-
-- **무엇인가:** 모든 지식은 원칙적으로 오류 가능하며, 오류 발견과 수정이 지식 발전의 핵심이라는 입장. 퍼스(Peirce), 포퍼(Popper)가 대표적이다.
-- **온톨로지 작업에서의 역할:** 온톨로지는 완성되는 것이 아니라 지속적으로 수정되는 것이라는 전제를 제공한다.
-  - 검증은 "정확성 증명"이 아니라 "오류 탐지"이다.
-  - 반증 가능한 형태로 정의해야 검증이 가능하다. "이 클래스는 유용하다"는 검증할 수 없지만, "이 클래스에 해당하는 인스턴스가 시스템에 존재한다"는 검증할 수 있다.
-
-#### 3.10 사회인식론 (Social Epistemology)
-
-- **무엇인가:** 지식이 개인이 아닌 집단적 과정을 통해 형성되고 검증되는 방식을 다룬다.
-- **온톨로지 작업에서의 역할:** 온톨로지는 한 사람이 아니라 여러 이해관계자의 합의를 통해 구축된다.
-  - 전문가 패널의 의견이 불일치할 때, 다수결이 올바른 방법인가?
-  - 권위(authority)와 근거(evidence) 중 어느 것을 우선할 것인가?
-  - 집단 사고(groupthink)를 어떻게 방지할 것인가?
-
-#### 3.11 양상논리 / 가능세계 의미론 (Modal Logic / Possible World Semantics)
-
-- **무엇인가:** "가능하다", "필연적이다", "허용된다", "의무이다"와 같은 양상 표현을 형식화하는 논리 체계.
-- **온톨로지 작업에서의 역할:** 온톨로지의 제약조건(constraint)에는 강도 차이가 있다.
-  - **필연적:** "모든 주문은 반드시 하나 이상의 상품을 포함한다" (cardinality ≥ 1)
-  - **가능적:** "주문은 할인 코드를 포함할 수 있다" (cardinality ≥ 0)
-  - **의무적(Deontic):** "개인정보는 암호화되어야 한다" (규범적 제약)
-  - 양상논리가 없으면 이 세 가지를 구분 없이 같은 방식으로 표현하게 되어, 필수 조건과 선택 조건의 혼동이 발생한다.
+- **What it is:** The field that judges the meaning of concepts and theories by their practical consequences. Peirce, James, and Dewey are its leading figures.
+- **Relation to conceptualization:** Provides the question "does this conceptual distinction actually make a difference?" Even logically possible distinctions are judged unnecessary if they make no difference in actual use. This is the basis for guarding against over-specification in ontologies.
 
 ---
 
-## 4. 온톨로지 평가의 표준 프레임워크
+## 3. 11 Extended Fields for Building, Using, and Verifying
 
-### 4.1 Gomez-Perez 프레임워크 (1995, 2004)
+Additional fields needed at each stage of ontology work.
 
-온톨로지 평가를 세 가지 축으로 분류한 초기 프레임워크.
+### Building Stage
 
-| 평가 축 | 정의 | 검증 대상 |
+#### 3.1 Social Ontology
+
+- **What it is:** Explores how socially constructed entities -- money, law, organizations, institutions -- exist. Searle's "institutional fact" theory is representative.
+- **Role in ontology work:** Software domains contain many things that are not physical entities. "Contract," "permission," and "role" exist by collective agreement. Such entities have fundamentally different modes of existence from physical entities. A "contract" can exist even if the paper is destroyed, and effectively ceases to exist if all parties forget it. Ignoring these characteristics and modeling them identically to physical entities results in an inaccurate ontology.
+
+#### 3.2 Process Philosophy
+
+- **What it is:** The position that the fundamental units of the world are "processes" rather than "things." Systematized by Whitehead.
+- **Role in ontology work:** Traditional ontology is entity-centric. However, some domains are more naturally modeled as process-centric.
+  - Is a "build" an entity or a process?
+  - Is a "deployment" a completed artifact or an ongoing activity?
+  - BFO (Basic Formal Ontology) reflects this perspective by distinguishing **continuants** and **occurrents** at the top level.
+
+#### 3.3 Philosophy of Mathematics
+
+- **What it is:** Explores the mode of existence of mathematical objects (numbers, sets, functions) and the nature of mathematical truth.
+- **Role in ontology work:** Ontology uses mathematical structures such as set theory, graph theory, and lattice theory.
+  - Is a class a set? (Set-theoretic interpretation vs. non-set-theoretic interpretation)
+  - Does an empty class (a class with 0 instances) exist?
+  - Should infinite hierarchies be permitted?
+  - This is why OWL-DL follows specific constraints from set theory.
+
+#### 3.4 Topology / Philosophy of Boundaries
+
+- **What it is:** Addresses problems of continuity and discontinuity, boundaries and connections. The work of Barry Smith and Varzi is representative.
+- **Role in ontology work:** Where to draw boundaries between concepts is a fundamental problem.
+  - Where is the boundary between "server" and "service"?
+  - Does the interface between "Module A" and "Module B" belong to one or the other?
+  - Where to place boundaries when dividing a continuous spectrum (e.g., performance grades) into discrete categories?
+
+### Usage Stage
+
+#### 3.5 Action Theory
+
+- **What it is:** The field that analyzes the structure of human action -- intention, reason, and consequence.
+- **Role in ontology work:** Software ontologies often need to model "user actions."
+  - Is a "click" an action or an event?
+  - Is "approval" a single action or a series of actions?
+  - Should an unintended outcome (data deletion due to a bug) be classified as an action?
+
+#### 3.6 Philosophy of Information
+
+- **What it is:** The field that addresses the nature of information, the relationship between information and meaning, and information ethics. Systematized by Floridi.
+- **Role in ontology work:** Ontology itself is "a structure for organizing information."
+  - **Levels of Abstraction:** At what level of abstraction should the same object be described
+  - **Distinguishing meaningful information from data:** Not all data needs to be included in the ontology. Only "meaningful distinctions" should be included.
+
+#### 3.7 Philosophy of Technology
+
+- **What it is:** Explores the nature of technological artifacts and the impact of technology on humans and society.
+- **Role in ontology work:** Many objects handled by software ontologies are artifacts.
+  - **Dual Nature:** Artifacts simultaneously possess physical structure and functional purpose. An "API" is both code (physical) and a communication contract (functional).
+  - **Design Intent:** "Why was it made" is part of the essence of an artifact. This is a property absent from natural objects.
+
+### Verification Stage
+
+#### 3.8 Dialectics
+
+- **What it is:** A mode of thinking that reaches a better synthesis through the collision of opposing perspectives (thesis-antithesis-synthesis). Systematized by Hegel.
+- **Role in ontology work:** Ontology verification requires collision and synthesis of multiple perspectives.
+  - When domain expert A defines "deployment" as "code delivery" and B defines it as "including environment configuration," the question is not which is correct but that a synthesis of both perspectives is needed.
+  - The 7-Agent Panel Review structure -- independently evaluating from multiple perspectives (structural, semantic, logical, etc.) and then synthesizing -- is a dialectical approach.
+
+#### 3.9 Fallibilism / Theory of Error
+
+- **What it is:** The position that all knowledge is in principle fallible, and that error detection and correction are central to knowledge advancement. Peirce and Popper are its leading figures.
+- **Role in ontology work:** Provides the premise that ontologies are not completed but continuously revised.
+  - Verification is not "proof of correctness" but "error detection."
+  - Definitions must be in a falsifiable form for verification to be possible. "This class is useful" cannot be verified, but "instances matching this class exist in the system" can be.
+
+#### 3.10 Social Epistemology
+
+- **What it is:** Addresses how knowledge is formed and verified through collective processes rather than individual ones.
+- **Role in ontology work:** Ontologies are built through consensus among multiple stakeholders, not by a single person.
+  - When expert panels disagree, is majority rule the correct method?
+  - Which takes priority: authority or evidence?
+  - How to prevent groupthink?
+
+#### 3.11 Modal Logic / Possible World Semantics
+
+- **What it is:** A logical system that formalizes modal expressions such as "possible," "necessary," "permitted," and "obligatory."
+- **Role in ontology work:** Constraints in ontologies have varying degrees of strength.
+  - **Necessary:** "Every order must contain at least one item" (cardinality >= 1)
+  - **Possible:** "An order may contain a discount code" (cardinality >= 0)
+  - **Deontic:** "Personal information must be encrypted" (normative constraint)
+  - Without modal logic, these three are expressed identically, causing confusion between required and optional conditions.
+
+---
+
+## 4. Standard Frameworks for Ontology Evaluation
+
+### 4.1 Gomez-Perez Framework (1995, 2004)
+
+An early framework classifying ontology evaluation along three axes.
+
+| Evaluation Axis | Definition | Verification Target |
 |---|---|---|
-| **Consistency (일관성)** | 온톨로지 내부에 모순이 없는가 | 클래스 간 관계가 논리적으로 충돌하지 않는지 |
-| **Completeness (완전성)** | 표현해야 할 도메인 지식이 빠짐없이 포함되었는가 | 누락된 개념, 관계, 제약조건 |
-| **Conciseness (간결성)** | 불필요하거나 중복된 정의가 없는가 | 중복 클래스, 불필요한 관계 |
+| **Consistency** | Are there no contradictions within the ontology? | Whether relationships between classes conflict logically |
+| **Completeness** | Is all domain knowledge that should be represented included without omission? | Missing concepts, relations, constraints |
+| **Conciseness** | Are there no unnecessary or duplicate definitions? | Duplicate classes, unnecessary relations |
 
-### 4.2 Obrst et al.의 4-Level 프레임워크 (2007)
+### 4.2 Obrst et al.'s 4-Level Framework (2007)
 
-평가를 네 개 수준(level)으로 계층화한 프레임워크.
+A framework that hierarchizes evaluation into four levels.
 
-| 수준 | 명칭 | 검증 내용 |
+| Level | Name | Verification Content |
 |---|---|---|
-| Level 1 | **Vocabulary (어휘)** | 용어가 정확하고 일관되게 명명되었는가 |
-| Level 2 | **Taxonomy (분류 체계)** | 상위-하위 관계(is-a)가 올바른가 |
-| Level 3 | **Relational (관계)** | 클래스 간 비계층 관계(has-a, depends-on 등)가 정확한가 |
-| Level 4 | **Axiom/Rule (공리/규칙)** | 논리적 제약조건과 추론 규칙이 유효한가 |
+| Level 1 | **Vocabulary** | Are terms named accurately and consistently? |
+| Level 2 | **Taxonomy** | Are superclass-subclass relationships (is-a) correct? |
+| Level 3 | **Relational** | Are non-hierarchical relations between classes (has-a, depends-on, etc.) accurate? |
+| Level 4 | **Axiom/Rule** | Are logical constraints and inference rules valid? |
 
-### 4.3 Brank et al.의 평가 접근법 분류 (2005)
+### 4.3 Brank et al.'s Evaluation Approach Classification (2005)
 
-평가를 방법론(어떻게 평가하는가) 기준으로 분류.
+Classifies evaluation by methodology (how to evaluate).
 
-| 접근법 | 정의 | 구체적 방법 |
+| Approach | Definition | Specific Methods |
 |---|---|---|
-| **Gold Standard** | 이미 검증된 참조 온톨로지와 비교 | 구조적 유사도 측정 (Precision, Recall) |
-| **Application-based** | 실제 시스템에 적용해서 성능 측정 | 검색 정확도, 추론 결과의 정확성 |
-| **Data-driven** | 실제 데이터(코퍼스)와 대조 | 온톨로지가 데이터를 얼마나 잘 설명하는가 |
-| **Human Assessment** | 도메인 전문가가 직접 판단 | 설문, 인터뷰, 전문가 패널 리뷰 |
+| **Gold Standard** | Compare against an already verified reference ontology | Structural similarity measurement (Precision, Recall) |
+| **Application-based** | Measure performance by applying to an actual system | Search accuracy, accuracy of inference results |
+| **Data-driven** | Compare against actual data (corpus) | How well the ontology explains the data |
+| **Human Assessment** | Domain experts judge directly | Surveys, interviews, expert panel reviews |
 
 ### 4.4 OntoClean (Guarino & Welty, 2002, 2004)
 
-철학적 속성(meta-property)을 기준으로 분류 체계의 정확성을 검증하는 방법론. 핵심 개념 네 가지:
+A methodology that verifies the accuracy of classification systems based on philosophical meta-properties. Four core concepts:
 
-- **Rigidity (엄격성):** 어떤 개념이 해당 인스턴스에 필수적인가. 예: "사람"은 rigid (사람이 사람이 아닌 것이 될 수 없음)
-- **Identity (동일성):** 인스턴스를 구별할 기준이 있는가. 예: "사람"은 identity 기준이 있음
-- **Unity (통일성):** 인스턴스가 하나의 전체로 결합되는 기준이 있는가
-- **Dependence (의존성):** 다른 개체 없이 존재할 수 있는가
+- **Rigidity:** Whether a concept is essential to its instances. Example: "person" is rigid (a person cannot become a non-person)
+- **Identity:** Whether there are criteria for distinguishing instances. Example: "person" has identity criteria
+- **Unity:** Whether there are criteria for instances being bound together as a whole
+- **Dependence:** Whether it can exist without other entities
 
-### 4.5 프레임워크 간 관계
+### 4.5 Relationships Among Frameworks
 
 ```
-Brank et al. (방법론 분류)
- ├─ Gold Standard 비교
- ├─ Application-based 평가
- ├─ Data-driven 평가
- └─ Human Assessment
-      ├─ Gomez-Perez (일관성/완전성/간결성 기준)
-      ├─ Obrst 4-Level (수준별 검증)
-      └─ OntoClean (분류 체계 철학적 검증)
+Brank et al. (methodology classification)
+ +-- Gold Standard comparison
+ +-- Application-based evaluation
+ +-- Data-driven evaluation
+ +-- Human Assessment
+      +-- Gomez-Perez (consistency/completeness/conciseness criteria)
+      +-- Obrst 4-Level (level-based verification)
+      +-- OntoClean (philosophical verification of classification systems)
 ```
 
-- **Brank et al.**은 "어떤 방법을 쓸 것인가"를 결정하는 상위 프레임워크
-- **Gomez-Perez**, **Obrst**, **OntoClean**은 "무엇을 기준으로 판단할 것인가"를 정의하는 기준 프레임워크
-- 실무에서는 이들을 조합하여 사용
+- **Brank et al.** is the upper framework for deciding "which method to use"
+- **Gomez-Perez**, **Obrst**, **OntoClean** are criteria frameworks defining "what basis to judge on"
+- In practice, these are used in combination
 
 ---
 
-## 5. 전체 구조도
+## 5. Overall Structure Diagram
 
-### 5.1 철학 분야 간 관계
-
-```
-현상학 (경험의 구조)
-  ↓ 개념 형성의 기반
-범주론 (최상위 분류 틀)
-  ↓ 분류 체계 결정
-존재론 (무엇이 있는가)
-  ↓ 개념의 논리적 정합성
-논리학 (형식적 검증)
-  ↓ 개념의 언어적 표현
-언어철학 (용어와 의미)
-  ↓ 개념의 정당성
-인식론 (지식의 근거)
-  ↓ 개념 체계의 변화
-과학철학 (진화와 대체)
-```
-
-### 5.2 온톨로지 작업 단계별 분류
+### 5.1 Relationships Among Philosophical Fields
 
 ```
-┌─────────────────── 구축 ───────────────────┐
-│                                             │
-│  [존재의 종류]         [형식적 기반]          │
-│   존재론               논리학               │
-│   사회적 존재론         양상논리             │
-│   과정철학             수리철학             │
-│   범주론               메레올로지           │
-│   형이상학             위상학/경계           │
-│                                             │
-├─────────────────── 활용 ───────────────────┤
-│                                             │
-│  [표현·소통]           [인지·해석]           │
-│   언어철학             현상학               │
-│   기호학               인지철학             │
-│   정보철학             해석학               │
-│   행위이론             실용주의             │
-│   기술철학                                  │
-│                                             │
-├─────────────────── 검증 ───────────────────┤
-│                                             │
-│  [판단 기준]           [검증 과정]           │
-│   인식론               변증법               │
-│   윤리학/가치론        오류론               │
-│   과학철학             사회인식론            │
-│                                             │
-└─────────────────────────────────────────────┘
+Phenomenology (structure of experience)
+  | foundation for concept formation
+Theory of Categories (top-level classification framework)
+  | determines classification system
+Ontology (what exists)
+  | logical consistency of concepts
+Logic (formal verification)
+  | linguistic expression of concepts
+Philosophy of Language (terms and meaning)
+  | justification of concepts
+Epistemology (grounds of knowledge)
+  | change of conceptual systems
+Philosophy of Science (evolution and replacement)
+```
+
+### 5.2 Classification by Ontology Work Stage
+
+```
++------------------- Building -------------------+
+|                                                 |
+|  [Kinds of existence]     [Formal foundations]  |
+|   Ontology                 Logic               |
+|   Social Ontology          Modal Logic         |
+|   Process Philosophy       Phil. of Mathematics|
+|   Theory of Categories     Mereology           |
+|   Metaphysics              Topology/Boundaries |
+|                                                 |
++------------------- Usage ---------------------+
+|                                                 |
+|  [Expression/Communication] [Cognition/Interp.] |
+|   Philosophy of Language    Phenomenology       |
+|   Semiotics                 Cognitive Philosophy|
+|   Philosophy of Information Hermeneutics        |
+|   Action Theory             Pragmatism          |
+|   Philosophy of Technology                      |
+|                                                 |
++------------------- Verification ---------------+
+|                                                 |
+|  [Judgment criteria]       [Verification process]|
+|   Epistemology              Dialectics          |
+|   Ethics/Axiology           Fallibilism         |
+|   Philosophy of Science     Social Epistemology |
+|                                                 |
++-------------------------------------------------+
 ```

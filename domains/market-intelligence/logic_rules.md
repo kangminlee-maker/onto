@@ -1,81 +1,81 @@
-# Market Intelligence Domain — 논리 규칙
+# Market Intelligence Domain — Logic Rules
 
-## 1. 목적
+## 1. Purpose
 
-시장 정보 분석 체계 내에서 데이터 신뢰도, 정책 정합성, 추론 유효성을 보장하기 위한 논리 규칙을 정의한다.
+Defines logic rules to ensure data credibility, policy consistency, and inference validity within the market intelligence analysis system.
 
-## 2. 데이터 소스 신뢰도 등급 정합성 규칙
+## 2. Data Source Credibility Rating Consistency Rules
 
-### 핵심 규칙 — 다지점 일치
+### Core Rule — Multi-Point Matching
 
-데이터 소스 신뢰도 등급의 허용 값 집합은 수집(Collection), 정책(Policy), 분석(Analysis) 등 체계 내 모든 참조 지점에서 반드시 일치해야 한다.
+The allowed value set for data source credibility ratings must match across all reference points within the system, including collection, policy, and analysis.
 
-### 2.1 허용 집합 정의
+### 2.1 Allowed Set Definition
 
-시스템이 사용하는 데이터 소스 신뢰도 등급의 허용 값 집합을 하나의 원천에서 정의하고, 모든 참조 지점이 이 원천을 참조한다.
+Define the allowed value set for the data source credibility ratings used by the system from a single source, and all reference points reference this source.
 
-### 2.2 정합성 검증 규칙
+### 2.2 Consistency Verification Rules
 
-| ID | 규칙 | 위반 심각도 |
-|---|---|---|
-| ST01 | 수집 정책에서 선언된 신뢰도 등급 값 집합 = 의사결정 게이트에서 참조하는 값 집합 | 오류 |
-| ST02 | 수집 정책에서 선언된 신뢰도 등급 값 집합 = 분석 단계에서 사용하는 값 집합 | 오류 |
-| ST03 | 신뢰도 등급이 미부여된 데이터가 분석에 투입되면 안 됨 | 오류 |
+| ID | Rule | Violation Severity |
+|---|------|-------------------|
+| ST01 | Credibility rating value set declared in collection policy = value set referenced at decision gates | Error |
+| ST02 | Credibility rating value set declared in collection policy = value set used in the analysis phase | Error |
+| ST03 | Data without a credibility rating must not be fed into analysis | Error |
 
-## 3. 의사결정 게이트 선언-구현 연결 규칙
+## 3. Decision Gate Declaration-Implementation Link Rules
 
-### 핵심 규칙 — 선언과 구현의 강제 연결
+### Core Rule — Mandatory Link Between Declaration and Implementation
 
-의사결정 게이트에 선언된 모든 통과 조건에는 반드시 대응하는 검증 로직이 존재해야 한다.
+All pass conditions declared at a decision gate must have corresponding verification logic.
 
-| ID | 규칙 | 위반 심각도 |
-|---|---|---|
-| PG01 | 의사결정 게이트의 통과 조건 수 = 검증 로직 수 | 오류 |
-| PG02 | 통과 조건 추가 시 검증 로직 동시 생성 필수 | 오류 |
-| PG03 | 검증 로직 없이 조건만 존재하는 것은 "선언-구현 갭" 위반 | 경고 |
+| ID | Rule | Violation Severity |
+|---|------|-------------------|
+| PG01 | Number of pass conditions at a decision gate = number of verification logic implementations | Error |
+| PG02 | Adding a pass condition requires simultaneous creation of verification logic | Error |
+| PG03 | A condition existing without verification logic is a "declaration-implementation gap" violation | Warning |
 
-## 4. 분석 방법론 전제 규칙
+## 4. Analysis Methodology Precondition Rules
 
-| ID | 규칙 | 위반 심각도 |
-|---|---|---|
-| AM01 | 사용된 분석 방법론의 전제 조건이 명시되어야 함 | 경고 |
-| AM02 | 전제 조건 미충족 상태의 분석 결과에 신뢰도 하향 표시 필수 | 경고 |
+| ID | Rule | Violation Severity |
+|---|------|-------------------|
+| AM01 | Preconditions for the analysis methodology used must be explicitly stated | Warning |
+| AM02 | Analysis results where preconditions are not met must be marked with a credibility downgrade | Warning |
 
-## 5. 위험 평가 규칙
+## 5. Risk Assessment Rules
 
-### 5.1 위험 점수 산출
+### 5.1 Risk Score Calculation
 
-| ID | 규칙 | 위반 심각도 |
-|---|---|---|
-| RA01 | 위험 점수 = 영향도 x 발생 가능성 (단일 공식 일관 적용) | 오류 |
-| RA02 | 위험 임계값 초과 시 대응 전략 수립 필수 | 경고 |
-| RA03 | 위험 평가는 전략 도출과 독립적으로 수행 가능해야 함 | 오류 |
+| ID | Rule | Violation Severity |
+|---|------|-------------------|
+| RA01 | Risk score = impact x likelihood (single formula applied consistently) | Error |
+| RA02 | When a risk threshold is exceeded, formulating a response strategy is mandatory | Warning |
+| RA03 | Risk assessment must be performable independently of strategy derivation | Error |
 
-### 5.2 위험 독립성
+### 5.2 Risk Independence
 
-위험 평가 결과는 전략 옵션에 종속되지 않는다. 전략이 존재하지 않는 상태에서도 위험 평가는 독자적으로 유효하며, 위험 평가 결과가 전략 수정을 요구할 수 있다.
+Risk assessment results are not subordinate to strategy options. Risk assessment remains independently valid even when no strategy exists, and risk assessment results may require strategy modifications.
 
-## 6. 데이터 신선도 규칙
+## 6. Data Freshness Rules
 
-| ID | 규칙 | 위반 심각도 |
-|---|---|---|
-| DF01 | 만료된 데이터(신선도 기준 초과)는 분석 투입 전 갱신 여부 확인 필수 | 경고 |
-| DF02 | 만료 데이터를 사용할 경우 분석 결과에 한시적 유효성 표시 필수 | 경고 |
+| ID | Rule | Violation Severity |
+|---|------|-------------------|
+| DF01 | Expired data (exceeding freshness criteria) must be checked for updates before being fed into analysis | Warning |
+| DF02 | If expired data is used, the analysis results must be marked with a temporary validity notice | Warning |
 
-## 7. 신뢰도 전파 규칙
+## 7. Credibility Propagation Rules
 
-| ID | 규칙 | 설명 |
-|---|---|---|
-| TP01 | 분석 결과의 신뢰도 ≤ 입력 데이터 중 최저 신뢰도 등급 | 신뢰도는 상향 전파되지 않음 |
-| TP02 | 복수 소스 결합 시 최저 신뢰도가 전체 결과의 상한 | 가장 약한 고리 원칙 |
-| TP03 | 전략 옵션의 신뢰도 ≤ 근거 분석 결과의 신뢰도 | 전략 단계에서도 동일 원칙 |
+| ID | Rule | Description |
+|---|------|-------------|
+| TP01 | Credibility of analysis results ≤ lowest credibility rating among input data | Credibility does not propagate upward |
+| TP02 | When combining multiple sources, the lowest credibility is the upper bound for the overall result | Weakest link principle |
+| TP03 | Credibility of strategy options ≤ credibility of supporting analysis results | Same principle applies at the strategy phase |
 
-## 관련 문서
+## Related Documents
 
-| 문서 | 참조 이유 |
-|------|----------|
-| [domain_scope.md](domain_scope.md) | 영역 정의 및 독립성 원칙 |
-| [concepts.md](concepts.md) | 신뢰도 등급 용어 정의 |
-| [structure_spec.md](structure_spec.md) | 특성 허용 값 정의 |
-| [competency_qs.md](competency_qs.md) | 규칙 검증 질문 |
-| [dependency_rules.md](dependency_rules.md) | 영역 간 의존 관계 |
+| Document | Reference Reason |
+|----------|-----------------|
+| [domain_scope.md](domain_scope.md) | Domain definition and independence principles |
+| [concepts.md](concepts.md) | Credibility rating term definitions |
+| [structure_spec.md](structure_spec.md) | Trait allowed value definitions |
+| [competency_qs.md](competency_qs.md) | Rule verification questions |
+| [dependency_rules.md](dependency_rules.md) | Inter-area dependency relationships |

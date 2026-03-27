@@ -1,91 +1,91 @@
-# 온보딩 프로세스
+# Onboarding Process
 
-> 프로젝트에 onto 플러그인 환경을 설정합니다. 최초 1회 실행.
-> 관련: 온보딩 후 `/onto:review`, `/onto:ask-{dimension}` 등 모든 명령어 사용 가능.
+> Sets up the onto plugin environment for a project. Run once at initial setup.
+> Related: After onboarding, all commands such as `/onto:review`, `/onto:ask-{dimension}` become available.
 
-프로젝트에 onto 환경을 설정합니다.
+Sets up the onto environment for the project.
 
-### 1. 현황 진단
+### 1. Status Diagnosis
 
-다음 항목을 순서대로 확인합니다:
+Checks the following items in order:
 
-| 확인 항목 | 경로 | 상태값 |
+| Check Item | Path | Status Value |
 |---|---|---|
-| 프로젝트 학습 디렉토리 | `{project}/.onto/learnings/` | 존재 / 미존재 |
-| 도메인 선언 | `{project}/.onto/config.yml` 또는 `{project}/CLAUDE.md` 내 `domain:` | 선언됨 / 미선언 |
-| 글로벌 도메인 문서 | `~/.onto/domains/{domain}/` | 존재 / 미존재 / 해당없음(도메인 미선언) |
-| 글로벌 에이전트 메모리 | `~/.onto/` 하위 디렉토리들 | 존재하는 파일 목록 |
+| Project learning directory | `{project}/.onto/learnings/` | exists / does not exist |
+| Domain declaration | `{project}/.onto/config.yml` or `domain:` in `{project}/CLAUDE.md` | declared / not declared |
+| Global domain document | `~/.onto/domains/{domain}/` | exists / does not exist / N/A (domain not declared) |
+| Global agent memory | Subdirectories under `~/.onto/` | list of existing files |
 
-### 2. 사용자 확인
+### 2. User Confirmation
 
-진단 결과를 아래 형식으로 보여주고 진행 여부를 확인합니다:
+Presents the diagnosis results in the format below and confirms whether to proceed:
 
 ```markdown
-## Onto 온보딩 진단
+## Onto Onboarding Diagnosis
 
-| 항목 | 상태 | 조치 |
+| Item | Status | Action |
 |---|---|---|
-| 프로젝트 학습 디렉토리 | {상태} | {생성 예정 / 이미 존재} |
-| 도메인 선언 | {상태} | {질문 예정 / 이미 선언: {domain}} |
-| 글로벌 도메인 문서 | {상태} | {안내 예정 / 이미 존재} |
+| Project learning directory | {status} | {to be created / already exists} |
+| Domain declaration | {status} | {to be asked / already declared: {domain}} |
+| Global domain document | {status} | {guidance to be provided / already exists} |
 
-진행할까요?
+Proceed?
 ```
 
-### 3. 환경 설정
+### 3. Environment Setup
 
-사용자가 승인하면 다음을 실행합니다:
+Executes the following upon user approval:
 
-**3.1 프로젝트 학습 디렉토리 생성**
-- `.onto/learnings/` 디렉토리가 없으면 생성합니다.
-- `.onto/learnings/.gitkeep` 파일을 생성합니다 (빈 디렉토리의 Git 추적용).
+**3.1 Create project learning directory**
+- Creates `.onto/learnings/` directory if it does not exist.
+- Creates `.onto/learnings/.gitkeep` file (for Git tracking of empty directories).
 
-**3.2 도메인 설정**
-- `.onto/config.yml`과 CLAUDE.md 모두에 `domain:` 선언이 없으면 사용자에게 질문합니다:
-  "이 프로젝트의 도메인을 알려주세요. (예: `healthcare`, `fintech`, `e-commerce`) 도메인 규칙 없이 범용 원칙만으로 검증하려면 '없음'이라고 답해주세요."
-- 사용자가 도메인을 지정하면, `.onto/config.yml`에 `domain: {domain}` 줄을 추가합니다. CLAUDE.md는 수정하지 않습니다.
-- 보조 도메인이 있는지도 확인합니다: "보조 도메인이 있나요? (예: healthcare 프로젝트이지만 fintech 규칙도 일부 적용) 없으면 '없음'이라고 답해주세요."
-- 보조 도메인이 있으면 `.onto/config.yml`에 `secondary_domains: {domain1}, {domain2}` 줄을 추가합니다.
-- `.onto/config.yml`에 `output_language: en` 기본값을 추가합니다. 사용자가 다른 언어를 원하면 변경 가능합니다.
+**3.2 Domain configuration**
+- If `domain:` is not declared in either `.onto/config.yml` or CLAUDE.md, asks the user:
+  "Please specify the domain for this project. (e.g., `healthcare`, `fintech`, `e-commerce`) If you want to verify using general principles only without domain rules, answer 'none'."
+- If the user specifies a domain, adds `domain: {domain}` to `.onto/config.yml`. Does not modify CLAUDE.md.
+- Also checks for secondary domains: "Are there secondary domains? (e.g., a healthcare project that also partially applies fintech rules) Answer 'none' if there are none."
+- If secondary domains exist, adds `secondary_domains: {domain1}, {domain2}` to `.onto/config.yml`.
+- Adds `output_language: en` as a default to `.onto/config.yml`. Can be changed if the user prefers a different language.
 
-**3.3 글로벌 도메인 문서 설치**
-- 지정된 도메인의 글로벌 문서(`~/.onto/domains/{domain}/`)가 없거나 불완전하면:
-  1. 플러그인의 `domains/` 디렉토리에 해당 도메인의 기본 문서가 존재하는지 확인합니다.
-  2. 존재하면 설치를 제안합니다:
-     "도메인 `{domain}`의 기본 문서가 플러그인에 포함되어 있습니다 ({N}개 파일). 설치할까요? 기존 학습(learnings)은 보존됩니다."
-  3. 사용자가 승인하면: 플러그인의 `domains/{domain}/` 내 기본 문서(*.md)를 `~/.onto/domains/{domain}/`에 복사합니다. `learnings/` 디렉토리도 생성합니다. 기존 파일과 내용이 동일하면 건너뜁니다.
-  4. 플러그인에 해당 도메인이 없으면 기존 안내를 제공합니다:
-     "도메인 `{domain}`의 글로벌 규칙 문서가 아직 없습니다. 리뷰/질문을 반복하면서 학습이 자동으로 축적됩니다. 별도의 도메인 규칙을 미리 정의하고 싶으시면 말씀해 주세요."
-- 보조 도메인이 있으면, 보조 도메인에 대해서도 동일한 설치 확인을 수행합니다.
+**3.3 Install global domain documents**
+- If global documents for the specified domain (`~/.onto/domains/{domain}/`) are missing or incomplete:
+  1. Checks whether default documents for the domain exist in the plugin's `domains/` directory.
+  2. If they exist, suggests installation:
+     "Default documents for domain `{domain}` are included in the plugin ({N} files). Install them? Existing learnings will be preserved."
+  3. Upon user approval: copies default documents (*.md) from the plugin's `domains/{domain}/` to `~/.onto/domains/{domain}/`. Also creates the `learnings/` directory. Skips files with identical content.
+  4. If the domain does not exist in the plugin, provides existing guidance:
+     "Global rule documents for domain `{domain}` do not yet exist. Learnings will accumulate automatically through repeated reviews/queries. Let me know if you would like to define domain rules in advance."
+- If secondary domains exist, performs the same installation check for secondary domains.
 
-> **참고**: 플러그인에 포함된 기본 도메인 목록은 `setup-domains.sh --all`로 일괄 설치하거나, `setup-domains.sh {도메인1} {도메인2}`로 선택 설치할 수도 있습니다.
+> **Note**: Default domains included in the plugin can be installed in bulk via `setup-domains.sh --all`, or selectively via `setup-domains.sh {domain1} {domain2}`.
 
-**3.4 글로벌 학습 현황 안내**
-- 해당 도메인의 글로벌 학습(`~/.onto/domains/{domain}/learnings/`)이 존재하면 안내합니다:
-  "도메인 `{domain}`의 글로벌 학습이 {N}건 존재합니다. 이전 프로젝트에서 축적된 검증 경험이 이 프로젝트의 리뷰에도 활용됩니다."
-- 존재하지 않으면 안내하지 않습니다.
+**3.4 Global learning status notification**
+- If global learnings for the domain (`~/.onto/domains/{domain}/learnings/`) exist, notifies:
+  "There are {N} global learnings for domain `{domain}`. Verification experience accumulated from previous projects will also be utilized in reviews for this project."
+- If none exist, does not notify.
 
-**3.5 도메인 범위 문서 초안 생성**
-- `domain_scope.md`는 onto_coverage의 핵심 기준 문서입니다 (범위 정의형 — 부재 시 역할 무력화).
-- `~/.onto/domains/{domain}/domain_scope.md`가 존재하지 않으면, 사용자에게 초안 생성을 제안합니다:
-  "도메인 `{domain}`의 범위 문서(domain_scope.md)가 없습니다. 이 문서는 '있어야 하는데 없는 것'을 식별하는 기준이 됩니다. 초안을 생성할까요?"
-- 사용자가 승인하면: 프로젝트 코드/문서와 LLM 지식을 활용하여 도메인의 하위 영역 목록, 필수 개념 범주, 참조 표준/프레임워크 초안을 생성합니다.
-- 사용자에게 초안을 제시하고, 수정/확인 후 저장합니다.
+**3.5 Domain scope document draft generation**
+- `domain_scope.md` is the core reference document for onto_coverage (scope-defining — role rendered ineffective if absent).
+- If `~/.onto/domains/{domain}/domain_scope.md` does not exist, suggests draft generation to the user:
+  "The scope document (domain_scope.md) for domain `{domain}` does not exist. This document serves as the basis for identifying 'what should exist but is missing.' Generate a draft?"
+- Upon user approval: generates a draft of domain sub-area lists, required concept categories, and reference standards/frameworks using project code/documents and LLM knowledge.
+- Presents the draft to the user for revision/confirmation before saving.
 
-### 4. 완료 보고
+### 4. Completion Report
 
 ```markdown
-## Onboard 완료
+## Onboard Complete
 
-| 항목 | 결과 |
+| Item | Result |
 |---|---|
-| `.onto/learnings/` | {생성됨 / 이미 존재} |
-| 도메인 | {domain / 없음 (범용 모드)} |
-| 보조 도메인 | {domains / 없음} |
-| 글로벌 도메인 문서 | {N개 존재 / 미존재 (자동 축적 예정)} |
+| `.onto/learnings/` | {created / already exists} |
+| Domain | {domain / none (general mode)} |
+| Secondary domains | {domains / none} |
+| Global domain document | {N present / not present (auto-accumulation pending)} |
 
-### 다음 단계
-- `/onto:review {대상}` — 에이전트 패널 리뷰 실행
-- `/onto:ask-{dimension} {질문}` — 개별 전문가 질문
-- 학습이 쌓이면 `/onto:promote` — 프로젝트 학습을 글로벌에 반영
+### Next Steps
+- `/onto:review {target}` — run agent panel review
+- `/onto:ask-{dimension} {question}` — individual expert query
+- When learnings accumulate, `/onto:promote` — promote project learnings to global-level
 ```

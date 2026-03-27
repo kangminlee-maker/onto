@@ -1,78 +1,78 @@
-# Finance Domain — 논리 규칙
+# Finance Domain — Logic Rules
 
-## 분류 축
+## Classification Axes
 
-| 축 | 값 | 설명 |
+| Axis | Values | Description |
 |---|---|---|
-| 규칙 유형 | 항등식 / 관계 / 기간 / 상충 | 규칙의 성격 |
-| 검증 시점 | 입력 시 / 질의 시 / 보고 시 | 규칙이 적용되는 시점 |
-| 위반 심각도 | 오류(차단) / 경고(허용) | 위반 시 처리 수준 |
+| Rule type | Identity / Relation / Period / Conflict | Nature of the rule |
+| Verification timing | At input / At query / At reporting | When the rule is applied |
+| Violation severity | Error (block) / Warning (allow) | Handling level upon violation |
 
-## 회계 항등식 (3개)
+## Accounting Identities (3)
 
-| ID | 항등식 | 위반 심각도 | 검증 시점 |
+| ID | Identity | Violation Severity | Verification Timing |
 |---|---|---|---|
-| EQ01 | 자산 = 부채 + 자본 | 오류 | 입력 시 |
-| EQ02 | 기초자본 + 당기순이익 + 기타포괄손익 ± 자본거래 = 기말자본 | 경고 | 질의 시 |
-| EQ03 | 기초현금 + 영업CF + 투자CF + 재무CF = 기말현금 | 오류 | 입력 시 |
+| EQ01 | Assets = Liabilities + Equity | Error | At input |
+| EQ02 | Opening equity + Net income + Other comprehensive income +/- Capital transactions = Closing equity | Warning | At query |
+| EQ03 | Opening cash + Operating CF + Investing CF + Financing CF = Closing cash | Error | At input |
 
-> **주의:** EQ02는 자본변동표의 모든 항목이 구조화된 데이터로 제공되지 않는 경우가 있어 "경고" 수준으로 설정한다. 정확한 검증에는 주석 정보가 필요할 수 있다.
+> **Note:** EQ02 is set to "warning" level because not all items from the Statement of Changes in Equity may be available as structured data. Accurate verification may require note information.
 
-## 관계 규칙 (3개)
+## Relation Rules (3)
 
-| ID | 규칙 | 설명 | 위반 심각도 |
+| ID | Rule | Description | Violation Severity |
 |---|---|---|---|
-| RE01 | 매출총이익 = 매출액 − 매출원가 | 손익계산서 내 산술 관계 | 오류 |
-| RE02 | 영업이익 = 매출총이익 − 판관비 | 업종별 영업이익 정의 차이 주의 | 경고 |
-| RE03 | 유동비율 = 유동자산 / 유동부채 | 파생 지표 산출 규칙 | — (산출 규칙) |
+| RE01 | Gross profit = Revenue - Cost of goods sold | Arithmetic relationship within the Income Statement | Error |
+| RE02 | Operating income = Gross profit - SG&A | Note: operating income definition varies by industry | Warning |
+| RE03 | Current ratio = Current assets / Current liabilities | Derived metric calculation rule | — (calculation rule) |
 
-> RE02에서 금융업종은 영업이익 산출 구조가 상이하다. 일반 업종의 "매출총이익 − 판관비" 공식이 적용되지 않으며, 이자수익·수수료수익 등에서 시작하는 별도 구조를 따른다. 업종 분류 축(일반/금융)에 따라 적용 규칙이 분기된다.
+> In RE02, the financial industry has a different operating income calculation structure. The general industry formula "gross profit - SG&A" does not apply; instead, a separate structure starting from interest income, fee income, etc. is followed. The applicable rule branches based on the industry classification axis (general/financial).
 
-## 기간 규칙 (3개)
+## Period Rules (3)
 
-| ID | 규칙 | 설명 | 검증 시점 |
+| ID | Rule | Description | Verification Timing |
 |---|---|---|---|
-| PR01 | instant 항목은 특정 일자에 귀속 | 재무상태표 항목 (자산, 부채, 자본) | 입력 시 |
-| PR02 | duration 항목은 시작일~종료일 구간에 귀속 | 손익·현금흐름 항목 | 입력 시 |
-| PR03 | 동일 항목의 기간 비교 시 duration 일치 필수 | 분기 vs 연간 비교 방지 | 질의 시 |
+| PR01 | Instant items are attributed to a specific date | Statement of Financial Position items (assets, liabilities, equity) | At input |
+| PR02 | Duration items are attributed to a start-date-to-end-date interval | Income and cash flow items | At input |
+| PR03 | Period comparison of the same item requires matching durations | Prevents quarterly vs. annual comparison | At query |
 
-> 동일 기업의 동일 보고기간이라도 원천에 따라 식별자가 상이할 수 있으며, 이 경우 기간 매칭이 실패한다. 식별 체계는 "보고주체 + 보고기간 + 보고단위 + 원천" 조합으로 단일화해야 한다.
+> Even for the same company and same reporting period, identifiers may differ depending on the source, causing period matching to fail. The identification system must be unified using the combination of "reporting entity + reporting period + reporting unit + source."
 
-## 제약 상충 검사 (1개)
+## Constraint Conflict Checking (1)
 
-| ID | 규칙 | 설명 |
+| ID | Rule | Description |
 |---|---|---|
-| CF01 | 연결 재무제표의 자산총계 ≥ 별도 재무제표의 자산총계 | 종속기업 포함으로 인한 일반적 관계. 위반 시 연결 범위 오류 의심 |
+| CF01 | Consolidated total assets >= Separate total assets | General relationship due to subsidiary inclusion. Violation suggests consolidation scope error |
 
-> CF01은 100% 성립하는 항등식이 아니라 일반적 기대값이다. 내부거래 제거 등으로 예외가 존재할 수 있으므로 위반 시 "경고"로 처리한다.
+> CF01 is not an identity that holds 100% of the time but rather a general expectation. Exceptions may exist due to intercompany elimination, etc., so violations are treated as "warning."
 
-## 파생 지표 산출 규칙
+## Derived Metric Calculation Rules
 
-| 지표 | 산출식 | 필요 항목 | 속성 주의 |
+| Metric | Formula | Required Items | Attribute Caution |
 |---|---|---|---|
-| ROE | 당기순이익 / 평균자본 | ProfitLoss(duration), Equity(instant) | 평균자본 = (기초+기말)/2 |
-| 부채비율 | 부채총계 / 자본총계 | Liabilities(instant), Equity(instant) | 동일 시점 필수 |
-| EPS | 당기순이익 / 가중평균유통주식수 | ProfitLoss(duration), 주식수(주석) | 주식수는 주석에서 추출 |
-| 영업이익률 | 영업이익 / 매출액 | OperatingIncome(duration), Revenue(duration) | 동일 기간 필수 |
+| ROE | Net income / Average equity | ProfitLoss (duration), Equity (instant) | Average equity = (opening + closing) / 2 |
+| Debt ratio | Total liabilities / Total equity | Liabilities (instant), Equity (instant) | Same point-in-time required |
+| EPS | Net income / Weighted average shares outstanding | ProfitLoss (duration), Shares outstanding (from notes) | Share count is extracted from notes |
+| Operating profit margin | Operating income / Revenue | OperatingIncome (duration), Revenue (duration) | Same period required |
 
-## 수익 인식 규칙 (IFRS 15)
+## Revenue Recognition Rules (IFRS 15)
 
-| ID | 규칙 | 설명 | 검증 시점 |
+| ID | Rule | Description | Verification Timing |
 |---|---|---|---|
-| RR01 | 수익은 수행의무 이행 시점 또는 이행 기간에 걸쳐 인식 | 시점 인식 vs 기간 인식 구분 | 입력 시 |
-| RR02 | 변동대가는 기대값 또는 최빈값으로 추정하여 거래가격에 포함 | 반품권, 리베이트 등 | 질의 시 |
+| RR01 | Revenue is recognized at the point of or over the period of performance obligation fulfillment | Distinction between point-in-time and over-time recognition | At input |
+| RR02 | Variable consideration is estimated using expected value or most likely amount and included in the transaction price | Returns, rebates, etc. | At query |
 
-## 금융상품 분류 규칙 (IFRS 9)
+## Financial Instrument Classification Rules (IFRS 9)
 
-| ID | 규칙 | 설명 | 검증 시점 |
+| ID | Rule | Description | Verification Timing |
 |---|---|---|---|
-| FI01 | 금융자산은 사업모형 + 계약상 현금흐름 특성에 따라 3범주로 분류 | 상각후원가 / FVOCI / FVPL | 입력 시 |
-| FI02 | 기대신용손실은 신용위험 유의적 증가 여부에 따라 12개월 또는 전체기간으로 측정 | 손상 3단계 모형 | 질의 시 |
+| FI01 | Financial assets are classified into 3 categories based on business model + contractual cash flow characteristics | Amortised cost / FVOCI / FVPL | At input |
+| FI02 | Expected credit losses are measured as 12-month or lifetime depending on significant increase in credit risk | 3-stage impairment model | At query |
 
-## 관련 문서
+## Related Documents
 
-- [domain_scope.md](domain_scope.md) — 회계 항등식이 핵심 영역으로 정의된 근거
-- [concepts.md](concepts.md) — 산출식에 사용되는 개념의 정규화 명칭 및 매핑
-- [structure_spec.md](structure_spec.md) — 항등식·관계 규칙이 온톨로지 관계(Edge)로 표현되는 구조
-- [competency_qs.md](competency_qs.md) — 파생 지표 산출 규칙이 적용되는 질의 사례
-- [dependency_rules.md](dependency_rules.md) — 규칙 간 선후 의존 관계
+- [domain_scope.md](domain_scope.md) — the basis for accounting identities being defined as a core area
+- [concepts.md](concepts.md) — canonical names and mappings for concepts used in formulas
+- [structure_spec.md](structure_spec.md) — the structure in which identities and relation rules are expressed as ontology relationships (edges)
+- [competency_qs.md](competency_qs.md) — query cases where derived metric calculation rules are applied
+- [dependency_rules.md](dependency_rules.md) — precedence dependencies between rules

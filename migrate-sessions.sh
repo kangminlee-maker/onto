@@ -1,23 +1,23 @@
 #!/bin/bash
-# onto 마이그레이션 스크립트
-# 이전 버전의 런타임 데이터를 새 .onto/ 구조로 이동합니다.
+# onto migration script
+# Moves runtime data from previous versions to the new .onto/ structure.
 #
-# 마이그레이션 대상:
-#   1. .claude/sessions/   → .onto/review/ 및 .onto/builds/
-#   2. .claude/learnings/  → .onto/learnings/
-#   3. .claude/ontology/   → .onto/builds/{세션ID}/
-#   4. .onto/sessions/ 중간 계층 제거 (sessions/review/ → review/)
-#   5. CLAUDE.md의 domain 설정 → .onto/config.yml (CLAUDE.md 비침습)
-#   6. ~/.claude/agent-memory/ → ~/.onto/ (글로벌 데이터 분리)
+# Migration targets:
+#   1. .claude/sessions/   -> .onto/review/ and .onto/builds/
+#   2. .claude/learnings/  -> .onto/learnings/
+#   3. .claude/ontology/   -> .onto/builds/{session-id}/
+#   4. .onto/sessions/ intermediate layer removal (sessions/review/ -> review/)
+#   5. CLAUDE.md domain config -> .onto/config.yml (non-invasive to CLAUDE.md)
+#   6. ~/.claude/agent-memory/ -> ~/.onto/ (global data separation)
 #
-# 사용법:
-#   ./migrate-sessions.sh                # 현재 디렉토리의 프로젝트를 마이그레이션
-#   ./migrate-sessions.sh /path/to/project  # 지정 프로젝트를 마이그레이션
-#   ./migrate-sessions.sh --dry-run      # 실제 이동 없이 대상만 확인
+# Usage:
+#   ./migrate-sessions.sh                # Migrate project in current directory
+#   ./migrate-sessions.sh /path/to/project  # Migrate specified project
+#   ./migrate-sessions.sh --dry-run      # Preview targets without actual moves
 
 set -e
 
-# 색상
+# Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
@@ -27,7 +27,7 @@ NC='\033[0m'
 DRY_RUN=false
 PROJECT_DIR=""
 
-# 인자 처리
+# Argument processing
 for arg in "$@"; do
     case "$arg" in
         --dry-run)
@@ -39,51 +39,51 @@ for arg in "$@"; do
     esac
 done
 
-# 프로젝트 디렉토리 결정
+# Determine project directory
 if [ -z "$PROJECT_DIR" ]; then
     PROJECT_DIR="$(pwd)"
 fi
 
-# 절대 경로로 변환
+# Convert to absolute path
 PROJECT_DIR="$(cd "$PROJECT_DIR" 2>/dev/null && pwd)" || {
-    echo -e "${RED}디렉토리를 찾을 수 없습니다: $PROJECT_DIR${NC}"
+    echo -e "${RED}Directory not found: $PROJECT_DIR${NC}"
     exit 1
 }
 
 NEW_DIR="$PROJECT_DIR/.onto"
 
 echo ""
-echo -e "${CYAN}━━━ onto 마이그레이션 ━━━${NC}"
+echo -e "${CYAN}--- onto migration ---${NC}"
 echo ""
-echo "프로젝트: $PROJECT_DIR"
+echo "Project: $PROJECT_DIR"
 echo ""
 
 TOTAL_ACTIONS=0
 
-# ─── 1단계: .claude/sessions/ → .onto/{프로세스}/ ───
+# --- Step 1: .claude/sessions/ -> .onto/{process}/ ---
 
 OLD_SESSIONS="$PROJECT_DIR/.claude/sessions"
 
 if [ -d "$OLD_SESSIONS" ]; then
-    echo -e "${CYAN}[1/4] .claude/sessions/ 발견${NC}"
+    echo -e "${CYAN}[1/4] .claude/sessions/ found${NC}"
 
     for process_dir in "$OLD_SESSIONS"/*/; do
         [ -d "$process_dir" ] || continue
         process_name=$(basename "$process_dir")
-        # buildfromcode → builds 변환
+        # buildfromcode -> builds conversion
         [ "$process_name" = "buildfromcode" ] && process_name="builds"
 
         for session_dir in "$process_dir"*/; do
             [ -d "$session_dir" ] || continue
             session_id=$(basename "$session_dir")
             file_count=$(find "$session_dir" -type f | wc -l | tr -d ' ')
-            echo -e "  ${process_name}/${session_id} (${file_count}개 파일)"
+            echo -e "  ${process_name}/${session_id} (${file_count} files)"
             ((TOTAL_ACTIONS++))
 
             if [ "$DRY_RUN" = false ]; then
                 dst="$NEW_DIR/$process_name/$session_id"
                 if [ -d "$dst" ]; then
-                    # 이미 존재하면 라운드 디렉토리를 병합
+                    # If already exists, merge round directories
                     for sub in "$session_dir"*/; do
                         [ -d "$sub" ] || continue
                         sub_name=$(basename "$sub")
@@ -95,28 +95,28 @@ if [ -d "$OLD_SESSIONS" ]; then
                     mkdir -p "$(dirname "$dst")"
                     mv "$session_dir" "$dst"
                 fi
-                echo -e "    ${GREEN}→ .onto/${process_name}/${session_id}${NC}"
+                echo -e "    ${GREEN}-> .onto/${process_name}/${session_id}${NC}"
             fi
         done
     done
 
     if [ "$DRY_RUN" = false ]; then
         rm -rf "$OLD_SESSIONS"
-        echo -e "  ${GREEN}.claude/sessions/ 삭제 완료${NC}"
+        echo -e "  ${GREEN}.claude/sessions/ deleted${NC}"
     fi
     echo ""
 else
-    echo -e "[1/4] .claude/sessions/ — 없음 (건너뜀)"
+    echo -e "[1/4] .claude/sessions/ -- not found (skipped)"
     echo ""
 fi
 
-# ─── 2단계: .claude/learnings/ → .onto/learnings/ ───
+# --- Step 2: .claude/learnings/ -> .onto/learnings/ ---
 
 OLD_LEARNINGS="$PROJECT_DIR/.claude/learnings"
 
 if [ -d "$OLD_LEARNINGS" ]; then
     file_count=$(find "$OLD_LEARNINGS" -type f -name "*.md" | wc -l | tr -d ' ')
-    echo -e "${CYAN}[2/4] .claude/learnings/ 발견 (${file_count}개 파일)${NC}"
+    echo -e "${CYAN}[2/4] .claude/learnings/ found (${file_count} files)${NC}"
     ((TOTAL_ACTIONS++))
 
     if [ "$DRY_RUN" = false ]; then
@@ -126,45 +126,45 @@ if [ -d "$OLD_LEARNINGS" ]; then
             fname=$(basename "$f")
             if [ ! -f "$NEW_DIR/learnings/$fname" ]; then
                 mv "$f" "$NEW_DIR/learnings/$fname"
-                echo -e "  ${GREEN}이동: $fname${NC}"
+                echo -e "  ${GREEN}Moved: $fname${NC}"
             else
-                echo -e "  ${YELLOW}건너뜀: $fname (이미 존재)${NC}"
+                echo -e "  ${YELLOW}Skipped: $fname (already exists)${NC}"
             fi
         done
-        # .gitkeep 등 남은 파일 처리
+        # Handle remaining files like .gitkeep
         remaining=$(find "$OLD_LEARNINGS" -type f | wc -l | tr -d ' ')
         if [ "$remaining" -eq 0 ]; then
             rm -rf "$OLD_LEARNINGS"
-            echo -e "  ${GREEN}.claude/learnings/ 삭제 완료${NC}"
+            echo -e "  ${GREEN}.claude/learnings/ deleted${NC}"
         fi
     fi
     echo ""
 else
-    echo -e "[2/4] .claude/learnings/ — 없음 (건너뜀)"
+    echo -e "[2/4] .claude/learnings/ -- not found (skipped)"
     echo ""
 fi
 
-# ─── 3단계: .claude/ontology/ → .onto/builds/{세션ID}/ ───
+# --- Step 3: .claude/ontology/ -> .onto/builds/{session-id}/ ---
 
 OLD_ONTOLOGY="$PROJECT_DIR/.claude/ontology"
 
 if [ -d "$OLD_ONTOLOGY" ]; then
     file_count=$(find "$OLD_ONTOLOGY" -type f | wc -l | tr -d ' ')
-    echo -e "${CYAN}[3/4] .claude/ontology/ 발견 (${file_count}개 파일)${NC}"
+    echo -e "${CYAN}[3/4] .claude/ontology/ found (${file_count} files)${NC}"
     ((TOTAL_ACTIONS++))
 
-    # 기존 build 세션 찾기 (가장 최근 builds 세션에 매핑)
+    # Find existing build session (map to most recent builds session)
     BUILD_SESSION=""
     if [ -d "$NEW_DIR/builds" ]; then
         BUILD_SESSION=$(ls -1 "$NEW_DIR/builds/" 2>/dev/null | sort -r | head -1)
     fi
 
     if [ -z "$BUILD_SESSION" ]; then
-        # build 세션이 없으면 새로 생성
+        # No build session found, create new one
         BUILD_SESSION="migrated-$(date +%Y%m%d)"
-        echo -e "  기존 build 세션 없음 → builds/${BUILD_SESSION}/ 생성"
+        echo -e "  No existing build session -> creating builds/${BUILD_SESSION}/"
     else
-        echo -e "  기존 build 세션 발견 → builds/${BUILD_SESSION}/ 에 병합"
+        echo -e "  Existing build session found -> merging into builds/${BUILD_SESSION}/"
     fi
 
     if [ "$DRY_RUN" = false ]; then
@@ -175,35 +175,35 @@ if [ -d "$OLD_ONTOLOGY" ]; then
             item_name=$(basename "$item")
             if [ ! -e "$dst/$item_name" ]; then
                 mv "$item" "$dst/$item_name"
-                echo -e "  ${GREEN}이동: $item_name${NC}"
+                echo -e "  ${GREEN}Moved: $item_name${NC}"
             else
-                echo -e "  ${YELLOW}건너뜀: $item_name (이미 존재)${NC}"
+                echo -e "  ${YELLOW}Skipped: $item_name (already exists)${NC}"
             fi
         done
         remaining=$(find "$OLD_ONTOLOGY" -type f 2>/dev/null | wc -l | tr -d ' ')
         if [ "$remaining" -eq 0 ]; then
             rm -rf "$OLD_ONTOLOGY"
-            echo -e "  ${GREEN}.claude/ontology/ 삭제 완료${NC}"
+            echo -e "  ${GREEN}.claude/ontology/ deleted${NC}"
         fi
     fi
     echo ""
 else
-    echo -e "[3/4] .claude/ontology/ — 없음 (건너뜀)"
+    echo -e "[3/4] .claude/ontology/ -- not found (skipped)"
     echo ""
 fi
 
-# ─── 4단계: .onto/sessions/ 중간 계층 제거 ───
+# --- Step 4: .onto/sessions/ intermediate layer removal ---
 
 OLD_SESSIONS_LAYER="$NEW_DIR/sessions"
 
 if [ -d "$OLD_SESSIONS_LAYER" ]; then
-    echo -e "${CYAN}[4/4] .onto/sessions/ 중간 계층 발견 — 제거합니다${NC}"
+    echo -e "${CYAN}[4/4] .onto/sessions/ intermediate layer found -- removing${NC}"
     ((TOTAL_ACTIONS++))
 
     for process_dir in "$OLD_SESSIONS_LAYER"/*/; do
         [ -d "$process_dir" ] || continue
         process_name=$(basename "$process_dir")
-        # buildfromcode → builds 변환
+        # buildfromcode -> builds conversion
         [ "$process_name" = "buildfromcode" ] && process_name="builds"
         [ "$process_name" = "build" ] && process_name="builds"
 
@@ -222,33 +222,33 @@ if [ -d "$OLD_SESSIONS_LAYER" ]; then
                         mv "$sub" "$dst/$sub_name"
                     fi
                 done
-                echo -e "    ${GREEN}→ .onto/${process_name}/${session_id}${NC}"
+                echo -e "    ${GREEN}-> .onto/${process_name}/${session_id}${NC}"
             fi
         done
     done
 
     if [ "$DRY_RUN" = false ]; then
         rm -rf "$OLD_SESSIONS_LAYER"
-        echo -e "  ${GREEN}.onto/sessions/ 삭제 완료${NC}"
+        echo -e "  ${GREEN}.onto/sessions/ deleted${NC}"
     fi
     echo ""
 else
-    echo -e "[4/4] .onto/sessions/ — 없음 (건너뜀)"
+    echo -e "[4/4] .onto/sessions/ -- not found (skipped)"
     echo ""
 fi
 
-# ─── 5단계: CLAUDE.md domain 설정 → .onto/config.yml ───
+# --- Step 5: CLAUDE.md domain config -> .onto/config.yml ---
 
 CLAUDE_MD="$PROJECT_DIR/CLAUDE.md"
 CONFIG_YML="$NEW_DIR/config.yml"
 
 if [ -f "$CLAUDE_MD" ] && [ ! -f "$CONFIG_YML" ]; then
-    # CLAUDE.md에서 domain 관련 설정 추출
+    # Extract domain-related settings from CLAUDE.md
     DOMAIN=$(grep -E '^\s*(domain|agent-domain)\s*:' "$CLAUDE_MD" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d ' ')
     SECONDARY=$(grep -E '^\s*secondary_domains\s*:' "$CLAUDE_MD" 2>/dev/null | head -1 | sed 's/.*:\s*//')
 
     if [ -n "$DOMAIN" ]; then
-        echo -e "${CYAN}[5/6] CLAUDE.md에서 도메인 설정 발견: ${DOMAIN}${NC}"
+        echo -e "${CYAN}[5/6] Domain setting found in CLAUDE.md: ${DOMAIN}${NC}"
         ((TOTAL_ACTIONS++))
 
         if [ "$DRY_RUN" = false ]; then
@@ -257,99 +257,99 @@ if [ -f "$CLAUDE_MD" ] && [ ! -f "$CONFIG_YML" ]; then
             if [ -n "$SECONDARY" ]; then
                 echo "secondary_domains: $SECONDARY" >> "$CONFIG_YML"
             fi
-            echo -e "  ${GREEN}→ .onto/config.yml 생성 완료${NC}"
-            echo -e "  ${YELLOW}CLAUDE.md의 domain/secondary_domains 줄은 수동으로 제거해 주세요.${NC}"
-            echo -e "  ${YELLOW}(하위 호환: 제거하지 않아도 동작에 문제는 없습니다)${NC}"
+            echo -e "  ${GREEN}-> .onto/config.yml created${NC}"
+            echo -e "  ${YELLOW}Please manually remove the domain/secondary_domains lines from CLAUDE.md.${NC}"
+            echo -e "  ${YELLOW}(Backward compatible: leaving them does not affect functionality)${NC}"
         fi
         echo ""
     else
-        echo -e "[5/6] CLAUDE.md에 도메인 설정 없음 (건너뜀)"
+        echo -e "[5/6] No domain setting in CLAUDE.md (skipped)"
         echo ""
     fi
 elif [ -f "$CONFIG_YML" ]; then
-    echo -e "[5/6] .onto/config.yml 이미 존재 (건너뜀)"
+    echo -e "[5/6] .onto/config.yml already exists (skipped)"
     echo ""
 else
-    echo -e "[5/6] CLAUDE.md 없음 (건너뜀)"
+    echo -e "[5/6] CLAUDE.md not found (skipped)"
     echo ""
 fi
 
-# ─── 6단계: ~/.claude/agent-memory/ → ~/.onto/ (글로벌 데이터) ───
+# --- Step 6: ~/.claude/agent-memory/ -> ~/.onto/ (global data) ---
 
 OLD_GLOBAL="$HOME/.claude/agent-memory"
 NEW_GLOBAL="$HOME/.onto"
 
 if [ -d "$OLD_GLOBAL" ]; then
     file_count=$(find "$OLD_GLOBAL" -type f | wc -l | tr -d ' ')
-    echo -e "${CYAN}[6/6] ~/.claude/agent-memory/ 발견 (${file_count}개 파일)${NC}"
-    echo "  → ~/.onto/ 로 이동합니다."
+    echo -e "${CYAN}[6/6] ~/.claude/agent-memory/ found (${file_count} files)${NC}"
+    echo "  -> Moving to ~/.onto/"
     ((TOTAL_ACTIONS++))
 
     if [ "$DRY_RUN" = false ]; then
-        # 하위 디렉토리별로 이동 (methodology, communication, domains)
+        # Move by subdirectory (methodology, communication, domains)
         for subdir in "$OLD_GLOBAL"/*/; do
             [ -d "$subdir" ] || continue
             subname=$(basename "$subdir")
             dst="$NEW_GLOBAL/$subname"
 
             if [ -d "$dst" ]; then
-                # 이미 존재하면 파일 단위로 병합 (기존 파일 덮어쓰지 않음)
+                # If already exists, merge at file level (do not overwrite existing files)
                 find "$subdir" -type f | while read -r srcfile; do
                     relpath="${srcfile#$subdir}"
                     dstfile="$dst/$relpath"
                     if [ ! -f "$dstfile" ]; then
                         mkdir -p "$(dirname "$dstfile")"
                         mv "$srcfile" "$dstfile"
-                        echo -e "  ${GREEN}이동: $subname/$relpath${NC}"
+                        echo -e "  ${GREEN}Moved: $subname/$relpath${NC}"
                     else
-                        echo -e "  ${YELLOW}건너뜀: $subname/$relpath (이미 존재)${NC}"
+                        echo -e "  ${YELLOW}Skipped: $subname/$relpath (already exists)${NC}"
                     fi
                 done
             else
                 mkdir -p "$(dirname "$dst")"
                 mv "$subdir" "$dst"
-                echo -e "  ${GREEN}이동: $subname/${NC}"
+                echo -e "  ${GREEN}Moved: $subname/${NC}"
             fi
         done
 
-        # 빈 디렉토리 정리
+        # Clean up empty directories
         remaining=$(find "$OLD_GLOBAL" -type f 2>/dev/null | wc -l | tr -d ' ')
         if [ "$remaining" -eq 0 ]; then
             rm -rf "$OLD_GLOBAL"
-            echo -e "  ${GREEN}~/.claude/agent-memory/ 삭제 완료${NC}"
+            echo -e "  ${GREEN}~/.claude/agent-memory/ deleted${NC}"
         else
-            echo -e "  ${YELLOW}${remaining}개 파일이 남아 있습니다. 수동 확인 필요: ~/.claude/agent-memory/${NC}"
+            echo -e "  ${YELLOW}${remaining} files remain. Manual review needed: ~/.claude/agent-memory/${NC}"
         fi
     fi
     echo ""
 else
-    echo -e "[6/6] ~/.claude/agent-memory/ — 없음 (건너뜀)"
+    echo -e "[6/6] ~/.claude/agent-memory/ -- not found (skipped)"
     echo ""
 fi
 
-# ─── 완료 ───
+# --- Complete ---
 
 if [ $TOTAL_ACTIONS -eq 0 ]; then
-    echo -e "${GREEN}마이그레이션 불필요 — 이전 버전의 데이터가 없습니다.${NC}"
+    echo -e "${GREEN}No migration needed -- no data from previous versions found.${NC}"
 else
     if [ "$DRY_RUN" = true ]; then
-        echo -e "${YELLOW}[dry-run] 실제 이동은 수행하지 않았습니다.${NC}"
+        echo -e "${YELLOW}[dry-run] No actual moves were performed.${NC}"
     else
-        echo -e "${GREEN}마이그레이션 완료.${NC}"
+        echo -e "${GREEN}Migration complete.${NC}"
     fi
 fi
 
 echo ""
-echo "최종 구조:"
+echo "Final structure:"
 echo ""
-echo "  글로벌 (~/.onto/):"
-echo "  ├── methodology/{agent-id}.md    # 방법론 학습"
-echo "  ├── communication/               # 소통 학습"
-echo "  └── domains/{domain}/            # 도메인 문서 + 글로벌 학습"
+echo "  Global (~/.onto/):"
+echo "  +-- methodology/{agent-id}.md    # Methodology learnings"
+echo "  +-- communication/               # Communication learnings"
+echo "  +-- domains/{domain}/            # Domain documents + global learnings"
 echo ""
-echo "  프로젝트 ({project}/.onto/):"
-echo "  ├── config.yml                   # 도메인 설정"
-echo "  ├── review/{세션ID}/round1/     # review 결과"
-echo "  ├── builds/{세션ID}/round0~N/   # build 결과"
-echo "  └── learnings/                   # 프로젝트 수준 학습"
+echo "  Project ({project}/.onto/):"
+echo "  +-- config.yml                   # Domain configuration"
+echo "  +-- review/{session-id}/round1/  # Review results"
+echo "  +-- builds/{session-id}/round0~N/# Build results"
+echo "  +-- learnings/                   # Project-level learnings"
 echo ""

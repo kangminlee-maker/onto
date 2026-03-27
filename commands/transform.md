@@ -1,6 +1,6 @@
 # Onto Transform
 
-구축된 Raw Ontology를 사용자가 원하는 형식으로 변환합니다. $ARGUMENTS로 변환 대상 파일을 지정합니다. 미지정 시 `.onto/builds/{세션 ID}/raw.yml`을 대상으로 합니다.
+Transforms a built Raw Ontology into the user's desired format. $ARGUMENTS specifies the target file for transform. If not specified, `.onto/builds/{session ID}/raw.yml` is used as the target.
 
-`~/.claude/plugins/onto/process.md` (공통 정의)와
-`~/.claude/plugins/onto/processes/transform.md`를 읽고 실행하세요.
+Read `~/.claude/plugins/onto/process.md` (common definitions) and
+`~/.claude/plugins/onto/processes/transform.md`, then execute.

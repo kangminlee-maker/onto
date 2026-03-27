@@ -1,38 +1,38 @@
-# LLM-Native Development Domain — 논리 규칙
+# LLM-Native Development Domain — Logic Rules
 
-## 파일-개념 대응 논리
+## File–Concept Correspondence Logic
 
-- 하나의 개념은 정확히 하나의 개념 파일에서 정의되어야 한다. 동일 개념이 두 파일에서 정의되면 진실의 원천 충돌이다
-- 파일명은 해당 파일이 정의하는 개념을 나타내야 한다. 파일명과 내용이 불일치하면 자기 설명성 위반이다
-- 개념 파일이 존재하면 반드시 하나 이상의 개념을 정의해야 한다. 빈 파일은 허용되지 않는다
-- 메타 파일(INDEX.md, ARCHITECTURE.md 등)은 개념을 정의하지 않으며, 다른 파일들의 구조적 관계를 명시하는 역할을 한다. "File = Concept" 대응에서 제외된다
+- One concept must be defined in exactly one concept file. If the same concept is defined in two files, it is a source of truth conflict
+- A filename must represent the concept the file defines. A mismatch between filename and content is a self-describing violation
+- If a concept file exists, it must define at least one concept. Empty files are not allowed
+- Meta files (INDEX.md, ARCHITECTURE.md, etc.) do not define concepts and serve the role of specifying structural relationships among other files. They are excluded from the "File = Concept" correspondence
 
-## frontmatter 정합성 논리
+## Frontmatter Conformance Logic
 
-- frontmatter의 규격(필수 필드, 형식)은 structure_spec.md가 진실의 원천이다. 다른 파일에서 frontmatter를 참조할 때는 structure_spec.md의 정의를 따른다
-- frontmatter에 선언된 모든 참조(depends_on, related_to, parent)의 대상은 실제로 존재하는 파일이어야 한다
-- frontmatter의 type 필드 값은 체계에서 정의한 유형 목록에 속해야 한다. 정의되지 않은 유형은 분류 불가다
-- frontmatter에서 선언한 관계가 양방향이라면, 대상 파일의 frontmatter에도 역방향 관계가 존재해야 한다. 이 경우 dependency_rules.md의 순환 예외 조항을 따른다
+- The specification for frontmatter (required fields, format) has structure_spec.md as its source of truth. When other files reference frontmatter, they follow structure_spec.md's definitions
+- All references declared in frontmatter (depends_on, related_to, parent) must point to actually existing files
+- The type field value in frontmatter must belong to the type list defined in the system. An undefined type is unclassifiable
+- If a relationship declared in frontmatter is bidirectional, the reverse relationship must also exist in the target file's frontmatter. In this case, follow the cycle exception clause in dependency_rules.md
 
-## 계층 구조 논리
+## Hierarchy Logic
 
-- 디렉토리 계층은 개념의 포함 관계를 나타낸다. 상위 디렉토리는 하위 디렉토리의 개념을 포괄하는 범주여야 한다
-- 같은 디렉토리 내 파일들은 동일 추상화 수준의 개념이어야 한다. 추상 수준이 다르면 디렉토리를 분리한다
-- 디렉토리 깊이가 깊어질수록 개념이 구체화된다. 깊이 역전(하위가 더 추상적)은 구조 모순이다
+- Directory hierarchy represents containment relationships of concepts. A parent directory must be a category encompassing the concepts in its child directories
+- Files within the same directory must be concepts at the same abstraction level. If abstraction levels differ, separate into directories
+- As directory depth increases, concepts become more specific. Depth reversal (child is more abstract) is a structural contradiction
 
-## 탐색 경로 논리
+## Navigation Path Logic
 
-- 진입점에서 임의의 개념 파일까지 참조 체인이 존재해야 한다. 도달 불가능한 파일은 고립 문서이다
-- 참조 체인에 순환이 있으면, LLM이 무한 탐색에 빠질 수 있다. 순환 참조는 frontmatter에 명시적으로 표시해야 한다 (dependency_rules.md 순환 예외 조항 참조)
-- A가 B를 참조하고 B가 C를 참조할 때, A에서 C의 내용을 이해하기 위해 B를 반드시 경유해야 한다면, A→C 직접 참조를 추가해야 한다 (탐색 단축)
+- A reference chain must exist from the entry point to any concept file. A file that cannot be reached is an isolated document
+- If a reference chain has cycles, the LLM may fall into infinite traversal. Circular references must be explicitly marked in frontmatter (see cycle exception clause in dependency_rules.md)
+- When A references B and B references C, if understanding C's content from A requires traversing through B, a direct A→C reference should be added (navigation shortcut)
 
-## 변경 전파 논리
+## Change Propagation Logic
 
-- 개념 X의 정의가 변경되면, X를 참조하는 모든 파일이 검증 대상이다
-- 새 개념 파일 추가 시, 메타 파일(INDEX.md) 외에 기존 개념 파일의 수정이 필요하면 결합도가 높다는 신호이다. 동형이의어 등록(concepts.md)은 예외적으로 허용된다
-- 파일 삭제 시, 해당 파일을 참조하는 모든 곳에서 참조가 제거되어야 한다 (참조 무결성)
+- When concept X's definition changes, all files referencing X are verification targets
+- When adding a new concept file, if existing concept files require modification beyond the meta file (INDEX.md), it is a signal of high coupling. Homonym registration (concepts.md) is exceptionally allowed
+- When deleting a file, all references to that file must be removed everywhere (referential integrity)
 
-## 관련 문서
-- concepts.md — 파일 유형 분류(개념 파일 vs 메타 파일) 정의
-- dependency_rules.md — 순환 예외 조항, 참조 방향 규칙
-- structure_spec.md — frontmatter 규격의 진실의 원천
+## Related Documents
+- concepts.md — File type classification (concept file vs meta file) definition
+- dependency_rules.md — Cycle exception clause, reference direction rules
+- structure_spec.md — Source of truth for frontmatter specifications

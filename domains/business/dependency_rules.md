@@ -1,75 +1,75 @@
-# Business Domain — 의존성 규칙
+# Business Domain — Dependency Rules
 
-## 전략-실행 의존
+## Strategy-Execution Dependency
 
-- 전략 목표 → 실행 계획: 모든 전략 목표는 1개 이상의 실행 계획으로 구체화되어야 한다
-- 실행 계획 → 자원 배분: 모든 실행 계획은 필요 자원(예산, 인력, 시간)이 배정되어야 한다
-- 자원 배분 → 성과 측정: 배정된 자원에 대한 성과 측정 기준(KPI)이 존재해야 한다
-- 역방향 피드백: 성과 측정 결과가 전략 수정을 촉발하는 경로가 존재해야 한다
-- Balanced Scorecard 인과 사슬: 학습성장 → 내부프로세스 → 고객 → 재무 방향의 인과 관계가 추적 가능해야 한다
+- Strategic objective -> Execution plan: every strategic objective must be materialized into at least 1 execution plan
+- Execution plan -> Resource allocation: every execution plan must have required resources (budget, personnel, time) allocated
+- Resource allocation -> Performance measurement: performance measurement criteria (KPI) must exist for allocated resources
+- Reverse feedback: a path must exist for performance measurement results to trigger strategy modification
+- Balanced Scorecard causal chain: the causal relationship in the direction of learning & growth -> internal process -> customer -> financial must be traceable
 
-## 전략-마케팅 의존
+## Strategy-Marketing Dependency
 
-- 경쟁 전략(Porter) → STP: 원가우위/차별화 전략의 선택이 시장 세분화 기준과 타겟 선택에 영향을 미친다
-- STP → 마케팅 믹스(4P/7P): 포지셔닝이 정의되어야 마케팅 믹스의 각 요소가 결정된다
-- 고객 여정 → 운영 프로세스: 고객 접점(touchpoint)에서의 경험은 운영 프로세스에 의해 구현된다
-- 브랜드 전략 → 가격 전략: 브랜드 포지셔닝이 가격대를 제약한다. 프리미엄 브랜드의 과도한 할인은 브랜드 자산 훼손
+- Competitive strategy (Porter) -> STP: the choice of cost leadership/differentiation strategy influences market segmentation criteria and target selection
+- STP -> Marketing mix (4P/7P): positioning must be defined before each element of the marketing mix can be determined
+- Customer journey -> Operational processes: the experience at customer touchpoints is implemented by operational processes
+- Brand strategy -> Pricing strategy: brand positioning constrains the price range. Excessive discounting of a premium brand damages brand equity
 
-## 재무-전략 의존
+## Finance-Strategy Dependency
 
-- 투자 의사결정(NPV/IRR) → 전략 실행: 재무적 타당성이 검증되지 않은 전략은 실행 자원 확보 불가
-- 자본 구조(WACC) → 투자 기준: WACC가 산출되어야 투자안의 수용/기각 기준이 설정됨
-- 현금흐름 예측 → 운영 계획: 유동성 제약이 운영 규모와 속도를 제한한다
-- 자동화 투자 → 효과 측정: 자동화 범위(시작점/끝점) 정의 → 기준선 측정 → 도입 후 측정 → 비교. 이 순서가 깨지면 효과 주장이 미검증
+- Investment decision (NPV/IRR) -> Strategy execution: a strategy not validated for financial viability cannot secure execution resources
+- Capital structure (WACC) -> Investment criteria: WACC must be calculated for investment acceptance/rejection criteria to be established
+- Cash flow forecast -> Operations plan: liquidity constraints limit operational scale and speed
+- Automation investment -> Effectiveness measurement: automation scope (start/end points) definition -> baseline measurement -> post-implementation measurement -> comparison. If this sequence is broken, effectiveness claims are unverified
 
-## 조직-전략 의존
+## Organization-Strategy Dependency
 
-- 전략 유형 → 조직 구조: 혁신 전략은 유연한 구조(애드호크라시), 효율 전략은 기계적 관료제가 적합. 전략과 구조의 불일치는 실행력 저하
-- 조직 구조 → 의사결정 속도: 계층이 깊을수록 의사결정이 느려진다. 전략이 빠른 대응을 요구하면 구조의 단순화 필요
-- Agency Theory: 권한 위임 수준 → 모니터링 장치 → 인센티브 설계. 이 3가지는 동시에 설계되어야 한다
+- Strategy type -> Organizational structure: innovation strategies suit flexible structures (adhocracy); efficiency strategies suit machine bureaucracy. Misalignment between strategy and structure reduces execution capability
+- Organizational structure -> Decision-making speed: deeper hierarchies slow decision-making. If the strategy requires rapid response, structural simplification is needed
+- Agency Theory: delegation level -> monitoring mechanisms -> incentive design. These 3 must be designed simultaneously
 
-## 변화관리 순환 의존
+## Change Management Circular Dependency
 
-- 기술 도입 → 협조 확보 → 성공 사례 → 확산 → 추가 협조의 순환 구조에서, 순환을 시작하는 진입점이 명시되어야 한다
-- 진입점 후보: (1) 경영진 후원(top-down), (2) 범위 축소 파일럿(bottom-up), (3) 외부 성공 사례 차용
-- Kotter's 8 Steps에서 1~3단계(위기감/연합/비전)가 순환 진입의 역할을 한다
-- ADKAR에서 Awareness→Desire가 확보되어야 Knowledge/Ability 교육이 효과적
-- 순환 의존이 해소되지 않으면, 변화관리 계획 자체가 실행 불가(deadlock)
+- Technology adoption -> cooperation securing -> success case -> expansion -> additional cooperation forms a circular structure; the entry point for starting the cycle must be stated
+- Entry point candidates: (1) executive sponsorship (top-down), (2) scope-limited pilot (bottom-up), (3) borrowing external success cases
+- In Kotter's 8 Steps, steps 1-3 (urgency/coalition/vision) serve as the cycle entry point
+- In ADKAR, Awareness -> Desire must be secured before Knowledge/Ability training is effective
+- If the circular dependency is not resolved, the change management plan itself becomes non-executable (deadlock)
 
-## 조직-프로세스 의존
+## Organization-Process Dependency
 
-- 조직 구조 변경 → 프로세스 재설계: 조직 구조가 변경되면 해당 조직이 담당하는 프로세스도 재검토 필요
-- 프로세스 자동화 → 역할 재정의: 자동화로 기존 역할이 변경되면, 해당 인력의 재배치/재교육 계획이 필요
-- 역량 모델 → 인재 파이프라인: 역량 모델이 변경되면 인재 확보/육성 기준도 연동 변경
-- 의사결정 권한 → 실행 책임: 권한과 책임의 불일치(권한은 있으나 책임 없음, 또는 그 반대)는 실행 병목을 유발
+- Organizational structure change -> Process redesign: when organizational structure changes, the processes handled by that organization must also be reviewed
+- Process automation -> Role redefinition: when automation changes existing roles, redeployment/retraining plans for affected personnel are needed
+- Competency model -> Talent pipeline: when the competency model changes, talent acquisition/development criteria must change accordingly
+- Decision-making authority -> Execution responsibility: misalignment between authority and responsibility (authority without responsibility, or vice versa) causes execution bottlenecks
 
-## 운영-품질 의존
+## Operations-Quality Dependency
 
-- Lean/Six Sigma → KPI: 프로세스 개선 목표가 전략적 KPI와 정렬되어야 한다. 정렬 없이 개선하면 국부 최적화(local optimization)
-- TOC → 자원 배분: 병목 자원에 우선 투자해야 시스템 전체 성과가 향상된다. 비병목에 투자하면 효과 없음
-- 공급망 → 리스크 관리: 단일 공급자 의존, 리드타임 변동 등의 공급망 리스크가 전사 리스크 관리에 통합되어야 한다
+- Lean/Six Sigma -> KPI: process improvement goals must be aligned with strategic KPIs. Improving without alignment leads to local optimization
+- TOC -> Resource allocation: investing in the bottleneck resource first improves overall system performance. Investing in non-bottlenecks has no effect
+- Supply chain -> Risk management: supply chain risks such as single-supplier dependency and lead time variability must be integrated into enterprise risk management
 
-## 거버넌스-ESG 관계
+## Governance-ESG Relationship
 
-- 기업 거버넌스와 ESG는 독립된 관심사이지만, 이사회 구성/감독 기능에서 중첩된다
-- 중첩 영역에서의 우선순위: 거버넌스 규정(법적 의무) > ESG 기준(자발적 공시) — 단, 법제화된 ESG 요건은 거버넌스와 동등
-- 거버넌스 체계 변경 시 ESG 영향 평가, ESG 기준 변경 시 거버넌스 체계 정합성 확인 — 양방향 참조 필수
+- Corporate governance and ESG are independent concerns, but they overlap in board composition/oversight functions
+- Priority in overlapping areas: governance regulations (legal obligation) > ESG standards (voluntary disclosure) — however, legislated ESG requirements are equivalent to governance
+- Governance system changes require ESG impact assessment; ESG standard changes require governance system consistency verification — bidirectional reference is required
 
-## M&A 의존
+## M&A Dependency
 
-- 피인수 기업 통합 시, 핵심 시스템(재무/고객/운영)의 키 구조 호환성이 선행 검증 대상
-- 키 구조 비호환 시: (1) 키 매핑 테이블, (2) 과도기 병행 운영, (3) 통합 키 체계 설계 중 하나를 선택
-- 조직 문화 차이의 통합: Stakeholder Theory 관점에서 양측 이해관계자의 이해를 조율해야 한다
-- 통합 후 조직 구조가 Mintzberg 기준으로 어떤 유형을 지향하는지 명시해야 한다
+- When integrating an acquired company, key structure compatibility of core systems (financial/customer/operations) is a prerequisite for verification
+- When key structures are incompatible: choose among (1) key mapping table, (2) transitional parallel operation, (3) unified key system design
+- Integration of organizational culture differences: from a Stakeholder Theory perspective, the interests of stakeholders on both sides must be reconciled
+- The target organizational type (per Mintzberg) after integration must be stated
 
-## Source of Truth 관리
+## Source of Truth Management
 
-- 재무 데이터의 source of truth: 회계 시스템(ERP 등)의 원장
-- 전략 의사결정의 source of truth: 이사회/경영회의 의사록
-- KPI 데이터의 source of truth: 지정된 측정 시스템. 수기 보고와 시스템 데이터가 불일치하면 시스템 데이터 우선 (단, 시스템 오류 확인 절차 필요)
-- source of truth가 변경(시스템 교체 등)될 때, 기존 참조 관계를 모두 갱신해야 한다. 부분 갱신 시 이중 권위 발생
+- Source of truth for financial data: the ledger of the accounting system (ERP, etc.)
+- Source of truth for strategic decisions: board/management meeting minutes
+- Source of truth for KPI data: the designated measurement system. When manual reports and system data disagree, system data takes precedence (however, a system error verification procedure is needed)
+- When the source of truth changes (system replacement, etc.), all existing reference relationships must be updated. Partial updates create dual authority
 
-## 관련 문서
-- concepts.md — 전략, 마케팅, 거버넌스, 변화관리 등 용어 정의
-- structure_spec.md — 계층 구조, 조직-전략 적합성, 키 구조 규칙
-- logic_rules.md — 전략/재무/운영/변화관리 논리
+## Related Documents
+- concepts.md — definitions of strategy, marketing, governance, change management, and other terms
+- structure_spec.md — hierarchy structure, organization-strategy fit, key structure rules
+- logic_rules.md — strategy/finance/operations/change management logic

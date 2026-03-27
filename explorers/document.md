@@ -1,46 +1,46 @@
-# Explorer 프로파일: 문서
+# Explorer Profile: Document
 
-## 탐색 도구
+## Exploration Tools
 Read, WebFetch
 
-## module_inventory 단위
-섹션 / 챕터
+## module_inventory Unit
+Section / Chapter
 
-## 구조 인식 범위
-- 제목 계층 구조 (H1~H6 또는 동등 구조)
-- 본문 내용
-- 참조/인용 (다른 문서, 외부 URL)
-- 용어 정의
-- 테이블, 리스트
-- 부속 문서 참조
+## Structural Recognition Scope
+- Heading hierarchy (H1-H6 or equivalent structure)
+- Body content
+- References/citations (other documents, external URLs)
+- Term definitions
+- Tables, lists
+- Subsidiary document references
 
-## 소스 유형 판별 조건
-- 파일 확장자: .md, .txt, .pdf, .docx, .html
-- $ARGUMENTS가 URL (웹 문서)
-- 코드 파일이 아닌 텍스트 파일
+## Source Type Identification Criteria
+- File extension: .md, .txt, .pdf, .docx, .html
+- $ARGUMENTS is a URL (web document)
+- Text file that is not a code file
 
-## 구조 인식 예시
+## Structural Recognition Examples
 
-올바른 보고:
-> "3.2절 '결제 처리'에서 '환불은 결제 후 7일 이내에만 가능'이라는 문장이 있다"
+Correct reporting:
+> "Section 3.2 'Payment Processing' contains the statement: 'Refunds are only available within 7 days of payment.'"
 
-> "용어 정의 섹션에서 '수업'을 '강사와 학생이 1:1로 진행하는 세션'으로 정의하고 있다"
+> "The term definition section defines 'lesson' as 'a 1:1 session between an instructor and a student.'"
 
-해서는 안 되는 보고:
-> "이 문서의 핵심 비즈니스 규칙은 환불 정책이다"
+Incorrect reporting:
+> "The core business rule of this document is the refund policy."
 
-## detail 위치 표기
-`"{설명} — {파일}:{섹션}"`
+## detail Location Format
+`"{description} — {file}:{section}"`
 
-예: `"환불 기한 정의 — policy.md:3.2절"`
+Example: `"Refund deadline definition — policy.md:Section 3.2"`
 
-## Phase 0.5 맥락 질문
-- "이 문서의 작성 목적은 무엇인가요? (기획서, 정책 문서, API 문서, 사용자 가이드)"
-- "이 문서가 기술하는 시스템/서비스가 있나요?"
-- "이미 정의된 도메인 용어집이 있나요?"
+## Phase 0.5 Context Questions
+- "What is the purpose of this document? (planning document, policy document, API documentation, user guide)"
+- "Is there a system/service that this document describes?"
+- "Is there an existing domain glossary?"
 
-## Phase 0.5 스캔 대상
-- 목차 구조
-- 참조/인용 목록
-- 부속 문서 유무
-- 용어 정의 섹션 유무
+## Phase 0.5 Scan Targets
+- Table of contents structure
+- Reference/citation list
+- Presence of subsidiary documents
+- Presence of term definition section

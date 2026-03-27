@@ -1,67 +1,67 @@
-# LLM-Native Development Domain — 의존성 규칙
+# LLM-Native Development Domain — Dependency Rules
 
-## 참조 방향 규칙
+## Reference Direction Rules
 
-### 계층 간 방향
-- 시스템 맵(ARCHITECTURE.md) → 디렉토리 인덱스(INDEX.md) → 개별 문서: 허용 (상위→하위)
-- 개별 문서 → 시스템 맵: 금지 (하위→상위 역전). 개별 문서는 같은 수준 또는 하위 문서만 참조
+### Inter-Layer Direction
+- System Map (ARCHITECTURE.md) → Directory Index (INDEX.md) → Individual Documents: Allowed (upper → lower)
+- Individual Documents → System Map: Prohibited (lower → upper reversal). Individual documents may reference only same-level or lower-level documents
 
-### 유형 간 방향
-- 도메인 문서 → 프로세스 문서: 금지. 도메인은 프로세스에 독립적이어야 한다
-- 프로세스 문서 → 도메인 문서: 허용. 프로세스가 도메인 지식을 참조한다
-- 역할 문서 → 도메인 문서: 허용. 역할이 판단 기준으로 도메인 문서를 읽는다
+### Inter-Type Direction
+- Domain Documents → Process Documents: Prohibited. Domain must be independent of process
+- Process Documents → Domain Documents: Allowed. Processes reference domain knowledge
+- Role Documents → Domain Documents: Allowed. Roles read domain documents as judgment criteria
 
-### 동일 유형 문서 간 방향
-- 같은 유형의 도메인 문서 간 참조: 허용 (예: concepts.md ↔ structure_spec.md)
-- 양방향 참조 허용하되, 순환 금지 (아래 "순환 예외 조항" 참조)
-- 참조 시 "관련 문서" 섹션에 명시
+### Same-Type Document Direction
+- References between domain documents of the same type: Allowed (e.g., concepts.md ↔ structure_spec.md)
+- Bidirectional references are allowed, but cycles are prohibited (see "Cycle Exception Clause" below)
+- When referencing, specify in the "Related Documents" section
 
-### 도메인 간 방향
-- 하위(특수) 도메인 → 상위(일반) 도메인: 허용 (예: llm-native-development → software-engineering)
-- 상위(일반) 도메인 → 하위(특수) 도메인: 금지
-- 동일 계층 도메인 간: 양방향 허용하되 순환 금지
+### Inter-Domain Direction
+- Child (specialized) domain → Parent (general) domain: Allowed (e.g., llm-native-development → software-engineering)
+- Parent (general) domain → Child (specialized) domain: Prohibited
+- Same-level domains: Bidirectional allowed, but cycles are prohibited
 
-## 비순환 필수 관계
+## Acyclicity Mandatory Relationships
 
-- 문서 간 참조 그래프: 비순환(DAG). 순환 참조는 LLM의 무한 탐색을 유발한다
+- Document reference graph: Acyclic (DAG). Circular references cause LLM infinite traversal
 
-### 순환 예외 조항
-- logic_rules.md의 양방향 관계 요건에 의해 발생하는 양방향 참조(A↔B)는 순환 예외이다
-- 순환이 불가피한 경우: 양방향 참조를 frontmatter에 명시하고, 참조 이유를 기록한다
-- 순환 예외는 2-노드 양방향(A↔B)만 허용한다. 3-노드 이상 순환(A→B→C→A)은 금지
+### Cycle Exception Clause
+- Bidirectional references (A↔B) arising from the bidirectional relationship requirement in logic_rules.md are cycle exceptions
+- When cycles are unavoidable: Declare bidirectional references in frontmatter and record the reference reason
+- Cycle exceptions allow only 2-node bidirectional (A↔B). 3-node or more cycles (A→B→C→A) are prohibited
 
-## 참조 무결성
+## Referential Integrity
 
-- frontmatter의 depends_on, related_to 등에 기재된 파일 경로가 실제로 존재해야 한다
-- 파일이 이동/삭제되면, 해당 파일을 참조하는 모든 frontmatter가 갱신되어야 한다
-- INDEX.md에 등록된 파일이 실제로 해당 디렉토리에 존재해야 한다
+- File paths listed in frontmatter's depends_on, related_to, etc. must actually exist
+- When a file is moved/deleted, all frontmatter referencing that file must be updated
+- Files registered in INDEX.md must actually exist in that directory
 
-### 상속 참조 무결성
-- concepts.md의 상속 선언에서 참조하는 상위 도메인 경로가 실제로 존재해야 한다
-- 재정의 목록의 용어가 상위 도메인의 concepts.md에 실제로 존재해야 한다
-- 상위 도메인의 용어가 삭제/이동되면, 하위 도메인의 상속 선언도 갱신되어야 한다
+### Inheritance Referential Integrity
+- The parent domain path referenced in concepts.md's inheritance declaration must actually exist
+- Terms in the redefinition list must actually exist in the parent domain's concepts.md
+- When parent domain terms are deleted/moved, child domain inheritance declarations must also be updated
 
-### 재정의 시 진실의 원천
-- 재정의 목록에 있는 용어: 하위 도메인(llm-native-development)이 진실의 원천
-- 재정의 목록에 없는 용어: 상위 도메인(software-engineering)이 진실의 원천
+### Source of Truth for Redefinitions
+- Terms in the redefinition list: The child domain (llm-native-development) is the source of truth
+- Terms not in the redefinition list: The parent domain (software-engineering) is the source of truth
 
-## 외부 참조 관리
+## External Reference Management
 
-- 외부 URL 참조: 본문에서만 사용. frontmatter의 관계 필드에는 프로젝트 내부 파일 경로만 기재
-- 외부 표준/프레임워크 참조: 해당 표준의 버전 또는 접근 시점을 함께 기록
+- External URL references: Used only in body text. Frontmatter relationship fields may only contain project-internal file paths
+- External standard/framework references: Record the standard's version or access date alongside
 
-## 중복 방지 규칙
+## Duplication Prevention Rules
 
-- 동일 내용이 2개 이상의 파일에 존재하면 → 하나를 진실의 원천으로 지정하고 나머지는 참조로 대체
-- 유사 개념이 다른 이름으로 별도 파일에 정의되어 있으면 → 통합하거나 차이점을 명시
-- INDEX.md의 설명과 원본 파일의 frontmatter description이 불일치하면 → frontmatter를 우선 (INDEX.md는 파일 존재와 위치의 진실의 원천, frontmatter는 파일 속성의 진실의 원천)
+- If the same content exists in 2 or more files → Designate one as the source of truth and replace others with references
+- If similar concepts are defined under different names in separate files → Consolidate or explicitly state the differences
+- If INDEX.md descriptions and the original file's frontmatter description conflict → Frontmatter takes precedence (INDEX.md is the source of truth for file existence and location; frontmatter is the source of truth for file attributes)
 
-## 변경 원자성
+## Change Atomicity
 
-- 하나의 개념 변경이 여러 파일에 걸쳐야 하는 경우, 모든 변경을 단일 커밋으로 반영한다
-- 변경의 단위는 "하나의 개념 추가/수정/삭제"이다
+- When a single concept change spans multiple files, all changes are reflected in a single commit
+- The unit of change is "one concept addition/modification/deletion"
 
-## 관련 문서
-- logic_rules.md — 양방향 관계 요건 (본 파일의 순환 예외 조항과 연결)
-- structure_spec.md — frontmatter 규격, INDEX.md 역할 정의
-- concepts.md — 도메인 상속 선언
+## Related Documents
+- logic_rules.md — Bidirectional relationship requirement (linked to this file's cycle exception clause)
+- structure_spec.md — Frontmatter specifications, INDEX.md role definition
+- concepts.md — Domain inheritance declaration

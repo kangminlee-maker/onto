@@ -1,116 +1,116 @@
-# 간결성 규칙 (software-engineering)
+# Conciseness Rules (software-engineering)
 
-이 문서는 onto_conciseness가 간결성 검증 시 참조하는 도메인별 규칙입니다.
-간결성 판정의 **유형(허용/제거) → 검증 기준 → 역할 경계 → 측정 방법** 순으로 구성됩니다.
-
----
-
-## 1. 허용되는 중복
-
-각 규칙에 강도를 태깅합니다:
-- **[MUST-ALLOW]**: 제거 시 체계가 깨지는 중복. 유지 필수.
-- **[MAY-ALLOW]**: 편의상 유지하는 중복. 통합 가능하나, 통합 비용 대비 이득이 명확할 때만 제거.
-
-### 상태 관리
-
-- [MUST-ALLOW] 터미널 상태의 다중 정의 — 전환 이벤트, 프로젝터 분기, 후속 허용 이벤트 목록이 각각 상태를 참조. 하나라도 제거하면 상태 전환 정합성 검증 불가.
-- [MUST-ALLOW] 이벤트 소싱 시스템에서 이벤트 스키마와 프로젝션 로직이 동일 도메인 사실을 다른 형식으로 표현. 이벤트는 불변 기록이므로 프로젝션과 통합 불가.
-
-### Source of Truth 관련
-
-- [MUST-ALLOW] Source of Truth가 외부 시스템에 있을 때, 내부에 참조용 사본(캐시, 동기화 복사본) 유지. 제거 시 외부 의존 추적 불가.
-- [MAY-ALLOW] 외부 API 스키마를 내부 타입으로 재정의. 외부 변경 격리 목적이면 유지, 단순 복사이면 제거 대상.
-
-### 계약과 인터페이스
-
-- [MUST-ALLOW] 인터페이스 계약의 양측 재선언 — 제공자(서버)와 소비자(클라이언트)가 각각 계약을 정의. 제거 시 독립 검증 불가.
-- [MAY-ALLOW] 에러 경로와 정상 경로가 동일 데이터를 다른 맥락에서 기술. 가독성 목적이면 유지, 완전 중복이면 통합 가능.
-
-### 횡단 관심사
-
-- [MAY-ALLOW] cross-cutting concern(보안, 로깅, 인증)이 여러 모듈에 등장. 관심사 분리 원칙(SoC) 상 허용되나, 동일 로직의 복사(copy-paste)는 제거 대상.
+This document contains the domain-specific rules referenced by onto_conciseness during conciseness verification.
+It is organized in the order: **type (allow/remove) -> verification criteria -> role boundary -> measurement method**.
 
 ---
 
-## 2. 제거 대상 패턴
+## 1. Allowed Redundancy
 
-각 규칙에 강도를 태깅합니다:
-- **[MUST-REMOVE]**: 존재 자체가 오류를 유발하거나 잘못된 추론을 일으키는 중복.
-- **[SHOULD-REMOVE]**: 해가 크지 않으나 불필요한 복잡도를 추가하는 중복.
+Each rule is tagged with a strength level:
+- **[MUST-ALLOW]**: Redundancy that, if removed, would break the system. Must be retained.
+- **[MAY-ALLOW]**: Redundancy maintained for convenience. Can be consolidated, but only remove when the benefit clearly outweighs the consolidation cost.
 
-### 관계 중복
+### State Management
 
-- [MUST-REMOVE] 동일 관계의 다중 경로 표현 — A→B와 A→C→B가 동일 의미일 때, 하나의 경로만 유지. 양쪽 유지 시 갱신 누락으로 불일치 발생.
-- [MUST-REMOVE] 상위 제약이 이미 보장하는 하위 재선언 — 상위 인터페이스가 null 불가를 보장하면, 하위 구현에서 재선언 불필요.
+- [MUST-ALLOW] Multiple definitions of terminal state — transition events, projector branches, and allowed subsequent event lists each reference the state. Removing any one makes state transition consistency verification impossible.
+- [MUST-ALLOW] In Event Sourcing systems, where the event schema and projection logic express the same domain fact in different formats. Events are immutable records and cannot be consolidated with projections.
 
-### 분류 중복
+### Source of Truth Related
 
-- [SHOULD-REMOVE] 자식이 1개뿐인 중간 계층 노드 — 분류 의미가 없으므로 상위와 병합.
-- [SHOULD-REMOVE] 인스턴스가 존재하지 않는 분류 노드 — 실제 데이터가 없는 빈 분류는 제거. 단, 향후 확장을 위한 예약(extension_cases.md 참조)이면 유지.
+- [MUST-ALLOW] When the source of truth resides in an external system, maintaining an internal reference copy (cache, synchronization copy). Removal makes external dependency tracking impossible.
+- [MAY-ALLOW] Redefining external API schemas as internal types. Retain if the purpose is to isolate from external changes; remove if it is a simple copy.
 
-### 정의 중복
+### Contracts and Interfaces
 
-- [MUST-REMOVE] 동일 개념을 다른 경로/이름으로 중복 정의 — concepts.md의 동의어 매핑을 기준으로 판별.
-- [SHOULD-REMOVE] 동일 검증 로직이 여러 모듈에 복사 — 공통 모듈로 추출 필요.
+- [MUST-ALLOW] Bilateral redeclaration of interface contracts — provider (server) and consumer (client) each define the contract. Removal makes independent verification impossible.
+- [MAY-ALLOW] Error paths and happy paths describing the same data in different contexts. Retain for readability purposes; consolidate if completely redundant.
 
----
+### Cross-cutting Concerns
 
-## 3. 최소 세분화 기준
-
-하위 분류는 아래 중 **하나 이상**을 충족해야 허용됩니다. 하나도 충족하지 않으면 상위와 병합합니다.
-
-1. **역량 질문 차이**: competency_qs.md의 질문에 대해 다른 답을 생성하는가?
-2. **제약 조건 차이**: 다른 제약 조건(cardinality, 타입, 범위)이 적용되는가?
-3. **의존 관계 차이**: 다른 모듈/시스템에 의존하거나, 다른 모듈/시스템이 의존하는가?
-
-예시:
-- `HttpError`와 `ValidationError`는 다른 제약(HTTP 상태 코드 vs 필드 목록)이 적용되므로 분류 정당.
-- `InternalServerError`와 `UnexpectedError`가 동일 처리 로직을 타면 병합 대상.
+- [MAY-ALLOW] Cross-cutting concerns (security, logging, authentication) appearing in multiple modules. Allowed under the separation of concerns (SoC) principle, but copy-paste of identical logic is a removal target.
 
 ---
 
-## 4. 경계 — 도메인 특화 적용 사례
+## 2. Removal Target Patterns
 
-경계 정의의 정본은 `roles/onto_conciseness.md`입니다. 이 섹션은 software-engineering 도메인에서의 구체적 적용 사례만 기술합니다.
+Each rule is tagged with a strength level:
+- **[MUST-REMOVE]**: Redundancy whose very existence causes errors or leads to incorrect reasoning.
+- **[SHOULD-REMOVE]**: Redundancy that is not highly harmful but adds unnecessary complexity.
 
-### onto_pragmatics 경계
+### Relationship Redundancy
 
-- onto_conciseness: 불필요한 요소가 **존재**하는가 (구조 수준)
-- onto_pragmatics: 불필요한 정보가 질의 실행을 **방해**하는가 (실행 수준)
-- 예: API 응답에 미사용 필드 포함 → onto_pragmatics. 미사용 엔티티가 스키마에 정의됨 → onto_conciseness.
+- [MUST-REMOVE] Multiple-path expression of the same relationship — when A->B and A->C->B have the same meaning, retain only one path. Maintaining both causes inconsistency due to missed updates.
+- [MUST-REMOVE] Subordinate redeclaration already guaranteed by a superordinate constraint — if the superordinate interface guarantees non-null, the subordinate implementation's redeclaration is unnecessary.
 
-### onto_coverage 경계
+### Classification Redundancy
 
-- onto_conciseness: 없어야 할 것이 있는가 (축소 방향)
-- onto_coverage: 있어야 할 것이 없는가 (확장 방향)
-- 예: 보안/인증은 있으나 인가 체계 미정의 → onto_coverage. 인증과 인가가 동일 모듈에 중복 정의 → onto_conciseness.
+- [SHOULD-REMOVE] Intermediate hierarchy node with only 1 child — has no classification value, so merge with parent.
+- [SHOULD-REMOVE] Classification node with no instances — remove empty classifications with no actual data. However, retain if reserved for future extension (see extension_cases.md).
 
-### onto_logic 경계 (선행/후행 관계)
+### Definition Redundancy
 
-- onto_logic 선행: 논리적 동치(함의) 여부를 판별
-- onto_conciseness 후행: 동치 확인 후 제거 여부를 판단
-- 예: 상위 인터페이스의 제약이 하위 구현의 제약을 함의 → onto_logic이 동치 판별 → onto_conciseness가 "하위 재선언 불필요" 판정.
-
-### onto_semantics 경계 (선행/후행 관계)
-
-- onto_semantics 선행: 의미 동일성(동의어 여부)을 판별
-- onto_conciseness 후행: 동의어 확인 후 병합 필요성을 판단
-- 예: user/account/member가 동일 개념 → onto_semantics가 동의어 판별 → onto_conciseness가 "하나의 정규 용어로 통합" 판정.
+- [MUST-REMOVE] Duplicate definition of the same concept under different paths/names — determine based on the synonym mapping in concepts.md.
+- [SHOULD-REMOVE] Same verification logic copied across multiple modules — needs extraction into a common module.
 
 ---
 
-## 5. 정량 기준
+## 3. Minimum Granularity Criteria
 
-도메인에서 관찰된 임계값이 축적되면 기록합니다.
+A sub-classification is allowed only when it satisfies **one or more** of the following. If none are satisfied, merge with the parent.
 
-- (아직 정의되지 않음 — 리뷰를 통해 축적됩니다)
+1. **Competency question difference**: Does it produce a different answer to a question in competency_qs.md?
+2. **Constraint difference**: Do different constraints (cardinality, type, range) apply?
+3. **Dependency relationship difference**: Does it depend on different modules/systems, or do different modules/systems depend on it?
+
+Examples:
+- `HttpError` and `ValidationError` are justified as separate classifications because different constraints apply (HTTP status code vs field list).
+- `InternalServerError` and `UnexpectedError` are merge candidates if they follow the same processing logic.
 
 ---
 
-## 관련 문서
+## 4. Boundaries — Domain-specific Application Cases
 
-- `concepts.md` — 용어 정의, 동의어 매핑, 동형이의어 목록 (중복 판별의 의미 기준)
-- `structure_spec.md` — 고립 노드 규칙, 필수 관계 요건 (구조적 관점의 제거 기준)
-- `competency_qs.md` — 역량 질문 목록 (최소 세분화의 "실제 차이" 판단 기준)
-- `dependency_rules.md` — Source of Truth 관리 규칙 (참조 사본 허용 근거)
-- `logic_rules.md` — 제약 상충 검사 규칙 (논리적 동치 판별 기준)
+The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the concrete application cases in the software-engineering domain.
+
+### onto_pragmatics Boundary
+
+- onto_conciseness: Does an unnecessary element **exist**? (structural level)
+- onto_pragmatics: Does unnecessary information **hinder** query execution? (execution level)
+- Example: Unused fields included in API response -> onto_pragmatics. Unused entity defined in schema -> onto_conciseness.
+
+### onto_coverage Boundary
+
+- onto_conciseness: Does something that should not exist, exist? (reduction direction)
+- onto_coverage: Does something that should exist, not exist? (expansion direction)
+- Example: Security/authentication exists but authorization system is undefined -> onto_coverage. Authentication and authorization are redundantly defined in the same module -> onto_conciseness.
+
+### onto_logic Boundary (predecessor/successor relationship)
+
+- onto_logic precedes: determines logical equivalence (entailment)
+- onto_conciseness follows: determines whether to remove after equivalence is confirmed
+- Example: Superordinate interface's constraint entails subordinate implementation's constraint -> onto_logic determines equivalence -> onto_conciseness rules "subordinate redeclaration unnecessary."
+
+### onto_semantics Boundary (predecessor/successor relationship)
+
+- onto_semantics precedes: determines semantic identity (synonym status)
+- onto_conciseness follows: determines merge necessity after synonym is confirmed
+- Example: user/account/member are the same concept -> onto_semantics determines synonymy -> onto_conciseness rules "consolidate to one canonical term."
+
+---
+
+## 5. Quantitative Criteria
+
+Domain-observed thresholds are recorded as they accumulate.
+
+- (Not yet defined — accumulated through reviews)
+
+---
+
+## Related Documents
+
+- `concepts.md` — term definitions, synonym mappings, homonym list (semantic criteria for redundancy determination)
+- `structure_spec.md` — isolated node rules, required relationship requirements (structural removal criteria)
+- `competency_qs.md` — competency question list (criteria for "actual difference" in minimum granularity judgment)
+- `dependency_rules.md` — source of truth management rules (basis for allowing reference copies)
+- `logic_rules.md` — constraint conflict detection rules (criteria for logical equivalence determination)

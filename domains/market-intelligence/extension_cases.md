@@ -1,120 +1,120 @@
-# Market Intelligence Domain — 확장 시나리오
+# Market Intelligence Domain — Extension Scenarios
 
-## 1. 목적
+## 1. Purpose
 
-시장 정보 분석 체계의 확장이 필요한 실무 시나리오를 정의하고,
-각 시나리오에서 기존 구조가 어떻게 적응해야 하는지 명시한다.
+Defines practical scenarios where extension of the market intelligence analysis system is needed,
+and specifies how the existing structure should adapt in each scenario.
 
-## 2. 시나리오 목록
+## 2. Scenario List
 
-### EXT-01. 새로운 데이터 소스 유형 추가
+### EXT-01. Adding a New Data Source Type
 
-**상황**: 기존 신뢰도 등급 체계에 포함되지 않는 새로운 데이터 소스 유형이 등장한다.
-예: AI 생성 보고서, 소셜 미디어 실시간 센티먼트 데이터.
+**Situation**: A new data source type not covered by the existing credibility rating system emerges.
+Example: AI-generated reports, social media real-time sentiment data.
 
-**확장 요건**:
-1. 데이터 소스 신뢰도 등급 허용 집합에 새 값을 추가한다.
-2. logic_rules.md의 다지점 일치 규칙에 따라 수집/정책/분석 모든 참조 지점을 **동시에** 업데이트한다.
-3. 새 등급에 대한 신뢰도 전파 규칙(dependency_rules.md)을 정의한다.
-4. competency_qs.md Q1을 실행하여 정합성을 검증한다.
+**Extension Requirements**:
+1. Add a new value to the data source credibility rating allowed set.
+2. Following the multi-point matching rule in logic_rules.md, **simultaneously** update all reference points across collection/policy/analysis.
+3. Define credibility propagation rules (dependency_rules.md) for the new rating.
+4. Execute competency_qs.md Q1 to verify consistency.
 
-**구조적 영향**: 신뢰도 등급 특성의 값 집합 변경. 적용 대상으로 선언된 모든 개체 타입에서 새 값이 유효하게 처리되는지 확인 필요.
+**Structural Impact**: Change in the value set of the credibility rating trait. Verify that the new value is validly handled in all entity types declared as application targets.
 
-### EXT-02. 의사결정 게이트 조건 추가
+### EXT-02. Adding Decision Gate Conditions
 
-**상황**: 새로운 규제, 컴플라이언스 요구, 내부 정책에 의해 의사결정 게이트에 새로운 통과 조건이 추가된다.
+**Situation**: New pass conditions are added to the decision gate due to new regulations, compliance requirements, or internal policies.
 
-**확장 요건**:
-1. 의사결정 게이트의 통과 조건 목록에 새 조건을 추가한다.
-2. logic_rules.md의 선언-구현 연결 규칙에 따라 **즉시** 대응하는 검증 로직을 생성한다.
-3. 검증 로직 없이 조건만 선언하는 것은 선언-구현 갭 위반이다.
-4. 기존 전략 옵션 중 새 조건에 의해 게이트 상태가 변경되는 것을 식별한다.
+**Extension Requirements**:
+1. Add new conditions to the decision gate's pass condition list.
+2. Following the declaration-implementation link rule in logic_rules.md, **immediately** create corresponding verification logic.
+3. Declaring a condition without verification logic constitutes a declaration-implementation gap violation.
+4. Identify existing strategy options whose gate status changes due to the new conditions.
 
-**구조적 영향**: 의사결정 게이트의 조건 집합 확장. 기존 통과 전략의 재검증 필요.
+**Structural Impact**: Expansion of the decision gate's condition set. Re-verification of existing passed strategies is required.
 
-### EXT-03. 위험 평가 프레임워크 교체
+### EXT-03. Risk Assessment Framework Replacement
 
-**상황**: 현재 사용 중인 프레임워크에서 다른 프레임워크(예: ISO 31000에서 COSO ERM)로 전환한다.
+**Situation**: Switching from the current framework to a different framework (e.g., from ISO 31000 to COSO ERM).
 
-**확장 요건**:
-1. 위험 점수 산출 공식이 변경될 수 있다. logic_rules.md를 업데이트한다.
-2. 위험 수준 특성의 허용 값이 변경될 수 있다. structure_spec.md를 업데이트한다.
-3. 위험 평가의 **독립성**은 프레임워크 변경과 무관하게 유지되어야 한다.
-4. 기존 위험 요소의 위험 점수를 새 공식으로 재계산한다.
+**Extension Requirements**:
+1. The risk score calculation formula may change. Update logic_rules.md.
+2. The allowed values for the risk level trait may change. Update structure_spec.md.
+3. The **independence** of risk assessment must be maintained regardless of framework change.
+4. Recalculate risk scores for existing risk factors using the new formula.
 
-**구조적 영향**: 위험 평가 영역 내부 변경. 타 영역(분석, 전략 도출)에 대한 인터페이스는 유지.
+**Structural Impact**: Internal changes within the risk assessment area. Interfaces to other areas (analysis, strategy derivation) are maintained.
 
-### EXT-04. 다중 도메인 동시 분석
+### EXT-04. Multi-Domain Simultaneous Analysis
 
-**상황**: 하나의 프로젝트에서 시장 정보 도메인과 다른 도메인을 동시에 적용한다.
+**Situation**: Applying the market intelligence domain alongside another domain in a single project.
 
-**확장 요건**:
-1. 모든 개체와 특성에 도메인 네임스페이스 접두어를 적용한다.
-2. concepts.md의 동형이의어 테이블에 충돌 용어를 등재한다.
-3. 교차 도메인 참조는 `{domain}::{concept}` 형식을 사용한다.
-4. 도메인 간 의존 관계가 발생할 경우 dependency_rules.md의 다중 도메인 규칙을 적용한다.
-5. 각 도메인의 의사결정 게이트는 독립적으로 운영된다.
+**Extension Requirements**:
+1. Apply domain namespace prefixes to all entities and traits.
+2. Register conflicting terms in the homonym table of concepts.md.
+3. Use the `{domain}::{concept}` format for cross-domain references.
+4. If inter-domain dependencies arise, apply the multi-domain rules from dependency_rules.md.
+5. Decision gates for each domain operate independently.
 
-**구조적 영향**: 네임스페이스 체계 전면 적용. 기존 단일 도메인 참조를 네임스페이스 형식으로 전환.
+**Structural Impact**: Full application of the namespace system. Convert existing single-domain references to the namespace format.
 
-### EXT-05. 실시간 모니터링 체계 추가
+### EXT-05. Adding Real-Time Monitoring
 
-**상황**: 배치(batch) 분석에서 실시간(real-time) 모니터링으로 확장한다.
+**Situation**: Extending from batch analysis to real-time monitoring.
 
-**확장 요건**:
-1. 원시 데이터에 수집 방식 특성을 추가한다 (배치/스트리밍/이벤트 기반).
-2. 신선도 등급의 판정 기준을 실시간 데이터에 맞게 조정한다.
-3. 트렌드 신호에 감지 지연(latency) 속성을 추가한다.
-4. 위험 임계값 초과 시 **즉시** 알림을 트리거하는 경로를 설계한다.
-5. 신뢰도 등급 다지점 일치 규칙은 실시간 환경에서도 동일하게 적용된다.
+**Extension Requirements**:
+1. Add a collection method trait to raw data (batch/streaming/event-driven).
+2. Adjust freshness rating criteria for real-time data.
+3. Add a detection latency attribute to trend signals.
+4. Design a path that **immediately** triggers alerts when risk thresholds are exceeded.
+5. The multi-point credibility rating matching rules apply equally in the real-time environment.
 
-**구조적 영향**: 특성 추가, 신선도 등급 기준 변경. 기존 배치 분석 구조와의 호환성 유지 필요.
+**Structural Impact**: Trait additions, changes to freshness rating criteria. Compatibility with the existing batch analysis structure must be maintained.
 
-### EXT-06. 분류 축 세분화
+### EXT-06. Classification Axis Refinement
 
-**상황**: 기존 2축(개체 타입, 특성) 체계에 제3의 분류 축을 추가해야 한다.
-예: "분석 관점" — 같은 시장 개체를 기술적 관점, 재무적 관점, 규제 관점으로 다르게 분석.
+**Situation**: Adding a third classification axis to the existing 2-axis (entity type, trait) system.
+Example: "Analysis perspective" — analyzing the same market entity from technical, financial, and regulatory perspectives.
 
-**확장 요건**:
-1. 새 분류 축을 structure_spec.md에 명시적으로 선언한다.
-2. 새 축이 기존 개체 타입 축, 특성 축과 직교하는지 검증한다.
-3. 축 간 혼합 금지 원칙을 새 축에도 적용한다.
-4. concepts.md의 분류 축 분리 원칙을 업데이트한다.
+**Extension Requirements**:
+1. Explicitly declare the new classification axis in structure_spec.md.
+2. Verify that the new axis is orthogonal to the existing entity type axis and trait axis.
+3. Apply the axis mixing prohibition principle to the new axis as well.
+4. Update the classification axis separation principle in concepts.md.
 
-**구조적 영향**: 분류 체계의 차원 증가. 모든 기존 개체에 새 축 값이 필요한지 여부를 결정해야 한다.
+**Structural Impact**: Increase in the dimensionality of the classification system. Determine whether a new axis value is needed for all existing entities.
 
-### EXT-07. 정량 분석 모델 통합
+### EXT-07. Quantitative Analysis Model Integration
 
-**상황**: 시장 규모 추정, 경쟁 시뮬레이션 등에 정량 모델(통계, ML)을 통합한다.
+**Situation**: Integrating quantitative models (statistics, ML) for market size estimation, competitive simulation, etc.
 
-**확장 요건**:
-1. 새 개체 타입 "분석 모델"을 추가한다 (모델의 이름, 전제, 입출력 정의).
-2. 관계 타입 "모델 적용": 분석 모델 → 시장/경쟁자/세그먼트를 추가한다.
-3. 모델 출력의 신뢰도는 입력 데이터의 신뢰도 등급과 모델 자체의 검증 상태에 의해 결정된다.
-4. 모델이 의사결정 게이트의 검증 로직으로 사용될 경우, 선언-구현 연결 규칙을 준수한다.
+**Extension Requirements**:
+1. Add a new entity type "Analysis Model" (including model name, preconditions, input/output definitions).
+2. Add a relationship type "Model Application": analysis model → market/competitor/segment.
+3. Model output credibility is determined by the input data's credibility rating and the model's own verification status.
+4. If the model is used as verification logic at a decision gate, comply with the declaration-implementation link rule.
 
-**구조적 영향**: 개체 타입 및 관계 타입 확장. 기존 신뢰도 전파 규칙에 모델 신뢰도 요소 추가.
+**Structural Impact**: Expansion of entity types and relationship types. Addition of model credibility factors to existing credibility propagation rules.
 
-## 3. 확장 시 공통 체크리스트
+## 3. Common Checklist for Extensions
 
-모든 확장 시나리오에서 아래 항목을 확인한다:
+Confirm the following items in all extension scenarios:
 
-- [ ] 신뢰도 등급 다지점 일치가 유지되는가? (logic_rules.md)
-- [ ] 의사결정 게이트에 선언-구현 갭이 발생하지 않았는가? (logic_rules.md)
-- [ ] 개체 타입과 특성의 분류 축이 혼합되지 않았는가? (concepts.md)
-- [ ] 특성의 적용 대상과 값 집합 교차 검증을 통과하는가? (structure_spec.md)
-- [ ] 위험 평가의 독립성이 유지되는가? (domain_scope.md)
-- [ ] 다중 도메인 네임스페이스 충돌이 없는가? (structure_spec.md)
-- [ ] 순환 의존이 발생하지 않았는가? (dependency_rules.md)
-- [ ] competency_qs.md의 관련 질문을 재실행하여 통과하는가?
+- [ ] Is multi-point credibility rating matching maintained? (logic_rules.md)
+- [ ] Has no declaration-implementation gap occurred at decision gates? (logic_rules.md)
+- [ ] Are entity type and trait classification axes not mixed? (concepts.md)
+- [ ] Does the cross-verification of trait application targets and value sets pass? (structure_spec.md)
+- [ ] Is the independence of risk assessment maintained? (domain_scope.md)
+- [ ] Are there no multi-domain namespace collisions? (structure_spec.md)
+- [ ] Has no circular dependency occurred? (dependency_rules.md)
+- [ ] Do the relevant questions in competency_qs.md pass when re-executed?
 
-## 4. 관련 문서
+## 4. Related Documents
 
-| 문서 | 참조 이유 |
-|------|----------|
-| [domain_scope.md](domain_scope.md) | 영역 정의, 독립성 원칙, 다중 도메인 원칙 |
-| [concepts.md](concepts.md) | 용어, 동형이의어, 분류 축 원칙 |
-| [competency_qs.md](competency_qs.md) | 확장 후 검증 질문 |
-| [logic_rules.md](logic_rules.md) | 신뢰도 등급 정합성, 의사결정 게이트 규칙 |
-| [structure_spec.md](structure_spec.md) | 개체/특성/관계 구조 |
-| [dependency_rules.md](dependency_rules.md) | 의존 및 영향 관계 규칙 |
+| Document | Reference Reason |
+|----------|-----------------|
+| [domain_scope.md](domain_scope.md) | Domain definition, independence principles, multi-domain principles |
+| [concepts.md](concepts.md) | Terms, homonyms, classification axis principles |
+| [competency_qs.md](competency_qs.md) | Post-extension verification questions |
+| [logic_rules.md](logic_rules.md) | Credibility rating consistency, decision gate rules |
+| [structure_spec.md](structure_spec.md) | Entity/trait/relationship structure |
+| [dependency_rules.md](dependency_rules.md) | Dependency and impact relationship rules |

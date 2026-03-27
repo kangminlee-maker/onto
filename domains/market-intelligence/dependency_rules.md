@@ -1,73 +1,73 @@
-# Market Intelligence Domain — 의존 규칙
+# Market Intelligence Domain — Dependency Rules
 
-## 1. 목적
+## 1. Purpose
 
-시장 정보 분석 체계의 네 영역(데이터 수집, 분석, 전략 도출, 위험 평가) 간 의존 관계와 그 제약을 정의한다.
+Defines the dependency relationships and their constraints among the four areas (data collection, analysis, strategy derivation, risk assessment) of the market intelligence analysis system.
 
-## 2. 영역 간 의존 구조
+## 2. Inter-Area Dependency Structure
 
-### 2.1 순방향 의존
+### 2.1 Forward Dependencies
 
-| 의존 관계 | 의미 | 설명 |
-|----------|------|------|
-| 데이터 수집 → 분석 | 분석은 수집된 데이터에 의존 | 수집 품질이 분석 품질의 상한 |
-| 분석 → 전략 도출 | 전략은 분석 결과에 의존 | 분석 없는 전략은 근거 없음 |
-| 위험 평가 → 전략 도출 | 위험 평가가 전략을 수정 가능 | 수정 관계이지 종속 관계가 아님 |
+| Dependency | Meaning | Description |
+|-----------|---------|-------------|
+| Data Collection → Analysis | Analysis depends on collected data | Collection quality is the upper bound for analysis quality |
+| Analysis → Strategy Derivation | Strategy depends on analysis results | Strategy without analysis has no basis |
+| Risk Assessment → Strategy Derivation | Risk assessment can modify strategy | This is a modification relationship, not a subordination relationship |
 
-### 2.2 독립 관계
+### 2.2 Independent Relationships
 
-| 관계 | 의미 |
-|------|------|
-| 위험 평가 ∥ 분석 | 위험 평가는 분석과 병렬 수행 가능 |
-| 위험 평가 ∥ 데이터 수집 | 위험 평가는 별도의 데이터 수집 경로를 가질 수 있음 |
+| Relationship | Meaning |
+|-------------|---------|
+| Risk Assessment ∥ Analysis | Risk assessment can be performed in parallel with analysis |
+| Risk Assessment ∥ Data Collection | Risk assessment may have its own separate data collection path |
 
-### 2.3 금지 의존
+### 2.3 Prohibited Dependencies
 
-| 금지 관계 | 이유 |
-|----------|------|
-| 전략 도출 → 위험 평가 | 위험 평가가 전략에 종속되면 독립성 위반 |
-| 분석 → 데이터 수집 | 분석이 수집을 지시하는 것은 허용하되, 순환 의존은 금지 |
+| Prohibited Relationship | Reason |
+|------------------------|--------|
+| Strategy Derivation → Risk Assessment | If risk assessment becomes subordinate to strategy, independence is violated |
+| Analysis → Data Collection | Analysis directing collection is allowed, but circular dependency is prohibited |
 
-## 3. 비순환 규칙
+## 3. Acyclicity Rules
 
-| ID | 규칙 | 설명 | 위반 처리 |
-|---|---|---|---|
-| AC01 | 데이터 수집 → 분석 → 전략 도출 경로에 순환 금지 | 단방향 흐름 보장 | 차단 |
-| AC02 | 위험 평가 → 전략 수정 → 위험 재평가 무한 루프 방지 | 수정 횟수 또는 깊이 제한 필요 | 경고 |
+| ID | Rule | Description | Violation Handling |
+|---|------|-------------|-------------------|
+| AC01 | No cycles in the Data Collection → Analysis → Strategy Derivation path | Ensures unidirectional flow | Block |
+| AC02 | Prevention of infinite loops in Risk Assessment → Strategy Modification → Risk Re-assessment | Requires a limit on modification count or depth | Warning |
 
-## 4. 신뢰도 전파 규칙
+## 4. Credibility Propagation Rules
 
-### 4.1 전파 방향
+### 4.1 Propagation Direction
 
-신뢰도는 데이터 수집 → 분석 → 전략 도출 방향으로 전파되며, 역방향 전파는 금지한다.
+Credibility propagates in the direction of Data Collection → Analysis → Strategy Derivation, and reverse propagation is prohibited.
 
-### 4.2 전파 원칙
+### 4.2 Propagation Principles
 
-| ID | 규칙 | 설명 |
-|---|---|---|
-| TP01 | 분석 결과의 신뢰도 ≤ 입력 데이터 중 최저 신뢰도 | 가장 약한 고리 원칙 |
-| TP02 | 전략 옵션의 신뢰도 ≤ 근거 분석의 신뢰도 | 전략 단계에서도 동일 |
-| TP03 | 신뢰도 등급 미부여 데이터는 전파 체인에 투입 금지 | 등급 미부여 = 분석 투입 차단 |
+| ID | Rule | Description |
+|---|------|-------------|
+| TP01 | Credibility of analysis results ≤ lowest credibility among input data | Weakest link principle |
+| TP02 | Credibility of strategy options ≤ credibility of supporting analysis | Same principle applies at the strategy phase |
+| TP03 | Data without a credibility rating is prohibited from entering the propagation chain | No rating = blocked from analysis input |
 
-## 5. 순환 감지 기준
+## 5. Cycle Detection Criteria
 
-- 영역 간 참조가 A → B → A 형태로 순환할 경우 차단
-- 위험 평가 ↔ 전략 도출 간 수정 루프는 최대 깊이를 정의하여 무한 순환 방지
-- 수집 피드백 루프(분석 결과로 수집 대상 조정)는 별도 흐름으로 분리하여 순환 의존과 구분
+- If inter-area references form a cycle in the pattern A → B → A, block it
+- Modification loops between risk assessment and strategy derivation require a defined maximum depth to prevent infinite cycles
+- Collection feedback loops (adjusting collection targets based on analysis results) are separated as a distinct flow to distinguish them from circular dependencies
 
-## 6. 다중 도메인 의존 규칙
+## 6. Multi-Domain Dependency Rules
 
-다른 도메인과 공존할 경우:
-- 도메인 간 의존 관계는 명시적으로 선언해야 한다
-- 교차 도메인 의존은 단방향만 허용한다 (양방향 의존 = 설계 결함)
-- 각 도메인의 의사결정 게이트는 독립적으로 운영한다
+When coexisting with other domains:
+- Inter-domain dependency relationships must be explicitly declared
+- Cross-domain dependencies allow only unidirectional relationships (bidirectional dependency = design flaw)
+- Decision gates of each domain operate independently
 
-## 관련 문서
+## Related Documents
 
-| 문서 | 참조 이유 |
-|------|----------|
-| [domain_scope.md](domain_scope.md) | 영역 정의 및 독립성 원칙 |
-| [logic_rules.md](logic_rules.md) | 신뢰도 전파 규칙의 논리적 기반 |
-| [structure_spec.md](structure_spec.md) | 관계 구조 및 방향 규칙 |
-| [concepts.md](concepts.md) | 신뢰도 등급 용어 정의 |
-| [extension_cases.md](extension_cases.md) | 의존 관계 변경이 필요한 시나리오 |
+| Document | Reference Reason |
+|----------|-----------------|
+| [domain_scope.md](domain_scope.md) | Domain definition and independence principles |
+| [logic_rules.md](logic_rules.md) | Logical basis of credibility propagation rules |
+| [structure_spec.md](structure_spec.md) | Relationship structure and direction rules |
+| [concepts.md](concepts.md) | Credibility rating term definitions |
+| [extension_cases.md](extension_cases.md) | Scenarios requiring dependency relationship changes |

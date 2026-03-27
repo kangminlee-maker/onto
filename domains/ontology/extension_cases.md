@@ -1,66 +1,66 @@
-# Ontology Domain — 확장 시나리오
+# Ontology Domain — Extension Scenarios
 
-onto_evolution 에이전트가 각 시나리오를 시뮬레이션하여 기존 온톨로지 구조의 깨짐 여부를 검증합니다.
+The onto_evolution agent simulates each scenario to verify whether the existing ontology structure breaks.
 
-## Case 1: 새 클래스 추가
+## Case 1: Adding a New Class
 
-- 기존 분류 체계에 새로운 클래스를 추가
-- 검증: 기존 분류 기준(축)과 일관되는가? 새 분류 기준을 암묵적으로 도입하지 않는가?
-- 검증: 형제 클래스와의 disjoint 관계가 유지되는가?
-- 검증: 상위 클래스의 제약이 새 클래스에 의미적으로 타당하게 상속되는가?
-- 검증: 기존 인스턴스 중 새 클래스에 재분류되어야 하는 것이 있는가?
-- 영향 파일: structure_spec.md (분류 기준, 계층 구조), logic_rules.md (분류 논리)
+- Adding a new class to the existing classification system
+- Verification: Is it consistent with the existing classification criteria (axes)? Does it implicitly introduce a new classification criterion?
+- Verification: Are the disjoint relations with sibling classes maintained?
+- Verification: Are the superclass's constraints semantically validly inherited by the new class?
+- Verification: Are there existing instances that should be reclassified into the new class?
+- Affected files: structure_spec.md (classification criteria, hierarchy structure), logic_rules.md (classification logic)
 
-## Case 2: 속성/관계 추가
+## Case 2: Adding Properties/Relations
 
-- 기존 클래스에 새 속성 또는 클래스 간 새 관계를 추가
-- 검증: 새 속성의 도메인/레인지가 기존 클래스 구조와 일관되는가?
-- 검증: 기수 제약(cardinality)이 기존 인스턴스와 충돌하지 않는가?
-- 검증: 추론기 실행 시 의도하지 않은 분류나 일관성 오류가 발생하지 않는가?
-- 영향 파일: logic_rules.md (제약 논리, 추론 논리), dependency_rules.md (속성 간 의존)
+- Adding a new property to an existing class, or a new relation between classes
+- Verification: Is the new property's domain/range consistent with the existing class structure?
+- Verification: Do cardinality constraints conflict with existing instances?
+- Verification: Does running the reasoner produce unintended classifications or consistency errors?
+- Affected files: logic_rules.md (constraint logic, reasoning logic), dependency_rules.md (inter-property dependencies)
 
-## Case 3: 외부 온톨로지 통합
+## Case 3: External Ontology Integration
 
-- 외부 온톨로지를 import하거나 매핑을 추가
-- 검증: 외부 공리가 내부 공리와 결합될 때 일관성이 유지되는가?
-- 검증: 네임스페이스 충돌이 없는가?
-- 검증: 매핑된 개념의 의미가 실제로 동일/포함 관계인가? (형식적 매핑과 의미적 동일성은 별개)
-- 검증: 외부 온톨로지의 라이선스가 호환되는가?
-- 영향 파일: dependency_rules.md (온톨로지 간 의존, 외부 의존 관리)
+- Importing an external ontology or adding a mapping
+- Verification: Is consistency maintained when external axioms are combined with internal axioms?
+- Verification: Are there no namespace conflicts?
+- Verification: Are the mapped concepts actually in an equivalence/subsumption relationship? (Formal mapping and semantic identity are separate concerns)
+- Verification: Is the external ontology's license compatible?
+- Affected files: dependency_rules.md (inter-ontology dependencies, external dependency management)
 
-## Case 4: 제약 강화/완화
+## Case 4: Constraint Tightening/Relaxation
 
-- 기존 제약의 기수 변경(선택→필수), 새 disjoint 선언 추가, 도메인/레인지 변경
-- 검증: 제약 강화 시 기존 인스턴스가 새 제약을 위반하지 않는가? (파괴적 변경 탐지)
-- 검증: 제약 완화 시 의도하지 않은 인스턴스가 허용되지 않는가?
-- 검증: 하위 클래스에 전파되는 제약 변경의 범위가 파악되었는가?
-- 영향 파일: logic_rules.md (제약 논리, 제약 상충 검사), competency_qs.md (Q12~Q15)
+- Changing cardinality of existing constraints (optional -> required), adding new disjoint declarations, changing domain/range
+- Verification: When constraints are tightened, do existing instances violate the new constraints? (Breaking change detection)
+- Verification: When constraints are relaxed, are unintended instances permitted?
+- Verification: Is the scope of constraint changes propagated to subclasses understood?
+- Affected files: logic_rules.md (constraint logic, constraint conflict checking), competency_qs.md (Q12~Q15)
 
-## Case 5: 온톨로지 유형 전환
+## Case 5: Ontology Type Transition
 
-- 경량 온톨로지(Taxonomy, SKOS)에서 형식 온톨로지(OWL)로 전환, 또는 그 반대
-- 검증: 유형 전환 시 손실되는 정보(공리, 제약)가 식별되었는가?
-- 검증: 가정의 전환(CWA→OWA 또는 OWA→CWA)에 따른 추론 차이가 분석되었는가?
-- 검증: 기존 질의(SPARQL 등)가 새 유형에서도 동작하는가?
-- 영향 파일: domain_scope.md (온톨로지 유형 분류), logic_rules.md (추론 논리)
+- Transitioning from a lightweight ontology (Taxonomy, SKOS) to a formal ontology (OWL), or vice versa
+- Verification: Has the information lost during the type transition (axioms, constraints) been identified?
+- Verification: Have the inference differences resulting from assumption transitions (CWA->OWA or OWA->CWA) been analyzed?
+- Verification: Do existing queries (SPARQL, etc.) still work under the new type?
+- Affected files: domain_scope.md (ontology type classification), logic_rules.md (reasoning logic)
 
-## Case 6: 규모 확장
+## Case 6: Scale Expansion
 
-- 클래스 수 10배 증가, 인스턴스 100배 증가, 관계 복잡도 증가
-- 검증: 추론기의 계산 복잡도가 허용 범위 내인가? (OWL DL의 결정 가능성과 실제 성능은 다름)
-- 검증: 계층 깊이와 폭이 탐색/유지보수 가능한 수준인가?
-- 검증: 모듈화(partitioning)가 가능한 구조인가? 단일 monolithic 온톨로지로만 동작하는가?
-- 영향 파일: structure_spec.md (계층 구조), competency_qs.md (Q25)
+- 10x increase in number of classes, 100x increase in instances, increased relation complexity
+- Verification: Is the reasoner's computational complexity within acceptable bounds? (Decidability of OWL DL and actual performance are different)
+- Verification: Are hierarchy depth and breadth at navigable/maintainable levels?
+- Verification: Is the structure modularizable (partitionable)? Does it only work as a single monolithic ontology?
+- Affected files: structure_spec.md (hierarchy structure), competency_qs.md (Q25)
 
-## Case 7: 다국어/다문화 확장
+## Case 7: Multilingual/Multicultural Expansion
 
-- 온톨로지를 새로운 언어/문화권에 적용
-- 검증: 자연어 레이블의 다국어 지원(언어 태그)이 구조적으로 가능한가?
-- 검증: 문화권에 따라 분류 기준이 달라지는 개념이 식별되었는가?
-- 검증: URI는 언어 독립적인가? (URI에 특정 언어 단어가 포함된 경우의 영향)
-- 영향 파일: structure_spec.md (명명 규칙), concepts.md (용어 사전)
+- Applying the ontology to a new language/cultural context
+- Verification: Is multilingual support for natural language labels (language tags) structurally possible?
+- Verification: Have concepts whose classification criteria differ by cultural context been identified?
+- Verification: Are URIs language-independent? (Impact when URIs contain words from a specific language)
+- Affected files: structure_spec.md (naming conventions), concepts.md (glossary)
 
-## 관련 문서
-- structure_spec.md — 클래스 계층, 분류 기준, 명명 규칙
-- dependency_rules.md — 온톨로지 간 의존, 속성 간 의존
-- logic_rules.md — 분류 논리, 제약 논리, 추론 논리
+## Related Documents
+- structure_spec.md — class hierarchy, classification criteria, naming conventions
+- dependency_rules.md — inter-ontology dependencies, inter-property dependencies
+- logic_rules.md — classification logic, constraint logic, reasoning logic

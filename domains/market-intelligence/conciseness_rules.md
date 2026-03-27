@@ -1,124 +1,124 @@
-# 간결성 규칙 (market-intelligence)
+# Conciseness Rules (market-intelligence)
 
-이 문서는 onto_conciseness가 간결성 검증 시 참조하는 도메인별 규칙입니다.
-간결성 판정의 **유형(허용/제거) → 검증 기준 → 역할 경계 → 측정 방법** 순으로 구성됩니다.
-
----
-
-## 1. 허용되는 중복
-
-각 규칙에 강도를 태깅합니다:
-- **[MUST-ALLOW]**: 제거 시 체계가 깨지는 중복. 유지 필수.
-- **[MAY-ALLOW]**: 편의상 유지하는 중복. 통합 가능하나, 통합 비용 대비 이득이 명확할 때만 제거.
-
-### 시장 규모 추정
-
-- [MUST-ALLOW] TAM/SAM/SOM 3단계 추정 — TAM(총 시장 규모), SAM(접근 가능 시장), SOM(획득 가능 시장)은 각각 범위를 축소하며 다른 전제 조건과 산출 로직을 사용한다. 동일 시장을 대상으로 하지만 중복이 아니라 범위 한정 관계이다. 하나라도 제거하면 시장 규모 추정의 계층 구조가 붕괴된다.
-
-### 분석과 전략의 데이터 참조
-
-- [MUST-ALLOW] 경쟁 구도 분석(Competitive Landscape)과 SWOT 분석이 동일 데이터를 참조 — 경쟁 구도 분석은 분석 영역에서 시장 내 경쟁자의 포지션을 구조화하고, SWOT는 전략 도출 영역에서 전략 옵션 생성의 입력으로 사용된다. 동일 데이터를 참조하지만 목적과 소속 영역이 다르다. 통합 시 분석-전략 영역 간 경계가 무너진다.
-- [MAY-ALLOW] PESTEL 분석 결과가 분석 영역과 위험 평가 영역에서 각각 참조. 거시 환경 요인 분류라는 동일 프레임워크를 사용하나, 적용 맥락(트렌드 식별 vs 위험 식별)이 다르다. 완전 동일한 결론을 재기술하는 경우에만 통합 대상.
-
-### 신뢰도 등급 다지점 참조
-
-- [MUST-ALLOW] 데이터 소스 신뢰도 등급이 수집 정책, 분석 투입 검증, 의사결정 게이트에서 각각 참조 — logic_rules.md ST01~ST03이 요구하는 다지점 정합성 검증을 위해 각 참조 지점이 독립적으로 등급 값을 사용해야 한다. 한 지점으로 통합하면 정합성 교차 검증 자체가 불가능해진다.
-
-### 위험 평가 독립 경로
-
-- [MUST-ALLOW] 위험 요소가 전략 옵션과 분석 결과 양쪽에서 참조 — 위험 평가는 전략 도출과 병렬 독립 영역이다(domain_scope.md). 위험 요소 → 전략 옵션 경로와 분석 결과 → 전략 옵션 경로는 구조적으로 독립이며, 하나로 합치면 위험 평가의 독립성이 위반된다.
+This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+It is organized in the order of **type (allow/remove) → verification criteria → role boundaries → measurement method**.
 
 ---
 
-## 2. 제거 대상 패턴
+## 1. Allowed Duplication
 
-각 규칙에 강도를 태깅합니다:
-- **[MUST-REMOVE]**: 존재 자체가 오류를 유발하거나 잘못된 추론을 일으키는 중복.
-- **[SHOULD-REMOVE]**: 해가 크지 않으나 불필요한 복잡도를 추가하는 중복.
+Each rule is tagged with a strength level:
+- **[MUST-ALLOW]**: Duplication that breaks the system if removed. Must be retained.
+- **[MAY-ALLOW]**: Duplication retained for convenience. Can be consolidated, but only remove when the benefit clearly outweighs the consolidation cost.
 
-### 데이터 소스 분류
+### Market Size Estimation
 
-- [MUST-REMOVE] 신뢰도 등급 미분류 데이터 소스 — 신뢰도 등급이 부여되지 않은 데이터 소스는 분석 투입이 금지된다(logic_rules.md ST03). 등급 미부여 상태로 체계에 존재하는 데이터 소스는 신뢰도 전파 체인을 오염시키므로 등급 부여 전까지 제거한다.
-- [SHOULD-REMOVE] 동일 원시 데이터를 다른 이름으로 중복 등록한 데이터 소스 — concepts.md의 동의어 매핑을 기준으로 판별. 중복 등록 시 신뢰도 등급 불일치가 발생할 수 있다.
+- [MUST-ALLOW] TAM/SAM/SOM 3-tier estimation — TAM (Total Addressable Market), SAM (Serviceable Addressable Market), and SOM (Serviceable Obtainable Market) each narrow the scope and use different preconditions and calculation logic. They target the same market but are not duplicates; they represent a scope-narrowing relationship. Removing any one collapses the hierarchical structure of market size estimation.
 
-### 위험 평가
+### Data References Between Analysis and Strategy
 
-- [MUST-REMOVE] 전략 옵션 없는 단독 위험 항목이 전략 도출 영역에 배치된 경우 — 위험 평가는 독립 영역이다. 전략 옵션과 연결되지 않은 위험 항목이 전략 도출 영역에 존재하면 영역 경계 위반이다. 해당 항목은 위험 평가 영역으로 이동하거나, 대응 전략이 없는 위험 항목이면 대응 설계 후 유지한다.
-- [SHOULD-REMOVE] 위험 대응 전략이 없는 위험 항목 — 위험 요소가 식별만 되고 대응(회피/완화/수용/전가)이 설계되지 않은 상태는 불완전 항목이다. 대응 설계를 완료하거나, 의도적 수용인 경우 '수용'으로 명시 분류해야 한다.
+- [MUST-ALLOW] Competitive Landscape Analysis and SWOT analysis referencing the same data — Competitive Landscape Analysis structures competitors' positions within the analysis area, while SWOT is used in the strategy derivation area as input for generating strategy options. They reference the same data but serve different purposes and belong to different areas. Consolidation would break the boundary between the analysis and strategy derivation areas.
+- [MAY-ALLOW] PESTEL analysis results referenced separately in the analysis area and risk assessment area. They use the same macro-environment factor classification framework, but the application context differs (trend identification vs risk identification). Only consolidation-worthy when they restate completely identical conclusions.
 
-### 관계 중복
+### Multi-Point Credibility Rating References
 
-- [MUST-REMOVE] 동일 관계의 다중 경로 표현 — 분석 결과 → 전략 옵션과 분석 결과 → 의사결정 게이트 → 전략 옵션이 동일 의미일 때, 하나의 경로만 유지. 양쪽 유지 시 갱신 누락으로 불일치 발생.
-- [MUST-REMOVE] 상위 제약이 이미 보장하는 하위 재선언 — 신뢰도 전파 규칙(TP01~TP03)이 이미 보장하는 신뢰도 제약을 개별 분석 항목에서 재선언할 필요 없음.
+- [MUST-ALLOW] Data source credibility ratings referenced separately in collection policy, analysis input verification, and decision gates — The multi-point consistency verification required by logic_rules.md ST01~ST03 demands that each reference point independently uses the rating values. Consolidating to a single point would make cross-verification of consistency impossible.
 
-### 분류 중복
+### Risk Assessment Independent Path
 
-- [SHOULD-REMOVE] 자식이 1개뿐인 중간 계층 노드 — 세그먼트 하위에 단일 하위 세그먼트만 존재하면 분류 의미가 없으므로 상위와 병합.
-- [SHOULD-REMOVE] 인스턴스가 존재하지 않는 분류 노드 — 실제 데이터가 없는 빈 세그먼트·위험 분류는 제거. 단, 향후 확장을 위한 예약(extension_cases.md 참조)이면 유지.
-
-### 정의 중복
-
-- [MUST-REMOVE] 동일 개념을 다른 경로/이름으로 중복 정의 — concepts.md의 동의어 매핑을 기준으로 판별.
-- [SHOULD-REMOVE] 동일 분석 방법론이 여러 세그먼트에 전제 조건 없이 복사 — 공통 방법론으로 추출 필요.
+- [MUST-ALLOW] Risk factors referenced from both strategy options and analysis results — Risk assessment is an independent area parallel to strategy derivation (domain_scope.md). The risk factor → strategy option path and the analysis result → strategy option path are structurally independent; merging them would violate the independence of risk assessment.
 
 ---
 
-## 3. 최소 세분화 기준
+## 2. Removal Target Patterns
 
-하위 분류는 아래 중 **하나 이상**을 충족해야 허용됩니다. 하나도 충족하지 않으면 상위와 병합합니다.
+Each rule is tagged with a strength level:
+- **[MUST-REMOVE]**: Duplication whose existence causes errors or incorrect reasoning.
+- **[SHOULD-REMOVE]**: Duplication that is not significantly harmful but adds unnecessary complexity.
 
-1. **역량 질문 차이**: competency_qs.md의 질문에 대해 다른 답을 생성하는가?
-2. **제약 조건 차이**: 다른 제약 조건(신뢰도 등급, 수집 주기, 위험 임계값)이 적용되는가?
-3. **의존 관계 차이**: 다른 영역/개체 타입에 의존하거나, 다른 영역/개체 타입이 의존하는가?
+### Data Source Classification
 
-예시:
-- TAM과 SAM은 다른 전제 조건(전체 시장 vs 접근 가능 범위)과 산출 로직이 적용되므로 분류 정당.
-- '경쟁자 A의 시장 점유율'과 '경쟁자 A의 매출 기반 규모'가 동일 분석 로직을 타면 병합 대상.
+- [MUST-REMOVE] Data sources without credibility rating classification — Data sources without a credibility rating are prohibited from being fed into analysis (logic_rules.md ST03). Data sources existing in the system without a rating assigned contaminate the credibility propagation chain and must be removed until a rating is assigned.
+- [SHOULD-REMOVE] Data sources that register the same raw data under different names — Determined by the synonym mapping in concepts.md. Duplicate registration can cause credibility rating inconsistencies.
 
----
+### Risk Assessment
 
-## 4. 경계 — 도메인 특화 적용 사례
+- [MUST-REMOVE] Standalone risk items without strategy options placed in the strategy derivation area — Risk assessment is an independent area. If a risk item not linked to a strategy option exists in the strategy derivation area, it violates the area boundary. The item should be moved to the risk assessment area, or if it is a risk item without a response strategy, a response should be designed before retaining it.
+- [SHOULD-REMOVE] Risk items without a risk response strategy — A state where a risk factor is identified but no response (avoidance/mitigation/acceptance/transfer) is designed is an incomplete item. Either complete the response design, or if it is intentionally accepted, explicitly classify it as "acceptance."
 
-경계 정의의 정본은 `roles/onto_conciseness.md`입니다. 이 섹션은 market-intelligence 도메인에서의 구체적 적용 사례만 기술합니다.
+### Relationship Duplication
 
-### onto_pragmatics 경계
+- [MUST-REMOVE] Multiple path representations of the same relationship — When analysis result → strategy option and analysis result → decision gate → strategy option carry the same meaning, retain only one path. Maintaining both causes inconsistencies due to missed updates.
+- [MUST-REMOVE] Redundant lower-level re-declarations already guaranteed by higher-level constraints — There is no need to re-declare credibility constraints at individual analysis items when the credibility propagation rules (TP01~TP03) already guarantee them.
 
-- onto_conciseness: 불필요한 요소가 **존재**하는가 (구조 수준)
-- onto_pragmatics: 불필요한 정보가 질의 실행을 **방해**하는가 (실행 수준)
-- 예: 분석 보고서에 미사용 세그먼트 데이터 포함 → onto_pragmatics. 미사용 세그먼트가 structure_spec.md에 정의됨 → onto_conciseness.
+### Classification Duplication
 
-### onto_coverage 경계
+- [SHOULD-REMOVE] Intermediate hierarchy nodes with only 1 child — If only a single sub-segment exists under a segment, it has no classification significance and should be merged with the parent.
+- [SHOULD-REMOVE] Classification nodes with no instances — Empty segments or risk classifications with no actual data should be removed. However, if reserved for future extension (see extension_cases.md), they may be retained.
 
-- onto_conciseness: 없어야 할 것이 있는가 (축소 방향)
-- onto_coverage: 있어야 할 것이 없는가 (확장 방향)
-- 예: 위험 평가 영역은 있으나 위험 대응 유형 미정의 → onto_coverage. 동일 위험 요소가 위험 평가와 전략 도출 영역에 중복 정의 → onto_conciseness.
+### Definition Duplication
 
-### onto_logic 경계 (선행/후행 관계)
-
-- onto_logic 선행: 논리적 동치(함의) 여부를 판별
-- onto_conciseness 후행: 동치 확인 후 제거 여부를 판단
-- 예: 신뢰도 전파 규칙(TP01)이 이미 보장하는 제약을 하위 분석 항목에서 재선언 → onto_logic이 동치 판별 → onto_conciseness가 "하위 재선언 불필요" 판정.
-
-### onto_semantics 경계 (선행/후행 관계)
-
-- onto_semantics 선행: 의미 동일성(동의어 여부)을 판별
-- onto_conciseness 후행: 동의어 확인 후 병합 필요성을 판단
-- 예: '시장 점유율'과 'market share'가 동일 개념 → onto_semantics가 동의어 판별 → onto_conciseness가 "하나의 정규 용어로 통합" 판정.
+- [MUST-REMOVE] Duplicate definitions of the same concept under different paths/names — Determined by the synonym mapping in concepts.md.
+- [SHOULD-REMOVE] The same analysis methodology copied across multiple segments without preconditions — Extraction into a common methodology is needed.
 
 ---
 
-## 5. 정량 기준
+## 3. Minimum Granularity Criteria
 
-도메인에서 관찰된 임계값이 축적되면 기록합니다.
+A sub-classification is allowed only if it satisfies **one or more** of the following. If none are satisfied, merge with the parent.
 
-- (아직 정의되지 않음 — 리뷰를 통해 축적됩니다)
+1. **Competency question difference**: Does it produce a different answer to a question in competency_qs.md?
+2. **Constraint difference**: Do different constraints (credibility rating, collection frequency, risk threshold) apply?
+3. **Dependency difference**: Does it depend on different areas/entity types, or do different areas/entity types depend on it?
+
+Examples:
+- TAM and SAM have different preconditions (total market vs accessible range) and calculation logic, so the classification is justified.
+- If "Competitor A's market share" and "Competitor A's revenue-based scale" follow the same analysis logic, they are candidates for merging.
 
 ---
 
-## 관련 문서
+## 4. Boundaries — Domain-Specific Application Cases
 
-- `concepts.md` — 용어 정의, 동의어 매핑, 동형이의어 목록 (중복 판별의 의미 기준)
-- `structure_spec.md` — 개체 타입, 특성, 관계 구조 (구조적 관점의 제거 기준)
-- `competency_qs.md` — 역량 질문 목록 (최소 세분화의 "실제 차이" 판단 기준)
-- `dependency_rules.md` — 영역 간 의존 관계 및 독립성 규칙 (참조 사본 허용 근거)
-- `logic_rules.md` — 신뢰도 정합성 및 전파 규칙 (논리적 동치 판별 기준)
+The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the market-intelligence domain.
+
+### onto_pragmatics Boundary
+
+- onto_conciseness: Does an unnecessary element **exist**? (structural level)
+- onto_pragmatics: Does unnecessary information **impede** query execution? (execution level)
+- Example: An analysis report includes unused segment data → onto_pragmatics. An unused segment is defined in structure_spec.md → onto_conciseness.
+
+### onto_coverage Boundary
+
+- onto_conciseness: Is there something that should not be there? (reduction direction)
+- onto_coverage: Is there something missing that should be there? (expansion direction)
+- Example: The risk assessment area exists but risk response types are not defined → onto_coverage. The same risk factor is duplicately defined in both the risk assessment and strategy derivation areas → onto_conciseness.
+
+### onto_logic Boundary (preceding/following relationship)
+
+- onto_logic precedes: Determines logical equivalence (implication)
+- onto_conciseness follows: Decides whether to remove after equivalence is confirmed
+- Example: The credibility propagation rule (TP01) already guarantees a constraint that is re-declared at a lower-level analysis item → onto_logic determines equivalence → onto_conciseness determines "lower-level re-declaration unnecessary."
+
+### onto_semantics Boundary (preceding/following relationship)
+
+- onto_semantics precedes: Determines semantic identity (synonym status)
+- onto_conciseness follows: Decides whether merging is needed after synonym is confirmed
+- Example: "market share" and "market share" (different language terms) are the same concept → onto_semantics determines synonym → onto_conciseness determines "consolidate into one canonical term."
+
+---
+
+## 5. Quantitative Criteria
+
+Thresholds observed in this domain are recorded as they accumulate.
+
+- (Not yet defined — accumulated through reviews)
+
+---
+
+## Related Documents
+
+- `concepts.md` — Term definitions, synonym mappings, homonym list (semantic criteria for duplication determination)
+- `structure_spec.md` — Entity types, traits, relationship structure (structural-perspective removal criteria)
+- `competency_qs.md` — Competency question list (criteria for judging "actual difference" in minimum granularity)
+- `dependency_rules.md` — Inter-area dependency relationships and independence rules (basis for allowing reference copies)
+- `logic_rules.md` — Credibility consistency and propagation rules (criteria for logical equivalence determination)

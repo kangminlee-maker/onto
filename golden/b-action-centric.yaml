@@ -1,154 +1,154 @@
 ---
-# EduConnect — Action-Centric (Palantir 스타일) 온톨로지
-# canonical.yaml을 ObjectType, LinkType, ActionType, Function 구조로 변환
-# 주의: 가상 도메인이며 실제 서비스와 무관합니다
+# EduConnect — Action-Centric (Palantir style) Ontology
+# canonical.yaml converted to ObjectType, LinkType, ActionType, Function structure
+# Note: This is a fictional domain and unrelated to any real service
 
 meta:
-  schema: Action-Centric (Palantir 스타일)
+  schema: Action-Centric (Palantir style)
   domain: EduConnect
   version: 1
   source: golden/canonical.yaml
   created: 2026-03-26
 
 # ============================================================
-# ENUMS (10개)
+# ENUMS (10)
 # ============================================================
 enums:
   - name: Language
-    description: 지원 언어
+    description: Supported languages
     values:
       - value: EN
-        description: 영어
+        description: English
       - value: JP
-        description: 일본어
+        description: Japanese
       - value: KR
-        description: 한국어
+        description: Korean
       - value: CN
-        description: 중국어
+        description: Chinese
 
   - name: SessionStatus
-    description: 수업 세션 상태
+    description: Lesson session status
     values:
       - value: PENDING
-        description: 대기 중 (강사 미배정)
+        description: Pending (instructor not assigned)
       - value: CONFIRMED
-        description: 확정됨 (강사 배정, 수업권 차감 완료)
+        description: Confirmed (instructor assigned, credit deducted)
       - value: IN_PROGRESS
-        description: 수업 진행 중
+        description: Lesson in progress
       - value: COMPLETED
-        description: 수업 정상 종료
+        description: Lesson completed normally
       - value: CANCELLED
-        description: 취소됨 (수업권 복원)
+        description: Cancelled (credit restored)
       - value: NO_SHOW
-        description: 미참석 (10분 초과 미접속)
+        description: No-show (no connection for over 10 minutes)
 
   - name: InstructorTier
-    description: 강사 등급
+    description: Instructor tier
     values:
       - value: STANDARD
-        description: 일반 강사
+        description: Standard instructor
       - value: PREMIUM
-        description: 상급 강사
+        description: Premium instructor
       - value: ELITE
-        description: 최상급 강사
+        description: Elite instructor
 
   - name: PaymentMethod
-    description: 결제 수단
+    description: Payment method
     values:
       - value: CREDIT_CARD
-        description: 신용카드
+        description: Credit card
       - value: BANK_TRANSFER
-        description: 계좌이체
+        description: Bank transfer
       - value: MOBILE_PAY
-        description: 모바일 결제
+        description: Mobile payment
 
   - name: PaymentStatus
-    description: 결제 상태
+    description: Payment status
     values:
       - value: INITIATED
-        description: 결제 시작
+        description: Payment initiation
       - value: AUTHORIZED
-        description: PG 인증 완료
+        description: PG authentication completed
       - value: CAPTURED
-        description: 정산 확정
+        description: Settlement captured
       - value: FAILED
-        description: PG 인증 실패
+        description: PG authentication failed
       - value: REFUNDED
-        description: 전액 환불
+        description: Full refund
       - value: PARTIALLY_REFUNDED
-        description: 부분 환불
+        description: Partial refund
 
   - name: ContractStatus
-    description: 구독 계약 상태
+    description: Subscription contract status
     values:
       - value: TRIAL
-        description: 체험 기간
+        description: Trial period
       - value: ACTIVE
-        description: 활성
+        description: Active
       - value: PAUSED
-        description: 일시 정지 (최대 2회)
+        description: Paused (max 2 times)
       - value: EXPIRED
-        description: 만료 (갱신 없음)
+        description: Expired (no renewal)
       - value: CANCELLED
-        description: 해지 (비례 환불)
+        description: Cancelled (prorated refund)
       - value: TERMINATED
-        description: 종료 (환불 처리 완료, 30일 보존)
+        description: Terminated (refund processed, 30-day retention)
 
   - name: CouponCategory
-    description: 쿠폰 분류
+    description: Coupon category
     values:
       - value: WELCOME
-        description: 가입 환영
+        description: Welcome sign-up
       - value: REFERRAL
-        description: 추천인
+        description: Referral
       - value: SEASONAL
-        description: 시즌 이벤트
+        description: Seasonal event
       - value: LOYALTY
-        description: 장기 이용
+        description: Long-term loyalty
       - value: RECOVERY
-        description: 이탈 방지
+        description: Churn prevention
 
   - name: DiscountType
-    description: 할인 유형
+    description: Discount type
     values:
       - value: PERCENTAGE
-        description: 비율 할인
+        description: Percentage discount
       - value: FIXED_AMOUNT
-        description: 정액 할인
+        description: Fixed amount discount
 
   - name: AssessmentStage
-    description: AI 평가 처리 단계
+    description: AI assessment processing stage
     values:
       - value: QUEUED
-        description: 대기열
+        description: Queued
       - value: TRANSCRIBING
-        description: 음성 → 텍스트 변환 중
+        description: Speech-to-text conversion in progress
       - value: ANALYZING
-        description: 분석 중
+        description: Analyzing
       - value: COMPLETE
-        description: 완료
+        description: Complete
       - value: ERROR
-        description: 오류 발생
+        description: Error occurred
 
   - name: CourseCategory
-    description: 교육 과정 분류
+    description: Course category
     values:
       - value: BASIC_CONVERSATION
-        description: 기초 회화
+        description: Basic conversation
       - value: BUSINESS
-        description: 비즈니스
+        description: Business
       - value: EXAM_PREP
-        description: 시험 대비
+        description: Exam preparation
       - value: FREE_TALK
-        description: 자유 회화
+        description: Free talk
 
 # ============================================================
-# OBJECT TYPES (15개)
+# OBJECT TYPES (15)
 # ============================================================
 object_types:
   - name: Student
     domain: account
-    description: 수강생. 플랫폼의 주요 사용자
+    description: Student. Primary user of the platform
     db_table: users
     normalization_status: normalized
     code_mapping:
@@ -169,36 +169,36 @@ object_types:
       - name: email
         type: string
         nullable: false
-        description: 이메일 (로그인 ID)
+        description: Email (login ID)
       - name: name
         type: string
         nullable: false
-        description: 표시 이름
+        description: Display name
       - name: phone
         type: string
         nullable: true
-        description: 전화번호
+        description: Phone number
       - name: language
         type: enum
         nullable: false
-        description: 학습 대상 언어
+        description: Target learning language
         enum_ref: Language
       - name: timezone
         type: string
         nullable: false
-        description: 시간대 (IANA)
+        description: Timezone (IANA)
       - name: registered_at
         type: datetime
         nullable: false
-        description: 가입일시
+        description: Registration datetime
       - name: is_active
         type: boolean
         nullable: false
-        description: 활성 여부
+        description: Active status
 
   - name: Instructor
     domain: account
-    description: 강사. 수업을 진행하는 교육자
+    description: Instructor. Educator who conducts lessons
     db_table: instructors
     normalization_status: normalized
     code_mapping:
@@ -219,37 +219,37 @@ object_types:
       - name: name
         type: string
         nullable: false
-        description: 표시 이름
+        description: Display name
       - name: email
         type: string
         nullable: false
-        description: 이메일
+        description: Email
       - name: tier
         type: enum
         nullable: false
-        description: 강사 등급
+        description: Instructor tier
         enum_ref: InstructorTier
       - name: language
         type: enum
         nullable: false
-        description: 교육 가능 언어
+        description: Available teaching language
         enum_ref: Language
       - name: bio
         type: text
         nullable: true
-        description: 자기소개
+        description: Bio
       - name: rating
         type: decimal
         nullable: true
-        description: 평균 평점 (1.0~5.0)
+        description: Average rating (1.0~5.0)
       - name: is_available
         type: boolean
         nullable: false
-        description: 현재 활동 가능 여부
+        description: Currently available
 
   - name: Session
     domain: session
-    description: 수업 세션. 학생과 강사 간 1:1 수업 단위
+    description: Lesson session. 1:1 lesson unit between student and instructor
     db_table: sessions
     normalization_status: normalized
     code_mapping:
@@ -270,73 +270,73 @@ object_types:
       - name: student_id
         type: bigint
         nullable: false
-        description: 수강생 FK
+        description: Student FK
       - name: instructor_id
         type: bigint
         nullable: true
-        description: 강사 FK (PENDING 시 null)
+        description: Instructor FK (null when PENDING)
       - name: course_id
         type: bigint
         nullable: false
-        description: 교육 과정 FK
+        description: Course FK
       - name: credit_id
         type: bigint
         nullable: true
-        description: 사용된 수업권 FK
+        description: Used credit FK
       - name: status
         type: enum
         nullable: false
-        description: 세션 상태
+        description: Session status
         enum_ref: SessionStatus
       - name: scheduled_at
         type: datetime
         nullable: false
-        description: 예정 시각
+        description: Scheduled time
       - name: started_at
         type: datetime
         nullable: true
-        description: 실제 시작 시각
+        description: Actual start time
       - name: ended_at
         type: datetime
         nullable: true
-        description: 실제 종료 시각
+        description: Actual end time
       - name: reschedule_count
         type: integer
         nullable: false
-        description: 일정 변경 횟수
+        description: Reschedule count
     state_machine:
       field: status
       states: [PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW]
       transitions:
         - from: PENDING
           to: CONFIRMED
-          trigger: 강사 배정 및 수업권 차감
+          trigger: Instructor assignment and credit deduction
           guard: null
-          side_effects: [Credit 차감, 학생/강사 알림 발송]
+          side_effects: [Credit deduction, Student/instructor notification sent]
         - from: CONFIRMED
           to: IN_PROGRESS
-          trigger: 수업 시작 시각 도달
+          trigger: Lesson start time reached
           guard: null
-          side_effects: [WebRTC 세션 생성]
+          side_effects: [WebRTC session created]
         - from: IN_PROGRESS
           to: COMPLETED
-          trigger: 수업 정상 종료
+          trigger: Lesson completed normally
           guard: null
-          side_effects: [Assessment QUEUED 생성, 수업 완료 알림]
+          side_effects: [Assessment QUEUED created, Lesson completion notification]
         - from: CONFIRMED
           to: CANCELLED
-          trigger: 학생 또는 강사 취소
-          guard: ["취소 시점이 CANCELLATION_DEADLINE_HOURS(4)시간 전이면 무료 취소"]
-          side_effects: [Credit 복원, 취소 알림 발송]
+          trigger: Student or instructor cancellation
+          guard: ["Free cancellation if cancellation time is CANCELLATION_DEADLINE_HOURS(4) hours before lesson start"]
+          side_effects: [Credit restoration, Cancellation notification sent]
         - from: CONFIRMED
           to: NO_SHOW
-          trigger: 접속 없이 NOSHOW_TIMEOUT_MINUTES(10)분 초과
+          trigger: No connection for over NOSHOW_TIMEOUT_MINUTES(10) minutes
           guard: ["NOSHOW_TIMEOUT_MINUTES=10"]
-          side_effects: [미참석 알림 발송]
+          side_effects: [No-show notification sent]
 
   - name: Course
     domain: session
-    description: 교육 과정. 수업의 카테고리 및 커리큘럼 정의
+    description: Course. Category and curriculum definition for lessons
     db_table: courses
     normalization_status: normalized
     properties:
@@ -347,33 +347,33 @@ object_types:
       - name: name
         type: string
         nullable: false
-        description: 과정명
+        description: Course name
       - name: category
         type: enum
         nullable: false
-        description: 과정 분류
+        description: Course category
         enum_ref: CourseCategory
       - name: language
         type: enum
         nullable: false
-        description: 대상 언어
+        description: Target language
         enum_ref: Language
       - name: description
         type: text
         nullable: true
-        description: 과정 설명
+        description: Course description
       - name: level
         type: integer
         nullable: false
-        description: 난이도 (1~10)
+        description: Difficulty level (1~10)
       - name: is_active
         type: boolean
         nullable: false
-        description: 활성 여부
+        description: Active status
 
   - name: Credit
     domain: billing
-    description: 수업권. 분/횟수 이중 추적으로 수업 이용 가능 단위를 관리
+    description: Credit. Manages lesson availability units with dual tracking by minutes/count
     db_table: credits
     normalization_status: normalized
     code_mapping:
@@ -394,43 +394,43 @@ object_types:
       - name: student_id
         type: bigint
         nullable: false
-        description: 수강생 FK
+        description: Student FK
       - name: payment_id
         type: bigint
         nullable: true
-        description: 결제 FK (체험권은 null)
+        description: Payment FK (null for trial credits)
       - name: contract_id
         type: bigint
         nullable: true
-        description: 구독 계약 FK
+        description: Subscription contract FK
       - name: total_count
         type: integer
         nullable: false
-        description: 발급된 총 횟수
+        description: Total issued count
       - name: used_count
         type: integer
         nullable: false
-        description: 사용된 횟수
+        description: Used count
       - name: total_minutes
         type: integer
         nullable: false
-        description: 발급된 총 분수
+        description: Total issued minutes
       - name: used_minutes
         type: integer
         nullable: false
-        description: 사용된 분수
+        description: Used minutes
       - name: expires_at
         type: datetime
         nullable: false
-        description: 만료일시
+        description: Expiration datetime
       - name: issued_at
         type: datetime
         nullable: false
-        description: 발급일시
+        description: Issuance datetime
 
   - name: Subscription
     domain: billing
-    description: 구독 상품 정의. 가격, 포함 크레딧 등 상품 템플릿
+    description: Subscription product definition. Product template with price, included credits, etc.
     db_table: subscriptions
     normalization_status: normalized
     properties:
@@ -441,31 +441,31 @@ object_types:
       - name: name
         type: string
         nullable: false
-        description: 상품명
+        description: Product name
       - name: price
         type: decimal
         nullable: false
-        description: 월 가격
+        description: Monthly price
       - name: credit_count
         type: integer
         nullable: false
-        description: 포함 수업 횟수
+        description: Included lesson count
       - name: credit_minutes
         type: integer
         nullable: false
-        description: 포함 수업 분수
+        description: Included lesson minutes
       - name: duration_days
         type: integer
         nullable: false
-        description: 구독 기간 (일)
+        description: Subscription duration (days)
       - name: is_active
         type: boolean
         nullable: false
-        description: 현재 판매 중 여부
+        description: Currently on sale
 
   - name: Contract
     domain: billing
-    description: 구독 계약. 학생이 특정 구독 상품에 가입한 계약 인스턴스
+    description: Subscription contract. Contract instance where a student subscribes to a specific subscription product
     db_table: contracts
     normalization_status: normalized
     code_mapping:
@@ -486,74 +486,74 @@ object_types:
       - name: student_id
         type: bigint
         nullable: false
-        description: 수강생 FK
+        description: Student FK
       - name: subscription_id
         type: bigint
         nullable: false
-        description: 구독 상품 FK
+        description: Subscription product FK
       - name: card_id
         type: bigint
         nullable: true
-        description: 결제 카드 FK
+        description: Payment card FK
       - name: status
         type: enum
         nullable: false
-        description: 계약 상태
+        description: Contract status
         enum_ref: ContractStatus
       - name: started_at
         type: datetime
         nullable: false
-        description: 계약 시작일
+        description: Contract start date
       - name: expires_at
         type: datetime
         nullable: false
-        description: 계약 만료일
+        description: Contract expiration date
       - name: next_billing_at
         type: datetime
         nullable: true
-        description: 다음 결제일
+        description: Next billing date
       - name: pause_count
         type: integer
         nullable: false
-        description: 일시 정지 횟수
+        description: Pause count
     state_machine:
       field: status
       states: [TRIAL, ACTIVE, PAUSED, EXPIRED, CANCELLED, TERMINATED]
       transitions:
         - from: TRIAL
           to: ACTIVE
-          trigger: 첫 결제 처리 완료
+          trigger: First payment processing completed
           guard: null
-          side_effects: [Credit 발급, 활성화 알림]
+          side_effects: [Credit issuance, Activation notification]
         - from: ACTIVE
           to: PAUSED
-          trigger: 학생 일시 정지 요청
-          guard: ["MAX_PAUSE_COUNT=2 (현재 pause_count < 2)"]
-          side_effects: [다음 결제일 연기, 정지 알림]
+          trigger: Student pause request
+          guard: ["MAX_PAUSE_COUNT=2 (current pause_count < 2)"]
+          side_effects: [Next billing date postponed, Pause notification]
         - from: PAUSED
           to: ACTIVE
-          trigger: 재개 요청
+          trigger: Resume request
           guard: null
-          side_effects: [다음 결제일 재계산, 재개 알림]
+          side_effects: [Next billing date recalculated, Resume notification]
         - from: ACTIVE
           to: EXPIRED
-          trigger: 기간 만료, 갱신 없음
+          trigger: Period expired, no renewal
           guard: null
-          side_effects: [만기 알림]
+          side_effects: [Expiration notification]
         - from: ACTIVE
           to: CANCELLED
-          trigger: 학생 해지 요청
+          trigger: Student cancellation request
           guard: null
-          side_effects: [비례 환불 계산, 해지 알림]
+          side_effects: [Prorated refund calculation, Cancellation notification]
         - from: CANCELLED
           to: TERMINATED
-          trigger: 환불 처리 완료
-          guard: ["30일 보존 기간 후 종료"]
-          side_effects: [데이터 보존 마킹]
+          trigger: Refund processing completed
+          guard: ["Terminated after 30-day retention period"]
+          side_effects: [Data retention marking]
 
   - name: Payment
     domain: billing
-    description: 결제. PG 연동을 통한 결제 트랜잭션
+    description: Payment. Payment transaction via PG integration
     db_table: payments
     normalization_status: normalized
     source:
@@ -568,74 +568,74 @@ object_types:
       - name: student_id
         type: bigint
         nullable: false
-        description: 수강생 FK
+        description: Student FK
       - name: contract_id
         type: bigint
         nullable: true
-        description: 구독 계약 FK
+        description: Subscription contract FK
       - name: amount
         type: decimal
         nullable: false
-        description: 결제 금액
+        description: Payment amount
       - name: discount_amount
         type: decimal
         nullable: false
-        description: 할인 금액
+        description: Discount amount
       - name: method
         type: enum
         nullable: false
-        description: 결제 수단
+        description: Payment method
         enum_ref: PaymentMethod
       - name: status
         type: enum
         nullable: false
-        description: 결제 상태
+        description: Payment status
         enum_ref: PaymentStatus
       - name: pg_transaction_id
         type: string
         nullable: true
-        description: PG사 거래 ID
+        description: PG transaction ID
       - name: created_at
         type: datetime
         nullable: false
-        description: 결제 생성일시
+        description: Payment creation datetime
       - name: captured_at
         type: datetime
         nullable: true
-        description: 정산 확정일시
+        description: Settlement capture datetime
     state_machine:
       field: status
       states: [INITIATED, AUTHORIZED, CAPTURED, FAILED, REFUNDED, PARTIALLY_REFUNDED]
       transitions:
         - from: INITIATED
           to: AUTHORIZED
-          trigger: PG 인증 성공
+          trigger: PG authentication successful
           guard: null
-          side_effects: [PG사 인증 토큰 저장]
+          side_effects: [PG authentication token stored]
         - from: AUTHORIZED
           to: CAPTURED
-          trigger: 정산 확정
+          trigger: Settlement captured
           guard: null
-          side_effects: [Credit 발급 트리거, Contract 활성화 트리거, 결제 완료 알림]
+          side_effects: [Credit issuance triggered, Contract activation triggered, Payment completion notification]
         - from: CAPTURED
           to: REFUNDED
-          trigger: 전액 환불 요청
+          trigger: Full refund request
           guard: null
-          side_effects: [PG사 환불 API 호출, Credit 회수, 환불 알림]
+          side_effects: [PG refund API called, Credit retrieval, Refund notification]
         - from: CAPTURED
           to: PARTIALLY_REFUNDED
-          trigger: 부분 환불 요청
+          trigger: Partial refund request
           guard: null
-          side_effects: [PG사 부분 환불 API 호출, 부분 환불 알림]
+          side_effects: [PG partial refund API called, Partial refund notification]
         - from: AUTHORIZED
           to: FAILED
-          trigger: PG 인증 실패
+          trigger: PG authentication failed
           guard: null
-          side_effects: [결제 실패 알림]
+          side_effects: [Payment failure notification]
 
   - name: PaymentCard
     domain: billing
-    description: 등록 카드. 학생이 등록한 결제 카드 정보
+    description: Registered card. Payment card information registered by the student
     db_table: payment_cards
     normalization_status: normalized
     properties:
@@ -646,31 +646,31 @@ object_types:
       - name: student_id
         type: bigint
         nullable: false
-        description: 수강생 FK
+        description: Student FK
       - name: card_number_masked
         type: string
         nullable: false
-        description: 마스킹된 카드 번호
+        description: Masked card number
       - name: card_brand
         type: string
         nullable: false
-        description: 카드 브랜드 (VISA, MASTER 등)
+        description: Card brand (VISA, MASTER, etc.)
       - name: billing_key
         type: string
         nullable: false
-        description: PG사 빌링키
+        description: PG billing key
       - name: is_default
         type: boolean
         nullable: false
-        description: 기본 결제 수단 여부
+        description: Default payment method
       - name: registered_at
         type: datetime
         nullable: false
-        description: 등록일시
+        description: Registration datetime
 
   - name: Coupon
     domain: promotion
-    description: 발행된 쿠폰. 특정 학생에게 발급된 쿠폰 인스턴스
+    description: Issued coupon. Coupon instance issued to a specific student
     db_table: coupons
     normalization_status: normalized
     properties:
@@ -681,35 +681,35 @@ object_types:
       - name: template_id
         type: bigint
         nullable: false
-        description: 쿠폰 정의 FK
+        description: Coupon template FK
       - name: student_id
         type: bigint
         nullable: false
-        description: 수강생 FK
+        description: Student FK
       - name: payment_id
         type: bigint
         nullable: true
-        description: 사용된 결제 FK (미사용 시 null)
+        description: Used payment FK (null if unused)
       - name: code
         type: string
         nullable: false
-        description: 쿠폰 코드
+        description: Coupon code
       - name: is_used
         type: boolean
         nullable: false
-        description: 사용 여부
+        description: Usage status
       - name: issued_at
         type: datetime
         nullable: false
-        description: 발급일시
+        description: Issuance datetime
       - name: expires_at
         type: datetime
         nullable: false
-        description: 만료일시
+        description: Expiration datetime
 
   - name: CouponTemplate
     domain: promotion
-    description: 쿠폰 정의. 쿠폰의 유형, 할인 규칙 등 템플릿
+    description: Coupon definition. Template for coupon type, discount rules, etc.
     db_table: coupon_templates
     normalization_status: normalized
     properties:
@@ -720,37 +720,37 @@ object_types:
       - name: name
         type: string
         nullable: false
-        description: 쿠폰 이름
+        description: Coupon name
       - name: category
         type: enum
         nullable: false
-        description: 쿠폰 분류
+        description: Coupon category
         enum_ref: CouponCategory
       - name: discount_type
         type: enum
         nullable: false
-        description: 할인 유형
+        description: Discount type
         enum_ref: DiscountType
       - name: discount_value
         type: decimal
         nullable: false
-        description: 할인 값 (비율이면 %, 정액이면 원)
+        description: Discount value (% for percentage, KRW for fixed amount)
       - name: min_purchase_amount
         type: decimal
         nullable: true
-        description: 최소 결제 금액
+        description: Minimum purchase amount
       - name: max_issue_count
         type: integer
         nullable: true
-        description: 최대 발급 수
+        description: Maximum issue count
       - name: is_active
         type: boolean
         nullable: false
-        description: 활성 여부
+        description: Active status
 
   - name: Assessment
     domain: assessment
-    description: AI 학습 평가. 수업 완료 후 자동 생성되는 AI 기반 평가 리포트
+    description: AI learning assessment. AI-based assessment report auto-generated after lesson completion
     db_table: assessments
     normalization_status: normalized
     properties:
@@ -761,36 +761,36 @@ object_types:
       - name: session_id
         type: bigint
         nullable: false
-        description: 수업 세션 FK
+        description: Lesson session FK
       - name: stage
         type: enum
         nullable: false
-        description: 처리 단계
+        description: Processing stage
         enum_ref: AssessmentStage
       - name: transcript
         type: text
         nullable: true
-        description: 수업 전사 텍스트
+        description: Lesson transcript text
       - name: score
         type: decimal
         nullable: true
-        description: 종합 점수 (0~100)
+        description: Overall score (0~100)
       - name: feedback
         type: text
         nullable: true
-        description: AI 피드백 내용
+        description: AI feedback content
       - name: created_at
         type: datetime
         nullable: false
-        description: 생성일시
+        description: Creation datetime
       - name: completed_at
         type: datetime
         nullable: true
-        description: 평가 완료일시
+        description: Assessment completion datetime
 
   - name: Booking
     domain: session
-    description: 예약 스케줄. 세션과 가용 시간대를 연결하는 예약 레코드
+    description: Booking schedule. Booking record linking session and availability slot
     db_table: bookings
     normalization_status: normalized
     properties:
@@ -801,23 +801,23 @@ object_types:
       - name: session_id
         type: bigint
         nullable: false
-        description: 수업 세션 FK
+        description: Lesson session FK
       - name: slot_id
         type: bigint
         nullable: false
-        description: 가용 시간대 FK
+        description: Availability slot FK
       - name: booked_at
         type: datetime
         nullable: false
-        description: 예약일시
+        description: Booking datetime
       - name: cancelled_at
         type: datetime
         nullable: true
-        description: 취소일시
+        description: Cancellation datetime
 
   - name: AvailabilitySlot
     domain: session
-    description: 강사 가용 시간대. 강사가 수업 가능한 시간 구간
+    description: Instructor availability slot. Time range when instructor can conduct lessons
     db_table: availability_slots
     normalization_status: normalized
     properties:
@@ -828,27 +828,27 @@ object_types:
       - name: instructor_id
         type: bigint
         nullable: false
-        description: 강사 FK
+        description: Instructor FK
       - name: start_time
         type: datetime
         nullable: false
-        description: 시작 시각
+        description: Start time
       - name: end_time
         type: datetime
         nullable: false
-        description: 종료 시각
+        description: End time
       - name: is_booked
         type: boolean
         nullable: false
-        description: 예약 점유 여부
+        description: Booking occupied
       - name: day_of_week
         type: integer
         nullable: false
-        description: 요일 (1=월 ~ 7=일)
+        description: Day of week (1=Mon ~ 7=Sun)
 
   - name: Notification
     domain: notification
-    description: 알림. 시스템에서 사용자에게 전달하는 알림 메시지
+    description: Notification. Notification message delivered from system to user
     db_table: notifications
     normalization_status: normalized
     properties:
@@ -859,513 +859,513 @@ object_types:
       - name: recipient_id
         type: bigint
         nullable: false
-        description: 수신자 FK (학생 또는 강사)
+        description: Recipient FK (student or instructor)
       - name: recipient_type
         type: string
         nullable: false
-        description: "수신자 유형 (Student | Instructor)"
+        description: "Recipient type (Student | Instructor)"
       - name: title
         type: string
         nullable: false
-        description: 알림 제목
+        description: Notification title
       - name: body
         type: text
         nullable: false
-        description: 알림 내용
+        description: Notification body
       - name: channel
         type: string
         nullable: false
-        description: "채널 (PUSH | EMAIL | SMS)"
+        description: "Channel (PUSH | EMAIL | SMS)"
       - name: is_read
         type: boolean
         nullable: false
-        description: 읽음 여부
+        description: Read status
       - name: sent_at
         type: datetime
         nullable: false
-        description: 발송일시
+        description: Sent datetime
 
 # ============================================================
-# LINK TYPES (40개)
+# LINK TYPES (40)
 # ============================================================
 link_types:
   - id: lnk_student_session
     from: Student
     to: Session
-    type: 수강
+    type: takes_lesson
     cardinality: "1:N"
     fk_column: sessions.student_id
-    description: 학생은 여러 수업 세션을 가짐
+    description: A student has multiple lesson sessions
 
   - id: lnk_instructor_session
     from: Instructor
     to: Session
-    type: 진행
+    type: conducts
     cardinality: "1:N"
     fk_column: sessions.instructor_id
-    description: 강사는 여러 수업 세션을 진행
+    description: An instructor conducts multiple lesson sessions
 
   - id: lnk_session_course
     from: Session
     to: Course
-    type: 소속
+    type: belongs_to
     cardinality: "N:1"
     fk_column: sessions.course_id
-    description: 세션은 하나의 교육 과정에 소속
+    description: A session belongs to one course
 
   - id: lnk_session_credit
     from: Session
     to: Credit
-    type: 사용
+    type: uses
     cardinality: "N:1"
     fk_column: sessions.credit_id
-    description: 세션은 하나의 수업권을 사용
+    description: A session uses one credit
 
   - id: lnk_student_credit
     from: Student
     to: Credit
-    type: 보유
+    type: owns
     cardinality: "1:N"
     fk_column: credits.student_id
-    description: 학생은 여러 수업권을 보유
+    description: A student owns multiple credits
 
   - id: lnk_credit_payment
     from: Credit
     to: Payment
-    type: 구매
+    type: purchases
     cardinality: "N:1"
     fk_column: credits.payment_id
-    description: 수업권은 하나의 결제로 구매
+    description: A credit is purchased with one payment
 
   - id: lnk_credit_contract
     from: Credit
     to: Contract
-    type: 발급
+    type: issues
     cardinality: "N:1"
     fk_column: credits.contract_id
-    description: 수업권은 하나의 구독 계약으로 발급
+    description: A credit is issued from one subscription contract
 
   - id: lnk_student_contract
     from: Student
     to: Contract
-    type: 계약
+    type: contracts
     cardinality: "1:N"
     fk_column: contracts.student_id
-    description: 학생은 여러 구독 계약을 체결
+    description: A student enters multiple subscription contracts
 
   - id: lnk_contract_subscription
     from: Contract
     to: Subscription
-    type: 기반
+    type: based_on
     cardinality: "N:1"
     fk_column: contracts.subscription_id
-    description: 계약은 하나의 구독 상품에 기반
+    description: A contract is based on one subscription product
 
   - id: lnk_contract_card
     from: Contract
     to: PaymentCard
-    type: 결제수단
+    type: payment_method
     cardinality: "N:1"
     fk_column: contracts.card_id
-    description: 계약은 하나의 결제 카드와 연결
+    description: A contract is linked to one payment card
 
   - id: lnk_student_payment_card
     from: Student
     to: PaymentCard
-    type: 등록
+    type: registers
     cardinality: "1:N"
     fk_column: payment_cards.student_id
-    description: 학생은 여러 결제 카드를 등록
+    description: A student registers multiple payment cards
 
   - id: lnk_student_payment
     from: Student
     to: Payment
-    type: 결제
+    type: pays
     cardinality: "1:N"
     fk_column: payments.student_id
-    description: 학생은 여러 결제를 수행
+    description: A student makes multiple payments
 
   - id: lnk_payment_contract
     from: Payment
     to: Contract
-    type: 청구
+    type: bills
     cardinality: "N:1"
     fk_column: payments.contract_id
-    description: 결제는 하나의 계약에 대해 발생
+    description: A payment is made for one contract
 
   - id: lnk_contract_payment
     from: Contract
     to: Payment
-    type: 결제내역
+    type: payment_history
     cardinality: "1:N"
     fk_column: payments.contract_id
-    description: 계약은 여러 결제를 발생시킴
+    description: A contract generates multiple payments
 
   - id: lnk_coupon_template
     from: Coupon
     to: CouponTemplate
-    type: 정의
+    type: defines
     cardinality: "N:1"
     fk_column: coupons.template_id
-    description: 쿠폰은 하나의 템플릿에서 발행
+    description: A coupon is issued from one template
 
   - id: lnk_coupon_student
     from: Coupon
     to: Student
-    type: 대상자
+    type: recipient_ref
     cardinality: "N:1"
     fk_column: coupons.student_id
-    description: 쿠폰은 한 학생에게 발급
+    description: A coupon is issued to one student
 
   - id: lnk_student_coupon
     from: Student
     to: Coupon
-    type: 보유쿠폰
+    type: owned_coupons
     cardinality: "1:N"
     fk_column: coupons.student_id
-    description: 학생은 여러 쿠폰을 보유
+    description: A student owns multiple coupons
 
   - id: lnk_coupon_payment
     from: Coupon
     to: Payment
-    type: 적용
+    type: applies
     cardinality: "N:1"
     fk_column: coupons.payment_id
-    description: 쿠폰은 하나의 결제에 적용
+    description: A coupon is applied to one payment
 
   - id: lnk_session_assessment
     from: Session
     to: Assessment
-    type: 평가
+    type: assesses
     cardinality: "1:1"
     fk_column: assessments.session_id
-    description: 세션은 하나의 AI 평가를 생성
+    description: A session generates one AI assessment
 
   - id: lnk_session_booking
     from: Session
     to: Booking
-    type: 예약
+    type: books
     cardinality: "1:1"
     fk_column: bookings.session_id
-    description: 세션은 하나의 예약 레코드를 가짐
+    description: A session has one booking record
 
   - id: lnk_instructor_slot
     from: Instructor
     to: AvailabilitySlot
-    type: 가용
+    type: available
     cardinality: "1:N"
     fk_column: availability_slots.instructor_id
-    description: 강사는 여러 가용 시간대를 등록
+    description: An instructor registers multiple availability slots
 
   - id: lnk_booking_slot
     from: Booking
     to: AvailabilitySlot
-    type: 점유
+    type: occupies
     cardinality: "N:1"
     fk_column: bookings.slot_id
-    description: 예약은 하나의 가용 시간대를 점유
+    description: A booking occupies one availability slot
 
   - id: lnk_student_notification
     from: Student
     to: Notification
-    type: 수신
+    type: receives
     cardinality: "1:N"
     fk_column: "notifications.recipient_id (recipient_type=Student)"
-    description: 학생은 여러 알림을 수신
+    description: A student receives multiple notifications
 
   - id: lnk_instructor_notification
     from: Instructor
     to: Notification
-    type: 수신
+    type: receives
     cardinality: "1:N"
     fk_column: "notifications.recipient_id (recipient_type=Instructor)"
-    description: 강사는 여러 알림을 수신
+    description: An instructor receives multiple notifications
 
   - id: lnk_session_student
     from: Session
     to: Student
-    type: 수강생
+    type: student_ref
     cardinality: "N:1"
     fk_column: sessions.student_id
-    description: 세션에서 학생 방향 역참조
+    description: Reverse reference from session to student
 
   - id: lnk_session_instructor
     from: Session
     to: Instructor
-    type: 담당강사
+    type: instructor_ref
     cardinality: "N:1"
     fk_column: sessions.instructor_id
-    description: 세션에서 강사 방향 역참조
+    description: Reverse reference from session to instructor
 
   - id: lnk_assessment_session
     from: Assessment
     to: Session
-    type: 대상세션
+    type: session_ref
     cardinality: "N:1"
     fk_column: assessments.session_id
-    description: 평가에서 세션 방향 역참조
+    description: Reverse reference from assessment to session
 
   - id: lnk_booking_session
     from: Booking
     to: Session
-    type: 대상세션
+    type: session_ref
     cardinality: "N:1"
     fk_column: bookings.session_id
-    description: 예약에서 세션 방향 역참조
+    description: Reverse reference from booking to session
 
   - id: lnk_credit_student
     from: Credit
     to: Student
-    type: 소유자
+    type: owner_ref
     cardinality: "N:1"
     fk_column: credits.student_id
-    description: 수업권에서 학생 방향 역참조
+    description: Reverse reference from credit to student
 
   - id: lnk_contract_student
     from: Contract
     to: Student
-    type: 계약자
+    type: contractor_ref
     cardinality: "N:1"
     fk_column: contracts.student_id
-    description: 계약에서 학생 방향 역참조
+    description: Reverse reference from contract to student
 
   - id: lnk_payment_student
     from: Payment
     to: Student
-    type: 결제자
+    type: payer_ref
     cardinality: "N:1"
     fk_column: payments.student_id
-    description: 결제에서 학생 방향 역참조
+    description: Reverse reference from payment to student
 
   - id: lnk_payment_card_student
     from: PaymentCard
     to: Student
-    type: 소유자
+    type: owner_ref
     cardinality: "N:1"
     fk_column: payment_cards.student_id
-    description: 결제 카드에서 학생 방향 역참조
+    description: Reverse reference from payment card to student
 
   - id: lnk_slot_instructor
     from: AvailabilitySlot
     to: Instructor
-    type: 소속강사
+    type: instructor_ref
     cardinality: "N:1"
     fk_column: availability_slots.instructor_id
-    description: 가용 시간대에서 강사 방향 역참조
+    description: Reverse reference from availability slot to instructor
 
   - id: lnk_course_session
     from: Course
     to: Session
-    type: 수업들
+    type: lessons
     cardinality: "1:N"
     fk_column: sessions.course_id
-    description: 교육 과정은 여러 세션을 포함
+    description: A course contains multiple sessions
 
   - id: lnk_subscription_contract
     from: Subscription
     to: Contract
-    type: 가입들
+    type: subscriptions
     cardinality: "1:N"
     fk_column: contracts.subscription_id
-    description: 구독 상품은 여러 계약에 사용
+    description: A subscription product is used in multiple contracts
 
   - id: lnk_template_coupon
     from: CouponTemplate
     to: Coupon
-    type: 발행들
+    type: issuances
     cardinality: "1:N"
     fk_column: coupons.template_id
-    description: 쿠폰 템플릿은 여러 쿠폰을 발행
+    description: A coupon template issues multiple coupons
 
   - id: lnk_card_contract
     from: PaymentCard
     to: Contract
-    type: 연결계약들
+    type: linked_contracts
     cardinality: "1:N"
     fk_column: contracts.card_id
-    description: 결제 카드는 여러 계약에 사용
+    description: A payment card is used in multiple contracts
 
   - id: lnk_slot_booking
     from: AvailabilitySlot
     to: Booking
-    type: 예약들
+    type: bookings
     cardinality: "1:N"
     fk_column: bookings.slot_id
-    description: 가용 시간대는 여러 예약에 사용 가능
+    description: An availability slot can be used for multiple bookings
 
   - id: lnk_course_language
     from: Course
     to: Language
-    type: 대상언어
+    type: target_language
     cardinality: "N:1"
     fk_column: courses.language
-    description: 교육 과정은 하나의 언어에 매핑
+    description: A course maps to one language
 
   - id: lnk_student_language
     from: Student
     to: Language
-    type: 학습언어
+    type: learning_language
     cardinality: "N:1"
     fk_column: users.language
-    description: 학생은 하나의 학습 대상 언어를 선택
+    description: A student selects one target learning language
 
 # ============================================================
 # ACTORS
 # ============================================================
 actors:
   - id: student
-    description: 수강생. 수업 예약, 결제, 구독 등의 주요 행위 주체
+    description: Student. Primary actor for lesson booking, payment, subscription, etc.
   - id: instructor
-    description: 강사. 가용 시간대 등록, 수업 진행 등의 행위 주체
+    description: Instructor. Actor for availability slot registration, lesson delivery, etc.
   - id: admin
-    description: 관리자. 환불, 쿠폰 발급 등 운영 행위 주체
+    description: Admin. Actor for operational actions such as refunds, coupon issuance, etc.
   - id: system
-    description: 시스템. 자동 갱신, 미참석 처리, AI 평가 등 자동화 행위 주체
+    description: System. Actor for automated actions such as auto-renewal, no-show processing, AI assessment, etc.
   - id: anonymous
-    description: 미인증 사용자. 회원가입만 가능
+    description: Unauthenticated user. Only registration is allowed
 
 # ============================================================
-# ACTION TYPES — Commands (20개)
+# ACTION TYPES — Commands (20)
 # ============================================================
 action_types:
   # AUTH
   - id: act_register_student
     name: RegisterStudent
-    display_name: 학생 회원가입
+    display_name: Student registration
     domain: account
     actor: anonymous
     mutating: true
     target_object_types: [Student]
     preconditions:
-      - check: "이메일 중복 없음"
+      - check: "No duplicate email"
         policy_ref: null
     results:
-      - Student 레코드 생성
-      - 체험 Credit 발급 (TRIAL_CREDIT_COUNT=1)
+      - Student record created
+      - Trial Credit issued (TRIAL_CREDIT_COUNT=1)
     state_transitions: []
     side_effects:
-      - 가입 환영 이메일 발송
-      - Welcome 쿠폰 자동 발급
+      - Welcome sign-up email sent
+      - Welcome coupon auto-issued
     source_code: "AuthController.register()"
 
   - id: act_login_student
     name: LoginStudent
-    display_name: 학생 로그인
+    display_name: Student login
     domain: account
     actor: student
     mutating: true
     target_object_types: [Student]
     preconditions:
-      - check: "이메일/비밀번호 일치"
+      - check: "Email/password match"
         policy_ref: null
     results:
-      - 인증 토큰 발급
+      - Authentication token issued
     state_transitions: []
     side_effects: []
     source_code: "AuthController.login()"
 
   - id: act_logout_student
     name: LogoutStudent
-    display_name: 학생 로그아웃
+    display_name: Student logout
     domain: account
     actor: student
     mutating: true
     target_object_types: [Student]
     preconditions: []
     results:
-      - 인증 토큰 무효화
+      - Authentication token invalidated
     state_transitions: []
     side_effects: []
     source_code: "AuthController.logout()"
 
   - id: act_withdraw_student
     name: WithdrawStudent
-    display_name: 학생 탈퇴
+    display_name: Student withdrawal
     domain: account
     actor: student
     mutating: true
     target_object_types: [Student, Contract, Credit]
     preconditions:
-      - check: "활성 Contract가 없거나 해지 완료"
+      - check: "No active Contract or cancellation completed"
         policy_ref: null
     results:
-      - Student 비활성화 (soft delete)
-      - 잔여 Credit 소멸
+      - Student deactivated (soft delete)
+      - Remaining Credit expired
     state_transitions: []
     side_effects:
-      - 탈퇴 확인 이메일 발송
-      - 30일 보존 스케줄링
+      - Withdrawal confirmation email sent
+      - 30-day retention scheduled
     source_code: "AuthController.withdraw()"
 
   # SESSION
   - id: act_book_session
     name: BookSession
-    display_name: 수업 예약
+    display_name: Lesson booking
     domain: session
     actor: student
     mutating: true
     target_object_types: [Session, Booking, Credit, AvailabilitySlot]
     preconditions:
-      - check: "사용 가능한 Credit 잔여 존재"
+      - check: "Available Credit remaining"
         policy_ref: null
-      - check: "선택한 AvailabilitySlot이 미예약 상태"
+      - check: "Selected AvailabilitySlot is not booked"
         policy_ref: null
     results:
-      - Session 생성 (PENDING)
-      - Booking 생성
-      - AvailabilitySlot 점유
+      - Session created (PENDING)
+      - Booking created
+      - AvailabilitySlot occupied
     state_transitions:
       - "Session: → PENDING"
     side_effects:
-      - 강사 매칭 큐 등록
+      - Instructor matching queue registered
     source_code: "SessionGateway.bookSession()"
 
   - id: act_cancel_session
     name: CancelSession
-    display_name: 수업 취소
+    display_name: Lesson cancellation
     domain: session
     actor: student
     mutating: true
     target_object_types: [Session, Credit, Booking]
     preconditions:
-      - check: "Session 상태가 PENDING 또는 CONFIRMED"
+      - check: "Session status is PENDING or CONFIRMED"
         policy_ref: null
-      - check: "취소 시점이 CANCELLATION_DEADLINE_HOURS(4) 전이면 무료"
+      - check: "Free if cancellation time is before CANCELLATION_DEADLINE_HOURS(4)"
         policy_ref: CANCELLATION_DEADLINE_HOURS
     results:
       - Session CANCELLED
-      - Credit 복원 (무료 취소 시)
-      - Booking 취소 처리
-      - AvailabilitySlot 해제
+      - Credit restored (on free cancellation)
+      - Booking cancelled
+      - AvailabilitySlot released
     state_transitions:
       - "Session: CONFIRMED → CANCELLED"
     side_effects:
-      - 취소 알림 발송
+      - Cancellation notification sent
     source_code: "SessionGateway.cancelSession()"
 
   - id: act_complete_session
     name: CompleteSession
-    display_name: 수업 완료
+    display_name: Lesson completion
     domain: session
     actor: system
     mutating: true
     target_object_types: [Session, Assessment]
     preconditions:
-      - check: "Session 상태가 IN_PROGRESS"
+      - check: "Session status is IN_PROGRESS"
         policy_ref: null
     results:
       - Session COMPLETED
-      - Assessment 생성 (QUEUED)
+      - Assessment created (QUEUED)
     state_transitions:
       - "Session: IN_PROGRESS → COMPLETED"
     side_effects:
-      - AI 평가 파이프라인 트리거
-      - 수업 완료 알림
+      - AI assessment pipeline triggered
+      - Lesson completion notification
     source_code: "SessionGateway.completeSession()"
 
   - id: act_reschedule_session
     name: RescheduleSession
-    display_name: 수업 일정 변경
+    display_name: Lesson reschedule
     domain: session
     actor: student
     mutating: true
@@ -1373,260 +1373,260 @@ action_types:
     preconditions:
       - check: "reschedule_count < MAX_RESCHEDULE_COUNT(2)"
         policy_ref: MAX_RESCHEDULE_COUNT
-      - check: "Session 상태가 CONFIRMED"
+      - check: "Session status is CONFIRMED"
         policy_ref: null
     results:
-      - 기존 Booking 취소
-      - 새 Booking 생성
-      - reschedule_count 증가
+      - Existing Booking cancelled
+      - New Booking created
+      - reschedule_count incremented
     state_transitions: []
     side_effects:
-      - 일정 변경 알림
+      - Schedule change notification
     source_code: "SessionGateway.rescheduleSession()"
 
   - id: act_mark_no_show
     name: MarkNoShow
-    display_name: 미참석 처리
+    display_name: No-show processing
     domain: session
     actor: system
     mutating: true
     target_object_types: [Session]
     preconditions:
-      - check: "CONFIRMED 상태에서 NOSHOW_TIMEOUT_MINUTES(10)분 초과"
+      - check: "NOSHOW_TIMEOUT_MINUTES(10) minutes exceeded in CONFIRMED status"
         policy_ref: null
     results:
       - Session NO_SHOW
     state_transitions:
       - "Session: CONFIRMED → NO_SHOW"
     side_effects:
-      - 미참석 알림 발송
+      - No-show notification sent
     source_code: "SessionGateway.markNoShow()"
 
   # PAYMENT
   - id: act_initiate_payment
     name: InitiatePayment
-    display_name: 결제 시작
+    display_name: Payment initiation
     domain: billing
     actor: student
     mutating: true
     target_object_types: [Payment]
     preconditions:
-      - check: "유효한 결제 수단 존재"
+      - check: "Valid payment method exists"
         policy_ref: null
     results:
-      - Payment 생성 (INITIATED)
+      - Payment created (INITIATED)
     state_transitions:
       - "Payment: → INITIATED"
     side_effects:
-      - PG사 결제 요청
+      - PG payment request
     source_code: "PaymentProcessor.initiate()"
 
   - id: act_capture_payment
     name: CapturePayment
-    display_name: 결제 확정
+    display_name: Payment capture
     domain: billing
     actor: system
     mutating: true
     target_object_types: [Payment, Credit, Contract]
     preconditions:
-      - check: "Payment 상태가 AUTHORIZED"
+      - check: "Payment status is AUTHORIZED"
         policy_ref: null
     results:
       - Payment CAPTURED
-      - Credit 발급
-      - Contract 활성화 (해당 시)
+      - Credit issuance
+      - Contract activated (when applicable)
     state_transitions:
       - "Payment: AUTHORIZED → CAPTURED"
     side_effects:
-      - 결제 완료 알림
-      - 영수증 이메일
+      - Payment completion notification
+      - Receipt email
     source_code: "PaymentProcessor.capture()"
 
   - id: act_refund_payment
     name: RefundPayment
-    display_name: 결제 환불
+    display_name: Payment refund
     domain: billing
     actor: admin
     mutating: true
     target_object_types: [Payment, Credit]
     preconditions:
-      - check: "Payment 상태가 CAPTURED"
+      - check: "Payment status is CAPTURED"
         policy_ref: null
     results:
       - Payment REFUNDED
-      - Credit 회수
+      - Credit retrieval
     state_transitions:
       - "Payment: CAPTURED → REFUNDED"
     side_effects:
-      - PG사 환불 API 호출
-      - 환불 알림
+      - PG refund API called
+      - Refund notification
     source_code: "PaymentProcessor.refund()"
 
   - id: act_retry_payment
     name: RetryPayment
-    display_name: 결제 재시도
+    display_name: Payment retry
     domain: billing
     actor: student
     mutating: true
     target_object_types: [Payment]
     preconditions:
-      - check: "이전 Payment가 FAILED 상태"
+      - check: "Previous Payment is in FAILED status"
         policy_ref: null
     results:
-      - 새 Payment 생성 (INITIATED)
+      - New Payment created (INITIATED)
     state_transitions:
       - "Payment: → INITIATED"
     side_effects:
-      - PG사 결제 재요청
+      - PG payment retry request
     source_code: "PaymentProcessor.retry()"
 
   # SUBSCRIPTION
   - id: act_create_contract
     name: CreateContract
-    display_name: 구독 계약 생성
+    display_name: Subscription contract creation
     domain: billing
     actor: student
     mutating: true
     target_object_types: [Contract, Payment]
     preconditions:
-      - check: "선택한 Subscription이 활성 상태"
+      - check: "Selected Subscription is active"
         policy_ref: null
     results:
-      - Contract 생성 (TRIAL)
-      - 결제 트리거
+      - Contract created (TRIAL)
+      - Payment triggered
     state_transitions:
       - "Contract: → TRIAL"
     side_effects:
-      - 체험 Credit 발급
+      - Trial Credit issued
     source_code: "ContractService.create()"
 
   - id: act_pause_contract
     name: PauseContract
-    display_name: 구독 일시 정지
+    display_name: Subscription pause
     domain: billing
     actor: student
     mutating: true
     target_object_types: [Contract]
     preconditions:
-      - check: "Contract 상태가 ACTIVE"
+      - check: "Contract status is ACTIVE"
         policy_ref: null
       - check: "pause_count < MAX_PAUSE_COUNT(2)"
         policy_ref: MAX_PAUSE_COUNT
     results:
       - Contract PAUSED
-      - 다음 결제일 연기
+      - Next billing date postponed
     state_transitions:
       - "Contract: ACTIVE → PAUSED"
     side_effects:
-      - 정지 알림
+      - Pause notification
     source_code: "ContractService.pause()"
 
   - id: act_resume_contract
     name: ResumeContract
-    display_name: 구독 재개
+    display_name: Subscription resume
     domain: billing
     actor: student
     mutating: true
     target_object_types: [Contract]
     preconditions:
-      - check: "Contract 상태가 PAUSED"
+      - check: "Contract status is PAUSED"
         policy_ref: null
     results:
       - Contract ACTIVE
-      - 다음 결제일 재계산
+      - Next billing date recalculated
     state_transitions:
       - "Contract: PAUSED → ACTIVE"
     side_effects:
-      - 재개 알림
+      - Resume notification
     source_code: "ContractService.resume()"
 
   - id: act_cancel_contract
     name: CancelContract
-    display_name: 구독 해지
+    display_name: Subscription cancellation
     domain: billing
     actor: student
     mutating: true
     target_object_types: [Contract, Payment]
     preconditions:
-      - check: "Contract 상태가 ACTIVE"
+      - check: "Contract status is ACTIVE"
         policy_ref: null
     results:
       - Contract CANCELLED
-      - 비례 환불 계산
+      - Prorated refund calculation
     state_transitions:
       - "Contract: ACTIVE → CANCELLED"
     side_effects:
-      - 비례 환불 트리거
-      - 해지 알림
+      - Prorated refund triggered
+      - Cancellation notification
     source_code: "ContractService.cancel()"
 
   - id: act_renew_contract
     name: RenewContract
-    display_name: 구독 갱신
+    display_name: Subscription renewal
     domain: billing
     actor: system
     mutating: true
     target_object_types: [Contract, Payment, Credit]
     preconditions:
-      - check: "Contract 상태가 ACTIVE"
+      - check: "Contract status is ACTIVE"
         policy_ref: null
-      - check: "만료일 도래"
+      - check: "Expiration date reached"
         policy_ref: null
     results:
-      - 자동 결제 트리거
-      - Credit 발급
-      - 다음 결제일 갱신
+      - Auto payment triggered
+      - Credit issuance
+      - Next billing date updated
     state_transitions: []
     side_effects:
-      - 결제 알림
-      - 갱신 완료 알림
+      - Payment notification
+      - Renewal completion notification
     source_code: "ContractService.renew()"
 
   # COUPON
   - id: act_issue_coupon
     name: IssueCoupon
-    display_name: 쿠폰 발급
+    display_name: Coupon issuance
     domain: promotion
     actor: system
     mutating: true
     target_object_types: [Coupon, CouponTemplate]
     preconditions:
-      - check: "CouponTemplate이 활성 상태"
+      - check: "CouponTemplate is active"
         policy_ref: null
-      - check: "발급 한도 미초과"
+      - check: "Issue limit not exceeded"
         policy_ref: null
     results:
-      - Coupon 생성
+      - Coupon created
     state_transitions: []
     side_effects:
-      - 쿠폰 발급 알림
+      - Coupon issuance notification
     source_code: "CouponService.issue()"
 
   - id: act_apply_coupon
     name: ApplyCoupon
-    display_name: 쿠폰 적용
+    display_name: Coupon application
     domain: promotion
     actor: student
     mutating: true
     target_object_types: [Coupon, Payment]
     preconditions:
-      - check: "Coupon이 미사용 상태"
+      - check: "Coupon is unused"
         policy_ref: null
-      - check: "Coupon 만료 전"
+      - check: "Coupon not expired"
         policy_ref: null
-      - check: "최소 결제 금액 충족"
+      - check: "Minimum purchase amount met"
         policy_ref: null
     results:
-      - Coupon 사용 처리
-      - Payment discount_amount 반영
+      - Coupon marked as used
+      - Payment discount_amount applied
     state_transitions: []
     side_effects: []
     source_code: "CouponService.apply()"
 
-  # QUERIES (15개, mutating: false)
+  # QUERIES (15, mutating: false)
   - id: act_get_student_profile
     name: GetStudentProfile
-    display_name: 학생 프로필 조회
+    display_name: Get student profile
     domain: account
     actor: student
     mutating: false
@@ -1635,7 +1635,7 @@ action_types:
 
   - id: act_get_instructor_profile
     name: GetInstructorProfile
-    display_name: 강사 프로필 조회
+    display_name: Get instructor profile
     domain: account
     actor: student
     mutating: false
@@ -1644,7 +1644,7 @@ action_types:
 
   - id: act_list_sessions
     name: ListSessions
-    display_name: 수업 목록 조회
+    display_name: List lessons
     domain: session
     actor: student
     mutating: false
@@ -1653,7 +1653,7 @@ action_types:
 
   - id: act_get_session_detail
     name: GetSessionDetail
-    display_name: 수업 상세 조회
+    display_name: Get lesson detail
     domain: session
     actor: student
     mutating: false
@@ -1662,7 +1662,7 @@ action_types:
 
   - id: act_list_contracts
     name: ListContracts
-    display_name: 구독 계약 목록 조회
+    display_name: List subscription contracts
     domain: billing
     actor: student
     mutating: false
@@ -1671,7 +1671,7 @@ action_types:
 
   - id: act_get_contract_detail
     name: GetContractDetail
-    display_name: 구독 계약 상세 조회
+    display_name: Get subscription contract detail
     domain: billing
     actor: student
     mutating: false
@@ -1680,7 +1680,7 @@ action_types:
 
   - id: act_list_payments
     name: ListPayments
-    display_name: 결제 내역 조회
+    display_name: List payment history
     domain: billing
     actor: student
     mutating: false
@@ -1689,7 +1689,7 @@ action_types:
 
   - id: act_get_payment_detail
     name: GetPaymentDetail
-    display_name: 결제 상세 조회
+    display_name: Get payment detail
     domain: billing
     actor: student
     mutating: false
@@ -1698,7 +1698,7 @@ action_types:
 
   - id: act_get_credit_balance
     name: GetCreditBalance
-    display_name: 수업권 잔액 조회
+    display_name: Get credit balance
     domain: billing
     actor: student
     mutating: false
@@ -1707,7 +1707,7 @@ action_types:
 
   - id: act_list_credits
     name: ListCredits
-    display_name: 수업권 내역 조회
+    display_name: List credit history
     domain: billing
     actor: student
     mutating: false
@@ -1716,7 +1716,7 @@ action_types:
 
   - id: act_list_coupons
     name: ListCoupons
-    display_name: 보유 쿠폰 조회
+    display_name: List owned coupons
     domain: promotion
     actor: student
     mutating: false
@@ -1725,7 +1725,7 @@ action_types:
 
   - id: act_get_available_coupons
     name: GetAvailableCoupons
-    display_name: 사용 가능 쿠폰 조회
+    display_name: List available coupons
     domain: promotion
     actor: student
     mutating: false
@@ -1734,7 +1734,7 @@ action_types:
 
   - id: act_get_assessment_report
     name: GetAssessmentReport
-    display_name: AI 평가 리포트 조회
+    display_name: Get AI assessment report
     domain: assessment
     actor: student
     mutating: false
@@ -1743,7 +1743,7 @@ action_types:
 
   - id: act_get_instructor_schedule
     name: GetInstructorSchedule
-    display_name: 강사 스케줄 조회
+    display_name: Get instructor schedule
     domain: session
     actor: instructor
     mutating: false
@@ -1752,7 +1752,7 @@ action_types:
 
   - id: act_get_available_slots
     name: GetAvailableSlots
-    display_name: 예약 가능 시간대 조회
+    display_name: List available time slots
     domain: session
     actor: student
     mutating: false
@@ -1760,14 +1760,14 @@ action_types:
     source_code: "AvailabilityController.slots()"
 
 # ============================================================
-# FUNCTIONS (정책 상수 + 교차 엔티티 가드)
+# FUNCTIONS (Policy constants + Cross-entity guards)
 # ============================================================
 functions:
   policy_constants:
     - id: CANCELLATION_DEADLINE_HOURS
       value: 4
       unit: hours
-      description: 수업 시작 전 무료 취소 가능 시간
+      description: Free cancellation hours before lesson start
       changeable: true
       source_code: "config/policies.yml"
       used_by_guard: [session_cancel_guard]
@@ -1775,7 +1775,7 @@ functions:
     - id: SESSION_DURATION_MINUTES
       value: 30
       unit: minutes
-      description: 1회 수업 기본 시간
+      description: Default duration per lesson
       changeable: true
       source_code: "config/policies.yml"
       used_by_guard: []
@@ -1783,7 +1783,7 @@ functions:
     - id: MAX_RESCHEDULE_COUNT
       value: 2
       unit: count
-      description: 세션당 최대 일정 변경 횟수
+      description: Maximum reschedule count per session
       changeable: true
       source_code: "config/policies.yml"
       used_by_guard: [session_reschedule_guard]
@@ -1791,7 +1791,7 @@ functions:
     - id: TRIAL_CREDIT_COUNT
       value: 1
       unit: count
-      description: 체험 수업 무료 제공 횟수
+      description: Free trial lesson count
       changeable: false
       source_code: "config/policies.yml"
       used_by_guard: []
@@ -1799,7 +1799,7 @@ functions:
     - id: REFERRAL_DISCOUNT_PERCENT
       value: 15
       unit: percent
-      description: 추천인 할인율
+      description: Referral discount rate
       changeable: true
       source_code: "config/policies.yml"
       used_by_guard: [coupon_referral_guard]
@@ -1809,8 +1809,8 @@ functions:
       source_entity: Session
       target_entity: Credit
       target_transition: "Session.CONFIRMED → CANCELLED"
-      check: "현재 시각이 scheduled_at - CANCELLATION_DEADLINE_HOURS 이전인지 확인"
-      description: 취소 무료 기한 내 여부에 따라 Credit 복원 여부 결정
+      check: "Check if current time is before scheduled_at - CANCELLATION_DEADLINE_HOURS"
+      description: Determines whether to restore credit based on free cancellation deadline
       source_code: "SessionGateway.validateCancellation()"
 
     - id: session_reschedule_guard
@@ -1818,7 +1818,7 @@ functions:
       target_entity: Session
       target_transition: "Session.CONFIRMED → CONFIRMED (reschedule)"
       check: "reschedule_count < MAX_RESCHEDULE_COUNT"
-      description: 최대 일정 변경 횟수 초과 검증
+      description: Validates maximum reschedule count exceeded
       source_code: "SessionGateway.validateReschedule()"
 
     - id: contract_pause_guard
@@ -1826,159 +1826,159 @@ functions:
       target_entity: Contract
       target_transition: "Contract.ACTIVE → PAUSED"
       check: "pause_count < MAX_PAUSE_COUNT(2)"
-      description: 최대 일시 정지 횟수 초과 검증
+      description: Validates maximum pause count exceeded
       source_code: "ContractService.validatePause()"
 
     - id: noshow_timeout_guard
       source_entity: Session
       target_entity: Session
       target_transition: "Session.CONFIRMED → NO_SHOW"
-      check: "접속 없이 NOSHOW_TIMEOUT_MINUTES(10)분 초과"
-      description: 미참석 판정 시간 초과 검증
+      check: "No connection for over NOSHOW_TIMEOUT_MINUTES(10) minutes"
+      description: Validates no-show timeout exceeded
       source_code: "SessionGateway.checkNoShowTimeout()"
 
     - id: coupon_referral_guard
       source_entity: Coupon
       target_entity: Payment
       target_transition: null
-      check: "REFERRAL 카테고리 쿠폰의 할인율이 REFERRAL_DISCOUNT_PERCENT 이내"
-      description: 추천인 할인율 상한 검증
+      check: "Validates REFERRAL category coupon discount rate is within REFERRAL_DISCOUNT_PERCENT"
+      description: Validates referral discount rate upper limit
       source_code: "CouponService.validateReferralDiscount()"
 
 # ============================================================
-# DOMAIN FLOWS (5개)
+# DOMAIN FLOWS (5)
 # ============================================================
 domain_flows:
   - name: SessionBookingFlow
-    description: 학생이 수업을 예약하는 전체 흐름
+    description: Complete flow for a student booking a lesson
     external_dependencies:
-      - WebRTC 서버 (수업 시작 시)
+      - WebRTC server (at lesson start)
     involved_entities: [Student, Credit, Instructor, AvailabilitySlot, Booking, Session]
     steps:
       - step: 1
-        action: Credit 잔여 확인
+        action: Credit remaining check
         actor: system
-        description: 학생의 사용 가능한 수업권 잔여를 확인
+        description: Checks the student's available credit remaining
       - step: 2
-        action: 시간대 선택
+        action: Time slot selection
         actor: student
-        description: 가용 시간대 목록에서 원하는 시간 선택
+        description: Selects desired time from available time slots
       - step: 3
-        action: 강사 매칭
+        action: Instructor matching
         actor: system
-        description: 선택 시간대의 강사를 배정
+        description: Assigns instructor for the selected time slot
       - step: 4
-        action: Booking 생성
+        action: Booking created
         actor: system
-        description: 예약 레코드 생성 및 AvailabilitySlot 점유
+        description: Creates booking record and occupies AvailabilitySlot
       - step: 5
-        action: Session 생성
+        action: Session created
         actor: system
-        description: "Session(PENDING) 생성 → 강사 배정 시 CONFIRMED"
+        description: "Session(PENDING) created -> CONFIRMED on instructor assignment"
 
   - name: PaymentFlow
-    description: 구독 상품 결제부터 수업권 발급까지의 흐름
+    description: Flow from subscription product payment to credit issuance
     external_dependencies:
-      - PG사 결제 API
+      - PG payment API
     involved_entities: [Student, Payment, PaymentCard, Coupon, Credit, Contract, Subscription]
     steps:
       - step: 1
-        action: 상품 선택 및 쿠폰 적용
+        action: Product selection and coupon application
         actor: student
-        description: 구독 상품 선택 후 보유 쿠폰 적용
+        description: Selects subscription product and applies owned coupon
       - step: 2
         action: Payment INITIATED
         actor: system
-        description: 결제 레코드 생성
+        description: Creates payment record
       - step: 3
-        action: PG 인증 요청
+        action: PG authentication request
         actor: system
-        description: PG사에 결제 인증 요청 (AUTHORIZED)
+        description: Requests PG payment authentication (AUTHORIZED)
       - step: 4
-        action: 정산 확정
+        action: Settlement captured
         actor: system
-        description: PG 인증 성공 시 CAPTURED
+        description: CAPTURED on PG authentication success
       - step: 5
-        action: Credit 발급
+        action: Credit issuance
         actor: system
-        description: 구독 상품에 정의된 수업권 발급
+        description: Issues credits defined in subscription product
       - step: 6
-        action: Contract 활성화
+        action: Contract activation
         actor: system
         description: "Contract TRIAL → ACTIVE"
 
   - name: SubscriptionRenewalFlow
-    description: 구독 자동 갱신 흐름
+    description: Subscription auto-renewal flow
     external_dependencies:
-      - PG사 정기 결제 API
+      - PG recurring payment API
     involved_entities: [Contract, Payment, PaymentCard, Credit, Subscription]
     steps:
       - step: 1
-        action: 만기 도래 확인
+        action: Expiration check
         actor: system
-        description: next_billing_at 도래한 Contract 검색
+        description: Searches for Contracts where next_billing_at has arrived
       - step: 2
-        action: 자동 결제
+        action: Auto payment
         actor: system
-        description: 등록 카드로 정기 결제 실행
+        description: Executes recurring payment with registered card
       - step: 3
-        action: Credit 발급
+        action: Credit issuance
         actor: system
-        description: 갱신 분량의 수업권 발급
+        description: Issues renewal credits
       - step: 4
-        action: 다음 결제일 갱신
+        action: Next billing date updated
         actor: system
-        description: next_billing_at 업데이트
+        description: Updates next_billing_at
 
   - name: SessionCompletionFlow
-    description: 수업 종료 후 평가 및 알림까지의 흐름
+    description: Flow from lesson completion to assessment and notification
     external_dependencies:
-      - AI 분석 서비스 (STT, NLP)
+      - AI analysis service (STT, NLP)
     involved_entities: [Session, Assessment, Notification, Student, Instructor]
     steps:
       - step: 1
-        action: 수업 종료
+        action: Lesson end
         actor: system
         description: "Session IN_PROGRESS → COMPLETED"
       - step: 2
-        action: Assessment 생성
+        action: Assessment creation
         actor: system
-        description: Assessment(QUEUED) 생성 및 AI 파이프라인 트리거
+        description: Creates Assessment(QUEUED) and triggers AI pipeline
       - step: 3
-        action: 음성 전사
+        action: Speech transcription
         actor: system
         description: "QUEUED → TRANSCRIBING → ANALYZING"
       - step: 4
-        action: 리포트 생성
+        action: Report generation
         actor: system
-        description: "ANALYZING → COMPLETE, 점수 및 피드백 기록"
+        description: "ANALYZING -> COMPLETE, score and feedback recorded"
       - step: 5
-        action: 알림 발송
+        action: Notification sent
         actor: system
-        description: 학생에게 평가 완료 알림
+        description: Assessment completion notification sent to student
 
   - name: NewStudentOnboardingFlow
-    description: 신규 학생 가입부터 첫 수업 예약까지의 온보딩 흐름
+    description: Onboarding flow from new student registration to first lesson booking
     external_dependencies: []
     involved_entities: [Student, Credit, Coupon, CouponTemplate, Booking, Session]
     steps:
       - step: 1
-        action: 회원가입
+        action: Registration
         actor: student
-        description: RegisterStudent 실행, Student 생성
+        description: Executes RegisterStudent, creates Student
       - step: 2
-        action: 체험 Credit 발급
+        action: Trial Credit issued
         actor: system
-        description: "TRIAL_CREDIT_COUNT(1)회 체험 수업권 자동 발급"
+        description: "Auto-issues TRIAL_CREDIT_COUNT(1) trial credits"
       - step: 3
-        action: Welcome 쿠폰 발급
+        action: Welcome coupon issued
         actor: system
-        description: WELCOME 카테고리 쿠폰 자동 발급
+        description: Auto-issues WELCOME category coupon
       - step: 4
-        action: 첫 수업 예약
+        action: First lesson booking
         actor: student
-        description: 체험 수업권으로 SessionBookingFlow 실행
+        description: Executes SessionBookingFlow with trial credit
       - step: 5
-        action: 온보딩 완료 알림
+        action: Onboarding completion notification
         actor: system
-        description: 온보딩 가이드 알림 발송
+        description: Sends onboarding guide notification

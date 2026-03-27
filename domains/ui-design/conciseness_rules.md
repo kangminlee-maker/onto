@@ -1,121 +1,121 @@
-# 간결성 규칙 (ui-design)
+# Conciseness Rules (ui-design)
 
-이 문서는 onto_conciseness가 간결성 검증 시 참조하는 도메인별 규칙입니다.
-간결성 판정의 **유형(허용/제거) → 검증 기준 → 역할 경계 → 측정 방법** 순으로 구성됩니다.
-
----
-
-## 1. 허용되는 중복
-
-각 규칙에 강도를 태깅합니다:
-- **[MUST-ALLOW]**: 제거 시 체계가 깨지는 중복. 유지 필수.
-- **[MAY-ALLOW]**: 편의상 유지하는 중복. 통합 가능하나, 통합 비용 대비 이득이 명확할 때만 제거.
-
-### 피드백과 상태 전달
-
-- [MUST-ALLOW] 에러 상태의 다중 정의 — 네트워크 에러, 권한 에러, 유효성 검증 에러가 각각 다른 안내 메시지·복구 경로·시각적 처리를 필요로 한다. 하나의 범용 에러로 통합하면 사용자가 무엇이 잘못되었고 어떻게 해결하는지 알 수 없다.
-- [MUST-ALLOW] 빈 상태의 유형별 분리 정의 — 최초 사용(zero state), 데이터 없음(no data), 검색 결과 없음(no results)은 각각 다른 안내와 행동 유도가 필요하다. 통합하면 사용자에게 적절한 다음 행동을 제시할 수 없다.
-
-### 관심사 간 교차 등장
-
-- [MAY-ALLOW] 폼 검증이 "폼과 입력" 영역과 "피드백과 상태 전달" 영역 양쪽에 등장 — "폼과 입력"에서는 검증 시점과 방식(인라인 검증, 제출 시 검증)을, "피드백과 상태 전달"에서는 에러 메시지 표현과 시각적 상태를 다룬다. 관심사가 다르므로 양쪽 기술이 허용되나, 검증 규칙 자체(어떤 조건이 유효한가)는 한 곳에서만 정의해야 한다.
-- [MAY-ALLOW] 반응형 규칙이 각 관심사 영역에 적용 — 내비게이션의 모바일 적응(탑바 → 바텀 내비게이션), 데이터 표시의 모바일 적응(테이블 → 카드), 모달의 모바일 적응(모달 → 바텀시트) 등이 각 영역에서 기술된다. "반응형 UI 적응" 영역은 공통 원칙(콘텐츠 우선순위, 터치 대상 크기)만 정의하고, 각 영역은 해당 컴포넌트의 구체적 적응 방식만 기술하면 중복이 아니다.
-
-### Source of Truth 관련
-
-- [MUST-ALLOW] 플랫폼 가이드라인(Material Design, HIG)과 내부 UI 패턴 라이브러리가 동일 컴포넌트를 각각 정의 — 플랫폼 가이드라인은 외부 기준이고 내부 라이브러리는 프로젝트 맥락에 맞춘 적용이다. 제거 시 플랫폼 기준과의 정합성 추적이 불가하다.
-- [MAY-ALLOW] 디자인 토큰(간격, 크기)이 컴포넌트 명세와 반응형 규칙 양쪽에 등장. 토큰 값의 정의는 한 곳(토큰 시스템)에 두고, 컴포넌트 명세와 반응형 규칙에서는 토큰을 참조하는 형태면 허용.
-
-### 접근성
-
-- [MUST-ALLOW] 접근성 요건이 각 컴포넌트 정의에 개별 기술 — 모달의 포커스 트랩, 폼의 에러 연결(aria-describedby), 토스트의 라이브 영역(aria-live) 등이 각각의 컴포넌트에서 기술된다. "접근성 인터랙션" 영역은 공통 원칙(탭 순서, 스크린 리더 지원)만 정의하고, 각 컴포넌트는 해당 컴포넌트에 고유한 접근성 요건을 기술한다.
+This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+It is organized in the order of **type (allow/remove) → verification criteria → role boundaries → measurement method**.
 
 ---
 
-## 2. 제거 대상 패턴
+## 1. Allowed Duplication
 
-각 규칙에 강도를 태깅합니다:
-- **[MUST-REMOVE]**: 존재 자체가 오류를 유발하거나 잘못된 추론을 일으키는 중복.
-- **[SHOULD-REMOVE]**: 해가 크지 않으나 불필요한 복잡도를 추가하는 중복.
+Each rule is tagged with a strength level:
+- **[MUST-ALLOW]**: Duplication that breaks the system if removed. Must be retained.
+- **[MAY-ALLOW]**: Duplication retained for convenience. Can be consolidated, but only remove when the benefit clearly outweighs the consolidation cost.
 
-### 패턴 중복
+### Feedback and Status Communication
 
-- [MUST-REMOVE] 재사용 가능한 모달 패턴의 관심사별 중복 정의 — 모달의 열기/닫기 동작, 포커스 트랩, 배경 차단 등 공통 패턴이 "폼 모달", "확인 모달", "정보 모달" 등에서 각각 재정의되면 갱신 누락으로 불일치 발생. 공통 모달 패턴을 한 곳에 정의하고, 각 용도별 모달은 콘텐츠와 행동만 정의해야 한다.
-- [MUST-REMOVE] 동일 피드백 패턴의 다중 경로 표현 — 성공 피드백이 토스트로도, 배너로도, 인라인 메시지로도 동시에 정의되어 있으면 어느 것이 정본인지 불명확. 피드백 유형별로 하나의 표현 경로를 지정해야 한다.
+- [MUST-ALLOW] Multiple definitions of error states — Network errors, permission errors, and validation errors each require different guidance messages, recovery paths, and visual treatments. Consolidating into a single generic error makes it impossible for users to understand what went wrong and how to resolve it.
+- [MUST-ALLOW] Separate definitions by empty state type — First use (zero state), no data, and no search results each require different guidance and action prompts. Consolidating them makes it impossible to present appropriate next actions to the user.
 
-### 상태 중복
+### Cross-Concern Appearances
 
-- [MUST-REMOVE] 전역 상태와 컴포넌트 상태 혼동 — 앱 상태(로그인 여부, 사용자 권한)를 개별 컴포넌트가 각각 독립적으로 정의하면, 상태 불일치가 발생한다. 앱 상태는 전역에서 한 번 정의하고, 컴포넌트는 해당 상태를 참조해야 한다. 컴포넌트 고유 상태(hover, active, disabled 등 UI 인터랙션 상태)와 앱 상태를 명확히 구분해야 한다.
-- [SHOULD-REMOVE] 동일 로딩 상태가 여러 화면에서 각각 다르게 정의 — 스피너, 스켈레톤, 프로그레스 바의 사용 기준이 화면마다 제각각이면 사용자의 학습 비용이 증가. 로딩 유형별 패턴을 공통으로 정의하고 각 화면은 이를 적용해야 한다.
+- [MAY-ALLOW] Form validation appearing in both the "Forms and Input" area and the "Feedback and Status" area — "Forms and Input" covers validation timing and methods (inline validation, on-submit validation), while "Feedback and Status" covers error message presentation and visual states. Since the concerns differ, appearing in both areas is allowed, but the validation rules themselves (what conditions are valid) must be defined in only one place.
+- [MAY-ALLOW] Responsive rules applied across each concern area — Mobile adaptation of navigation (top bar → bottom navigation), mobile adaptation of data display (table → card), mobile adaptation of modals (modal → bottom sheet), etc. are described in their respective areas. The "Responsive UI Adaptation" area defines only common principles (content priority, touch target size), and each area describes only the specific adaptation for its components, which is not duplication.
 
-### 분류 중복
+### Source of Truth Related
 
-- [SHOULD-REMOVE] 자식이 1개뿐인 중간 계층 노드 — 예: "알림" 하위에 "토스트"만 있으면 분류 의미가 없으므로 상위와 병합.
-- [SHOULD-REMOVE] 실제 화면이나 컴포넌트로 구현되지 않는 빈 분류 — 정의만 있고 실제 적용 인스턴스가 없는 패턴 분류는 제거. 단, 향후 확장을 위한 예약(extension_cases.md 참조)이면 유지.
+- [MUST-ALLOW] Platform guidelines (Material Design, HIG) and internal UI pattern library each defining the same component — Platform guidelines are external standards while the internal library is an application adapted to the project context. Removing either makes it impossible to track conformity with platform standards.
+- [MAY-ALLOW] Design tokens (spacing, sizes) appearing in both component specifications and responsive rules. The token value definitions should be in one place (token system), and component specs and responsive rules should reference the tokens. This is allowed.
 
-### 정의 중복
+### Accessibility
 
-- [MUST-REMOVE] 동일 컴포넌트를 다른 이름으로 중복 정의 — concepts.md의 동의어 매핑(예: "팝업" vs "모달 다이얼로그")을 기준으로 판별. 하나의 정규 용어로 통합.
-- [SHOULD-REMOVE] 동일 인터랙션 패턴이 여러 화면 명세에 복사 — 드롭다운 열기/닫기 동작, 선택 동작 등이 매 화면마다 재기술되면 공통 패턴으로 추출 필요.
-
----
-
-## 3. 최소 세분화 기준
-
-하위 분류는 아래 중 **하나 이상**을 충족해야 허용됩니다. 하나도 충족하지 않으면 상위와 병합합니다.
-
-1. **역량 질문 차이**: competency_qs.md의 질문에 대해 다른 답을 생성하는가?
-2. **인터랙션 차이**: 다른 사용자 행동(클릭, 스와이프, 키보드 입력 등)이 적용되는가?
-3. **상태 차이**: 다른 상태 집합(활성/비활성, 로딩/완료, 에러/성공)을 가지는가?
-
-예시:
-- `Toast`와 `Banner`는 다른 인터랙션(자동 소멸 vs 수동 닫기)과 다른 상태(transient vs persistent)가 적용되므로 분류 정당.
-- `ConfirmModal`과 `AlertModal`이 동일 레이아웃, 동일 동작, 단일 CTA만 존재하면 병합 대상.
+- [MUST-ALLOW] Accessibility requirements individually described in each component definition — Modal focus traps, form error associations (aria-describedby), toast live regions (aria-live), etc. are described within their respective components. The "Accessible Interaction" area defines only common principles (tab order, screen reader support), and each component describes accessibility requirements specific to that component.
 
 ---
 
-## 4. 경계 — 도메인 특화 적용 사례
+## 2. Removal Target Patterns
 
-경계 정의의 정본은 `roles/onto_conciseness.md`입니다. 이 섹션은 ui-design 도메인에서의 구체적 적용 사례만 기술합니다.
+Each rule is tagged with a strength level:
+- **[MUST-REMOVE]**: Duplication whose existence causes errors or incorrect reasoning.
+- **[SHOULD-REMOVE]**: Duplication that is not significantly harmful but adds unnecessary complexity.
 
-### onto_pragmatics 경계
+### Pattern Duplication
 
-- onto_conciseness: 불필요한 요소가 **존재**하는가 (구조 수준)
-- onto_pragmatics: 불필요한 정보가 사용자 태스크 수행을 **방해**하는가 (실행 수준)
-- 예: 화면에 사용되지 않는 필터 옵션이 UI 명세에 정의됨 → onto_conciseness. 필터 옵션이 너무 많아 사용자가 원하는 필터를 찾기 어려움 → onto_pragmatics.
+- [MUST-REMOVE] Concern-specific duplicate definitions of reusable modal patterns — If common patterns such as modal open/close behavior, focus trap, and background blocking are each redefined in "form modal," "confirmation modal," "information modal," etc., update omissions cause inconsistencies. Define the common modal pattern in one place, and each purpose-specific modal should define only its content and actions.
+- [MUST-REMOVE] Multiple path representations of the same feedback pattern — If success feedback is simultaneously defined as a toast, a banner, and an inline message, it is unclear which is authoritative. Designate one representation path per feedback type.
 
-### onto_coverage 경계
+### State Duplication
 
-- onto_conciseness: 없어야 할 것이 있는가 (축소 방향)
-- onto_coverage: 있어야 할 것이 없는가 (확장 방향)
-- 예: 에러 상태가 정의되지 않음 → onto_coverage. 동일 에러 메시지가 세 곳에서 중복 정의됨 → onto_conciseness.
+- [MUST-REMOVE] Confusion between global state and component state — If individual components each independently define app state (login status, user permissions), state inconsistencies arise. App state should be defined once globally, and components should reference it. Component-specific states (hover, active, disabled, and other UI interaction states) must be clearly distinguished from app state.
+- [SHOULD-REMOVE] The same loading state defined differently across multiple screens — If the usage criteria for spinners, skeletons, and progress bars vary from screen to screen, user learning costs increase. Define loading type patterns commonly and apply them to each screen.
 
-### onto_logic 경계 (선행/후행 관계)
+### Classification Duplication
 
-- onto_logic 선행: 논리적 동치(함의) 여부를 판별
-- onto_conciseness 후행: 동치 확인 후 제거 여부를 판단
-- 예: 모달의 공통 동작 규칙이 개별 모달 정의의 동작을 함의 → onto_logic이 동치 판별 → onto_conciseness가 "개별 모달에서 공통 동작 재정의 불필요" 판정.
+- [SHOULD-REMOVE] Intermediate hierarchy nodes with only 1 child — Example: If only "Toast" exists under "Notifications," it has no classification significance and should be merged with the parent.
+- [SHOULD-REMOVE] Empty classifications without actual screens or components implemented — Pattern classifications that exist only in definition with no actual application instances should be removed. However, if reserved for future extension (see extension_cases.md), they may be retained.
 
-### onto_semantics 경계 (선행/후행 관계)
+### Definition Duplication
 
-- onto_semantics 선행: 의미 동일성(동의어 여부)을 판별
-- onto_conciseness 후행: 동의어 확인 후 병합 필요성을 판단
-- 예: "팝업"과 "모달 다이얼로그"가 동일 패턴 → onto_semantics가 동의어 판별 → onto_conciseness가 "하나의 정규 용어로 통합" 판정.
+- [MUST-REMOVE] Duplicate definitions of the same component under different names — Determined by the synonym mapping in concepts.md (e.g., "popup" vs "modal dialog"). Consolidate into one canonical term.
+- [SHOULD-REMOVE] The same interaction pattern copied across multiple screen specifications — If dropdown open/close behavior, selection behavior, etc. are re-described in every screen, extraction into a common pattern is needed.
 
 ---
 
-## 5. 정량 기준
+## 3. Minimum Granularity Criteria
 
-도메인에서 관찰된 임계값이 축적되면 기록합니다.
+A sub-classification is allowed only if it satisfies **one or more** of the following. If none are satisfied, merge with the parent.
 
-- (아직 정의되지 않음 — 리뷰를 통해 축적됩니다)
+1. **Competency question difference**: Does it produce a different answer to a question in competency_qs.md?
+2. **Interaction difference**: Do different user actions (click, swipe, keyboard input, etc.) apply?
+3. **State difference**: Does it have a different set of states (active/inactive, loading/complete, error/success)?
+
+Examples:
+- `Toast` and `Banner` have different interactions (auto-dismiss vs manual close) and different states (transient vs persistent), so the classification is justified.
+- If `ConfirmModal` and `AlertModal` have the same layout, same behavior, and only a single CTA, they are candidates for merging.
 
 ---
 
-## 관련 문서
+## 4. Boundaries — Domain-Specific Application Cases
 
-- `concepts.md` — 용어 정의, 동의어 매핑, 동형이의어 목록 (중복 판별의 의미 기준)
-- `structure_spec.md` — UI 설계의 구조적 요건 (구조적 관점의 제거 기준)
-- `competency_qs.md` — 역량 질문 목록 (최소 세분화의 "실제 차이" 판단 기준)
-- `domain_scope.md` — 도메인 범위 정의 (관심사 영역 간 교차 등장의 판단 근거)
-- `logic_rules.md` — 내비게이션, 폼, 피드백, 접근성 관련 규칙 (논리적 동치 판별 기준)
+The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the ui-design domain.
+
+### onto_pragmatics Boundary
+
+- onto_conciseness: Does an unnecessary element **exist**? (structural level)
+- onto_pragmatics: Does unnecessary information **impede** user task execution? (execution level)
+- Example: Unused filter options are defined in the UI specification → onto_conciseness. Too many filter options make it difficult for users to find the desired filter → onto_pragmatics.
+
+### onto_coverage Boundary
+
+- onto_conciseness: Is there something that should not be there? (reduction direction)
+- onto_coverage: Is there something missing that should be there? (expansion direction)
+- Example: Error states are not defined → onto_coverage. The same error message is duplicately defined in three places → onto_conciseness.
+
+### onto_logic Boundary (preceding/following relationship)
+
+- onto_logic precedes: Determines logical equivalence (implication)
+- onto_conciseness follows: Decides whether to remove after equivalence is confirmed
+- Example: The common behavior rules of modals imply the behavior of individual modal definitions → onto_logic determines equivalence → onto_conciseness determines "redefinition of common behavior in individual modals is unnecessary."
+
+### onto_semantics Boundary (preceding/following relationship)
+
+- onto_semantics precedes: Determines semantic identity (synonym status)
+- onto_conciseness follows: Decides whether merging is needed after synonym is confirmed
+- Example: "popup" and "modal dialog" are the same pattern → onto_semantics determines synonym → onto_conciseness determines "consolidate into one canonical term."
+
+---
+
+## 5. Quantitative Criteria
+
+Thresholds observed in this domain are recorded as they accumulate.
+
+- (Not yet defined — accumulated through reviews)
+
+---
+
+## Related Documents
+
+- `concepts.md` — Term definitions, synonym mappings, homonym list (semantic criteria for duplication determination)
+- `structure_spec.md` — UI design structural requirements (structural-perspective removal criteria)
+- `competency_qs.md` — Competency question list (criteria for judging "actual difference" in minimum granularity)
+- `domain_scope.md` — Domain scope definition (basis for judging cross-concern appearances)
+- `logic_rules.md` — Navigation, form, feedback, accessibility rules (criteria for logical equivalence determination)

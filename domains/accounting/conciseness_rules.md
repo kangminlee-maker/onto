@@ -1,120 +1,120 @@
-# 간결성 규칙 (accounting)
+# Conciseness Rules (accounting)
 
-이 문서는 onto_conciseness가 간결성 검증 시 참조하는 도메인별 규칙입니다.
-간결성 판정의 **유형(허용/제거) → 검증 기준 → 역할 경계 → 측정 방법** 순으로 구성됩니다.
-
----
-
-## 1. 허용되는 중복
-
-각 규칙에 강도를 태깅합니다:
-- **[MUST-ALLOW]**: 제거 시 체계가 깨지는 중복. 유지 필수.
-- **[MAY-ALLOW]**: 편의상 유지하는 중복. 통합 가능하나, 통합 비용 대비 이득이 명확할 때만 제거.
-
-### 복식부기 처리 단계
-
-- [MUST-ALLOW] 분개→전기→시산표 3단계 처리에 따른 동일 거래의 다중 기록 — 분개장, 총계정원장, 시산표에 동일 거래가 각각 다른 형식으로 존재. 각 단계는 고유한 검증 기능을 수행하므로 통합 불가. 분개장은 거래의 원시 기록(source of truth), 원장은 계정별 집계, 시산표는 균형 검증.
-- [MUST-ALLOW] 수정분개와 원분개의 병존 — 원분개는 불변 기록이며, 수정분개는 별도 기록으로 추가. 원분개를 직접 수정하면 추적 가능성(audit trail)이 파괴된다.
-
-### 세무/회계 병행 기록
-
-- [MUST-ALLOW] K-IFRS 기준 회계 처리와 세무 기준 처리의 병행 기록 — 동일 거래에 대해 재무보고 목적(K-IFRS)과 세무신고 목적(세법)의 처리가 다를 수 있다. 이 차이는 체계의 목적 차이에서 발생하며, 하나로 통합하면 둘 중 하나의 목적을 충족할 수 없다.
-- [MUST-ALLOW] 이연법인세 관련 장부금액과 세무기준액의 이중 추적 — 일시적차이 산출을 위해 동일 자산/부채의 두 가지 금액(장부금액, 세무기준액)을 동시에 관리해야 한다. 하나를 제거하면 이연법인세 산출 불가.
-
-### 재무제표 간 교차 참조
-
-- [MUST-ALLOW] 재무제표 간 연결 항목의 양측 기록 — 당기순이익이 포괄손익계산서와 자본변동표에 모두 표시. 현금 변동이 현금흐름표와 재무상태표에 모두 표시. 양측 기록이 있어야 재무제표 간 정합성 검증이 가능.
-- [MAY-ALLOW] 주석에서 재무제표 본문 수치를 재기술 — 본문 수치의 상세 내역을 주석에서 분해 설명. 본문과 주석의 합계가 일치하는 한 유지. 단순 반복이면 제거 대상.
-
-### 계정과목 체계
-
-- [MAY-ALLOW] 보조원장과 총계정원장의 동일 정보 보유 — 보조원장은 거래처별/품목별 상세, 총계정원장은 계정별 합산. 상세와 합산은 다른 질의에 응답하므로 유지하되, 집계 불일치 시 보조원장이 정본.
+This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+It is organized in the order: **type (allow/remove) -> verification criteria -> role boundaries -> measurement methods**.
 
 ---
 
-## 2. 제거 대상 패턴
+## 1. Allowed Redundancy
 
-각 규칙에 강도를 태깅합니다:
-- **[MUST-REMOVE]**: 존재 자체가 오류를 유발하거나 잘못된 추론을 일으키는 중복.
-- **[SHOULD-REMOVE]**: 해가 크지 않으나 불필요한 복잡도를 추가하는 중복.
+Each rule is tagged with a severity level:
+- **[MUST-ALLOW]**: Redundancy that breaks the system if removed. Must be retained.
+- **[MAY-ALLOW]**: Redundancy kept for convenience. Can be consolidated, but only remove when the benefit clearly outweighs the consolidation cost.
 
-### 계정 중복
+### Double-Entry Processing Steps
 
-- [MUST-REMOVE] 동일 계정과목의 중복 규정 — 같은 계정과목이 서로 다른 위치에서 다른 분류/정의로 기술되면 전기 시 분류 오류 발생. concepts.md의 용어 정의를 기준으로 판별.
-- [MUST-REMOVE] 동일 거래를 다른 계정과목 경로로 이중 기록 — 매출을 수익과 영업외수익에 동시 인식하는 등의 오류. 분개장에 중복 계상되면 시산표 균형은 유지되더라도 재무제표 왜곡.
+- [MUST-ALLOW] Multiple records of the same transaction across the Journal Entry (분개) -> Posting (전기) -> Trial Balance (시산표) 3-step process — the same transaction exists in different formats in the journal, General Ledger (총계정원장), and Trial Balance (시산표). Each step performs a unique verification function and cannot be consolidated. The journal is the source of truth for raw transaction records, the ledger provides account-level aggregation, and the Trial Balance (시산표) provides balance verification.
+- [MUST-ALLOW] Coexistence of Adjusting Entries (수정분개) and original Journal Entries (분개) — original entries are immutable records, and Adjusting Entries (수정분개) are added as separate records. Directly modifying original entries destroys the audit trail.
 
-### 분류 중복
+### Tax/Accounting Parallel Records
 
-- [SHOULD-REMOVE] 거래가 발생하지 않는 계정과목 — 계정과목표에 존재하나 실제 거래가 한 건도 없는 계정. 단, extension_cases.md에 향후 사용 예정으로 기록된 경우 유지.
-- [SHOULD-REMOVE] 하위 계정이 1개뿐인 중간 분류 — 자산 > 유동자산 > 당좌자산 아래 계정이 하나뿐이면, 중간 분류의 의미가 없으므로 상위와 병합.
+- [MUST-ALLOW] Parallel records of K-IFRS accounting treatment and tax basis treatment — the same transaction may be treated differently for financial reporting purposes (K-IFRS) and tax filing purposes (tax law). This difference arises from the difference in system objectives; consolidating into one makes it impossible to fulfill either purpose.
+- [MUST-ALLOW] Dual tracking of Carrying Amounts (장부금액) and tax bases for Deferred Tax (이연법인세) — two amounts (Carrying Amount (장부금액) and tax base) for the same asset/liability must be maintained simultaneously to calculate Temporary Differences (일시적차이). Removing either makes Deferred Tax (이연법인세) calculation impossible.
 
-### 정의 중복
+### Cross-Reference Between Financial Statements
 
-- [MUST-REMOVE] 동일 회계정책을 주석과 별도 문서에 이중 정의 — 회계정책의 source of truth는 주석. 별도 문서에 다른 버전이 존재하면 정책 불일치 발생.
-- [SHOULD-REMOVE] 동일 산출 로직(감가상각, 대손충당금 설정 등)이 여러 위치에 복사 — 산출 기준을 한 곳에 정의하고 참조하는 구조로 전환 필요.
+- [MUST-ALLOW] Both-side records of linking items between financial statements — net income is displayed on both the Statement of Comprehensive Income (포괄손익계산서) and the Statement of Changes in Equity (자본변동표). Cash changes are displayed on both the Statement of Cash Flows (현금흐름표) and the Statement of Financial Position (재무상태표). Both-side records are needed to verify inter-statement consistency.
+- [MAY-ALLOW] Restating main statement figures in notes — detailed breakdowns of main statement figures are explained in notes. Retain as long as the totals between main statements and notes are consistent. Remove if it is a simple repetition.
 
-### 기준서 적용 중복
+### Chart of Accounts
 
-- [SHOULD-REMOVE] 상위 기준서가 이미 요구하는 사항을 하위 회계정책에서 재선언 — K-IFRS 개념체계가 보장하는 원칙(발생기준, 계속기업 등)을 개별 회계정책에서 반복 기술하면, 기준서 개정 시 갱신 누락 위험.
-
----
-
-## 3. 최소 세분화 기준
-
-하위 분류는 아래 중 **하나 이상**을 충족해야 허용됩니다. 하나도 충족하지 않으면 상위와 병합합니다.
-
-1. **역량 질문 차이**: competency_qs.md의 질문에 대해 다른 답을 생성하는가?
-2. **제약 조건 차이**: 다른 제약 조건(인식 요건, 측정 기준, 공시 요구사항)이 적용되는가?
-3. **의존 관계 차이**: 다른 기준서/법규에 의존하거나, 다른 재무제표 항목과 연동되는가?
-
-예시:
-- `유동자산`과 `비유동자산`은 다른 인식/측정 제약(12개월 기준, 공정가치 평가 빈도)이 적용되므로 분류 정당.
-- `단기차입금`과 `유동성장기부채`가 동일 만기 조건, 동일 이자율 구조를 가지면 병합 대상.
+- [MAY-ALLOW] Same information held in both subsidiary ledgers and the General Ledger (총계정원장) — subsidiary ledgers contain per-counterparty/per-item details; the General Ledger (총계정원장) contains per-account aggregation. Details and aggregation answer different queries, so retain both; however, when aggregation discrepancies occur, the subsidiary ledger is the authoritative source.
 
 ---
 
-## 4. 경계 — 도메인 특화 적용 사례
+## 2. Removal Target Patterns
 
-경계 정의의 정본은 `roles/onto_conciseness.md`입니다. 이 섹션은 accounting 도메인에서의 구체적 적용 사례만 기술합니다.
+Each rule is tagged with a severity level:
+- **[MUST-REMOVE]**: Redundancy whose mere existence causes errors or incorrect inferences.
+- **[SHOULD-REMOVE]**: Redundancy that is not very harmful but adds unnecessary complexity.
 
-### onto_pragmatics 경계
+### Account Redundancy
 
-- onto_conciseness: 불필요한 요소가 **존재**하는가 (구조 수준)
-- onto_pragmatics: 불필요한 정보가 질의 실행을 **방해**하는가 (실행 수준)
-- 예: 재무제표 주석에 미사용 회계정책이 기술됨 → onto_conciseness. 주석이 과도하여 중요 정보 식별이 어려움 → onto_pragmatics.
+- [MUST-REMOVE] Duplicate definitions of the same account — when the same account appears in different locations with different classifications/definitions, Posting (전기) classification errors occur. Use the term definitions in concepts.md as the basis for identification.
+- [MUST-REMOVE] Double-recording of the same transaction under different account paths — errors such as recognizing revenue in both revenue and non-operating income simultaneously. Even if the Trial Balance (시산표) remains balanced with duplicate entries in the journal, financial statements are distorted.
 
-### onto_coverage 경계
+### Classification Redundancy
 
-- onto_conciseness: 없어야 할 것이 있는가 (축소 방향)
-- onto_coverage: 있어야 할 것이 없는가 (확장 방향)
-- 예: 매출채권 손상 모형이 없음 → onto_coverage. 동일 매출채권에 대해 개별 평가와 집합 평가가 중복 적용됨 → onto_conciseness.
+- [SHOULD-REMOVE] Accounts with no transactions — accounts that exist in the chart of accounts but have zero actual transactions. However, retain if recorded as planned for future use in extension_cases.md.
+- [SHOULD-REMOVE] Intermediate classifications with only 1 child account — when only a single account exists under a classification such as Assets > Current Assets > Quick Assets, the intermediate classification has no significance and should be merged with the parent.
 
-### onto_logic 경계 (선행/후행 관계)
+### Definition Redundancy
 
-- onto_logic 선행: 논리적 동치(함의) 여부를 판별
-- onto_conciseness 후행: 동치 확인 후 제거 여부를 판단
-- 예: 개념체계의 발생기준 원칙이 개별 회계정책의 기간 귀속 규정을 함의 → onto_logic이 동치 판별 → onto_conciseness가 "개별 정책의 재선언 불필요" 판정.
+- [MUST-REMOVE] Dual definition of the same accounting policy in both notes and a separate document — the source of truth for accounting policies is the notes. If a different version exists in a separate document, policy inconsistency occurs.
+- [SHOULD-REMOVE] Same calculation logic (depreciation, allowance for doubtful accounts, etc.) copied across multiple locations — transition to a structure where the calculation basis is defined in one place and referenced elsewhere.
 
-### onto_semantics 경계 (선행/후행 관계)
+### Standards Application Redundancy
 
-- onto_semantics 선행: 의미 동일성(동의어 여부)을 판별
-- onto_conciseness 후행: 동의어 확인 후 병합 필요성을 판단
-- 예: 대차대조표/재무상태표, 손익계산서/포괄손익계산서가 동일 개념 → onto_semantics가 동의어 판별 → onto_conciseness가 "현행 용어(재무상태표, 포괄손익계산서)로 통합" 판정.
+- [SHOULD-REMOVE] Redeclaring in specific accounting policies what the overarching standard already requires — repeating principles guaranteed by the K-IFRS Conceptual Framework (accrual basis, going concern, etc.) in individual accounting policies creates update omission risk when standards are revised.
 
 ---
 
-## 5. 정량 기준
+## 3. Minimum Granularity Criteria
 
-도메인에서 관찰된 임계값이 축적되면 기록합니다.
+A sub-classification is permitted only if it satisfies **at least one** of the following. If none are satisfied, merge with the parent.
 
-- (아직 정의되지 않음 — 리뷰를 통해 축적됩니다)
+1. **Competency question difference**: Does it generate a different answer to a question in competency_qs.md?
+2. **Constraint difference**: Do different constraints (recognition requirements, measurement criteria, disclosure requirements) apply?
+3. **Dependency difference**: Does it depend on different standards/regulations, or link to different financial statement items?
+
+Examples:
+- `Current assets` and `Non-current assets` are justified as separate classifications because different recognition/measurement constraints (12-month criterion, Fair Value (공정가치) measurement frequency) apply.
+- If `Short-term borrowings` and `Current portion of long-term debt` have the same maturity conditions and same interest rate structure, they are candidates for merging.
 
 ---
 
-## 관련 문서
+## 4. Boundaries — Domain-Specific Application Cases
 
-- `concepts.md` — 용어 정의, 동의어 매핑, 동형이의어 목록 (중복 판별의 의미 기준)
-- `structure_spec.md` — 재무제표 구조, 계정과목 체계 규칙 (구조적 관점의 제거 기준)
-- `competency_qs.md` — 역량 질문 목록 (최소 세분화의 "실제 차이" 판단 기준)
-- `dependency_rules.md` — Source of Truth 관리 규칙, 재무제표 간 연결 관계 (참조 사본 허용 근거)
-- `logic_rules.md` — 차변/대변 균형, 인식/측정 논리, 제약 상충 검사 규칙 (논리적 동치 판별 기준)
+The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the accounting domain.
+
+### onto_pragmatics boundary
+
+- onto_conciseness: Does an unnecessary element **exist**? (structural level)
+- onto_pragmatics: Does unnecessary information **hinder** query execution? (execution level)
+- Example: Unused accounting policies described in financial statement notes -> onto_conciseness. Excessive notes making it difficult to identify important information -> onto_pragmatics.
+
+### onto_coverage boundary
+
+- onto_conciseness: Does something exist that should not? (reduction direction)
+- onto_coverage: Is something missing that should exist? (expansion direction)
+- Example: Accounts receivable impairment model is missing -> onto_coverage. Both individual and collective assessment are redundantly applied to the same receivable -> onto_conciseness.
+
+### onto_logic boundary (predecessor/successor relationship)
+
+- onto_logic predecessor: determines logical equivalence (entailment)
+- onto_conciseness successor: decides whether to remove after equivalence is confirmed
+- Example: The Conceptual Framework's accrual basis principle entails an individual accounting policy's period attribution rule -> onto_logic determines equivalence -> onto_conciseness determines "individual policy redeclaration is unnecessary."
+
+### onto_semantics boundary (predecessor/successor relationship)
+
+- onto_semantics predecessor: determines semantic identity (synonym status)
+- onto_conciseness successor: decides whether merging is needed after synonym confirmation
+- Example: Balance Sheet (대차대조표)/Statement of Financial Position (재무상태표), Income Statement (손익계산서)/Statement of Comprehensive Income (포괄손익계산서) are the same concepts -> onto_semantics determines they are synonyms -> onto_conciseness determines "consolidate to current terms (Statement of Financial Position (재무상태표), Statement of Comprehensive Income (포괄손익계산서))."
+
+---
+
+## 5. Quantitative Criteria
+
+Observed thresholds from the domain are recorded as they accumulate.
+
+- (Not yet defined — accumulated through reviews)
+
+---
+
+## Related Documents
+
+- `concepts.md` — term definitions, synonym mappings, homonym lists (semantic criteria for redundancy determination)
+- `structure_spec.md` — financial statement structure and chart of accounts rules (structural removal criteria)
+- `competency_qs.md` — competency question list (criteria for "actual difference" in minimum granularity determination)
+- `dependency_rules.md` — source of truth management rules, inter-financial-statement linkage relationships (basis for allowing reference copies)
+- `logic_rules.md` — Debit (차변)/Credit (대변) balance, recognition/measurement logic, constraint conflict checking rules (criteria for logical equivalence determination)

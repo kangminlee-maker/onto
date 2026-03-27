@@ -1,81 +1,81 @@
-# Business Domain — 구조 명세
+# Business Domain — Structure Specification
 
-## 사업 체계 필수 요소
+## Business System Required Elements
 
-- **전략 체계**: 경쟁 환경 분석, 경쟁 우위 원천, 성장 방향, 포지셔닝
-- **수익 구조**: 매출 발생 원천, 가격 체계, 수익 모델 유형(제품판매/서비스/구독/플랫폼/라이선스)
-- **비용 구조**: 고정비/변동비 구분, 원가 귀속 원칙, 손익분기점
-- **마케팅 체계**: STP, 마케팅 믹스, 고객 여정, 브랜드 전략
-- **가치 전달 체계**: 고객에게 가치가 전달되는 경로와 접점
-- **운영 체계**: 핵심 프로세스, 병목 관리, 공급망, 품질 관리
-- **조직 구조**: 의사결정 권한, 책임 배분, 보고 체계, 조직 유형
-- **인사 체계**: 역량 모델, 성과 관리, 인재 확보/육성
-- **거버넌스 체계**: 이사회, 내부 통제, 리스크 관리, 감사
+- **Strategy system**: competitive environment analysis, competitive advantage source, growth direction, positioning
+- **Revenue structure**: revenue generation sources, pricing system, revenue model type (product sales/service/subscription/platform/licensing)
+- **Cost structure**: fixed/variable cost distinction, cost attribution principles, break-even point
+- **Marketing system**: STP, marketing mix, customer journey, brand strategy
+- **Value delivery system**: paths and touchpoints through which value is delivered to customers
+- **Operations system**: core processes, bottleneck management, supply chain, quality management
+- **Organizational structure**: decision-making authority, responsibility allocation, reporting hierarchy, organizational type
+- **HR system**: competency model, performance management, talent acquisition/development
+- **Governance system**: board of directors, internal controls, risk management, auditing
 
-## 필수 관계
+## Required Relations
 
-- 모든 수익원은 최소 1개의 비용 항목과 대응되어야 한다 (수익-비용 대응)
-- 모든 전략 목표는 최소 1개의 실행 계획과 연결되어야 한다 (전략-실행 연결)
-- 모든 KPI는 측정 방법과 데이터 수집 경로가 정의되어야 한다 (측정 가능성)
-- 모든 마케팅 활동은 STP에서 정의된 목표 시장과 정합해야 한다 (마케팅 정합성)
-- 조직 구조는 전략 유형과 사업 규모에 적합해야 한다 (구조-전략 적합성)
-- 성과 관리 체계는 전략 목표에서 도출된 KPI와 연결되어야 한다 (성과-전략 정렬)
+- Every revenue source must correspond to at least 1 cost item (revenue-cost correspondence)
+- Every strategic objective must be linked to at least 1 execution plan (strategy-execution linkage)
+- Every KPI must have its measurement method and data collection path defined (measurability)
+- All marketing activities must align with the target market defined in STP (marketing alignment)
+- Organizational structure must be appropriate for the strategy type and business scale (structure-strategy fit)
+- The performance management system must be linked to KPIs derived from strategic objectives (performance-strategy alignment)
 
-## 계층 구조 원칙
+## Hierarchy Structure Principles
 
-- 전략(Strategy) → 전술(Tactic) → 운영(Operations) 방향으로 구체화된다
-- 운영 계층의 결과가 전략 계층의 가정을 무효화할 때, 피드백 경로가 존재해야 한다
-- 전략/전술/운영 3계층 구분이 유동적인 사업(디지털/애자일)에서는, 계층 간 피드백 주기와 전략 수정 트리거를 명시해야 한다
-- Balanced Scorecard의 4대 관점(재무/고객/내부프로세스/학습성장) 간 인과 관계가 논리적으로 연결되어야 한다
+- Strategy -> Tactics -> Operations: the direction of concretization
+- When operational-level results invalidate strategic-level assumptions, a feedback path must exist
+- In businesses where the strategy/tactics/operations 3-tier distinction is fluid (digital/agile), feedback cycles between tiers and strategy modification triggers must be stated
+- The causal relationship among Balanced Scorecard's 4 perspectives (financial/customer/internal process/learning & growth) must be logically connected
 
-## 전략-마케팅-운영 정합성
+## Strategy-Marketing-Operations Alignment
 
-- Porter의 경쟁 전략 선택(원가우위/차별화)이 마케팅 믹스에 반영되어야 한다. 원가우위 전략에서 프리미엄 가격 정책은 모순
-- STP의 목표 시장이 전략적 성장 방향(Ansoff Matrix)과 일치해야 한다
-- 운영 체계의 역량이 전략/마케팅에서 약속한 가치를 실제로 전달할 수 있는지 검증해야 한다
-- Lean/Six Sigma 등 운영 최적화의 방향이 전략적 우선순위와 정렬되어야 한다
+- Porter's competitive strategy choice (cost leadership/differentiation) must be reflected in the marketing mix. A premium pricing policy with a cost leadership strategy is a contradiction
+- STP's target market must be consistent with the strategic growth direction (Ansoff Matrix)
+- Whether the operations system's capabilities can actually deliver the value promised by strategy/marketing must be verified
+- The direction of operational optimization (Lean/Six Sigma, etc.) must be aligned with strategic priorities
 
-## 조직-전략 적합성
+## Organization-Strategy Fit
 
-분류 축: **조직 구조 유형과 적합 환경**
+Classification axis: **organizational structure type and suitable environment**
 
-| 조직 유형 (Mintzberg) | 적합 환경 | 부적합 환경 |
+| Organizational Type (Mintzberg) | Suitable Environment | Unsuitable Environment |
 |---|---|---|
-| 단순구조 | 소규모, 창업 초기, 환경 불확실성 높음 | 대규모, 표준화 필요 |
-| 기계적 관료제 | 대규모, 안정적 환경, 표준화된 업무 | 불확실성 높은 환경, 혁신 필요 |
-| 전문적 관료제 | 전문 지식 기반, 자율성 필요 | 빠른 의사결정 필요 |
-| 사업부제 | 다각화된 대기업, 사업별 자율성 | 시너지 극대화 필요 |
-| 애드호크라시 | 혁신 중심, 프로젝트 기반, 불확실성 높음 | 안정적 대량 생산 |
+| Simple structure | Small-scale, early-stage startup, high environmental uncertainty | Large-scale, standardization needed |
+| Machine bureaucracy | Large-scale, stable environment, standardized work | High uncertainty, innovation needed |
+| Professional bureaucracy | Expertise-based, autonomy needed | Rapid decision-making needed |
+| Divisionalized form | Diversified large enterprise, business unit autonomy | Synergy maximization needed |
+| Adhocracy | Innovation-centered, project-based, high uncertainty | Stable mass production |
 
-## 핵심 시스템 키 구조 (M&A 호환성)
+## Core System Key Structure (M&A Compatibility)
 
-- 핵심 시스템(재무, 고객, 운영)의 키(식별자) 구조는 M&A 시 피인수 기업의 체계를 수용할 수 있어야 한다
-- 키 구조 설계 시 고려 사항: (1) 네임스페이스 분리 가능성, (2) 규칙 병합/충돌 해소 절차, (3) 과도기 병행 운영 기간
-- 키 충돌 시 어느 체계가 우선하는지의 기준이 통합 계약에 명시되어야 한다
+- The key (identifier) structures of core systems (financial, customer, operations) must be capable of accommodating the acquired company's system during M&A
+- Key structure design considerations: (1) namespace separation possibility, (2) rule merge/conflict resolution procedures, (3) transitional parallel operation period
+- The criteria for which system takes precedence during key conflicts must be stated in the integration agreement
 
-## 권한과 책임 분리
+## Authority and Responsibility Separation
 
-- **의사결정 권한**(누가 결정하는가)과 **실행 책임**(누가 수행하는가)을 구분한다
-- Agency Theory 관점: 의사결정 권한의 위임 시 모니터링 비용과 인센티브 정렬 장치가 필요하다
-- 자동화 도입 시 "불일치 판정 권한"은 의사결정 권한의 일종이며, 자동화 설계 시점에 지정되어야 한다
-- 거버넌스(의사결정 구조)와 ESG(이해관계자 영향)는 별도 구조로 관리한다
+- **Decision-making authority** (who decides) and **execution responsibility** (who performs) are distinguished
+- Agency Theory perspective: when delegating decision-making authority, monitoring costs and incentive alignment mechanisms are needed
+- When introducing automation, "discrepancy adjudication authority" is a type of decision-making authority that must be designated at automation design time
+- Governance (decision-making structure) and ESG (stakeholder impact) are managed as separate structures
 
-## 도메인 경계 관리
+## Domain Boundary Management
 
-- 비즈니스 도메인은 전략/마케팅/재무/운영/조직·인사/혁신/거버넌스 7대 영역 + 3개 현대 확장 영역(플랫폼, 구독, AI)을 포괄한다
-- 회계 세부 규칙(K-IFRS, 매출 인식 5단계 등)은 회계(accounting) 도메인으로 분리한다. 본 도메인은 재무적 의사결정 원칙만 포함
-- 확장 영역은 기존 영역과 중첩될 수 있다. 중첩 시 "이 주제를 어느 영역에서 다루는가"의 1차 귀속을 명시해야 한다
+- The business domain covers 7 major areas (strategy/marketing/finance/operations/organization & HR/innovation/governance) + 3 modern extension areas (platform, subscription, AI)
+- Detailed accounting rules (K-IFRS, 5-step revenue recognition, etc.) are separated into the accounting domain. This domain includes only financial decision-making principles
+- Extension areas may overlap with existing areas. When overlapping, the primary attribution ("which area covers this topic") must be stated
 
-## 고립 노드 금지
+## Isolated Node Prohibition
 
-- 정의된 전략 목표 중 실행 계획이 없는 것 → 경고 (고립 목표)
-- 정의된 KPI 중 측정 경로가 없는 것 → 경고 (측정 불가 지표)
-- 비용 항목 중 어떤 수익원과도 대응되지 않는 것 → 경고 (귀속 미정 비용)
-- 리스크 식별 후 대응 전략이 없는 것 → 경고 (미대응 리스크)
-- 조직 내 역할 중 역량 모델과 연결되지 않는 것 → 경고 (역량 미정의 역할)
-- 마케팅 활동 중 STP와 연결되지 않는 것 → 경고 (타겟 미정 활동)
+- Defined strategic objectives with no execution plans -> warning (isolated objective)
+- Defined KPIs with no measurement path -> warning (unmeasurable indicator)
+- Cost items that do not correspond to any revenue source -> warning (unattributed cost)
+- Risks identified with no response strategy -> warning (unaddressed risk)
+- Roles within the organization with no link to the competency model -> warning (competency-undefined role)
+- Marketing activities with no link to STP -> warning (untargeted activity)
 
-## 관련 문서
-- concepts.md — 전략, 마케팅, 조직, 거버넌스 등 용어 정의
-- dependency_rules.md — 전략-실행, 재무-운영, 조직-프로세스 간 의존 규칙
-- competency_qs.md — 구조 관련 검증 질문
+## Related Documents
+- concepts.md — definitions of strategy, marketing, organization, governance, and other terms
+- dependency_rules.md — strategy-execution, finance-operations, organization-process dependency rules
+- competency_qs.md — structure-related verification questions

@@ -1,84 +1,84 @@
-# 개별 질문 모드
+# Individual Query Mode
 
-> 1인 에이전트에게 특정 관점의 질문을 합니다. Agent Teams 없이 Agent tool(subagent)로 실행합니다.
-> 관련: 여러 관점이 필요하면 `/onto:review`로 팀 리뷰 실행. 학습이 쌓이면 `processes/promote.md`로 승격 가능.
+> Asks a question to a single agent from a specific perspective. Executed via Agent tool (subagent) without Agent Teams.
+> Related: If multiple perspectives are needed, run a team review via `/onto:review`. If learnings accumulate, promotion is possible via `processes/promote.md`.
 
 ### 1. Context Gathering
 
-`process.md`의 **에러 처리 규칙**을 따릅니다: 에이전트 정의/질문 대상 읽기 실패 시 프로세스 중단. 학습/도메인 문서 부재 시 "아직 없음"으로 처리하고 계속 진행.
+Follows the **error handling rules** in `process.md`: halts the process on agent definition/query target read failure. Treats learning/domain document absence as "not yet available" and continues.
 
-1. **에이전트 파일 수집**:
-   - 정의: `~/.claude/plugins/onto/roles/{agent-id}.md`
-   - 방법론 학습: `~/.onto/methodology/{agent-id}.md`
-   - 소통 학습 (공통): `~/.onto/communication/common.md`
-   - 소통 학습 (개별): `~/.onto/communication/{agent-id}.md`
-   - 파일이 없으면 무시합니다.
+1. **Agent file collection**:
+   - Definition: `~/.claude/plugins/onto/roles/{agent-id}.md`
+   - Methodology learning: `~/.onto/methodology/{agent-id}.md`
+   - Communication learning (common): `~/.onto/communication/common.md`
+   - Communication learning (individual): `~/.onto/communication/{agent-id}.md`
+   - Skip if file does not exist.
 
-2. **도메인 문서 수집**:
-   - 도메인 판별 후, `~/.onto/domains/{domain}/` 하위에서 해당 에이전트의 도메인 문서를 읽습니다.
+2. **Domain document collection**:
+   - After domain determination, reads the agent's domain document from `~/.onto/domains/{domain}/`.
 
-3. **도메인 학습 수집** (반드시 수행):
-   - 글로벌: `~/.onto/domains/{domain}/learnings/{agent-id}.md`
-   - **프로젝트**: `{project}/.onto/learnings/{agent-id}.md` — 해당 프로젝트에서 축적된 학습. **이 디렉토리가 존재하면 반드시 읽어야 합니다.**
-   - 파일이 없으면 무시합니다.
+3. **Domain learning collection** (mandatory):
+   - Global: `~/.onto/domains/{domain}/learnings/{agent-id}.md`
+   - **Project**: `{project}/.onto/learnings/{agent-id}.md` — learnings accumulated in the project. **Must be read if this directory exists.**
+   - Skip if file does not exist.
 
-3. **질문 대상 수집**:
-   - 질문이 파일/코드를 참조하는 경우: 해당 내용을 읽습니다.
-   - 프로젝트의 CLAUDE.md, README.md에서 시스템 목적과 원칙을 파악합니다.
+3. **Query target collection**:
+   - If the question references files/code: reads the relevant content.
+   - Identifies the system purpose and principles from the project's CLAUDE.md, README.md.
 
 ### 2. Agent Execution
 
-Agent tool로 해당 에이전트를 **1인 실행**합니다.
+Executes the agent as a **single-agent run** via Agent tool.
 
-전달 내용:
+Delivery content:
 
 ```
-당신은 {역할}입니다.
-아래 질문에 당신의 전문 영역 관점에서 답하세요.
+You are {role}.
+Answer the question below from your specialized perspective.
 
-[당신의 정의]
-{~/.claude/plugins/onto/roles/{agent-id}.md 내용}
+[Your Definition]
+{Content of ~/.claude/plugins/onto/roles/{agent-id}.md}
 
-[과거 학습 — 방법론]
-{~/.onto/methodology/{agent-id}.md 내용. 없으면 "아직 없음"}
+[Past Learnings — Methodology]
+{Content of ~/.onto/methodology/{agent-id}.md. "Not yet available" if absent}
 
-[과거 학습 — 도메인]
-{도메인 학습 (글로벌 + 프로젝트) 내용. 없으면 "아직 없음"}
+[Past Learnings — Domain]
+{Domain learning (global + project) content. "Not yet available" if absent}
 
-[도메인 규칙]
-{해당 에이전트의 도메인 문서 내용. 없으면 "도메인 문서 없음"}
+[Domain Rules]
+{Content of the agent's domain document. "No domain document" if absent}
 
-[소통 학습]
-{공통 + 개별 소통 학습 내용. 없으면 "아직 없음"}
+[Communication Learning]
+{Common + individual communication learning content. "Not yet available" if absent}
 
-[질문]
+[Question]
 {$ARGUMENTS}
 
-[시스템 목적과 원칙]
-{CLAUDE.md/README.md 내용}
+[System Purpose and Principles]
+{CLAUDE.md/README.md content}
 
-[지시]
-- 핵심 질문을 기준으로, 자신의 전문 영역 관점에서 답하세요.
-- 도메인 규칙을 검증 기준에 포함하세요.
-- 자신의 전문 영역 밖의 내용은 "이 부분은 {다른 에이전트}의 관점이 필요합니다"로 표기하세요.
-- 과거 학습을 참고하되, 현재 질문에 맞지 않는 학습은 무시하세요.
+[Directives]
+- Answer from your specialized perspective, using core questions as the basis.
+- Include domain rules in the verification criteria.
+- For content outside your specialized area, mark it as "This aspect requires the perspective of {other agent}."
+- Reference past learnings, but ignore learnings that do not apply to the current question.
 
-[보고 형식]
-답변 마지막에 아래 섹션을 반드시 포함하세요:
+[Report Format]
+Include the following section at the end of your answer:
 
-### 새로 배운 것
-- 소통 학습: (사용자 선호/소통 방식에 대한 발견)
-- 방법론 학습: [{사실|판단}] (어떤 도메인에서든 적용 가능한 검증 원칙)
-- 도메인 학습: [{사실|판단}] (이 도메인에서만 유효한 학습)
-없으면 각각 "없음"으로 표기하세요.
+### Newly Learned
+- Communication learning: (findings about user preferences/communication style)
+- Methodology learning: [{fact|judgment}] (verification principles applicable in any domain)
+- Domain learning: [{fact|judgment}] (learnings valid only in this domain)
+Mark each as "none" if there is nothing to report.
 ```
 
-### 3. 결과 출력
+### 3. Result Output
 
-에이전트의 답변을 사용자에게 전달합니다.
-다른 에이전트의 관점이 필요하다고 표기된 항목이 있으면, 사용자에게 알립니다:
-"이 질문에 대해 {에이전트명}의 관점도 도움이 될 수 있습니다. `/onto:ask-{dimension} {질문}`으로 추가 확인할 수 있습니다."
+Delivers the agent's answer to the user.
+If any items are marked as requiring another agent's perspective, inform the user:
+"The perspective of {agent name} may also be helpful for this question. You can check further via `/onto:ask-{dimension} {question}`."
 
-### 4. 학습 저장
+### 4. Learning Storage
 
-`process.md`의 "학습 저장 규칙"을 따릅니다.
+Follows the "Learning Storage Rules" in `process.md`.

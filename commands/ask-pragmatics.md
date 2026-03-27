@@ -1,8 +1,8 @@
-# Onto Pragmatics (활용 적합성 검증)
+# Onto Pragmatics (pragmatic fitness verification)
 
-$ARGUMENTS를 활용 적합성 검증자에게 질문합니다.
+Asks $ARGUMENTS to the pragmatic fitness verification agent.
 
-에이전트 ID: `onto_pragmatics`
+Agent ID: `onto_pragmatics`
 
-`~/.claude/plugins/onto/process.md` (공통 정의)와
-`~/.claude/plugins/onto/processes/question.md`를 읽고 실행하세요.
+Read `~/.claude/plugins/onto/process.md` (common definitions) and
+`~/.claude/plugins/onto/processes/question.md`, then execute.

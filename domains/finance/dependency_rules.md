@@ -1,74 +1,74 @@
-# Finance Domain — 의존성 규칙
+# Finance Domain — Dependency Rules
 
-## 분류 축
+## Classification Axes
 
-| 축 | 값 | 설명 |
+| Axis | Values | Description |
 |---|---|---|
-| 규칙 유형 | 비순환 / 방향 / 다이아몬드 / 참조무결성 | 의존성 제약의 성격 |
-| 적용 범위 | 노드 내 / 노드 간 / 원천 간 | 제약이 적용되는 범위 |
-| 위반 처리 | 차단 / 경고 / 자동보정 | 위반 시 시스템 동작 |
+| Rule type | Acyclic / Direction / Diamond / Referential integrity | Nature of the dependency constraint |
+| Scope | Intra-node / Inter-node / Inter-source | Scope where the constraint applies |
+| Violation handling | Block / Warning / Auto-correction | System behavior upon violation |
 
-## 비순환 규칙 (필수 3개)
+## Acyclic Rules (3 mandatory)
 
-| ID | 규칙 | 설명 | 위반 처리 |
+| ID | Rule | Description | Violation Handling |
 |---|---|---|---|
-| AC01 | Entity → Statement → FinancialFact 경로에 순환 금지 | 보고 주체에서 재무 수치까지 단방향 | 차단 |
-| AC02 | Concept 계층에 순환 금지 | 상위 계정 → 하위 계정 계층 구조 | 차단 |
-| AC03 | Note → FinancialFact 참조에 순환 금지 | 주석이 본문을 참조하되, 본문이 주석을 역참조하지 않음 | 차단 |
+| AC01 | No cycles in the Entity -> Statement -> FinancialFact path | Unidirectional from reporting entity to financial figures | Block |
+| AC02 | No cycles in the Concept hierarchy | Superordinate account -> subordinate account hierarchy structure | Block |
+| AC03 | No cycles in Note -> FinancialFact references | Notes reference main statements, but main statements do not back-reference notes | Block |
 
-## 방향 규칙 (6개)
+## Direction Rules (6)
 
-| ID | 관계 | 허용 방향 | 금지 방향 | 위반 처리 |
+| ID | Relationship | Allowed Direction | Prohibited Direction | Violation Handling |
 |---|---|---|---|---|
-| DR01 | REPORTED_BY | Fact → Entity | Entity → Fact | 차단 |
-| DR02 | BELONGS_TO | Fact → Statement | Statement → Fact | 차단 |
-| DR03 | HAS_CONCEPT | Fact → Concept | Concept → Fact | 차단 |
-| DR04 | IN_PERIOD | Fact → Period | Period → Fact | 차단 |
-| DR05 | ANNOTATES | Note → Fact | Fact → Note | 차단 |
-| DR06 | IS_CHILD_OF | 하위 Concept → 상위 Concept | 상위 → 하위 (이 방향은 HAS_CHILD로 별도 정의 가능) | 경고 |
+| DR01 | REPORTED_BY | Fact -> Entity | Entity -> Fact | Block |
+| DR02 | BELONGS_TO | Fact -> Statement | Statement -> Fact | Block |
+| DR03 | HAS_CONCEPT | Fact -> Concept | Concept -> Fact | Block |
+| DR04 | IN_PERIOD | Fact -> Period | Period -> Fact | Block |
+| DR05 | ANNOTATES | Note -> Fact | Fact -> Note | Block |
+| DR06 | IS_CHILD_OF | Child Concept -> Parent Concept | Parent -> Child (this direction can be separately defined as HAS_CHILD) | Warning |
 
-## 다이아몬드 규칙 (3개)
+## Diamond Rules (3)
 
-| ID | 상황 | 허용 여부 | 설명 |
+| ID | Situation | Allowed | Description |
 |---|---|---|---|
-| DM01 | 동일 Fact가 복수 Statement에 소속 | **허용** | 현금및현금성자산은 재무상태표·현금흐름표 양쪽에 출현 |
-| DM02 | 동일 Concept이 복수 Entity에 사용 | **허용** | ifrs:Revenue는 모든 기업이 공유 |
-| DM03 | 동일 Fact가 복수 Period에 귀속 | **금지** | 하나의 재무 수치는 정확히 하나의 기간/시점에 귀속 |
+| DM01 | Same Fact belongs to multiple Statements | **Allowed** | Cash and cash equivalents appears in both Statement of Financial Position and Cash Flow Statement |
+| DM02 | Same Concept used by multiple Entities | **Allowed** | ifrs:Revenue is shared by all companies |
+| DM03 | Same Fact attributed to multiple Periods | **Prohibited** | A single financial figure belongs to exactly one period/point-in-time |
 
-## 참조 무결성 (3개)
+## Referential Integrity (3)
 
-| ID | 규칙 | 설명 | 위반 처리 |
+| ID | Rule | Description | Violation Handling |
 |---|---|---|---|
-| RI01 | FinancialFact의 HAS_CONCEPT 대상 Concept이 반드시 존재 | 존재하지 않는 계정과목 참조 금지 | 차단 |
-| RI02 | Note의 ANNOTATES 대상 FinancialFact가 반드시 존재 | 대상 없는 주석 참조 금지 | 차단 |
-| RI03 | 임시 ID는 정규 ID 전환 전까지 참조 무결성 검증 대상에서 "경고" 처리 | 비구조화 원천에서 추출한 주석의 ID 불안정성 반영 | 경고 |
+| RI01 | The target Concept of FinancialFact's HAS_CONCEPT must exist | Referencing a non-existent account is prohibited | Block |
+| RI02 | The target FinancialFact of Note's ANNOTATES must exist | Referencing a non-existent note target is prohibited | Block |
+| RI03 | Temporary IDs are treated as "warning" for referential integrity until converted to canonical IDs | Reflects the ID instability of notes extracted from unstructured sources | Warning |
 
-> RI03은 비구조화 원천(PDF 등)에서 추출한 주석의 ID 체계가 불안정한 현실을 반영한다. 구조화 원천에서 동일 주석을 확보하면 정규 ID로 전환하고, 이후 RI02와 동일한 "차단" 수준으로 격상한다.
+> RI03 reflects the reality that the ID system for notes extracted from unstructured sources (PDFs, etc.) is unstable. When the same note is obtained from a structured source, convert to the canonical ID and subsequently elevate to the same "block" level as RI02.
 
-## 원천 간 의존성
+## Inter-Source Dependencies
 
-### 진실의 원천 전환 규칙
+### Source of Truth Transition Rules
 
-| 우선순위 | 원천 유형 | 조건 | 설명 |
+| Priority | Source Type | Condition | Description |
 |---|---|---|---|
-| 1 | 구조화 데이터 (XBRL 등) | 구조 완전·파싱 성공 | 1차 원천 — 기계 판독 가능 |
-| 2 | 반구조화 데이터 (HTML 등) | 구조화 원천 불완전 또는 파싱 실패 | 2차 원천 — 파싱 필요 |
-| 3 | 비구조화 데이터 (PDF 등) | 반구조화 원천 미제공 | 3차 원천 — OCR 필요 |
+| 1 | Structured data (XBRL, etc.) | Structure complete and parsing successful | Primary source — machine-readable |
+| 2 | Semi-structured data (HTML, etc.) | Structured source incomplete or parsing failed | Secondary source — parsing required |
+| 3 | Unstructured data (PDF, etc.) | Semi-structured source not available | Tertiary source — OCR required |
 
-- 금융업종에서 구조화 원천의 구조 불일치로 인해 반구조화 원천으로의 전환이 빈번함
-- 반구조화 원천이 유일 원천인 경우 단일 장애점(SPOF) 위험 존재
-- 원천 전환 시 ID 체계 단일화가 선행되어야 참조 무결성 유지 가능
+- In the financial industry, transition from structured to semi-structured sources is frequent due to structural inconsistencies in structured sources
+- When semi-structured is the sole source, a single point of failure (SPOF) risk exists
+- ID system unification must precede source transitions to maintain referential integrity
 
-### 택소노미/인스턴스 분리
+### Taxonomy/Instance Separation
 
-- 택소노미(Concept 계층 정의)와 인스턴스(실제 재무 수치)는 별도 의존성 경로
-- 택소노미 변경은 Concept 노드에만 영향, 인스턴스 변경은 FinancialFact 노드에만 영향
-- 양쪽이 동시에 변경되면 HAS_CONCEPT 관계의 참조 무결성 재검증 필요
+- Taxonomy (Concept hierarchy definitions) and instances (actual financial figures) have separate dependency paths
+- Taxonomy changes affect only Concept nodes; instance changes affect only FinancialFact nodes
+- When both change simultaneously, referential integrity of HAS_CONCEPT relationships must be re-verified
 
-## 관련 문서
+## Related Documents
 
-- [structure_spec.md](structure_spec.md) — 의존성 규칙이 적용되는 노드·관계 구조
-- [logic_rules.md](logic_rules.md) — 논리 규칙과 의존성 규칙의 상호 보완 관계
-- [domain_scope.md](domain_scope.md) — 원천 형식 축 및 업종 분류 축 정의
-- [concepts.md](concepts.md) — 참조 무결성의 대상인 Concept 매핑 체계
-- [extension_cases.md](extension_cases.md) — 의존성 규칙 변경이 필요한 확장 시나리오
+- [structure_spec.md](structure_spec.md) — the node and relationship structure where dependency rules apply
+- [logic_rules.md](logic_rules.md) — the complementary relationship between logic rules and dependency rules
+- [domain_scope.md](domain_scope.md) — source format axis and industry classification axis definitions
+- [concepts.md](concepts.md) — the Concept mapping system that is the subject of referential integrity
+- [extension_cases.md](extension_cases.md) — extension scenarios requiring dependency rule changes

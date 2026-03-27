@@ -1,76 +1,76 @@
-# Business Domain — 역량 질문 (Competency Questions)
+# Business Domain — Competency Questions
 
-이 도메인의 체계가 답할 수 있어야 하는 핵심 질문 목록이다.
+A list of core questions that this domain's system must be able to answer.
 
-분류 축: **검증 관심사** — 사업 체계 리뷰 시 답해야 하는 질문의 관심사에 따라 분류한다.
+Classification axis: **verification concern** — classified by the concern of questions that must be answered during business system review.
 
-## 전략 경영
+## Strategic Management
 
-- Q1: {대상 사업}의 산업 경쟁 환경이 분석되어 있는가? (Porter's 5 Forces 또는 동등한 프레임워크 적용 여부)
-- Q2: 경쟁 우위의 원천이 식별되어 있고, 그 지속 가능성이 VRIO 기준으로 검증되어 있는가?
-- Q3: 성장 전략의 방향(시장침투/시장개발/제품개발/다각화)이 명시되고, 선택 근거가 제시되어 있는가?
-- Q4: 전략 목표와 실행 계획 사이의 인과 관계가 추적 가능한가?
-- Q5: 사업 환경 변화(규제, 기술, 시장) 시 전략 수정 경로가 정의되어 있는가?
+- Q1: Has the industry competitive environment of {target business} been analyzed? (Application of Porter's 5 Forces or equivalent framework)
+- Q2: Has the source of competitive advantage been identified, and has its sustainability been verified against VRIO criteria?
+- Q3: Is the growth strategy direction (market penetration/market development/product development/diversification) stated, with selection rationale provided?
+- Q4: Is the causal relationship between strategic objectives and execution plans traceable?
+- Q5: Is a strategy modification path defined for changes in the business environment (regulations, technology, market)?
 
-## 마케팅
+## Marketing
 
-- Q6: 시장 세분화 기준이 명시되어 있고, 목표 시장(target segment)의 선택 근거가 있는가?
-- Q7: {대상 사업}의 포지셔닝이 경쟁 대안 대비 명확하게 정의되어 있는가?
-- Q8: 마케팅 믹스(4P 또는 7P)의 각 요소가 목표 시장과 정합하는가?
-- Q9: 고객 여정의 주요 접점이 식별되어 있고, 각 단계의 전환율 측정 계획이 있는가?
+- Q6: Are the market segmentation criteria stated, with rationale for target market selection?
+- Q7: Is the positioning of {target business} clearly defined relative to competitive alternatives?
+- Q8: Are the marketing mix (4P or 7P) elements aligned with the target market?
+- Q9: Are the key touchpoints in the customer journey identified, with conversion rate measurement plans for each stage?
 
-## 재무 관리
+## Finance
 
-- Q10: 투자 의사결정에 NPV, IRR 등 자본예산 기법이 적용되어 있는가?
-- Q11: 자본비용(WACC)이 산출되어 있고, 투자 평가의 할인율로 활용되고 있는가?
-- Q12: 현금흐름 예측이 수행되어 있고, 유동성 위기 시나리오에 대한 대응이 정의되어 있는가?
-- Q13: 수익 모델의 핵심 가정(시장 규모, 점유율, 가격 탄력성)이 명시되어 있는가?
+- Q10: Are capital budgeting techniques (NPV, IRR, etc.) applied to investment decision-making?
+- Q11: Has WACC been calculated and used as the discount rate for investment evaluation?
+- Q12: Has cash flow forecasting been performed, with responses defined for liquidity crisis scenarios?
+- Q13: Are the key assumptions of the revenue model (market size, market share, price elasticity) stated?
 
-## 수익과 비용 구조
+## Revenue and Cost Structure
 
-- Q14: {대상 사업}의 매출 발생 구조가 식별되고, 가격 체계의 근거가 있는가?
-- Q15: 고정비와 변동비가 구분되어 있고, 손익분기점이 산출되어 있는가?
-- Q16: 구독/플랫폼 모델에서 LTV, CAC, 이탈율의 산출 근거와 목표치가 정의되어 있는가?
-- Q17: ROI 산출 시 투자 범위와 수익 귀속 기간이 정의되어 있는가?
+- Q14: Has the revenue generation structure of {target business} been identified, with pricing rationale provided?
+- Q15: Are fixed and variable costs distinguished, with break-even point calculated?
+- Q16: In subscription/platform models, are the calculation bases and targets for LTV, CAC, and churn rate defined?
+- Q17: In ROI calculation, are the investment scope and return attribution period defined?
 
-## 운영과 자동화
+## Operations and Automation
 
-- Q18: 핵심 운영 프로세스의 병목(constraint)이 식별되어 있고, 개선 방안이 정의되어 있는가?
-- Q19: 자동화 대상의 범위(시작점, 끝점)가 명확히 정의되어 있는가?
-- Q20: 자동화 도입 시 수작업 결과와 자동화 결과의 불일치 판정 권한이 지정되어 있는가?
-- Q21: "투입 시간 절감"이 "비용 절감"으로 전환되는 경로가 설명되어 있는가?
-- Q22: 공급망의 핵심 리스크(단일 공급자 의존, 리드타임 변동 등)가 식별되어 있는가?
+- Q18: Has the bottleneck (constraint) of core operational processes been identified, with improvement measures defined?
+- Q19: Is the scope of automation (start point, end point) clearly defined?
+- Q20: When automation is introduced, is the authority for adjudicating discrepancies between manual and automated results designated?
+- Q21: Is the path for converting "time savings" into "cost savings" explained?
+- Q22: Are key supply chain risks (single supplier dependency, lead time variability, etc.) identified?
 
-## 조직과 인사
+## Organization and HR
 
-- Q23: 조직 구조가 {대상 사업}의 전략/규모/환경에 적합한가? (Mintzberg 기준 또는 동등 프레임워크)
-- Q24: 의사결정 권한 체계가 명시되어 있고, 주인-대리인 문제에 대한 대응 장치가 있는가?
-- Q25: 핵심 직위에 대한 인재 파이프라인(후보자 확보/육성 계획)이 존재하는가?
-- Q26: 역량 모델이 정의되어 있고, 성과 관리 체계와 연결되어 있는가?
+- Q23: Is the organizational structure appropriate for {target business}'s strategy/scale/environment? (Based on Mintzberg or equivalent framework)
+- Q24: Is the decision-making authority structure stated, with safeguards against the principal-agent problem?
+- Q25: Does a talent pipeline (candidate securing/development plan) exist for key positions?
+- Q26: Is a competency model defined and linked to the performance management system?
 
-## 변화관리
+## Change Management
 
-- Q27: 기술 도입/변화 시행에서 변화관리 모델(Kotter 8 Steps, ADKAR 등)이 적용되어 있는가?
-- Q28: "첫 성공 사례→확산" 전략의 협조 확보 방안이 구체적인가?
-- Q29: 변화관리 실행과 협조 확보가 상호 의존하는 순환 문제에 대한 해결 전략이 있는가?
+- Q27: Has a change management model (Kotter 8 Steps, ADKAR, etc.) been applied to technology adoption/change implementation?
+- Q28: Is the plan for securing cooperation in the "first success -> expansion" strategy specific?
+- Q29: Is there a resolution strategy for the circular dependency between change management execution and cooperation securing?
 
-## 혁신
+## Innovation
 
-- Q30: {대상 사업}이 직면한 혁신 유형(존속적/파괴적)이 식별되어 있고, 대응 전략이 있는가?
-- Q31: 신기술/신제품 도입 시 기술 수용 주기 상의 목표 단계와 캐즘 대응 전략이 있는가?
+- Q30: Has the innovation type facing {target business} (sustaining/disruptive) been identified, with a response strategy?
+- Q31: When introducing new technology/products, are the target stage on the Technology Adoption Lifecycle and a Chasm response strategy defined?
 
-## 거버넌스와 리스크
+## Governance and Risk
 
-- Q32: 기업 거버넌스 구조(이사회, 감사, 내부통제)가 정의되어 있는가?
-- Q33: 식별된 리스크에 대해 COSO ERM 기준의 대응 전략(회피/완화/전가/수용)이 지정되어 있는가?
-- Q34: ESG가 거버넌스와 독립된 관심사로 다뤄지고 있으며, 중첩 영역이 명시되어 있는가?
+- Q32: Is the corporate governance structure (board, audit, internal controls) defined?
+- Q33: Have response strategies (avoid/mitigate/transfer/accept) been designated for identified risks based on COSO ERM criteria?
+- Q34: Is ESG treated as an independent concern from governance, with overlapping areas stated?
 
-## 확장성
+## Scalability
 
-- Q35: M&A 시 핵심 시스템/프로세스의 키 구조가 피인수 기업의 체계를 수용할 수 있는가?
-- Q36: 사업 모델이 새 시장/지역으로 확장될 때 규제, 문화, 운영 차이에 대한 대응이 정의되어 있는가?
+- Q35: In M&A, can the key structure of core systems/processes accommodate the acquired company's system?
+- Q36: When the business model expands to new markets/regions, are responses to regulatory, cultural, and operational differences defined?
 
-## 관련 문서
-- domain_scope.md — 질문들이 다루는 영역의 상위 정의
-- logic_rules.md — 재무/전략/자동화/변화관리 관련 규칙
-- structure_spec.md — 구조 관련 규칙
+## Related Documents
+- domain_scope.md — the upper-level definition of the areas these questions cover
+- logic_rules.md — rules related to finance/strategy/automation/change management
+- structure_spec.md — structure-related rules

@@ -1,89 +1,89 @@
-# Business Domain — 확장 시나리오
+# Business Domain — Extension Scenarios
 
-각 시나리오를 시뮬레이션하여 기존 사업 체계의 깨짐 여부를 검증한다.
+Each scenario is simulated to verify whether the existing business system breaks.
 
-## Case 1: 신규 수익원 추가
+## Case 1: Adding a New Revenue Source
 
-- 기존 사업 체계에 새로운 수익원(제품/서비스)을 추가
-- 검증: Ansoff Matrix 상 어떤 성장 전략(시장침투/시장개발/제품개발/다각화)에 해당하는가?
-- 검증: BCG Matrix에서 신규 수익원의 포지션(Star/Question Mark)이 포트폴리오 전략과 정합하는가?
-- 검증: 기존 STP가 새 수익원의 목표 고객을 포함하는가? 새로운 세분화가 필요한가?
-- 검증: 기존 비용 구조에서 새 수익원의 원가를 귀속할 수 있는가?
-- 검증: 기존 운영 프로세스(공급망, 생산)가 새 수익원을 지원할 수 있는가?
-- 영향 파일: structure_spec.md (수익 구조), logic_rules.md (전략 분석 논리)
+- Adding a new revenue source (product/service) to the existing business system
+- Verification: Which growth strategy in the Ansoff Matrix (market penetration/market development/product development/diversification) does it correspond to?
+- Verification: Does the new revenue source's position in the BCG Matrix (Star/Question Mark) align with the portfolio strategy?
+- Verification: Does the existing STP include the target customers for the new revenue source? Is new segmentation needed?
+- Verification: Can the cost of the new revenue source be attributed within the existing cost structure?
+- Verification: Can the existing operational processes (supply chain, production) support the new revenue source?
+- Affected files: structure_spec.md (revenue structure), logic_rules.md (strategy analysis logic)
 
-## Case 2: M&A (인수합병)
+## Case 2: M&A (Mergers & Acquisitions)
 
-- 피인수 기업의 사업 체계를 기존 체계에 통합
-- 검증: 핵심 시스템의 키 구조가 피인수 기업의 체계를 수용하는가?
-- 검증: 조직 구조 통합 시 의사결정 권한과 보고 체계의 충돌이 해소되는가?
-- 검증: 양측의 조직 문화 차이에 대한 변화관리(Kotter/ADKAR) 계획이 있는가?
-- 검증: 통합 후 목표 조직 유형(Mintzberg)이 명시되어 있는가?
-- 검증: 과도기 병행 운영 기간과 완전 통합 일정이 정의되어 있는가?
-- 검증: Stakeholder Theory 관점에서 양측 이해관계자의 이해 조율 계획이 있는가?
-- 영향 파일: dependency_rules.md (M&A 의존), structure_spec.md (키 구조, 조직-전략 적합성)
+- Integrating the acquired company's business system into the existing system
+- Verification: Can the key structure of core systems accommodate the acquired company's system?
+- Verification: Are decision-making authority and reporting hierarchy conflicts resolved during organizational structure integration?
+- Verification: Is there a change management (Kotter/ADKAR) plan for organizational culture differences between both sides?
+- Verification: Is the target organizational type (Mintzberg) after integration stated?
+- Verification: Are the transitional parallel operation period and full integration timeline defined?
+- Verification: From a Stakeholder Theory perspective, is there a plan for reconciling stakeholder interests on both sides?
+- Affected files: dependency_rules.md (M&A dependency), structure_spec.md (key structure, organization-strategy fit)
 
-## Case 3: 자동화 도입/확대
+## Case 3: Automation Introduction/Expansion
 
-- 기존 수작업 프로세스를 자동화로 전환하거나, 자동화 범위를 확대
-- 검증: 자동화 범위의 시작점과 끝점이 명확히 정의되어 있는가?
-- 검증: 자동화 전 기준선(baseline) 측정이 수행되었는가? (Six Sigma DMAIC의 Measure)
-- 검증: 수작업 결과와 자동화 결과의 불일치 판정 권한이 지정되어 있는가?
-- 검증: "시간 절감"이 "비용 절감"으로 전환되는 경로가 설명되어 있는가?
-- 검증: 자동화로 인한 역할 변경에 대한 인력 재배치/재교육 계획이 있는가?
-- 영향 파일: logic_rules.md (자동화/운영 논리), dependency_rules.md (조직-프로세스 의존)
+- Converting existing manual processes to automation, or expanding automation scope
+- Verification: Are the start and end points of automation scope clearly defined?
+- Verification: Has a pre-automation baseline measurement been performed? (Six Sigma DMAIC's Measure stage)
+- Verification: Is the authority for adjudicating discrepancies between manual and automated results designated?
+- Verification: Is the path for converting "time savings" into "cost savings" explained?
+- Verification: Are there redeployment/retraining plans for roles changed by automation?
+- Affected files: logic_rules.md (automation/operations logic), dependency_rules.md (organization-process dependency)
 
-## Case 4: 시장/지역 확장
+## Case 4: Market/Regional Expansion
 
-- 기존 사업을 새 시장 또는 새 지역으로 확장
-- 검증: Ansoff Matrix 상 시장개발 전략에 해당하며, 해당 전략의 리스크가 평가되어 있는가?
-- 검증: 새 시장에 대한 경쟁 환경 분석(Porter's 5 Forces)이 수행되었는가?
-- 검증: STP가 새 시장의 고객 세그먼트에 맞게 재정의되었는가?
-- 검증: 규제 환경 차이에 대한 대응이 정의되어 있는가?
-- 검증: 공급망/운영 체계가 지역 확장을 수용하는가? (TOC 관점의 새로운 병목 식별)
-- 영향 파일: structure_spec.md (도메인 경계), logic_rules.md (전략/마케팅 논리)
+- Expanding the existing business to a new market or new region
+- Verification: Does it correspond to a market development strategy in the Ansoff Matrix, with the associated risks assessed?
+- Verification: Has competitive environment analysis (Porter's 5 Forces) been performed for the new market?
+- Verification: Has STP been redefined for the new market's customer segments?
+- Verification: Are responses to regulatory environment differences defined?
+- Verification: Can the supply chain/operational system accommodate regional expansion? (Identification of new bottlenecks from a TOC perspective)
+- Affected files: structure_spec.md (domain boundaries), logic_rules.md (strategy/marketing logic)
 
-## Case 5: 비즈니스 모델 전환
+## Case 5: Business Model Transition
 
-- 제품 판매 → 구독 모델, 직접 판매 → 플랫폼 모델 등 근본적 수익 구조 변경
-- 검증: Blue Ocean Strategy의 ERRC 격자로 가치 요소의 변화가 분석되어 있는가?
-- 검증: 기존 KPI(매출액, 이익률)가 새 모델에 적합한가? (MRR, LTV/CAC, Churn 등 신규 지표 필요 여부)
-- 검증: 전환 과도기의 매출 감소(J-커브)에 대한 재무 대응이 준비되어 있는가? (운전자본/현금흐름 관점)
-- 검증: 기존 조직 구조와 역량이 새 모델을 지원하는가? (조직-전략 적합성 재검증)
-- 검증: 고객 여정이 새 모델에 맞게 재설계되었는가?
-- 영향 파일: logic_rules.md (전략/재무 논리), structure_spec.md (수익 구조, 조직-전략 적합성)
+- Fundamental revenue structure changes such as product sales -> subscription model, direct sales -> platform model
+- Verification: Have the changes in value elements been analyzed using Blue Ocean Strategy's ERRC grid?
+- Verification: Are existing KPIs (revenue, profit margin) suitable for the new model? (Whether new metrics such as MRR, LTV/CAC, Churn are needed)
+- Verification: Is financial preparation for the J-curve revenue decline during the transition prepared? (Working capital/cash flow perspective)
+- Verification: Can the existing organizational structure and capabilities support the new model? (Re-verification of organization-strategy fit)
+- Verification: Has the customer journey been redesigned for the new model?
+- Affected files: logic_rules.md (strategy/finance logic), structure_spec.md (revenue structure, organization-strategy fit)
 
-## Case 6: 기술 도입 (디지털 전환)
+## Case 6: Technology Adoption (Digital Transformation)
 
-- AI, 클라우드, 데이터 분석 등 신기술의 사업 적용
-- 검증: 기술 수용 주기 상 목표 단계가 정의되어 있고, 캐즘 대응 전략이 있는가?
-- 검증: Christensen 관점에서 해당 기술이 존속적 혁신인지 파괴적 혁신인지 판별되어 있는가?
-- 검증: 변화관리 모델(Kotter 8 Steps/ADKAR)이 적용되어 있는가?
-- 검증: "첫 성공→확산" 전략의 진입점이 정의되어 있는가?
-- 검증: 협조 확보와 변화관리의 순환 의존이 해소되어 있는가?
-- 검증: 기술 도입 효과가 도입 시점이 아닌 통합 이후 시점에서 측정되는가?
-- 영향 파일: dependency_rules.md (변화관리 순환 의존), logic_rules.md (혁신/변화관리 논리)
+- Applying new technologies such as AI, cloud, and data analytics to the business
+- Verification: Is the target stage on the Technology Adoption Lifecycle defined, with a Chasm response strategy?
+- Verification: From Christensen's perspective, has it been determined whether the technology is sustaining or disruptive innovation?
+- Verification: Has a change management model (Kotter 8 Steps/ADKAR) been applied?
+- Verification: Is the entry point for the "first success -> expansion" strategy defined?
+- Verification: Has the circular dependency between cooperation securing and change management been resolved?
+- Verification: Is the technology adoption effect measured at the point of integration with existing processes, not at the point of adoption?
+- Affected files: dependency_rules.md (change management circular dependency), logic_rules.md (innovation/change management logic)
 
-## Case 7: 조직 규모 확장
+## Case 7: Organizational Scale Expansion
 
-- 인원 증가, 부서 신설, 계층 추가 등 조직 규모 변화
-- 검증: 현재 조직 유형(Mintzberg)이 확장 후에도 적합한가? 구조 전환이 필요한가?
-- 검증: 의사결정 권한 체계가 확장된 조직을 수용하는가?
-- 검증: Agency Theory 관점에서 권한 위임 확대에 따른 모니터링/인센티브 장치가 조정되었는가?
-- 검증: 역량 모델과 인재 파이프라인이 확장된 규모에 대응하는가?
-- 검증: 정보 전달 경로(보고 체계)가 규모 확장 후에도 지연 없이 동작하는가?
-- 영향 파일: structure_spec.md (조직-전략 적합성, 권한과 책임 분리), dependency_rules.md (조직-프로세스 의존)
+- Organizational scale changes such as headcount growth, new department creation, additional hierarchy levels
+- Verification: Is the current organizational type (Mintzberg) still appropriate after expansion? Is a structural transition needed?
+- Verification: Can the decision-making authority structure accommodate the expanded organization?
+- Verification: From an Agency Theory perspective, have monitoring/incentive mechanisms been adjusted for expanded delegation?
+- Verification: Do the competency model and talent pipeline accommodate the expanded scale?
+- Verification: Do information delivery paths (reporting hierarchy) still function without delay after scale expansion?
+- Affected files: structure_spec.md (organization-strategy fit, authority and responsibility separation), dependency_rules.md (organization-process dependency)
 
-## Case 8: 경쟁 환경 변화 대응
+## Case 8: Competitive Environment Change Response
 
-- 신규 경쟁자 진입, 대체재 등장, 산업 구조 변화 등
-- 검증: Porter's 5 Forces 재분석이 수행되었는가?
-- 검증: 기존 경쟁 우위(VRIO)가 새로운 환경에서도 유효한가?
-- 검증: 전략 수정 경로(방어/공격/전환)가 정의되어 있는가?
-- 검증: 파괴적 혁신에 의한 위협이 식별되어 있고, 대응(별도 조직, 사업 모델 전환 등)이 준비되어 있는가?
-- 영향 파일: logic_rules.md (전략 분석 논리, 혁신 논리), structure_spec.md (전략 체계)
+- New competitor entry, substitute emergence, industry structure changes, etc.
+- Verification: Has Porter's 5 Forces re-analysis been performed?
+- Verification: Is the existing competitive advantage (VRIO) still valid in the new environment?
+- Verification: Is a strategy modification path (defend/attack/pivot) defined?
+- Verification: Has the threat from disruptive innovation been identified, with preparations (separate organization, business model transition, etc.)?
+- Affected files: logic_rules.md (strategy analysis logic, innovation logic), structure_spec.md (strategy system)
 
-## 관련 문서
-- structure_spec.md — 사업 체계 구조, 조직-전략 적합성, 키 구조
-- dependency_rules.md — 전략-실행, 재무-전략, M&A, 변화관리 의존 규칙
-- logic_rules.md — 전략/마케팅/재무/운영/혁신/변화관리 논리
+## Related Documents
+- structure_spec.md — business system structure, organization-strategy fit, key structure
+- dependency_rules.md — strategy-execution, finance-strategy, M&A, change management dependency rules
+- logic_rules.md — strategy/marketing/finance/operations/innovation/change management logic

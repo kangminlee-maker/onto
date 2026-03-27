@@ -1,53 +1,53 @@
-# Accounting Domain — 논리 규칙
+# Accounting Domain — Logic Rules
 
-## 차변/대변 균형 논리
+## Debit (차변)/Credit (대변) Balance Logic
 
-- 모든 거래에서 차변 합계 = 대변 합계여야 한다. 이것은 복식부기의 근본 불변식(invariant)이다
-- 시산표 균형은 분류 정확성을 보장하지 않는다. 차변/대변이 모두 틀려도 합계가 일치할 수 있다
-- 수정분개도 차변/대변 균형을 유지해야 한다. 한 쪽만 수정하는 것은 논리적 모순
-- 자산 계정: 차변 증가, 대변 감소. 부채/자본 계정: 대변 증가, 차변 감소. 이 방향성은 회계등식(A=L+E)에서 도출
+- In every transaction, Debit (차변) total = Credit (대변) total. This is the fundamental invariant of double-entry bookkeeping
+- Trial Balance (시산표) balance does not guarantee classification accuracy. Even if both Debit (차변) and Credit (대변) are wrong, the totals can still match
+- Adjusting Entries (수정분개) must also maintain Debit (차변)/Credit (대변) balance. Modifying only one side is a logical contradiction
+- Asset accounts: Debit (차변) increases, Credit (대변) decreases. Liability/Equity accounts: Credit (대변) increases, Debit (차변) decreases. This directionality is derived from the accounting equation (A=L+E)
 
-## 인식 논리
+## Recognition Logic
 
-- 수익 인식은 통제 이전 시점에 수행한다 (IFRS 15). "인도 완료"와 "통제 이전"은 반드시 동시가 아니다
-- 비용은 관련 수익과 동일 기간에 인식한다 (대응 원칙). 수익과 직접 대응할 수 없는 비용은 발생 기간에 인식
-- 자산 인식 요건: (1) 미래 경제적 효익의 유입 가능성이 높고, (2) 원가를 신뢰성 있게 측정할 수 있어야 함
-- 부채 인식 요건: (1) 현재 의무가 존재하고, (2) 경제적 효익의 유출 가능성이 높고, (3) 금액을 신뢰성 있게 측정할 수 있어야 함
+- Revenue recognition is performed at the point of control transfer (IFRS 15). "Delivery complete" and "control transferred" are not necessarily simultaneous
+- Expenses are recognized in the same period as related revenue (matching principle). Expenses that cannot be directly matched to revenue are recognized in the period incurred
+- Asset recognition requirements: (1) probability of future economic benefits flowing in is high, and (2) cost can be reliably measured
+- Liability recognition requirements: (1) a present obligation exists, (2) probability of economic benefits flowing out is high, and (3) the amount can be reliably measured
 
-## 측정 논리
+## Measurement Logic
 
-- 최초 인식은 원칙적으로 거래가격(원가)으로 측정한다. 후속 측정은 원가모형 또는 공정가치모형
-- 공정가치 서열체계: Level 1(동일 자산의 시장가격) > Level 2(유사 자산 또는 관측 가능 입력변수) > Level 3(관측 불가능 입력변수). 하위 수준일수록 추정 불확실성 증가
-- 손상차손: 장부금액 > 회수가능액이면 손상 인식. 회수가능액 = max(순공정가치, 사용가치)
-- 감가상각: 자산의 내용연수에 걸쳐 체계적 배분. 내용연수와 잔존가치는 매 보고기간말에 재검토
+- Initial recognition is in principle measured at the transaction price (cost). Subsequent measurement uses either the cost model or Fair Value (공정가치) model
+- Fair Value (공정가치) hierarchy: Level 1 (market price of identical assets) > Level 2 (similar assets or observable inputs) > Level 3 (unobservable inputs). Estimation uncertainty increases at lower levels
+- Impairment Loss (손상차손): recognized when Carrying Amount (장부금액) > recoverable amount. Recoverable amount = max(net Fair Value (공정가치), Value in Use (사용가치))
+- Depreciation: systematic allocation over the asset's useful life. Useful life and residual value are reviewed at each reporting period-end
 
-## 기간 귀속 논리
+## Period Attribution Logic
 
-- 선수수익: 현금은 수령했으나 이행의무 미완료. 부채로 인식 후 이행 시 수익 전환
-- 미수수익: 이행의무 완료했으나 현금 미수령. 자산으로 인식
-- 선급비용: 현금은 지급했으나 효익 미소비. 자산으로 인식 후 소비 시 비용 전환
-- 미지급비용: 효익은 소비했으나 현금 미지급. 부채로 인식
-- 결산 수정분개는 위 4가지 유형의 기간 귀속을 교정하는 절차다
+- Unearned Revenue (선수수익): cash received but Performance Obligation (이행의무) not yet fulfilled. Recognized as a liability, then converted to revenue upon fulfillment
+- Accrued Revenue (미수수익): Performance Obligation (이행의무) fulfilled but cash not yet received. Recognized as an asset
+- Prepaid Expenses (선급비용): cash paid but benefit not yet consumed. Recognized as an asset, then converted to expense upon consumption
+- Accrued Expenses (미지급비용): benefit consumed but cash not yet paid. Recognized as a liability
+- Period-end Adjusting Entries (수정분개) are the procedure for correcting the period attribution of these 4 types
 
-## 연결 논리
+## Consolidation Logic
 
-- 지배력 판단: 투자자가 피투자자에 대한 힘, 변동이익에 대한 노출, 힘과 이익의 연계 세 가지를 모두 보유할 때 지배력 존재
-- 내부거래 제거: 연결실체 내부 거래(매출/매입, 대여금/차입금)는 연결 시 전액 제거. 미실현이익도 제거
-- 비지배지분: 종속기업 순자산 중 지배기업에 귀속되지 않는 부분. 자본에 별도 표시
+- Control determination: control exists when the investor holds all three of: power over the investee, exposure to variable returns, and the link between power and returns
+- Intercompany transaction elimination: transactions within the consolidated entity (sales/purchases, loans/borrowings) are eliminated in full during consolidation. Unrealized profits are also eliminated
+- Non-controlling Interest (비지배지분): the portion of a subsidiary's net assets not attributable to the parent. Presented separately in equity
 
-## 세무-회계 차이 논리
+## Tax-Accounting Difference Logic
 
-- 일시적차이: 장부금액과 세무기준액의 차이. 미래에 과세소득을 증가/감소시킴. 이연법인세 발생
-- 영구적차이: 회계와 세무에서 영구히 다르게 처리. 이연법인세 미발생 (예: 접대비 한도 초과)
-- 이연법인세 자산의 인식: 차감할 일시적차이가 사용될 수 있는 미래 과세소득이 있을 가능성이 높은 경우에만 인식
+- Temporary Difference (일시적차이): the difference between Carrying Amount (장부금액) and tax base. Increases/decreases future taxable income. Generates Deferred Tax (이연법인세)
+- Permanent Difference (영구적차이): a difference that is permanently treated differently between accounting and tax. Does not generate Deferred Tax (이연법인세) (e.g., entertainment expense limit excess)
+- Deferred Tax (이연법인세) asset recognition: recognized only when it is probable that future taxable income will be available against which the deductible Temporary Difference (일시적차이) can be utilized
 
-## 제약 상충 검사
+## Constraint Conflict Checking
 
-- K-IFRS와 세법이 동일 거래를 다르게 요구할 때, 재무보고는 K-IFRS, 세무신고는 세법을 각각 따른다. 하나의 기준으로 통합하는 것은 논리적 오류
-- 공정가치 측정과 원가 측정이 동일 자산에 혼재할 때, 측정 모형 선택은 회계정책으로 일관 적용되어야 한다
-- 보수주의(prudence)와 중립성(neutrality)이 충돌할 때, K-IFRS는 중립성을 우선한다. 과도한 보수주의는 재무제표 왜곡
+- When K-IFRS and tax law require different treatment for the same transaction, financial reporting follows K-IFRS and tax filing follows tax law. Consolidating into a single standard is a logical error
+- When Fair Value (공정가치) measurement and cost measurement coexist for the same asset, the measurement model choice must be applied consistently as an accounting policy
+- When conservatism (prudence) conflicts with neutrality, K-IFRS prioritizes neutrality. Excessive conservatism distorts financial statements
 
-## 관련 문서
-- concepts.md — 차변/대변, 인식, 측정 관련 용어 정의
-- dependency_rules.md — 재무제표 간 연결 관계, 기준서 간 의존
-- competency_qs.md — Q1~Q6 (차변/대변 균형, 인식 검증 질문)
+## Related Documents
+- concepts.md — definitions of Debit (차변)/Credit (대변), recognition, measurement, and related terms
+- dependency_rules.md — inter-financial-statement linkage, inter-standard dependencies
+- competency_qs.md — Q1~Q6 (Debit (차변)/Credit (대변) balance and recognition verification questions)

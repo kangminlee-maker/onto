@@ -1,61 +1,61 @@
-# LLM-Native Development Domain — 확장 시나리오
+# LLM-Native Development Domain — Extension Scenarios
 
-onto_evolution 에이전트가 각 시나리오를 시뮬레이션하여 기존 구조의 깨짐 여부를 검증합니다.
+The onto_evolution agent simulates each scenario to verify whether the existing structure breaks.
 
-## Case 1: 새 도메인 개념 추가
+## Case 1: Adding a New Domain Concept
 
-- 기존 도메인에 새로운 개념을 추가
-- 검증: 새 개념 파일 1개 추가 + INDEX.md 갱신만으로 완료되는가?
-- 검증: 기존 개념 파일을 수정할 필요가 없는가? (동형이의어 등록이 필요한 경우 concepts.md 갱신은 허용)
-- 검증: frontmatter 형식이 structure_spec.md의 규격과 동일한가?
+- Adding a new concept to an existing domain
+- Verification: Can it be completed by adding 1 new concept file + updating INDEX.md only?
+- Verification: Is there no need to modify existing concept files? (concepts.md update is allowed when homonym registration is needed)
+- Verification: Does the frontmatter format match the specification in structure_spec.md?
 
-## Case 2: 새 도메인 영역 추가
+## Case 2: Adding a New Domain Area
 
-- 기존 체계에 완전히 새로운 도메인 (예: finance → healthcare) 추가
-- 검증: 기존 도메인의 파일 구조를 복제하여 동일 구조로 시작할 수 있는가?
-- 검증: 공유 구조(roles, processes)가 새 도메인과 호환되는가?
-- 검증: ARCHITECTURE.md 갱신만으로 새 도메인이 탐색 가능한가?
-- 검증: 상위 도메인과의 상속 관계(concepts.md 상속 선언)가 설정 가능한가?
+- Adding a completely new domain (e.g., finance → healthcare) to the existing system
+- Verification: Can the existing domain's file structure be duplicated to start with the same structure?
+- Verification: Are shared structures (roles, processes) compatible with the new domain?
+- Verification: Is the new domain navigable with only an ARCHITECTURE.md update?
+- Verification: Can an inheritance relationship with a parent domain (concepts.md inheritance declaration) be established?
 
-## Case 3: 에이전트 역할 추가/변경
+## Case 3: Adding/Changing Agent Roles
 
-- 새로운 검증 관점의 에이전트 추가 또는 기존 역할 변경
-- 검증: 새 역할이 기존 도메인 문서 중 **최소 1개**와 대응하는가? (1:N 매핑 허용)
-- 검증: 기존 에이전트의 판단 범위와 중복/충돌 없이 역할이 분리되는가?
-- 검증: 새 역할의 role 파일만 추가하면 작동하는가?
+- Adding a new verification perspective agent or changing an existing role
+- Verification: Does the new role correspond to **at least 1** existing domain document? (1:N mapping allowed)
+- Verification: Is the role separated from existing agents' judgment scopes without overlap/conflict?
+- Verification: Does it work by simply adding the new role's role file?
 
-## Case 4: 문서 규모 확장
+## Case 4: Document Scale Expansion
 
-- 단일 도메인의 개념 수가 50개 → 200개로 증가
-- 검증: 디렉토리 깊이 3단계 이내로 개념을 분류할 수 있는가? (디렉토리 당 3~20개 파일 기준)
-- 검증: INDEX.md가 20개 파일을 초과하면 서브 인덱스를 도입할 수 있는가?
-- 검증: 시스템 맵(ARCHITECTURE.md)의 크기가 관리 가능한 수준인가?
-- 영향 파일: structure_spec.md (디렉토리 규칙), concepts.md (용어 추가)
+- Number of concepts in a single domain increasing from 50 → 200
+- Verification: Can concepts be classified within a maximum directory depth of 3 levels? (based on 3~20 files per directory)
+- Verification: When INDEX.md exceeds 20 files, can a sub-index be introduced?
+- Verification: Is the system map (ARCHITECTURE.md) size at a manageable level?
+- Affected files: structure_spec.md (directory rules), concepts.md (term additions)
 
-## Case 5: 컨텍스트 윈도우 변화
+## Case 5: Context Window Change
 
-- LLM의 컨텍스트 윈도우가 128K → 1M 토큰으로 확대되거나, 반대로 축소
-- 검증: structure_spec.md의 정량적 기준(줄 수 상한, 참조 체인 상한, 디렉토리 깊이)이 수정 가능한가?
-- 검증: 정량적 기준이 "경험적 기준"으로 표기되어 있어 변경 근거를 갱신할 수 있는가?
-- 검증: 윈도우 확대 시 파일 병합, 축소 시 파일 분리의 판단 기준이 structure_spec.md에서 도출 가능한가?
-- 영향 파일: structure_spec.md
+- LLM context window expanding from 128K → 1M tokens, or conversely shrinking
+- Verification: Can the quantitative criteria in structure_spec.md (line count upper limit, reference chain upper limit, directory depth) be modified?
+- Verification: Are quantitative criteria labeled as "empirical criteria" so the change basis can be updated?
+- Verification: When window expands, can file merging criteria be derived from structure_spec.md? When it shrinks, can file splitting criteria be derived?
+- Affected files: structure_spec.md
 
-## Case 6: 프로세스 흐름 변경
+## Case 6: Process Flow Change
 
-- 기존 프로세스(onboard → review → build)의 순서 변경 또는 새 프로세스 단계 삽입
-- 검증: 프로세스 문서가 도메인 문서와 독립적이어서, 도메인 문서 수정 없이 프로세스를 변경할 수 있는가?
-- 검증: 프로세스 간 의존이 명시되어 있어 순서 변경의 영향을 예측할 수 있는가?
-- 검증: 새 프로세스 단계가 기존 역할 정의와 호환되는가?
-- 영향 파일: 없음 (도메인 문서 독립)
+- Changing the order of existing processes (onboard → review → build) or inserting a new process step
+- Verification: Are process documents independent of domain documents so that processes can be changed without modifying domain documents?
+- Verification: Are inter-process dependencies specified so that the impact of order changes can be predicted?
+- Verification: Is the new process step compatible with existing role definitions?
+- Affected files: None (domain document independence)
 
-## Case 7: 멀티 에이전트 동시 작업
+## Case 7: Multi-Agent Concurrent Work
 
-- 여러 에이전트가 동일 도메인 문서를 동시에 참조하며 작업
-- 검증: 읽기 전용 참조만으로 각 에이전트가 독립적으로 판단할 수 있는가?
-- 검증: 에이전트 간 판단 결과가 충돌할 때 해소 절차가 정의되어 있는가? (process.md의 쟁점 토론)
-- 검증: 학습 항목의 동시 축적이 에이전트별 파일 분리로 충돌 없이 가능한가?
+- Multiple agents referencing the same domain documents concurrently while working
+- Verification: Can each agent make independent judgments with read-only references alone?
+- Verification: Is there a defined resolution procedure when agents' judgment results conflict? (deliberation in process.md)
+- Verification: Can concurrent learning item accumulation proceed without conflicts through per-agent file separation?
 
-## 관련 문서
-- structure_spec.md — Case 4, 5의 정량적 기준
-- dependency_rules.md — Case 1의 참조 무결성, Case 2의 상속 관계
-- concepts.md — Case 1의 동형이의어 등록
+## Related Documents
+- structure_spec.md — Quantitative criteria for Case 4 and 5
+- dependency_rules.md — Referential integrity for Case 1, inheritance relationships for Case 2
+- concepts.md — Homonym registration for Case 1

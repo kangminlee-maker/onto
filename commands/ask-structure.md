@@ -1,8 +1,8 @@
-# Onto Structure (구조적 완전성 검증)
+# Onto Structure (structural completeness verification)
 
-$ARGUMENTS를 구조적 완전성 검증자에게 질문합니다.
+Asks $ARGUMENTS to the structural completeness verification agent.
 
-에이전트 ID: `onto_structure`
+Agent ID: `onto_structure`
 
-`~/.claude/plugins/onto/process.md` (공통 정의)와
-`~/.claude/plugins/onto/processes/question.md`를 읽고 실행하세요.
+Read `~/.claude/plugins/onto/process.md` (common definitions) and
+`~/.claude/plugins/onto/processes/question.md`, then execute.

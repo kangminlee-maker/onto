@@ -1,100 +1,100 @@
-# UI Design Domain — 도메인 범위 정의
+# UI Design Domain — Domain Scope Definition
 
-이 도메인은 사용자 인터페이스(UI)의 구조, 패턴, 인터랙션 설계를 **검토**(리뷰)할 때 적용된다.
-UI 설계의 핵심 원리와 패턴을 기준으로 "있어야 하는데 없는 것"을 식별한다.
+This domain applies when **reviewing** the structure, patterns, and interaction design of user interfaces (UI).
+It identifies "what should be there but is missing" based on core principles and patterns of UI design.
 
-> **visual-design 도메인과의 경계**: visual-design은 색채, 타이포그래피, 구성, 브랜드 등 "시각적 표현 체계"를 다룬다. 본 도메인은 "인터페이스가 사용자의 의도를 수용하고 결과를 전달하는 구조"를 다룬다. 버튼의 색상과 서체는 visual-design 소관이고, 버튼이 어디에 놓이고 무엇을 피드백하며 언제 비활성화되는지는 본 도메인 소관이다.
+> **Boundary with visual-design domain**: visual-design covers the "visual expression system" including color, typography, composition, and branding. This domain covers "the structure through which the interface accommodates user intent and communicates results." Button color and typeface are under visual-design's jurisdiction; where a button is placed, what feedback it provides, and when it is disabled are under this domain's jurisdiction.
 
-## 주요 하위 영역
+## Key Sub-Areas
 
-분류 축: **UI 설계 관심사(UI design concern)** — 인터페이스가 다뤄야 하는 설계 관심사에 따라 분류한다.
+Classification axis: **UI design concern** — Classified by the design concern that the interface must address.
 
-### 내비게이션 (Navigation)
-- **정보 구조** (필수): 콘텐츠의 분류·계층 체계, 메뉴 구조, 사이트맵/앱맵
-- **내비게이션 패턴** (필수): 글로벌 내비게이션(탑바/사이드바), 로컬 내비게이션(탭/세그먼트), 보조 내비게이션(브레드크럼/페이지네이션)
-- **탐색 경로** (필수): 사용자가 원하는 정보/기능에 도달하는 경로의 수와 깊이. 3-클릭 규칙은 경험 법칙이지 절대 기준이 아니나, 경로 깊이가 깊을수록 이탈율이 증가한다
-- **검색** (해당 시): 검색 UI 패턴, 필터/정렬, 자동완성, 결과 없음 상태
+### Navigation
+- **Information Architecture** (required): Content classification and hierarchy, menu structure, sitemap/app map
+- **Navigation Patterns** (required): Global navigation (top bar/sidebar), local navigation (tabs/segments), secondary navigation (breadcrumbs/pagination)
+- **Navigation Paths** (required): Number and depth of paths for users to reach desired information/functionality. The 3-click rule is a rule of thumb, not an absolute standard, but deeper paths increase abandonment rates
+- **Search** (if applicable): Search UI patterns, filters/sorting, autocomplete, no-results state
 
-### 폼과 입력 (Forms & Input)
-- **폼 구조** (필수): 필드 그룹화, 논리적 순서, 단계 분할(multi-step), 필수/선택 구분
-- **입력 유형** (필수): 텍스트, 선택(select/radio/checkbox), 날짜/시간, 파일 업로드, 자유 입력 vs 제한 입력
-- **유효성 검증** (필수): 실시간 검증 vs 제출 시 검증, 인라인 에러 메시지, 에러 요약, 성공 피드백
-- **입력 보조** (필수): 플레이스홀더, 도움 텍스트, 입력 마스크, 기본값(default value), 자동완성
+### Forms and Input
+- **Form Structure** (required): Field grouping, logical order, multi-step division, required/optional distinction
+- **Input Types** (required): Text, selection (select/radio/checkbox), date/time, file upload, free input vs restricted input
+- **Validation** (required): Real-time validation vs on-submit validation, inline error messages, error summary, success feedback
+- **Input Aids** (required): Placeholders, help text, input masks, default values, autocomplete
 
-### 피드백과 상태 전달 (Feedback & Status)
-- **시스템 피드백** (필수): 성공/실패/경고/정보 메시지, 알림(notification), 토스트(toast), 배너(banner)
-- **로딩 상태** (필수): 스피너, 스켈레톤 스크린, 프로그레스 바, 낙관적 업데이트(optimistic update)
-- **빈 상태** (필수): 데이터 없음, 검색 결과 없음, 첫 사용 상태(onboarding) — 각각 다른 안내가 필요
-- **에러 상태** (필수): 네트워크 에러, 권한 에러, 404, 500 등 유형별 에러 페이지/상태
+### Feedback and Status
+- **System Feedback** (required): Success/failure/warning/info messages, notifications, toasts, banners
+- **Loading States** (required): Spinners, skeleton screens, progress bars, optimistic updates
+- **Empty States** (required): No data, no search results, first-use state (onboarding) — each requires different guidance
+- **Error States** (required): Network errors, permission errors, 404, 500, and other type-specific error pages/states
 
-### 데이터 표시 (Data Display)
-- **목록과 테이블** (필수): 리스트 뷰, 테이블, 카드 뷰, 그리드 뷰 — 데이터 특성에 따른 선택 기준
-- **정렬과 필터** (필수): 정렬 기준 표시, 활성 필터 표시, 필터 초기화, 복합 필터
-- **페이지네이션** (필수): 페이지 번호, 무한 스크롤, "더 보기" 버튼 — 데이터 양과 탐색 패턴에 따른 선택 기준
-- **데이터 시각화** (해당 시): 차트/그래프의 인터랙션(호버 정보, 줌, 필터), 대시보드 구성
+### Data Display
+- **Lists and Tables** (required): List view, table, card view, grid view — selection criteria based on data characteristics
+- **Sorting and Filtering** (required): Sort criteria display, active filter display, filter reset, compound filters
+- **Pagination** (required): Page numbers, infinite scroll, "load more" button — selection criteria based on data volume and browsing patterns
+- **Data Visualization** (if applicable): Chart/graph interactions (hover info, zoom, filter), dashboard composition
 
-### 모달과 오버레이 (Modal & Overlay)
-- **모달 다이얼로그** (필수): 사용 기준(언제 모달을 써야 하는가), 닫기 수단, 포커스 트랩, 배경 상호작용 차단
-- **드롭다운/팝오버** (필수): 트리거 요소, 위치 결정(placement), 충돌 회피(화면 가장자리), 닫기 조건
-- **바텀시트/드로어** (해당 시): 모바일 바텀시트, 사이드 드로어, 슬라이드오버 — 사용 맥락과 닫기 제스처
+### Modals and Overlays
+- **Modal Dialogs** (required): Usage criteria (when to use a modal), close mechanisms, focus trap, background interaction blocking
+- **Dropdowns/Popovers** (required): Trigger elements, placement, collision avoidance (screen edges), close conditions
+- **Bottom Sheets/Drawers** (if applicable): Mobile bottom sheets, side drawers, slide-overs — usage context and close gestures
 
-### 행동 유도와 의사결정 (Action & Decision)
-- **CTA 설계** (필수): 주요 행동(primary action)과 부수 행동(secondary action)의 시각적·위치적 구분
-- **파괴적 행동** (필수): 삭제, 취소 불가 작업에 대한 확인(confirmation) 패턴, 되돌리기(undo) 제공 여부
-- **선택과 비교** (해당 시): 옵션 제시 방식, 비교 UI, 추천/기본 선택(default selection)
-- **온보딩** (해당 시): 첫 사용 안내, 기능 발견(feature discovery), 코치마크(coach mark), 투어(tour)
+### Action and Decision
+- **CTA Design** (required): Visual and positional distinction between primary actions and secondary actions
+- **Destructive Actions** (required): Confirmation patterns for deletion, non-cancelable operations; whether undo is provided
+- **Choice and Comparison** (if applicable): Option presentation methods, comparison UI, recommendation/default selection
+- **Onboarding** (if applicable): First-use guidance, feature discovery, coach marks, tours
 
-### 반응형 UI 적응 (Responsive UI Adaptation)
-- **컴포넌트 적응** (필수): 화면 크기에 따른 컴포넌트 변형 — 데스크톱 테이블 → 모바일 카드, 탑바 → 바텀 내비게이션 등
-- **콘텐츠 우선순위** (필수): 화면이 줄어들 때 어떤 정보를 유지하고 어떤 정보를 축소/숨기는지의 기준
-- **터치 vs 포인터** (필수): 터치 대상 크기(44×44px 최소), 호버 의존 인터랙션의 터치 대안
+### Responsive UI Adaptation
+- **Component Adaptation** (required): Component variations based on screen size — desktop table → mobile card, top bar → bottom navigation, etc.
+- **Content Priority** (required): Criteria for what information to keep and what to reduce/hide when screen shrinks
+- **Touch vs Pointer** (required): Touch target size (44×44px minimum), touch alternatives for hover-dependent interactions
 
-### 접근성 인터랙션 (Accessible Interaction)
-- **키보드 탐색** (필수): 탭 순서(tab order), 포커스 관리, 키보드 단축키, 스킵 링크(skip link)
-- **스크린 리더** (필수): ARIA 역할(role), 상태(state), 속성(property), 라이브 영역(live region)
-- **인지 부하 관리** (필수): 정보의 점진적 공개(progressive disclosure), 인지 과부하 방지, 일관된 패턴 사용
+### Accessible Interaction
+- **Keyboard Navigation** (required): Tab order, focus management, keyboard shortcuts, skip links
+- **Screen Reader** (required): ARIA roles, states, properties, live regions
+- **Cognitive Load Management** (required): Progressive disclosure of information, preventing cognitive overload, consistent pattern usage
 
-## 필수 개념 범주
+## Required Concept Categories
 
-어떤 UI 설계에서든 다뤄져야 하는 개념 범주이다.
+Concept categories that must be addressed in any UI design.
 
-| 범주 | 설명 | 누락 시 위험 |
-|---|---|---|
-| 내비게이션 구조 (navigation structure) | 사용자가 원하는 곳에 도달하는 경로 체계 | 사용자가 길을 잃음, 이탈율 증가 |
-| 입력과 검증 (input & validation) | 사용자 데이터 수집과 오류 방지/안내 체계 | 폼 완료율 저하, 잘못된 데이터 수집 |
-| 피드백 체계 (feedback system) | 시스템 상태와 행동 결과를 전달하는 체계 | 사용자가 결과를 알 수 없음, 불안감 |
-| 에러/빈 상태 (error/empty state) | 예외 상황에서의 안내와 복구 경로 | 사용자 이탈, 막다른 길(dead end) |
-| 행동 유도 (call to action) | 주요 행동과 부수 행동의 구분과 배치 | 사용자가 다음 할 일을 모름 |
-| 정보 밀도 (information density) | 화면당 표시하는 정보의 양과 구성 | 과밀 시 인지 과부하, 과소 시 비효율 |
-| 접근성 인터랙션 (accessible interaction) | 키보드, 스크린 리더, 다양한 입력 수단 지원 | 사용자 배제, 법적 위반 |
-| source of truth | 인터페이스 패턴 결정의 권위 기준 (UI 패턴 라이브러리, 플랫폼 가이드라인) | 패턴 불일치 확산 |
+| Category | Description | Risk if Missing |
+|----------|------------|----------------|
+| Navigation structure | The route system for users to reach desired destinations | Users get lost, increased abandonment |
+| Input and validation | User data collection and error prevention/guidance system | Form completion rate decreases, incorrect data collected |
+| Feedback system | System for communicating system status and action results | Users cannot know results, anxiety |
+| Error/empty state | Guidance and recovery paths for exceptional situations | User abandonment, dead ends |
+| Call to action | Distinction and placement of primary and secondary actions | Users do not know what to do next |
+| Information density | Amount and composition of information displayed per screen | Cognitive overload when dense, inefficiency when sparse |
+| Accessible interaction | Support for keyboard, screen reader, and diverse input methods | User exclusion, legal violations |
+| Source of truth | Authoritative standard for interface pattern decisions (UI pattern library, platform guidelines) | Pattern inconsistency proliferation |
 
-## 참조 표준/프레임워크
+## Reference Standards/Frameworks
 
-| 표준/프레임워크 | 활용 영역 | 핵심 내용 |
-|---|---|---|
-| Nielsen's 10 Usability Heuristics | 전체 UI 평가 | 시스템 상태 가시성, 일관성, 에러 방지 등 10대 사용성 원칙 |
-| Fitts's Law | 행동 유도/레이아웃 | 대상까지의 거리와 크기가 클릭 시간을 결정. 주요 행동은 크고 가까이 |
-| Hick's Law | 선택/의사결정 | 선택지 수가 증가하면 의사결정 시간이 로그적으로 증가. 선택지 제한 또는 분류 필요 |
-| Miller's Law | 정보 구조 | 작업 기억의 용량은 7±2 청크. 정보 그룹화와 청킹(chunking) 필요 |
-| Jakob's Law | 일관성 | 사용자는 다른 사이트에서의 경험을 기대한다. 관행(convention)을 따르되, 이탈 시 이유 명시 |
-| WAI-ARIA | 접근성 | 동적 UI의 접근성을 보장하는 역할, 상태, 속성 표준 |
-| WCAG 2.1/2.2 | 접근성 | 인식/운용/이해/견고함 4원칙. UI 인터랙션의 접근성 기준 |
-| Material Design / HIG | 플랫폼 패턴 | Android/iOS 플랫폼별 UI 패턴과 컴포넌트 가이드라인 |
+| Standard/Framework | Application Area | Core Content |
+|-------------------|-----------------|--------------|
+| Nielsen's 10 Usability Heuristics | Overall UI evaluation | 10 usability principles including system status visibility, consistency, error prevention |
+| Fitts's Law | Action guidance/layout | Distance and size to target determine click time. Primary actions should be large and close |
+| Hick's Law | Choice/decision-making | Decision time increases logarithmically with number of choices. Limit or categorize choices |
+| Miller's Law | Information architecture | Working memory capacity is 7±2 chunks. Information grouping and chunking are needed |
+| Jakob's Law | Consistency | Users expect experiences from other sites. Follow conventions; when deviating, state the reason |
+| WAI-ARIA | Accessibility | Standard for roles, states, and properties to ensure dynamic UI accessibility |
+| WCAG 2.1/2.2 | Accessibility | 4 principles: perceivable, operable, understandable, robust. Accessibility criteria for UI interaction |
+| Material Design / HIG | Platform patterns | Platform-specific UI patterns and component guidelines for Android/iOS |
 
-## 편중 감지 기준
+## Bias Detection Criteria
 
-- 8개 관심사 영역 중 3개 이상이 전혀 표현되지 않으면 → **포괄성 부족**
-- 특정 영역의 패턴이 전체의 70% 이상을 차지하면 → **편중 경고**
-- 정상 상태(happy path)만 정의되고 에러/빈 상태가 없으면 → **예외 상태 공백**
-- 데스크톱 UI만 정의되고 모바일 적응이 없으면 → **반응형 부재** (모바일 사용이 해당되는 경우)
-- 입력 UI가 있으나 유효성 검증 패턴이 없으면 → **검증 체계 부재**
-- 비동기 작업이 있으나 로딩/실패 상태가 없으면 → **상태 전달 부재**
-- 시각적 패턴만 있고 키보드/스크린 리더 대응이 없으면 → **접근성 공백**
-- source of truth가 지정되지 않은 핵심 패턴이 2개 이상이면 → **권위 미지정**
-- CTA가 한 화면에 3개 이상 동등한 강도로 존재하면 → **행동 유도 경합**
+- If 3 or more of the 8 concern areas are not represented at all → **insufficient coverage**
+- If patterns in a specific area account for more than 70% of the total → **bias warning**
+- If only the happy path is defined and error/empty states are missing → **exception state gap**
+- If only desktop UI is defined and mobile adaptation is missing → **responsive absence** (when mobile use is applicable)
+- If input UI exists but validation patterns are missing → **validation system absence**
+- If asynchronous operations exist but loading/failure states are missing → **status communication absence**
+- If only visual patterns exist without keyboard/screen reader support → **accessibility gap**
+- If 2 or more core patterns have no designated source of truth → **authority undesignated**
+- If 3 or more CTAs of equal emphasis exist on a single screen → **action guidance competition**
 
-## 관련 문서
-- concepts.md — 이 범위 내 용어의 정의
-- structure_spec.md — UI 설계의 구조적 요건
-- competency_qs.md — 이 범위가 답할 수 있어야 하는 질문
+## Related Documents
+- concepts.md — Term definitions within this scope
+- structure_spec.md — UI design structural requirements
+- competency_qs.md — Questions this scope must be able to answer

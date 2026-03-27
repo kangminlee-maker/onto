@@ -1,87 +1,87 @@
-# LLM-Native Development Domain — 도메인 범위 정의
+# LLM-Native Development Domain — Domain Scope Definition
 
-onto_coverage가 LLM-native 체계에서 "있어야 하는데 없는 것"을 식별할 때 사용하는 기준 문서입니다.
+The reference document used by onto_coverage when identifying "what should be there but is missing" in an LLM-native system.
 
-## 적용 범위
+## Application Scope
 
-이 도메인은 LLM이 주요 소비자이자 생산자인 시스템을 설계·구축할 때 적용됩니다.
-**이 도메인의 규칙은 LLM의 읽기(소비)와 쓰기(생성) 양쪽에 적용됩니다.**
+This domain applies when designing and building systems where LLMs are the primary consumers and producers.
+**The rules of this domain apply to both LLM reading (consumption) and writing (generation).**
 
-## 주요 하위 영역
+## Key Sub-Areas
 
-분류 축: **관심사(concern)** — 각 영역이 다루는 설계 관심사가 무엇인지에 따라 분류합니다. 필수/선택 구분은 각 영역의 설명에 명시합니다.
+Classification axis: **Concern** — Classified by the design concern each area addresses. Required/optional distinction is specified in each area's description.
 
-### 지식 구조화 (Knowledge Structuring)
-LLM이 도메인 지식을 탐색·이해·생성하는 데 필요한 구조적 기반입니다.
+### Knowledge Structuring
+The structural foundation needed for LLMs to explore, understand, and generate domain knowledge.
 
-- **도메인 지식 인코딩** (필수): 개념을 파일 단위로 인코딩. YAML frontmatter + Markdown 본문 형식. 개념 간 관계를 frontmatter에 명시
-- **명명과 탐색** (필수): 파일명·폴더명이 내용의 역할을 직접 표현. 네비게이션 인덱스(INDEX.md) 제공. 디렉토리 깊이 제한
-- **시스템 맵** (필수): ARCHITECTURE.md 또는 llms.txt로 전체 구조를 단일 문서로 제공. 단계적 상세화(개요→상세) 지원
-- **개념 사전과 관계 유형** (필수): 도메인 용어의 정의, 동형이의어 처리, 관계 유형(is-a, part-of, depends-on 등) 분류
+- **Domain Knowledge Encoding** (required): Encoding concepts at the file level. YAML frontmatter + Markdown body format. Inter-concept relationships specified in frontmatter
+- **Naming and Navigation** (required): Filenames and folder names directly express content roles. Navigation index (INDEX.md) provided. Directory depth limited
+- **System Map** (required): ARCHITECTURE.md or llms.txt providing the entire structure as a single document. Supports progressive detail (overview → detail)
+- **Concept Dictionary and Relationship Types** (required): Domain term definitions, homonym handling, relationship type classification (is-a, part-of, depends-on, etc.)
 
-### 개발 프로세스 (Development Process)
-LLM이 산출물을 생성할 때 따라야 하는 절차와 기준입니다.
+### Development Process
+The procedures and criteria that LLMs must follow when generating artifacts.
 
-- **Spec-First 개발** (필수): 구현 전 spec.md 작성. 스펙과 구현의 추적 관계 유지
-- **문서 생명주기** (필수): 문서 생성·갱신·폐기 절차. 정합성 검증 트리거
-- **변경 추적** (필수): 변경의 원자성 정의. diff 가독성 기준. 갱신 이력 관리(git 위임 또는 frontmatter 기록)
+- **Spec-First Development** (required): Write spec.md before implementation. Maintain traceability between spec and implementation
+- **Document Lifecycle** (required): Document creation, update, and deprecation procedures. Conformance verification triggers
+- **Change Tracking** (required): Definition of change atomicity. Diff readability criteria. Update history management (delegated to git or frontmatter recording)
 
-### 소비 인터페이스 (Consumption Interface)
-LLM이 체계를 효율적으로 소비하기 위한 설계 제약입니다.
+### Consumption Interface
+Design constraints for LLMs to efficiently consume the system.
 
-- **컨텍스트 윈도우 설계** (필수): 단일 파일 토큰 예산 관리. 참조 체인 깊이 제한. 진입점에서 목표까지 최소 탐색 경로
-- **프롬프트/인터페이스 설계** (필수): 시스템 프롬프트 구조. 도구 정의(tool schema). 응답 형식 제약(structured output). 역할 정의 문서의 구조
+- **Context Window Design** (required): Single file token budget management. Reference chain depth limits. Minimal traversal path from entry point to target
+- **Prompt/Interface Design** (required): System prompt structure. Tool definitions (tool schema). Response format constraints (structured output). Role definition document structure
 
-### 품질 보증 (Quality Assurance)
-LLM 산출물과 체계 자체의 정합성을 검증하는 기준입니다.
+### Quality Assurance
+Criteria for verifying the conformance of LLM artifacts and the system itself.
 
-- **검증 기준** (필수): LLM 산출물의 올바름을 판정하는 기준. frontmatter 스키마 검증, 참조 무결성 검사
-- **검증 절차** (규모에 따라): 검증 실행의 시점, 순서, 자동화 수준
+- **Verification Criteria** (required): Criteria for determining correctness of LLM artifacts. Frontmatter schema verification, referential integrity checking
+- **Verification Procedures** (scale-dependent): Timing, order, and automation level of verification execution
 
-### 협업과 확장 (Collaboration & Scaling)
-멀티 에이전트 환경과 규모 확장에 대응하는 설계입니다.
+### Collaboration and Scaling
+Design for multi-agent environments and scale expansion.
 
-- **에이전트 역할 체계** (필수): 에이전트 역할 분리, 역할-도메인 문서 매핑, 공유 지식 구조
-- **학습 축적 체계** (규모에 따라): 에이전트가 발견한 지식의 저장·승격·적용 경로
-- **도메인 전환** (규모에 따라): 동일 구조로 다른 도메인에 적용하는 재사용 전략
+- **Agent Role System** (required): Agent role separation, role-domain document mapping, shared knowledge structure
+- **Learning Accumulation System** (scale-dependent): Storage, promotion, and application paths for knowledge discovered by agents
+- **Domain Switching** (scale-dependent): Reuse strategy for applying the same structure to different domains
 
-### 물리적 배치 (Physical Layout)
-파일/폴더의 물리적 구조에 대한 규칙입니다.
+### Physical Layout
+Rules for file/folder physical structure.
 
-- **모노레포 구성** (규모에 따라): 단일 저장소에서 도메인·프로세스·역할을 통합 관리
-- **계층 설계** (필수): domain → process → role의 3계층 또는 유사 계층 구조
+- **Monorepo Configuration** (scale-dependent): Unified management of domains, processes, and roles in a single repository
+- **Layer Design** (required): 3-layer structure of domain → process → role, or similar hierarchy
 
-## 필수 개념 범주
+## Required Concept Categories
 
-어떤 LLM-native 체계에서든 다뤄져야 하는 개념 범주입니다.
+Concept categories that must be addressed in any LLM-native system.
 
-| 범주 | 설명 | 누락 시 위험 |
-|---|---|---|
-| 진입 경로 (entry path) | LLM이 체계를 처음 만났을 때 읽어야 할 시작 파일 | 탐색 비용 폭발, 컨텍스트 낭비 |
-| 개념 정의 (concept definition) | 도메인 용어의 정의와 관계 | 해석 불일치, 환각(hallucination) |
-| 탐색 경로 (navigation path) | 파일 A에서 관련 파일 B로 이동하는 명시적 참조 | 고립 문서, 단절된 추론 |
-| 제약 조건 (constraints) | 구조·명명·형식에 대한 명시적 규칙 | 일관성 붕괴, 자동화 불가 |
-| 변경 이력 (change history) | 문서의 변경 이유와 시점 | 맥락 없는 갱신, 퇴행 |
-| 역할 정의 (role definition) | 에이전트의 관점, 판단 기준, 담당 문서 | 검증 누락, 역할 중복 |
+| Category | Description | Risk if Missing |
+|----------|------------|----------------|
+| Entry path | The starting file the LLM should read when first encountering the system | Exploration cost explosion, context waste |
+| Concept definition | Domain term definitions and relationships | Interpretation inconsistency, hallucination |
+| Navigation path | Explicit references for moving from file A to related file B | Isolated documents, severed reasoning |
+| Constraints | Explicit rules for structure, naming, and format | Consistency collapse, automation impossible |
+| Change history | Document change reasons and timing | Context-free updates, regressions |
+| Role definition | Agent perspective, judgment criteria, assigned documents | Verification omission, role overlap |
 
-## 참조 표준/프레임워크
+## Reference Standards/Frameworks
 
-| 표준 | 활용 위치 | 활용 방식 |
-|---|---|---|
-| llms.txt 명세 | 시스템 맵, 컨텍스트 윈도우 설계 | 진입점 구조, 단계적 상세화 패턴 참조 |
-| Diátaxis 문서 프레임워크 | 문서 생명주기 | 문서 유형 분류(Tutorial/How-to/Reference/Explanation) 기준 |
-| Ontology Design Patterns | 개념 사전, 관계 유형 | 관계 패턴(is-a, part-of, has-role) 분류 기준 |
-| LLM 지시 파일 관례 (CLAUDE.md, AGENTS.md, .cursorrules 등) | 시스템 맵, Spec-First | 프로젝트별 LLM 지시 문서의 구조와 크기 제한 기준. 벤더별 관례는 structure_spec.md 참조 |
+| Standard | Application | Usage |
+|----------|-----------|-------|
+| llms.txt specification | System map, context window design | Entry point structure, progressive detail pattern reference |
+| Diataxis documentation framework | Document lifecycle | Document type classification (Tutorial/How-to/Reference/Explanation) criteria |
+| Ontology Design Patterns | Concept dictionary, relationship types | Relationship pattern (is-a, part-of, has-role) classification criteria |
+| LLM instruction file conventions (CLAUDE.md, AGENTS.md, .cursorrules, etc.) | System map, Spec-First | Structure and size limit criteria for project-specific LLM instruction documents. Vendor-specific conventions reference structure_spec.md |
 
-## 편중 감지 기준
+## Bias Detection Criteria
 
-- 6개 관심사 영역 중 3개 이상이 전혀 표현되지 않으면 → **포괄성 부족**
-- 읽기(소비) 구조만 있고 쓰기(생성) 구조가 없으면 → **생산자 관점 부재**
-- 문서 생성 절차만 있고 갱신/폐기 절차가 없으면 → **생명주기 불완전**
-- 단일 에이전트 사용만 가정하고 멀티 에이전트 시나리오가 없으면 → **확장성 편중**
-- 검증 기준 없이 생성 규칙만 있으면 → **품질 보증 부재**
+- If 3 or more of the 6 concern areas are not represented at all → **insufficient coverage**
+- If only reading (consumption) structure exists without writing (generation) structure → **producer perspective absent**
+- If only document creation procedures exist without update/deprecation procedures → **lifecycle incomplete**
+- If only single-agent use is assumed without multi-agent scenarios → **scalability bias**
+- If only generation rules exist without verification criteria → **quality assurance absent**
 
-## 관련 문서
-- concepts.md — 이 범위 내 용어의 정의
-- structure_spec.md — 물리적 배치의 구체적 규칙
-- competency_qs.md — 이 범위가 답할 수 있어야 하는 질문
+## Related Documents
+- concepts.md — Term definitions within this scope
+- structure_spec.md — Specific rules for physical layout
+- competency_qs.md — Questions this scope must be able to answer

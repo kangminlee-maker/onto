@@ -1,53 +1,53 @@
-# Accounting Domain — 구조 명세
+# Accounting Domain — Structure Specification
 
-## 재무제표 구조 필수 요소
+## Financial Statement Structure Required Elements
 
-- **재무상태표**: 자산(유동/비유동), 부채(유동/비유동), 자본의 3구역 구조. 자산 = 부채 + 자본 항등식 준수
-- **포괄손익계산서**: 매출→매출원가→매출총이익→판관비→영업이익→금융수익/비용→법인세비용→당기순이익→기타포괄손익→총포괄이익 순서 구조
-- **현금흐름표**: 영업활동/투자활동/재무활동의 3구역 구조. 기초현금 + 변동 = 기말현금
-- **주석**: 중요한 회계정책, 추정 불확실성, 세부 내역, 관련 당사자 거래의 4영역 구조
+- **Statement of Financial Position (재무상태표)**: 3-section structure of assets (current/non-current), liabilities (current/non-current), and equity. Complies with the Assets = Liabilities + Equity identity
+- **Statement of Comprehensive Income (포괄손익계산서)**: sequential structure of revenue -> cost of goods sold -> gross profit -> SG&A -> operating income -> financial income/expenses -> income tax expense -> net income -> Other Comprehensive Income (기타포괄손익) -> total comprehensive income
+- **Statement of Cash Flows (현금흐름표)**: 3-section structure of operating/investing/financing activities. Opening cash + change = closing cash
+- **Notes**: 4-area structure covering significant accounting policies, estimation uncertainty, detailed breakdowns, and related party transactions
 
-## 계정과목 체계
+## Chart of Accounts
 
-- 1수준: 자산(1), 부채(2), 자본(3), 수익(4), 비용(5) — 5대 분류
-- 2수준: 유동자산(11), 비유동자산(12), 유동부채(21), 비유동부채(22) 등 — 성격별 분류
-- 3수준: 개별 계정과목(현금및현금성자산, 매출채권, 재고자산 등) — 거래 기록 단위
-- 보조원장: 개별 계정과목의 상세 내역(거래처별, 자산별) — 원장의 보충 정보
+- Level 1: Assets (1), Liabilities (2), Equity (3), Revenue (4), Expenses (5) — 5 major classifications
+- Level 2: Current assets (11), Non-current assets (12), Current liabilities (21), Non-current liabilities (22), etc. — classification by nature
+- Level 3: Individual accounts (Cash and Cash Equivalents (현금및현금성자산), Trade Receivables (매출채권), Inventories (재고자산), etc.) — transaction recording units
+- Subsidiary ledgers: detailed breakdowns of individual accounts (by counterparty, by asset) — supplementary information for the General Ledger (총계정원장)
 
-## 필수 관계
+## Required Relations
 
-- 모든 분개는 최소 1개의 차변 계정과 1개의 대변 계정을 가져야 한다
-- 모든 계정과목은 5대 분류 중 정확히 하나에 속해야 한다
-- 재무제표 간 교차 검증 포인트가 존재해야 한다 (예: 당기순이익이 손익계산서와 자본변동표에서 일치)
-- 주석 번호와 재무제표 본문의 참조가 상호 대응해야 한다
+- Every Journal Entry (분개) must have at least 1 Debit (차변) account and 1 Credit (대변) account
+- Every account must belong to exactly one of the 5 major classifications
+- Cross-verification points must exist between financial statements (e.g., net income must match between the income statement and the Statement of Changes in Equity (자본변동표))
+- Note numbers and main statement references must correspond to each other
 
-## 계층 구조 원칙
+## Hierarchy Structure Principles
 
-- 분개(거래) → 원장(계정별 집계) → 시산표(전체 균형 검증) → 재무제표(보고): 상향 집계 구조
-- 하위 수준의 변경은 반드시 상위 수준에 반영되어야 한다. 분개 수정 시 원장과 재무제표가 연동
-- 주석은 재무제표 본문의 보충이다. 주석만으로 본문 항목의 의미를 변경할 수 없다
+- Journal Entry (분개, transaction) -> Ledger (account-level aggregation) -> Trial Balance (시산표, overall balance verification) -> Financial statements (reporting): upward aggregation structure
+- Changes at lower levels must be reflected at upper levels. When a Journal Entry (분개) is modified, the ledger and financial statements must update accordingly
+- Notes are supplementary to the main financial statements. Notes alone cannot change the meaning of main statement items
 
-## 분류 기준
+## Classification Criteria
 
-- **유동/비유동 분류**: 보고기간 후 12개월 이내에 실현/결제 예상 여부. 영업주기가 12개월 초과 시 영업주기 기준
-- **영업/비영업 분류**: 기업의 주된 영업활동과 직접 관련 여부
-- **경상/비경상 분류**: K-IFRS에서는 특별항목(extraordinary items) 표시를 금지. 모든 항목은 영업/비영업으로만 분류
+- **Current/non-current classification**: whether realization/settlement is expected within 12 months after the reporting period. When the operating cycle exceeds 12 months, the operating cycle criterion applies
+- **Operating/non-operating classification**: whether directly related to the entity's primary operating activities
+- **Recurring/non-recurring classification**: K-IFRS prohibits the presentation of extraordinary items. All items are classified only as operating/non-operating
 
-## 검증 구조
+## Verification Structure
 
-- 월별 마감: 시산표 균형 검증, 은행잔고 조정, 미수/미지급 확인
-- 분기 마감: 월별 검증 + 수익/비용 기간 귀속 검증, 감가상각 계상
-- 연간 결산: 분기 검증 + 자산 실사, 손상 검토, 이연법인세 재계산, 주석 작성
-- 각 검증 단계의 완료 기준과 검증 증거(evidence)를 명시해야 감사 추적 가능
+- Monthly closing: Trial Balance (시산표) balance verification, bank reconciliation, receivable/payable confirmation
+- Quarterly closing: monthly verification + revenue/expense period attribution verification, depreciation recording
+- Annual closing: quarterly verification + asset physical count, impairment review, Deferred Tax (이연법인세) recalculation, note preparation
+- Completion criteria and verification evidence must be stated at each verification stage to enable audit trail
 
-## 고립 노드 금지
+## Isolated Node Prohibition
 
-- 분개에 사용되지 않는 계정과목 → 경고 (사용되지 않는 계정)
-- 재무제표에 표시되지 않는 원장 잔액 → 경고 (누락된 보고 항목)
-- 주석에서 참조하지 않는 재무제표 항목(중요한 경우) → 경고 (공시 누락)
-- 기준서에 정의되지 않은 분류 항목 → 경고 (비표준 분류)
+- Accounts not used in any Journal Entry (분개) -> warning (unused account)
+- Ledger balances not presented in financial statements -> warning (omitted reporting item)
+- Financial statement items not referenced in notes (when material) -> warning (disclosure omission)
+- Classification items not defined in any standard -> warning (non-standard classification)
 
-## 관련 문서
-- concepts.md — 계정과목, 재무제표 등 용어 정의
-- dependency_rules.md — 재무제표 간 연결, 기준서 간 의존
-- competency_qs.md — Q7~Q10 (재무제표 구조 질문)
+## Related Documents
+- concepts.md — definitions of accounts, financial statements, and other terms
+- dependency_rules.md — inter-financial-statement linkage, inter-standard dependencies
+- competency_qs.md — Q7~Q10 (financial statement structure questions)

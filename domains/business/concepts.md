@@ -1,99 +1,99 @@
-# Business Domain — 개념 사전 및 해석 규칙
+# Business Domain — Concept Dictionary and Interpretation Rules
 
-## 전략 경영 핵심 용어
+## Strategic Management Core Terms
 
-- Strategy = 전략 → 장기적 목표 달성을 위한 자원 배분과 경쟁 방식의 선택
-- Competitive Advantage = 경쟁 우위 → 경쟁자 대비 지속 가능한 차별적 가치 원천. Porter는 원가우위/차별화/집중 3가지로 구분
-- VRIO = 가치(Value), 희소성(Rarity), 모방불가능성(Imitability), 조직(Organization) → 자원/역량이 지속적 경쟁 우위를 제공하는지 판단하는 프레임워크. 4가지 조건을 모두 충족해야 지속적 우위
-- Blue Ocean Strategy = 블루오션 전략 → 기존 시장(Red Ocean)에서 경쟁하는 대신, 경쟁이 없는 새로운 시장 공간을 창출하는 전략. 핵심 도구: 전략 캔버스, ERRC(제거-감소-증가-창조) 격자
-- Ansoff Matrix = 앤소프 매트릭스 → 성장 전략을 시장(기존/신규) × 제품(기존/신규)의 2×2로 분류: 시장침투, 시장개발, 제품개발, 다각화
-- BCG Matrix = BCG 매트릭스 → 시장성장률과 상대적 시장점유율로 사업 포트폴리오를 Star/Cash Cow/Question Mark/Dog로 분류
-- Value Proposition = 가치 제안 → 고객에게 제공하는 구체적 편익의 약속. 경쟁 대안 대비 차별적 가치를 명시해야 의미가 있다
+- Strategy = the selection of resource allocation and competitive approaches for achieving long-term goals
+- Competitive Advantage = a sustainable, differentiating source of value relative to competitors. Porter classifies this into 3 types: cost leadership/differentiation/focus
+- VRIO = Value, Rarity, Imitability, Organization. A framework for determining whether a resource/capability provides sustainable competitive advantage. All 4 conditions must be met for sustainable advantage
+- Blue Ocean Strategy = instead of competing in existing markets (Red Ocean), a strategy for creating new, uncontested market space. Key tools: strategy canvas, ERRC (Eliminate-Reduce-Raise-Create) grid
+- Ansoff Matrix = classifies growth strategies into a 2x2 matrix of market (existing/new) x product (existing/new): market penetration, market development, product development, diversification
+- BCG Matrix = classifies a business portfolio as Star/Cash Cow/Question Mark/Dog based on market growth rate and relative market share
+- Value Proposition = a promise of specific benefits provided to the customer. Meaningful only when differentiating value relative to competitive alternatives is stated
 
-## 마케팅 핵심 용어
+## Marketing Core Terms
 
-- STP = Segmentation(시장 세분화), Targeting(목표 시장 선택), Positioning(포지셔닝) → 시장 전략의 3단계 프로세스
-- 4P = Product(제품), Price(가격), Place(유통), Promotion(촉진) → 마케팅 믹스의 기본 프레임워크
-- 7P = 4P + People(사람), Process(프로세스), Physical Evidence(물리적 증거) → 서비스 마케팅 확장
-- Customer Journey = 고객 여정 → 인지→관심→고려→구매→사용→충성의 전체 경험 경로. 각 단계의 접점(touchpoint)과 전환율이 측정 대상
-- Brand Equity = 브랜드 자산 → 브랜드가 제품/서비스에 부여하는 추가 가치. Keller 모델: 브랜드 인지→브랜드 연상→브랜드 반응→브랜드 관계의 4계층
+- STP = Segmentation, Targeting, Positioning. A 3-step process for market strategy
+- 4P = Product, Price, Place, Promotion. The basic marketing mix framework
+- 7P = 4P + People, Process, Physical Evidence. Extended for service marketing
+- Customer Journey = the entire experience path from awareness -> interest -> consideration -> purchase -> use -> loyalty. Touchpoints and conversion rates at each stage are the measurement targets
+- Brand Equity = the additional value a brand confers on products/services. Keller model: 4 layers of brand awareness -> brand association -> brand response -> brand relationship
 
-## 재무 관리 핵심 용어
+## Finance Core Terms
 
-- NPV = 순현재가치(Net Present Value) → 투자로 발생하는 미래 현금흐름을 할인율로 현재 가치로 환산한 합. NPV > 0이면 투자 가치 있음
-- IRR = 내부수익률(Internal Rate of Return) → NPV를 0으로 만드는 할인율. WACC보다 높으면 투자 수용
-- WACC = 가중평균자본비용(Weighted Average Cost of Capital) → 자기자본비용과 타인자본비용의 가중평균. 투자 의사결정의 할인율 기준
-- Capital Structure = 자본 구조 → 자기자본과 타인자본의 구성 비율. Modigliani-Miller 정리: 완전시장에서 자본구조는 기업가치에 무관, 현실에서는 세금효과/파산비용으로 최적 구조 존재
-- Working Capital = 운전자본 → 유동자산 - 유동부채. 일상 운영에 필요한 단기 자금
-- CCC = 현금전환주기(Cash Conversion Cycle) → 재고→매출→현금 회수까지 걸리는 기간. 짧을수록 유동성 양호
-- ROI = 투자수익률 → (순이익 / 투자금액) × 100. 투자 의사결정의 기본 지표
-- DCF = 할인현금흐름(Discounted Cash Flow) → 미래 현금흐름을 현재 가치로 환산하여 기업/프로젝트를 평가하는 방법
+- NPV = Net Present Value. The sum of future cash flows from an investment, discounted to present value. If NPV > 0, the investment is worthwhile
+- IRR = Internal Rate of Return. The discount rate that makes NPV equal to 0. If higher than WACC, the investment is accepted
+- WACC = Weighted Average Cost of Capital. The weighted average of cost of equity and cost of debt. The discount rate basis for investment decisions
+- Capital Structure = the composition ratio of equity and debt. Modigliani-Miller theorem: in a perfect market, capital structure is irrelevant to firm value; in practice, an optimal structure exists due to tax benefits/bankruptcy costs
+- Working Capital = current assets - current liabilities. Short-term funds needed for daily operations
+- CCC = Cash Conversion Cycle. The time from inventory -> sales -> cash collection. Shorter is better for liquidity
+- ROI = Return on Investment. (Net profit / investment amount) x 100. A basic metric for investment decisions
+- DCF = Discounted Cash Flow. A method of valuing a company/project by discounting future cash flows to present value
 
-## 운영 관리 핵심 용어
+## Operations Management Core Terms
 
-- Lean = 린 → 고객에게 가치를 제공하지 않는 모든 활동(낭비)을 제거하는 철학. 7대 낭비: 과잉생산, 대기, 운반, 과잉가공, 재고, 동작, 불량
-- Six Sigma = 식스 시그마 → 프로세스 변동을 줄여 품질을 개선하는 방법론. DMAIC(Define-Measure-Analyze-Improve-Control) 5단계
-- TOC = 제약이론(Theory of Constraints) → 시스템 성과는 가장 약한 고리(병목)에 의해 결정된다. 병목을 식별하고 최적화하는 5단계 집중 개선 프로세스
-- Supply Chain Management = 공급망 관리 → 원자재 조달부터 최종 고객 전달까지의 전체 흐름 최적화
-- Automation = 자동화 → 수작업을 기계/시스템으로 대체하는 것. 범위의 시작점과 끝점이 정의되어야 성과 측정이 가능
+- Lean = a philosophy of eliminating all activities that do not provide value to the customer (waste). 7 types of waste: overproduction, waiting, transportation, over-processing, inventory, motion, defects
+- Six Sigma = a methodology for improving quality by reducing process variation. DMAIC (Define-Measure-Analyze-Improve-Control) 5 stages
+- TOC = Theory of Constraints. System performance is determined by the weakest link (bottleneck). A 5-step focused improvement process for identifying and optimizing bottlenecks
+- Supply Chain Management = optimization of the entire flow from raw material procurement to final customer delivery
+- Automation = replacing manual work with machines/systems. Start and end points of scope must be defined for performance measurement to be possible
 
-## 조직/인사 핵심 용어
+## Organization/HR Core Terms
 
-- Mintzberg's Structures = 민츠버그의 조직 구조 → 단순구조, 기계적 관료제, 전문적 관료제, 사업부제, 애드호크라시의 5대 유형. 조직의 규모/환경/기술에 따라 적합한 구조가 다르다
-- Agency Theory = 대리인 이론 → 주인(소유자)과 대리인(경영자) 간 이해 불일치에서 발생하는 문제. 해결 수단: 인센티브 정렬, 모니터링, 계약 설계
-- Stakeholder Theory = 이해관계자 이론 → 기업은 주주뿐 아니라 모든 이해관계자(직원, 고객, 공급자, 지역사회 등)의 이해를 고려해야 한다
-- Competency Model = 역량 모델 → 성과를 결정하는 지식, 기술, 행동 특성의 체계. 채용/평가/개발의 기준
-- Talent Pipeline = 인재 파이프라인 → 조직 내 핵심 직위에 대한 후보자 풀을 체계적으로 확보/육성하는 프로세스
-- Change Management = 변화관리 → 조직 변화의 계획, 실행, 정착을 관리하는 체계적 접근
-- Kotter's 8 Steps = 코터의 8단계 → 위기감 조성→연합 구축→비전 수립→비전 전달→장애물 제거→단기 성과→성과 확대→문화 정착
-- ADKAR = 인식(Awareness)→욕구(Desire)→지식(Knowledge)→능력(Ability)→강화(Reinforcement) → 개인 수준의 변화관리 모델
+- Mintzberg's Structures = 5 organizational structure types: simple structure, machine bureaucracy, professional bureaucracy, divisionalized form, adhocracy. The appropriate structure varies by organizational size/environment/technology
+- Agency Theory = problems arising from misalignment of interests between principals (owners) and agents (managers). Solutions: incentive alignment, monitoring, contract design
+- Stakeholder Theory = a firm should consider the interests of all stakeholders (employees, customers, suppliers, communities, etc.), not just shareholders
+- Competency Model = a system of knowledge, skills, and behavioral characteristics that determine performance. The basis for hiring/evaluation/development
+- Talent Pipeline = a process for systematically securing and developing candidate pools for key positions within the organization
+- Change Management = a systematic approach to planning, executing, and institutionalizing organizational change
+- Kotter's 8 Steps = establish urgency -> build coalition -> form vision -> communicate vision -> remove obstacles -> generate short-term wins -> consolidate gains -> anchor in culture
+- ADKAR = Awareness -> Desire -> Knowledge -> Ability -> Reinforcement. An individual-level change management model
 
-## 혁신 관리 핵심 용어
+## Innovation Management Core Terms
 
-- Disruptive Innovation = 파괴적 혁신 → Christensen의 이론. 기존 시장의 하위 또는 비소비 시장에서 시작하여 기존 강자를 대체하는 혁신. 존속적 혁신(기존 제품의 점진적 개선)과 구분
-- Technology Adoption Lifecycle = 기술 수용 주기 → 혁신자(2.5%)→초기수용자(13.5%)→전기다수(34%)→후기다수(34%)→지각수용자(16%). 초기수용자와 전기다수 사이의 간극이 캐즘(Chasm)
-- Design Thinking = 디자인 사고 → 사용자 중심의 문제 해결 방법론. 5단계: 공감(Empathize)→정의(Define)→아이디어(Ideate)→프로토타입(Prototype)→테스트(Test)
+- Disruptive Innovation = Christensen's theory. Innovation that starts in the low end or non-consumption segment of existing markets and eventually displaces incumbents. Distinct from sustaining innovation (incremental improvement of existing products)
+- Technology Adoption Lifecycle = innovators (2.5%) -> early adopters (13.5%) -> early majority (34%) -> late majority (34%) -> laggards (16%). The gap between early adopters and early majority is the Chasm
+- Design Thinking = a user-centered problem-solving methodology. 5 stages: Empathize -> Define -> Ideate -> Prototype -> Test
 
-## 거버넌스/리스크 핵심 용어
+## Governance/Risk Core Terms
 
-- Governance = 거버넌스 → 의사결정 권한의 배분, 책임 구조, 통제 체계. ESG와 별도 개념
-- COSO ERM = 전사적 리스크 관리 프레임워크 → 전략/운영/보고/규제준수 4대 목표에 대한 리스크를 구성요소별(거버넌스/전략/성과/검토/정보)로 관리
-- Stakeholder = 이해관계자 → 사업 활동에 영향을 주거나 받는 개인/집단
-- KPI = 핵심성과지표 → 목표 달성 정도를 측정하는 정량적 지표. 선행 지표(leading)와 후행 지표(lagging)를 구분해야 한다
+- Governance = the allocation of decision-making authority, accountability structure, and control systems. A concept separate from ESG
+- COSO ERM = Enterprise Risk Management framework. Managing risks across 4 objectives (strategy/operations/reporting/compliance) by component (governance/strategy/performance/review/information)
+- Stakeholder = an individual/group that affects or is affected by business activities
+- KPI = Key Performance Indicator. A quantitative metric for measuring goal achievement. Leading indicators (activity/input measurement) and lagging indicators (outcome measurement) must be distinguished
 
-## 플랫폼/구독/AI 확장 용어
+## Platform/Subscription/AI Extension Terms
 
-- Network Effect = 네트워크 효과 → 사용자 증가가 서비스 가치를 증가시키는 현상. 직접 효과(동일 측면)와 간접 효과(교차 측면)로 구분
-- Multi-sided Market = 다면 시장 → 2개 이상의 이용자 집단을 연결하여 가치를 창출하는 시장 구조
-- Churn Rate = 이탈율 → 일정 기간 서비스를 떠나는 고객의 비율
-- LTV = 고객 생애 가치 → 한 고객이 전체 거래 기간 동안 창출하는 총 수익
-- CAC = 고객 획득 비용 → 신규 고객 1명을 획득하는 데 소요되는 총 비용. LTV/CAC > 3이 일반적 건전성 기준
-- MRR = 월간 반복 수익 → 구독 모델에서 매월 예측 가능한 수익
-- Data Moat = 데이터 해자 → 경쟁자가 쉽게 복제할 수 없는 데이터 자산. 데이터의 양, 고유성, 네트워크 효과로 구축
-- Platform Governance = 플랫폼 거버넌스 → 플랫폼 참여자 간 규칙, 분쟁 해결, 품질 통제 체계
+- Network Effect = the phenomenon where increasing users increases service value. Divided into direct effects (same side) and indirect effects (cross-side)
+- Multi-sided Market = a market structure that creates value by connecting 2 or more user groups
+- Churn Rate = the percentage of customers who leave the service within a given period
+- LTV = Customer Lifetime Value. The total revenue generated by one customer over the entire transaction period
+- CAC = Customer Acquisition Cost. The total cost of acquiring one new customer. LTV/CAC > 3 is the general health benchmark
+- MRR = Monthly Recurring Revenue. Predictable monthly revenue in a subscription model
+- Data Moat = a data asset that competitors cannot easily replicate. Built through data volume, uniqueness, and network effects
+- Platform Governance = rules, dispute resolution, and quality control systems among platform participants
 
-## 주의가 필요한 동형이의어
+## Homonyms Requiring Attention
 
-- "비용": 회계적 비용(expense, 재무제표 항목) ≠ 경제적 비용(cost, 기회비용 포함) ≠ 투입 시간(effort, 인건비 환산 불가할 수 있음)
-- "가치": 고객 가치(customer value, 편익) ≠ 기업 가치(enterprise value, 재무적 평가) ≠ 주주 가치(shareholder value, 지분 가치) ≠ 브랜드 가치(brand value)
-- "성과": 재무 성과(financial performance) ≠ 운영 성과(operational performance) ≠ 전략적 성과(strategic outcome)
-- "모델": 비즈니스 모델(수익 구조) ≠ 재무 모델(예측/시뮬레이션) ≠ 조직 모델(구조 설계) ≠ 역량 모델(인사 기준)
-- "리스크": 재무 리스크(financial risk) ≠ 운영 리스크(operational risk) ≠ 전략 리스크(strategic risk) ≠ 규제 리스크(regulatory risk)
-- "거버넌스": 기업 거버넌스(이사회/내부통제) ≠ ESG 거버넌스(지속가능경영) ≠ IT 거버넌스(기술 통제) ≠ 플랫폼 거버넌스(참여자 규칙)
-- "혁신": 존속적 혁신(기존 제품 개선) ≠ 파괴적 혁신(시장 질서 전환) ≠ 프로세스 혁신(운영 개선) ≠ 비즈니스 모델 혁신(수익 구조 전환)
-- "자동화": 제조 자동화(로봇/설비) ≠ 업무 자동화(RPA/워크플로) ≠ 의사결정 자동화(AI/규칙 엔진)
+- "cost": accounting cost (expense, a financial statement item) ≠ economic cost (cost, including opportunity cost) ≠ time invested (effort, may not be convertible to labor cost)
+- "value": customer value (benefit) ≠ enterprise value (financial valuation) ≠ shareholder value (equity value) ≠ brand value
+- "performance": financial performance ≠ operational performance ≠ strategic outcome
+- "model": business model (revenue structure) ≠ financial model (forecast/simulation) ≠ organizational model (structure design) ≠ competency model (HR criteria)
+- "risk": financial risk ≠ operational risk ≠ strategic risk ≠ regulatory risk
+- "governance": corporate governance (board/internal controls) ≠ ESG governance (sustainability management) ≠ IT governance (technology controls) ≠ platform governance (participant rules)
+- "innovation": sustaining innovation (improving existing products) ≠ disruptive innovation (market order transformation) ≠ process innovation (operational improvement) ≠ business model innovation (revenue structure transformation)
+- "automation": manufacturing automation (robots/equipment) ≠ business process automation (RPA/workflow) ≠ decision automation (AI/rule engines)
 
-## 해석 원칙
+## Interpretation Principles
 
-- "투입 시간 절감"과 "비용 절감"은 동치가 아니다. 절감된 시간이 다른 생산적 활동에 전환되지 않으면 비용 절감으로 인식할 수 없다
-- 기업 거버넌스와 ESG는 중첩 영역이 있으나 별도 관심사이다. 거버넌스는 의사결정 구조, ESG는 이해관계자 영향 관리에 초점. 혼합 시 분석 경계가 불명확해진다
-- 수작업 결과와 자동화 결과가 불일치할 때 어느 쪽이 올바른지의 판정 권한이 사전에 정의되어야 한다. 미정의 시 불일치 발생 때마다 의사결정이 지연된다
-- 경쟁 우위 주장에는 VRIO 기준의 지속 가능성 검증이 필요하다. 가치 있고 희소하지만 모방 가능한 자원은 일시적 우위만 제공한다
-- Porter의 본원적 전략에서 "stuck in the middle"(중간에 걸림) — 원가우위도 차별화도 아닌 상태는 수익성 저하를 초래한다
-- 매출 인식, 재무제표 세부 규칙은 회계(accounting) 도메인의 소관이다. 본 도메인에서는 재무적 의사결정의 논리와 원칙을 다룬다
-- 전략/전술/운영 3계층 구분이 현대 사업 환경에서 갖는 한계를 인식해야 한다. 디지털 사업에서는 운영 데이터가 전략 수정을 실시간으로 촉발하며, 계층 간 경계가 유동적이다
+- "Time savings" and "cost savings" are not equivalent. If saved time is not reallocated to other productive activities, it cannot be recognized as cost savings
+- Corporate governance and ESG overlap but are separate concerns. Governance focuses on decision-making structures; ESG focuses on stakeholder impact management. Mixing them blurs the analytical boundary
+- When manual results and automated results disagree, the authority to determine which is correct must be defined in advance. Without such definition, decision-making is delayed every time a discrepancy occurs
+- Competitive advantage claims require sustainability verification against VRIO criteria. A resource that is valuable and rare but imitable provides only temporary advantage
+- In Porter's generic strategies, "stuck in the middle" — being neither cost leader nor differentiator — leads to profitability decline
+- Revenue recognition and detailed financial statement rules are under the jurisdiction of the accounting domain. This domain covers the logic and principles of financial decision-making
+- The limitations of the strategy/tactics/operations 3-tier distinction in modern business environments must be recognized. In digital businesses, operational data triggers real-time strategy modifications, and boundaries between tiers are fluid
 
-## 관련 문서
-- domain_scope.md — 이 용어들이 사용되는 영역 정의
-- logic_rules.md — 재무 논리, 전략 논리, 자동화 범위 관련 규칙
-- structure_spec.md — 사업 체계 구조 관련 규칙
+## Related Documents
+- domain_scope.md — the scope definition where these terms are used
+- logic_rules.md — rules related to financial logic, strategy logic, and automation scope
+- structure_spec.md — rules related to business system structure

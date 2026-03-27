@@ -1,78 +1,78 @@
-# Market Intelligence Domain — 도메인 범위 정의
+# Market Intelligence Domain — Domain Scope Definition
 
-## 도메인 정의
+## Domain Definition
 
-시장 정보(Market Intelligence)는 시장 데이터의 수집·분석·해석을 통해 전략적 의사결정을 지원하는 체계이다.
-이 도메인은 다음 네 개의 **독립 영역**으로 구성된다.
+Market Intelligence is a system that supports strategic decision-making through the collection, analysis, and interpretation of market data.
+This domain consists of the following four **independent areas**.
 
-| 영역 | 정의 | 독립성 근거 |
-|------|------|------------|
-| 데이터 수집(Collection) | 시장 데이터의 획득, 소스 관리, 신뢰도 분류 | 수집 품질이 후속 분석의 상한을 결정 |
-| 분석(Analysis) | 수집된 데이터의 패턴 식별, 정량·정성 해석 | 분석 방법론은 수집과 독립적으로 발전 |
-| 전략 도출(Strategy Derivation) | 분석 결과를 전략 옵션으로 변환 | 전략은 분석의 파생이 아닌 별도 판단 영역 |
-| 위험 평가(Risk Assessment) | 시장 위험의 식별, 정량화, 대응 설계 | **전략 설계의 부속이 아닌 독립 영역** |
+| Area | Definition | Basis for Independence |
+|------|-----------|----------------------|
+| Collection | Acquisition of market data, source management, credibility classification | Collection quality determines the upper bound for subsequent analysis |
+| Analysis | Pattern identification, quantitative and qualitative interpretation of collected data | Analysis methodologies evolve independently of collection |
+| Strategy Derivation | Conversion of analysis results into strategy options | Strategy is a separate judgment domain, not a derivative of analysis |
+| Risk Assessment | Identification, quantification, and response design for market risks | **An independent area, not an appendage of strategy design** |
 
-### 위험 평가의 독립성
+### Independence of Risk Assessment
 
-위험 평가는 전략 도출과 병렬로 수행되며, 전략에 종속되지 않는다.
-위험 평가 결과가 전략을 수정할 수 있고, 전략 없이도 위험 평가는 독자적으로 유효하다.
+Risk assessment is performed in parallel with strategy derivation and is not subordinate to strategy.
+Risk assessment results can modify strategy, and risk assessment remains independently valid even without a strategy.
 
-## 필수 개념 범주
+## Required Concept Categories
 
-각 영역이 반드시 포함해야 하는 개념 범주이다.
+Concept categories that each area must include.
 
-### 데이터 수집
+### Data Collection
 
-- 데이터 소스 분류 (신뢰도 등급 체계)
-- 수집 주기 및 갱신 정책
-- 데이터 신선도(freshness) 평가 기준
-- 원시 데이터 정규화 기준
+- Data source classification (credibility rating system)
+- Collection frequency and update policies
+- Data freshness evaluation criteria
+- Raw data normalization criteria
 
-### 분석
+### Analysis
 
-- 경쟁 구도 분석 (Competitive Landscape)
-- 시장 규모 추정 (TAM/SAM/SOM)
-- 고객 세그먼트 분석
-- 트렌드 식별 및 시계열 분석
+- Competitive Landscape Analysis
+- Market Size Estimation (TAM/SAM/SOM)
+- Customer segment analysis
+- Trend identification and time-series analysis
 
-### 전략 도출
+### Strategy Derivation
 
-- 전략 옵션 생성 기준
-- 옵션 평가 매트릭스
-- 실행 우선순위 결정 로직
-- 의사결정 게이트 통과 요건
+- Strategy option generation criteria
+- Option evaluation matrix
+- Execution priority determination logic
+- Decision gate pass requirements
 
-### 위험 평가
+### Risk Assessment
 
-- 위험 식별 프레임워크
-- 위험 정량화 기준 (영향도 x 발생 가능성)
-- 위험 대응 전략 유형 (회피, 완화, 수용, 전가)
-- 위험 모니터링 주기
+- Risk identification framework
+- Risk quantification criteria (impact x likelihood)
+- Risk response strategy types (avoidance, mitigation, acceptance, transfer)
+- Risk monitoring frequency
 
-## 참조 표준
+## Reference Standards
 
-| 표준 | 적용 영역 | 용도 |
-|------|----------|------|
-| ISO 31000 (위험 관리) | 위험 평가 | 위험 식별·분석·평가 프레임워크 |
-| Porter's Five Forces | 분석 | 경쟁 구도 분석 구조 |
-| PESTEL | 분석, 위험 평가 | 거시 환경 요인 분류 |
-| SWOT / TOWS | 전략 도출 | 전략 옵션 생성 매트릭스 |
-| OSINT 프레임워크 | 데이터 수집 | 공개 정보 수집 방법론 |
+| Standard | Application Area | Usage |
+|----------|-----------------|-------|
+| ISO 31000 (Risk Management) | Risk Assessment | Risk identification, analysis, and evaluation framework |
+| Porter's Five Forces | Analysis | Competitive landscape analysis structure |
+| PESTEL | Analysis, Risk Assessment | Macro-environment factor classification |
+| SWOT / TOWS | Strategy Derivation | Strategy option generation matrix |
+| OSINT Framework | Data Collection | Open source intelligence collection methodology |
 
-## 다중 도메인 공존 원칙
+## Multi-Domain Coexistence Principles
 
-시장 정보 도메인은 다른 도메인(예: 기술, 헬스케어, 금융)과 동일 프로젝트 내에서 병렬 적용될 수 있다. 이를 위해:
-- 모든 개념에 도메인 네임스페이스 접두어를 부여한다.
-- 교차 도메인 참조 시 `{domain}::{concept}` 표기를 사용한다.
-- 도메인 간 동일 용어는 concepts.md의 동형이의어 섹션에서 명시적으로 구분한다.
+The market intelligence domain can be applied in parallel with other domains (e.g., technology, healthcare, finance) within the same project. To support this:
+- All concepts are prefixed with a domain namespace.
+- Cross-domain references use the `{domain}::{concept}` notation.
+- Terms shared across domains are explicitly differentiated in the homonyms section of concepts.md.
 
-## 관련 문서
+## Related Documents
 
-| 문서 | 역할 |
-|------|------|
-| [concepts.md](concepts.md) | 핵심 용어 정의 및 해석 원칙 |
-| [competency_qs.md](competency_qs.md) | 체계 검증 질문 |
-| [logic_rules.md](logic_rules.md) | 논리 규칙 및 데이터 신뢰도 정합성 |
-| [structure_spec.md](structure_spec.md) | 구조 요건 및 분류 축 |
-| [dependency_rules.md](dependency_rules.md) | 요소 간 의존 관계 |
-| [extension_cases.md](extension_cases.md) | 확장 시나리오 |
+| Document | Role |
+|----------|------|
+| [concepts.md](concepts.md) | Core term definitions and interpretation principles |
+| [competency_qs.md](competency_qs.md) | System verification questions |
+| [logic_rules.md](logic_rules.md) | Logic rules and data credibility consistency |
+| [structure_spec.md](structure_spec.md) | Structural requirements and classification axes |
+| [dependency_rules.md](dependency_rules.md) | Inter-element dependency relationships |
+| [extension_cases.md](extension_cases.md) | Extension scenarios |

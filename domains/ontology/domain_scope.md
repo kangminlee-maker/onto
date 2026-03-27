@@ -1,75 +1,75 @@
-# Ontology Domain — 도메인 범위 정의
+# Ontology Domain — Domain Scope Definition
 
-onto_coverage가 온톨로지 설계에서 "있어야 하는데 없는 것"을 식별할 때 사용하는 기준 문서입니다.
-이 도메인은 온톨로지(지식 구조화 체계)를 **검토**(리뷰)할 때 적용됩니다.
+This is the reference document used by onto_coverage to identify "what should exist but is missing" in ontology design.
+This domain applies when **reviewing** an ontology (a knowledge structuring system).
 
-## 온톨로지 유형 분류
+## Ontology Type Classification
 
-분류 축: **구성 원리** — 온톨로지가 지식을 조직하는 핵심 원리에 따라 분류합니다.
+Classification axis: **organizing principle** — classified by the core principle through which an ontology organizes knowledge.
 
-| 유형 | 핵심 원리 | 대표 예시 |
+| Type | Core Principle | Representative Examples |
 |---|---|---|
-| Axiom 기반 | 형식 논리와 공리로 개념 간 관계를 엄밀하게 정의 | OWL DL, SUMO |
-| Action-Centric | 행위(action)와 프로세스 중심으로 도메인을 기술 | PSL (Process Specification Language) |
-| Knowledge Graph | 개체(entity)와 관계(relation)의 그래프 구조 | Wikidata, Google Knowledge Graph |
-| Domain-Driven | 특정 도메인의 전문 지식을 구조화 | SNOMED CT, Gene Ontology |
-| Taxonomy | 계층적 분류 체계 (is-a 관계 중심) | 생물 분류체계, 도서 분류 |
-| Schema | 데이터 구조와 제약 정의 (인스턴스 검증용) | Schema.org, JSON-LD |
+| Axiom-based | Rigorously defines inter-concept relations using formal logic and axioms | OWL DL, SUMO |
+| Action-Centric | Describes the domain centered on actions and processes | PSL (Process Specification Language) |
+| Knowledge Graph | Graph structure of entities and relations | Wikidata, Google Knowledge Graph |
+| Domain-Driven | Structures expert knowledge of a specific domain | SNOMED CT, Gene Ontology |
+| Taxonomy | Hierarchical classification system (centered on is-a relations) | Biological taxonomy, library classification |
+| Schema | Defines data structures and constraints (for instance validation) | Schema.org, JSON-LD |
 
-## 주요 하위 영역
+## Major Sub-areas
 
-### 핵심 영역 (Core)
-- **개체 정의** (필수): 클래스, 인스턴스, 개체의 식별과 정의. 명명 규칙과 고유 식별자 체계
-- **관계 정의** (필수): 개체 간 관계 유형(is-a, part-of, has-property, depends-on 등), 관계의 방향성과 다중성(cardinality)
-- **제약 정의** (필수): 공리(axiom), 불변식(invariant), 도메인/레인지 제약, 기수 제약
-- **분류 체계** (필수): 상위/하위 클래스 계층, 다중 상속 허용 여부, 분류 기준의 일관성
-- **용어 사전** (필수): 도메인 용어의 정의, 동의어/동형이의어 처리, 다국어 레이블
+### Core
+- **Entity Definition** (required): classes, instances, entity identification and definition. Naming conventions and unique identifier systems
+- **Relation Definition** (required): types of relations between entities (is-a, part-of, has-property, depends-on, etc.), directionality and cardinality of relations
+- **Constraint Definition** (required): axioms, invariants, domain/range constraints, cardinality constraints
+- **Classification System** (required): superclass/subclass hierarchies, whether multiple inheritance is allowed, consistency of classification criteria
+- **Glossary** (required): definitions of domain terms, synonym/homonym handling, multilingual labels
 
-### 보조 영역 (Supporting)
-- **메타 모델** (해당 시): 온톨로지 자체의 구조를 기술하는 상위 온톨로지. 클래스/속성/관계의 메타 수준 정의
-- **매핑/정렬** (해당 시): 서로 다른 온톨로지 간 개념 대응. 동일성(equivalence), 포함(subsumption), 유사성(similarity) 관계
-- **버전 관리** (해당 시): 온톨로지 변경 이력, 버전 간 호환성, 폐기(deprecation) 절차
-- **질의 인터페이스** (해당 시): SPARQL, OWL API 등을 통한 온톨로지 접근 방식
+### Supporting
+- **Meta Model** (when applicable): an upper ontology describing the structure of the ontology itself. Meta-level definitions of classes/properties/relations
+- **Mapping/Alignment** (when applicable): concept correspondence between different ontologies. Equivalence, subsumption, and similarity relations
+- **Version Management** (when applicable): ontology change history, cross-version compatibility, deprecation procedures
+- **Query Interface** (when applicable): approaches for accessing the ontology via SPARQL, OWL API, etc.
 
-### 활용 영역 (Application)
-- **추론/검증** (해당 시): 추론기(reasoner)를 통한 일관성 검사, 분류 추론, 인스턴스 검증
-- **시각화** (규모에 따라): 온톨로지 구조의 그래프 시각화, 탐색 인터페이스
-- **데이터 통합** (해당 시): 이기종 데이터 소스의 의미적 통합, 온톨로지 기반 ETL
+### Application
+- **Reasoning/Verification** (when applicable): consistency checking via reasoners, classification inference, instance validation
+- **Visualization** (scale-dependent): graph visualization of ontology structure, exploration interfaces
+- **Data Integration** (when applicable): semantic integration of heterogeneous data sources, ontology-based ETL
 
-## 필수 개념 범주
+## Required Concept Categories
 
-어떤 온톨로지에서든 다뤄져야 하는 개념 범주입니다.
+These are concept categories that must be addressed in any ontology.
 
-| 범주 | 설명 | 누락 시 위험 |
+| Category | Description | Risk if Missing |
 |---|---|---|
-| 개체 식별 (entity identity) | 개체를 고유하게 식별하는 체계 (URI, IRI 등) | 개체 혼동, 참조 실패 |
-| 관계 유형화 (relation typing) | 관계의 종류와 의미를 명시적으로 분류 | 관계 의미 모호, 추론 오류 |
-| 제약 명시 (constraint declaration) | 구조적/의미적 제약을 명시적으로 선언 | 무효 인스턴스 생성, 일관성 붕괴 |
-| 분류 일관성 (classification consistency) | 분류 기준이 체계 전체에서 일관 적용 | 교차 분류, 분류 누락 |
-| 변경 추적 (change tracking) | 개념/관계의 추가/수정/삭제 이력 | 퇴행, 호환성 파괴 |
-| 적용 맥락 (application context) | 온톨로지가 사용되는 목적과 범위의 명시 | 과설계 또는 과소설계 |
+| Entity identity | A system for uniquely identifying entities (URI, IRI, etc.) | Entity confusion, reference failure |
+| Relation typing | Explicit classification of relation kinds and their meanings | Ambiguous relation semantics, inference errors |
+| Constraint declaration | Explicit declaration of structural/semantic constraints | Invalid instance creation, consistency breakdown |
+| Classification consistency | Classification criteria applied consistently across the entire system | Cross-classification, classification omissions |
+| Change tracking | History of concept/relation additions, modifications, and deletions | Regressions, compatibility breakage |
+| Application context | Explicit statement of the ontology's intended purpose and scope | Over-design or under-design |
 
-## 참조 표준/프레임워크
+## Reference Standards/Frameworks
 
-| 표준 | 활용 영역 | 활용 방식 |
+| Standard | Application Area | Usage |
 |---|---|---|
-| OWL 2 (Web Ontology Language) | 제약 정의, 추론/검증 | 형식 온톨로지의 표현 언어, 추론기 지원 |
-| RDFS (RDF Schema) | 관계 정의, 분류 체계 | 경량 온톨로지의 클래스/속성 정의 |
-| SKOS (Simple Knowledge Organization System) | 용어 사전, 분류 체계 | 개념 스킴, 레이블, 계층 관계 표현 |
-| SHACL (Shapes Constraint Language) | 제약 정의, 인스턴스 검증 | 데이터 형태 제약과 검증 규칙 |
-| Dublin Core | 메타 모델, 용어 사전 | 메타데이터 요소의 표준 어휘 |
-| Ontology Design Patterns (ODP) | 구조 설계 전반 | 재사용 가능한 설계 패턴 카탈로그 |
+| OWL 2 (Web Ontology Language) | Constraint definition, reasoning/verification | Expression language for formal ontologies, reasoner support |
+| RDFS (RDF Schema) | Relation definition, classification systems | Class/property definitions for lightweight ontologies |
+| SKOS (Simple Knowledge Organization System) | Glossary, classification systems | Concept schemes, labels, hierarchical relation representation |
+| SHACL (Shapes Constraint Language) | Constraint definition, instance validation | Data shape constraints and validation rules |
+| Dublin Core | Meta model, glossary | Standard vocabulary for metadata elements |
+| Ontology Design Patterns (ODP) | Structural design overall | Catalog of reusable design patterns |
 
-## 편중 감지 기준
+## Bias Detection Criteria
 
-- 6가지 온톨로지 유형 중 하나의 유형에만 맞춰 설계되었으면서 유형 선택 근거가 없으면 → **유형 편중**
-- 개체 정의만 풍부하고 관계 정의가 빈약하면 → **구조 편중 (개체 과잉)**
-- 관계 정의만 풍부하고 제약 정의가 없으면 → **검증 불가 (제약 부재)**
-- 분류 체계만 있고 속성/관계가 없으면 → **분류 편중 (Taxonomy 함정)**
-- 형식적 표현만 있고 자연어 정의가 없으면 → **소비자 관점 부재 (기계 편중)**
-- 자연어 정의만 있고 형식적 제약이 없으면 → **검증 불가 (비형식 편중)**
+- If the ontology is designed for only one of the 6 ontology types without stated rationale for the type selection -> **type bias**
+- If entity definitions are rich but relation definitions are sparse -> **structural bias (entity overload)**
+- If relation definitions are rich but constraint definitions are absent -> **unverifiable (constraint absence)**
+- If only classification systems exist with no properties/relations -> **classification bias (Taxonomy trap)**
+- If only formal representations exist with no natural language definitions -> **missing consumer perspective (machine bias)**
+- If only natural language definitions exist with no formal constraints -> **unverifiable (informality bias)**
 
-## 관련 문서
-- concepts.md — 이 범위 내 용어의 정의
-- structure_spec.md — 온톨로지 구조의 구체적 규칙
-- competency_qs.md — 이 범위가 답할 수 있어야 하는 질문
+## Related Documents
+- concepts.md — definitions of terms within this scope
+- structure_spec.md — specific rules for ontology structure
+- competency_qs.md — questions this scope must be able to answer

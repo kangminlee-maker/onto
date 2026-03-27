@@ -1,99 +1,99 @@
-# Finance Domain — 확장 시나리오
+# Finance Domain — Extension Scenarios
 
-## 분류 축
+## Classification Axes
 
-| 축 | 값 | 설명 |
+| Axis | Values | Description |
 |---|---|---|
-| 변경 유형 | 노드 추가 / 관계 추가 / 규칙 변경 / 원천 변경 | 온톨로지에 미치는 영향 |
-| 영향 범위 | 국소(단일 노드) / 광역(복수 규칙) | 변경 파급 범위 |
-| 난이도 | 낮음 / 중간 / 높음 | 구현 복잡도 |
+| Change type | Node addition / Relationship addition / Rule change / Source change | Impact on the ontology |
+| Impact scope | Local (single node) / Broad (multiple rules) | Change propagation scope |
+| Difficulty | Low / Medium / High | Implementation complexity |
 
-## 시나리오 1: 새 회사 추가
+## Scenario 1: Adding a New Company
 
-- **상황:** 기존에 없던 기업의 재무제표를 온톨로지에 추가
-- **변경 유형:** 노드 추가
-- **영향 범위:** 국소
-- **난이도:** 낮음
-- **필요 작업:**
-  1. Entity 노드 생성 (기업 코드, 업종 분류)
-  2. 해당 기업의 FinancialFact, Period, Note 노드 생성
-  3. 기업별 확장 계정의 정규화 매핑 수행
-  4. 참조 무결성(RI01, RI02) 검증
-- **주의사항:** 금융업종 기업인 경우 재무제표 구조가 상이하므로 별도 설정 필요. 확장 계정 비율이 높으므로 정규화 매핑 없이는 기업 간 비교가 불가능하다.
+- **Situation:** Adding a previously absent company's financial statements to the ontology
+- **Change type:** Node addition
+- **Impact scope:** Local
+- **Difficulty:** Low
+- **Required work:**
+  1. Create Entity node (company code, industry classification)
+  2. Create corresponding FinancialFact, Period, and Note nodes
+  3. Perform normalization mapping for company-specific extension accounts
+  4. Verify referential integrity (RI01, RI02)
+- **Caution:** Financial industry companies require separate configuration due to different financial statement structures. Extension account ratios are high, making inter-entity comparison impossible without normalization mapping.
 
-## 시나리오 2: 분기보고서 추가
+## Scenario 2: Adding Quarterly Reports
 
-- **상황:** 연간 보고서만 존재하던 기업에 분기보고서 추가
-- **변경 유형:** 노드 추가
-- **영향 범위:** 국소
-- **난이도:** 낮음
-- **필요 작업:**
-  1. 분기별 Period 노드 생성 (Q1, Q2, Q3 각각 시작일~종료일)
-  2. 분기별 FinancialFact 노드 생성
-  3. 기간 규칙(PR03) 적용 — 분기 수치와 연간 수치의 직접 비교 방지
-  4. 누적 기간 vs 단일 분기 구분 주의
-- **주의사항:** 분기보고서는 감사 대신 검토를 받으므로 신뢰도 수준이 다름
+- **Situation:** Adding quarterly reports for a company that previously had only annual reports
+- **Change type:** Node addition
+- **Impact scope:** Local
+- **Difficulty:** Low
+- **Required work:**
+  1. Create quarterly Period nodes (Q1, Q2, Q3 with respective start and end dates)
+  2. Create quarterly FinancialFact nodes
+  3. Apply period rule (PR03) — prevent direct comparison between quarterly and annual figures
+  4. Note the distinction between cumulative period vs. single quarter
+- **Caution:** Quarterly reports undergo review rather than audit, so the reliability level differs
 
-## 시나리오 3: 택소노미 변경
+## Scenario 3: Taxonomy Change
 
-- **상황:** IFRS 택소노미 버전 업데이트
-- **변경 유형:** 규칙 변경
-- **영향 범위:** 광역
-- **난이도:** 높음
-- **필요 작업:**
-  1. 변경된 Concept 노드 식별 (추가/삭제/이름변경)
-  2. HAS_CONCEPT 관계의 참조 무결성(RI01) 재검증
-  3. 동의어 매핑(concepts.md) 갱신
-  4. 기존 FinancialFact의 Concept 참조 업데이트 또는 버전 병행 유지
-- **주의사항:** 택소노미 변경은 Concept 계층에만 영향하고, 인스턴스(FinancialFact)는 독립적으로 관리. 매핑 레이어에서 버전 간 대응표를 유지하여 과거 데이터의 안정성을 보장한다.
+- **Situation:** IFRS taxonomy version update
+- **Change type:** Rule change
+- **Impact scope:** Broad
+- **Difficulty:** High
+- **Required work:**
+  1. Identify changed Concept nodes (additions/deletions/renames)
+  2. Re-verify referential integrity (RI01) of HAS_CONCEPT relationships
+  3. Update synonym mappings (concepts.md)
+  4. Update existing FinancialFact Concept references or maintain parallel versions
+- **Caution:** Taxonomy changes affect only the Concept hierarchy; instances (FinancialFacts) are managed independently. Maintain a cross-version correspondence table in the mapping layer to ensure the stability of historical data.
 
-## 시나리오 4: 비재무 데이터 통합
+## Scenario 4: Non-Financial Data Integration
 
-- **상황:** ESG 데이터, 인력 현황 등 비재무 정보를 온톨로지에 추가
-- **변경 유형:** 노드 추가 + 관계 추가
-- **영향 범위:** 광역
-- **난이도:** 중간
-- **필요 작업:**
-  1. 새 노드 유형 정의 (예: NonFinancialFact)
-  2. Entity와의 관계 정의 (REPORTED_BY 재사용 가능)
-  3. Period 관계 정의 (IN_PERIOD 재사용 가능)
-  4. 기존 회계 항등식(EQ01~EQ03)에는 영향 없음 확인
-  5. 비재무 데이터 전용 논리 규칙 별도 정의
-- **주의사항:** 비재무 데이터는 구조화 원천으로 제공되지 않는 경우가 대부분이므로 원천 의존성이 반구조화/비구조화로 고정
+- **Situation:** Adding non-financial information such as ESG data and workforce statistics to the ontology
+- **Change type:** Node addition + Relationship addition
+- **Impact scope:** Broad
+- **Difficulty:** Medium
+- **Required work:**
+  1. Define new node types (e.g., NonFinancialFact)
+  2. Define relationships with Entity (REPORTED_BY reuse possible)
+  3. Define Period relationships (IN_PERIOD reuse possible)
+  4. Confirm no impact on existing accounting identities (EQ01~EQ03)
+  5. Define separate logic rules for non-financial data
+- **Caution:** Non-financial data is rarely available from structured sources, so source dependencies are typically fixed at semi-structured/unstructured
 
-## 시나리오 5: 다국가 확장
+## Scenario 5: Multi-Country Expansion
 
-- **상황:** 단일 국가 외에 다른 국가의 공시 체계 추가
-- **변경 유형:** 노드 추가 + 규칙 변경
-- **영향 범위:** 광역
-- **난이도:** 높음
-- **필요 작업:**
-  1. 국가별 Entity 코드 체계 통합
-  2. 국가별 택소노미 매핑 (IFRS ↔ US-GAAP ↔ 기타)
-  3. 통화 차원 추가
-  4. 공시 주기·형식 차이 반영
-  5. 통합 정규화 계층에서 국가 간 비교 가능한 Concept 정의
-- **주의사항:** 회계 기준 간 근본적 차이(예: LIFO 허용 여부)가 있어 단순 매핑 불가능. XBRL 의미 식별자의 가치는 다국가 확장에서 극대화된다 — 각국 택소노미가 XBRL 표준을 따르므로 요소 ID를 보존하면 국가 간 매핑의 기초 앵커로 활용 가능하다.
+- **Situation:** Adding disclosure systems from other countries beyond a single country
+- **Change type:** Node addition + Rule change
+- **Impact scope:** Broad
+- **Difficulty:** High
+- **Required work:**
+  1. Unify country-specific Entity code systems
+  2. Cross-country taxonomy mapping (IFRS <-> US-GAAP <-> others)
+  3. Add currency dimension
+  4. Reflect differences in disclosure frequency and format
+  5. Define Concepts comparable across countries in the unified normalization hierarchy
+- **Caution:** Fundamental differences between accounting standards (e.g., LIFO allowance) make simple mapping impossible. The value of XBRL semantic identifiers is maximized in multi-country expansion — since each country's taxonomy follows the XBRL standard, preserving element IDs provides a foundational anchor for cross-country mapping.
 
-## 시나리오 6: 정정 공시 처리
+## Scenario 6: Restatement Processing
 
-- **상황:** 이미 수집된 보고서가 정정 공시로 대체됨
-- **변경 유형:** 원천 변경
-- **영향 범위:** 국소
-- **난이도:** 중간
-- **필요 작업:**
-  1. 정정 공시 감지 (동일 Entity-Period-Statement에 복수 인스턴스 존재)
-  2. 최종본 판별 (접수번호·공시일시 기준)
-  3. 이전 버전 FinancialFact를 비활성화 (삭제가 아닌 버전 관리)
-  4. 최종본 기준으로 참조 무결성(RI01, RI02) 재검증
-  5. 시계열 질의 시 정정 전후 차이 추적 가능하도록 이전 버전 보존
-- **주의사항:** 정정 공시는 부분 정정일 수 있음 — 변경된 항목만 갱신하고 나머지는 원본 유지. 반구조화 원천이 유일 원천인 경우, 정정 공시 감지가 원천 변경 감지에 의존한다.
+- **Situation:** A previously collected report is superseded by a restatement
+- **Change type:** Source change
+- **Impact scope:** Local
+- **Difficulty:** Medium
+- **Required work:**
+  1. Detect restatement (multiple instances exist for the same Entity-Period-Statement)
+  2. Determine the final version (based on filing number and disclosure date/time)
+  3. Deactivate previous version FinancialFacts (version management rather than deletion)
+  4. Re-verify referential integrity (RI01, RI02) based on the final version
+  5. Preserve previous versions to enable tracking of pre/post-restatement differences in time series queries
+- **Caution:** Restatements may be partial — update only changed items and retain the rest from the original. When semi-structured sources are the sole source, restatement detection depends on source change detection.
 
-## 관련 문서
+## Related Documents
 
-- [domain_scope.md](domain_scope.md) — 확장 시나리오가 영향을 미치는 분류 축 및 영역 정의
-- [concepts.md](concepts.md) — 새 기업·택소노미 변경 시 매핑 갱신 대상
-- [structure_spec.md](structure_spec.md) — 새 노드 유형·관계 추가의 기반 구조
-- [dependency_rules.md](dependency_rules.md) — 원천 전환·참조 무결성 규칙
-- [logic_rules.md](logic_rules.md) — 비재무 데이터 추가 시 기존 항등식 영향 확인
-- [competency_qs.md](competency_qs.md) — 확장 시나리오가 해결하는 고급 질의 사례
+- [domain_scope.md](domain_scope.md) — classification axes and area definitions affected by extension scenarios
+- [concepts.md](concepts.md) — mapping update targets for new companies and taxonomy changes
+- [structure_spec.md](structure_spec.md) — the structural basis for adding new node types and relationships
+- [dependency_rules.md](dependency_rules.md) — source transition and referential integrity rules
+- [logic_rules.md](logic_rules.md) — confirming existing identity impact when adding non-financial data
+- [competency_qs.md](competency_qs.md) — advanced query cases addressed by extension scenarios

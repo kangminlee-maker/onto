@@ -1,65 +1,65 @@
-# Accounting Domain — 확장 시나리오
+# Accounting Domain — Extension Scenarios
 
-onto_evolution 에이전트가 각 시나리오를 시뮬레이션하여 기존 회계 체계의 깨짐 여부를 검증합니다.
+The onto_evolution agent simulates each scenario to verify whether the existing accounting system breaks.
 
-## Case 1: 새 수익원 추가
+## Case 1: Adding a New Revenue Source
 
-- 기존에 없던 유형의 수익(구독 모델, 라이선스, 번들 판매 등) 발생
-- 검증: IFRS 15의 5단계 모형이 새 수익원에 적용 가능한가?
-- 검증: 이행의무가 적절히 식별되고 거래가격이 배분되는가?
-- 검증: 기존 계정과목 체계에 새 수익 유형을 수용할 수 있는가, 계정과목 추가가 필요한가?
-- 영향 파일: logic_rules.md (인식 논리), structure_spec.md (계정과목 체계)
+- A previously non-existent type of revenue occurs (subscription model, licensing, bundled sales, etc.)
+- Verification: Can the 5-step model of IFRS 15 be applied to the new revenue source?
+- Verification: Are Performance Obligations (이행의무) properly identified and Transaction Prices (거래가격) allocated?
+- Verification: Can the existing chart of accounts accommodate the new revenue type, or is account addition needed?
+- Affected files: logic_rules.md (recognition logic), structure_spec.md (chart of accounts)
 
-## Case 2: K-IFRS 기준서 개정
+## Case 2: K-IFRS Standard Amendment
 
-- 적용 중인 기준서의 주요 개정 (예: 수익인식 기준 변경, 리스 분류 변경)
-- 검증: 회계정책 변경이 전기 재무제표 소급 재작성을 요구하는가?
-- 검증: 변경 영향이 재무제표 주석에 충분히 공시되는가?
-- 검증: 세무조정 항목에 변동이 발생하는가?
-- 영향 파일: dependency_rules.md (기준서 간 의존, 기간 의존)
+- A major amendment to an applicable standard (e.g., revenue recognition criteria change, lease classification change)
+- Verification: Does the accounting policy change require retrospective restatement of prior period financial statements?
+- Verification: Is the impact of the change adequately disclosed in financial statement notes?
+- Verification: Do Tax Adjustment (세무조정) items change as a result?
+- Affected files: dependency_rules.md (inter-standard dependencies, period dependencies)
 
-## Case 3: 종속기업 취득/처분
+## Case 3: Subsidiary Acquisition/Disposal
 
-- 연결 범위의 변동 (신규 취득, 지분 매각, 지배력 상실)
-- 검증: 지배력 판단 기준이 적용되어 연결 범위가 올바르게 결정되는가?
-- 검증: 내부거래 제거 범위가 변경에 대응하는가?
-- 검증: 비지배지분 계산이 올바르게 조정되는가?
-- 검증: 영업권(goodwill) 인식과 후속 손상 검토가 수행되는가?
-- 영향 파일: logic_rules.md (연결 논리), dependency_rules.md (참조 무결성)
+- Consolidation scope changes (new acquisition, share disposal, loss of control)
+- Verification: Are control determination criteria applied to correctly determine the consolidation scope?
+- Verification: Does the intercompany transaction elimination scope respond to the change?
+- Verification: Is Non-controlling Interest (비지배지분) calculation correctly adjusted?
+- Verification: Are Goodwill (영업권) recognition and subsequent impairment reviews performed?
+- Affected files: logic_rules.md (consolidation logic), dependency_rules.md (referential integrity)
 
-## Case 4: 외화 거래 증가
+## Case 4: Increase in Foreign Currency Transactions
 
-- 해외 거래처와의 거래 비중 증가, 해외 종속기업 설립
-- 검증: 외화 거래의 최초 인식 환율과 결산일 환율이 구분 적용되는가?
-- 검증: 환산 차이가 적절한 항목(당기손익 또는 기타포괄손익)으로 분류되는가?
-- 검증: 현금흐름표에서 환율 효과가 별도 표시되는가?
-- 영향 파일: structure_spec.md (재무제표 구조), logic_rules.md (측정 논리)
+- Increase in transactions with overseas counterparties, establishment of overseas subsidiaries
+- Verification: Are initial recognition exchange rates and closing date exchange rates applied separately for foreign currency transactions?
+- Verification: Are translation differences classified in the appropriate item (profit or loss vs. Other Comprehensive Income (기타포괄손익))?
+- Verification: Are exchange rate effects separately presented on the Statement of Cash Flows (현금흐름표)?
+- Affected files: structure_spec.md (financial statement structure), logic_rules.md (measurement logic)
 
-## Case 5: 세법 개정
+## Case 5: Tax Law Amendment
 
-- 법인세율 변경, 세무조정 항목 변경, 새 세액공제 도입
-- 검증: 이연법인세 자산/부채가 새 세율로 재계산되는가?
-- 검증: 세무조정 항목의 일시적차이/영구적차이 분류가 갱신되는가?
-- 검증: 세법 변경 영향이 주석에 공시되는가?
-- 영향 파일: logic_rules.md (세무-회계 차이 논리), dependency_rules.md (외부 의존 관리)
+- Corporate tax rate changes, tax adjustment item changes, new tax credit introduction
+- Verification: Are Deferred Tax (이연법인세) assets/liabilities recalculated at the new tax rate?
+- Verification: Is the Temporary Difference (일시적차이)/Permanent Difference (영구적차이) classification of tax adjustment items updated?
+- Verification: Is the tax law change impact disclosed in notes?
+- Affected files: logic_rules.md (tax-accounting difference logic), dependency_rules.md (external dependency management)
 
-## Case 6: 감사 기준 변경
+## Case 6: Audit Standards Change
 
-- ISA 개정, 내부통제 요구사항 강화, 새 감사보고서 형식 도입
-- 검증: 감사 추적(audit trail)이 강화된 요구사항을 충족하는가?
-- 검증: 내부통제 문서화가 새 기준에 대응하는가?
-- 검증: 핵심감사사항(KAM) 식별과 보고 절차가 갱신되는가?
-- 영향 파일: structure_spec.md (검증 구조), competency_qs.md (Q20~Q22)
+- ISA amendments, strengthened internal control requirements, new audit report format introduction
+- Verification: Does the audit trail meet the strengthened requirements?
+- Verification: Is internal control documentation updated to the new standards?
+- Verification: Are Key Audit Matters (KAM) identification and reporting procedures updated?
+- Affected files: structure_spec.md (verification structure), competency_qs.md (Q20~Q22)
 
-## Case 7: 디지털 보고 전환
+## Case 7: Digital Reporting Transition
 
-- XBRL 태깅 확대, 실시간 보고 요구, 전자공시 형식 변경
-- 검증: 계정과목 체계가 XBRL 택소노미와 매핑되는가?
-- 검증: 재무제표 항목과 XBRL 태그의 참조 무결성이 유지되는가?
-- 검증: 보고 주기 단축 시 기간 귀속 검증이 빈도에 대응하는가?
-- 영향 파일: structure_spec.md (계정과목 체계), dependency_rules.md (참조 무결성)
+- XBRL tagging expansion, real-time reporting requirements, electronic disclosure format changes
+- Verification: Does the chart of accounts map to the XBRL taxonomy?
+- Verification: Is referential integrity between financial statement items and XBRL tags maintained?
+- Verification: When reporting frequency is shortened, does period attribution verification respond to the increased frequency?
+- Affected files: structure_spec.md (chart of accounts), dependency_rules.md (referential integrity)
 
-## 관련 문서
-- structure_spec.md — 재무제표 구조, 계정과목 체계
-- dependency_rules.md — 재무제표 간 연결, 기준서 간 의존
-- logic_rules.md — 인식/측정/연결/세무 논리
+## Related Documents
+- structure_spec.md — financial statement structure, chart of accounts
+- dependency_rules.md — inter-financial-statement linkage, inter-standard dependencies
+- logic_rules.md — recognition/measurement/consolidation/tax logic

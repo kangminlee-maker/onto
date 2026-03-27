@@ -1,308 +1,308 @@
 name: Domain-Driven
 version: 1
-description: DDD 기반 온톨로지 구조. Bounded Context로 도메인 경계를 나누고, Aggregate로 생명주기를 관리하며, Domain Event/Command/Query/Saga로 행위와 흐름을 표현합니다.
+description: DDD-based ontology structure. Divides domain boundaries with Bounded Context, manages lifecycle with Aggregate, and expresses actions and flows with Domain Event/Command/Query/Saga.
 golden_reference: golden/d-domain-driven.yaml
 sections:
   - name: bounded_contexts
-    description: 도메인 경계 정의. 관련 도메인들을 하나의 맥락으로 묶음
+    description: Domain boundary definition. Groups related domains into one context
     fields:
       - name: name
         type: string
         required: true
-        description: 바운디드 컨텍스트 이름
+        description: Bounded context name
       - name: description
         type: string
         required: true
-        description: 컨텍스트가 담당하는 범위 설명
+        description: Description of the scope managed by the context
       - name: domains
         type: list
         required: true
-        description: 포함된 도메인 목록
+        description: List of included domains
 
   - name: aggregates
-    description: "Aggregate Root 정의. 상태 머신, 도메인 불변식(invariant)의 경계 단위"
+    description: "Aggregate Root defines. State machine, boundary unit for domain invariants"
     fields:
       - name: name
         type: string
         required: true
-        description: Aggregate 이름
+        description: Aggregate name
       - name: bounded_context
         type: string
         required: true
-        description: 소속 Bounded Context
+        description: Owning Bounded Context
       - name: root_entity
         type: string
         required: true
-        description: Aggregate Root 엔티티
+        description: Aggregate Root entity
       - name: description
         type: string
         required: true
-        description: Aggregate 설명
+        description: Aggregate description
       - name: db_table
         type: string
         required: false
-        description: 매핑된 DB 테이블명
+        description: Mapped DB table name
       - name: code_mapping
         type: object
         required: false
-        description: "코드 매핑 정보. canonical, legacy_aliases, code_entity, fk_variants, note 포함"
+        description: "Code mapping info. Includes canonical, legacy_aliases, code_entity, fk_variants, note"
       - name: properties
         type: list
         required: true
-        description: "속성 목록. 각 항목은 {name, display_name, type, required, description}이며, 선택적으로 enum_ref를 포함"
+        description: "Property list. Each item has {name, display_name, type, required, description}, optionally including enum_ref"
       - name: state_machine
         type: object
         required: false
-        description: "상태 머신. field(상태 필드), states(상태 목록), transitions(전이 규칙) 포함"
+        description: "State machine. Includes field (state field), states (state list), transitions (transition rules)"
       - name: invariants
         type: list
         required: false
-        description: 도메인 불변식 목록
+        description: Domain invariant list
 
   - name: entities
-    description: "Aggregate에 포함되지 않는 독립 엔티티, 또는 Aggregate 내 하위 엔티티"
+    description: "Independent entities not included in Aggregates, or sub-entities within Aggregates"
     fields:
       - name: name
         type: string
         required: true
-        description: 엔티티 이름
+        description: Entity name
       - name: bounded_context
         type: string
         required: true
-        description: 소속 Bounded Context
+        description: Owning Bounded Context
       - name: aggregate
         type: string
         required: false
-        description: "소속 Aggregate (null이면 독립 엔티티)"
+        description: "Owning Aggregate (independent entity if null)"
       - name: domain
         type: string
         required: true
-        description: 소속 도메인
+        description: Owning domain
       - name: description
         type: string
         required: true
-        description: 엔티티 설명
+        description: Entity description
       - name: db_table
         type: string
         required: false
-        description: 매핑된 DB 테이블명
+        description: Mapped DB table name
       - name: normalization_status
         type: enum
         required: false
-        description: "정규화 상태 (legacy | partial | normalized)"
+        description: "Normalization status (legacy | partial | normalized)"
       - name: code_entity
         type: string
         required: false
-        description: 코드상 엔티티명 (정규 이름과 다를 경우)
+        description: Code entity name (when different from canonical name)
       - name: properties
         type: list
         required: true
-        description: "속성 목록. 각 항목은 {name, type, required, description}이며, 선택적으로 enum_ref를 포함"
+        description: "Property list. Each item has {name, type, required, description}, optionally including enum_ref"
 
   - name: policy_constants
-    description: 도메인 정책 상수 정의. 불변식 검증에 사용되는 설정 값
+    description: Domain policy constant definitions. Configuration values used for invariant validation
     fields:
       - name: id
         type: string
         required: true
-        description: 정책 상수 식별자
+        description: Policy constant identifier
       - name: value
         type: any
         required: true
-        description: 정책 상수 값
+        description: Policy constant value
       - name: unit
         type: string
         required: true
-        description: "값의 단위 (hours, minutes, count, percent 등)"
+        description: "Unit of value (hours, minutes, count, percent, etc.)"
       - name: description
         type: string
         required: true
-        description: 정책 상수 설명
+        description: Policy constant description
       - name: changeable
         type: boolean
         required: true
-        description: 운영 중 변경 가능 여부
+        description: Whether changeable during operation
       - name: source_code
         type: string
         required: false
-        description: 소스 코드 위치
+        description: Source code location
       - name: used_by_guard
         type: list
         required: false
-        description: 이 정책을 참조하는 가드 ID 목록
+        description: List of guard IDs that reference this policy
 
   - name: value_objects
-    description: "값 객체 정의. 주로 enum 유형으로, 도메인 내에서 사용되는 열거형 값"
+    description: "Value object definition. Mainly enum type, enumeration values used within the domain"
     fields:
       - name: name
         type: string
         required: true
-        description: 값 객체 이름
+        description: Value object name
       - name: type
         type: enum
         required: true
-        description: "값 객체 유형 (enum)"
+        description: "Value object type (enum)"
       - name: description
         type: string
         required: true
-        description: 값 객체 설명
+        description: Value object description
       - name: values
         type: list
         required: true
-        description: 열거형 값 목록
+        description: Enumeration value list
 
   - name: domain_events
-    description: 도메인 이벤트 정의. Aggregate의 상태 전이를 이벤트로 표현
+    description: Domain event definition. Represents Aggregate state transitions as events
     fields:
       - name: id
         type: string
         required: true
-        description: 이벤트 식별자
+        description: Event identifier
       - name: name
         type: string
         required: true
-        description: 이벤트 이름 (PascalCase)
+        description: Event name (PascalCase)
       - name: aggregate
         type: string
         required: true
-        description: 이벤트가 발생하는 Aggregate
+        description: Aggregate where the event occurs
       - name: trigger
         type: string
         required: true
-        description: 이벤트 트리거 조건
+        description: Event trigger condition
       - name: from_state
         type: list
         required: true
-        description: 전이 이전 상태 목록
+        description: Pre-transition state list
       - name: to_state
         type: string
         required: true
-        description: 전이 이후 상태
+        description: Post-transition state
       - name: guard
         type: list
         required: false
-        description: 사전 조건 (가드) 목록
+        description: Precondition (guard) list
       - name: side_effects
         type: list
         required: false
-        description: 부수 효과 목록
+        description: Side effect list
       - name: source_code
         type: string
         required: false
-        description: 소스 코드 위치
+        description: Source code location
 
   - name: commands
-    description: 도메인 커맨드 정의. 상태를 변경하는 행위
+    description: Domain command definition. Actions that modify state
     fields:
       - name: id
         type: string
         required: true
-        description: 커맨드 식별자
+        description: Command identifier
       - name: name
         type: string
         required: true
-        description: 커맨드 이름 (PascalCase)
+        description: Command name (PascalCase)
       - name: display_name
         type: string
         required: true
-        description: 커맨드 표시 이름 (한국어)
+        description: Command display name
       - name: actor
         type: string
         required: true
-        description: 커맨드 실행 주체
+        description: Command execution actor
       - name: target_aggregate
         type: string
         required: false
-        description: "대상 Aggregate (null이면 Aggregate 외부 행위)"
+        description: "Target Aggregate (action outside Aggregate if null)"
       - name: preconditions
         type: list
         required: false
-        description: 사전 조건 목록
+        description: Precondition list
       - name: emits_events
         type: list
         required: false
-        description: 발생시키는 도메인 이벤트 ID 목록
+        description: List of emitted domain event IDs
       - name: source_code
         type: string
         required: false
-        description: 소스 코드 위치
+        description: Source code location
 
   - name: queries
-    description: 도메인 쿼리 정의. 읽기 전용 행위
+    description: Domain query definition. Read-only actions
     fields:
       - name: id
         type: string
         required: true
-        description: 쿼리 식별자
+        description: Query identifier
       - name: name
         type: string
         required: true
-        description: 쿼리 이름 (한국어)
+        description: Query name
       - name: domain
         type: string
         required: true
-        description: 소속 도메인
+        description: Owning domain
       - name: target_entities
         type: list
         required: false
-        description: 조회 대상 엔티티 목록
+        description: Target entity list for query
       - name: endpoint
         type: string
         required: false
-        description: API 엔드포인트
+        description: API endpoint
       - name: actor
         type: string
         required: true
-        description: 쿼리 실행 주체
+        description: Query execution actor
 
   - name: sagas
-    description: 여러 Aggregate를 가로지르는 업무 흐름 (Saga/Process Manager)
+    description: Workflow spanning multiple Aggregates (Saga/Process Manager)
     fields:
       - name: name
         type: string
         required: true
-        description: Saga 이름
+        description: Saga name
       - name: description
         type: string
         required: true
-        description: Saga 설명
+        description: Saga description
       - name: external_dependencies
         type: list
         required: false
-        description: 외부 의존 시스템
+        description: External dependency systems
       - name: involved_aggregates
         type: list
         required: true
-        description: 관련 Aggregate 목록
+        description: Related Aggregate list
       - name: involved_entities
         type: list
         required: false
-        description: 관련 엔티티 목록
+        description: Related entity list
       - name: steps
         type: list
         required: true
-        description: Saga 단계 목록 (순서대로)
+        description: Saga step list (in order)
 
   - name: relationships
-    description: 엔티티/Aggregate 간 관계 정의
+    description: Relationship definition between entities/Aggregates
     fields:
       - name: from
         type: string
         required: true
-        description: 출발 엔티티
+        description: Source entity
       - name: to
         type: string
         required: true
-        description: 도착 엔티티
+        description: Target entity
       - name: type
         type: string
         required: true
-        description: 관계 이름 (한국어)
+        description: Relationship name
       - name: cardinality
         type: string
         required: true
-        description: "카디널리티 (1:1, 1:N, N:1, N:M)"
+        description: "Cardinality (1:1, 1:N, N:1, N:M)"
       - name: fk_column
         type: string
         required: false
-        description: FK 컬럼 경로
+        description: FK column path

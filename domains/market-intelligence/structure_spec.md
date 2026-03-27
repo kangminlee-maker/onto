@@ -1,110 +1,110 @@
-# Market Intelligence Domain — 구조 요건
+# Market Intelligence Domain — Structure Specification
 
-## 1. 목적
+## 1. Purpose
 
-시장 정보 분석 체계의 구조적 요건을 정의한다.
-개체 타입, 특성(trait), 분류 축의 설계 원칙과 구조적 제약을 명시한다.
+Defines the structural requirements of the market intelligence analysis system.
+Specifies design principles and structural constraints for entity types, traits, and classification axes.
 
-## 2. 개체 타입 정의
+## 2. Entity Type Definitions
 
-개체 타입은 체계 내 개체의 **존재론적 종류**를 나타낸다.
+Entity types represent the **ontological kind** of entities within the system.
 
-분류 축: 영역별 개체 종류
+Classification axis: entity kinds per area
 
-### 2.1 데이터 수집 영역
+### 2.1 Data Collection Area
 
-| 개체 타입 | 정의 |
-|-----------|------|
-| 데이터 소스 | 시장 데이터를 제공하는 출처 |
-| 원시 데이터 | 수집된 가공 전 데이터 단위 |
+| Entity Type | Definition |
+|-------------|-----------|
+| Data Source | A source that provides market data |
+| Raw Data | A unit of unprocessed data that has been collected |
 
-### 2.2 분석 영역
+### 2.2 Analysis Area
 
-| 개체 타입 | 정의 |
-|-----------|------|
-| 시장 | 분석 대상인 시장 단위 |
-| 경쟁자 | 시장 내 경쟁 주체 |
-| 세그먼트 | 시장 또는 고객의 하위 분류 집합 |
-| 트렌드 신호 | 시계열에서 식별된 방향성 패턴 |
+| Entity Type | Definition |
+|-------------|-----------|
+| Market | A market unit that is the subject of analysis |
+| Competitor | A competitive entity within a market |
+| Segment | A subset classification of markets or customers |
+| Trend Signal | A directional pattern identified in time-series data |
 
-### 2.3 전략 도출 영역
+### 2.3 Strategy Derivation Area
 
-| 개체 타입 | 정의 |
-|-----------|------|
-| 전략 옵션 | 분석에서 도출된 전략 후보 |
-| 의사결정 게이트 | 전략 실행 승인 검증 지점 |
+| Entity Type | Definition |
+|-------------|-----------|
+| Strategy Option | A strategy candidate derived from analysis |
+| Decision Gate | A verification point for strategy execution approval |
 
-### 2.4 위험 평가 영역
+### 2.4 Risk Assessment Area
 
-| 개체 타입 | 정의 |
-|-----------|------|
-| 위험 요소 | 식별된 개별 위험 요소 |
-| 위험 대응 | 위험에 대한 대응 전략 |
+| Entity Type | Definition |
+|-------------|-----------|
+| Risk Factor | An identified individual risk factor |
+| Risk Response | A response strategy for a risk |
 
-## 3. 특성(Trait) 정의
+## 3. Trait Definitions
 
-특성은 개체의 **속성 분류 값**을 나타낸다.
-개체 타입과 특성은 별개의 분류 축이며, 혼합해서는 안 된다.
+Traits represent the **attribute classification values** of entities.
+Entity types and traits are separate classification axes and must not be mixed.
 
-분류 축:
-- **축 1 — 개체 타입**: 개체가 "무엇인가" (존재론적)
-- **축 2 — 특성**: 개체가 "어떤 속성을 가지는가" (속성적)
-- 두 축은 직교하며, 한 축의 값을 다른 축에 사용하는 것은 금지한다.
+Classification axes:
+- **Axis 1 — Entity Type**: What the entity "is" (ontological)
+- **Axis 2 — Trait**: What attributes the entity "has" (attributive)
+- The two axes are orthogonal, and using a value from one axis in the other is prohibited.
 
-| 특성 | 설명 | 허용 값 예시 | 적용 대상 개체 타입 |
-|------|------|-------------|-------------------|
-| 소스 신뢰도 등급 | 데이터 소스의 신뢰도 분류 | 1차/2차/3차 등 체계에서 정의 | 데이터 소스, 원시 데이터 |
-| 신선도 등급 | 데이터의 시간적 유효성 | 현행/최근/노후/만료 등 | 원시 데이터 |
-| 위험 수준 | 위험 요소의 심각도 분류 | 위기/높음/중간/낮음 등 | 위험 요소 |
-| 신뢰도 | 분석 결과의 확신 수준 | 높음/중간/낮음 등 | 트렌드 신호, 전략 옵션 |
-| 우선순위 | 실행 우선순위 분류 | 체계에서 정의하는 등급 | 전략 옵션, 위험 대응 |
-| 게이트 상태 | 의사결정 게이트의 현재 상태 | 대기/통과/실패/면제 등 | 의사결정 게이트 |
+| Trait | Description | Example Allowed Values | Applicable Entity Types |
+|-------|------------|----------------------|------------------------|
+| Source Credibility Rating | Credibility classification of a data source | Primary/Secondary/Tertiary, etc. as defined in the system | Data Source, Raw Data |
+| Freshness Rating | Temporal validity of data | Current/Recent/Outdated/Expired, etc. | Raw Data |
+| Risk Level | Severity classification of a risk factor | Critical/High/Medium/Low, etc. | Risk Factor |
+| Credibility | Confidence level of analysis results | High/Medium/Low, etc. | Trend Signal, Strategy Option |
+| Priority | Execution priority classification | Ratings defined by the system | Strategy Option, Risk Response |
+| Gate Status | Current status of a decision gate | Pending/Passed/Failed/Exempt, etc. | Decision Gate |
 
-### 3.1 특성 적용 대상 교차 검증
+### 3.1 Cross-Verification of Trait Application Targets
 
-특성이 복수의 개체 타입에 적용되도록 선언된 경우, 모든 해당 개체 타입에서 해당 특성의 값 집합이 유효하게 정의되어야 한다.
+If a trait is declared to apply to multiple entity types, its value set must be validly defined for all applicable entity types.
 
-## 4. 관계 구조
+## 4. Relationship Structure
 
-### 4.1 필수 관계
+### 4.1 Required Relationships
 
-| 관계 | 시작 | 종료 | 설명 |
-|------|------|------|------|
-| 제공(provides) | 데이터 소스 | 원시 데이터 | 어떤 소스에서 수집되었는가 |
-| 분석 대상(analyzes) | 분석 결과 | 시장/경쟁자/세그먼트 | 무엇을 분석했는가 |
-| 도출(derives) | 분석 결과 | 전략 옵션 | 어떤 분석에서 전략이 도출되었는가 |
-| 차단(blocks) | 위험 요소 | 전략 옵션 | 위험이 전략 실행을 제약 |
-| 수정(modifies) | 위험 평가 | 전략 옵션 | 위험 평가 결과가 전략을 수정 |
-| 검증(validates) | 의사결정 게이트 | 전략 옵션 | 게이트가 전략 실행을 승인 |
+| Relationship | Start | End | Description |
+|-------------|-------|-----|-------------|
+| Provides | Data Source | Raw Data | Which source collected it |
+| Analyzes | Analysis Result | Market/Competitor/Segment | What was analyzed |
+| Derives | Analysis Result | Strategy Option | From which analysis the strategy was derived |
+| Blocks | Risk Factor | Strategy Option | Risk constrains strategy execution |
+| Modifies | Risk Assessment | Strategy Option | Risk assessment results modify strategy |
+| Validates | Decision Gate | Strategy Option | Gate approves strategy execution |
 
-### 4.2 방향 규칙
+### 4.2 Direction Rules
 
-모든 관계는 명시된 방향으로만 사용할 수 있다. 역방향 사용은 금지한다.
+All relationships may only be used in the specified direction. Reverse usage is prohibited.
 
-## 5. 구조적 제약
+## 5. Structural Constraints
 
-### 5.1 고립 개체 금지
+### 5.1 No Isolated Entities
 
-모든 개체는 최소 1개의 관계를 가져야 한다. 관계 없는 고립 개체는 데이터 수집 오류 또는 누락으로 간주한다.
+All entities must have at least 1 relationship. An isolated entity without relationships is considered a data collection error or omission.
 
-### 5.2 순환 금지
+### 5.2 No Cycles
 
-데이터 소스 → 원시 데이터 → 분석 결과 → 전략 옵션 경로에 순환이 존재해서는 안 된다.
+No cycles may exist in the path Data Source → Raw Data → Analysis Result → Strategy Option.
 
-### 5.3 위험 평가 경로 독립
+### 5.3 Risk Assessment Path Independence
 
-위험 요소 → 전략 옵션 경로는 분석 결과 → 전략 옵션 경로와 독립적이다. 위험 평가는 분석 경로를 경유하지 않고 전략에 직접 영향을 줄 수 있다.
+The Risk Factor → Strategy Option path is independent of the Analysis Result → Strategy Option path. Risk assessment can directly influence strategy without going through the analysis path.
 
-### 5.4 다중 도메인 네임스페이스
+### 5.4 Multi-Domain Namespace
 
-다른 도메인과 공존할 경우 모든 개체 타입과 특성에 도메인 네임스페이스 접두어를 부여한다. 교차 도메인 참조 시 `{domain}::{concept}` 형식을 사용한다.
+When coexisting with other domains, all entity types and traits are prefixed with a domain namespace. Cross-domain references use the `{domain}::{concept}` format.
 
-## 관련 문서
+## Related Documents
 
-| 문서 | 참조 이유 |
-|------|----------|
-| [domain_scope.md](domain_scope.md) | 영역 정의 및 독립성 원칙 |
-| [concepts.md](concepts.md) | 용어 정의 및 분류 축 원칙 |
-| [logic_rules.md](logic_rules.md) | 특성 값 정합성 규칙 |
-| [dependency_rules.md](dependency_rules.md) | 관계의 의존 방향 규칙 |
-| [extension_cases.md](extension_cases.md) | 구조 확장 시나리오 |
+| Document | Reference Reason |
+|----------|-----------------|
+| [domain_scope.md](domain_scope.md) | Domain definition and independence principles |
+| [concepts.md](concepts.md) | Term definitions and classification axis principles |
+| [logic_rules.md](logic_rules.md) | Trait value consistency rules |
+| [dependency_rules.md](dependency_rules.md) | Relationship dependency direction rules |
+| [extension_cases.md](extension_cases.md) | Structure extension scenarios |

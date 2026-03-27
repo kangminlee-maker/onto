@@ -1,76 +1,76 @@
-# Finance Domain — 역량 질문
+# Finance Domain — Competency Questions
 
-## 분류 축
+## Classification Axes
 
-| 축 | 값 | 설명 |
+| Axis | Values | Description |
 |---|---|---|
-| 질문 유형 | 단일 조회 / 비교 / 파생 / 시계열 / 맥락 | 요구되는 추론 수준 |
-| 난이도 | 기본 / 중급 / 고급 | 필요 개념 수 및 추론 단계 |
-| 데이터 요구 | 본문 충분 / 주석 필요 / 복합 원천 필요 | 답변에 필요한 데이터 범위 |
+| Question type | Single lookup / Comparison / Derived / Time series / Context | Required level of reasoning |
+| Difficulty | Basic / Intermediate / Advanced | Number of concepts needed and reasoning steps |
+| Data requirement | Main statement sufficient / Notes needed / Multiple sources needed | Scope of data needed for answering |
 
-## 단일 회사 조회 (4개)
+## Single Entity Lookup (4)
 
-| ID | 질문 | 유형 | 난이도 | 데이터 요구 |
+| ID | Question | Type | Difficulty | Data Requirement |
 |---|---|---|---|---|
-| Q01 | 특정 회사의 특정 회계연도 연결 매출액은 얼마인가? | 단일 조회 | 기본 | 본문 충분 |
-| Q02 | 특정 회사의 특정 회계연도 별도 재무상태표에서 유동자산 총액은? | 단일 조회 | 기본 | 본문 충분 |
-| Q03 | 특정 회사의 특정 회계연도 연결 현금흐름표에서 영업활동 현금흐름은? | 단일 조회 | 기본 | 본문 충분 |
-| Q04 | 특정 회사의 특정 회계연도 연결 주석에서 우발부채 내역은? | 단일 조회 | 중급 | 주석 필요 |
+| Q01 | What is the consolidated revenue of a specific company for a specific fiscal year? | Single lookup | Basic | Main statement sufficient |
+| Q02 | What is the total current assets on the separate Statement of Financial Position of a specific company for a specific fiscal year? | Single lookup | Basic | Main statement sufficient |
+| Q03 | What is the operating cash flow on the consolidated Cash Flow Statement of a specific company for a specific fiscal year? | Single lookup | Basic | Main statement sufficient |
+| Q04 | What are the contingent liability details in the consolidated notes of a specific company for a specific fiscal year? | Single lookup | Intermediate | Notes needed |
 
-## 기업 간 비교 (3개)
+## Inter-Entity Comparison (3)
 
-| ID | 질문 | 유형 | 난이도 | 데이터 요구 |
+| ID | Question | Type | Difficulty | Data Requirement |
 |---|---|---|---|---|
-| Q05 | 동일 업종 내 두 기업의 특정 회계연도 연결 매출액을 비교하라 | 비교 | 기본 | 본문 충분 |
-| Q06 | 특정 업종 상위 기업들의 특정 회계연도 연결 영업이익률을 비교하라 | 비교 | 중급 | 본문 충분 |
-| Q07 | 한 기업의 특정 사업부문과 다른 기업 전체의 매출을 비교하라 | 비교 | 고급 | 복합 원천 필요 |
+| Q05 | Compare the consolidated revenue of two companies in the same industry for a specific fiscal year | Comparison | Basic | Main statement sufficient |
+| Q06 | Compare the consolidated operating profit margins of top companies in a specific industry for a specific fiscal year | Comparison | Intermediate | Main statement sufficient |
+| Q07 | Compare one company's specific business segment revenue with another company's total revenue | Comparison | Advanced | Multiple sources needed |
 
-> Q07은 세그먼트 차원 비교를 포함한다. 사업부문 매출은 세그먼트 주석에서만 확인 가능한 경우가 있으며, 세그먼트 라벨이 기업별 확장 계정이므로 정규화 매핑이 선행되어야 한다.
+> Q07 involves segment dimension comparison. Business segment revenue may only be available from segment notes, and segment labels are company-specific extension accounts requiring normalization mapping as a prerequisite.
 
-## 파생 지표 (3개)
+## Derived Metrics (3)
 
-| ID | 질문 | 유형 | 난이도 | 데이터 요구 |
+| ID | Question | Type | Difficulty | Data Requirement |
 |---|---|---|---|---|
-| Q08 | 특정 회사의 특정 회계연도 연결 ROE는? | 파생 | 중급 | 본문 충분 |
-| Q09 | 특정 회사의 특정 회계연도 연결 부채비율은? | 파생 | 중급 | 본문 충분 |
-| Q10 | 특정 회사의 특정 회계연도 연결 EPS는? | 파생 | 중급 | 본문 충분 |
+| Q08 | What is the consolidated ROE of a specific company for a specific fiscal year? | Derived | Intermediate | Main statement sufficient |
+| Q09 | What is the consolidated debt ratio of a specific company for a specific fiscal year? | Derived | Intermediate | Main statement sufficient |
+| Q10 | What is the consolidated EPS of a specific company for a specific fiscal year? | Derived | Intermediate | Main statement sufficient |
 
-## 시계열 (3개)
+## Time Series (3)
 
-| ID | 질문 | 유형 | 난이도 | 데이터 요구 |
+| ID | Question | Type | Difficulty | Data Requirement |
 |---|---|---|---|---|
-| Q11 | 특정 회사의 최근 3개년 연결 매출액 추이는? | 시계열 | 기본 | 본문 충분 |
-| Q12 | 특정 회사의 최근 3개년 연결 영업이익률 변동은? | 시계열 | 중급 | 본문 충분 |
-| Q13 | 특정 회사의 특정 보고기간 정정 공시 전후 당기순이익 차이는? | 시계열 | 고급 | 복합 원천 필요 |
+| Q11 | What is the trend of consolidated revenue for a specific company over the most recent 3 years? | Time series | Basic | Main statement sufficient |
+| Q12 | What is the change in consolidated operating profit margin for a specific company over the most recent 3 years? | Time series | Intermediate | Main statement sufficient |
+| Q13 | What is the difference in net income before and after a restatement for a specific company in a specific reporting period? | Time series | Advanced | Multiple sources needed |
 
-> Q13은 정정 공시 처리를 포함한다. 정정 공시는 동일 보고기간에 대해 복수의 데이터 인스턴스가 존재하는 상황을 만들며, 어떤 인스턴스가 최종본인지 판별하는 메타데이터(접수번호, 공시일시)가 필요하다.
+> Q13 involves restatement processing. A restatement creates multiple data instances for the same reporting period, and metadata (filing number, disclosure date/time) is needed to determine which instance is the final version.
 
-## 맥락 정보 (3개)
+## Context Information (3)
 
-| ID | 질문 | 유형 | 난이도 | 데이터 요구 |
+| ID | Question | Type | Difficulty | Data Requirement |
 |---|---|---|---|---|
-| Q14 | 특정 회사의 특정 회계연도 재고자산 평가방법은? | 맥락 | 중급 | 주석 필요 |
-| Q15 | 특정 회사의 특정 회계연도 리스부채 관련 회계정책 변경 사항은? (IFRS 16) | 맥락 | 고급 | 주석 필요 |
-| Q16 | 특정 금융업종 기업의 특정 회계연도 연결 총자산은? | 맥락 | 고급 | 복합 원천 필요 |
+| Q14 | What is the inventory valuation method of a specific company for a specific fiscal year? | Context | Intermediate | Notes needed |
+| Q15 | What are the accounting policy changes related to lease liabilities of a specific company for a specific fiscal year? (IFRS 16) | Context | Advanced | Notes needed |
+| Q16 | What are the consolidated total assets of a specific financial industry company for a specific fiscal year? | Context | Advanced | Multiple sources needed |
 
-> Q16은 금융업종을 포함한다. 금융업은 재무제표 구조 자체가 일반 업종과 상이하며(예: 보험계약부채, 대출채권), 데이터 원천의 구조적 차이로 인해 복합 원천이 필요할 수 있다.
+> Q16 involves the financial industry. The financial industry has a fundamentally different financial statement structure from general industries (e.g., insurance contract liabilities, loan receivables), and multiple sources may be needed due to structural differences in data origins.
 
-## 커버리지 검증
+## Coverage Verification
 
-| 영역 | 질문 수 | 비율 |
+| Area | Number of Questions | Ratio |
 |---|---|---|
-| 단일 조회 | 4 | 25% |
-| 비교 | 3 | 19% |
-| 파생 | 3 | 19% |
-| 시계열 | 3 | 19% |
-| 맥락 | 3 | 19% |
+| Single lookup | 4 | 25% |
+| Comparison | 3 | 19% |
+| Derived | 3 | 19% |
+| Time series | 3 | 19% |
+| Context | 3 | 19% |
 
-편중 감지: domain_scope.md의 편중 감지 기준 6개 항목에 대해 균형 분포 확인 완료.
+Bias detection: balanced distribution confirmed against the 6 bias detection criteria in domain_scope.md.
 
-## 관련 문서
+## Related Documents
 
-- [domain_scope.md](domain_scope.md) — 편중 감지 기준 및 영역 정의
-- [concepts.md](concepts.md) — 질문에 사용되는 개념의 동의어 매핑 및 해석 원칙
-- [logic_rules.md](logic_rules.md) — 파생 지표 질문의 산출 규칙
-- [structure_spec.md](structure_spec.md) — 질문 응답에 필요한 노드·관계 구조
-- [extension_cases.md](extension_cases.md) — 고급 난이도 질문이 요구하는 확장 시나리오
+- [domain_scope.md](domain_scope.md) — bias detection criteria and area definitions
+- [concepts.md](concepts.md) — synonym mappings and interpretation principles for concepts used in questions
+- [logic_rules.md](logic_rules.md) — calculation rules for derived metric questions
+- [structure_spec.md](structure_spec.md) — node and relationship structures needed for answering questions
+- [extension_cases.md](extension_cases.md) — extension scenarios required by advanced difficulty questions

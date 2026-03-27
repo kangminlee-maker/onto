@@ -1,8 +1,8 @@
-# Onto Conciseness (간결성 검증)
+# Onto Conciseness (conciseness verification)
 
-$ARGUMENTS를 간결성 검증자에게 질문합니다.
+Asks $ARGUMENTS to the conciseness verification agent.
 
-에이전트 ID: `onto_conciseness`
+Agent ID: `onto_conciseness`
 
-`~/.claude/plugins/onto/process.md` (공통 정의)와
-`~/.claude/plugins/onto/processes/question.md`를 읽고 실행하세요.
+Read `~/.claude/plugins/onto/process.md` (common definitions) and
+`~/.claude/plugins/onto/processes/question.md`, then execute.

@@ -1,218 +1,218 @@
-# 학습 승격 프로세스
+# Learning Promotion Process
 
-> 프로젝트 수준 학습을 검수하여 글로벌 수준으로 승격합니다.
-> 관련: 리뷰(`processes/review.md`)나 질문(`processes/question.md`)에서 축적된 학습이 대상.
+> Reviews project-level learnings and promotes them to global-level.
+> Related: Learnings accumulated from reviews (`processes/review.md`) or queries (`processes/question.md`) are the target.
 
-프로젝트 수준 학습(`{project}/.onto/learnings/`)을 검수하여 글로벌 수준(`~/.onto/learnings/`)으로 승격합니다. 축 태그를 보존하며, 승격 시 태그 적절성도 검수합니다.
+Reviews project-level learnings (`{project}/.onto/learnings/`) and promotes them to global-level (`~/.onto/learnings/`). Axis tags are preserved, and tag appropriateness is also reviewed during promotion.
 
-### 전제 조건
+### Prerequisites
 
-- `{project}/.onto/learnings/` 디렉토리가 존재해야 합니다.
-- `.onto/config.yml` 또는 CLAUDE.md에 `domain:`이 선언되어 있어야 합니다.
-- 프로젝트 학습 파일이 1개 이상 존재해야 합니다.
-- 조건 미충족 시 사용자에게 안내하고 중단합니다.
+- The `{project}/.onto/learnings/` directory must exist.
+- `domain:` must be declared in `.onto/config.yml` or CLAUDE.md.
+- At least one project learning file must exist.
+- If prerequisites are not met, inform the user and halt.
 
-### 1. 대상 수집
+### 1. Target Collection
 
-**$ARGUMENTS가 있는 경우**: 지정된 에이전트의 학습 파일만 수집합니다.
-- 예: `/promote-learnings onto_logic` → `{project}/.onto/learnings/onto_logic.md`만 대상
+**If $ARGUMENTS is provided**: Collects only the specified agent's learning file.
+- Example: `/promote-learnings onto_logic` → only `{project}/.onto/learnings/onto_logic.md` is targeted
 
-**$ARGUMENTS가 없는 경우**: `.onto/learnings/` 하위의 모든 `*.md` 파일을 수집합니다.
+**If $ARGUMENTS is not provided**: Collects all `*.md` files under `.onto/learnings/`.
 
-각 파일에 대해:
-- 프로젝트 학습: `{project}/.onto/learnings/{agent-id}.md`의 각 항목
-- 글로벌 학습: `~/.onto/learnings/{agent-id}.md`의 기존 항목
+For each file:
+- Project learning: each entry in `{project}/.onto/learnings/{agent-id}.md`
+- Global learning: existing entries in `~/.onto/learnings/{agent-id}.md`
 
-### 2. 사전 분석
+### 2. Pre-Analysis
 
-각 프로젝트 학습 항목을 글로벌 학습과 대조하여 분류합니다:
+Compares each project learning entry against global learnings and classifies:
 
-| 분류 | 기준 | 처리 |
+| Classification | Criteria | Action |
 |---|---|---|
-| **중복** | 글로벌에 동일 내용이 이미 존재 | 승격 대상에서 제외 |
-| **모순** | 글로벌의 기존 항목과 상충 | 검수 시 명시적 판단 필요 |
-| **신규** | 글로벌에 없는 새로운 학습 | 승격 후보 |
+| **Duplicate** | Identical content already exists in global | Excluded from promotion targets |
+| **Contradiction** | Conflicts with existing global entry | Explicit judgment required during review |
+| **New** | New learning not in global | Promotion candidate |
 
-### 3. 일반화 가능성 검수
+### 3. Generalizability Review
 
-승격 후보(신규 + 모순)를 3인 에이전트 패널로 검수합니다.
-`process.md`의 **Agent Teams 실행 방식**을 따릅니다 (에러 처리 규칙, 구조 조율자 역할 포함).
-TeamCreate로 팀(`onto-promote`)을 생성하고, 3인을 teammate로 생성합니다.
-초기 prompt: `process.md`의 **Teammate 초기 prompt 템플릿** 사용 (팀명: `onto-promote`).
-team lead(구조 조율자)가 3인에게 SendMessage로 검수 지시를 **개별 전달**합니다.
-검수 에이전트 미응답 시, 해당 에이전트를 제외하고 나머지로 합의 판정 (분모 조정).
+Reviews promotion candidates (new + contradiction) via a 3-agent panel.
+Follows the **Agent Teams Execution** in `process.md` (including error handling rules and structure coordinator role).
+Creates a team (`onto-promote`) via TeamCreate and creates the 3 reviewers as teammates.
+Initial prompt: use the **Teammate Initial Prompt Template** from `process.md` (team_name: `onto-promote`).
+The team lead (structure coordinator) delivers review directives to the 3 reviewers via **individual SendMessage**.
+If a review agent is non-responsive, exclude that agent and determine consensus with the remaining agents (adjusts the consensus denominator).
 
-**검수 에이전트 선정**:
-- 해당 학습을 생성한 에이전트 본인
-- `philosopher` (종합 관점)
-- 학습 내용과 가장 관련 깊은 다른 에이전트 1인 (자동 선정)
+**Review agent selection**:
+- The agent that originally generated the learning
+- `philosopher` (synthesis perspective)
+- One other agent most relevant to the learning content (auto-selected)
 
-각 검수 에이전트에게 전달할 내용:
+Content to deliver to each review agent:
 
 ```
-당신은 {역할}입니다.
-아래 프로젝트 수준 학습을 글로벌로 승격할지 검수해 주세요.
+You are {role}.
+Please review whether the project-level learnings below should be promoted to global.
 
-[도메인]
+[Domain]
 {domain}
 
-[승격 후보 항목]
-{항목 목록 — 각 항목에 신규/모순 태그 + 축 태그 포함}
+[Promotion Candidates]
+{item list — each item includes new/contradiction tag + axis tags}
 
-[글로벌 기존 학습]
-{해당 에이전트의 글로벌 학습 전문}
+[Existing Global Learnings]
+{full global learnings for the agent}
 
-[판단 기준]
-1. 일반화 가능성: 이 학습이 이 프로젝트에서만 유효한가, 다른 프로젝트에서도 유효한가?
-2. 정확성: 학습 내용이 사실에 기반하는가, 특수한 상황에서의 우연이 아닌가?
-3. 모순 처리: 기존 글로벌 학습과 모순되는 경우, 어느 쪽이 더 일반적으로 올바른가?
-4. 축 태그 적절성: 이 학습의 축 태그가 적절한가?
-   - "도메인 용어 제거 후 성립?" → [methodology] 태그 필요 여부
-   - 현재 프로젝트 도메인 외 다른 도메인에서도 유효? → 추가 [domain/X] 태그 필요 여부
+[Judgment Criteria]
+1. Generalizability: Is this learning valid only in this project, or also valid in other projects?
+2. Accuracy: Is the learning content based on facts, or a coincidence from a unique situation?
+3. Contradiction handling: If it contradicts an existing global learning, which is more generally correct?
+4. Axis tag appropriateness: Are this learning's axis tags appropriate?
+   - "Does the principle still hold after removing domain-specific terms?" → whether [methodology] tag is needed
+   - "Is it also valid in domains other than the current project domain?" → whether additional [domain/X] tag is needed
 
-[보고 형식]
-각 항목에 대해:
-- 판정: 승격 / 보류 / 기각
-- 사유: (1문장)
-- 축 태그 판정: 현재 태그 유지 / 태그 추가({추가 태그}) / 태그 수정
-- 모순 항목인 경우: 글로벌 기존 항목을 교체할지, 보류할지
+[Report Format]
+For each item:
+- Judgment: promote / defer / reject
+- Reason: (1 sentence)
+- Axis tag judgment: retain current tags / add tag ({additional tag}) / modify tag
+- If a contradiction item: whether to replace the existing global entry or defer
 ```
 
-### 4. 합의 판정
+### 4. Consensus Judgment
 
-3인의 결과를 종합합니다:
+Aggregates the 3 reviewers' results:
 
-| 합의 | 처리 |
+| Consensus | Action |
 |---|---|
-| 3/3 승격 | 자동 승격 후보 |
-| 2/3 승격 | 승격 후보 (소수 의견 첨부) |
-| 2/3 이상 보류 | 보류 |
-| 2/3 이상 기각 | 기각 |
+| 3/3 promote | Automatic promotion candidate |
+| 2/3 promote | Promotion candidate (minority opinion attached) |
+| 2/3 or more defer | Defer |
+| 2/3 or more reject | Reject |
 
-**모순 항목**: 합의와 관계없이 반드시 사용자 확인을 거칩니다.
+**Contradiction items**: Regardless of consensus, always require user confirmation.
 
-### 5. 사용자 승인
+### 5. User Approval
 
-판정 결과를 사용자에게 제시합니다:
+Presents the judgment results to the user:
 
 ```markdown
-## 학습 승격 검수 결과
+## Learning Promotion Review Result
 
-### 도메인: {domain}
-### 대상 에이전트: {agent-id 목록}
+### Domain: {domain}
+### Target Agents: {agent-id list}
 
 ---
 
-### 승격 권장 (N건)
-| # | 에이전트 | 학습 내용 | 합의 | 축 태그 | 비고 |
+### Recommended for Promotion (N items)
+| # | Agent | Learning Content | Consensus | Axis Tags | Notes |
 |---|---|---|---|---|---|
-| 1 | {agent} | {내용 요약} | 3/3 | [methodology] [domain/SE] | |
-| 2 | {agent} | {내용 요약} | 2/3 | [domain/SE] | 소수 의견: {사유} |
+| 1 | {agent} | {content summary} | 3/3 | [methodology] [domain/SE] | |
+| 2 | {agent} | {content summary} | 2/3 | [domain/SE] | Minority opinion: {reason} |
 
-### 모순 — 사용자 판단 필요 (N건)
-| # | 에이전트 | 프로젝트 학습 | 글로벌 기존 | 패널 권장 |
+### Contradiction — User Judgment Required (N items)
+| # | Agent | Project Learning | Existing Global | Panel Recommendation |
 |---|---|---|---|---|
-| 1 | {agent} | {프로젝트 항목} | {글로벌 항목} | {교체/보류} |
+| 1 | {agent} | {project entry} | {global entry} | {replace/defer} |
 
-### 보류 (N건)
-| # | 에이전트 | 학습 내용 | 사유 |
+### Deferred (N items)
+| # | Agent | Learning Content | Reason |
 |---|---|---|---|
 
-### 기각 (N건)
-| # | 에이전트 | 학습 내용 | 사유 |
+### Rejected (N items)
+| # | Agent | Learning Content | Reason |
 |---|---|---|---|
 
 ---
 
-승격을 진행할 항목 번호를 알려주세요. (예: "승격 전체", "승격 1,3", "모순 1번은 교체")
+Please specify which items to promote. (e.g., "promote all", "promote 1,3", "replace contradiction #1")
 ```
 
-### 6. 승격 실행
+### 6. Promotion Execution
 
-사용자가 승인한 항목만 처리합니다:
+Processes only user-approved items:
 
-- **신규 승격**: 항목을 `~/.onto/learnings/{agent-id}.md` 끝에 추가합니다 (축 태그 포함).
-  - 출처를 `(출처: {프로젝트명}에서 승격, {원래 출처}, {승격 날짜})`로 변경합니다.
-- **모순 교체**: 글로벌의 기존 항목을 새 항목으로 교체합니다.
-  - 교체된 항목은 `<!-- 교체됨 ({날짜}): {원래 내용} -->` 형태로 주석 보존합니다.
-- **프로젝트 학습 정리**: 승격된 항목에 `(→ 글로벌 승격 완료, {날짜})` 태그를 붙입니다. 삭제하지 않습니다.
+- **New promotion**: Appends the entry to `~/.onto/learnings/{agent-id}.md` (with axis tags).
+  - Changes the source to `(source: promoted from {project name}, {original source}, {promotion date})`.
+- **Contradiction replacement**: Replaces the existing global entry with the new entry.
+  - Preserves the replaced entry as `<!-- replaced ({date}): {original content} -->` in a comment.
+- **Project learning cleanup**: Tags promoted entries with `(-> promoted to global, {date})`. Does not delete them.
 
-### 7. 도메인 기준 문서 갱신 제안
+### 7. Domain Document Update Proposal
 
-승격된 도메인 학습 중 다음 조건에 해당하는 항목을 자동 탐지합니다.
+Automatically detects items among promoted domain learnings that match the following conditions.
 
-**갱신 대상 3종의 선정 근거** (에이전트-도메인 문서 결합도 유형에 따라):
-- `concepts.md` (축적 가능형): 학습에서 용어 정의가 자연스럽게 추출됨
-- `competency_qs.md` (축적 가능형): 학습에서 역량 질문이 자연스럽게 추출됨
-- `domain_scope.md` (범위 정의형): 학습에서 도메인 범위 발견이 추출됨
-- 나머지 4종(`logic_rules.md`, `structure_spec.md`, `dependency_rules.md`, `extension_cases.md`)은 규칙 정의형으로, 학습에서 자동 추출 시 기준선 오염 위험이 있어 수동 관리를 권장합니다.
+**Selection rationale for the 3 update targets** (by agent-domain document coupling type):
+- `concepts.md` (accumulable): terminology definitions are naturally extracted from learnings
+- `competency_qs.md` (accumulable): competency questions are naturally extracted from learnings
+- `domain_scope.md` (scope-defining): domain scope discoveries are extracted from learnings
+- The remaining 4 types (`logic_rules.md`, `structure_spec.md`, `dependency_rules.md`, `extension_cases.md`) are rule-defining; automatic extraction from learnings risks baseline contamination, so manual management is recommended.
 
-| 조건 | 대상 문서 | 판단 기준 |
+| Condition | Target Document | Judgment Criteria |
 |---|---|---|
-| 개념 정의, 용어 매핑, 동의어/동형이의어 관련 학습 | `concepts.md` | `onto_semantics`의 학습이고, 용어의 정의·구분·매핑에 대한 내용일 때 |
-| 역량 질문, 질의 경로, 사용 시나리오 관련 학습 | `competency_qs.md` | `onto_pragmatics`의 학습이고, "이 질문에 답할 수 있어야 한다" 형태일 때 |
-| 도메인 범위, 하위 영역, 필수 개념 범주 관련 학습 | `domain_scope.md` | `onto_coverage`의 학습이고, 도메인의 범위·하위 영역·참조 표준에 대한 내용일 때 |
+| Learnings about concept definitions, term mappings, synonyms/homographs | `concepts.md` | When the learning is from `onto_semantics` and concerns term definitions/distinctions/mappings |
+| Learnings about competency questions, query paths, usage scenarios | `competency_qs.md` | When the learning is from `onto_pragmatics` and is in the form "should be able to answer this question" |
+| Learnings about domain scope, sub-areas, required concept categories | `domain_scope.md` | When the learning is from `onto_coverage` and concerns domain scope/sub-areas/reference standards |
 
-탐지된 항목이 있으면 사용자에게 제안합니다:
+If items are detected, proposes to the user:
 
 ```markdown
-## 도메인 기준 문서 갱신 제안
+## Domain Document Update Proposal
 
-승격된 학습 중 도메인 기준 문서에 반영 가능한 항목이 있습니다.
+Among promoted learnings, there are items that can be reflected in domain documents.
 
-### concepts.md 갱신 후보 (N건)
-| # | 학습 내용 | 반영 형태 |
+### concepts.md Update Candidates (N items)
+| # | Learning Content | Reflection Form |
 |---|---|---|
-| 1 | {학습 요약} | {용어 추가 / 정의 수정 / 매핑 추가} |
+| 1 | {learning summary} | {add term / modify definition / add mapping} |
 
-### competency_qs.md 갱신 후보 (N건)
-| # | 학습 내용 | 반영 형태 |
+### competency_qs.md Update Candidates (N items)
+| # | Learning Content | Reflection Form |
 |---|---|---|
-| 1 | {학습 요약} | {질문 추가 / 질문 수정 / 질문 삭제} |
+| 1 | {learning summary} | {add question / modify question / delete question} |
 
-### domain_scope.md 갱신 후보 (N건)
-| # | 학습 내용 | 반영 형태 |
+### domain_scope.md Update Candidates (N items)
+| # | Learning Content | Reflection Form |
 |---|---|---|
-| 1 | {학습 요약} | {하위 영역 추가 / 범위 수정 / 표준 추가} |
+| 1 | {learning summary} | {add sub-area / modify scope / add standard} |
 
-반영할 항목을 알려주세요. (예: "concepts 전체", "domain_scope 1번만")
-문서가 아직 없으면 새로 생성합니다.
+Please specify which items to reflect. (e.g., "concepts all", "domain_scope #1 only")
+If the document does not yet exist, it will be created.
 ```
 
-사용자 승인 시:
-- 문서가 없으면 `~/.onto/domains/{domain}/concepts.md` 또는 `competency_qs.md`를 생성합니다.
-- 문서가 있으면 기존 내용에 추가/수정합니다.
-- 탐지된 항목이 없으면 이 단계를 건너뜁니다.
+Upon user approval:
+- If the document does not exist, creates `~/.onto/domains/{domain}/concepts.md` or `competency_qs.md`.
+- If the document exists, adds to/modifies the existing content.
+- If no items are detected, skips this step.
 
-### 8. 판단 학습 재검증
+### 8. Judgment Learning Re-verification
 
-`[판단]` 유형의 학습이 10건 이상 축적된 에이전트가 있으면, 기존 판단 학습의 맥락 유효성을 재검증합니다:
+If any agent has accumulated 10 or more `[judgment]`-type learnings, re-verifies the contextual validity of existing judgment learnings:
 
 ```markdown
-## 판단 학습 재검증
+## Judgment Learning Re-verification
 
-{agent-id}의 판단 학습이 {N}건 축적되었습니다. 맥락 유효성을 재검증합니다.
-재검증 기준: 이 판단이 현재 맥락에서도 여전히 유효한가?
+{agent-id} has accumulated {N} judgment learnings. Re-verifying contextual validity.
+Re-verification criteria: Is this judgment still valid in the current context?
 
-| # | 판단 학습 | 출처 | 판정 |
+| # | Judgment Learning | Source | Verdict |
 |---|---|---|---|
-| 1 | {학습 내용} | {출처} | 유지 / 삭제 / 수정 |
+| 1 | {learning content} | {source} | retain / delete / modify |
 ```
 
-### 9. 완료 보고
+### 9. Completion Report
 
 ```markdown
-## 승격 완료
+## Promotion Complete
 
-| 처리 | 건수 |
+| Action | Count |
 |---|---|
-| 승격 (신규) | N건 |
-| 승격 (교체) | N건 |
-| 보류 | N건 |
-| 기각 | N건 |
-| 중복 (사전 제외) | N건 |
-| 기준 문서 갱신 | N건 |
-| 판단 학습 삭제/수정 | N건 |
+| Promoted (new) | N items |
+| Promoted (replaced) | N items |
+| Deferred | N items |
+| Rejected | N items |
+| Duplicate (pre-excluded) | N items |
+| Document update | N items |
+| Judgment learning deleted/modified | N items |
 
-글로벌 학습 경로: `~/.onto/learnings/`
+Global learning path: `~/.onto/learnings/`
 ```

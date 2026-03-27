@@ -1,88 +1,88 @@
-# Market Intelligence Domain — 체계 검증 질문
+# Market Intelligence Domain — System Verification Questions
 
-## 1. 목적
+## 1. Purpose
 
-이 문서는 시장 정보 분석 체계가 올바르게 구성되었는지 검증하기 위한 질문 목록이다.
-각 질문은 특정 설계 원칙의 준수 여부를 확인한다.
+This document is a list of questions for verifying whether the market intelligence analysis system is properly structured.
+Each question checks compliance with a specific design principle.
 
-## 2. 데이터 수집 검증
+## 2. Data Collection Verification
 
-### Q1. 신뢰도 등급 정합성
+### Q1. Credibility Rating Consistency
 
-- [ ] 수집 정책에 선언된 데이터 소스 신뢰도 등급 값 집합을 나열하라.
-- [ ] 의사결정 게이트에서 참조하는 신뢰도 등급 값 집합을 나열하라.
-- [ ] 분석 단계에서 사용하는 신뢰도 등급 값 집합을 나열하라.
-- [ ] 위 집합들이 **정확히 일치**하는가? 불일치가 있다면 어디에서 발생하는가?
+- [ ] List the set of data source credibility rating values declared in the collection policy.
+- [ ] List the set of credibility rating values referenced at decision gates.
+- [ ] List the set of credibility rating values used in the analysis phase.
+- [ ] Do the above sets **exactly match**? If there is a discrepancy, where does it occur?
 
-### Q2. 데이터 소스 분류 완전성
+### Q2. Data Source Classification Completeness
 
-- [ ] 모든 활성 데이터 소스에 신뢰도 등급이 부여되어 있는가?
-- [ ] 신뢰도 등급이 없는 데이터가 분석에 투입된 사례가 있는가?
-- [ ] 데이터 소스 추가 시 신뢰도 등급 부여를 강제하는 메커니즘이 존재하는가?
+- [ ] Have all active data sources been assigned a credibility rating?
+- [ ] Are there cases where data without a credibility rating was fed into analysis?
+- [ ] Does a mechanism exist that enforces credibility rating assignment when adding a data source?
 
-### Q3. 수집 주기 유효성
+### Q3. Collection Frequency Validity
 
-- [ ] 각 데이터 소스의 수집 주기가 해당 데이터의 변동 주기에 적합한가?
-- [ ] 데이터 신선도 기준이 정의되어 있고, 만료된 데이터의 처리 정책이 있는가?
+- [ ] Is the collection frequency for each data source appropriate for the data's rate of change?
+- [ ] Are data freshness criteria defined, and is there a policy for handling expired data?
 
-## 3. 분석 검증
+## 3. Analysis Verification
 
-### Q4. 분석 방법론 전제 조건
+### Q4. Analysis Methodology Preconditions
 
-- [ ] 사용된 각 분석 방법론의 전제 조건이 명시되어 있는가?
-- [ ] 전제 조건이 충족되지 않은 상태에서 분석이 수행된 사례가 있는가?
+- [ ] Are the preconditions for each analysis methodology used explicitly stated?
+- [ ] Are there cases where analysis was performed without its preconditions being met?
 
-### Q5. 세그먼트 분류 기준
+### Q5. Segment Classification Criteria
 
-- [ ] 시장 세그먼트의 분류 기준이 명시적으로 선언되어 있는가?
-- [ ] 분류 기준이 상호 배타적(MECE)인가?
-- [ ] 분류 기준 변경 시 기존 분석 결과에 미치는 영향이 추적 가능한가?
+- [ ] Are the classification criteria for market segments explicitly declared?
+- [ ] Are the classification criteria mutually exclusive and collectively exhaustive (MECE)?
+- [ ] When classification criteria change, can the impact on existing analysis results be traced?
 
-## 4. 전략 도출 검증
+## 4. Strategy Derivation Verification
 
-### Q6. 의사결정 게이트의 선언-구현 연결
+### Q6. Decision Gate Declaration-Implementation Link
 
-- [ ] 의사결정 게이트에 선언된 통과 조건이 무엇인가?
-- [ ] 각 통과 조건에 대응하는 **실제 검증 로직**(체크리스트, 자동화 등)이 존재하는가?
-- [ ] 선언만 존재하고 검증 로직이 없는 "선언-구현 갭"이 있는가?
-- [ ] 정책 선언 변경 시 검증 로직의 동기화를 강제하는 메커니즘이 있는가?
+- [ ] What are the pass conditions declared at the decision gate?
+- [ ] Does **actual verification logic** (checklists, automation, etc.) exist for each pass condition?
+- [ ] Are there any "declaration-implementation gaps" where only the declaration exists without verification logic?
+- [ ] Does a mechanism exist that enforces synchronization of verification logic when policy declarations change?
 
-### Q7. 전략 옵션 추적 가능성
+### Q7. Strategy Option Traceability
 
-- [ ] 각 전략 옵션이 어떤 분석 결과에서 도출되었는지 추적할 수 있는가?
-- [ ] 분석 데이터가 갱신되었을 때 영향받는 전략 옵션을 식별할 수 있는가?
+- [ ] Can each strategy option be traced back to the analysis results from which it was derived?
+- [ ] When analysis data is updated, can the affected strategy options be identified?
 
-## 5. 위험 평가 검증
+## 5. Risk Assessment Verification
 
-### Q8. 위험 평가 독립성
+### Q8. Risk Assessment Independence
 
-- [ ] 위험 평가가 전략 도출과 **독립적으로** 수행될 수 있는가?
-- [ ] 전략이 없는 상태에서도 위험 평가 결과가 유효한가?
-- [ ] 위험 평가 결과가 전략 수정을 트리거할 수 있는 경로가 존재하는가?
-- [ ] 위험 평가 담당자/프로세스가 전략 도출 담당자/프로세스와 분리되어 있는가?
+- [ ] Can risk assessment be performed **independently** of strategy derivation?
+- [ ] Are risk assessment results valid even in the absence of a strategy?
+- [ ] Does a path exist through which risk assessment results can trigger strategy modification?
+- [ ] Are the risk assessment personnel/processes separated from the strategy derivation personnel/processes?
 
-### Q9. 위험 정량화 일관성
+### Q9. Risk Quantification Consistency
 
-- [ ] 위험 점수 산출 공식(영향도 x 발생 가능성)이 모든 위험 요소에 동일하게 적용되는가?
-- [ ] 위험 임계값이 정의되어 있고, 초과 시 자동 알림/대응 트리거가 있는가?
+- [ ] Is the risk score formula (impact x likelihood) applied uniformly to all risk factors?
+- [ ] Are risk thresholds defined, and are there automatic alert/response triggers when thresholds are exceeded?
 
-## 6. 구조 전반 검증
+## 6. Overall Structural Verification
 
-### Q10. 분류 축 혼합 방지
+### Q10. Classification Axis Mixing Prevention
 
-- [ ] 개체 타입이 특성(trait)으로 사용된 사례가 있는가?
-- [ ] 특성이 개체 타입으로 사용된 사례가 있는가?
+- [ ] Are there cases where an entity type is used as a trait?
+- [ ] Are there cases where a trait is used as an entity type?
 
-### Q11. 다중 도메인 공존
+### Q11. Multi-Domain Coexistence
 
-- [ ] 다른 도메인과 동일 프로젝트에서 사용될 때 네임스페이스 충돌이 없는가?
-- [ ] 동형이의어가 concepts.md에 모두 등재되어 있는가?
+- [ ] Are there no namespace collisions when used in the same project as other domains?
+- [ ] Are all homonyms registered in concepts.md?
 
-## 7. 관련 문서
+## 7. Related Documents
 
-| 문서 | 참조 이유 |
-|------|----------|
-| [domain_scope.md](domain_scope.md) | 영역 정의 및 독립성 원칙 |
-| [concepts.md](concepts.md) | 용어 정의 및 분류 축 원칙 |
-| [logic_rules.md](logic_rules.md) | 신뢰도 등급 정합성 규칙 |
-| [structure_spec.md](structure_spec.md) | 구조 요건 |
+| Document | Reference Reason |
+|----------|-----------------|
+| [domain_scope.md](domain_scope.md) | Domain definition and independence principles |
+| [concepts.md](concepts.md) | Term definitions and classification axis principles |
+| [logic_rules.md](logic_rules.md) | Credibility rating consistency rules |
+| [structure_spec.md](structure_spec.md) | Structural requirements |

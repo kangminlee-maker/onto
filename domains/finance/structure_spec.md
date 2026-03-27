@@ -1,88 +1,88 @@
-# Finance Domain — 온톨로지 구조 명세
+# Finance Domain — Ontology Structure Specification
 
-## 분류 축
+## Classification Axes
 
-| 축 | 값 | 설명 |
+| Axis | Values | Description |
 |---|---|---|
-| 노드 유형 | Entity / Statement / Fact / Concept / Period / Note / Policy / Segment | 온톨로지 구성 요소 |
-| 관계 방향 | 상향(귀속) / 하향(구성) / 수평(참조) | 엣지 방향 의미 |
+| Node type | Entity / Statement / Fact / Concept / Period / Note / Policy / Segment | Ontology components |
+| Relationship direction | Upward (attribution) / Downward (composition) / Horizontal (reference) | Edge direction semantics |
 
-## 필수 노드 유형 (8개)
+## Required Node Types (8)
 
-| 유형 | 설명 | 예시 |
+| Type | Description | Examples |
 |---|---|---|
-| Entity | 보고 주체 (법인) | 특정 상장기업 (종목코드 등으로 식별) |
-| Statement | 재무제표 유형 | 연결재무상태표, 별도손익계산서 |
-| FinancialFact | 개별 재무 수치 | 특정 회사의 특정 연도 매출액 (연결) |
-| Concept | 계정과목 (택소노미 요소) | ifrs:Revenue, 기업별 확장 계정 |
-| Period | 보고 기간 | 특정 회계연도 기간, 특정 보고 시점 |
-| Note | 주석 정보 | 우발부채 상세, 회계정책 설명 |
-| Policy | 회계정책 선택 | 재고자산: 선입선출법 |
-| Segment | 사업부문 | 특정 사업부문 (기업별 정의) |
+| Entity | Reporting entity (legal entity) | A specific listed company (identified by stock code, etc.) |
+| Statement | Financial statement type | Consolidated Statement of Financial Position, Separate Income Statement |
+| FinancialFact | Individual financial figure | A specific company's revenue for a specific year (consolidated) |
+| Concept | Account (taxonomy element) | ifrs:Revenue, company-specific extension accounts |
+| Period | Reporting period | A specific fiscal year period, a specific reporting date |
+| Note | Note information | Contingent liability details, accounting policy descriptions |
+| Policy | Accounting policy choice | Inventory: FIFO method |
+| Segment | Business division | A specific business segment (company-defined) |
 
-> Segment 노드는 대규모 기업에서 필수적이나, 세그먼트 라벨이 기업별 확장 계정이므로 Concept 노드와의 매핑이 선행되어야 한다.
+> The Segment node is essential for large companies, but since segment labels are company-specific extension accounts, mapping to Concept nodes must be performed as a prerequisite.
 
-## 필수 관계
+## Required Relationships
 
-### FinancialFact 관계 (4개)
+### FinancialFact Relationships (4)
 
-| 관계 | 시작 노드 | 종료 노드 | 카디널리티 | 설명 |
+| Relationship | Start Node | End Node | Cardinality | Description |
 |---|---|---|---|---|
-| REPORTED_BY | FinancialFact | Entity | N:1 | 어떤 기업이 보고했는가 |
-| BELONGS_TO | FinancialFact | Statement | N:1 | 어떤 재무제표에 속하는가 |
-| HAS_CONCEPT | FinancialFact | Concept | N:1 | 어떤 계정과목인가 |
-| IN_PERIOD | FinancialFact | Period | N:1 | 어떤 기간/시점인가 |
+| REPORTED_BY | FinancialFact | Entity | N:1 | Which company reported it |
+| BELONGS_TO | FinancialFact | Statement | N:1 | Which financial statement it belongs to |
+| HAS_CONCEPT | FinancialFact | Concept | N:1 | Which account it represents |
+| IN_PERIOD | FinancialFact | Period | N:1 | Which period/point-in-time it belongs to |
 
-### Note 관계 (2개)
+### Note Relationships (2)
 
-| 관계 | 시작 노드 | 종료 노드 | 카디널리티 | 설명 |
+| Relationship | Start Node | End Node | Cardinality | Description |
 |---|---|---|---|---|
-| ANNOTATES | Note | FinancialFact | N:M | 어떤 재무 수치를 설명하는가 |
-| DISCLOSES_POLICY | Note | Policy | 1:N | 어떤 회계정책을 공시하는가 |
+| ANNOTATES | Note | FinancialFact | N:M | Which financial figures it explains |
+| DISCLOSES_POLICY | Note | Policy | 1:N | Which accounting policies it discloses |
 
-### Segment 관계
+### Segment Relationships
 
-| 관계 | 시작 노드 | 종료 노드 | 카디널리티 | 설명 |
+| Relationship | Start Node | End Node | Cardinality | Description |
 |---|---|---|---|---|
-| IN_SEGMENT | FinancialFact | Segment | N:1 | 어떤 사업부문에 귀속되는가 (선택적) |
-| PART_OF | Segment | Entity | N:1 | 어떤 기업의 사업부문인가 |
+| IN_SEGMENT | FinancialFact | Segment | N:1 | Which business division it belongs to (optional) |
+| PART_OF | Segment | Entity | N:1 | Which company's business division it is |
 
-## 재무제표 완전성
+## Financial Statement Completeness
 
-하나의 Entity-Period 조합에 대해 다음 Statement가 존재해야 한다:
-- 재무상태표 (필수)
-- 손익계산서 (필수)
-- 현금흐름표 (필수)
-- 자본변동표 (필수)
-- 포괄손익계산서 (필수, 손익계산서와 통합 가능)
+For a given Entity-Period combination, the following Statements must exist:
+- Statement of Financial Position (required)
+- Income Statement (required)
+- Cash Flow Statement (required)
+- Statement of Changes in Equity (required)
+- Statement of Comprehensive Income (required; may be combined with Income Statement)
 
-> 금융업종의 경우 Statement 구성이 상이할 수 있다. 예: 보험업은 "보험계약부채 변동표"가 추가될 수 있다. 업종 분류 축(일반/금융)에 따라 완전성 기준이 분기된다.
+> For the financial industry, Statement composition may differ. Example: insurance companies may have an additional "Statement of Insurance Contract Liability Changes." Completeness criteria branch based on the industry classification axis (general/financial).
 
-## 고립 노드 금지
+## Isolated Node Prohibition
 
-모든 노드는 최소 1개의 관계(엣지)를 가져야 한다.
-- Entity 노드: 최소 1개의 REPORTED_BY 관계 필요
-- Concept 노드: 최소 1개의 HAS_CONCEPT 관계 필요
-- Period 노드: 최소 1개의 IN_PERIOD 관계 필요
-- Note 노드: 최소 1개의 ANNOTATES 관계 필요
+Every node must have at least 1 relationship (edge).
+- Entity node: requires at least 1 REPORTED_BY relationship
+- Concept node: requires at least 1 HAS_CONCEPT relationship
+- Period node: requires at least 1 IN_PERIOD relationship
+- Note node: requires at least 1 ANNOTATES relationship
 
-> 고립 노드가 감지되면 데이터 수집 오류 또는 매핑 누락으로 간주하고 경고를 발생시킨다.
+> If an isolated node is detected, it is considered a data collection error or mapping omission, and a warning is raised.
 
-## ID 체계
+## ID System
 
-### 단일화 원칙
-- 노드 ID는 원천에 관계없이 단일 체계로 통합
-- ID 구성: `{EntityCode}_{PeriodKey}_{StatementType}_{ConceptID}`
-- 임시 ID는 정규 ID 전환 전까지 참조 무결성 검증 대상에서 "경고" 처리
+### Unification Principle
+- Node IDs are unified into a single system regardless of source
+- ID composition: `{EntityCode}_{PeriodKey}_{StatementType}_{ConceptID}`
+- Temporary IDs are treated as "warning" for referential integrity verification until converted to canonical IDs
 
-### 의미 식별자 보존
-- XBRL 택소노미 요소 ID는 단순 기술 식별자가 아니라 의미 식별자(semantic identifier)
-- 의미 식별자는 개념의 정의·계층·관계를 내포하므로, 자체 식별자를 새로 만들기보다 기존 요소 ID를 최대한 보존·활용
+### Semantic Identifier Preservation
+- XBRL taxonomy element IDs are not mere technical identifiers but semantic identifiers
+- Semantic identifiers embody the concept's definition, hierarchy, and relationships, so preserving and leveraging existing element IDs is preferred over creating new identifiers
 
-## 관련 문서
+## Related Documents
 
-- [domain_scope.md](domain_scope.md) — 필수 개념 범주가 노드 유형으로 실현되는 관계
-- [concepts.md](concepts.md) — Concept 노드의 동의어 매핑 및 확장 계정 처리
-- [logic_rules.md](logic_rules.md) — 노드 간 관계에 적용되는 수학적 제약
-- [dependency_rules.md](dependency_rules.md) — 관계(엣지)의 방향·비순환 규칙
-- [extension_cases.md](extension_cases.md) — 새 노드 유형 추가 시나리오
+- [domain_scope.md](domain_scope.md) — the relationship between required concept categories and their realization as node types
+- [concepts.md](concepts.md) — synonym mappings and extension account handling for Concept nodes
+- [logic_rules.md](logic_rules.md) — mathematical constraints applied to inter-node relationships
+- [dependency_rules.md](dependency_rules.md) — direction and acyclic rules for relationships (edges)
+- [extension_cases.md](extension_cases.md) — scenarios for adding new node types

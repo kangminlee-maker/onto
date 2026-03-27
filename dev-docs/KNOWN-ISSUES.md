@@ -1,145 +1,145 @@
-# onto — Known Issues
+# onto -- Known Issues
 
-## Issue 1-A: team-lead LLM 컨텍스트 포화로 인한 inbox 메시지 부분 인식 실패 (2026-03-25)
+## Issue 1-A: Partial Inbox Message Recognition Failure Due to Team-Lead LLM Context Saturation (2026-03-25)
 
-### 상태: 확인됨, 해결 방안 설계됨
+### Status: Confirmed, resolution designed
 
-### 관찰된 증상
+### Observed Symptoms
 
-8인 패널 리뷰에서 team-lead가 7인 중 3인의 리뷰만 인식함.
+In an 8-agent panel review, the team lead recognized reviews from only 3 out of 7 agents.
 
-| 에이전트 | 리뷰 보고 수신 | idle 알림 수신 | 비고 |
+| Agent | Review report received | Idle notification received | Notes |
 |---------|:---:|:---:|------|
-| onto_logic | X | O | idle로 전환되었으나 보고 미수신 |
-| onto_semantics | X | X | idle 알림도 미수신 |
-| onto_structure | **O** | O | 정상 |
-| onto_dependency | X | O | idle 전환 후 보고 미수신 |
-| onto_pragmatics | **O** | O | 정상 |
-| onto_evolution | X | X | idle 알림도 미수신 |
-| onto_coverage | **O** | O | 정상 |
+| onto_logic | X | O | Transitioned to idle but report not received |
+| onto_semantics | X | X | Idle notification also not received |
+| onto_structure | **O** | O | Normal |
+| onto_dependency | X | O | Transitioned to idle but report not received |
+| onto_pragmatics | **O** | O | Normal |
+| onto_evolution | X | X | Idle notification also not received |
+| onto_coverage | **O** | O | Normal |
 
-재요청(SendMessage) 후에도 미인식 4인의 결과는 수신되지 않았습니다.
+Even after resend requests (SendMessage), results from the 4 unrecognized agents were not received.
 
-### 근본 원인 (inbox 데이터 검증 완료)
+### Root Cause (verified via inbox data)
 
-**transport 계층은 정상. team-lead LLM의 컨텍스트 포화가 원인.**
+**Transport layer is normal. Team-lead LLM context saturation is the cause.**
 
-검증된 사실:
-- 7인 전원의 리뷰가 team-lead inbox에 도착함 (5,031~9,456자/인)
-- 모든 메시지 `read=True` (transport 레이어 성공)
-- 재전송 4인의 결과도 inbox에 존재, 역시 `read=True`
-- team-lead inbox 총 메시지 크기: ~64,517자 (7인 원문 + idle 알림 + 재전송)
-- Philosopher에게 3인만 전달, 18,072자 원문을 3,997자로 요약 ("원문 그대로" 규칙 위반)
+Verified facts:
+- All 7 agents' reviews arrived in team-lead inbox (5,031-9,456 chars/agent)
+- All messages `read=True` (transport layer success)
+- Resent results from 4 agents also present in inbox, also `read=True`
+- Team-lead inbox total message size: ~64,517 chars (7 agents' originals + idle notifications + resends)
+- Only 3 agents' results forwarded to Philosopher; 18,072 chars of original text summarized to 3,997 chars (violating "relay original text as-is" rule)
 
-**인과 경로**: team-lead의 기존 컨텍스트(process.md + review.md + 에이전트 정의 + 리뷰 대상) 위에 ~64,517자가 inbox로 유입 → LLM이 일부 메시지만 인식 → 3인 결과만 Philosopher에게 전달 → 원문조차 요약됨 (컨텍스트 부족)
+**Causal path**: Team-lead's existing context (process.md + review.md + agent definitions + review target) plus ~64,517 chars flooding the inbox -> LLM recognizes only some messages -> only 3 agents' results forwarded to Philosopher -> even originals get summarized (insufficient context)
 
-### 해결 방안
+### Resolution
 
-#### 파일 기반 컨텍스트 외부화
+#### File-Based Context Externalization
 
-현행 Agent Teams → fallback → Subagent 흐름을 유지하면서, 리뷰 원문 전달을 파일 기반으로 변경합니다. MCP 서버 불필요 — 내장 Write/Read 도구만 사용.
+Maintains the existing Agent Teams -> fallback -> Subagent flow while changing review text relay to file-based. No MCP server needed -- uses only built-in Write/Read tools.
 
-데이터 흐름 변경:
+Data flow change:
 ```
-[현행]  Reviewer → SendMessage(원문) → team-lead 컨텍스트 적재 → SendMessage(원문) → Philosopher
-[변경]  Reviewer → Write(파일) → team-lead에 경로만 보고 → Philosopher → Read × 7(파일)
+[Current]  Reviewer -> SendMessage(original) -> loaded into team-lead context -> SendMessage(original) -> Philosopher
+[Changed]  Reviewer -> Write(file) -> report only path to team-lead -> Philosopher -> Read x 7(files)
 ```
 
-세션 디렉토리: `{project}/.onto/review/{YYYYMMDD}-{hash8}/round1/{agent-id}.md`
-- 세션 ID(`{YYYYMMDD}-{hash8}`)는 team_name과 동일 (팀 생성 시 한 번 생성, 충돌 없음)
-- team-lead가 세션 디렉토리를 생성하고 경로를 reviewer 초기 prompt에 포함
+Session directory: `{project}/.onto/review/{YYYYMMDD}-{hash8}/round1/{agent-id}.md`
+- Session ID (`{YYYYMMDD}-{hash8}`) is the same as team_name (generated once at team creation, no collisions)
+- Team lead creates the session directory and includes the path in each reviewer's initial prompt
 
-컨텍스트 분리 효과:
-- team-lead: ~64,517자 → ~500자 (경로 문자열만)
-- "원문 그대로" 규칙이 구조적으로 보장됨 (파일에 보존, 중간 전달 없음)
-- Philosopher가 자기 컨텍스트에서 7인 원문을 직접 Read (의도된 적재)
+Context separation effect:
+- Team lead: ~64,517 chars -> ~500 chars (path strings only)
+- "Relay original text as-is" rule is structurally guaranteed (preserved in files, no intermediate relay)
+- Philosopher reads all 7 agents' originals directly in its own context (intended loading)
 
-Write 실패 시 fallback:
-- reviewer가 Write 실패 시 SendMessage로 원문 전달 (현행 방식)
-- team-lead가 해당 원문을 대리 Write하거나, Philosopher에게 혼합 전달
+Write failure fallback:
+- If a reviewer's Write fails, falls back to SendMessage for original text relay (current method)
+- Team lead performs proxy Write or delivers mixed content to Philosopher
 
-### 현재 대응 (process.md:93 graceful degradation)
+### Current Mitigation (process.md:93 graceful degradation)
 
-- 미인식 에이전트를 제외하고 수신된 결과로 진행
-- 합의 판정 시 분모를 조정 (예: 3/8 → 3/3)
-- Philosopher 미응답 시 team lead가 직접 종합
+- Proceeds with received results, excluding unrecognized agents
+- Adjusts the consensus denominator (e.g., 3/8 -> 3/3)
+- If Philosopher is unresponsive, team lead performs synthesis directly
 
 ---
 
-## Issue 1-B: team_name 고정으로 인한 세션 간 에이전트 누수 (2026-03-25)
+## Issue 1-B: Inter-Session Agent Leakage Due to Fixed team_name (2026-03-25)
 
-### 상태: 확인됨, 해결 방안 설계됨
+### Status: Confirmed, resolution designed
 
-### 관찰된 증상
+### Observed Symptoms
 
-#### 증상 1: `-2` 인스턴스의 세션 간 누수
+#### Symptom 1: `-2` Instance Leakage Across Sessions
 
-원래 팀(8인)을 shutdown한 후, 다른 세션에서 생성된 `-2` 접미사 인스턴스들이 현재 세션의 team lead에게 메시지를 보내기 시작했습니다:
+After shutting down the original team (8 agents), `-2` suffixed instances created in another session began sending messages to the current session's team lead:
 
 - `onto_logic-2`, `onto_semantics-2`, `onto_structure-2`, `onto_dependency-2`, `onto_pragmatics-2`, `onto_evolution-2`, `onto_coverage-2`
-- 이들은 **원래 리뷰 대상이 아닌 다른 주제**를 리뷰하고 있었음 → 다른 세션에서 생성된 에이전트임이 확인됨
-- config.json 검증: team-lead의 `cwd=/Users/kangmin/cowork/sprint-kit`, -2 에이전트들의 `cwd=/Users/kangmin/cowork/onto` → 서로 다른 세션
-- TeamDelete가 `-2` 인스턴스들 때문에 실패 (7 active members). 별도 shutdown 필요.
+- These were reviewing **a different topic than the original review target** -- confirmed as agents from another session
+- config.json verification: team-lead's `cwd=/Users/kangmin/cowork/sprint-kit`, -2 agents' `cwd=/Users/kangmin/cowork/onto` -- different sessions
+- TeamDelete failed due to `-2` instances (7 active members). Separate shutdown required.
 
-#### 증상 2: 다른 프로젝트 세션에 팀 잔류
+#### Symptom 2: Team Residue in Another Project's Session
 
-sprint-kit 세션을 재개(resume)했을 때, onto 세션에서 실행된 패널 리뷰의 system-reminder가 sprint-kit 세션에 나타남.
+When resuming the sprint-kit session, system-reminder from a panel review executed in the onto session appeared in the sprint-kit session.
 
-### 근본 원인
+### Root Cause
 
-- `team_name`이 `onto`로 고정 (process.md:101)
-- `~/.claude/teams/onto/config.json`이 파일 시스템에 공유됨
-- 같은 `team_name`을 사용하는 팀이 여러 세션에서 동시에 존재 가능
-- 다른 세션에서 생성된 에이전트가 같은 team_name의 inbox에 메시지를 보냄
+- `team_name` was fixed to `onto` (process.md:101)
+- `~/.claude/teams/onto/config.json` is shared on the filesystem
+- Multiple teams with the same `team_name` can coexist across sessions
+- Agents created in other sessions send messages to the same team_name's inbox
 
-### 해결 방안
+### Resolution
 
-1. **세션 ID 기반 team_name**: `onto-{YYYYMMDD}-{hash8}` 형태로 세션별 고유 team_name 생성 (충돌 불가, git commit처럼 추적 가능)
-2. **TeamCreate 전 기존 팀 확인**: `~/.claude/teams/onto-*` 패턴으로 기존 팀 존재 확인. 있으면 사용자에게 안내.
-3. **다중 세션 동시 실행 금지 규칙 유지**: 한 세션에서 onto 진행 중이면 다른 세션에서 실행하지 않아야 함 (타임스탬프로 격리되지만, 동일 세션 재실행 시 이전 팀 잔류 가능)
+1. **Session ID-based team_name**: Format `onto-{YYYYMMDD}-{hash8}` generates a unique team_name per session (collision-proof, traceable like git commits)
+2. **Check for existing teams before TeamCreate**: Check for existing teams matching `~/.claude/teams/onto-*` pattern. Notify user if found.
+3. **Maintain concurrent multi-session execution prohibition**: If onto is running in one session, it should not be executed in another session (isolated by timestamps, but previous team residue possible on same-session re-execution)
 
-### 적용 위치
+### Affected Locations
 
-- process.md:101 — team_name 규칙 변경
-- review.md:41 — team_name 하드코딩 제거
-- process.md:114~116 — 고아 팀 정리 규칙에 타임스탬프 패턴 매칭 추가
-
----
-
-## Issue 1 참고: -2 에이전트들의 분석 내용
-
--2 인스턴스들은 원래 리뷰 대상 대신 메시지 유실 문제를 분석했습니다. 주요 발견:
-
-- **onto_semantics-2**: "라우팅 문제"라는 진단명이 부정확 — 라우팅(transport)은 성공, 실패는 LLM 인식 단계. 메시지 생명주기 5단계 제안: 제출→polling→주입→인식→활용
-- **onto_logic-2**: 컨텍스트 윈도우 포화 가설이 누락과 요약 전달을 동시에 설명할 수 있음. 재전송 후에도 동일 실패 반복은 구조적 한계의 증거
-- **onto_coverage-2**: 7인 리뷰 합계 ~45,635자 + idle 14건. team lead 기존 컨텍스트와 합산 시 포화 가능성. build 프로세스(반복 루프)에서 더 심각할 수 있음
-- **onto_evolution-2**: "원문 그대로 전달" 규칙 자체가 규모에 비례하는 실패 원인. 프로세스가 암묵적으로 가정하는 인프라 동작 목록 명시 필요
+- process.md:101 -- team_name rule change
+- review.md:41 -- Remove team_name hardcoding
+- process.md:114~116 -- Add timestamp pattern matching to orphan team cleanup rules
 
 ---
 
-## Issue 1 검증 이력
+## Issue 1 Reference: Analysis Content from -2 Agents
 
-### 2026-03-25: inbox 데이터 기반 근본 원인 검증
+The -2 instances analyzed the message loss problem instead of the original review target. Key findings:
 
-기존 KNOWN-ISSUES는 Issue 1-A와 1-B를 하나의 이슈("팀 메시지 유실 + 세션 간 누수")로 기술하고, 근본 원인을 "team_name 공유로 인한 세션 간 라우팅 문제"로 분석했습니다.
+- **onto_semantics-2**: The diagnosis name "routing issue" is inaccurate -- routing (transport) succeeded; the failure is at the LLM recognition stage. Proposed 5-stage message lifecycle: submission -> polling -> injection -> recognition -> utilization
+- **onto_logic-2**: The context window saturation hypothesis can simultaneously explain both message loss and summarized relay. Repeated failure after resend is evidence of a structural limitation
+- **onto_coverage-2**: Total of ~45,635 chars from 7 agents' reviews + 14 idle notifications. Combined with team lead's existing context, saturation is plausible. Could be more severe in the build process (iteration loop)
+- **onto_evolution-2**: The "relay original text as-is" rule itself is a failure cause that scales with volume. Need to explicitly list the infrastructure behaviors that the process implicitly assumes
 
-inbox 데이터(`~/.claude/teams/onto/inboxes/team-lead.json`) 검증 결과:
-- **Issue 1-A의 원인은 세션 간 누수가 아니라 LLM 컨텍스트 포화**임이 확인됨 (단일 세션 내에서 발생)
-- **Issue 1-B의 원인은 team_name 공유**로 기존 분석이 정확
+---
 
-두 문제는 원인이 다르고 해결책도 달라, 별도 이슈(1-A, 1-B)로 분리했습니다.
+## Issue 1 Verification History
 
-### 2026-03-25: 해결 설계안 8인 패널 리뷰 (Subagent 모드)
+### 2026-03-25: Root Cause Verification Based on Inbox Data
 
-설계안(MCP 외부화 + 제어/데이터 평면 분리)에 대해 8인 패널 리뷰를 수행했습니다.
+The original KNOWN-ISSUES described Issues 1-A and 1-B as a single issue ("team message loss + inter-session leakage") and analyzed the root cause as "inter-session routing issue due to shared team_name."
 
-주요 리뷰 결과:
-- Degradation 체계 불완전 (7/7 합의) → 2×2 매트릭스로 재구성 필요
-- 동기화 프로토콜 부재 (4/7 합의) → SendMessage 3기능 분해 후 대체 필수
-- 부분 실패 경로 미정의 (5/7 합의)
-- 세션 격리 고립 (5/7 합의)
+Inbox data (`~/.claude/teams/onto/inboxes/team-lead.json`) verification results:
+- **Issue 1-A's cause is LLM context saturation, not inter-session leakage** (occurred within a single session)
+- **Issue 1-B's cause is shared team_name**, confirming the original analysis
 
-PO 결정:
-- MCP 외부화는 **선택적 활성화**로 분리 (MCP Key 설정 필요)
-- 기본 모드는 현행 Agent Teams → fallback → Subagent 유지
-- 설계 복잡성은 분기를 명확히 정의하고 프로세스를 독립 설계하여 관리
+The two problems have different causes and different solutions, so they were separated into distinct issues (1-A, 1-B).
+
+### 2026-03-25: 8-Agent Panel Review of Resolution Design (Subagent Mode)
+
+An 8-agent panel review was conducted on the design proposal (MCP externalization + control/data plane separation).
+
+Key review results:
+- Degradation system incomplete (7/7 consensus) -> needs restructuring into 2x2 matrix
+- Synchronization protocol absent (4/7 consensus) -> must decompose SendMessage into 3 functions and replace
+- Partial failure paths undefined (5/7 consensus)
+- Session isolation gaps (5/7 consensus)
+
+PO decision:
+- MCP externalization separated as **optional activation** (requires MCP Key configuration)
+- Default mode retains existing Agent Teams -> fallback -> Subagent
+- Design complexity managed by clearly defining branches and designing processes independently

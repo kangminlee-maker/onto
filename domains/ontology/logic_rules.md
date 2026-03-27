@@ -1,40 +1,40 @@
-# Ontology Domain — 논리 규칙
+# Ontology Domain — Logic Rules
 
-## 분류 논리
+## Classification Logic
 
-- 하위 클래스는 상위 클래스의 모든 필수 속성과 제약을 상속한다. 하위 클래스에서 상위 클래스의 제약을 완화하는 것은 is-a 관계의 위반
-- 동일 계층에서 분류 기준은 단일해야 한다. 기능별 분류와 구조별 분류를 같은 계층에 혼합하면 교차 분류(cross-classification)가 발생
-- Disjoint Union으로 선언된 하위 클래스 집합은 (1) 상호 배타적이고, (2) 상위 클래스를 완전히 분할해야 한다. 둘 중 하나만 충족하면 불완전
-- 다중 상속이 허용된 경우, 다이아몬드 상속(A→B, A→C, B→D, C→D)에서 속성 충돌 해결 규칙이 명시되어야 한다
+- A subclass inherits all required properties and constraints of the superclass. Relaxing a superclass's constraints in the subclass is a violation of the is-a relation
+- Classification criteria at the same hierarchy level must be singular. Mixing functional and structural classification at the same level causes cross-classification
+- A set of subclasses declared as a Disjoint Union must be (1) mutually exclusive and (2) completely partition the superclass. Satisfying only one condition is incomplete
+- When multiple inheritance is allowed, a conflict resolution rule for diamond inheritance (A->B, A->C, B->D, C->D) must be specified for property conflicts
 
-## 제약 논리
+## Constraint Logic
 
-- 도메인/레인지 제약은 추론의 방향을 결정한다. OWL에서 도메인 선언은 "이 속성을 사용하면 주체가 해당 클래스에 속한다"는 추론을 유발한다. 이는 검증이 아니라 분류
-- Cardinality 제약에서 min/max의 조합이 논리적으로 충족 가능해야 한다. min > max는 논리적 모순으로 일관성 파괴
-- OWL의 Open World Assumption 하에서, "속성 값이 없다"는 "속성 값이 없음이 확인되었다"와 다르다. 부재의 추론이 필요하면 Closed World로 전환하거나 SHACL을 사용
-- Closure Axiom 없이 열거형 제약을 정의하면, 추론기는 명시되지 않은 추가 값이 존재할 수 있다고 가정한다
+- Domain/range constraints determine the direction of inference. In OWL, a domain declaration triggers the inference that "if this property is used, the subject belongs to that class." This is classification, not validation
+- In cardinality constraints, the min/max combination must be logically satisfiable. min > max is a logical contradiction that destroys consistency
+- Under OWL's Open World Assumption, "a property has no value" is different from "it is confirmed that the property has no value." If reasoning about absence is needed, switch to Closed World or use SHACL
+- Defining an enumeration constraint without a Closure Axiom allows the reasoner to assume that additional unstated values may exist
 
-## 추론 논리
+## Reasoning Logic
 
-- 이행성(transitivity): part-of가 이행적이면, A part-of B, B part-of C → A part-of C. 그러나 모든 part-of가 이행적이지는 않다 (예: "손가락 part-of 손 part-of 사람"에서 "손가락 part-of 사람"이 의미적으로 타당한지는 맥락 의존)
-- 대칭성(symmetry): "A가 B와 관련있다"가 "B가 A와 관련있다"를 함의하는지 명시해야 한다. sibling-of는 대칭, parent-of는 비대칭
-- 추론기 실행 시 불일관성(inconsistency)이 감지되면, 불일관성의 원인 공리를 최소 집합(minimal unsatisfiable subset)으로 격리해야 수정 가능
-- 추론 결과가 의도와 다를 때, 공리가 잘못된 것인지 의도가 잘못된 것인지를 구분해야 한다. 형식적 정확성과 의미적 정확성은 별개
+- Transitivity: if part-of is transitive, then A part-of B, B part-of C -> A part-of C. However, not all part-of relations are transitive (e.g., whether "finger part-of hand part-of person" implies "finger part-of person" is context-dependent)
+- Symmetry: it must be stated whether "A is related to B" implies "B is related to A." sibling-of is symmetric; parent-of is asymmetric
+- When a reasoner detects inconsistency, the axioms causing the inconsistency must be isolated to a minimal unsatisfiable subset for correction to be possible
+- When inference results differ from intent, it must be distinguished whether the axiom is wrong or the intent is wrong. Formal correctness and semantic correctness are separate concerns
 
-## 명명 논리
+## Naming Logic
 
-- 동일 개념에 대해 복수의 명칭(label)이 존재할 수 있다. 그러나 하나의 URI는 하나의 개념만 가리켜야 한다 (URI 유일성)
-- 동형이의어(같은 이름, 다른 의미)는 별도 URI로 분리하고 각각에 범위(scope)를 명시해야 한다
-- 자연어 레이블과 형식적 URI의 불일치는 소비자 혼란을 유발한다. 레이블 변경 시 URI는 유지하되 변경 이력을 기록
+- Multiple labels may exist for the same concept. However, one URI must refer to exactly one concept (URI uniqueness)
+- Homonyms (same name, different meaning) must be separated into distinct URIs, each with a scope specified
+- Inconsistency between natural language labels and formal URIs causes consumer confusion. When a label changes, the URI is retained but the change history is recorded
 
-## 제약 상충 검사
+## Constraint Conflict Checking
 
-- 두 공리가 동일 클래스를 서로 다른 방향으로 제약하면 상충이다 (예: "A는 반드시 B의 하위" + "A는 B와 배타적")
-- 상위 클래스의 제약과 하위 클래스의 제약이 모순되면 불일관성이다
-- 매핑된 외부 온톨로지의 제약이 내부 온톨로지의 제약과 충돌하면 매핑 자체가 논리적 오류
-- 서로 다른 온톨로지 유형(예: Axiom 기반 + Taxonomy)을 결합할 때, 각 유형의 가정(OWA vs CWA)이 충돌하지 않는지 검증 필요
+- When two axioms constrain the same class in different directions, it is a conflict (e.g., "A must be a subclass of B" + "A is disjoint with B")
+- When superclass constraints and subclass constraints are contradictory, it is an inconsistency
+- When a mapped external ontology's constraints conflict with the internal ontology's constraints, the mapping itself is a logical error
+- When combining different ontology types (e.g., Axiom-based + Taxonomy), the assumptions of each type (OWA vs CWA) must be verified to not conflict
 
-## 관련 문서
-- concepts.md — 공리, 추론기, 관계 유형 등 용어 정의
-- dependency_rules.md — 온톨로지 간 의존, 매핑 규칙
-- competency_qs.md — Q12~Q15 (제약/추론 검증 질문)
+## Related Documents
+- concepts.md — definitions of axioms, reasoners, relation types, and other terms
+- dependency_rules.md — inter-ontology dependencies and mapping rules
+- competency_qs.md — Q12~Q15 (constraint/reasoning verification questions)

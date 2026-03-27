@@ -1,67 +1,67 @@
-# LLM-Native Development Domain — 개념 사전 및 해석 규칙
+# LLM-Native Development Domain — Concept Dictionary and Interpretation Rules
 
-## 도메인 상속
+## Domain Inheritance
 
-본 도메인은 `software-engineering/concepts.md`를 상속합니다. 상속된 용어는 명시적 재정의가 없는 한 상위 도메인의 정의를 따릅니다. 아래는 재정의 목록입니다:
+This domain inherits from `software-engineering/concepts.md`. Inherited terms follow the parent domain's definitions unless explicitly redefined. Below is the redefinition list:
 
-| 용어 | 상위 도메인 정의 | 본 도메인 재정의 | 변경 범위 |
-|---|---|---|---|
-| model | 도메인 모델(비즈니스 객체) | 도메인 모델(개념 구조) | 괄호 설명 변경 — 비즈니스 객체가 아닌 파일 기반 개념 구조를 지칭 |
+| Term | Parent Domain Definition | This Domain Redefinition | Change Scope |
+|------|------------------------|-------------------------|-------------|
+| model | domain model (business object) | domain model (concept structure) | Parenthetical description changed — refers to file-based concept structure, not business objects |
 
-## 파일 유형 분류
+## File Type Classification
 
-이 도메인에서 파일은 두 가지 유형으로 구분됩니다:
+In this domain, files are classified into two types:
 
-- **개념 파일** (concept file): 하나의 도메인 개념을 정의하는 파일. "File = Concept" 등식이 적용됨
-- **메타 파일** (meta file): 개념을 정의하지 않지만 체계의 구조를 기술하는 파일. INDEX.md, ARCHITECTURE.md, README.md, LLM 지시 파일(CLAUDE.md, AGENTS.md, .cursorrules 등)이 해당. "File = Concept" 등식에서 제외됨
+- **Concept file**: A file that defines a single domain concept. The "File = Concept" equation applies
+- **Meta file**: A file that does not define concepts but describes the system's structure. INDEX.md, ARCHITECTURE.md, README.md, LLM instruction files (CLAUDE.md, AGENTS.md, .cursorrules, etc.) are included. Excluded from the "File = Concept" equation
 
-## 파일/문서 구조 용어
+## File/Document Structure Terms
 
-- Frontmatter = 전문(前文) → 파일 상단의 YAML 블록. 제목, 유형, 관계 등 메타데이터를 기계가 읽을 수 있는 형태로 기록. **진실의 원천은 structure_spec.md**
-- Navigation Index = 탐색 인덱스 → 디렉토리 내 파일 목록과 각 파일의 역할을 요약하는 메타 파일 (INDEX.md 또는 README.md)
-- System Map = 시스템 맵 → 전체 체계의 구조를 단일 문서로 표현한 메타 파일 (ARCHITECTURE.md, llms.txt)
-- Code Map = 코드 맵 → 코드베이스의 핵심 아키텍처를 압축 요약한 문서. 크기와 포착 범위는 프로젝트에 따라 결정
+- Frontmatter = the YAML block at the top of a file. Records metadata such as title, type, and relationships in a machine-readable format. **Source of truth is structure_spec.md**
+- Navigation Index = a meta file summarizing the file list within a directory and each file's role (INDEX.md or README.md)
+- System Map = a meta file representing the entire system's structure as a single document (ARCHITECTURE.md, llms.txt)
+- Code Map = a document that provides a compressed summary of the codebase's core architecture. Size and coverage scope are determined per project
 
-## 설계 원칙 용어
+## Design Principle Terms
 
-- Self-Describing = 자기 설명적 → 파일명, 폴더명, 구조만으로 내용과 역할을 파악할 수 있는 성질
-- Colocation = 동일 위치 배치 → 관련 개념을 같은 디렉토리에 함께 배치하는 원칙
-- Spec-First = 스펙 우선 → 구현 코드 작성 전에 spec.md로 기능 명세를 확정하는 개발 순서
-- Ontology-as-Code = 코드로서의 온톨로지 → 도메인 지식을 선언적·구조화된 파일로 관리하며, 버전 관리와 자동화된 정합성 검증을 적용하는 방식
-- Living Document = 살아있는 문서 → 검증·갱신·제안 주기를 통해 지속적으로 정확성이 유지되는 문서
+- Self-Describing = the property that content and role can be understood from the filename, folder name, and structure alone
+- Colocation = the principle of placing related concepts together in the same directory
+- Spec-First = the development order of finalizing feature specifications via spec.md before writing implementation code
+- Ontology-as-Code = the approach of managing domain knowledge as declarative, structured files with version control and automated conformance verification
+- Living Document = a document whose accuracy is continuously maintained through verification, update, and suggestion cycles
 
-## 컨텍스트 관리 용어
+## Context Management Terms
 
-- Context Window = 컨텍스트 윈도우 → LLM이 한 번에 처리할 수 있는 토큰의 최대 크기. 모델과 설정에 따라 다름
-- Token Budget = 토큰 예산 → 단일 파일 또는 작업에 할당 가능한 토큰 상한. structure_spec.md에서 구체적 수치를 정의
-- Traversal Depth = 탐색 깊이 → 진입점에서 목표 정보까지 거쳐야 하는 파일 참조 횟수
-- Reference Chain = 참조 체인 → 파일 A → 파일 B → 파일 C와 같은 순차적 참조 관계. dependency_rules.md에서 방향과 순환 규칙을 정의
-- Minimal Traversal = 최소 탐색 → 목표 정보 도달에 필요한 파일 수를 최소화하는 설계
+- Context Window = the maximum number of tokens an LLM can process at once. Varies by model and configuration
+- Token Budget = the upper token limit allocable to a single file or task. Specific values are defined in structure_spec.md
+- Traversal Depth = the number of file references that must be traversed from the entry point to the target information
+- Reference Chain = sequential reference relationships such as file A → file B → file C. Direction and cycle rules are defined in dependency_rules.md
+- Minimal Traversal = design that minimizes the number of files needed to reach target information
 
-## 에이전트/역할 용어
+## Agent/Role Terms
 
-- Agent Role = 에이전트 역할 → 특정 관점에서 체계를 검증하거나 작업을 수행하는 단위. 역할 정의는 roles/ 디렉토리의 개별 파일에 기술
-- Domain Document = 도메인 문서 → 에이전트가 자신의 판단 기준으로 사용하는 도메인별 참조 파일. 에이전트-문서 매핑은 process.md에서 정의
-- Learning = 학습 항목 → 에이전트가 작업 중 발견한 패턴이나 규칙. [사실] 또는 [판단]으로 유형 태깅됨. 축적 → 검증 → 승격 과정을 거침
-- Promote = 승격 → 프로젝트 수준 학습 항목이 도메인 수준 문서에 통합되는 절차. 사용자 명시적 승인 필수
+- Agent Role = a unit that verifies or performs tasks on the system from a specific perspective. Role definitions are described in individual files in the roles/ directory
+- Domain Document = a domain-specific reference file that an agent uses as its judgment criteria. Agent-document mapping is defined in process.md
+- Learning = a pattern or rule discovered by an agent during work. Type-tagged as [fact] or [judgment]. Goes through accumulation → verification → promotion
+- Promote = the procedure by which project-level learning items are integrated into domain-level documents. Requires explicit user approval
 
-## 주의가 필요한 동형이의어
+## Homonyms Requiring Attention
 
-- "context": 컨텍스트 윈도우(LLM 토큰 한계) ≠ 실행 맥락(런타임) ≠ 경계 맥락(DDD)
-- "model": 도메인 모델(개념 구조, 본 도메인 재정의) ≠ LLM 모델(AI 시스템) ≠ 데이터 모델(스키마)
-- "scope": 도메인 범위(포괄 영역) ≠ 변수 스코프(가시 범위) ≠ 프로젝트 스코프(작업 범위)
-- "rule": 논리 규칙(정합성 제약) ≠ 린트 규칙(코드 스타일) ≠ 비즈니스 규칙(도메인 로직)
-- "index": 탐색 인덱스(디렉토리 안내, 메타 파일) ≠ DB 인덱스(검색 최적화) ≠ 배열 인덱스(순서 참조)
+- "context": context window (LLM token limit) != execution context (runtime) != bounded context (DDD)
+- "model": domain model (concept structure, this domain's redefinition) != LLM model (AI system) != data model (schema)
+- "scope": domain scope (coverage area) != variable scope (visibility range) != project scope (work range)
+- "rule": logic rule (conformance constraint) != lint rule (code style) != business rule (domain logic)
+- "index": navigation index (directory guide, meta file) != DB index (search optimization) != array index (order reference)
 
-## 해석 원칙
+## Interpretation Principles
 
-이 원칙은 본 도메인의 개별 개념 파일에 적용됩니다. 해석 원칙 자체를 정의하는 본 파일에는 적용되지 않습니다.
+These principles apply to individual concept files within this domain. They do not apply to this file itself, which defines the interpretation principles.
 
-- 파일명이 내용과 불일치하면, structure_spec.md의 파일명 규칙에 부합하는 쪽을 우선 검토한다
-- frontmatter의 메타데이터와 본문 내용이 상충하면, frontmatter를 우선한다. frontmatter는 기계적 정합성 검증의 대상이므로 더 엄격하게 관리된다
-- 폴더 구조에 표현된 계층 관계는 명시적 선언이다. "편의상 넣은 것"이라는 해석은 하지 않는다
+- If a filename does not match the content, the side conforming to structure_spec.md's filename rules is prioritized for review
+- If frontmatter metadata and body content conflict, frontmatter takes precedence. Frontmatter is subject to mechanical conformance verification and is therefore more strictly managed
+- Hierarchical relationships expressed in folder structure are explicit declarations. The interpretation "it was placed there for convenience" is not made
 
-## 관련 문서
-- domain_scope.md — 이 용어들이 사용되는 영역 정의
-- structure_spec.md — frontmatter 규격의 진실의 원천
-- dependency_rules.md — 참조 체인과 방향 규칙의 상세
+## Related Documents
+- domain_scope.md — Domain definition where these terms are used
+- structure_spec.md — Source of truth for frontmatter specifications
+- dependency_rules.md — Details of reference chains and direction rules

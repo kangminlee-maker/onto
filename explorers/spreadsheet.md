@@ -1,50 +1,50 @@
-# Explorer 프로파일: 스프레드시트
+# Explorer Profile: Spreadsheet
 
-## 탐색 도구
-스프레드시트 파싱 도구 (MCP 서버 등)
+## Exploration Tools
+Spreadsheet parsing tools (MCP server, etc.)
 
-## module_inventory 단위
-시트 / 명명된 범위 / 테이블
+## module_inventory Unit
+Sheet / Named Range / Table
 
-## 구조 인식 범위
-- 셀 값 (문자열, 숫자, 날짜)
-- 수식 및 수식 간 참조 관계
-- 서식 (배경색, 폰트, 테두리, 셀 병합)
-- 시트 간 참조
-- 데이터 유효성 검사 규칙
-- 명명된 범위 (Named Range)
-- 매크로/VBA 유무
+## Structural Recognition Scope
+- Cell values (string, number, date)
+- Formulas and inter-formula reference relationships
+- Formatting (background color, font, borders, merged cells)
+- Cross-sheet references
+- Data validation rules
+- Named Ranges
+- Presence of macros/VBA
 
-## 소스 유형 판별 조건
-- 파일 확장자: .xlsx, .xls, .csv, .ods
+## Source Type Identification Criteria
+- File extension: .xlsx, .xls, .csv, .ods
 - MIME type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 
-## 구조 인식 예시
+## Structural Recognition Examples
 
-올바른 보고:
-> "A1:F1 셀이 병합되어 있고, 배경색 #4472C4, 폰트 Bold이며, 아래 행과 서식이 다르다"
+Correct reporting:
+> "Cells A1:F1 are merged with background color #4472C4, Bold font, and different formatting from the rows below."
 
-> "B2 셀에 수식 =VLOOKUP(A2, Sheet2!A:C, 3, FALSE)이 있으며, Sheet2의 A~C 열을 참조한다"
+> "Cell B2 contains the formula =VLOOKUP(A2, Sheet2!A:C, 3, FALSE), referencing columns A-C of Sheet2."
 
-해서는 안 되는 보고:
-> "A1:F1은 테이블 헤더이다"
+Incorrect reporting:
+> "A1:F1 is a table header."
 
-> "이 시트는 매출 보고서이다"
+> "This sheet is a sales report."
 
-## detail 위치 표기
-`"{설명} — {시트}:{셀범위}"`
+## detail Location Format
+`"{description} — {sheet}:{cell range}"`
 
-예: `"수식 =SUM(B2:B10) — Sheet1:B11"`
+Example: `"Formula =SUM(B2:B10) — Sheet1:B11"`
 
-## Phase 0.5 맥락 질문
-- "이 파일의 주 용도는 무엇인가요? (보고서, 데이터 수집, 계산 모델, 대시보드, ...)"
-- "색상이나 서식에 특별한 의미가 있나요? (예: 빨간 셀 = 미결, 회색 행 = 비활성)"
-- "이 파일을 주로 누가 사용하나요?"
-- "이미 정의된 도메인 용어집이 있나요?"
+## Phase 0.5 Context Questions
+- "What is the primary purpose of this file? (report, data collection, calculation model, dashboard, ...)"
+- "Do colors or formatting have special meaning? (e.g., red cell = unresolved, gray row = inactive)"
+- "Who primarily uses this file?"
+- "Is there an existing domain glossary?"
 
-## Phase 0.5 스캔 대상
-- 시트 목록 및 시트별 사용 영역 범위
-- 명명된 범위 목록
-- 테이블 정의 (ListObject)
-- 매크로/VBA 모듈 유무
-- 외부 데이터 연결 (ODBC, 외부 파일 참조)
+## Phase 0.5 Scan Targets
+- Sheet list and used range per sheet
+- Named range list
+- Table definitions (ListObject)
+- Presence of macros/VBA modules
+- External data connections (ODBC, external file references)

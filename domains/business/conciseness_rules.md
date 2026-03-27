@@ -1,120 +1,120 @@
-# 간결성 규칙 (business)
+# Conciseness Rules (business)
 
-이 문서는 onto_conciseness가 간결성 검증 시 참조하는 도메인별 규칙입니다.
-간결성 판정의 **유형(허용/제거) → 검증 기준 → 역할 경계 → 측정 방법** 순으로 구성됩니다.
-
----
-
-## 1. 허용되는 중복
-
-각 규칙에 강도를 태깅합니다:
-- **[MUST-ALLOW]**: 제거 시 체계가 깨지는 중복. 유지 필수.
-- **[MAY-ALLOW]**: 편의상 유지하는 중복. 통합 가능하나, 통합 비용 대비 이득이 명확할 때만 제거.
-
-### 성과 측정
-
-- [MUST-ALLOW] 선행 지표(leading indicator)와 후행 지표(lagging indicator)의 병행 정의 — 동일 목표에 대해 선행 지표(활동/투입 측정)와 후행 지표(결과 측정)가 각각 존재. 하나만 유지하면 원인-결과 연결이 끊어져 개선 방향 판단 불가.
-- [MUST-ALLOW] Balanced Scorecard의 4대 관점(재무/고객/내부프로세스/학습성장)이 동일 KPI를 다른 관점에서 참조. 관점별 해석이 다르므로 통합 시 다면적 성과 판단 불가.
-
-### 수익 모델
-
-- [MAY-ALLOW] 수익 모델(revenue model)이 전략 경영과 운영 관리 양쪽에 등장 — 전략 수준에서는 시장 선택과 가격 전략의 근거로, 운영 수준에서는 매출 실현 프로세스의 기준으로 사용. 참조 맥락이 다르므로 유지 가능하나, 정의 자체가 불일치하면 통합 필요.
-- [MAY-ALLOW] 비용 구조가 재무 관리(원가 분석)와 운영 관리(낭비 제거) 양쪽에서 기술. 분석 목적이 다르면 유지, 동일 수치의 단순 반복이면 하나로 통합.
-
-### Source of Truth 관련
-
-- [MUST-ALLOW] Source of Truth가 외부 시스템(규제 기관, 계약서, 회계 시스템)에 있을 때, 내부에 참조용 사본 유지. 제거 시 외부 의존 추적 불가.
-- [MAY-ALLOW] 회계 도메인의 재무제표 수치를 경영 의사결정 맥락에서 재해석하여 기술. 원본은 회계 도메인 소관이므로 참조 사본의 해석 맥락이 명시되어 있으면 유지.
-
-### 이해관계자 관련
-
-- [MUST-ALLOW] 동일 이해관계자가 거버넌스(의사결정 권한)와 ESG(이해관계자 영향 관리) 양쪽에서 참조. 관심사가 다르므로 각각 유지. 제거 시 한쪽 관점의 분석이 누락된다.
+This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+It is organized in the order: **type (allow/remove) -> verification criteria -> role boundaries -> measurement methods**.
 
 ---
 
-## 2. 제거 대상 패턴
+## 1. Allowed Redundancy
 
-각 규칙에 강도를 태깅합니다:
-- **[MUST-REMOVE]**: 존재 자체가 오류를 유발하거나 잘못된 추론을 일으키는 중복.
-- **[SHOULD-REMOVE]**: 해가 크지 않으나 불필요한 복잡도를 추가하는 중복.
+Each rule is tagged with a severity level:
+- **[MUST-ALLOW]**: Redundancy that breaks the system if removed. Must be retained.
+- **[MAY-ALLOW]**: Redundancy kept for convenience. Can be consolidated, but only remove when the benefit clearly outweighs the consolidation cost.
 
-### 관계 중복
+### Performance Measurement
 
-- [MUST-REMOVE] 동일 인과 관계의 다중 경로 표현 — "가격 인하→매출 증가"와 "가격 인하→고객 수 증가→매출 증가"가 동일 의미일 때, 하나의 경로만 유지. 양쪽 유지 시 갱신 누락으로 인과 관계 불일치 발생.
-- [MUST-REMOVE] 상위 전략이 이미 보장하는 하위 전술의 재선언 — 상위 경쟁 전략이 "차별화"로 확정되었으면, 하위 마케팅 전술에서 "차별화 전략 채택"을 재선언할 필요 없음.
+- [MUST-ALLOW] Parallel definition of leading indicators and lagging indicators — both leading indicators (activity/input measurement) and lagging indicators (outcome measurement) exist for the same goal. Retaining only one breaks the cause-effect linkage, making it impossible to determine improvement direction.
+- [MUST-ALLOW] Balanced Scorecard's 4 perspectives (financial/customer/internal process/learning & growth) referencing the same KPI from different perspectives. Since each perspective's interpretation differs, consolidation prevents multi-dimensional performance assessment.
 
-### 분류 중복
+### Revenue Model
 
-- [SHOULD-REMOVE] 목적 없는 하위 분류 — 하위 항목이 1개뿐이거나, 상위 분류와 동일한 제약/행동을 가지는 중간 계층 노드. 분류 의미가 없으므로 상위와 병합.
-- [SHOULD-REMOVE] 인스턴스가 존재하지 않는 분류 노드 — 실제 사업 활동이 매핑되지 않는 빈 분류는 제거. 단, 향후 확장을 위한 예약(extension_cases.md 참조)이면 유지.
+- [MAY-ALLOW] Revenue model appearing in both strategic management and operations management — at the strategic level it serves as the basis for market selection and pricing strategy; at the operational level it serves as the standard for revenue realization processes. Since the reference contexts differ, retention is acceptable, but if the definitions themselves are inconsistent, consolidation is needed.
+- [MAY-ALLOW] Cost structure described in both finance (cost analysis) and operations management (waste elimination). Retain if the analysis purposes differ; consolidate if it is a simple repetition of the same figures.
 
-### 정의 중복
+### Source of Truth Related
 
-- [MUST-REMOVE] 동일 개념을 다른 경로/이름으로 중복 정의 — concepts.md의 동의어 매핑을 기준으로 판별. 특히 동형이의어("비용", "가치", "모델", "리스크", "거버넌스", "혁신", "자동화")는 의미가 다른 것이므로 중복이 아님에 주의.
-- [SHOULD-REMOVE] 실행 계획 없는 전략 항목 — 전략 목표만 선언되고 실행 경로(담당 조직, 일정, 자원 배분)가 정의되지 않은 항목. 실행 불가능한 선언은 불필요한 복잡도를 추가.
+- [MUST-ALLOW] When the source of truth resides in external systems (regulatory bodies, contracts, accounting systems), maintaining an internal reference copy. Removing it makes external dependency tracking impossible.
+- [MAY-ALLOW] Reinterpreting accounting domain financial statement figures in the context of management decision-making. Since the original is under the accounting domain's jurisdiction, retain if the reference copy's interpretive context is stated.
 
-### 측정 중복
+### Stakeholder Related
 
-- [MUST-REMOVE] 동일 지표의 다중 정의 — 같은 KPI가 서로 다른 산식이나 기준으로 정의되어 있으면 어느 것이 정본인지 판별 불가. Source of Truth를 하나 지정하고 나머지 제거.
-
----
-
-## 3. 최소 세분화 기준
-
-하위 분류는 아래 중 **하나 이상**을 충족해야 허용됩니다. 하나도 충족하지 않으면 상위와 병합합니다.
-
-1. **역량 질문 차이**: competency_qs.md의 질문에 대해 다른 답을 생성하는가?
-2. **제약 조건 차이**: 다른 제약 조건(측정 지표, 의사결정 권한, 시간 범위)이 적용되는가?
-3. **의존 관계 차이**: 다른 이해관계자/부서/외부 시스템에 의존하거나, 다른 이해관계자/부서/외부 시스템이 의존하는가?
-
-예시:
-- "시장침투 전략"과 "시장개발 전략"은 다른 제약(기존 시장 vs 신규 시장)과 다른 의존 관계(기존 고객 기반 vs 신규 채널)가 적용되므로 분류 정당.
-- "고객 유지 전략"과 "고객 충성도 전략"이 동일 KPI(이탈율, 재구매율)와 동일 대상(기존 고객)을 공유하면 병합 대상.
+- [MUST-ALLOW] The same stakeholder referenced in both governance (decision-making authority) and ESG (stakeholder impact management). Since the concerns differ, retain each. Removing one causes the analysis from that perspective to be missing.
 
 ---
 
-## 4. 경계 — 도메인 특화 적용 사례
+## 2. Removal Target Patterns
 
-경계 정의의 정본은 `roles/onto_conciseness.md`입니다. 이 섹션은 business 도메인에서의 구체적 적용 사례만 기술합니다.
+Each rule is tagged with a severity level:
+- **[MUST-REMOVE]**: Redundancy whose mere existence causes errors or incorrect inferences.
+- **[SHOULD-REMOVE]**: Redundancy that is not very harmful but adds unnecessary complexity.
 
-### onto_pragmatics 경계
+### Relation Redundancy
 
-- onto_conciseness: 불필요한 요소가 **존재**하는가 (구조 수준)
-- onto_pragmatics: 불필요한 정보가 질의 실행을 **방해**하는가 (실행 수준)
-- 예: 의사결정 보고서에 미사용 지표 포함 → onto_pragmatics. 사업 체계에 활동이 매핑되지 않는 빈 분류가 정의됨 → onto_conciseness.
+- [MUST-REMOVE] Multiple path representations of the same causal relation — when "price cut -> revenue increase" and "price cut -> customer count increase -> revenue increase" have the same meaning, retain only one path. Maintaining both causes causal relation inconsistencies due to missed updates.
+- [MUST-REMOVE] Redeclaration of subordinate tactics already guaranteed by the superior strategy — when the superior competitive strategy is confirmed as "differentiation," there is no need to redeclare "adopt differentiation strategy" in subordinate marketing tactics.
 
-### onto_coverage 경계
+### Classification Redundancy
 
-- onto_conciseness: 없어야 할 것이 있는가 (축소 방향)
-- onto_coverage: 있어야 할 것이 없는가 (확장 방향)
-- 예: 수익 모델만 정의되고 비용 구조가 없음 → onto_coverage. 수익 모델이 전략/운영/마케팅에서 각각 다른 정의로 중복됨 → onto_conciseness.
+- [SHOULD-REMOVE] Purposeless sub-classification — intermediate hierarchy nodes with only 1 child, or nodes that have the same constraints/behaviors as the parent classification. They have no classification significance and should be merged with the parent.
+- [SHOULD-REMOVE] Classification nodes with no instances — empty classifications to which no actual business activities are mapped should be removed. However, retain if reserved for future expansion (see extension_cases.md).
 
-### onto_logic 경계 (선행/후행 관계)
+### Definition Redundancy
 
-- onto_logic 선행: 논리적 동치(함의) 여부를 판별
-- onto_conciseness 후행: 동치 확인 후 제거 여부를 판단
-- 예: 상위 경쟁 전략("차별화")이 하위 마케팅 전략("프리미엄 포지셔닝")을 함의 → onto_logic이 동치 판별 → onto_conciseness가 "하위 재선언 불필요" 판정.
+- [MUST-REMOVE] Duplicate definitions of the same concept under different paths/names — use the synonym mappings in concepts.md as the basis for identification. Note in particular that homonyms ("cost," "value," "model," "risk," "governance," "innovation," "automation") have different meanings and are therefore not duplicates.
+- [SHOULD-REMOVE] Strategy items without execution plans — items where only the strategic goal is declared without an execution path (responsible organization, timeline, resource allocation). Non-executable declarations add unnecessary complexity.
 
-### onto_semantics 경계 (선행/후행 관계)
+### Measurement Redundancy
 
-- onto_semantics 선행: 의미 동일성(동의어 여부)을 판별
-- onto_conciseness 후행: 동의어 확인 후 병합 필요성을 판단
-- 예: "고객 이탈율"과 "Churn Rate"가 동일 개념 → onto_semantics가 동의어 판별 → onto_conciseness가 "하나의 정규 용어로 통합" 판정. 단, "재무 리스크"와 "운영 리스크"는 동형이의어이므로 동의어가 아님 — onto_semantics가 "별개 개념" 판별 → onto_conciseness 개입 없음.
+- [MUST-REMOVE] Multiple definitions of the same metric — when the same KPI is defined with different formulas or criteria, it is impossible to determine which is the authoritative version. Designate one as the source of truth and remove the rest.
 
 ---
 
-## 5. 정량 기준
+## 3. Minimum Granularity Criteria
 
-도메인에서 관찰된 임계값이 축적되면 기록합니다.
+A sub-classification is permitted only if it satisfies **at least one** of the following. If none are satisfied, merge with the parent.
 
-- (아직 정의되지 않음 — 리뷰를 통해 축적됩니다)
+1. **Competency question difference**: Does it generate a different answer to a question in competency_qs.md?
+2. **Constraint difference**: Do different constraints (measurement metrics, decision-making authority, time horizon) apply?
+3. **Dependency difference**: Does it depend on different stakeholders/departments/external systems, or do different stakeholders/departments/external systems depend on it?
+
+Examples:
+- "Market penetration strategy" and "market development strategy" are justified as separate classifications because different constraints (existing market vs. new market) and different dependencies (existing customer base vs. new channels) apply.
+- If "customer retention strategy" and "customer loyalty strategy" share the same KPIs (churn rate, repurchase rate) and the same target (existing customers), they are candidates for merging.
 
 ---
 
-## 관련 문서
+## 4. Boundaries — Domain-Specific Application Cases
 
-- `concepts.md` — 용어 정의, 동의어 매핑, 동형이의어 목록 (중복 판별의 의미 기준)
-- `structure_spec.md` — 사업 체계의 구조적 요건 (구조적 관점의 제거 기준)
-- `competency_qs.md` — 역량 질문 목록 (최소 세분화의 "실제 차이" 판단 기준)
-- `dependency_rules.md` — Source of Truth 관리 규칙 (참조 사본 허용 근거)
-- `logic_rules.md` — 재무 논리, 전략 논리, 자동화 범위 관련 규칙 (논리적 동치 판별 기준)
+The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the business domain.
+
+### onto_pragmatics boundary
+
+- onto_conciseness: Does an unnecessary element **exist**? (structural level)
+- onto_pragmatics: Does unnecessary information **hinder** query execution? (execution level)
+- Example: Unused metrics included in a decision-making report -> onto_pragmatics. An empty classification with no mapped business activities defined in the system -> onto_conciseness.
+
+### onto_coverage boundary
+
+- onto_conciseness: Does something exist that should not? (reduction direction)
+- onto_coverage: Is something missing that should exist? (expansion direction)
+- Example: Only revenue model is defined with no cost structure -> onto_coverage. Revenue model is duplicated with different definitions in strategy/operations/marketing -> onto_conciseness.
+
+### onto_logic boundary (predecessor/successor relationship)
+
+- onto_logic predecessor: determines logical equivalence (entailment)
+- onto_conciseness successor: decides whether to remove after equivalence is confirmed
+- Example: The superior competitive strategy ("differentiation") entails the subordinate marketing strategy ("premium positioning") -> onto_logic determines equivalence -> onto_conciseness determines "subordinate redeclaration is unnecessary."
+
+### onto_semantics boundary (predecessor/successor relationship)
+
+- onto_semantics predecessor: determines semantic identity (synonym status)
+- onto_conciseness successor: decides whether merging is needed after synonym confirmation
+- Example: "Churn Rate" in Korean and "Churn Rate" in English are the same concept -> onto_semantics determines they are synonyms -> onto_conciseness determines "consolidate to a single canonical term." However, "financial risk" and "operational risk" are homonyms with different meanings — onto_semantics determines "distinct concepts" -> onto_conciseness does not intervene.
+
+---
+
+## 5. Quantitative Criteria
+
+Observed thresholds from the domain are recorded as they accumulate.
+
+- (Not yet defined — accumulated through reviews)
+
+---
+
+## Related Documents
+
+- `concepts.md` — term definitions, synonym mappings, homonym lists (semantic criteria for redundancy determination)
+- `structure_spec.md` — structural requirements for business systems (structural removal criteria)
+- `competency_qs.md` — competency question list (criteria for "actual difference" in minimum granularity determination)
+- `dependency_rules.md` — source of truth management rules (basis for allowing reference copies)
+- `logic_rules.md` — financial logic, strategy logic, and automation scope rules (criteria for logical equivalence determination)

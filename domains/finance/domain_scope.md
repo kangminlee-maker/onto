@@ -1,74 +1,74 @@
-# Finance Domain — 도메인 범위 정의
+# Finance Domain — Domain Scope Definition
 
-## 분류 축
+## Classification Axes
 
-| 축 | 값 | 설명 |
+| Axis | Values | Description |
 |---|---|---|
-| 보고 체계 | IFRS / 현지 GAAP | 적용 회계 기준 |
-| 보고 단위 | 연결 / 별도 | 재무제표 작성 단위 |
-| 보고 주기 | 연간 / 반기 / 분기 | 공시 빈도 |
-| 업종 분류 | 일반 / 금융 | 재무제표 구조 및 계정과목 체계가 상이 |
-| 시점 속성 | instant(시점) / duration(기간) | 재무 항목의 시간 귀속 방식 |
+| Reporting framework | IFRS / Local GAAP | Applicable accounting standard |
+| Reporting unit | Consolidated / Separate | Financial statement preparation unit |
+| Reporting frequency | Annual / Semi-annual / Quarterly | Disclosure frequency |
+| Industry classification | General / Financial | Financial statement structure and chart of accounts differ |
+| Temporal attribute | instant / duration | Time attribution method of financial items |
 
-## 핵심 영역 (6개)
+## Core Areas (6)
 
-1. **재무제표 구조** — 재무상태표(BS), 손익계산서(IS), 현금흐름표(CF), 자본변동표, 포괄손익계산서의 구성 요소와 상호 관계
-2. **계정과목 분류 체계** — 자산/부채/자본/수익/비용의 계층 구조, 유동·비유동 구분, 확장 계정 처리
-3. **회계 항등식** — 자산=부채+자본, 당기순이익 연결, 현금흐름 검증 등 수학적 제약
-4. **기간/시점 구분** — instant(시점)과 duration(기간) 속성의 구분 및 적용 규칙
-5. **연결/별도 구분** — 연결재무제표와 별도재무제표의 범위, 연결 조정, 내부거래 제거
-6. **주석 체계** — 주석(Note)의 역할, 본문 항목과의 참조 관계, 회계정책 공시
+1. **Financial Statement Structure** — components and interrelationships of the Statement of Financial Position (BS), Income Statement (IS), Cash Flow Statement (CF), Statement of Changes in Equity, and Statement of Comprehensive Income
+2. **Chart of Accounts Classification** — hierarchical structure of assets/liabilities/equity/revenue/expenses, current/non-current classification, extension account handling
+3. **Accounting Identity** — mathematical constraints such as Assets = Liabilities + Equity, net income linkage, cash flow verification
+4. **Period/Point-in-Time Distinction** — rules for distinguishing and applying instant and duration attributes
+5. **Consolidated/Separate Distinction** — scope of consolidated and separate financial statements, consolidation adjustments, intercompany transaction elimination
+6. **Notes System** — the role of Notes, reference relationships with main statement items, accounting policy disclosures
 
-## 보조 영역 (4개)
+## Supporting Areas (4)
 
-1. **파생 지표** — ROE, 부채비율, EPS 등 기본 재무 항목에서 산출되는 분석 지표
-2. **시계열 분석** — 동일 기업의 기간 간 비교, 추세 분석, 정정 공시 반영
-3. **기업 간 비교** — 동종 업종 내 재무 항목 비교, 계정과목 매핑 차이 보정
-4. **기업 지배구조** — 지분 구조, 관계기업, 종속기업 관계
+1. **Derived Metrics** — analytical indicators derived from basic financial items, such as ROE, debt ratio, EPS
+2. **Time Series Analysis** — period-over-period comparison for the same entity, trend analysis, restatement reflection
+3. **Inter-Entity Comparison** — financial item comparison within the same industry, accounting code mapping difference correction
+4. **Corporate Governance Structure** — ownership structure, associates, subsidiary relationships
 
-## 주요 회계 기준 영역 (3개)
+## Key Accounting Standard Areas (3)
 
-1. **수익 인식 (IFRS 15)** — 5단계 수익 인식 모형 (계약 식별 → 수행의무 식별 → 거래가격 산정 → 배분 → 인식), 기간 인식 vs 시점 인식 구분
-2. **금융상품 (IFRS 9)** — 분류(상각후원가/FVOCI/FVPL), 손상(기대신용손실 모형), 위험회피회계
-3. **리스 (IFRS 16)** — 사용권자산·리스부채 인식, 운용리스/금융리스 구분의 폐지(리스이용자 측), 자산·부채 총액 변동 영향
+1. **Revenue Recognition (IFRS 15)** — 5-step revenue recognition model (contract identification -> performance obligation identification -> transaction price determination -> allocation -> recognition), over-time vs. point-in-time recognition
+2. **Financial Instruments (IFRS 9)** — classification (amortised cost/FVOCI/FVPL), impairment (expected credit loss model), hedge accounting
+3. **Leases (IFRS 16)** — right-of-use asset and lease liability recognition, elimination of operating/finance lease distinction (lessee side), impact on total assets and liabilities
 
-## 규제/표준 (3개)
+## Regulatory/Standards (3)
 
-1. **IFRS 준수** — 국제재무보고기준 준수 여부 검증
-2. **감사** — 감사 의견 분류: 적정 / 한정 / 부적정 / 의견거절
-3. **공시 의무** — 법정 공시 체계, 공시 유형별 처리 규칙
+1. **IFRS Compliance** — verification of International Financial Reporting Standards compliance
+2. **Audit** — audit opinion classification: unqualified / qualified / adverse / disclaimer of opinion
+3. **Disclosure Requirements** — statutory disclosure framework, processing rules by disclosure type
 
-## 필수 개념 범주 (6개)
+## Required Concept Categories (6)
 
-| 범주 | 설명 | 예시 |
+| Category | Description | Examples |
 |---|---|---|
-| 보고 주체 | 재무제표를 작성하는 법인 | 특정 상장기업, 특정 금융기관 |
-| 재무 항목 | 계정과목 단위의 금액 정보 | 매출액, 총자산, 당기순이익 |
-| 보고 기간 | 재무 정보의 시간 범위 | 특정 분기, 특정 회계연도 |
-| 회계 정책 | 인식·측정·표시 방법 선택 | 재고자산 평가방법, 감가상각 방법 |
-| 주석 정보 | 본문 항목의 세부 설명 | 우발부채 내역, 특수관계자 거래 |
-| 외부 참조 | 택소노미·표준 연결 정보 | IFRS 택소노미 요소, FIBO 매핑 |
+| Reporting entity | Legal entity that prepares financial statements | A specific listed company, a specific financial institution |
+| Financial item | Monetary information at the account level | Revenue, total assets, net income |
+| Reporting period | Time range of financial information | A specific quarter, a specific fiscal year |
+| Accounting policy | Recognition, measurement, and presentation method choices | Inventory valuation method, depreciation method |
+| Note information | Detailed descriptions of main statement items | Contingent liability details, related party transactions |
+| External reference | Taxonomy and standard linkage information | IFRS taxonomy element, FIBO mapping |
 
-## 참조 표준 (4개)
+## Reference Standards (4)
 
 1. IFRS (International Financial Reporting Standards)
 2. XBRL 2.1 Specification
 3. FIBO (Financial Industry Business Ontology)
-4. 각국 현지 채택 회계기준 (K-IFRS, J-GAAP 등)
+4. Locally adopted accounting standards by country (K-IFRS, J-GAAP, etc.)
 
-## 편중 감지 기준 (6개)
+## Bias Detection Criteria (6)
 
-1. 특정 재무제표(예: 재무상태표)에 질문의 70% 이상 집중 시 경고
-2. 연결/별도 중 한쪽만 다룰 경우 경고
-3. 시계열 질문 없이 단일 시점만 반복 시 경고
-4. 주석 영역 완전 무시 시 경고
-5. 파생 지표 없이 원시 항목만 다룰 경우 경고
-6. 단일 업종(일반 또는 금융)만 다룰 경우 경고
+1. Warning when more than 70% of questions are concentrated on a specific financial statement (e.g., Statement of Financial Position)
+2. Warning when only one of consolidated/separate is addressed
+3. Warning when only a single point in time is repeatedly addressed with no time series questions
+4. Warning when the notes area is completely ignored
+5. Warning when only raw items are addressed with no derived metrics
+6. Warning when only a single industry (general or financial) is addressed
 
-## 관련 문서
+## Related Documents
 
-- [concepts.md](concepts.md) — 핵심 개념의 동의어 매핑, 동형이의어, 해석 원칙
-- [competency_qs.md](competency_qs.md) — 편중 감지 기준의 실제 적용 대상인 역량 질문
-- [structure_spec.md](structure_spec.md) — 필수 개념 범주가 온톨로지 노드로 실현되는 구조
-- [logic_rules.md](logic_rules.md) — 회계 항등식 및 기간/시점 규칙의 형식 정의
-- [extension_cases.md](extension_cases.md) — 업종·원천 형식 변동 시 확장 시나리오
+- [concepts.md](concepts.md) — synonym mappings, homonyms, and interpretation principles for core concepts
+- [competency_qs.md](competency_qs.md) — competency questions as the practical application targets of bias detection criteria
+- [structure_spec.md](structure_spec.md) — the structure in which required concept categories are realized as ontology nodes
+- [logic_rules.md](logic_rules.md) — formal definitions of accounting identities and period/point-in-time rules
+- [extension_cases.md](extension_cases.md) — extension scenarios for industry and source format changes

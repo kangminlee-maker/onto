@@ -1,59 +1,59 @@
-# Accounting Domain — 역량 질문 (Competency Questions)
+# Accounting Domain — Competency Questions
 
-이 도메인의 체계가 답할 수 있어야 하는 핵심 질문 목록입니다.
-onto_pragmatics 에이전트가 각 질문에 대해 실제 추론 경로를 검증합니다.
+A list of core questions that this domain's system must be able to answer.
+The onto_pragmatics agent verifies the actual reasoning path for each question.
 
-분류 축: **검증 관심사** — 회계 시스템 리뷰 시 답해야 하는 질문의 관심사에 따라 분류합니다.
+Classification axis: **verification concern** — classified by the concern of questions that must be answered during accounting system review.
 
-## 복식부기 정합성
+## Double-Entry Consistency
 
-- Q1: 모든 거래에서 차변 합계와 대변 합계가 일치하는가?
-- Q2: 분개에서 사용된 계정과목이 계정과목표에 정의되어 있는가?
-- Q3: 전기 과정에서 분개장과 원장의 금액이 일치하는가?
+- Q1: Do Debit (차변) totals equal Credit (대변) totals in every transaction?
+- Q2: Are the accounts used in Journal Entries (분개) defined in the chart of accounts?
+- Q3: Do the amounts in the journal and the General Ledger (총계정원장) match through the Posting (전기) process?
 
-## 수익/비용 인식
+## Revenue/Expense Recognition
 
-- Q4: 수익 인식이 IFRS 15의 5단계 모형을 따르는가? (계약 식별→이행의무 식별→거래가격 산정→배분→인식)
-- Q5: 이행의무가 기간에 걸쳐 충족되는지, 특정 시점에 충족되는지 판단 기준이 명시되어 있는가?
-- Q6: 비용이 관련 수익과 동일 기간에 인식되는가? (대응 원칙)
+- Q4: Does revenue recognition follow the 5-step model of IFRS 15? (Contract identification -> Performance Obligation (이행의무) identification -> Transaction Price (거래가격) determination -> Allocation -> Recognition)
+- Q5: Are the criteria for determining whether a Performance Obligation (이행의무) is fulfilled over time or at a point in time stated?
+- Q6: Are expenses recognized in the same period as the related revenue? (Matching principle)
 
-## 재무제표 구조
+## Financial Statement Structure
 
-- Q7: 재무상태표에서 자산 = 부채 + 자본 항등식이 성립하는가?
-- Q8: 유동/비유동 분류 기준이 일관되게 적용되어 있는가? (12개월 기준)
-- Q9: 현금흐름표의 현금 변동액이 재무상태표의 현금 변동과 일치하는가?
-- Q10: 포괄손익계산서의 당기순이익이 자본변동표의 이익잉여금 변동과 연결되는가?
+- Q7: Does the Statement of Financial Position (재무상태표) satisfy the identity Assets = Liabilities + Equity?
+- Q8: Is the current/non-current classification criterion applied consistently? (12-month criterion)
+- Q9: Does the cash change amount on the Statement of Cash Flows (현금흐름표) match the cash change on the Statement of Financial Position (재무상태표)?
+- Q10: Does net income on the Statement of Comprehensive Income (포괄손익계산서) connect to the Retained Earnings (이익잉여금) change on the Statement of Changes in Equity (자본변동표)?
 
-## 금융상품 (IFRS 9)
+## Financial Instruments (IFRS 9)
 
-- Q11: 금융자산의 분류(AC/FVOCI/FVTPL)가 사업모형과 현금흐름 특성에 기반하여 결정되었는가?
-- Q12: 기대신용손실 산정 시 전진적 정보(forward-looking information)가 반영되었는가?
-- Q13: 위험회피회계 적용 시 위험회피관계의 효과성이 문서화되어 있는가?
+- Q11: Is the classification of financial assets (AC/FVOCI/FVTPL) determined based on the business model and cash flow characteristics?
+- Q12: Is forward-looking information reflected in the Expected Credit Loss (기대신용손실) calculation?
+- Q13: When hedge accounting is applied, is the effectiveness of the hedging relationship documented?
 
-## 리스 (IFRS 16)
+## Leases (IFRS 16)
 
-- Q14: 리스 계약에서 사용권자산과 리스부채가 적절히 인식되었는가?
-- Q15: 소액리스/단기리스 면제 적용 시 요건을 충족하는가?
-- Q16: 리스부채 측정 시 할인율 선택 근거가 명시되어 있는가?
+- Q14: Are Right-of-Use Assets (사용권자산) and Lease Liabilities (리스부채) properly recognized in lease contracts?
+- Q15: When Low-Value Lease (소액리스)/Short-Term Lease (단기리스) exemptions are applied, are the requirements met?
+- Q16: Is the rationale for discount rate selection in Lease Liability (리스부채) measurement stated?
 
-## 세무 조정
+## Tax Adjustments
 
-- Q17: K-IFRS 이익과 과세소득의 차이가 식별되고 조정되었는가?
-- Q18: 일시적차이에 대한 이연법인세 자산/부채가 인식되었는가?
-- Q19: 이연법인세 자산의 실현 가능성이 검토되었는가?
+- Q17: Are differences between K-IFRS income and taxable income identified and adjusted?
+- Q18: Are Deferred Tax (이연법인세) assets/liabilities recognized for Temporary Differences (일시적차이)?
+- Q19: Has the realizability of Deferred Tax (이연법인세) assets been reviewed?
 
-## 내부통제와 감사
+## Internal Controls and Audit
 
-- Q20: 거래 발생부터 재무제표 표시까지의 감사 추적(audit trail)이 가능한가?
-- Q21: 주요 추정(감가상각, 충당부채, 공정가치)의 근거가 문서화되어 있는가?
-- Q22: 관련 당사자 거래가 식별되고 적절히 공시되어 있는가?
+- Q20: Is an audit trail possible from transaction occurrence to financial statement presentation?
+- Q21: Are the bases for key estimates (depreciation, provisions, Fair Value (공정가치)) documented?
+- Q22: Are related party transactions identified and properly disclosed?
 
-## 공시와 주석
+## Disclosure and Notes
 
-- Q23: 중요한 회계정책이 주석에 기술되어 있는가?
-- Q24: 추정 불확실성의 원천과 민감도가 공시되어 있는가?
+- Q23: Are significant accounting policies described in the notes?
+- Q24: Are the sources and sensitivities of estimation uncertainty disclosed?
 
-## 관련 문서
-- domain_scope.md — 질문들이 다루는 영역의 상위 정의
-- logic_rules.md — Q1~Q3의 차변/대변 균형 규칙, Q4~Q6의 인식 규칙
-- structure_spec.md — Q7~Q10의 재무제표 구조 규칙
+## Related Documents
+- domain_scope.md — the upper-level definition of the areas these questions cover
+- logic_rules.md — Debit (차변)/Credit (대변) balance rules for Q1~Q3, recognition rules for Q4~Q6
+- structure_spec.md — financial statement structure rules for Q7~Q10

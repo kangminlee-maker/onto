@@ -1,52 +1,52 @@
-# Software Engineering Domain — 의존성 규칙
+# Software Engineering Domain — Dependency Rules
 
-## 비순환 필수 관계
+## Acyclic Required Relationships
 
-- 모듈 의존 그래프: 비순환(DAG). 순환 시 빌드 순서 결정 불가, 초기화 순서 불확정
-- 패키지/라이브러리 의존: 비순환. 순환 의존은 배포 단위를 분리할 수 없게 만듦
-- type-only import와 value import를 구분해야 한다. type-only import는 런타임 순환을 유발하지 않으므로 별도 심각도로 평가
+- Module dependency graph: acyclic (DAG). Cycles make build order undeterminable and initialization order indeterminate
+- Package/library dependencies: acyclic. Circular dependencies prevent deployment units from being separated
+- Type-only imports and value imports must be distinguished. Type-only imports do not cause runtime cycles and are therefore evaluated at a separate severity level
 
-## 방향 규칙
+## Direction Rules
 
-- 상위 계층 → 하위 계층: 허용
-- 하위 계층 → 상위 계층: 금지 (계층 역전)
-- 비즈니스 로직 → 외부 라이브러리 직접 의존: 비권장 (인터페이스로 추상화)
-- 테스트 → 프로덕션 코드: 허용
-- 프로덕션 코드 → 테스트: 금지
+- Upper layer -> lower layer: allowed
+- Lower layer -> upper layer: prohibited (layer inversion)
+- Business logic -> direct dependency on external library: discouraged (abstract via interface)
+- Test -> production code: allowed
+- Production code -> test: prohibited
 
-## 타입 위치와 의존 방향
+## Type Location and Dependency Direction
 
-- 공유 타입이 특정 모듈에 정의되면 의도하지 않은 의존 방향이 생성된다. 공유 타입은 의존 계층 최하위에 배치가 구조적으로 안전
-- 타입 정의의 모듈 위치는 그 타입의 계약 수준(contract level)을 암묵적으로 선언한다. 소비자가 시스템 외부 경계에 있으면 커널 계약으로 유지가 의도 보존에 유리
-- 타입을 소비자 모듈로 이동하면 생산자가 소비자에 의존하게 되어 구조적 제약 위반이 발생할 수 있다
+- When shared types are defined in a specific module, unintended dependency directions are created. Placing shared types at the lowest dependency layer is structurally safe
+- The module location of a type definition implicitly declares that type's contract level. When the consumer is at the system's external boundary, maintaining it as a kernel contract is advantageous for intent preservation
+- Moving a type to the consumer module can cause the producer to depend on the consumer, resulting in a structural constraint violation
 
-## 다이아몬드 의존
+## Diamond Dependencies
 
-- A → B, A → C, B → D, C → D 형태의 다이아몬드: 허용 (단, D의 버전이 일치해야 함)
-- 동일 모듈의 서로 다른 버전에 동시 의존: 금지 (버전 충돌)
+- A diamond of the form A -> B, A -> C, B -> D, C -> D: allowed (provided D's versions match)
+- Simultaneous dependency on different versions of the same module: prohibited (version conflict)
 
-## 참조 무결성
+## Referential Integrity
 
-- import/require하는 모듈이 실제로 존재해야 한다
-- 공개 API에서 참조하는 타입이 모두 export되어야 한다
-- 설정에서 참조하는 환경 변수가 실제로 정의되어 있어야 한다
-- 동일 함수명이 복수 파일에 존재할 때, 변경 대상 열거의 검색 범위를 특정 파일로 한정하면 누락이 구조적으로 발생한다. 전수 조사(grep) 결과를 명시해야 범위 불일치를 방지
+- A module referenced by import/require must actually exist
+- All types referenced in a public API must be exported
+- Environment variables referenced in configuration must actually be defined
+- When the same function name exists in multiple files, limiting the search scope to a specific file when enumerating change targets causes omissions structurally. The full search (grep) results must be stated to prevent scope mismatch
 
-## Source of Truth 관리
+## Source of Truth Management
 
-- 데이터 수집 입력 경로가 3곳 이상이면, 각 경로의 소비 시점과 source of truth 지정이 필수
-- source of truth 이전(migration) 시, 기존 문서의 "정의 권한" 규칙과 새 시스템의 source of truth 선언이 공존하면 의존 방향이 이중화된다. 이전 시 기존 규칙도 함께 갱신해야 한다
-- 이벤트 스트림(구조적 상태)과 파일(의미적 맥락) 두 경로로 데이터를 전달할 때, 불일치 시 우선순위를 계약으로 명시해야 한다
+- When data collection input paths number 3 or more, the consumption timing and source of truth designation for each path are required
+- When migrating a source of truth, if the existing document's "definition authority" rules and the new system's source of truth declaration coexist, the dependency direction becomes duplicated. The existing rules must also be updated during migration
+- When data is delivered through two paths — event stream (structural state) and file (semantic context) — the priority in case of inconsistency must be specified as a contract
 
-## 외부 의존 관리
+## External Dependency Management
 
-- 프로덕션 의존과 개발 전용 의존을 구분해야 한다 (dependencies vs devDependencies)
-- 외부 API 호출은 실패 시 fallback 경로가 있어야 한다
-- 외부 의존의 라이선스가 프로젝트 라이선스와 호환되어야 한다
-- 외부 서비스 기반 소스의 변경 감지는 서비스 제공 메타데이터(lastModified 등) 기준이 위양성 방지에 유리
-- MCP 도구 정의처럼 외부 인터페이스를 하나의 파일에 집중 정의하는 패턴은 God Module로 성장하기 쉽다. 분산 등록 패턴(distributed registration)이 의존 방향을 올바르게 유지한다
+- Production dependencies and development-only dependencies must be distinguished (dependencies vs devDependencies)
+- External API calls must have a fallback path in case of failure
+- The license of external dependencies must be compatible with the project license
+- For detecting changes from external-service-based sources, using service-provided metadata (lastModified, etc.) is advantageous for preventing false positives
+- A pattern that concentrates external interface definitions in a single file (like MCP tool definitions) is prone to growing into a God Module. A distributed registration pattern maintains correct dependency directions
 
-## 관련 문서
-- concepts.md — 의존, Source of Truth, 계약 등 용어 정의
-- structure_spec.md — 계층 구조 원칙, 모듈 구조 규칙
-- logic_rules.md — 의존 논리, 순환 관련 규칙
+## Related Documents
+- concepts.md — term definitions for dependency, source of truth, contract, etc.
+- structure_spec.md — layer structure principles, module structure rules
+- logic_rules.md — dependency logic, circular dependency rules

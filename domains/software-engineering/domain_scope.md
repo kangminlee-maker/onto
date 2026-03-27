@@ -1,78 +1,78 @@
-# Software Engineering Domain — 도메인 범위 정의
+# Software Engineering Domain — Domain Scope Definition
 
-onto_coverage가 "있어야 하는데 없는 것"을 식별할 때 사용하는 기준 문서입니다.
-이 도메인은 소프트웨어 시스템을 **검토**(리뷰)할 때 적용됩니다.
+This is the reference document used by onto_coverage to identify "what should exist but is missing."
+This domain applies when **reviewing** a software system.
 
-## 주요 하위 영역
+## Major Sub-areas
 
-분류 축: **관심사(concern)** — 소프트웨어 시스템이 다뤄야 하는 설계 관심사에 따라 분류합니다.
+Classification axis: **concern** — classified by the design concerns that a software system must address.
 
-### 데이터와 상태 (Data & State)
-- **데이터 모델링** (필수): 엔티티, 관계, 타입 정의, 스키마 설계
-- **상태 관리** (필수): 상태 전이, 불변 조건, 복구 경로, 동시성 제어
-- **이벤트 소싱** (해당 시): 이벤트 저장, 상태 재구성, 프로젝션, 터미널 상태, partial commit 방지
+### Data & State
+- **Data Modeling** (required): entities, relationships, type definitions, schema design
+- **State Management** (required): state transitions, invariants, recovery paths, concurrency control
+- **Event Sourcing** (when applicable): event storage, state reconstruction, projections, terminal states, partial commit prevention
 
-### 인터페이스와 계약 (Interface & Contract)
-- **API 설계** (필수): 공개 인터페이스, 버전 관리, 계약(contract), 하위 호환성
-- **타입 체계** (필수): discriminated union, exhaustive check, 타입 수준 안전장치
-- **에러 처리** (필수): 에러 분류, 복구 전략, fallback 경로, 사용자 안내
+### Interface & Contract
+- **API Design** (required): public interfaces, versioning, contracts, backward compatibility
+- **Type System** (required): discriminated union, exhaustive check, type-level safety mechanisms
+- **Error Handling** (required): error classification, recovery strategies, fallback paths, user guidance
 
-### 보안과 인증 (Security & Auth)
-- **인증/인가** (필수): 사용자 식별, 권한 체계, 접근 제어
-- **보안** (필수): 입력 검증, 인젝션 방지, 데이터 암호화, 공급망 보안
+### Security & Auth
+- **Authentication/Authorization** (required): user identification, permission systems, access control
+- **Security** (required): input validation, injection prevention, data encryption, supply chain security
 
-### 검증과 품질 (Verification & Quality)
-- **테스트 전략** (필수): 단위/통합/E2E 범위, 검증 기준, 테스트 데이터 관리
-- **검증 설계** (해당 시): 검증 시점(shift-left), 구조적 검증 vs 의미적 검증, AI 에이전트 위임 시 명세 요건
-- **성능** (규모에 따라): 응답 시간, 처리량, 캐싱 전략
+### Verification & Quality
+- **Test Strategy** (required): unit/integration/E2E coverage, verification criteria, test data management
+- **Verification Design** (when applicable): verification timing (shift-left), structural verification vs semantic verification, specification requirements when delegating to AI agents
+- **Performance** (scale-dependent): response time, throughput, caching strategy
 
-### 구조와 아키텍처 (Structure & Architecture)
-- **모듈 분리** (필수): 레이어 구조, 의존 방향, 관심사 분리
-- **데이터 흐름** (필수): 입력→처리→출력 경로, 변환 체인, source of truth 지정
-- **이벤트/메시징** (해당 시): 메시지 큐, 비동기 처리, 파이프라인 확장성
+### Structure & Architecture
+- **Module Separation** (required): layer structure, dependency direction, separation of concerns
+- **Data Flow** (required): input-to-processing-to-output paths, transformation chains, source of truth designation
+- **Event/Messaging** (when applicable): message queues, asynchronous processing, pipeline scalability
 
-### 운영과 배포 (Operations & Deployment)
-- **배포/운영** (규모에 따라): CI/CD, 환경 분리, 모니터링, 로깅
-- **국제화/접근성** (규모에 따라): 다국어, 시간대, 접근성 표준
+### Operations & Deployment
+- **Deployment/Operations** (scale-dependent): CI/CD, environment separation, monitoring, logging
+- **Internationalization/Accessibility** (scale-dependent): multi-language, time zones, accessibility standards
 
-### 문서와 소비자 (Documentation & Consumers)
-- **문서 설계** (해당 시): AI 에이전트와 사람의 이중 소비자 대응, 계약 문서 vs 가이드 문서 분리, 정보 구조와 렌더링 분리
-- **제약 설계** (해당 시): hard/soft constraint 분류, invariant vs best-effort 경계, 사전 포함 vs 사후 검증
+### Documentation & Consumers
+- **Document Design** (when applicable): dual-consumer handling for AI agents and humans, separation of contract documents vs guide documents, separation of information structure and rendering
+- **Constraint Design** (when applicable): hard/soft constraint classification, invariant vs best-effort boundary, pre-inclusion vs post-verification
 
-## 필수 개념 범주
+## Required Concept Categories
 
-어떤 소프트웨어 체계에서든 다뤄져야 하는 개념 범주입니다.
+These are concept categories that must be addressed in any software system.
 
-| 범주 | 설명 | 누락 시 위험 |
+| Category | Description | Risk if Missing |
 |---|---|---|
-| 정상 경로 (happy path) | 기대되는 입력에 대한 정상 동작 | 기능 정의 불완전 |
-| 예외 경로 (error path) | 비정상 입력/상태에 대한 처리 | 장애 시 무방비 |
-| 경계 조건 (boundary) | 최소/최대값, 빈 입력, 동시 접근 | 엣지 케이스 장애 |
-| 생명주기 (lifecycle) | 생성→사용→폐기, 상태 전이 | 자원 누수, 좀비 객체 |
-| 추적 가능성 (traceability) | 변경 이유, 결정 근거, 감사 기록 | 유지보수 불가 |
-| source of truth | 불일치 발생 시 권위를 가지는 데이터/정의 소스 | 정보 충돌 시 판단 불가 |
+| Happy path | Normal behavior for expected inputs | Incomplete functional definition |
+| Error path | Handling of abnormal inputs/states | Defenseless during failures |
+| Boundary condition | Min/max values, empty inputs, concurrent access | Edge case failures |
+| Lifecycle | Creation -> use -> disposal, state transitions | Resource leaks, zombie objects |
+| Traceability | Change rationale, decision justification, audit trail | Unmaintainable |
+| Source of truth | The authoritative data/definition source when inconsistencies arise | Unable to resolve information conflicts |
 
-## 참조 표준/프레임워크
+## Reference Standards/Frameworks
 
-| 표준 | 활용 영역 | 활용 방식 |
+| Standard | Application Area | Usage |
 |---|---|---|
-| OWASP Top 10 | 보안 | 웹 애플리케이션 보안 취약점 분류 기준 |
-| 12-Factor App | 배포/운영 | 클라우드 네이티브 애플리케이션 설계 원칙 |
-| REST API 성숙도 모델 (Richardson) | API 설계 | API 설계 수준 평가 |
-| SOLID 원칙 | 모듈 분리, 타입 체계 | 객체지향 설계의 5대 원칙 |
-| 이벤트 소싱 패턴 | 이벤트 소싱 | 이벤트 저장, 상태 재구성, 프로젝션 |
-| Diátaxis 문서 프레임워크 | 문서 설계 | Tutorial/How-to/Reference/Explanation 4분류 |
+| OWASP Top 10 | Security | Web application security vulnerability classification criteria |
+| 12-Factor App | Deployment/Operations | Cloud-native application design principles |
+| REST API Maturity Model (Richardson) | API Design | API design level assessment |
+| SOLID Principles | Module separation, type system | Five principles of object-oriented design |
+| Event Sourcing Pattern | Event Sourcing | Event storage, state reconstruction, projections |
+| Diátaxis Documentation Framework | Document Design | Tutorial/How-to/Reference/Explanation 4-way classification |
 
-## 편중 감지 기준
+## Bias Detection Criteria
 
-- 7개 관심사 영역 중 3개 이상이 전혀 표현되지 않으면 → **포괄성 부족**
-- 특정 영역의 개념이 전체의 70% 이상을 차지하면 → **편중 경고**
-- 정상 경로만 정의되고 예외 경로가 없으면 → **경로 편중**
-- 생성/사용은 정의되었으나 폐기/정리가 없으면 → **생명주기 불완전**
-- source of truth가 지정되지 않은 데이터 소스가 2개 이상이면 → **권위 미지정**
-- AI 에이전트가 소비자/실행자인 시스템에서 문서 설계 영역이 없으면 → **소비자 관점 부재**
+- If 3 or more of the 7 concern areas are not represented at all -> **insufficient coverage**
+- If concepts from a specific area account for more than 70% of the total -> **bias warning**
+- If only the happy path is defined with no error path -> **path bias**
+- If creation/use is defined but disposal/cleanup is missing -> **incomplete lifecycle**
+- If 2 or more data sources lack a designated source of truth -> **undesignated authority**
+- If the document design area is missing in a system where AI agents are consumers/executors -> **missing consumer perspective**
 
-## 관련 문서
-- concepts.md — 이 범위 내 용어의 정의
-- structure_spec.md — 모듈 구조의 구체적 규칙
-- competency_qs.md — 이 범위가 답할 수 있어야 하는 질문
+## Related Documents
+- concepts.md — definitions of terms within this scope
+- structure_spec.md — specific rules for module structure
+- competency_qs.md — questions this scope must be able to answer

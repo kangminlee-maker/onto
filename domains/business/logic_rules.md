@@ -1,66 +1,66 @@
-# Business Domain — 논리 규칙
+# Business Domain — Logic Rules
 
-## 전략 분석 논리
+## Strategy Analysis Logic
 
-- 산업 경쟁 환경 분석(Porter's 5 Forces)은 전략 수립의 전제이다. 경쟁 환경 분석 없이 수립된 전략은 근거 부재
-- Porter의 본원적 전략(원가우위/차별화/집중) 중 명확한 선택이 없으면 "stuck in the middle" 상태로 수익성 저하 위험
-- VRIO 분석에서 4가지 조건(가치/희소성/모방불가능성/조직) 중 일부만 충족하면 우위의 지속성이 제한된다. 가치+희소성만 있으면 일시적 우위, 모방불가능성까지 있어야 지속적 우위, 조직까지 갖춰야 실현 가능한 지속적 우위
-- 성장 전략(Ansoff Matrix)에서 다각화는 가장 높은 위험을 수반한다. 기존 역량과의 관련성(관련 다각화 vs 비관련 다각화)에 따라 위험 수준이 다르다
-- BCG Matrix에서 Cash Cow의 수익으로 Question Mark에 투자하고, Star로 전환하는 것이 기본 포트폴리오 논리. Dog 사업의 유지/철수 판단 기준이 명시되어야 한다
-- Blue Ocean에서 가치 혁신은 차별화와 저비용을 동시에 추구한다. ERRC 격자를 통해 어떤 요소를 제거/감소/증가/창조하는지 구체화되어야 한다
+- Industry competitive environment analysis (Porter's 5 Forces) is a prerequisite for strategy formulation. A strategy formulated without competitive environment analysis lacks basis
+- Without a clear choice among Porter's generic strategies (cost leadership/differentiation/focus), the "stuck in the middle" state risks profitability decline
+- In VRIO analysis, if only some of the 4 conditions (value/rarity/imitability/organization) are met, the sustainability of the advantage is limited. Value + rarity alone yields temporary advantage; imitability must also be present for sustained advantage; organization must also be in place for realizable sustained advantage
+- In growth strategy (Ansoff Matrix), diversification carries the highest risk. The risk level differs depending on relatedness to existing capabilities (related diversification vs. unrelated diversification)
+- In BCG Matrix, the basic portfolio logic is to invest Cash Cow profits into Question Marks and convert them to Stars. Criteria for maintaining/divesting Dog businesses must be stated
+- In Blue Ocean, value innovation simultaneously pursues differentiation and low cost. Which elements are eliminated/reduced/raised/created must be specified through the ERRC grid
 
-## 마케팅 논리
+## Marketing Logic
 
-- STP의 순서(세분화→타겟팅→포지셔닝)는 논리적 의존 관계이다. 세분화 없이 타겟팅하면 기준 부재, 타겟팅 없이 포지셔닝하면 대상 불명
-- 마케팅 믹스(4P/7P)의 각 요소는 독립적이지 않다. 가격(Price)은 포지셔닝에 의해, 유통(Place)은 목표 고객의 행동에 의해 제약된다. 요소 간 정합성 검증 필수
-- 고객 여정에서 각 단계 간 전환율이 측정되지 않으면, 마케팅 투자의 효과를 귀인(attribution)할 수 없다
-- 브랜드 자산(Brand Equity)은 단기 매출이 아닌 장기 고객 관계의 자산이다. 단기 촉진(Promotion)에 과도한 의존은 브랜드 자산을 훼손할 수 있다
+- The sequence of STP (segmentation -> targeting -> positioning) is a logical dependency. Targeting without segmentation lacks criteria; positioning without targeting lacks a defined audience
+- Each element of the marketing mix (4P/7P) is not independent. Price is constrained by positioning; Place is constrained by the target customer's behavior. Consistency verification across elements is required
+- If conversion rates between stages of the customer journey are not measured, marketing investment effectiveness cannot be attributed
+- Brand Equity is an asset of long-term customer relationships, not short-term sales. Excessive dependence on short-term Promotion can damage brand equity
 
-## 재무 의사결정 논리
+## Financial Decision-Making Logic
 
-- NPV와 IRR이 상충하는 경우(상호배타적 투자안), NPV를 우선한다. IRR은 재투자율 가정에 의한 왜곡이 있을 수 있다
-- WACC 산출 시 자기자본비용(CAPM 등)과 타인자본비용(세후 이자율)의 가중치는 목표 자본구조 또는 시장가치 기준이어야 한다. 장부가 기준은 왜곡 발생
-- Modigliani-Miller 정리의 현실 적용: 세금 효과(부채의 절세 효과)와 재무적 곤경 비용(파산 비용)의 균형점에서 최적 자본구조가 결정된다
-- 운전자본(Working Capital) 관리에서 현금전환주기(CCC)가 길어지면 유동성 위험이 증가한다. 매출채권 회수 기간, 재고 보유 기간, 매입채무 지급 기간의 각각을 관리해야 한다
-- ROI 산출에서 분자(순이익)와 분모(투자금액)의 범위가 일치해야 한다. 간접 비용(관리비, 기회비용)을 제외하면 ROI가 과대 산출된다
-- "투입 시간 절감"을 금액으로 환산할 때, 절감된 시간이 다른 수익 활동에 전환되는지 여부를 확인해야 한다. 전환 없이 환산하면 허수(phantom saving)
+- When NPV and IRR conflict (mutually exclusive investments), NPV takes precedence. IRR may be distorted by reinvestment rate assumptions
+- When calculating WACC, the weights for cost of equity (CAPM, etc.) and cost of debt (after-tax interest rate) should be based on target capital structure or market value. Book value basis causes distortion
+- Practical application of the Modigliani-Miller theorem: the optimal capital structure is determined at the equilibrium between tax effects (tax shield of debt) and financial distress costs (bankruptcy costs)
+- In working capital management, as the Cash Conversion Cycle (CCC) lengthens, liquidity risk increases. Accounts receivable collection period, inventory holding period, and accounts payable payment period must each be managed
+- In ROI calculation, the scope of the numerator (net profit) and denominator (investment amount) must match. Excluding indirect costs (overhead, opportunity costs) causes ROI overestimation
+- When converting "time savings" into monetary terms, it must be verified whether the saved time is redirected to other revenue-generating activities. Converting without redirection produces a phantom saving
 
-## 운영 관리 논리
+## Operations Management Logic
 
-- Lean의 7대 낭비 식별 시, 낭비 제거와 품질/서비스 수준 유지 사이의 균형점이 명시되어야 한다. 과도한 낭비 제거는 유연성을 해칠 수 있다
-- Six Sigma의 DMAIC에서 Measure 단계의 기준선(baseline) 없이 Improve 단계의 효과를 주장할 수 없다
-- TOC에서 병목이 아닌 곳의 개선은 시스템 전체 성과에 기여하지 않는다. 병목 식별이 선행되어야 한다
-- 자동화 범위는 시작점(어디서부터)과 끝점(어디까지)이 명시적으로 정의되어야 한다. 미정의 시 성과 측정이 불가능
-- 자동화 성과 = (자동화 후 결과 - 자동화 전 결과). 비교 기준선이 측정되어 있어야 한다
-- 수작업 결과와 자동화 결과가 불일치할 때의 판정 권한(사람/시스템/위원회)이 사전 합의되어야 한다
-- 자동화 대상 선정 시 "자동화 가능성"과 "자동화 가치"를 구분한다. 가능하지만 가치가 낮은 자동화는 투자 대비 효과가 부정적
+- When identifying Lean's 7 types of waste, the balance point between waste elimination and maintaining quality/service levels must be stated. Excessive waste elimination can harm flexibility
+- In Six Sigma's DMAIC, effectiveness of the Improve stage cannot be claimed without a baseline from the Measure stage
+- In TOC, improving non-bottleneck areas does not contribute to overall system performance. Bottleneck identification must come first
+- Automation scope must have explicitly defined start points (from where) and end points (to where). Without definition, performance measurement is impossible
+- Automation performance = (post-automation result - pre-automation result). A comparison baseline must be measured
+- The authority for adjudicating discrepancies between manual and automated results (person/system/committee) must be agreed upon in advance
+- When selecting automation targets, "automation feasibility" and "automation value" are distinct. Automating something feasible but low-value yields negative return on investment
 
-## 비용 분류 논리
+## Cost Classification Logic
 
-- 고정비와 변동비의 분류는 "관련 범위(relevant range)" 내에서만 유효하다. 범위를 벗어나면 재분류 필요
-- 비용 항목을 절감했다고 주장할 때, 해당 비용이 다른 항목으로 이전된 것이 아닌지 확인해야 한다 (비용 이전 vs 비용 절감)
+- The classification of fixed and variable costs is valid only within the "relevant range." Outside that range, reclassification is needed
+- When claiming a cost item has been reduced, it must be verified that the cost has not been shifted to another item (cost shifting vs. cost reduction)
 
-## 변화관리 논리
+## Change Management Logic
 
-- Kotter's 8 Steps에서 초기 단계(위기감 조성, 연합 구축)를 건너뛰면 후반 단계의 지속성이 확보되지 않는다. 순서 의존 관계
-- ADKAR에서 Awareness와 Desire 없이 Knowledge/Ability를 제공하면 교육 효과가 저하된다. 동기 부여가 역량 개발의 전제
-- "첫 성공 사례→확산" 전략에서, 첫 성공을 위한 협조 확보와 확산을 위한 변화관리는 순환 의존 관계이다. 순환을 끊는 진입점(executive sponsorship, pilot scope 한정 등)이 명시되어야 한다
-- 기술 도입의 효과는 도입 자체가 아니라 기존 프로세스와의 통합 이후에 측정해야 한다. 도입 시점에서의 효과 주장은 미검증
+- In Kotter's 8 Steps, skipping early stages (urgency, coalition building) prevents sustainability in later stages. Sequence dependency
+- In ADKAR, providing Knowledge/Ability without Awareness and Desire reduces training effectiveness. Motivation is a prerequisite for capability development
+- In the "first success -> expansion" strategy, securing cooperation for the first success and change management for expansion have a circular dependency. An entry point to break the cycle (executive sponsorship, pilot scope limitation, etc.) must be stated
+- The effect of technology adoption should be measured after integration with existing processes, not at the point of adoption itself. Effectiveness claims at the adoption point are unverified
 
-## 혁신 논리
+## Innovation Logic
 
-- 파괴적 혁신에 대한 기존 기업의 대응: 별도 조직(spin-off) 운영이 기존 조직 내 대응보다 효과적인 이유는, 기존 가치 네트워크(value network)가 파괴적 제품의 저마진을 허용하지 않기 때문
-- 기술 수용 주기에서 캐즘(Chasm) 극복 전략은 "완전한 제품(whole product)"의 제공과 특정 니치 시장의 집중 공략
-- Design Thinking에서 공감(Empathize) 단계의 결과가 정의(Define) 단계의 입력이 된다. 공감 없이 문제를 정의하면 공급자 관점의 편향
+- For incumbent firms responding to disruptive innovation: a separate organization (spin-off) is more effective than responding within the existing organization because the existing value network does not tolerate the low margins of disruptive products
+- The Chasm-crossing strategy in the Technology Adoption Lifecycle is the provision of a "whole product" and focused targeting of a specific niche market
+- In Design Thinking, the results of the Empathize stage become input for the Define stage. Defining the problem without empathy creates a supplier-perspective bias
 
-## 제약 상충 검사
+## Constraint Conflict Checking
 
-- 매출 극대화와 비용 최소화가 동일 대상에서 동시에 요구되면, 우선순위 또는 균형점이 명시되어야 한다
-- 성장(시장 점유율 확대)과 수익성(이익률 유지)이 상충할 때, 어느 시점에서 전환하는지의 기준이 필요하다
-- 단기 성과와 장기 투자가 동일 예산에서 경합할 때, 배분 기준과 재조정 주기가 정의되어야 한다
-- 혁신(탐색, exploration)과 효율(활용, exploitation)의 양면성(ambidexterity) — 양쪽 모두 추구할 때 조직 구조/자원 배분의 분리 원칙이 필요하다
+- When revenue maximization and cost minimization are simultaneously required for the same target, either a priority or a balance point must be stated
+- When growth (market share expansion) and profitability (margin maintenance) conflict, criteria for when to switch between them are needed
+- When short-term results and long-term investments compete for the same budget, allocation criteria and readjustment cycles must be defined
+- Ambidexterity between innovation (exploration) and efficiency (exploitation) — when pursuing both, separation principles for organizational structure/resource allocation are needed
 
-## 관련 문서
-- concepts.md — 전략, 마케팅, 재무, 운영, 혁신 용어 정의
-- dependency_rules.md — 전략-운영 간 의존 규칙
-- competency_qs.md — 각 논리 규칙과 연결된 검증 질문
+## Related Documents
+- concepts.md — definitions of strategy, marketing, finance, operations, and innovation terms
+- dependency_rules.md — strategy-operations dependency rules
+- competency_qs.md — verification questions linked to each logic rule

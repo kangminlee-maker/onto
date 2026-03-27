@@ -1,127 +1,127 @@
-# 간결성 규칙 (ontology)
+# Conciseness Rules (ontology)
 
-이 문서는 onto_conciseness가 간결성 검증 시 참조하는 도메인별 규칙입니다.
-간결성 판정의 **유형(허용/제거) → 검증 기준 → 역할 경계 → 측정 방법** 순으로 구성됩니다.
-
----
-
-## 1. 허용되는 중복
-
-각 규칙에 강도를 태깅합니다:
-- **[MUST-ALLOW]**: 제거 시 체계가 깨지는 중복. 유지 필수.
-- **[MAY-ALLOW]**: 편의상 유지하는 중복. 통합 가능하나, 통합 비용 대비 이득이 명확할 때만 제거.
-
-### 이중 제약 정의
-
-- [MUST-ALLOW] 공리(axiom)와 자연어 정의의 이중 기술 — 동일 제약을 형식 공리와 자연어로 각각 정의. 공리는 추론기(reasoner)가 검증하고, 자연어는 사람이 해석한다. 하나를 제거하면 기계 검증 또는 인간 해석 중 한 쪽이 불가능해진다.
-- [MUST-ALLOW] OWL 제약과 SHACL 제약의 병행 정의 — OWL은 TBox 수준의 추론을, SHACL은 인스턴스 수준의 데이터 검증을 수행한다. 검증 대상과 목적이 다르므로 통합 불가.
-
-### 다중 표현 유형
-
-- [MUST-ALLOW] 동일 개념의 공리/그래프/분류 표현 — 공리 표현(OWL DL)은 논리적 추론용, 그래프 표현(RDF 트리플)은 탐색/질의용, 분류 표현(Taxonomy)은 계층 구조 파악용이다. 각 표현이 서로 다른 소비자(추론기, 질의 엔진, 사람)에게 서비스하므로 제거 시 해당 소비자의 접근이 차단된다.
-- [MAY-ALLOW] 동일 관계의 RDFS 선언과 OWL 선언 병행 — RDFS는 경량 온톨로지 도구가, OWL은 추론기가 각각 참조한다. 소비 도구가 단일화되면 하나로 통합 가능.
-
-### 온톨로지 정렬(Alignment)
-
-- [MUST-ALLOW] 외부 온톨로지 개념의 내부 참조 사본 — 외부 온톨로지(예: Dublin Core, SKOS)의 클래스/속성을 내부에서 재선언하거나 매핑 명세로 유지. 제거 시 외부 변경 추적과 정렬(alignment) 검증이 불가능해진다.
-- [MAY-ALLOW] 동일 매핑의 owl:equivalentClass와 skos:exactMatch 병행 선언 — 형식적 동치(추론용)와 어휘적 대응(탐색용)이 별개 목적이면 유지. 소비자가 하나의 표현만 사용하면 통합 가능.
-
-### 메타 모델
-
-- [MAY-ALLOW] 상위 온톨로지(upper ontology)와 도메인 온톨로지에서 동일 개념을 각각 정의 — 상위 온톨로지는 도메인 독립적 정의, 도메인 온톨로지는 도메인 특화 제약을 추가한다. 완전 중복이면 도메인 측을 상위 참조로 대체.
+This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+It is organized in the order: **type (allow/remove) -> verification criteria -> role boundaries -> measurement methods**.
 
 ---
 
-## 2. 제거 대상 패턴
+## 1. Allowed Redundancy
 
-각 규칙에 강도를 태깅합니다:
-- **[MUST-REMOVE]**: 존재 자체가 오류를 유발하거나 잘못된 추론을 일으키는 중복.
-- **[SHOULD-REMOVE]**: 해가 크지 않으나 불필요한 복잡도를 추가하는 중복.
+Each rule is tagged with a severity level:
+- **[MUST-ALLOW]**: Redundancy that breaks the system if removed. Must be retained.
+- **[MAY-ALLOW]**: Redundancy kept for convenience. Can be consolidated, but only remove when the benefit clearly outweighs the consolidation cost.
 
-### 엔티티-관계 비율 불균형
+### Dual Constraint Definitions
 
-- [MUST-REMOVE] 엔티티-관계 비율 불균형 (>3:1) — 클래스 수 대비 관계 정의 수가 3:1을 초과하면 개체만 나열되고 개체 간 의미적 연결이 결여된 상태다. 이 상태에서는 추론기가 클래스 간 관계를 도출할 수 없고, 역량 질문(competency question)에 대한 경로 기반 답변이 불가능하다. 관계를 추가하거나 고립 클래스를 제거해야 한다.
+- [MUST-ALLOW] Dual description of axioms and natural language definitions — the same constraint is defined in both formal axioms and natural language. Axioms are verified by the reasoner, and natural language is interpreted by humans. Removing either makes machine verification or human interpretation impossible.
+- [MUST-ALLOW] Parallel definition of OWL constraints and SHACL constraints — OWL performs TBox-level reasoning, while SHACL performs instance-level data validation. The verification targets and purposes differ, so consolidation is not possible.
 
-### 인스턴스 없는 클래스
+### Multiple Representation Types
 
-- [MUST-REMOVE] 인스턴스가 존재하지 않는 클래스 — ABox에 인스턴스가 하나도 없는 클래스는 실제 데이터와 연결되지 않은 빈 정의다. 제거 대상이다. 단, 다음 두 경우는 예외:
-  - 추상 클래스로 명시 선언되어 하위 클래스만 인스턴스를 가지는 경우
-  - 향후 확장을 위한 예약으로 extension_cases.md에 등록된 경우
+- [MUST-ALLOW] Axiom/graph/taxonomy representations of the same concept — axiom representation (OWL DL) is for logical reasoning, graph representation (RDF triples) is for exploration/querying, and taxonomy representation is for understanding hierarchical structure. Each representation serves a different consumer (reasoner, query engine, human), so removing one blocks that consumer's access.
+- [MAY-ALLOW] Parallel RDFS and OWL declarations of the same relation — RDFS is referenced by lightweight ontology tools, while OWL is referenced by reasoners. If the consuming tools are unified, consolidation into one is possible.
 
-### 관계 중복
+### Ontology Alignment
 
-- [MUST-REMOVE] 동일 관계의 다중 경로 표현 — A→B와 A→C→B가 동일 의미일 때, 하나의 경로만 유지. 양쪽 유지 시 갱신 누락으로 불일치 발생. 이행적(transitive) 관계가 이미 선언되었으면 중간 경로의 명시적 재선언은 불필요.
-- [MUST-REMOVE] 상위 클래스의 제약이 이미 보장하는 하위 재선언 — 상위 클래스가 domain/range 제약을 선언하면, 하위 클래스에서 동일 제약을 반복 선언할 필요 없음. is-a 관계에 의해 자동 상속됨.
+- [MUST-ALLOW] Internal reference copies of external ontology concepts — classes/properties from external ontologies (e.g., Dublin Core, SKOS) are redeclared internally or maintained as mapping specifications. Removing them makes it impossible to track external changes and verify alignment.
+- [MAY-ALLOW] Parallel declaration of owl:equivalentClass and skos:exactMatch for the same mapping — if formal equivalence (for reasoning) and lexical correspondence (for exploration) serve separate purposes, retain both. If consumers use only one representation, consolidation is possible.
 
-### 분류 중복
+### Meta Model
 
-- [SHOULD-REMOVE] 자식이 1개뿐인 중간 계층 노드 — 분류 의미가 없으므로 상위와 병합. 단, 향후 하위 확장이 예정되어 있고 extension_cases.md에 등록되어 있으면 유지.
-- [SHOULD-REMOVE] 분류 기준이 혼합된 동일 계층 — 기능별 분류와 구조별 분류가 같은 계층에 혼재하면 교차 분류가 발생한다. 하나의 분류 기준으로 통일하거나 다면 분류(faceted classification)로 재구성.
-
-### 정의 중복
-
-- [MUST-REMOVE] 동일 개념을 다른 IRI/이름으로 중복 정의 — concepts.md의 동의어 매핑과 owl:equivalentClass 선언을 기준으로 판별. 하나의 정규 IRI만 유지하고 나머지는 동의어(skos:altLabel)로 처리.
-- [SHOULD-REMOVE] 동일 공리가 여러 모듈에 복사 — 공통 모듈(상위 온톨로지 또는 공유 모듈)로 추출하고, import로 참조.
+- [MAY-ALLOW] Defining the same concept separately in both the upper ontology and the domain ontology — the upper ontology provides domain-independent definitions, while the domain ontology adds domain-specific constraints. If fully redundant, replace the domain side with a reference to the upper ontology.
 
 ---
 
-## 3. 최소 세분화 기준
+## 2. Removal Target Patterns
 
-하위 분류는 아래 중 **하나 이상**을 충족해야 허용됩니다. 하나도 충족하지 않으면 상위와 병합합니다.
+Each rule is tagged with a severity level:
+- **[MUST-REMOVE]**: Redundancy whose mere existence causes errors or incorrect inferences.
+- **[SHOULD-REMOVE]**: Redundancy that is not very harmful but adds unnecessary complexity.
 
-1. **역량 질문 차이**: competency_qs.md의 질문에 대해 다른 답을 생성하는가?
-2. **제약 조건 차이**: 다른 제약 조건(cardinality, domain/range, 공리)이 적용되는가?
-3. **추론 결과 차이**: 추론기가 다른 분류 결과나 일관성 판정을 내리는가?
+### Entity-Relation Ratio Imbalance
 
-예시:
-- `PhysicalObject`와 `AbstractObject`는 다른 제약(공간 위치 속성 유무)이 적용되므로 분류 정당.
-- `Entity`와 `Thing`이 동일 공리, 동일 관계, 동일 인스턴스를 가지면 병합 대상.
+- [MUST-REMOVE] Entity-relation ratio imbalance (>3:1) — when the number of class definitions exceeds the number of relation definitions by more than 3:1, entities are merely listed without semantic connections between them. In this state, the reasoner cannot derive inter-class relations, and path-based answers to competency questions are impossible. Relations must be added or isolated classes removed.
 
----
+### Classes Without Instances
 
-## 4. 경계 — 도메인 특화 적용 사례
+- [MUST-REMOVE] Classes with no instances — a class with no instances in the ABox is an empty definition not connected to actual data. It is a removal target. However, the following two cases are exceptions:
+  - Explicitly declared as an abstract class with only subclasses having instances
+  - Registered in extension_cases.md as reserved for future expansion
 
-경계 정의의 정본은 `roles/onto_conciseness.md`입니다. 이 섹션은 ontology 도메인에서의 구체적 적용 사례만 기술합니다.
+### Relation Redundancy
 
-### onto_pragmatics 경계
+- [MUST-REMOVE] Multiple path representations of the same relation — when A->B and A->C->B have the same meaning, retain only one path. Maintaining both causes inconsistencies due to missed updates. If a transitive relation is already declared, explicit redeclaration of intermediate paths is unnecessary.
+- [MUST-REMOVE] Subclass redeclaration of constraints already guaranteed by the superclass — when the superclass declares domain/range constraints, there is no need to repeat the same constraints in subclasses. They are automatically inherited via the is-a relation.
 
-- onto_conciseness: 불필요한 요소가 **존재**하는가 (구조 수준)
-- onto_pragmatics: 불필요한 정보가 질의 실행을 **방해**하는가 (실행 수준)
-- 예: SPARQL 질의에서 사용되지 않는 속성이 결과를 느리게 함 → onto_pragmatics. 사용되지 않는 클래스가 TBox에 정의됨 → onto_conciseness.
+### Classification Redundancy
 
-### onto_coverage 경계
+- [SHOULD-REMOVE] Intermediate hierarchy nodes with only 1 child — they have no classification significance and should be merged with the parent. However, retain if future subclass expansion is planned and registered in extension_cases.md.
+- [SHOULD-REMOVE] Mixed classification criteria at the same hierarchy level — when functional and structural classification coexist at the same level, cross-classification occurs. Unify to a single classification criterion or restructure as faceted classification.
 
-- onto_conciseness: 없어야 할 것이 있는가 (축소 방향)
-- onto_coverage: 있어야 할 것이 없는가 (확장 방향)
-- 예: 관계 유형(part-of, depends-on 등)이 정의되지 않음 → onto_coverage. 동일 관계가 두 개의 다른 속성명으로 중복 정의됨 → onto_conciseness.
+### Definition Redundancy
 
-### onto_logic 경계 (선행/후행 관계)
-
-- onto_logic 선행: 공리 간 논리적 동치(함의) 여부를 판별
-- onto_conciseness 후행: 동치 확인 후 제거 여부를 판단
-- 예: 상위 클래스의 공리가 하위 클래스의 공리를 함의(entail) → onto_logic이 동치 판별 → onto_conciseness가 "하위 공리 재선언 불필요" 판정.
-
-### onto_semantics 경계 (선행/후행 관계)
-
-- onto_semantics 선행: 의미 동일성(동의어 여부, owl:equivalentClass 여부)을 판별
-- onto_conciseness 후행: 동의어/동치 확인 후 병합 필요성을 판단
-- 예: `Person`과 `Human`이 동일 개념 → onto_semantics가 동의어 판별 → onto_conciseness가 "하나의 정규 IRI로 통합" 판정.
+- [MUST-REMOVE] Duplicate definitions of the same concept under different IRIs/names — use the synonym mappings in concepts.md and owl:equivalentClass declarations as the basis for identification. Retain only one canonical IRI and treat the rest as synonyms (skos:altLabel).
+- [SHOULD-REMOVE] Same axiom copied across multiple modules — extract to a common module (upper ontology or shared module) and reference via import.
 
 ---
 
-## 5. 정량 기준
+## 3. Minimum Granularity Criteria
 
-도메인에서 관찰된 임계값이 축적되면 기록합니다.
+A sub-classification is permitted only if it satisfies **at least one** of the following. If none are satisfied, merge with the parent.
 
-- 엔티티-관계 비율: 클래스 수 대비 관계(Object Property) 정의 수가 3:1을 초과하면 구조 편중(개체 과잉)으로 판정
-- (추가 임계값은 리뷰를 통해 축적됩니다)
+1. **Competency question difference**: Does it generate a different answer to a question in competency_qs.md?
+2. **Constraint difference**: Do different constraints (cardinality, domain/range, axioms) apply?
+3. **Inference result difference**: Does the reasoner produce a different classification result or consistency determination?
+
+Examples:
+- `PhysicalObject` and `AbstractObject` are justified as separate classifications because different constraints (presence/absence of spatial location properties) apply.
+- If `Entity` and `Thing` have the same axioms, same relations, and same instances, they are candidates for merging.
 
 ---
 
-## 관련 문서
+## 4. Boundaries — Domain-Specific Application Cases
 
-- `concepts.md` — 용어 정의, 동의어 매핑, 동형이의어 목록 (중복 판별의 의미 기준)
-- `structure_spec.md` — 고립 노드 규칙, 필수 관계 요건 (구조적 관점의 제거 기준)
-- `competency_qs.md` — 역량 질문 목록 (최소 세분화의 "실제 차이" 판단 기준)
-- `domain_scope.md` — 온톨로지 유형 분류, 편중 감지 기준 (엔티티-관계 비율 판단의 맥락)
-- `logic_rules.md` — 제약 상충 검사 규칙 (논리적 동치 판별 기준)
+The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the ontology domain.
+
+### onto_pragmatics boundary
+
+- onto_conciseness: Does an unnecessary element **exist**? (structural level)
+- onto_pragmatics: Does unnecessary information **hinder** query execution? (execution level)
+- Example: A property unused in SPARQL queries slows down results -> onto_pragmatics. An unused class is defined in the TBox -> onto_conciseness.
+
+### onto_coverage boundary
+
+- onto_conciseness: Does something exist that should not? (reduction direction)
+- onto_coverage: Is something missing that should exist? (expansion direction)
+- Example: Relation types (part-of, depends-on, etc.) are not defined -> onto_coverage. The same relation is duplicated under two different property names -> onto_conciseness.
+
+### onto_logic boundary (predecessor/successor relationship)
+
+- onto_logic predecessor: determines logical equivalence (entailment)
+- onto_conciseness successor: decides whether to remove after equivalence is confirmed
+- Example: A superclass axiom entails a subclass axiom -> onto_logic determines equivalence -> onto_conciseness determines "subclass axiom redeclaration is unnecessary."
+
+### onto_semantics boundary (predecessor/successor relationship)
+
+- onto_semantics predecessor: determines semantic identity (synonym status, owl:equivalentClass status)
+- onto_conciseness successor: decides whether merging is needed after synonym confirmation
+- Example: `Person` and `Human` are the same concept -> onto_semantics determines they are synonyms -> onto_conciseness determines "consolidate to a single canonical IRI."
+
+---
+
+## 5. Quantitative Criteria
+
+Observed thresholds from the domain are recorded as they accumulate.
+
+- Entity-relation ratio: when the number of class definitions exceeds the number of relation (Object Property) definitions by more than 3:1, it is determined as structural bias (entity overload)
+- (Additional thresholds are accumulated through reviews)
+
+---
+
+## Related Documents
+
+- `concepts.md` — term definitions, synonym mappings, homonym lists (semantic criteria for redundancy determination)
+- `structure_spec.md` — isolated node rules, required relation requirements (structural removal criteria)
+- `competency_qs.md` — competency question list (criteria for "actual difference" in minimum granularity determination)
+- `domain_scope.md` — ontology type classification, bias detection criteria (context for entity-relation ratio determination)
+- `logic_rules.md` — constraint conflict checking rules (criteria for logical equivalence determination)

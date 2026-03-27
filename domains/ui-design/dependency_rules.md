@@ -1,63 +1,63 @@
-# UI Design Domain — 의존성 규칙
+# UI Design Domain — Dependency Rules
 
-## 정보 구조-내비게이션 의존
+## Information Architecture–Navigation Dependency
 
-- 정보 구조(IA) → 내비게이션 패턴: 콘텐츠의 분류·계층이 먼저 정의되어야 내비게이션 구조를 결정할 수 있다. IA 없이 내비게이션을 설계하면 메뉴가 시스템 구조를 반영하게 되어 사용자 심적 모형과 충돌
-- 정보 구조 → 검색: 콘텐츠가 구조화되어 있어야 검색 결과를 의미 있게 분류·표시할 수 있다
-- 내비게이션 변경 → 브레드크럼/사이트맵 갱신: 내비게이션 계층이 변경되면 보조 내비게이션(브레드크럼, 사이트맵)도 동기 갱신 필요
-- 내비게이션 깊이 → 길찾기 보조: 계층이 3단계 이상이면 현재 위치 표시와 상위 이동 수단이 필수
+- Information Architecture (IA) → Navigation Patterns: Content classification and hierarchy must be defined before navigation structure can be determined. Designing navigation without IA causes menus to reflect system structure, conflicting with the user's mental model
+- Information Architecture → Search: Content must be structured for search results to be meaningfully classified and displayed
+- Navigation Change → Breadcrumb/Sitemap Update: When navigation hierarchy changes, secondary navigation (breadcrumbs, sitemaps) must be updated synchronously
+- Navigation Depth → Wayfinding Aids: When hierarchy is 3 levels or deeper, current location indicators and upward navigation are mandatory
 
-## 행동-피드백 의존
+## Action–Feedback Dependency
 
-- 사용자 행동 → 시스템 피드백: 모든 사용자 행동에는 대응하는 피드백이 존재해야 한다. 피드백 없는 행동은 "시스템이 반응하지 않는다"는 인식을 유발
-- 비동기 행동 → 로딩 상태 → 성공/실패 상태: 비동기 작업은 최소 3가지 상태(요청 중/성공/실패)가 정의되어야 한다. 로딩 상태 없이 결과만 표시하면 응답 지연이 시스템 고장으로 인식
-- 파괴적 행동 → 확인 또는 되돌리기: 되돌릴 수 없는 행동은 실행 전 확인(confirmation) 또는 실행 후 되돌리기(undo) 중 최소 하나가 필요
-- 낙관적 업데이트 → 롤백 UX: UI를 먼저 갱신하고 서버 확인을 기다리는 경우, 실패 시 롤백 시나리오와 사용자 안내가 함께 설계되어야 한다
-- 피드백 유형 → 지속성: 성공은 일시적(토스트), 에러는 지속적(인라인 메시지), 경고는 사용자 확인까지 유지. 에러를 토스트로 표시하면 사용자가 놓침
+- User Action → System Feedback: Every user action must have a corresponding feedback. An action without feedback creates the perception that "the system is not responding"
+- Asynchronous Action → Loading State → Success/Failure State: Asynchronous operations must have at least 3 states defined (requesting/success/failure). Displaying only results without a loading state causes response delays to be perceived as system malfunction
+- Destructive Action → Confirmation or Undo: Irreversible actions require at least one of pre-execution confirmation or post-execution undo
+- Optimistic Update → Rollback UX: When UI is updated before server confirmation, a rollback scenario and user guidance for failure must be designed together
+- Feedback Type → Persistence: Success is transient (toast), errors are persistent (inline message), warnings persist until user acknowledgment. Displaying errors as toasts causes users to miss them
 
-## 폼-검증 의존
+## Form–Validation Dependency
 
-- 입력 필드 → 유효성 규칙: 모든 입력 필드는 허용 값의 범위/형식이 정의되어야 한다. 규칙 없이 입력을 받으면 검증 불가
-- 유효성 검증 → 에러 메시지: 검증 실패 시 에러 메시지는 해당 필드와 시각적으로 근접해야 한다 (Gestalt 근접성). 페이지 상단에만 에러를 표시하면 어떤 필드인지 찾기 어려움
-- 폼 제출 → 성공/실패 피드백: 폼 제출 후 결과(성공/서버 에러/검증 에러)에 대한 피드백과 다음 행동 안내가 있어야 한다
-- 다단계 폼 → 진행 표시: 단계가 분할되면 현재 단계, 전체 단계 수, 이전/다음 이동 가능 여부가 표시되어야 한다
-- 다단계 폼 → 데이터 보존: 이전 단계로 돌아갈 때 입력한 데이터가 보존되어야 한다. 보존되지 않으면 재입력 강요
+- Input Field → Validation Rules: All input fields must have their allowed value range/format defined. Accepting input without rules makes validation impossible
+- Validation → Error Message: On validation failure, error messages must be visually proximate to the relevant field (Gestalt proximity). Displaying errors only at the top of the page makes it difficult to identify which field is affected
+- Form Submission → Success/Failure Feedback: After form submission, feedback on the result (success/server error/validation error) and next-action guidance must be provided
+- Multi-step Form → Progress Indicator: When steps are divided, the current step, total number of steps, and previous/next navigation availability must be displayed
+- Multi-step Form → Data Preservation: When returning to a previous step, entered data must be preserved. Otherwise, re-entry is forced
 
-## 데이터-표시 의존
+## Data–Display Dependency
 
-- 데이터 특성 → 표시 패턴: 비교가 필요한 데이터는 테이블, 탐색 중심이면 카드, 순서가 중요하면 리스트. 데이터 특성과 표시 패턴의 불일치는 사용 효율 저하
-- 데이터 양 → 페이지네이션 방식: 전체 항목 수가 유한하고 특정 위치 접근이 필요하면 페이지네이션, 탐색(browsing) 중심이면 무한 스크롤
-- 정렬/필터 변경 → 데이터 갱신: 정렬 기준이나 필터가 변경되면 데이터가 즉시(또는 명시적 적용 후) 갱신되어야 한다. 갱신 방식(즉시/적용 버튼)의 선택 기준이 정의되어야 한다
-- 빈 결과 → 빈 상태 UI: 필터/검색 결과가 없을 때 빈 상태가 적절한 안내(필터 조정 제안, 검색어 변경 제안)를 제공해야 한다
+- Data Characteristics → Display Pattern: Data requiring comparison uses tables; browsing-oriented data uses cards; order-important data uses lists. Mismatch between data characteristics and display pattern reduces usage efficiency
+- Data Volume → Pagination Method: If total item count is finite and specific position access is needed, use pagination; if browsing-focused, use infinite scroll
+- Sort/Filter Change → Data Refresh: When sort criteria or filters change, data must be refreshed immediately (or after explicit apply). The selection criteria for refresh method (immediate/apply button) must be defined
+- Empty Results → Empty State UI: When filter/search results are empty, the empty state must provide appropriate guidance (suggesting filter adjustments, search term changes)
 
-## 모달-포커스 의존
+## Modal–Focus Dependency
 
-- 모달 열기 → 포커스 이동: 모달이 열리면 포커스가 모달 내부로 이동해야 한다
-- 모달 열기 → 포커스 트랩: 모달 내에서 Tab 키가 모달 내부만 순환해야 한다. 포커스가 배경으로 나가면 스크린 리더 사용자가 모달을 인식하지 못함
-- 모달 닫기 → 포커스 복원: 모달이 닫히면 포커스가 모달을 트리거한 요소로 돌아가야 한다. 포커스가 사라지면(lost focus) 키보드 사용자가 위치를 잃음
-- 모달 → 배경 비활성화: 모달이 열린 동안 배경은 상호작용 불가(inert)로 처리되어야 한다. aria-hidden 또는 inert 속성 적용
+- Modal Open → Focus Move: When a modal opens, focus must move inside the modal
+- Modal Open → Focus Trap: Tab key within a modal must cycle only within the modal. If focus escapes to the background, screen reader users cannot perceive the modal
+- Modal Close → Focus Restore: When a modal closes, focus must return to the element that triggered the modal. Lost focus causes keyboard users to lose their position
+- Modal → Background Deactivation: While a modal is open, the background must be treated as non-interactive (inert). Apply aria-hidden or inert attribute
 
-## 반응형-컴포넌트 의존
+## Responsive–Component Dependency
 
-- 뷰포트 크기 → 컴포넌트 패턴 전환: 컴포넌트가 특정 뷰포트에서 다른 패턴으로 전환되는 기준이 정의되어야 한다. 예: 960px 이하에서 테이블 → 카드 전환
-- 터치 환경 → 호버 대안: 호버에 의존하는 인터랙션(툴팁, 메가 메뉴 등)은 터치 환경에서 대안(롱프레스, 탭, 별도 버튼)이 정의되어야 한다
-- 화면 축소 → 콘텐츠 우선순위: 어떤 정보를 유지하고 어떤 정보를 축소/재배치하는지의 우선순위가 정의되어야 한다. 우선순위 없이 축소하면 핵심 정보가 밀려남
+- Viewport Size → Component Pattern Transition: The criteria for components transitioning to different patterns at specific viewports must be defined. Example: Table → card transition below 960px
+- Touch Environment → Hover Alternative: Hover-dependent interactions (tooltips, mega menus, etc.) must have alternatives defined for touch environments (long press, tap, dedicated button)
+- Screen Reduction → Content Priority: Priorities for which information to keep and which to reduce/rearrange must be defined. Reducing without priorities pushes critical information aside
 
-## 접근성-인터랙션 의존
+## Accessibility–Interaction Dependency
 
-- 커스텀 컴포넌트 → ARIA 역할/상태: 네이티브 HTML 요소를 사용하지 않는 커스텀 컴포넌트는 해당 ARIA 역할(role), 상태(state), 속성(property)을 명시해야 한다
-- 동적 콘텐츠 변경 → 라이브 영역: 사용자 행동 없이 변경되는 콘텐츠(알림, 카운터, 상태 변경)는 ARIA 라이브 영역으로 스크린 리더에 전달해야 한다
-- 드래그앤드롭 → 키보드 대안: 드래그앤드롭은 키보드/스크린 리더로 조작할 수 없다. 화살표 키 이동, 컨텍스트 메뉴 등 대안 인터랙션이 필요
-- 시간 제한 → 연장 수단: 세션 타임아웃, 자동 로그아웃 등 시간 제한이 있으면 사용자에게 경고하고 연장 수단을 제공해야 한다 (WCAG 2.2.1)
+- Custom Component → ARIA Role/State: Custom components not using native HTML elements must specify appropriate ARIA roles, states, and properties
+- Dynamic Content Change → Live Region: Content that changes without user action (notifications, counters, status changes) must be communicated to screen readers via ARIA live regions
+- Drag-and-Drop → Keyboard Alternative: Drag-and-drop cannot be operated with keyboard/screen reader. Alternative interactions such as arrow key movement and context menus are needed
+- Time Limit → Extension Mechanism: If time limits exist (session timeout, auto-logout), users must be warned and provided with an extension mechanism (WCAG 2.2.1)
 
-## Source of Truth 관리
+## Source of Truth Management
 
-- UI 패턴 결정의 source of truth: UI 패턴 라이브러리 또는 디자인 시스템의 패턴 문서
-- 플랫폼 관행의 source of truth: Material Design(Android), Human Interface Guidelines(iOS), 웹 접근성 표준(WCAG/WAI-ARIA)
-- 인터랙션 명세의 source of truth: 인터랙션 명세 문서(디자인 도구의 프로토타입 또는 별도 문서). 코드 구현이 명세와 불일치하면 명세가 우선 (단, 기술적 제약이 있으면 명세를 갱신)
-- source of truth 간 충돌 시: 접근성 표준 > 플랫폼 가이드라인 > 자체 패턴 라이브러리. 접근성은 양보할 수 없는 기본 요건
+- Source of truth for UI pattern decisions: UI pattern library or design system pattern documentation
+- Source of truth for platform conventions: Material Design (Android), Human Interface Guidelines (iOS), web accessibility standards (WCAG/WAI-ARIA)
+- Source of truth for interaction specifications: Interaction specification documents (design tool prototypes or separate documents). If code implementation conflicts with spec, spec takes precedence (but if technical constraints exist, update the spec)
+- When sources of truth conflict: Accessibility standards > Platform guidelines > Internal pattern library. Accessibility is a non-negotiable baseline requirement
 
-## 관련 문서
-- concepts.md — 내비게이션, 폼, 피드백, 모달, 접근성 용어 정의
-- structure_spec.md — 화면 구조, 상태 체계, 내비게이션 구조
-- logic_rules.md — 내비게이션/폼/피드백/모달/접근성 논리
+## Related Documents
+- concepts.md — Navigation, form, feedback, modal, accessibility term definitions
+- structure_spec.md — Screen structure, state system, navigation structure
+- logic_rules.md — Navigation/form/feedback/modal/accessibility logic

@@ -1,88 +1,88 @@
-# Visual Design Domain — 확장 시나리오
+# Visual Design Domain — Extension Scenarios
 
-각 시나리오를 시뮬레이션하여 기존 시각 디자인 체계의 깨짐 여부를 검증한다.
+Each scenario is simulated to verify whether the existing visual design system breaks.
 
-## Case 1: 다크 모드 추가
+## Case 1: Dark Mode Addition
 
-- 기존 밝은 모드(light mode) 체계에 어두운 모드(dark mode)를 추가
-- 검증: 시맨틱 토큰이 테마 독립적으로 설계되어 있어, 값 교체만으로 전환이 가능한가?
-- 검증: 다크 모드에서 모든 텍스트-배경 조합이 WCAG 명도 대비 기준을 충족하는가?
-- 검증: 그림자(shadow), 경계선(border), 오버레이(overlay) 등 비색상 시각 요소가 다크 모드에서 적절히 조정되는가?
-- 검증: 이미지, 아이콘, 일러스트레이션이 다크 배경에서 시각적으로 적절한가?
-- 검증: 시맨틱 색상(error, success 등)이 다크 모드에서도 의미가 명확한가?
-- 영향 파일: dependency_rules.md (색채-접근성 의존), structure_spec.md (토큰 계층)
+- Adding dark mode to an existing light mode system
+- Verification: Are semantic tokens designed theme-independently so that switching is possible by simply replacing values?
+- Verification: Do all text-background combinations in dark mode meet WCAG contrast ratio criteria?
+- Verification: Are non-color visual elements (shadow, border, overlay) appropriately adjusted for dark mode?
+- Verification: Are images, icons, and illustrations visually appropriate on a dark background?
+- Verification: Are semantic colors (error, success, etc.) still clearly meaningful in dark mode?
+- Affected files: dependency_rules.md (color–accessibility dependency), structure_spec.md (token layers)
 
-## Case 2: 브랜드 리뉴얼
+## Case 2: Brand Renewal
 
-- 브랜드 아이덴티티 변경 (로고, 브랜드 컬러, 서체, 톤앤매너 전면 교체)
-- 검증: 브랜드 컬러 변경 시 색채 체계 전체(primitive → semantic → component)의 전파 경로가 작동하는가?
-- 검증: 새 브랜드 서체로 타이포그래피 스케일, 행간, 행장이 재검증되었는가?
-- 검증: 새 톤앤매너에 맞게 아이콘 스타일, 이미지 스타일, 모션 특성이 조정되었는가?
-- 검증: 과도기(구 브랜드 → 신 브랜드)의 병행 운영 기간과 전환 계획이 정의되어 있는가?
-- 검증: 접근성 기준이 새 브랜드 컬러에서도 충족되는가?
-- 영향 파일: dependency_rules.md (브랜드-시각 체계 의존), logic_rules.md (브랜드 정합성 논리)
+- Brand identity change (full replacement of logo, brand colors, typefaces, tone and manner)
+- Verification: When brand colors change, does the propagation path through the entire color system (primitive → semantic → component) function correctly?
+- Verification: Has the type scale, line-height, and measure been re-verified with the new brand typeface?
+- Verification: Have icon style, image style, and motion characteristics been adjusted to match the new tone and manner?
+- Verification: Is the transition period (old brand → new brand) co-existence duration and migration plan defined?
+- Verification: Are accessibility criteria still met with the new brand colors?
+- Affected files: dependency_rules.md (brand–visual system dependency), logic_rules.md (brand alignment logic)
 
-## Case 3: 새로운 플랫폼 지원
+## Case 3: New Platform Support
 
-- 기존 웹 디자인 체계를 모바일 앱(iOS/Android), 데스크톱 앱, 키오스크 등 새 플랫폼에 확장
-- 검증: 디자인 토큰이 플랫폼 독립적(platform-agnostic)으로 설계되어 있어, 새 플랫폼에 변환 가능한가?
-- 검증: 플랫폼별 디자인 규범(Material Design, HIG)과의 충돌이 식별되고 해소되었는가?
-- 검증: 터치 대상 크기, 제스처 패턴 등 플랫폼별 인터랙션 차이가 반영되었는가?
-- 검증: 반응형 브레이크포인트가 새 플랫폼의 화면 크기 범위를 수용하는가?
-- 검증: 컴포넌트의 상태 체계가 플랫폼별 인터랙션 모델(마우스 vs 터치 vs 키보드)에 대응하는가?
-- 영향 파일: structure_spec.md (반응형 구조, 상태 체계), logic_rules.md (접근성 논리)
+- Extending the existing web design system to mobile apps (iOS/Android), desktop apps, kiosks, etc.
+- Verification: Are design tokens designed platform-agnostically so they can be converted for the new platform?
+- Verification: Are conflicts with platform-specific design conventions (Material Design, HIG) identified and resolved?
+- Verification: Are platform-specific interaction differences (touch target sizes, gesture patterns) reflected?
+- Verification: Do responsive breakpoints accommodate the new platform's screen size range?
+- Verification: Does the component state system accommodate platform-specific interaction models (mouse vs touch vs keyboard)?
+- Affected files: structure_spec.md (responsive structure, state system), logic_rules.md (accessibility logic)
 
-## Case 4: 디자인 시스템 컴포넌트 대규모 추가
+## Case 4: Large-Scale Design System Component Addition
 
-- 기존 디자인 시스템에 10개 이상의 새 컴포넌트를 추가
-- 검증: 새 컴포넌트가 기존 토큰 체계(primitive/semantic/component)를 재사용하는가? 새 토큰이 필요한 경우 기존 체계와 정합하는가?
-- 검증: Atomic Design 계층에서 새 컴포넌트의 위치(Atom/Molecule/Organism)가 명확한가?
-- 검증: 새 컴포넌트의 모든 상태(default/hover/active/focus/disabled 등)가 정의되어 있는가?
-- 검증: 새 컴포넌트의 변형(variant) 기준이 기존 컴포넌트의 변형 기준과 일관되는가?
-- 검증: 디자인 시스템 거버넌스(추가/승인 절차)가 대규모 추가를 수용하는가?
-- 영향 파일: structure_spec.md (컴포넌트 계층, 토큰 계층), dependency_rules.md (토큰-컴포넌트 의존)
+- Adding 10 or more new components to the existing design system
+- Verification: Do new components reuse the existing token system (primitive/semantic/component)? If new tokens are needed, are they consistent with the existing system?
+- Verification: Is the position of new components in the Atomic Design hierarchy (Atom/Molecule/Organism) clear?
+- Verification: Are all states (default/hover/active/focus/disabled, etc.) defined for new components?
+- Verification: Are the variant criteria of new components consistent with existing component variant criteria?
+- Verification: Does design system governance (add/approval procedures) accommodate large-scale additions?
+- Affected files: structure_spec.md (component layers, token layers), dependency_rules.md (token–component dependency)
 
-## Case 5: 다국어/다문화 확장
+## Case 5: Multilingual/Multicultural Extension
 
-- 기존 디자인을 새 언어(CJK, RTL, 키릴 문자 등)와 새 문화권에 적용
-- 검증: 타이포그래피 체계가 새 스크립트의 특성(CJK 정사각형 글자, 아랍어 RTL)을 수용하는가?
-- 검증: 레이아웃이 RTL(오른쪽에서 왼쪽) 전환에 대응하는가? (아이콘 방향, 진행 표시 방향 포함)
-- 검증: 텍스트 확장(번역 시 텍스트 길이 변화)에 레이아웃이 유연하게 대응하는가? (독일어는 영어 대비 30~40% 길어질 수 있음)
-- 검증: 색상, 아이콘, 이미지가 문화적으로 부적절한 의미를 가지지 않는가?
-- 검증: 날짜, 숫자, 통화 등 지역화(localization) 요소의 시각적 표현이 정의되어 있는가?
-- 영향 파일: logic_rules.md (타이포그래피 논리), structure_spec.md (반응형 구조)
+- Applying the existing design to new languages (CJK, RTL, Cyrillic, etc.) and new cultural contexts
+- Verification: Does the typography system accommodate the characteristics of new scripts (CJK square characters, Arabic RTL)?
+- Verification: Does the layout accommodate RTL (right-to-left) conversion? (including icon direction, progress indicator direction)
+- Verification: Does the layout flexibly accommodate text expansion (text length changes from translation)? (German can be 30~40% longer than English)
+- Verification: Do colors, icons, and images not carry culturally inappropriate meanings?
+- Verification: Are visual representations for localization elements (dates, numbers, currencies) defined?
+- Affected files: logic_rules.md (typography logic), structure_spec.md (responsive structure)
 
-## Case 6: 접근성 수준 상향
+## Case 6: Accessibility Level Upgrade
 
-- WCAG AA에서 AAA로 접근성 기준 상향, 또는 새로운 접근성 법규 대응
-- 검증: AAA 명도 대비(일반 텍스트 7:1, 대형 텍스트 4.5:1)를 충족하도록 색채 체계를 조정할 수 있는가?
-- 검증: 조정된 색채가 브랜드 정합성을 유지하는가? 상충 시 해소 방안이 있는가?
-- 검증: 텍스트 크기 200% 확대 시에도 모든 기능이 유지되는가?
-- 검증: 모든 모션에 prefers-reduced-motion 대응이 포함되어 있는가?
-- 검증: 인지 접근성(정보 과부하 방지, 일관된 내비게이션, 명확한 레이블링)이 체계적으로 반영되어 있는가?
-- 영향 파일: logic_rules.md (접근성 논리, 제약 상충), dependency_rules.md (색채-접근성 의존)
+- Upgrading accessibility criteria from WCAG AA to AAA, or responding to new accessibility regulations
+- Verification: Can the color system be adjusted to meet AAA contrast ratios (7:1 for normal text, 4.5:1 for large text)?
+- Verification: Do adjusted colors maintain brand alignment? If conflicting, is there a resolution plan?
+- Verification: Are all features maintained when text size is enlarged to 200%?
+- Verification: Is prefers-reduced-motion support included for all motion?
+- Verification: Is cognitive accessibility (information overload prevention, consistent navigation, clear labeling) systematically addressed?
+- Affected files: logic_rules.md (accessibility logic, constraint conflicts), dependency_rules.md (color–accessibility dependency)
 
-## Case 7: 디자인 도구 전환
+## Case 7: Design Tool Migration
 
-- Sketch → Figma, Figma → 다른 도구 등 디자인 도구 변경
-- 검증: 디자인 토큰이 도구 독립적 형식(JSON, YAML 등)으로 관리되어, 도구 전환 시 재정의 불필요한가?
-- 검증: 컴포넌트 라이브러리의 마이그레이션 계획이 있는가?
-- 검증: 디자인 도구-코드 간 동기화 파이프라인이 새 도구에 대응하는가?
-- 검증: 과도기(구 도구와 신 도구 병행) 동안 source of truth가 명확한가?
-- 검증: 디자인 히스토리(이전 버전 추적)가 보존되는가?
-- 영향 파일: dependency_rules.md (디자인 도구-코드 의존), structure_spec.md (source of truth)
+- Design tool change such as Sketch → Figma, Figma → another tool
+- Verification: Are design tokens managed in a tool-independent format (JSON, YAML, etc.) so no redefinition is needed during tool migration?
+- Verification: Is there a component library migration plan?
+- Verification: Does the design tool–code synchronization pipeline accommodate the new tool?
+- Verification: Is the source of truth clear during the transition period (old and new tools in parallel)?
+- Verification: Is design history (version tracking) preserved?
+- Affected files: dependency_rules.md (design tool–code dependency), structure_spec.md (source of truth)
 
-## Case 8: 디자인 시스템 팀 규모 확장
+## Case 8: Design System Team Scale Expansion
 
-- 1~2명의 디자인 시스템 관리자에서 5명 이상의 팀으로 확장, 또는 외부 팀(에이전시, 파트너)의 디자인 시스템 사용
-- 검증: 디자인 시스템 거버넌스(기여/리뷰/승인 절차)가 다수 기여자를 수용하는가?
-- 검증: 컴포넌트 명명 규칙과 구조 규칙이 문서화되어 있어, 새 기여자가 일관되게 작업할 수 있는가?
-- 검증: 버전 관리(breaking change 구분, 마이그레이션 가이드)가 다수 소비자(consumer)를 수용하는가?
-- 검증: 토큰/컴포넌트의 폐기(deprecation) 절차가 정의되어 있는가?
-- 검증: 외부 팀이 시스템을 사용할 때의 범위(전체 사용 vs 부분 사용 vs 확장 허용)가 정의되어 있는가?
-- 영향 파일: structure_spec.md (디자인 시스템 거버넌스), dependency_rules.md (source of truth 관리)
+- Expanding from 1~2 design system maintainers to a team of 5 or more, or external teams (agencies, partners) using the design system
+- Verification: Does design system governance (contribution/review/approval procedures) accommodate multiple contributors?
+- Verification: Are component naming conventions and structure rules documented so new contributors can work consistently?
+- Verification: Does version management (breaking change distinction, migration guides) accommodate multiple consumers?
+- Verification: Are deprecation procedures for tokens/components defined?
+- Verification: Is the scope for external teams (full use vs partial use vs extension allowed) defined?
+- Affected files: structure_spec.md (design system governance), dependency_rules.md (source of truth management)
 
-## 관련 문서
-- structure_spec.md — 토큰 계층, 컴포넌트 계층, 반응형 구조, 상태 체계
-- dependency_rules.md — 토큰-컴포넌트, 브랜드-시각 체계, 색채-접근성, 디자인 도구-코드 의존
-- logic_rules.md — 색채/타이포그래피/접근성/모션/브랜드 논리
+## Related Documents
+- structure_spec.md — Token layers, component layers, responsive structure, state system
+- dependency_rules.md — Token–component, brand–visual system, color–accessibility, design tool–code dependency
+- logic_rules.md — Color/typography/accessibility/motion/brand logic

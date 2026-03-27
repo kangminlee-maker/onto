@@ -1,6 +1,6 @@
 # Onto Review (8-Agent Panel Review)
 
-$ARGUMENTS를 에이전트 팀으로 리뷰합니다.
+Reviews $ARGUMENTS with the agent panel (team review).
 
-`~/.claude/plugins/onto/process.md` (공통 정의)와
-`~/.claude/plugins/onto/processes/review.md`를 읽고 실행하세요.
+Read `~/.claude/plugins/onto/process.md` (common definitions) and
+`~/.claude/plugins/onto/processes/review.md`, then execute.

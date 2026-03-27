@@ -1,90 +1,90 @@
-# UI Design Domain — 확장 시나리오
+# UI Design Domain — Extension Scenarios
 
-각 시나리오를 시뮬레이션하여 기존 UI 설계의 깨짐 여부를 검증한다.
+Each scenario is simulated to verify whether the existing UI design breaks.
 
-## Case 1: 대규모 기능 추가
+## Case 1: Large-Scale Feature Addition
 
-- 기존 인터페이스에 새로운 주요 기능(섹션) 추가
-- 검증: 정보 구조(IA)가 새 기능을 수용하는가? 최상위 내비게이션 항목 수가 관리 가능한 범위(5~7개)를 초과하지 않는가?
-- 검증: 새 기능의 내비게이션 위치가 사용자의 심적 모형에 부합하는가?
-- 검증: 새 기능에 필요한 모든 상태(이상적/빈/로딩/에러)가 정의되어 있는가?
-- 검증: 새 기능에서 기존 UI 패턴(폼, 테이블, 피드백 등)을 재사용하는가? 새 패턴이 필요하면 기존 체계와 정합하는가?
-- 검증: 새 기능의 CTA가 기존 화면의 CTA 위계와 충돌하지 않는가?
-- 영향 파일: structure_spec.md (내비게이션 구조, 화면 상태), dependency_rules.md (정보 구조-내비게이션 의존)
+- Adding a new major feature (section) to the existing interface
+- Verification: Does the information architecture (IA) accommodate the new feature? Does the number of top-level navigation items not exceed a manageable range (5~7)?
+- Verification: Does the navigation position of the new feature align with the user's mental model?
+- Verification: Are all states (ideal/empty/loading/error) defined for the new feature?
+- Verification: Does the new feature reuse existing UI patterns (forms, tables, feedback, etc.)? If a new pattern is needed, is it consistent with the existing system?
+- Verification: Does the new feature's CTA not conflict with the CTA hierarchy of existing screens?
+- Affected files: structure_spec.md (navigation structure, screen states), dependency_rules.md (information architecture–navigation dependency)
 
-## Case 2: 모바일 앱 신규 출시
+## Case 2: New Mobile App Launch
 
-- 기존 웹 인터페이스를 모바일 앱(iOS/Android)으로 확장
-- 검증: 데스크톱 UI 패턴의 모바일 전환 규칙이 정의되어 있는가? (테이블→카드, 사이드바→바텀 내비게이션 등)
-- 검증: 터치 대상 크기(44×44px 최소)와 터치 영역 간 간격이 충족되는가?
-- 검증: 호버에 의존하는 모든 인터랙션에 터치 대안이 정의되어 있는가?
-- 검증: 플랫폼 규범(Material Design, HIG)과 자체 UI 패턴의 충돌이 식별되고 해소 기준이 정의되어 있는가?
-- 검증: 네이티브 제스처(스와이프, 핀치, 롱프레스)의 사용 범위와 의미가 정의되어 있는가?
-- 검증: 오프라인 상태에서의 동작과 안내가 정의되어 있는가? (해당 시)
-- 영향 파일: structure_spec.md (반응형 컴포넌트 전환), logic_rules.md (내비게이션 논리)
+- Extending the existing web interface to a mobile app (iOS/Android)
+- Verification: Are desktop-to-mobile UI pattern transition rules defined? (table → card, sidebar → bottom navigation, etc.)
+- Verification: Are touch target sizes (44×44px minimum) and spacing between touch areas satisfied?
+- Verification: Are touch alternatives defined for all hover-dependent interactions?
+- Verification: Are conflicts between platform conventions (Material Design, HIG) and internal UI patterns identified with resolution criteria defined?
+- Verification: Are the scope and meaning of native gestures (swipe, pinch, long press) defined?
+- Verification: Are offline behavior and guidance defined? (if applicable)
+- Affected files: structure_spec.md (responsive component transitions), logic_rules.md (navigation logic)
 
-## Case 3: 사용자 유형 다변화
+## Case 3: User Type Diversification
 
-- 단일 사용자 유형에서 다중 사용자 유형(일반 사용자/관리자/파워 유저 등)으로 확장
-- 검증: 사용자 유형별 정보 밀도 요구가 다를 때, 이를 수용하는 UI 변형이 설계되어 있는가? (관리자용 밀도 높은 대시보드 vs 일반 사용자용 간결한 UI)
-- 검증: 권한별 UI 분기(보이는 기능, 편집 가능 여부)가 정의되어 있는가?
-- 검증: 권한 없는 기능에 대한 처리(숨김 vs 비활성화 vs 업그레이드 안내)가 일관되는가?
-- 검증: 관리자 전용 기능이 일반 사용자에게 노출되지 않는가?
-- 검증: 내비게이션이 사용자 유형별로 적절히 조정되는가?
-- 영향 파일: structure_spec.md (화면 상태 매트릭스), logic_rules.md (제약 상충 — 정보 밀도 vs 인지 부하)
+- Expanding from a single user type to multiple user types (general user/administrator/power user, etc.)
+- Verification: When different user types have different information density requirements, are UI variations designed to accommodate this? (dense dashboard for administrators vs concise UI for general users)
+- Verification: Are permission-based UI branches (visible features, edit permissions) defined?
+- Verification: Is the handling of features without permission (hide vs disable vs upgrade prompt) consistent?
+- Verification: Are administrator-only features not exposed to general users?
+- Verification: Is navigation appropriately adjusted for each user type?
+- Affected files: structure_spec.md (screen state matrix), logic_rules.md (constraint conflicts — information density vs cognitive load)
 
-## Case 4: 복잡한 폼 추가
+## Case 4: Complex Form Addition
 
-- 기존 간단한 입력에서 20개 이상 필드의 복잡한 폼으로 확장
-- 검증: 폼이 논리적 단계(multi-step)로 분할되어 있는가?
-- 검증: 각 단계의 진행 표시, 이전/다음 이동, 데이터 보존이 설계되어 있는가?
-- 검증: 조건부 필드(이전 답변에 따라 표시/숨김)의 로직이 정의되어 있는가?
-- 검증: 임시 저장(draft)이 지원되는가? 브라우저 종료 시 데이터 손실 방지 수단이 있는가?
-- 검증: 에러가 다른 단계에 있을 때 해당 단계로 이동하여 에러를 표시하는 흐름이 정의되어 있는가?
-- 영향 파일: logic_rules.md (폼 설계 논리), dependency_rules.md (폼-검증 의존)
+- Expanding from simple inputs to complex forms with 20+ fields
+- Verification: Is the form divided into logical multi-steps?
+- Verification: Are progress indicators, previous/next navigation, and data preservation designed for each step?
+- Verification: Is the logic for conditional fields (shown/hidden based on previous answers) defined?
+- Verification: Is draft saving supported? Are there measures to prevent data loss on browser exit?
+- Verification: Is the flow for navigating to the step containing the error and displaying it defined when errors are in other steps?
+- Affected files: logic_rules.md (form design logic), dependency_rules.md (form–validation dependency)
 
-## Case 5: 실시간 협업 기능 추가
+## Case 5: Real-Time Collaboration Feature Addition
 
-- 단일 사용자 인터페이스에서 다중 사용자 실시간 협업으로 확장
-- 검증: 다른 사용자의 존재 표시(presence indicator)가 설계되어 있는가?
-- 검증: 동시 편집 시 충돌(conflict) 상태의 표시와 해소 방법이 정의되어 있는가?
-- 검증: 다른 사용자의 변경 사항이 실시간으로 반영될 때, 현재 사용자의 작업을 방해하지 않는가?
-- 검증: 연결 끊김(disconnection) 상태의 표시와 재연결 후 동기화 안내가 있는가?
-- 검증: 실시간 변경 알림이 과도하여 알림 피로를 유발하지 않는가?
-- 영향 파일: logic_rules.md (피드백 논리), structure_spec.md (화면 상태 매트릭스)
+- Expanding from a single-user interface to multi-user real-time collaboration
+- Verification: Is a presence indicator for other users designed?
+- Verification: Are the display and resolution methods for concurrent editing conflicts defined?
+- Verification: When other users' changes are reflected in real time, does it not disrupt the current user's work?
+- Verification: Are disconnection state display and post-reconnection synchronization guidance provided?
+- Verification: Are real-time change notifications not excessive enough to cause notification fatigue?
+- Affected files: logic_rules.md (feedback logic), structure_spec.md (screen state matrix)
 
-## Case 6: 접근성 전면 개선
+## Case 6: Comprehensive Accessibility Improvement
 
-- 기존 접근성 미비 인터페이스에 WCAG 2.1 AA 이상 전면 적용
-- 검증: 모든 인터랙티브 요소에 키보드 접근이 가능하고, 탭 순서가 논리적인가?
-- 검증: 모든 모달/오버레이에 포커스 트랩과 포커스 복원이 적용되는가?
-- 검증: 동적 콘텐츠 변경에 ARIA 라이브 영역이 적용되는가?
-- 검증: 커스텀 컴포넌트에 적절한 ARIA 역할/상태가 부여되는가?
-- 검증: 드래그앤드롭 등 특수 인터랙션에 키보드 대안이 제공되는가?
-- 검증: 시간 제한(타임아웃)이 있는 기능에 연장 수단이 제공되는가?
-- 영향 파일: dependency_rules.md (접근성-인터랙션 의존), logic_rules.md (접근성 인터랙션 논리)
+- Full application of WCAG 2.1 AA or above to a previously accessibility-deficient interface
+- Verification: Is keyboard access available for all interactive elements, and is the tab order logical?
+- Verification: Are focus traps and focus restoration applied to all modals/overlays?
+- Verification: Are ARIA live regions applied to dynamic content changes?
+- Verification: Are appropriate ARIA roles/states assigned to custom components?
+- Verification: Are keyboard alternatives provided for special interactions like drag-and-drop?
+- Verification: Are extension mechanisms provided for features with time limits (timeouts)?
+- Affected files: dependency_rules.md (accessibility–interaction dependency), logic_rules.md (accessible interaction logic)
 
-## Case 7: 대시보드/분석 화면 추가
+## Case 7: Dashboard/Analytics Screen Addition
 
-- 기존 CRUD 인터페이스에 데이터 대시보드/분석 화면 추가
-- 검증: 대시보드의 정보 위계(어떤 지표가 가장 중요한가)가 정의되어 있는가?
-- 검증: 차트/그래프의 인터랙션(호버 정보, 드릴다운, 필터 연동)이 설계되어 있는가?
-- 검증: 대시보드의 반응형 동작(모바일에서 차트 재배치/단순화)이 정의되어 있는가?
-- 검증: 데이터 로딩 시간이 길 때의 로딩 상태가 차트/위젯별로 독립적으로 표시되는가?
-- 검증: 데이터 없음/에러 상태가 차트/위젯별로 정의되어 있는가? (전체 대시보드 에러 vs 개별 위젯 에러 구분)
-- 영향 파일: structure_spec.md (데이터 표시 체계, 화면 상태), logic_rules.md (데이터 표시 논리)
+- Adding data dashboards/analytics screens to an existing CRUD interface
+- Verification: Is the information hierarchy (which metrics are most important) defined for the dashboard?
+- Verification: Are chart/graph interactions (hover info, drill-down, filter integration) designed?
+- Verification: Is the responsive behavior of the dashboard (chart rearrangement/simplification on mobile) defined?
+- Verification: When data loading times are long, are loading states displayed independently per chart/widget?
+- Verification: Are no-data/error states defined per chart/widget? (whole dashboard error vs individual widget error distinction)
+- Affected files: structure_spec.md (data display system, screen states), logic_rules.md (data display logic)
 
-## Case 8: 국제화(i18n) 확장
+## Case 8: Internationalization (i18n) Extension
 
-- 단일 언어 인터페이스에서 다국어 지원으로 확장
-- 검증: 텍스트 확장(번역 시 길이 변화 — 독일어 +30~40%, 중국어 -30%)에 레이아웃이 유연하게 대응하는가?
-- 검증: RTL(오른쪽→왼쪽) 언어에서 레이아웃, 아이콘 방향, 진행 표시가 미러링되는가?
-- 검증: 날짜/시간/숫자/통화 등의 입력 필드가 지역 형식을 수용하는가?
-- 검증: 내비게이션 라벨이 번역 후에도 공간 내에 수용되는가? (번역이 길어지면 잘림/줄바꿈 발생)
-- 검증: 에러 메시지, 빈 상태 안내, CTA 라벨 등 모든 사용자 대면 텍스트가 번역 대상에 포함되는가?
-- 영향 파일: structure_spec.md (폼 구조, 반응형 전환), logic_rules.md (내비게이션 논리, 폼 설계 논리)
+- Extending from a single-language interface to multi-language support
+- Verification: Does the layout flexibly accommodate text expansion (length changes from translation — German +30~40%, Chinese -30%)?
+- Verification: For RTL (right-to-left) languages, are layout, icon direction, and progress indicators mirrored?
+- Verification: Do date/time/number/currency input fields accept regional formats?
+- Verification: Are navigation labels still contained within their space after translation? (Longer translations may cause truncation/wrapping)
+- Verification: Are all user-facing texts (error messages, empty state guidance, CTA labels) included in translation scope?
+- Affected files: structure_spec.md (form structure, responsive transitions), logic_rules.md (navigation logic, form design logic)
 
-## 관련 문서
-- structure_spec.md — 내비게이션 구조, 화면 상태 매트릭스, 피드백 매트릭스, 반응형 전환
-- dependency_rules.md — 정보 구조-내비게이션, 행동-피드백, 폼-검증, 접근성 의존
-- logic_rules.md — 내비게이션/폼/피드백/모달/접근성/데이터 표시 논리
+## Related Documents
+- structure_spec.md — Navigation structure, screen state matrix, feedback matrix, responsive transitions
+- dependency_rules.md — Information architecture–navigation, action–feedback, form–validation, accessibility dependencies
+- logic_rules.md — Navigation/form/feedback/modal/accessibility/data display logic

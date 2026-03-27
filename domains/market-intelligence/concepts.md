@@ -1,89 +1,89 @@
-# Market Intelligence Domain — 핵심 개념 정의
+# Market Intelligence Domain — Core Concept Definitions
 
-## 1. 용어 정의
+## 1. Term Definitions
 
-### 1.1 데이터 수집 영역
+### 1.1 Data Collection Area
 
-| 용어 | 정의 | 비고 |
-|------|------|------|
-| 데이터 소스 신뢰도 등급 | 데이터 소스의 신뢰도를 분류하는 등급 체계. 수집된 데이터가 분석에 투입되기 전 반드시 부여되어야 하는 분류 값 | logic_rules.md 참조 |
-| 1차 소스 (Primary Source) | 직접 수집한 원시 데이터 (인터뷰, 설문, 직접 관찰) | 최고 신뢰도 등급 |
-| 2차 소스 (Secondary Source) | 타 기관이 가공·발행한 데이터 (리포트, 논문, 공시) | 중간 신뢰도 등급 |
-| 3차 소스 (Tertiary Source) | 2차 소스를 재가공한 데이터 (뉴스 요약, 블로그, 위키) | 최저 신뢰도 등급 |
-| 수집 정책 | 수집 주기, 대상, 방법을 규정하는 정책 선언 | 의사결정 게이트의 입력 |
-| 데이터 신선도 | 데이터의 수집 시점과 현재 시점의 차이로 측정하는 유효성 지표 | 갱신 주기와 연동 |
+| Term | Definition | Notes |
+|------|-----------|-------|
+| Data Source Credibility Rating | A rating system that classifies the credibility of data sources. A classification value that must be assigned before collected data is fed into analysis | See logic_rules.md |
+| Primary Source | Raw data collected directly (interviews, surveys, direct observation) | Highest credibility rating |
+| Secondary Source | Data processed and published by other organizations (reports, papers, public disclosures) | Medium credibility rating |
+| Tertiary Source | Data reprocessed from secondary sources (news summaries, blogs, wikis) | Lowest credibility rating |
+| Collection Policy | A policy declaration that specifies collection frequency, targets, and methods | Input to decision gates |
+| Data Freshness | A validity indicator measured by the difference between the data collection time and the current time | Linked with update frequency |
 
-### 1.2 분석 영역
+### 1.2 Analysis Area
 
-| 용어 | 정의 | 비고 |
-|------|------|------|
-| 경쟁 구도 분석 | 특정 시장 내 경쟁자의 포지션, 역량, 전략을 구조화한 분석 결과 | |
-| 시장 규모 추정 | 시장의 총 규모(TAM), 접근 가능 규모(SAM), 획득 가능 규모(SOM)의 추정 | |
-| 트렌드 신호 | 시계열 데이터에서 식별된 방향성 패턴 | 노이즈와 구분 필요 |
-| 세그먼트 | 공통 특성으로 묶인 고객·시장 하위 집합 | 분류 기준 명시 필수 |
-| 분석 방법론 | 분석에 적용된 방법론의 명칭과 전제 조건 | SWOT, Five Forces 등 |
+| Term | Definition | Notes |
+|------|-----------|-------|
+| Competitive Landscape Analysis | A structured analysis result of competitors' positions, capabilities, and strategies within a specific market | |
+| Market Size Estimation | Estimation of total market size (TAM), serviceable addressable market (SAM), and serviceable obtainable market (SOM) | |
+| Trend Signal | A directional pattern identified in time-series data | Must be distinguished from noise |
+| Segment | A subset of customers or markets grouped by common characteristics | Classification criteria must be specified |
+| Analysis Methodology | The name and preconditions of the methodology applied to the analysis | SWOT, Five Forces, etc. |
 
-### 1.3 전략 도출 영역
+### 1.3 Strategy Derivation Area
 
-| 용어 | 정의 | 비고 |
-|------|------|------|
-| 전략 옵션 | 분석 결과로부터 도출된 실행 가능한 전략 후보 | |
-| 의사결정 게이트 | 전략 옵션이 실행 단계로 넘어가기 위해 통과해야 하는 검증 지점 | 동형이의어 참조 |
-| 우선순위 점수 | 전략 옵션의 실행 우선순위를 결정하는 정량 점수 | 평가 매트릭스 기반 |
-| 의사결정 기준 | 전략 선택에 사용되는 판단 기준의 집합 | |
+| Term | Definition | Notes |
+|------|-----------|-------|
+| Strategy Option | An actionable strategy candidate derived from analysis results | |
+| Decision Gate | A verification point that a strategy option must pass to proceed to the execution phase | See homonyms |
+| Priority Score | A quantitative score that determines the execution priority of a strategy option | Based on evaluation matrix |
+| Decision Criteria | The set of judgment criteria used for strategy selection | |
 
-### 1.4 위험 평가 영역
+### 1.4 Risk Assessment Area
 
-| 용어 | 정의 | 비고 |
-|------|------|------|
-| 위험 요소 | 시장에서 식별된 개별 위험 요소 | |
-| 위험 점수 | 영향도(impact) x 발생 가능성(likelihood)으로 산출된 위험 정량값 | |
-| 위험 대응 | 식별된 위험에 대한 대응 전략 (회피/완화/수용/전가) | |
-| 위험 임계값 | 위험 수용 가능 경계값. 이를 초과하면 대응이 필수 | |
-| 노출 수준 | 특정 위험 요소에 대한 현재 노출 수준 | |
+| Term | Definition | Notes |
+|------|-----------|-------|
+| Risk Factor | An individual risk factor identified in the market | |
+| Risk Score | A quantified risk value calculated as impact x likelihood | |
+| Risk Response | A response strategy for an identified risk (avoidance/mitigation/acceptance/transfer) | |
+| Risk Threshold | The acceptable boundary value for risk. Exceeding it requires a mandatory response | |
+| Exposure Level | The current level of exposure to a specific risk factor | |
 
-## 2. 동형이의어 (Cross-Domain Homonyms)
+## 2. Cross-Domain Homonyms
 
-동일 용어가 도메인에 따라 다른 의미를 가지는 경우를 명시한다.
+Cases where the same term carries different meanings depending on the domain are specified below.
 
-| 용어 | market-intelligence 의미 | 타 도메인 의미 | 혼동 위험 |
-|------|--------------------------|---------------|----------|
-| 세그먼트 | 시장 또는 고객의 하위 분류 집합 | software-engineering: 메모리 세그먼트 | 높음 |
-| 파이프라인 | 데이터 수집 → 분석 → 전략의 처리 흐름 | software-engineering: CI/CD 파이프라인 | 높음 |
-| 의사결정 게이트 | 전략 옵션의 실행 승인 검증 지점 | software-engineering: 코드 배포 정책 게이트 | 중간 |
-| 노출(exposure) | 시장 위험에 대한 노출 수준 | finance: 금융 자산 위험 노출 (유사하나 범위 차이) | 중간 |
-| 신호(signal) | 시장 데이터에서 식별된 방향성 패턴 | signal-processing: 전자 신호 | 낮음 |
+| Term | market-intelligence Meaning | Other Domain Meaning | Confusion Risk |
+|------|---------------------------|---------------------|---------------|
+| Segment | A subset classification of markets or customers | software-engineering: memory segment | High |
+| Pipeline | The processing flow from data collection → analysis → strategy | software-engineering: CI/CD pipeline | High |
+| Decision Gate | A verification point for strategy option execution approval | software-engineering: code deployment policy gate | Medium |
+| Exposure | The level of exposure to market risk | finance: financial asset risk exposure (similar but different in scope) | Medium |
+| Signal | A directional pattern identified in market data | signal-processing: electronic signal | Low |
 
-> **해석 원칙**: 다중 도메인 프로젝트에서 위 용어가 등장할 경우,
-> 반드시 `{domain}::{term}` 형식으로 네임스페이스를 명시한다.
-> 네임스페이스 없이 사용된 용어는 현재 활성 도메인 컨텍스트로 해석한다.
+> **Interpretation principle**: When the above terms appear in a multi-domain project,
+> the namespace must be specified in the format `{domain}::{term}`.
+> Terms used without a namespace are interpreted in the currently active domain context.
 
-## 3. 해석 원칙
+## 3. Interpretation Principles
 
-### 3.1 분류 축 분리
+### 3.1 Classification Axis Separation
 
-개체의 종류(타입)와 속성(특성)은 별개의 분류 축이며, 혼합해서는 안 된다.
+The kind (type) and attribute (trait) of an entity are separate classification axes and must not be mixed.
 
-- **개체 타입**: 개체의 존재론적 종류 (예: 데이터 소스, 시장, 경쟁자, 위험 요소)
-- **특성(trait)**: 개체의 속성 분류 (예: 신뢰도 등급, 위험 수준, 신선도 등급)
-- 개체 타입은 "무엇인가"를, 특성은 "어떤 속성을 가지는가"를 표현한다.
-- 하나의 개체에 여러 특성을 부여할 수 있으나, 개체 타입을 특성으로 사용하거나 그 반대는 금지한다.
+- **Entity type**: The ontological kind of an entity (e.g., data source, market, competitor, risk factor)
+- **Trait**: An attribute classification of an entity (e.g., credibility rating, risk level, freshness rating)
+- Entity types express "what something is," while traits express "what attributes it has."
+- Multiple traits can be assigned to a single entity, but using an entity type as a trait or vice versa is prohibited.
 
-### 3.2 특성의 적용 대상과 값 집합 교차 검증
+### 3.2 Cross-Verification of Trait Application Targets and Value Sets
 
-특성이 복수의 영역에서 사용되도록 선언되었으면, 모든 해당 영역에서 해당 특성의 값 집합이 정의되어야 한다.
-한 영역에서만 값이 정의되고 다른 영역에서 누락되면 **정합성 위반**이다.
+If a trait is declared to be used across multiple areas, its value set must be defined in all applicable areas.
+If a value is defined in one area but missing in another, it constitutes a **consistency violation**.
 
-### 3.3 용어 우선순위
+### 3.3 Term Priority
 
-1. 본 문서에 정의된 용어 — 최우선 적용
-2. domain_scope.md 참조 표준에 정의된 용어 — 차순위
-3. 일반적 업계 용법 — 위 두 출처에 없는 경우에만 적용
+1. Terms defined in this document — highest priority
+2. Terms defined in domain_scope.md reference standards — next priority
+3. General industry usage — applied only when absent from the above two sources
 
-## 4. 관련 문서
+## 4. Related Documents
 
-| 문서 | 참조 이유 |
-|------|----------|
-| [domain_scope.md](domain_scope.md) | 영역 정의 및 참조 표준 |
-| [logic_rules.md](logic_rules.md) | 신뢰도 등급 허용 집합 정합성 규칙 |
-| [structure_spec.md](structure_spec.md) | 개체 타입과 특성 분류 축 구조 |
+| Document | Reference Reason |
+|----------|-----------------|
+| [domain_scope.md](domain_scope.md) | Domain definition and reference standards |
+| [logic_rules.md](logic_rules.md) | Credibility rating allowed set consistency rules |
+| [structure_spec.md](structure_spec.md) | Entity type and trait classification axis structure |

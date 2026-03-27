@@ -1,97 +1,97 @@
-# Visual Design Domain — 도메인 범위 정의
+# Visual Design Domain — Domain Scope Definition
 
-이 도메인은 시각 디자인 체계(디자인 시스템, 브랜드 아이덴티티, UI/UX 시각 요소, 인쇄/디지털 매체 디자인)를 **검토**(리뷰)할 때 적용된다.
-시각 디자인의 핵심 원리와 체계를 기준으로 "있어야 하는데 없는 것"을 식별한다.
+This domain applies when **reviewing** visual design systems (design systems, brand identity, UI/UX visual elements, print/digital media design).
+It identifies "what should be there but is missing" based on core principles and systems of visual design.
 
-## 주요 하위 영역
+## Key Sub-Areas
 
-분류 축: **시각 디자인 관심사(visual design concern)** — 시각 체계가 다뤄야 하는 디자인 관심사에 따라 분류한다.
+Classification axis: **Visual design concern** — Classified by the design concern that the visual system must address.
 
-### 타이포그래피 (Typography)
-- **서체 체계** (필수): 서체 선택 근거, 서체 계층(heading/body/caption), 서체 조합(pairing) 원칙
-- **타이포그래피 스케일** (필수): 크기 단계(type scale), 행간(line-height), 자간(letter-spacing), 단어 간격
-- **가독성** (필수): 읽기 편안함(readability)과 판독 가능성(legibility) 구분, 매체별 최적 조건
-- **다국어 타이포그래피** (해당 시): CJK 조판, RTL 지원, 스크립트별 서체 대응
+### Typography
+- **Typeface System** (required): Typeface selection rationale, typeface hierarchy (heading/body/caption), typeface pairing principles
+- **Type Scale** (required): Size steps (type scale), line-height, letter-spacing, word spacing
+- **Readability** (required): Distinction between readability (comfort of reading) and legibility (character recognizability), optimal conditions per medium
+- **Multilingual Typography** (if applicable): CJK typesetting, RTL support, script-specific typeface fallbacks
 
-### 색채 (Color)
-- **색채 체계** (필수): 색상 팔레트 구성, 주색/보조색/강조색 정의, 색상 비율(60-30-10 등)
-- **색채 이론** (필수): 색상환(color wheel), 색채 조화(complementary/analogous/triadic), 색채 심리
-- **접근성** (필수): WCAG 명도 대비(contrast ratio) 기준, 색각 이상(color blindness) 대응
-- **다크 모드/테마** (해당 시): 밝은/어두운 테마 전환, 시맨틱 색상(semantic color) 정의
+### Color
+- **Color System** (required): Color palette composition, primary/secondary/accent color definition, color ratio (60-30-10, etc.)
+- **Color Theory** (required): Color wheel, color harmony (complementary/analogous/triadic), color psychology
+- **Accessibility** (required): WCAG contrast ratio criteria, color blindness accommodation
+- **Dark Mode/Themes** (if applicable): Light/dark theme switching, semantic color definition
 
-### 레이아웃과 구성 (Layout & Composition)
-- **그리드 시스템** (필수): 컬럼 그리드, 모듈러 그리드, 거터(gutter), 마진, 반응형 브레이크포인트
-- **구성 원리** (필수): 시각적 위계(visual hierarchy), 근접성(proximity), 정렬(alignment), 반복(repetition), 대비(contrast) — CRAP 원칙
-- **여백** (필수): 네거티브 스페이스(negative space)의 의도적 사용, 여백 스케일
-- **반응형 디자인** (해당 시): 뷰포트별 레이아웃 변형, 유동적 타이포그래피, 적응형 컴포넌트
+### Layout and Composition
+- **Grid System** (required): Column grid, modular grid, gutters, margins, responsive breakpoints
+- **Composition Principles** (required): Visual hierarchy, proximity, alignment, repetition, contrast — CRAP principles
+- **Whitespace** (required): Intentional use of negative space, spacing scale
+- **Responsive Design** (if applicable): Layout variations per viewport, fluid typography, adaptive components
 
-### 아이콘과 이미지 (Iconography & Imagery)
-- **아이콘 체계** (필수): 아이콘 스타일(outline/filled/duotone), 크기 체계, 그리드 기반 설계, 의미 일관성
-- **이미지 사용 원칙** (해당 시): 사진/일러스트레이션 스타일 가이드, 이미지 비율, 크롭 규칙
-- **데이터 시각화** (해당 시): 차트 유형 선택 기준, 데이터-잉크 비율(Tufte), 시각적 인코딩 원칙
+### Iconography and Imagery
+- **Icon System** (required): Icon style (outline/filled/duotone), size system, grid-based design, meaning consistency
+- **Image Usage Principles** (if applicable): Photo/illustration style guide, image ratios, cropping rules
+- **Data Visualization** (if applicable): Chart type selection criteria, data-ink ratio (Tufte), visual encoding principles
 
-### 모션과 인터랙션 (Motion & Interaction)
-- **모션 원칙** (해당 시): 애니메이션 목적(피드백/전환/안내), 이징(easing) 곡선, 지속 시간(duration) 체계
-- **인터랙션 패턴** (해당 시): 마이크로인터랙션, 상태 전이(hover/active/focus/disabled), 제스처 패턴
-- **접근성 모션** (해당 시): prefers-reduced-motion 대응, 전정기관 장애(vestibular disorder) 고려
+### Motion and Interaction
+- **Motion Principles** (if applicable): Animation purpose (feedback/transition/guidance), easing curves, duration system
+- **Interaction Patterns** (if applicable): Micro-interactions, state transitions (hover/active/focus/disabled), gesture patterns
+- **Accessibility Motion** (if applicable): prefers-reduced-motion support, vestibular disorder considerations
 
-### 브랜드 아이덴티티 (Brand Identity)
-- **브랜드 시각 요소** (필수): 로고 사용 규칙(최소 크기, 보호 공간, 금지 변형), 브랜드 컬러, 브랜드 서체
-- **브랜드 톤앤매너** (필수): 시각적 어조(tone), 분위기(mood), 대상 인상(impression) 정의
-- **매체별 적용** (해당 시): 인쇄/디지털/환경 그래픽별 적용 규칙, 공동 브랜딩(co-branding) 규칙
+### Brand Identity
+- **Brand Visual Elements** (required): Logo usage rules (minimum size, clear space, prohibited modifications), brand colors, brand typefaces
+- **Brand Tone and Manner** (required): Visual tone, mood, intended impression definition
+- **Medium-Specific Application** (if applicable): Print/digital/environmental graphic application rules, co-branding rules
 
-### 디자인 시스템 (Design System)
-- **토큰** (필수): 디자인 토큰(design token) — 색상, 타이포그래피, 간격, 그림자 등의 원시값(primitive)과 시맨틱값(semantic) 정의
-- **컴포넌트** (필수): 재사용 가능한 UI 컴포넌트의 시각적 명세, 상태별 표현, 변형(variant)
-- **패턴** (해당 시): 컴포넌트 조합으로 구성되는 반복적 해결 패턴(form, navigation, card layout 등)
-- **거버넌스** (해당 시): 디자인 시스템 기여/변경/폐기 절차, 버전 관리
+### Design System
+- **Tokens** (required): Design tokens — primitive and semantic value definitions for color, typography, spacing, shadow, etc.
+- **Components** (required): Visual specifications for reusable UI components, per-state representations, variants
+- **Patterns** (if applicable): Recurring solution patterns composed of component combinations (form, navigation, card layout, etc.)
+- **Governance** (if applicable): Design system contribution/change/deprecation procedures, version management
 
-### 접근성 (Accessibility)
-- **시각 접근성** (필수): 명도 대비, 텍스트 크기, 포커스 표시자(focus indicator), 색상 외 정보 전달 수단
-- **인지 접근성** (해당 시): 정보 과부하 방지, 일관된 내비게이션, 명확한 레이블링
-- **법적 기준** (참조): WCAG 2.1/2.2 AA 이상, Section 508, EN 301 549 등 관할권별 요건
+### Accessibility
+- **Visual Accessibility** (required): Contrast ratio, text size, focus indicator, information delivery means beyond color
+- **Cognitive Accessibility** (if applicable): Information overload prevention, consistent navigation, clear labeling
+- **Legal Standards** (reference): WCAG 2.1/2.2 AA or above, Section 508, EN 301 549, etc. by jurisdiction
 
-## 필수 개념 범주
+## Required Concept Categories
 
-어떤 시각 디자인 체계에서든 다뤄져야 하는 개념 범주이다.
+Concept categories that must be addressed in any visual design system.
 
-| 범주 | 설명 | 누락 시 위험 |
-|---|---|---|
-| 시각적 위계 (visual hierarchy) | 정보의 중요도를 시각적 수단으로 전달하는 체계 | 사용자가 핵심 정보를 찾지 못함 |
-| 색채 체계 (color system) | 색상의 선택, 조합, 의미 부여 규칙 | 시각적 일관성 부재, 접근성 위반 |
-| 타이포그래피 체계 (type system) | 서체, 크기, 행간, 자간의 규칙 | 가독성 저하, 정보 전달 실패 |
-| 간격 체계 (spacing system) | 요소 간 거리의 규칙 | 시각적 리듬 부재, 관계성 불명확 |
-| 일관성 (consistency) | 동일 의미에 동일 시각 표현을 적용하는 원칙 | 학습 비용 증가, 신뢰도 저하 |
-| 접근성 (accessibility) | 다양한 능력의 사용자가 정보에 접근할 수 있는 설계 | 사용자 배제, 법적 위반 |
-| 브랜드 정합성 (brand alignment) | 시각 요소가 브랜드 아이덴티티와 일치하는 정도 | 브랜드 인식 혼란 |
-| source of truth | 디자인 의사결정 시 권위를 가지는 기준 (디자인 시스템, 브랜드 가이드라인) | 시각적 불일치 확산 |
+| Category | Description | Risk if Missing |
+|----------|------------|----------------|
+| Visual hierarchy | System for conveying information importance through visual means | Users cannot find critical information |
+| Color system | Rules for color selection, combination, and meaning assignment | Visual inconsistency, accessibility violations |
+| Type system | Rules for typeface, size, line-height, letter-spacing | Readability degradation, information delivery failure |
+| Spacing system | Rules for distance between elements | Absence of visual rhythm, unclear relationships |
+| Consistency | Principle of applying the same visual expression for the same meaning | Increased learning cost, reduced trust |
+| Accessibility | Design enabling users of diverse abilities to access information | User exclusion, legal violations |
+| Brand alignment | Degree to which visual elements match brand identity | Brand recognition confusion |
+| Source of truth | Authoritative standard for design decisions (design system, brand guidelines) | Visual inconsistency proliferation |
 
-## 참조 표준/프레임워크
+## Reference Standards/Frameworks
 
-| 표준/프레임워크 | 활용 영역 | 핵심 내용 |
-|---|---|---|
-| Gestalt 원리 | 구성/레이아웃 | 근접성, 유사성, 연속성, 폐합, 전경-배경 분리 |
-| WCAG 2.1/2.2 | 접근성 | 인식 가능, 운용 가능, 이해 가능, 견고함의 4원칙 |
-| Material Design | 디자인 시스템 | Google의 디자인 언어 — 토큰, 컴포넌트, 모션 체계 |
-| Human Interface Guidelines | 디자인 시스템 | Apple 플랫폼 디자인 원칙 및 패턴 |
-| Modular Scale | 타이포그래피 | 비율 기반 크기 단계 체계 (예: 1.25 배율) |
-| 8pt Grid | 레이아웃/간격 | 8px 단위 기반 간격 및 크기 체계 |
-| Color Universal Design (CUD) | 색채/접근성 | 색각 다양성을 고려한 색채 설계 |
-| Atomic Design | 디자인 시스템 | Atom → Molecule → Organism → Template → Page 5계층 |
+| Standard/Framework | Application Area | Core Content |
+|-------------------|-----------------|--------------|
+| Gestalt Principles | Composition/layout | Proximity, similarity, continuity, closure, figure-ground separation |
+| WCAG 2.1/2.2 | Accessibility | 4 principles: perceivable, operable, understandable, robust |
+| Material Design | Design system | Google's design language — tokens, components, motion system |
+| Human Interface Guidelines | Design system | Apple platform design principles and patterns |
+| Modular Scale | Typography | Ratio-based size step system (e.g., 1.25 scale) |
+| 8pt Grid | Layout/spacing | 8px unit-based spacing and sizing system |
+| Color Universal Design (CUD) | Color/accessibility | Color design considering color vision diversity |
+| Atomic Design | Design system | Atom → Molecule → Organism → Template → Page, 5 layers |
 
-## 편중 감지 기준
+## Bias Detection Criteria
 
-- 8개 관심사 영역 중 3개 이상이 전혀 표현되지 않으면 → **포괄성 부족**
-- 특정 영역의 정의가 전체의 70% 이상을 차지하면 → **편중 경고**
-- 색채만 정의되고 타이포그래피 체계가 없으면 → **기본 체계 불균형**
-- 컴포넌트만 정의되고 토큰이 없으면 → **추상화 계층 누락** (토큰 없이 일관성 유지 불가)
-- 시각 요소만 정의되고 접근성 기준이 없으면 → **접근성 공백**
-- 브랜드 가이드라인 없이 시각 체계만 존재하면 → **브랜드 근거 부재**
-- 디지털만 다루고 인쇄/환경 매체가 해당됨에도 누락이면 → **매체 편중**
-- source of truth가 지정되지 않은 핵심 시각 요소가 2개 이상이면 → **권위 미지정**
-- 정적 상태만 정의되고 상태 전이(hover, active, disabled 등)가 없으면 → **인터랙션 상태 누락**
+- If 3 or more of the 8 concern areas are not represented at all → **insufficient coverage**
+- If definitions in a specific area account for more than 70% of the total → **bias warning**
+- If only color is defined and typography system is missing → **basic system imbalance**
+- If only components are defined and tokens are missing → **abstraction layer missing** (consistency maintenance impossible without tokens)
+- If only visual elements are defined and accessibility criteria are missing → **accessibility gap**
+- If a visual system exists without brand guidelines → **brand basis absent**
+- If only digital is covered while print/environmental media are applicable but missing → **media bias**
+- If 2 or more core visual elements have no designated source of truth → **authority undesignated**
+- If only static states are defined without state transitions (hover, active, disabled, etc.) → **interaction state missing**
 
-## 관련 문서
-- concepts.md — 이 범위 내 용어의 정의
-- structure_spec.md — 시각 디자인 체계의 구조적 요건
-- competency_qs.md — 이 범위가 답할 수 있어야 하는 질문
+## Related Documents
+- concepts.md — Term definitions within this scope
+- structure_spec.md — Visual design system structural requirements
+- competency_qs.md — Questions this scope must be able to answer

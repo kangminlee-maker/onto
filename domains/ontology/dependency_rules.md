@@ -1,55 +1,55 @@
-# Ontology Domain — 의존성 규칙
+# Ontology Domain — Dependency Rules
 
-## 클래스 간 의존
+## Inter-Class Dependencies
 
-- is-a 관계 그래프: 비순환(DAG). 순환 상속은 논리적 모순 (A is-a B, B is-a A → A와 B가 동일해야 함)
-- part-of 관계: 비순환이 원칙. A part-of B, B part-of A는 동일 개체를 의미하므로 모순
-- depends-on 관계: 비순환을 권장하되, 상호 의존이 의도적인 경우 명시적으로 선언하고 초기화/해석 순서를 정의
+- is-a relation graph: acyclic (DAG). Cyclic inheritance is a logical contradiction (A is-a B, B is-a A -> A and B must be identical)
+- part-of relation: acyclic in principle. A part-of B, B part-of A implies the same entity, which is a contradiction
+- depends-on relation: acyclicity is recommended, but when mutual dependency is intentional, it must be explicitly declared with initialization/interpretation order defined
 
-## 방향 규칙
+## Direction Rules
 
-- 하위 클래스 → 상위 클래스: 하위가 상위에 의존 (상속). 상위 변경 시 하위에 영향
-- 속성 → 도메인/레인지 클래스: 속성이 클래스에 의존. 클래스 삭제 시 속성이 무효화
-- 인스턴스 → 클래스: 인스턴스가 클래스에 의존. 클래스 삭제 시 인스턴스가 미분류
-- 외부 온톨로지 import → 내부 온톨로지: import된 외부 개념에 의존. 외부 온톨로지 변경 시 내부 영향
+- Subclass -> Superclass: the subclass depends on the superclass (inheritance). Changes to the superclass affect subclasses
+- Property -> Domain/Range class: the property depends on the class. Deleting the class invalidates the property
+- Instance -> Class: the instance depends on the class. Deleting the class leaves the instance unclassified
+- External ontology import -> Internal ontology: depends on the imported external concepts. Changes to the external ontology affect the internal ontology
 
-## 온톨로지 간 의존
+## Inter-Ontology Dependencies
 
-- owl:imports로 외부 온톨로지를 가져올 때, 가져온 모든 공리가 내부 공리와 결합된다. 의도하지 않은 추론이 발생할 수 있음
-- 외부 온톨로지의 버전이 고정(pinned)되어 있어야 한다. 미고정 시 외부 변경이 내부 일관성을 파괴할 수 있음
-- 매핑(alignment)과 import는 다르다. 매핑은 대응 관계 선언이며 공리 통합이 아님. import는 공리 통합
-- 순환 import(A imports B, B imports A)는 무한 재귀 또는 추론기 오류를 유발할 수 있으므로 금지
+- When importing an external ontology via owl:imports, all imported axioms are combined with internal axioms. Unintended inferences may occur
+- The version of the external ontology must be pinned. If not pinned, external changes may destroy internal consistency
+- Mapping (alignment) and import are different. Mapping declares correspondence relations and does not integrate axioms. Import integrates axioms
+- Circular imports (A imports B, B imports A) may cause infinite recursion or reasoner errors and are prohibited
 
-## 속성 간 의존
+## Inter-Property Dependencies
 
-- 역관계(inverse): hasAuthor ↔ isAuthorOf. 한쪽 변경 시 다른 쪽도 갱신 필요
-- 하위 속성(subPropertyOf): 하위 속성의 인스턴스는 상위 속성의 인스턴스이기도 함
-- 속성 체인(property chain): A → B → C를 단축하는 속성. 체인의 각 구성 속성에 의존
-- 복합 속성 간의 의존은 변경 영향이 전파되므로, 변경 시 영향받는 속성 목록을 도출할 수 있어야 한다
+- Inverse relations: hasAuthor <-> isAuthorOf. Changing one side requires updating the other
+- Sub-properties (subPropertyOf): instances of the sub-property are also instances of the super-property
+- Property chains: a property that shortcuts A -> B -> C. Depends on each constituent property of the chain
+- Dependencies among complex properties propagate change impacts, so it must be possible to derive the list of affected properties upon change
 
-## 참조 무결성
+## Referential Integrity
 
-- 속성의 도메인/레인지로 선언된 클래스가 온톨로지에 존재해야 한다
-- owl:imports로 참조하는 외부 온톨로지가 접근 가능해야 한다
-- 인스턴스가 참조하는 클래스와 속성이 TBox에 정의되어 있어야 한다
-- 매핑에서 참조하는 외부 개념(URI)이 대상 온톨로지에 실제로 존재해야 한다
-- 폐기(deprecated) 예고된 개념을 참조하는 다른 개념/인스턴스가 식별되어야 한다
+- Classes declared as domain/range of properties must exist in the ontology
+- External ontologies referenced via owl:imports must be accessible
+- Classes and properties referenced by instances must be defined in the TBox
+- External concepts (URIs) referenced in mappings must actually exist in the target ontology
+- Other concepts/instances referencing deprecated concepts must be identified
 
-## Source of Truth 관리
+## Source of Truth Management
 
-- 클래스/속성 정의의 source of truth: TBox. ABox(인스턴스)는 TBox에 종속
-- 온톨로지가 외부 표준(Dublin Core, SKOS 등)을 재사용할 때, 해당 표준이 source of truth. 내부에서 의미를 재정의하면 안 됨
-- 매핑된 두 온톨로지에서 동일 개념에 대해 서로 다른 정의를 가질 때, 매핑 문서에 어느 쪽이 우선인지 명시
-- 자연어 정의와 형식적 정의가 불일치할 때, 형식적 정의가 추론과 검증의 source of truth. 자연어는 의도 전달용
+- Source of truth for class/property definitions: TBox. ABox (instances) is subordinate to TBox
+- When the ontology reuses external standards (Dublin Core, SKOS, etc.), those standards are the source of truth. Their semantics must not be redefined internally
+- When two mapped ontologies have different definitions for the same concept, the mapping document must specify which takes precedence
+- When natural language definitions and formal definitions are inconsistent, the formal definition is the source of truth for reasoning and verification. Natural language is for conveying intent
 
-## 외부 의존 관리
+## External Dependency Management
 
-- 표준 온톨로지(RDFS, OWL, SKOS, Dublin Core) 사용 시 네임스페이스와 버전을 명시
-- 외부 온톨로지의 변경 감지: 버전 URI 또는 변경 이력(changelog) 기반
-- 외부 온톨로지가 폐기(deprecated)될 때의 대응 계획 필요
-- 라이선스 호환성: 외부 온톨로지의 라이선스가 내부 온톨로지의 배포/수정 조건과 호환되어야 한다
+- When using standard ontologies (RDFS, OWL, SKOS, Dublin Core), specify namespace and version
+- Change detection for external ontologies: based on version URI or changelog
+- A response plan is needed for when external ontologies are deprecated
+- License compatibility: the license of the external ontology must be compatible with the internal ontology's distribution/modification terms
 
-## 관련 문서
-- concepts.md — 관계 유형, 매핑, 버전 관리 용어 정의
-- structure_spec.md — 클래스 계층, 네임스페이스 규칙
-- logic_rules.md — 분류 논리, 추론 논리, 제약 상충 검사
+## Related Documents
+- concepts.md — definitions of relation types, mapping, and version management terms
+- structure_spec.md — class hierarchy and namespace rules
+- logic_rules.md — classification logic, reasoning logic, and constraint conflict checking

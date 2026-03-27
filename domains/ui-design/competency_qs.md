@@ -1,77 +1,77 @@
-# UI Design Domain — 역량 질문 (Competency Questions)
+# UI Design Domain — Competency Questions
 
-이 도메인의 체계가 답할 수 있어야 하는 핵심 질문 목록이다.
+A list of core questions that this domain's system must be able to answer.
 
-분류 축: **검증 관심사** — UI 설계 리뷰 시 답해야 하는 질문의 관심사에 따라 분류한다.
+Classification axis: **Verification concern** — Classified by the concern that must be addressed during UI design review.
 
-## 내비게이션과 정보 구조
+## Navigation and Information Architecture
 
-- Q1: {대상 인터페이스}의 정보 구조(콘텐츠 분류·계층)가 사용자의 심적 모형과 일치하는가?
-- Q2: 글로벌 내비게이션이 일관되게 제공되어 있고, 사용자가 현재 위치를 인식할 수 있는가?
-- Q3: 사용자가 원하는 정보/기능에 도달하는 경로가 명확하고, 각 단계에서 정보 향기(information scent)가 충분한가?
-- Q4: 계층이 깊은 구조에서 브레드크럼 또는 동등한 보조 내비게이션이 제공되는가?
-- Q5: 검색 기능이 필요한 규모의 콘텐츠에서, 검색 UI와 결과 없음 상태가 설계되어 있는가? (해당 시)
+- Q1: Does the information architecture (content classification and hierarchy) of {target interface} match the user's mental model?
+- Q2: Is global navigation provided consistently, and can users recognize their current location?
+- Q3: Is the path for users to reach desired information/functionality clear, and is there sufficient information scent at each step?
+- Q4: In deeply hierarchical structures, are breadcrumbs or equivalent secondary navigation provided?
+- Q5: For content of sufficient scale requiring search, are the search UI and no-results state designed? (if applicable)
 
-## 폼과 입력
+## Forms and Input
 
-- Q6: 폼의 필드가 논리적 순서로 배치되어 있고, 관련 필드가 그룹화되어 있는가?
-- Q7: 필수 필드와 선택 필드가 명확히 구분되는가?
-- Q8: 유효성 검증 방식(실시간/제출 시)이 정의되어 있고, 에러 메시지가 (1) 무엇이 잘못되었는지 (2) 왜 (3) 어떻게 고칠 수 있는지를 포함하는가?
-- Q9: 입력 보조(플레이스홀더, 도움 텍스트, 입력 마스크, 기본값)가 적절히 제공되는가?
-- Q10: 플레이스홀더가 레이블을 대체하고 있지 않은가?
-- Q11: 긴 폼이 논리적 단계로 분할되어 있고, 진행 표시가 제공되는가? (해당 시)
+- Q6: Are form fields arranged in logical order, with related fields grouped together?
+- Q7: Are required fields and optional fields clearly distinguished?
+- Q8: Is the validation method (real-time/on-submit) defined, and do error messages include (1) what went wrong, (2) why, and (3) how to fix it?
+- Q9: Are input aids (placeholders, help text, input masks, default values) appropriately provided?
+- Q10: Are placeholders not substituting for labels?
+- Q11: Are long forms divided into logical steps with progress indicators provided? (if applicable)
 
-## 피드백과 상태
+## Feedback and Status
 
-- Q12: 사용자 행동에 대한 시스템 피드백(성공/실패/진행 중)이 모든 주요 행동에 대해 정의되어 있는가?
-- Q13: 로딩 상태의 표현(스피너/스켈레톤/프로그레스 바)이 맥락에 적합하게 선택되어 있는가?
-- Q14: 비동기 작업의 실패 시 복구 경로(재시도, 대안 안내)가 제공되는가?
-- Q15: 빈 상태(최초 사용/데이터 없음/검색 결과 없음)가 각각 다른 안내를 제공하는가?
-- Q16: 에러 페이지(404, 500 등)에 복구 경로(홈으로, 뒤로, 재시도)가 포함되어 있는가?
+- Q12: Is system feedback (success/failure/in-progress) defined for all major user actions?
+- Q13: Is the loading state representation (spinner/skeleton/progress bar) chosen appropriately for the context?
+- Q14: Are recovery paths (retry, alternative guidance) provided for asynchronous operation failures?
+- Q15: Do empty states (first use/no data/no search results) each provide different guidance?
+- Q16: Do error pages (404, 500, etc.) include recovery paths (home, back, retry)?
 
-## 행동 유도와 의사결정
+## Action Guidance and Decision-Making
 
-- Q17: 각 화면에서 주요 행동(primary action)이 명확히 식별되고, 부수 행동과 시각적으로 구분되는가?
-- Q18: 파괴적 행동(삭제, 해지 등)에 확인 절차 또는 되돌리기(undo)가 제공되는가?
-- Q19: 한 화면에 동등한 강도의 CTA가 경합하고 있지 않은가?
-- Q20: Hick의 법칙을 고려하여, 한 번에 제시되는 선택지의 수가 적절한가? (7±2 이내 또는 분류)
-- Q21: 사용자의 다음 행동이 명확한가? 막다른 길(dead end)이 존재하지 않는가?
+- Q17: Is the primary action clearly identified on each screen and visually distinguished from secondary actions?
+- Q18: Are destructive actions (delete, cancellation, etc.) provided with a confirmation step or undo?
+- Q19: Are there no competing CTAs of equal emphasis on a single screen?
+- Q20: Considering Hick's Law, is the number of choices presented at once appropriate? (within 7±2 or categorized)
+- Q21: Is the user's next action clear? Are there no dead ends?
 
-## 모달과 오버레이
+## Modals and Overlays
 
-- Q22: 모달 사용이 불가피한 경우에만 사용되는가? 인라인 확장/패널/토스트로 대체 가능한 곳에서 모달이 남용되지 않는가?
-- Q23: 모달에 명확한 닫기 수단(X 버튼, ESC 키, 배경 클릭)이 제공되는가?
-- Q24: 모달 내에서 포커스 트랩이 적용되어 키보드 포커스가 모달 바깥으로 나가지 않는가?
-- Q25: 모달 위에 또 다른 모달이 열리는(stacked modal) 경우가 없는가?
+- Q22: Are modals used only when unavoidable? Are modals not overused where inline expansion/panels/toasts could work?
+- Q23: Do modals have clear close mechanisms (X button, ESC key, background click)?
+- Q24: Is focus trap applied within modals so keyboard focus does not escape to the background?
+- Q25: Are there no cases of stacked modals (a modal opening on top of another modal)?
 
-## 데이터 표시
+## Data Display
 
-- Q26: 데이터 표시 방식(테이블/리스트/카드/그리드)이 데이터 특성과 사용자의 탐색 패턴에 적합한가?
-- Q27: 정렬 기준과 방향이 시각적으로 표시되고, 사용자가 변경할 수 있는가?
-- Q28: 활성 필터의 수와 내용이 표시되고, 전체 초기화 수단이 제공되는가?
-- Q29: 대량 데이터의 탐색 방식(페이지네이션/무한 스크롤/"더 보기")이 사용 맥락에 적합하게 선택되어 있는가?
+- Q26: Is the data display method (table/list/card/grid) appropriate for the data characteristics and user's browsing pattern?
+- Q27: Are the sort criteria and direction visually displayed, and can the user change them?
+- Q28: Are the number and content of active filters displayed, and is a full reset mechanism provided?
+- Q29: Is the large data browsing method (pagination/infinite scroll/"load more") chosen appropriately for the usage context?
 
-## 반응형 UI 적응
+## Responsive UI Adaptation
 
-- Q30: 모바일 환경에서 컴포넌트 패턴이 적절히 전환되는가? (예: 데스크톱 테이블 → 모바일 카드)
-- Q31: 화면 축소 시 콘텐츠 우선순위에 따라 정보가 재배치/축소되는가? (사라지는 것이 아닌)
-- Q32: 터치 대상이 최소 44×44px를 충족하고, 호버 의존 인터랙션에 터치 대안이 있는가?
+- Q30: Do component patterns transition appropriately in mobile environments? (e.g., desktop table → mobile card)
+- Q31: When the screen shrinks, is information rearranged/reduced according to content priority? (not disappeared)
+- Q32: Do touch targets meet a minimum of 44×44px, and are there touch alternatives for hover-dependent interactions?
 
-## 접근성 인터랙션
+## Accessible Interaction
 
-- Q33: 키보드만으로 모든 주요 기능에 접근하고 조작할 수 있는가?
-- Q34: 탭 순서(tab order)가 시각적 순서와 논리적 순서에 일치하는가?
-- Q35: 동적으로 변경되는 콘텐츠(알림, 에러 메시지 등)가 스크린 리더에 ARIA 라이브 영역으로 전달되는가?
-- Q36: 스킵 링크(skip link)가 제공되어 반복 내비게이션을 건너뛸 수 있는가?
-- Q37: 복잡한 인터랙션(드래그앤드롭, 슬라이더 등)에 키보드/스크린 리더 대안이 제공되는가?
+- Q33: Can all major features be accessed and operated with keyboard alone?
+- Q34: Does the tab order match the visual order and logical order?
+- Q35: Is dynamically changing content (notifications, error messages, etc.) communicated to screen readers via ARIA live regions?
+- Q36: Are skip links provided to bypass repetitive navigation?
+- Q37: Are keyboard/screen reader alternatives provided for complex interactions (drag-and-drop, sliders, etc.)?
 
-## 일관성과 관행
+## Consistency and Convention
 
-- Q38: 동일 기능이 인터페이스 전체에서 동일 패턴으로 구현되어 있는가? (내부 일관성)
-- Q39: 플랫폼/업계 관행(convention)과 불필요하게 다른 패턴이 사용되지 않는가? (외부 일관성, Jakob의 법칙)
-- Q40: 관행에서 의도적으로 벗어나는 경우, 그 이유와 학습 지원 방안이 정의되어 있는가?
+- Q38: Is the same functionality implemented with the same pattern throughout the interface? (internal consistency)
+- Q39: Are there no patterns that unnecessarily differ from platform/industry conventions? (external consistency, Jakob's Law)
+- Q40: When intentionally deviating from convention, are the reason and learning support measures defined?
 
-## 관련 문서
-- domain_scope.md — 질문들이 다루는 영역의 상위 정의
-- logic_rules.md — 내비게이션/폼/피드백/접근성/모달 관련 규칙
-- structure_spec.md — 구조 관련 규칙
+## Related Documents
+- domain_scope.md — Higher-level definition of the areas covered by these questions
+- logic_rules.md — Rules related to navigation/forms/feedback/accessibility/modals
+- structure_spec.md — Structure-related rules

@@ -1,77 +1,77 @@
-# Visual Design Domain — 역량 질문 (Competency Questions)
+# Visual Design Domain — Competency Questions
 
-이 도메인의 체계가 답할 수 있어야 하는 핵심 질문 목록이다.
+A list of core questions that this domain's system must be able to answer.
 
-분류 축: **검증 관심사** — 시각 디자인 체계 리뷰 시 답해야 하는 질문의 관심사에 따라 분류한다.
+Classification axis: **Verification concern** — Classified by the concern that must be addressed during visual design system review.
 
-## 시각적 위계와 구성
+## Visual Hierarchy and Composition
 
-- Q1: {대상 디자인}에서 정보의 중요도 순서가 시각적 수단(크기, 색상, 대비, 위치)으로 명확히 전달되는가?
-- Q2: Gestalt 원리(근접성, 유사성, 연속성, 폐합)가 관련 요소의 그룹화에 일관되게 적용되어 있는가?
-- Q3: 네거티브 스페이스(여백)가 의도적으로 설계되어 있고, 시각적 호흡과 요소 분리 기능을 수행하는가?
-- Q4: CRAP 원칙(대비, 반복, 정렬, 근접성)의 각 요소가 레이아웃에 적용되어 있는가?
+- Q1: Is the order of information importance in {target design} clearly conveyed through visual means (size, color, contrast, position)?
+- Q2: Are Gestalt principles (proximity, similarity, continuity, closure) consistently applied to group related elements?
+- Q3: Is negative space (whitespace) intentionally designed to provide visual breathing room and element separation?
+- Q4: Are CRAP principles (Contrast, Repetition, Alignment, Proximity) each applied to the layout?
 
-## 그리드와 레이아웃
+## Grid and Layout
 
-- Q5: 그리드 시스템(컬럼, 거터, 마진)이 정의되어 있고, 콘텐츠 배치에 일관되게 적용되는가?
-- Q6: 반응형 디자인의 브레이크포인트가 정의되어 있고, 각 구간에서 레이아웃이 의도대로 변형되는가?
-- Q7: 간격 체계(spacing system)가 정의되어 있고, 일관된 단위(8pt 등)로 적용되는가?
+- Q5: Is a grid system (columns, gutters, margins) defined and consistently applied to content placement?
+- Q6: Are responsive design breakpoints defined, and does the layout transform as intended at each interval?
+- Q7: Is a spacing system defined and applied consistently in uniform units (8pt, etc.)?
 
-## 타이포그래피
+## Typography
 
-- Q8: 서체 선택의 근거(매체, 콘텐츠 유형, 대상 사용자)가 명시되어 있는가?
-- Q9: 타이포그래피 스케일(크기 단계)이 비율 기반으로 정의되어 있고, 계층(heading/body/caption)이 구분되는가?
-- Q10: 행간(line-height)과 행장(measure)이 가독성 기준을 충족하는가?
-- Q11: 서체 조합(pairing) 시 대비와 조화의 균형이 설명되어 있는가?
-- Q12: 다국어 환경에서 CJK 또는 기타 스크립트에 대한 서체 대응이 정의되어 있는가? (해당 시)
+- Q8: Is the rationale for typeface selection (medium, content type, target users) stated?
+- Q9: Is the type scale (size steps) defined on a ratio basis, and are hierarchical levels (heading/body/caption) distinguished?
+- Q10: Do line-height and measure meet readability criteria?
+- Q11: Is the balance of contrast and harmony in typeface pairing explained?
+- Q12: Is typeface fallback defined for CJK or other scripts in a multilingual environment? (if applicable)
 
-## 색채
+## Color
 
-- Q13: 색채 체계(팔레트)가 정의되어 있고, 주색/보조색/강조색의 역할이 구분되는가?
-- Q14: 시맨틱 색상(success, error, warning, info)이 정의되어 있고, 원시 색상값과 분리되어 있는가?
-- Q15: 색상 조합이 WCAG 명도 대비 기준(일반 텍스트 4.5:1, 대형 텍스트 3:1)을 충족하는가?
-- Q16: 색상 외의 보조 수단(형태, 텍스트, 아이콘)이 의미 전달에 동반되는가?
-- Q17: 다크 모드/테마 전환이 필요한 경우, 시맨틱 토큰 기반으로 설계되어 있는가? (해당 시)
+- Q13: Is a color system (palette) defined with roles distinguished for primary/secondary/accent colors?
+- Q14: Are semantic colors (success, error, warning, info) defined and separated from raw color values?
+- Q15: Do color combinations meet the WCAG contrast ratio criteria (4.5:1 for normal text, 3:1 for large text)?
+- Q16: Are supplementary means (shape, text, icons) provided alongside color for conveying meaning?
+- Q17: If dark mode/theme switching is needed, is it designed based on semantic tokens? (if applicable)
 
-## 아이콘과 이미지
+## Icons and Images
 
-- Q18: 아이콘 스타일(outline/filled/duotone)이 통일되어 있고, 크기 체계가 정의되어 있는가?
-- Q19: 아이콘의 의미가 일관되게 사용되는가? (같은 아이콘이 다른 의미로 사용되지 않는가)
-- Q20: 이미지/일러스트레이션의 스타일 가이드가 정의되어 있는가? (해당 시)
+- Q18: Is the icon style (outline/filled/duotone) unified, and is a size system defined?
+- Q19: Are icon meanings used consistently? (Is the same icon not used with different meanings?)
+- Q20: Is a style guide for images/illustrations defined? (if applicable)
 
-## 디자인 시스템
+## Design System
 
-- Q21: 디자인 토큰이 정의되어 있고, primitive/semantic/component 계층이 구분되는가?
-- Q22: 컴포넌트의 시각적 명세가 상태별(default, hover, active, focus, disabled)로 정의되어 있는가?
-- Q23: 컴포넌트의 변형(variant)이 정의되어 있고, 사용 기준이 명시되어 있는가?
-- Q24: 디자인 도구(Figma 등)의 컴포넌트와 코드 컴포넌트 간 동기화 방식이 정의되어 있는가?
-- Q25: 디자인 시스템의 거버넌스(추가/변경/폐기 절차)가 정의되어 있는가? (해당 시)
+- Q21: Are design tokens defined with primitive/semantic/component layers distinguished?
+- Q22: Are visual specifications for components defined per state (default, hover, active, focus, disabled)?
+- Q23: Are component variants defined with usage criteria specified?
+- Q24: Is a synchronization method between design tool (Figma, etc.) components and code components defined?
+- Q25: Is design system governance (add/change/deprecation procedures) defined? (if applicable)
 
-## 접근성
+## Accessibility
 
-- Q26: WCAG 2.1 AA 이상의 접근성 기준이 적용 대상으로 명시되어 있는가?
-- Q27: 포커스 표시자(focus indicator)가 키보드 탐색 시 충분한 시각적 명확성(2px 이상, 3:1 대비)을 제공하는가?
-- Q28: 색각 이상(color blindness) 사용자를 위한 대응이 설계되어 있는가?
-- Q29: 모션/애니메이션에 prefers-reduced-motion 대응이 포함되어 있는가? (해당 시)
+- Q26: Is WCAG 2.1 AA or above explicitly stated as the applicable accessibility standard?
+- Q27: Does the focus indicator provide sufficient visual clarity (2px or more, 3:1 contrast) during keyboard navigation?
+- Q28: Is accommodation for color blindness designed?
+- Q29: Is prefers-reduced-motion support included for motion/animation? (if applicable)
 
-## 브랜드 정합성
+## Brand Alignment
 
-- Q30: 시각 요소(색상, 서체, 이미지 스타일)가 브랜드 아이덴티티(톤앤매너)와 일치하는가?
-- Q31: 로고 사용 규칙(최소 크기, 보호 공간, 금지 변형)이 정의되고 준수되는가?
-- Q32: 매체별(디지털/인쇄/환경) 브랜드 적용 규칙이 정의되어 있는가? (해당 시)
+- Q30: Are visual elements (colors, typefaces, image styles) consistent with the brand identity (tone and manner)?
+- Q31: Are logo usage rules (minimum size, clear space, prohibited modifications) defined and followed?
+- Q32: Are brand application rules defined per medium (digital/print/environmental)? (if applicable)
 
-## 모션과 인터랙션
+## Motion and Interaction
 
-- Q33: 모션/애니메이션의 목적(피드백/전환/안내)이 명시되어 있는가? (해당 시)
-- Q34: 이징(easing) 곡선과 지속 시간(duration) 체계가 정의되어 있는가? (해당 시)
-- Q35: 마이크로인터랙션이 사용자 행동에 대한 즉각적 피드백을 제공하는가? (해당 시)
+- Q33: Is the purpose of motion/animation (feedback/transition/guidance) stated? (if applicable)
+- Q34: Is an easing curve and duration system defined? (if applicable)
+- Q35: Do micro-interactions provide immediate feedback to user actions? (if applicable)
 
 ## Source of Truth
 
-- Q36: 디자인 의사결정의 권위 기준(디자인 시스템, 브랜드 가이드라인)이 지정되어 있는가?
-- Q37: 디자인 도구와 코드 구현이 불일치할 때 어느 쪽이 우선하는지 정의되어 있는가?
+- Q36: Is an authoritative standard for design decisions (design system, brand guidelines) designated?
+- Q37: Is it defined which takes precedence when design tool and code implementation disagree?
 
-## 관련 문서
-- domain_scope.md — 질문들이 다루는 영역의 상위 정의
-- logic_rules.md — 색채/타이포그래피/접근성/브랜드 관련 규칙
-- structure_spec.md — 구조 관련 규칙
+## Related Documents
+- domain_scope.md — Higher-level definition of the areas covered by these questions
+- logic_rules.md — Rules related to color/typography/accessibility/brand
+- structure_spec.md — Structure-related rules

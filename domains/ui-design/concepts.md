@@ -1,98 +1,98 @@
-# UI Design Domain — 개념 사전 및 해석 규칙
+# UI Design Domain — Concept Dictionary and Interpretation Rules
 
-## 사용성 원칙 핵심 용어
+## Usability Principle Core Terms
 
-- Usability = 사용성 → 특정 목표를 달성하기 위해 인터페이스를 사용할 때의 효과성(effectiveness), 효율성(efficiency), 만족도(satisfaction). ISO 9241-11 정의
-- Affordance = 행동 유도성 → 객체가 사용자에게 가능한 행동을 암시하는 속성. 버튼의 볼록함은 "누를 수 있음"을 암시. Gibson이 제안하고 Norman이 UI에 적용
-- Signifier = 기표(시그니파이어) → 행동 유도성을 사용자에게 알리는 명시적 단서. 밑줄 텍스트는 "클릭 가능함"의 기표. Affordance는 실제 가능성, Signifier는 그것을 알려주는 표시
-- Mental Model = 심적 모형 → 사용자가 시스템의 작동 방식에 대해 머릿속에 구축하는 이해 모형. 인터페이스의 개념 모형(conceptual model)이 사용자의 심적 모형과 일치할수록 사용이 쉽다
-- Cognitive Load = 인지 부하 → 작업 수행 시 작업 기억(working memory)에 부과되는 정보 처리량. 내재적(intrinsic, 과제 자체의 복잡도), 외재적(extraneous, 불필요한 설계에 의한), 본유적(germane, 학습에 기여하는) 부하로 구분
-- Progressive Disclosure = 점진적 공개 → 정보를 한꺼번에 모두 표시하지 않고, 사용자의 필요에 따라 단계적으로 공개하는 전략. 인지 부하를 관리하는 핵심 기법
-- Discoverability = 발견 가능성 → 사용자가 인터페이스의 기능과 조작 방법을 스스로 찾아낼 수 있는 정도. 숨겨진 기능(hidden feature)은 발견 가능성이 0
+- Usability = the effectiveness, efficiency, and satisfaction with which users can achieve specific goals using an interface. ISO 9241-11 definition
+- Affordance = a property of an object that suggests possible actions to the user. The raised appearance of a button suggests "it can be pressed." Proposed by Gibson and applied to UI by Norman
+- Signifier = an explicit cue that communicates affordance to the user. Underlined text is a signifier for "clickable." Affordance is the actual possibility; signifier is the indication of it
+- Mental Model = the understanding model that users construct in their minds about how a system works. The easier the interface's conceptual model matches the user's mental model, the easier it is to use
+- Cognitive Load = the information processing demand placed on working memory during task performance. Divided into intrinsic (task complexity itself), extraneous (caused by unnecessary design), and germane (contributing to learning) load
+- Progressive Disclosure = a strategy of revealing information gradually according to user needs rather than displaying everything at once. A core technique for managing cognitive load
+- Discoverability = the degree to which users can find interface features and how to operate them on their own. Hidden features have zero discoverability
 
-## 내비게이션 핵심 용어
+## Navigation Core Terms
 
-- Information Architecture (IA) = 정보 구조 → 콘텐츠의 조직화, 분류, 명명(labeling), 탐색 체계의 설계. UI 설계의 골격
-- Global Navigation = 글로벌 내비게이션 → 사이트/앱 전체에서 일관되게 접근 가능한 최상위 내비게이션. 탑바, 사이드바 등
-- Local Navigation = 로컬 내비게이션 → 특정 섹션 내에서의 하위 내비게이션. 탭, 세그먼트 컨트롤, 서브메뉴
-- Breadcrumb = 브레드크럼 → 현재 위치까지의 계층 경로를 표시하는 보조 내비게이션. 깊은 계층 구조에서 위치 파악과 상위 이동을 지원
-- Wayfinding = 길찾기 → 사용자가 현재 위치를 인식하고, 목적지를 찾고, 경로를 결정하는 과정. "나는 어디에 있는가?", "어디로 갈 수 있는가?", "어떻게 가는가?"의 3가지 질문에 답할 수 있어야 한다
-- Deep Linking = 딥링크 → 앱/사이트의 특정 화면이나 상태에 직접 도달할 수 있는 URL 또는 경로
+- Information Architecture (IA) = the design of content organization, classification, labeling, and navigation systems. The backbone of UI design
+- Global Navigation = the top-level navigation consistently accessible throughout the entire site/app. Top bar, sidebar, etc.
+- Local Navigation = sub-navigation within a specific section. Tabs, segment controls, submenus
+- Breadcrumb = secondary navigation showing the hierarchical path to the current location. Supports location awareness and upward navigation in deep hierarchies
+- Wayfinding = the process by which users recognize their current location, find their destination, and determine the path. Must be able to answer three questions: "Where am I?", "Where can I go?", "How do I get there?"
+- Deep Linking = a URL or path that allows direct access to a specific screen or state within an app/site
 
-## 폼과 입력 핵심 용어
+## Forms and Input Core Terms
 
-- Inline Validation = 인라인 검증 → 사용자가 필드를 입력하는 도중 또는 필드를 벗어날 때(on blur) 즉시 유효성을 검사하여 피드백하는 방식
-- Error Message = 에러 메시지 → 유효성 검증 실패 시 표시하는 안내. 3가지 요소를 포함해야 한다: (1) 무엇이 잘못되었는지, (2) 왜 잘못되었는지, (3) 어떻게 고칠 수 있는지
-- Placeholder = 플레이스홀더 → 입력 필드 내부에 표시되는 힌트 텍스트. 입력 시 사라지므로 레이블(label)을 대체할 수 없다. 보조 안내 용도로만 사용
-- Input Mask = 입력 마스크 → 전화번호, 날짜 등 특정 형식을 자동으로 적용하는 입력 보조. 형식을 강제하여 오류를 사전 방지
-- Default Value = 기본값 → 사용자 입력 없이 미리 채워진 값. 가장 일반적인 선택지를 기본값으로 설정하면 입력 효율이 향상된다
-- Multi-step Form = 다단계 폼 → 긴 폼을 논리적 단계로 분할한 것. 각 단계의 진행 표시(step indicator)와 이전/다음 이동이 필요
+- Inline Validation = a method of checking validity and providing feedback immediately while the user is typing or when leaving the field (on blur)
+- Error Message = guidance displayed when validation fails. Must include 3 elements: (1) what went wrong, (2) why it is wrong, (3) how to fix it
+- Placeholder = hint text displayed inside an input field. Since it disappears on input, it cannot replace a label. Used only as supplementary guidance
+- Input Mask = an input aid that automatically applies a specific format such as phone numbers or dates. Prevents errors by enforcing format
+- Default Value = a pre-filled value without user input. Setting the most common choice as default improves input efficiency
+- Multi-step Form = a long form divided into logical steps. Requires step indicators and previous/next navigation for each step
 
-## 피드백과 상태 핵심 용어
+## Feedback and Status Core Terms
 
-- Toast = 토스트 → 일시적으로 나타났다 사라지는 비차단형(non-blocking) 알림. 사용자 행동을 방해하지 않으면서 결과를 전달. 자동 소멸 시간과 수동 닫기 제공 필요
-- Notification = 알림 → 사용자에게 전달되는 정보성 메시지. 긴급도(urgent/informational)와 지속성(persistent/transient)으로 분류
-- Skeleton Screen = 스켈레톤 스크린 → 콘텐츠 로딩 중 최종 레이아웃의 윤곽을 미리 표시하는 기법. 스피너보다 체감 로딩 시간을 줄인다
-- Optimistic Update = 낙관적 업데이트 → 서버 응답을 기다리지 않고 UI를 먼저 갱신하는 기법. 실패 시 롤백(rollback)이 필요하므로, 롤백 UX도 함께 설계해야 한다
-- Empty State = 빈 상태 → 콘텐츠가 없는 화면의 상태. 최초 사용(zero state), 데이터 없음(no data), 검색 결과 없음(no results)은 각각 다른 안내가 필요
-- Dead End = 막다른 길 → 사용자가 다음 행동을 취할 수 없는 상태. 에러 페이지에 복구 경로가 없으면 막다른 길
+- Toast = a non-blocking notification that appears temporarily and then disappears. Conveys results without interrupting user actions. Must provide auto-dismiss time and manual close
+- Notification = an informational message delivered to the user. Classified by urgency (urgent/informational) and persistence (persistent/transient)
+- Skeleton Screen = a technique that previews the outline of the final layout while content is loading. Reduces perceived loading time compared to spinners
+- Optimistic Update = a technique that updates the UI before waiting for server response. Requires rollback on failure, so rollback UX must also be designed
+- Empty State = the state of a screen with no content. First use (zero state), no data, and no search results each require different guidance
+- Dead End = a state where the user cannot take any next action. An error page without a recovery path is a dead end
 
-## 행동 유도 핵심 용어
+## Action Guidance Core Terms
 
-- CTA (Call to Action) = 행동 유도 → 사용자에게 특정 행동을 취하도록 안내하는 UI 요소. 한 화면에 1개의 주요 CTA가 명확해야 한다
-- Primary Action = 주요 행동 → 화면의 핵심 목적을 달성하는 행동. 시각적으로 가장 강조되어야 한다
-- Secondary Action = 부수 행동 → 주요 행동 외의 대안적 행동. 주요 행동보다 시각적으로 낮은 강조
-- Destructive Action = 파괴적 행동 → 되돌리기 어려운 행동(삭제, 계정 해지 등). 확인(confirmation) 절차가 필수
-- Confirmation = 확인 → 파괴적 행동 실행 전 사용자 의사를 재확인하는 패턴. "정말 삭제하시겠습니까?" 형태. 빈번하면 확인 피로(confirmation fatigue)를 유발하여 오히려 무시됨
-- Undo = 되돌리기 → 행동을 실행한 후 취소할 수 있는 기능. 확인 다이얼로그보다 사용자 경험이 우수 — 행동의 결과를 먼저 보여주고, 필요 시 되돌림
+- CTA (Call to Action) = a UI element that guides the user to take a specific action. One primary CTA per screen must be clear
+- Primary Action = the action that achieves the screen's core purpose. Must be visually the most prominent
+- Secondary Action = an alternative action other than the primary. Visually less prominent than the primary action
+- Destructive Action = an action difficult to undo (deletion, account cancellation, etc.). Confirmation is mandatory
+- Confirmation = a pattern that re-verifies user intent before executing a destructive action. In the form of "Are you sure you want to delete?" Frequent use causes confirmation fatigue, leading to being ignored
+- Undo = the ability to reverse an action after execution. Provides a better user experience than confirmation dialogs — shows the result of the action first, then allows reversal if needed
 
-## 모달과 오버레이 핵심 용어
+## Modal and Overlay Core Terms
 
-- Modal Dialog = 모달 다이얼로그 → 사용자가 모달을 닫기 전까지 배경과 상호작용할 수 없는 오버레이 창. 남용 시 사용 흐름을 지속적으로 차단하여 사용자 불만 유발
-- Focus Trap = 포커스 트랩 → 모달 내부에서 키보드 포커스가 순환하여 모달 바깥으로 나가지 않도록 하는 기법. 접근성 필수 요건
-- Popover = 팝오버 → 트리거 요소 근처에 나타나는 부유 UI. 모달과 달리 배경 상호작용을 차단하지 않음
-- Bottom Sheet = 바텀시트 → 화면 하단에서 올라오는 패널. 모바일에서 모달의 대안으로 많이 사용. 스와이프 다운으로 닫기가 일반적
-- Drawer = 드로어 → 화면 측면에서 슬라이드되어 나오는 패널. 내비게이션 또는 상세 정보 표시에 사용
+- Modal Dialog = an overlay window that prevents interaction with the background until the user closes it. Overuse continuously blocks user flow and causes frustration
+- Focus Trap = a technique that keeps keyboard focus cycling within a modal so it does not escape to the background. An accessibility requirement
+- Popover = a floating UI that appears near a trigger element. Unlike modals, it does not block background interaction
+- Bottom Sheet = a panel that slides up from the bottom of the screen. Commonly used as a modal alternative on mobile. Typically closed with a swipe-down gesture
+- Drawer = a panel that slides out from the side of the screen. Used for navigation or detailed information display
 
-## 데이터 표시 핵심 용어
+## Data Display Core Terms
 
-- Pagination = 페이지네이션 → 데이터를 고정 크기 페이지로 나누어 표시하는 방식. 전체 데이터량 파악이 가능하고, 특정 위치 접근이 용이
-- Infinite Scroll = 무한 스크롤 → 스크롤 시 다음 데이터를 자동으로 로드하는 방식. 탐색(browsing)에 적합하나, 특정 위치 재방문이 어렵고 footer 접근이 곤란
-- Sorting = 정렬 → 데이터를 특정 기준으로 재배열하는 것. 현재 정렬 기준과 방향이 시각적으로 표시되어야 한다
-- Filtering = 필터링 → 조건에 맞는 데이터만 표시하는 것. 활성 필터 수, 필터 초기화 수단, 필터 적용 결과 수가 표시되어야 한다
-- Card Pattern = 카드 패턴 → 관련 정보를 시각적 컨테이너(카드)로 묶어 표시하는 패턴. 스캔 가능성(scannability)이 높고, 그리드 배치에 유연
+- Pagination = a method of displaying data in fixed-size pages. Enables understanding of total data volume and easy access to specific positions
+- Infinite Scroll = a method that automatically loads next data on scroll. Suitable for browsing, but difficult to revisit specific positions and access the footer
+- Sorting = rearranging data by a specific criterion. The current sort criterion and direction must be visually indicated
+- Filtering = displaying only data matching conditions. The number of active filters, filter reset mechanism, and number of filtered results must be displayed
+- Card Pattern = a pattern that groups related information into visual containers (cards). High scannability and flexible grid placement
 
-## 접근성 인터랙션 핵심 용어
+## Accessible Interaction Core Terms
 
-- Tab Order = 탭 순서 → 키보드 Tab 키로 포커스가 이동하는 순서. DOM 순서와 시각적 순서가 일치해야 한다. CSS로 시각적 순서만 변경하면 탭 순서 불일치 발생
-- ARIA (Accessible Rich Internet Applications) = WAI-ARIA → 동적 웹 콘텐츠의 접근성을 보장하기 위한 W3C 표준. 역할(role), 속성(property), 상태(state)를 HTML 요소에 추가
-- Live Region = 라이브 영역 → 스크린 리더에게 동적으로 변경되는 콘텐츠를 알리는 ARIA 영역. aria-live="polite"(현재 읽기 완료 후 알림), aria-live="assertive"(즉시 알림)
-- Skip Link = 스킵 링크 → 키보드 사용자가 반복되는 내비게이션을 건너뛰고 본문으로 직접 이동할 수 있는 링크
-- Screen Reader = 스크린 리더 → 화면의 텍스트와 UI 요소를 음성으로 읽어주는 보조 기술. VoiceOver(Apple), NVDA/JAWS(Windows), TalkBack(Android)
+- Tab Order = the order in which focus moves via the keyboard Tab key. DOM order and visual order must match. Changing only visual order with CSS causes tab order mismatch
+- ARIA (Accessible Rich Internet Applications) = WAI-ARIA, a W3C standard for ensuring accessibility of dynamic web content. Adds roles, properties, and states to HTML elements
+- Live Region = an ARIA region that notifies screen readers of dynamically changing content. aria-live="polite" (notification after current reading completes), aria-live="assertive" (immediate notification)
+- Skip Link = a link that allows keyboard users to skip repetitive navigation and jump directly to the main content
+- Screen Reader = an assistive technology that reads screen text and UI elements aloud. VoiceOver (Apple), NVDA/JAWS (Windows), TalkBack (Android)
 
-## 주의가 필요한 동형이의어
+## Homonyms Requiring Attention
 
-- "상태": UI 컴포넌트 상태(hover/active/disabled) ≠ 앱 상태(application state, 데이터 상태) ≠ 서버 상태(server state, HTTP 응답). UI 설계에서 "상태"는 주로 컴포넌트의 시각·인터랙션 상태를 의미
-- "모달": 모달 다이얼로그(UI 패턴) ≠ 모달 인터랙션(사용자가 다른 작업을 할 수 없는 상태). 모달 다이얼로그가 아니어도 모달 인터랙션은 존재한다(예: 인라인 편집 중 다른 편집 차단)
-- "내비게이션": 정보 구조적 내비게이션(메뉴/탭) ≠ 화면 간 이동(routing/navigation) ≠ 브라우저 내비게이션(뒤로가기/앞으로가기)
-- "폼": UI 폼(입력 화면) ≠ HTML form 요소 ≠ 폼 상태 관리(React Hook Form 등 라이브러리). 본 도메인은 UI 폼의 설계 패턴을 다룬다
-- "레이아웃": 페이지 레이아웃(시각적 배치) ≠ 정보 구조(내용의 논리적 배치). 본 도메인에서 "레이아웃"은 주로 콘텐츠 배치의 의도와 패턴을 의미
-- "반응형": 반응형 레이아웃(visual-design 소관, 그리드 변형) ≠ 반응형 UI 적응(본 도메인 소관, 컴포넌트 패턴 전환과 콘텐츠 우선순위 결정)
-- "피드백": 시스템 피드백(UI 상태 전달) ≠ 사용자 피드백(사용자 의견 수집) ≠ 촉각 피드백(haptic feedback)
-- "패턴": UI 패턴(반복적 설계 해결책) ≠ 디자인 패턴(소프트웨어 설계 패턴) ≠ 시각 패턴(visual-design의 시각적 반복)
+- "state": UI component state (hover/active/disabled) != app state (application state, data state) != server state (HTTP response). In UI design, "state" primarily means the visual/interaction state of a component
+- "modal": modal dialog (UI pattern) != modal interaction (state where user cannot perform other tasks). Modal interactions exist without modal dialogs (e.g., blocking other edits during inline editing)
+- "navigation": information-architectural navigation (menus/tabs) != screen-to-screen movement (routing/navigation) != browser navigation (back/forward)
+- "form": UI form (input screen) != HTML form element != form state management (libraries like React Hook Form). This domain covers the design patterns of UI forms
+- "layout": page layout (visual arrangement) != information architecture (logical arrangement of content). In this domain, "layout" primarily refers to the intent and patterns of content placement
+- "responsive": responsive layout (visual-design jurisdiction, grid transformation) != responsive UI adaptation (this domain's jurisdiction, component pattern transitions and content priority decisions)
+- "feedback": system feedback (UI state communication) != user feedback (collecting user opinions) != haptic feedback
+- "pattern": UI pattern (recurring design solutions) != design pattern (software design patterns) != visual pattern (visual repetition in visual-design)
 
-## 해석 원칙
+## Interpretation Principles
 
-- 사용자는 인터페이스를 학습하러 오는 것이 아니라 목표를 달성하러 온다. UI는 목표 달성의 수단이지 그 자체가 목적이 아니다
-- 사용자의 심적 모형에 인터페이스를 맞추는 것이 원칙이다. 시스템의 기술적 구조를 그대로 노출하면 사용자의 심적 모형과 충돌한다
-- 에러는 사용자의 잘못이 아니라 인터페이스의 예방 실패이다. 에러 메시지가 사용자를 비난하면 안 된다 ("잘못된 입력" → "이 필드는 숫자만 입력할 수 있습니다")
-- 일관성은 학습 비용을 줄인다. 같은 행동이 같은 결과를 낳아야 사용자가 예측할 수 있다. 단, 맥락에 따라 일관성보다 적합성이 우선할 수 있으며, 이 경우 이탈 이유가 명시되어야 한다
-- "3-클릭 규칙"은 절대 기준이 아니다. 실제로는 클릭 수보다 각 단계의 명확성과 정보 향기(information scent)가 사용자의 성공에 더 큰 영향을 미친다
-- 모달은 사용자의 흐름을 차단한다. 모달이 아닌 방식(인라인 확장, 패널, 토스트)으로 해결할 수 있으면 모달을 사용하지 않는 것이 원칙
-- Fitts의 법칙: 자주 사용하는 행동은 크고 가깝게, 파괴적 행동은 주요 행동에서 멀리 배치한다. 삭제 버튼이 확인 버튼 옆에 있으면 오클릭 위험이 증가
-- 플레이스홀더는 레이블을 대체할 수 없다. 플레이스홀더는 입력 시 사라지므로, 입력 후 필드의 목적을 알 수 없게 된다
+- Users come to achieve goals, not to learn the interface. The UI is a means to achieve goals, not an end in itself
+- The principle is to match the interface to the user's mental model. Exposing the system's technical structure directly conflicts with the user's mental model
+- Errors are not the user's fault but the interface's failure to prevent them. Error messages must not blame the user ("Invalid input" → "This field only accepts numbers")
+- Consistency reduces learning costs. The same action must produce the same result for users to predict outcomes. However, contextual appropriateness may take precedence over consistency, in which case the deviation reason must be stated
+- The "3-click rule" is not an absolute standard. In practice, clarity at each step and information scent have a greater impact on user success than the number of clicks
+- Modals block user flow. If a non-modal approach (inline expansion, panel, toast) can solve the problem, the principle is to not use a modal
+- Fitts's Law: Frequently used actions should be large and close; destructive actions should be placed far from primary actions. Placing the delete button next to the confirm button increases misclick risk
+- Placeholders cannot replace labels. Placeholders disappear on input, making the field's purpose unrecognizable after input
 
-## 관련 문서
-- domain_scope.md — 이 용어들이 사용되는 영역 정의
-- logic_rules.md — 내비게이션, 폼, 피드백, 접근성 관련 규칙
-- structure_spec.md — UI 설계 구조 관련 규칙
+## Related Documents
+- domain_scope.md — Domain definition where these terms are used
+- logic_rules.md — Rules related to navigation, forms, feedback, accessibility
+- structure_spec.md — UI design structure-related rules

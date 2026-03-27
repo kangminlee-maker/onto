@@ -7,6 +7,7 @@
 #   2. .claude/learnings/  → .onto-review/learnings/
 #   3. .claude/ontology/   → .onto-review/builds/{세션ID}/
 #   4. .onto-review/sessions/ 중간 계층 제거 (sessions/review/ → review/)
+#   5. CLAUDE.md의 domain 설정 → .onto-review/config.yml (CLAUDE.md 비침습)
 #
 # 사용법:
 #   ./migrate-sessions.sh                # 현재 디렉토리의 프로젝트를 마이그레이션
@@ -235,6 +236,43 @@ else
     echo ""
 fi
 
+# ─── 5단계: CLAUDE.md domain 설정 → .onto-review/config.yml ───
+
+CLAUDE_MD="$PROJECT_DIR/CLAUDE.md"
+CONFIG_YML="$NEW_DIR/config.yml"
+
+if [ -f "$CLAUDE_MD" ] && [ ! -f "$CONFIG_YML" ]; then
+    # CLAUDE.md에서 domain 관련 설정 추출
+    DOMAIN=$(grep -E '^\s*(domain|agent-domain)\s*:' "$CLAUDE_MD" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d ' ')
+    SECONDARY=$(grep -E '^\s*secondary_domains\s*:' "$CLAUDE_MD" 2>/dev/null | head -1 | sed 's/.*:\s*//')
+
+    if [ -n "$DOMAIN" ]; then
+        echo -e "${CYAN}[5/5] CLAUDE.md에서 도메인 설정 발견: ${DOMAIN}${NC}"
+        ((TOTAL_ACTIONS++))
+
+        if [ "$DRY_RUN" = false ]; then
+            mkdir -p "$NEW_DIR"
+            echo "domain: $DOMAIN" > "$CONFIG_YML"
+            if [ -n "$SECONDARY" ]; then
+                echo "secondary_domains:$SECONDARY" >> "$CONFIG_YML"
+            fi
+            echo -e "  ${GREEN}→ .onto-review/config.yml 생성 완료${NC}"
+            echo -e "  ${YELLOW}CLAUDE.md의 domain/secondary_domains 줄은 수동으로 제거해 주세요.${NC}"
+            echo -e "  ${YELLOW}(하위 호환: 제거하지 않아도 동작에 문제는 없습니다)${NC}"
+        fi
+        echo ""
+    else
+        echo -e "[5/5] CLAUDE.md에 도메인 설정 없음 (건너뜀)"
+        echo ""
+    fi
+elif [ -f "$CONFIG_YML" ]; then
+    echo -e "[5/5] .onto-review/config.yml 이미 존재 (건너뜀)"
+    echo ""
+else
+    echo -e "[5/5] CLAUDE.md 없음 (건너뜀)"
+    echo ""
+fi
+
 # ─── 완료 ───
 
 if [ $TOTAL_ACTIONS -eq 0 ]; then
@@ -250,6 +288,7 @@ fi
 echo ""
 echo "최종 구조:"
 echo "  .onto-review/"
+echo "  ├── config.yml                   # 도메인 설정 (domain, secondary_domains)"
 echo "  ├── review/{세션ID}/round1/     # review 라운드 결과 + 산출물"
 echo "  ├── builds/{세션ID}/round0~N/   # build 라운드 결과 + 산출물"
 echo "  └── learnings/                   # 프로젝트 수준 학습"

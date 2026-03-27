@@ -5,6 +5,37 @@
 
 Sets up the onto environment for the project.
 
+### 0. Legacy Migration Check (auto-detect)
+
+Before diagnosis, check if this project used the deprecated `onto-review` plugin:
+
+| Check | Path | Action |
+|---|---|---|
+| Project-level legacy data | `{project}/.onto-review/` | If exists → migrate to `{project}/.onto/` |
+| Global-level legacy data | `~/.onto-review/` | If exists → migrate to `~/.onto/` |
+
+**If `.onto-review/` is detected, execute migration automatically:**
+
+1. **Project-level migration** (`{project}/.onto-review/` → `{project}/.onto/`):
+   - `config.yml` → copy to `.onto/config.yml` (add `output_language: en` if missing)
+   - `learnings/` → copy all files to `.onto/learnings/`
+   - `review/` → copy all session directories to `.onto/review/`
+   - `builds/` → copy all build directories to `.onto/builds/`
+   - `buildfromcode/` → copy to `.onto/buildfromcode/` (if exists)
+
+2. **Global-level migration** (`~/.onto-review/` → `~/.onto/`):
+   - `learnings/` → copy to `~/.onto/learnings/`
+   - `communication/` → copy to `~/.onto/communication/`
+   - `domains/` → copy to `~/.onto/domains/` (skip files that already exist at destination)
+
+3. **Rename legacy directory**: `{project}/.onto-review/` → `{project}/.onto-review-backup/` (preserve, do not delete)
+
+4. **Report**: "Migrated from `.onto-review/` to `.onto/`. Legacy data preserved at `.onto-review-backup/`."
+
+5. **Translation of learnings** (if content is in Korean): If learning files contain Korean text (detected by presence of Korean characters), translate them to English using `dev-docs/translation-reference.yaml` as SSOT. Preserve dates, project names, tags, and markdown structure.
+
+After migration, proceed to Step 1 with the migrated data in place.
+
 ### 1. Status Diagnosis
 
 Checks the following items in order:

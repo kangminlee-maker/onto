@@ -29,6 +29,11 @@ cd ~/.claude/plugins/onto-review && git pull
 ./migrate-sessions.sh
 ```
 
+학습 저장 구조가 변경된 경우 (3경로 → 2경로 + 축 태그):
+```bash
+./migrate-learnings.sh
+```
+
 마이그레이션 대상:
 - `~/.claude/agent-memory/` → `~/.onto-review/` (글로벌 학습·도메인 문서)
 - `.claude/sessions/` → `.onto-review/` (프로젝트 세션 데이터)
@@ -223,14 +228,24 @@ onto-review/
 
 ## 학습 체계
 
-에이전트는 리뷰/질문을 통해 3종류의 학습을 축적합니다:
+에이전트는 리뷰/질문을 통해 학습을 축적합니다. 학습은 2경로 + 축 태그 모델로 저장됩니다:
 
-| 학습 유형 | 저장 위치 | 범위 | 유형 태깅 |
-|---|---|---|---|
-| 소통 학습 | `~/.onto-review/communication/` | 사용자 소통 선호 | — |
-| 방법론 학습 | `~/.onto-review/methodology/` | 도메인 무관 검증 원칙 | [사실] / [판단] |
-| 도메인 학습 | `{project}/.onto-review/learnings/` (프로젝트) 또는 `~/.onto-review/domains/{domain}/learnings/` (글로벌) | 특정 도메인/프로젝트 학습 | [사실] / [판단] |
+| 저장 위치 | 범위 |
+|---|---|
+| `~/.onto-review/learnings/{agent-id}.md` | 글로벌 학습 |
+| `{project}/.onto-review/learnings/{agent-id}.md` | 프로젝트 수준 학습 |
 
+각 학습 아이템에는 유형 태그와 축 태그가 부착됩니다:
+
+| 태그 종류 | 태그 | 설명 |
+|---|---|---|
+| 유형 태그 | `[사실]` / `[판단]` | 학습의 성격 분류 |
+| 축 태그 | `[methodology]` | 도메인 무관 검증 기법 |
+| 축 태그 | `[domain/{name}]` | 특정 도메인에 귀속된 학습 |
+
+- 하나의 아이템에 복수 축 태그 허용 (예: `[methodology]`와 `[domain/SE]` 동시 부착)
+- 아이템 형식: `- [사실|판단] [methodology] [domain/SE] 학습 내용 (출처: ...)`
+- 소통 학습은 `~/.onto-review/communication/common.md`에 별도 저장 (변경 없음)
 - 프로젝트 수준 학습은 `/onto-promotelearnings`로 글로벌 수준에 승격할 수 있습니다
 - 도메인 문서는 사용자의 명시적 승인 없이 자동 수정되지 않습니다
 
@@ -264,6 +279,26 @@ onto-review/
 ```
 
 이전 데이터가 없으면 자동으로 건너뜁니다.
+
+### 학습 저장 구조 마이그레이션
+
+이전 버전에서 학습이 3경로(`methodology/`, `domains/{domain}/learnings/`, `communication/`)에 분산 저장된 경우:
+
+```bash
+# 대상 확인 (실제 변경 없음)
+./migrate-learnings.sh --dry-run
+
+# 마이그레이션 실행
+./migrate-learnings.sh
+```
+
+변경 내용:
+- `~/.onto-review/methodology/{agent}.md` → `~/.onto-review/learnings/{agent}.md`에 `[methodology]` 태그 부착 후 병합
+- `~/.onto-review/domains/{domain}/learnings/{agent}.md` → `~/.onto-review/learnings/{agent}.md`에 `[domain/{domain}]` 태그 부착 후 병합
+- 태그 위치 정규화: `- [유형] [축태그...] 학습 내용 (출처: ...)`
+- 기존 파일은 `~/.onto-review/_backup_migration_{date}/`에 백업
+
+이전 구조가 없으면 자동으로 건너뜁니다.
 
 ## 시작하기
 

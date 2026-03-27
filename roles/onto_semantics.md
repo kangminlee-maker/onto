@@ -11,7 +11,7 @@
   - 개념이 해당 인스턴스에 필수적인가? (OntoClean Rigidity 검증)
 - **경계 — 담당하지 않는 것**:
   - 이름이 아닌 구조적 연결 완전성 → onto_structure 담당
-  - 중복/과잉 정의 탐지 → onto_conciseness 담당
+  - 중복/과잉 정의 탐지 → onto_conciseness 담당 (onto_semantics는 의미 동일성만 선행 판별하고, 동의어 확인 후 병합 필요성은 onto_conciseness가 후행 판단)
 - **도메인 적용 예시**:
   - 소프트웨어: 메서드명이 실제 동작과 불일치, 동일 개념의 다른 명명(user/account/member)
   - 법률: 법률 용어의 일상 의미와 법적 의미 혼용, 법률 간 동일 용어의 상이한 정의

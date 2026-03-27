@@ -12,7 +12,7 @@
 | 확인 항목 | 경로 | 상태값 |
 |---|---|---|
 | 프로젝트 학습 디렉토리 | `{project}/.onto-review/learnings/` | 존재 / 미존재 |
-| 도메인 선언 | `{project}/CLAUDE.md` 내 `domain:` 또는 `agent-domain:` | 선언됨 / 미선언 |
+| 도메인 선언 | `{project}/.onto-review/config.yml` 또는 `{project}/CLAUDE.md` 내 `domain:` | 선언됨 / 미선언 |
 | 글로벌 도메인 문서 | `~/.claude/agent-memory/domains/{domain}/` | 존재 / 미존재 / 해당없음(도메인 미선언) |
 | 글로벌 에이전트 메모리 | `~/.claude/agent-memory/` 하위 디렉토리들 | 존재하는 파일 목록 |
 
@@ -41,11 +41,11 @@
 - `.onto-review/learnings/.gitkeep` 파일을 생성합니다 (빈 디렉토리의 Git 추적용).
 
 **3.2 도메인 설정**
-- CLAUDE.md에 `domain:` 선언이 없으면 사용자에게 질문합니다:
+- `.onto-review/config.yml`과 CLAUDE.md 모두에 `domain:` 선언이 없으면 사용자에게 질문합니다:
   "이 프로젝트의 도메인을 알려주세요. (예: `healthcare`, `fintech`, `e-commerce`) 도메인 규칙 없이 범용 원칙만으로 검증하려면 '없음'이라고 답해주세요."
-- 사용자가 도메인을 지정하면, CLAUDE.md에 `domain: {domain}` 줄을 추가합니다.
+- 사용자가 도메인을 지정하면, `.onto-review/config.yml`에 `domain: {domain}` 줄을 추가합니다. CLAUDE.md는 수정하지 않습니다.
 - 보조 도메인이 있는지도 확인합니다: "보조 도메인이 있나요? (예: healthcare 프로젝트이지만 fintech 규칙도 일부 적용) 없으면 '없음'이라고 답해주세요."
-- 보조 도메인이 있으면 `secondary_domains: {domain1}, {domain2}` 줄을 추가합니다.
+- 보조 도메인이 있으면 `.onto-review/config.yml`에 `secondary_domains: {domain1}, {domain2}` 줄을 추가합니다.
 
 **3.3 글로벌 도메인 문서 설치**
 - 지정된 도메인의 글로벌 문서(`~/.claude/agent-memory/domains/{domain}/`)가 없거나 불완전하면:

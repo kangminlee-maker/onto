@@ -165,7 +165,7 @@ team lead는 **구조 조율자**입니다. 각 에이전트의 작업 내용이
 - 수집한 결과를 전달할 때 내용을 수정하거나 요약하지 않는다.
 - 자신의 판단을 리뷰에 개입시키지 않는다.
 - teammate 간 결과를 교차 공유하지 않는다 (독립성 보장).
-  - **build 모드 예외**: build 프로세스(`processes/build.md`)에서는 커버리지 완전성을 위해, 이전 라운드의 확정 요소 목록을 anonymized 형태(labeled_by 제외)로 공유합니다. 이것은 "누가 판단했는가"를 숨기면서 "무엇이 이미 식별되었는가"만 공유하여, 독립성과 커버리지의 균형을 유지합니다.
+  - **build 모드 예외**: build 프로세스의 anonymized wip 공유 규칙은 `processes/build.md`를 참조합니다.
 
 **생명주기 관리**: 생성 → 작업 할당 → 에러 처리 → **전원 shutdown 확인** → 종료.
 
@@ -202,10 +202,12 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 | onto_evolution | extension_cases.md |
 | onto_coverage | domain_scope.md |
 | onto_conciseness | conciseness_rules.md |
+| explorer | (없음) |
 | philosopher | (없음) |
 
 [작업 지시]
 {프로세스별 작업 지시 — 리뷰 대상, 시스템 목적, 구체적 지시사항}
+{build 프로세스인 경우: certainty 등급(observed, rationale-absent, inferred, ambiguous, not-in-source)의 정의는 processes/build.md의 "Certainty 분류 (2단계 판정)" 섹션이 SSOT입니다.}
 
 [팀 규칙]
 - 리뷰 결과를 {세션 경로}/round1/{agent-id}.md에 Write 도구로 저장하세요.

@@ -1,0 +1,204 @@
+name: Action-Centric (Palantir 스타일)
+version: 1
+description: 행위 중심의 실용적 온톨로지 구조. ObjectType으로 도메인 객체를, ActionType으로 행위를 정의하며, LinkType으로 관계를 표현합니다.
+golden_reference: golden/b-action-centric.yaml
+sections:
+  - name: enums
+    description: 도메인에서 사용되는 열거형 값 목록
+    fields:
+      - name: name
+        type: string
+        required: true
+        description: enum 이름
+      - name: description
+        type: string
+        required: true
+        description: enum의 의미
+      - name: source
+        type: object
+        required: false
+        description: 소스 코드 위치 (frontend, backend 키로 구분)
+      - name: notes
+        type: string
+        required: false
+        description: 구현 관련 참고사항
+      - name: values
+        type: list
+        required: true
+        description: "enum 값 목록. 각 항목은 {value, description}이며, 선택적으로 code를 포함"
+
+  - name: object_types
+    description: 도메인의 핵심 객체 유형 정의
+    fields:
+      - name: name
+        type: string
+        required: true
+        description: 객체 유형 이름
+      - name: domain
+        type: string
+        required: true
+        description: 소속 도메인
+      - name: description
+        type: string
+        required: true
+        description: 객체 설명
+      - name: db_table
+        type: string
+        required: false
+        description: 매핑된 DB 테이블명
+      - name: normalization_status
+        type: enum
+        required: false
+        description: "정규화 상태 (legacy | partial | normalized)"
+      - name: code_mapping
+        type: object
+        required: false
+        description: "코드 매핑 정보. canonical(정규 이름), legacy_aliases(레거시 별칭), code_entity(코드상 엔티티명), db_table, fk_variants(FK 변형) 포함"
+      - name: source
+        type: object
+        required: false
+        description: "소스 위치 (backend.entity, backend.table, frontend 키로 구분)"
+      - name: properties
+        type: list
+        required: true
+        description: "객체 속성 목록. 각 항목은 {name, type, nullable, description}이며, 선택적으로 enum_ref를 포함"
+      - name: state_machine
+        type: object
+        required: false
+        description: "상태 머신 정의. field(상태 필드), states(상태 목록), transitions(전이 규칙) 포함"
+      - name: notes
+        type: list
+        required: false
+        description: 구현 참조 사항 목록
+
+  - name: link_types
+    description: 객체 간 관계 정의
+    fields:
+      - name: id
+        type: string
+        required: true
+        description: 관계 식별자
+      - name: from
+        type: string
+        required: true
+        description: 출발 객체
+      - name: to
+        type: string
+        required: true
+        description: 도착 객체
+      - name: type
+        type: string
+        required: true
+        description: 관계 유형 (한국어 명칭)
+      - name: cardinality
+        type: string
+        required: true
+        description: "카디널리티 (1:1, 1:N, N:1, N:M)"
+      - name: fk_column
+        type: string
+        required: false
+        description: FK 컬럼 경로
+      - name: description
+        type: string
+        required: true
+        description: 관계 설명
+
+  - name: actors
+    description: 시스템에서 행위를 수행하는 주체 정의 (action-types.yaml)
+    fields:
+      - name: id
+        type: string
+        required: true
+        description: 행위자 식별자
+      - name: description
+        type: string
+        required: true
+        description: 행위자 설명
+
+  - name: action_types
+    description: 도메인 행위 정의. Command(mutating)와 Query(read-only) 구분 (action-types.yaml)
+    fields:
+      - name: id
+        type: string
+        required: true
+        description: 행위 식별자
+      - name: name
+        type: string
+        required: true
+        description: 행위 이름 (PascalCase)
+      - name: display_name
+        type: string
+        required: true
+        description: 행위 표시 이름 (한국어)
+      - name: domain
+        type: string
+        required: true
+        description: 소속 도메인
+      - name: actor
+        type: string
+        required: true
+        description: 행위 주체
+      - name: mutating
+        type: enum
+        required: true
+        description: "변경 행위 여부 (true: Command, false: Query)"
+      - name: target_object_types
+        type: list
+        required: true
+        description: 대상 ObjectType 목록
+      - name: preconditions
+        type: list
+        required: false
+        description: "사전 조건 목록. 각 항목은 {check, policy_ref} 포함"
+      - name: results
+        type: list
+        required: false
+        description: 행위 결과 설명
+      - name: state_transitions
+        type: list
+        required: false
+        description: 트리거되는 상태 전이
+      - name: side_effects
+        type: list
+        required: false
+        description: 부수 효과 (외부 API 호출 등)
+      - name: source_code
+        type: string
+        required: false
+        description: 소스 코드 위치
+
+  - name: functions
+    description: 도메인 규칙 및 교차 엔티티 제약 정의 (object-types.yaml)
+    fields:
+      - name: policy_constants
+        type: list
+        required: false
+        description: "정책 상수 목록. 각 항목은 {id, value, unit, description, changeable, source_code, used_by_guard} 포함"
+      - name: cross_entity_guards
+        type: list
+        required: false
+        description: "교차 엔티티 가드 목록. 각 항목은 {id, source_entity, target_entity, target_transition, check, description, source_code} 포함"
+
+  - name: domain_flows
+    description: 도메인 업무 흐름 정의
+    fields:
+      - name: name
+        type: string
+        required: true
+        description: 흐름 이름
+      - name: description
+        type: string
+        required: true
+        description: 흐름 설명
+      - name: external_dependencies
+        type: list
+        required: false
+        description: 외부 의존 시스템
+      - name: steps
+        type: list
+        required: true
+        description: 흐름 단계 목록 (순서대로)
+      - name: involved_entities
+        type: list
+        required: true
+        description: 관련 엔티티 목록

@@ -1,0 +1,112 @@
+name: Knowledge Graph
+version: 1
+description: 단순 그래프 구조의 지식 그래프 온톨로지. Entity를 entity_type별로 분류하고, Relation으로 관계를, Property로 행위자/정책 등 부가 속성을 표현합니다.
+golden_reference: golden/c-knowledge-graph.yaml
+sections:
+  - name: entities
+    description: "도메인 엔티티 정의. entity_type으로 유형을 구분 (domain_object, enum, state_machine 등)"
+    fields:
+      - name: name
+        type: string
+        required: true
+        description: 엔티티 이름
+      - name: entity_type
+        type: enum
+        required: true
+        description: "엔티티 유형 (domain_object | enum | state_machine | mapping_table | command | query | flow 등)"
+      - name: domain
+        type: string
+        required: true
+        description: 소속 도메인
+      - name: description
+        type: string
+        required: true
+        description: 엔티티 설명
+      - name: normalization_status
+        type: enum
+        required: false
+        description: "정규화 상태 (legacy | partial | normalized)"
+      - name: db_table
+        type: string
+        required: false
+        description: 매핑된 DB 테이블명
+      - name: code_mapping
+        type: object
+        required: false
+        description: "코드 매핑 정보. canonical(정규 이름), code_entity(코드상 엔티티명), legacy_aliases(레거시 별칭), fk_variants(FK 변형) 포함"
+      - name: properties
+        type: list
+        required: true
+        description: "엔티티 속성 목록. 각 항목은 {name, type, required, description}이며, 선택적으로 enum_values를 포함"
+      - name: state_machine
+        type: object
+        required: false
+        description: "상태 머신 정의. field(상태 필드), states(상태 목록), transitions(전이 규칙) 포함"
+      - name: notes
+        type: list
+        required: false
+        description: 구현 참조 사항 목록
+      - name: values
+        type: list
+        required: false
+        description: "enum entity_type일 경우 값 목록. 각 항목은 {value, description}이며, 선택적으로 code를 포함"
+
+  - name: relations
+    description: 엔티티 간 관계 정의
+    fields:
+      - name: from
+        type: string
+        required: true
+        description: 출발 엔티티
+      - name: to
+        type: string
+        required: true
+        description: 도착 엔티티
+      - name: type
+        type: enum
+        required: true
+        description: "관계 유형 (has_many | has_one | belongs_to | cross_entity_guard)"
+      - name: name
+        type: string
+        required: false
+        description: 관계 이름 (한국어)
+      - name: cardinality
+        type: string
+        required: true
+        description: "카디널리티 (1:1, 1:N, N:1, N:M)"
+      - name: fk_column
+        type: string
+        required: false
+        description: FK 컬럼 경로
+
+  - name: properties
+    description: "행위자, 정책 상수 등 보조 속성 정의"
+    fields:
+      - name: name
+        type: string
+        required: true
+        description: 속성 이름
+      - name: property_type
+        type: enum
+        required: true
+        description: "속성 유형 (actor | policy)"
+      - name: description
+        type: string
+        required: true
+        description: 속성 설명
+      - name: value
+        type: string
+        required: false
+        description: 정책 상수의 값 (property_type이 policy일 때)
+      - name: changeable
+        type: enum
+        required: false
+        description: "변경 가능 여부 (true | false). policy 유형에서 사용"
+      - name: source_code
+        type: string
+        required: false
+        description: 소스 코드 위치
+      - name: used_by_guard
+        type: list
+        required: false
+        description: 이 정책을 참조하는 가드 ID 목록

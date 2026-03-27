@@ -225,6 +225,18 @@ context_brief:
 
 ### Phase 1: 적분형 탐색 루프
 
+Phase 1은 **2개 Stage**로 구성됩니다. 각 Stage 내에서 기존 적분형 루프(Explorer→검증→Philosopher)가 독립적으로 동작합니다.
+
+| Stage | 목적 | fact_type 범위 | 최대 라운드 |
+|---|---|---|---|
+| Stage 1: Structure | Entity, Enum, Relation, Property 식별 | entity, enum, property, relation, code_mapping | 5 |
+| Stage 2: Behavior | State Machine, Command, Query, Policy, Flow 식별 | state_transition, command, query, policy_constant, flow | 5 |
+
+Stage 1이 수렴(또는 최대 도달)하면 Stage 2로 진행합니다. Stage 2의 Explorer는 Stage 1의 wip.yml(확정된 Entity 목록)을 참조하여 행위 탐색을 수행합니다.
+
+**Schema A 선택 시**: build 프로세스에서 지원하지 않습니다. Phase 0에서 사용자에게 B/C/D 중 재선택을 요청합니다.
+**Schema C 선택 시**: Stage 2의 command/query는 Entity(entity_type: command/query)로 변환됩니다.
+
 `process.md`의 **Agent Teams 실행 방식**을 따릅니다 (에러 처리 규칙 포함).
 TeamCreate로 팀(`onto-build`)을 생성합니다.
 
@@ -253,6 +265,16 @@ onto-build 팀에 참여합니다.
 당신은 온톨로지적 해석(이것이 Entity인가, Aggregate인가)을 하지 않습니다.
 소스에서 관찰한 사실을 도메인 언어로 서술하는 것이 당신의 역할입니다.
 구조 인식(서식 차이, 참조 관계 등의 관찰)은 수행하되, 관찰 근거를 명시하세요.
+
+[구조화 보고 규칙]
+가능한 한 structured_data를 포함하세요. 특히:
+- 클래스/테이블 발견 시: fact_type: entity + structured_data로 필드 목록
+- enum 발견 시: fact_type: enum + values 목록
+- FK/참조 발견 시: fact_type: relation + from/to/fk_column
+- 상태 전이 발견 시: fact_type: state_transition + from/to/trigger
+- 서비스 메서드 발견 시: fact_type: command 또는 query + 시그니처
+- 하드코딩 상수 발견 시: fact_type: policy_constant + value
+구조화가 불가능하면 statement + detail만으로 보고하세요.
 
 [소스 유형: {source_type}]
 - 탐색 도구: {프로파일의 "탐색 도구"}
@@ -365,7 +387,7 @@ labels를 patch로 변환하여 wip.yml을 갱신합니다.
 - 비유/은유를 사용하지 마세요.
 ```
 
-#### 1.1 Round 0: 초기 탐색
+#### 1.1 Stage 1, Round 0: 구조 초기 탐색
 
 team lead가 Explorer에게 초기 탐색을 지시합니다:
 
@@ -380,6 +402,12 @@ team lead가 Explorer에게 초기 탐색을 지시합니다:
 깊이: 각 모듈의 도메인 모델까지만. 세부 로직은 아직 보지 마세요.
 Phase 0.5에서 이미 수집한 문서는 중복 탐색하지 마세요.
 
+[fact_type 범위]
+Stage 1입니다. entity, enum, property, relation, code_mapping에 집중하세요.
+상태 전이 규칙, 서비스 메서드, 비즈니스 상수는 Stage 2에서 탐색합니다.
+
+> code_mapping은 Stage 1에서 시작하되, Stage 2에서 추가 발견(예: 서비스 레이어의 레거시 명칭)이 있으면 보완합니다. code_mapping fact_type은 양 Stage에서 허용됩니다.
+
 [module_inventory 보고]
 delta₀에 반드시 module_inventory를 포함하세요:
 - 탐색 대상이 되는 모든 모듈/시트/테이블의 목록
@@ -389,14 +417,14 @@ delta₀에 반드시 module_inventory를 포함하세요:
 
 Explorer가 delta₀를 보고하면, team lead가 내용을 수정하지 않고 검증 에이전트들에게 전달합니다.
 
-#### 1.2 Round N: 반복 루프
+#### 1.2 Round N: 반복 루프 (Stage 1, Stage 2 공통)
 
 ```
 반복:
   1. team lead가 Explorer의 delta(N-1)을 검증 에이전트들에게 전달
      + 현재까지 확정된 요소 목록 (anonymized wip: labeled_by 제외)
   2. 검증 에이전트들이 각각 label + epsilon + issues를 보고
-  2.5. Philosopher가 labels를 patch로 변환하여 wip.yml 갱신 (Phase 1.3)
+  2.5. Philosopher가 labels를 patch로 변환하여 wip.yml 갱신 (Phase 1.4)
   3. team lead가 검증 에이전트들의 epsilon 및 issues를 Philosopher에게 전달
   4. Philosopher가:
      a. epsilon 간 충돌 조율 (우선순위 판정)
@@ -436,9 +464,38 @@ convergence_status:
   reason: "{판단 근거}"
 ```
 
-**최대 라운드**: 7회. 수렴하지 않으면 현재 상태로 Phase 2로 진행하고, 미탐색 영역(remaining_agents의 epsilon + uncovered_modules)을 사용자에게 알립니다.
+**최대 라운드**: 각 Stage 5회 (전체 최대 10회). 수렴하지 않으면 현재 상태로 Phase 2로 진행하고, 미탐색 영역(remaining_agents의 epsilon + uncovered_modules)을 사용자에게 알립니다.
 
-#### 1.3 라운드 간 온톨로지 축적
+#### 1.3 Stage 전환
+
+**Stage 2에서 Stage 1 누락 Entity 발견 시**:
+- Explorer가 해당 Entity를 fact_type: entity로 보고합니다 (Stage fact_type 범위 예외).
+- Philosopher가 wip.yml에 추가하되, added_in_stage: 2, note: "Stage 2에서 보완 발견"을 표기합니다.
+- 이 Entity의 properties/relations는 Stage 2의 남은 라운드에서 탐색합니다.
+
+Stage 1이 종료되면 (수렴 또는 최대 5회 도달):
+1. Philosopher가 Stage 1의 wip.yml을 확정합니다.
+2. wip.yml의 `meta.stage`를 2로 갱신합니다.
+3. team lead가 Explorer에게 Stage 2 초기 지시를 전달합니다:
+
+```
+[Stage 2 초기 탐색 지시]
+Stage 1에서 식별된 Entity를 기반으로 행위를 파악하세요:
+1. 각 Entity의 상태 전이 규칙 (상태 필드의 값 변경 조건과 트리거)
+2. 서비스/게이트웨이 메서드 → command(상태 변경) 또는 query(조회) 분류
+3. 하드코딩된 비즈니스 상수 (policy_constant)
+4. 엔티티 간 비즈니스 흐름 (flow)
+
+[fact_type 범위]
+Stage 2입니다. state_transition, command, query, policy_constant, flow에 집중하세요.
+
+Stage 1 wip.yml을 참조하세요: {wip.yml 경로}
+```
+
+4. Stage 2의 Round 0부터 적분형 루프를 재시작합니다.
+5. Stage 2의 module_inventory는 Stage 1에서 확정된 Entity 목록으로 대체합니다.
+
+#### 1.4 라운드 간 온톨로지 축적
 
 Phase 1.2의 **step 2.5**에서 실행됩니다 (검증 에이전트 보고 완료 후, Philosopher에게 epsilon 전달 전).
 
@@ -514,6 +571,7 @@ Delta 원문은 `{project}/.onto-review/builds/{세션 ID}/deltas/d-{round}-{seq
 meta:
   schema: ./schema.yml
   source_type: {code | spreadsheet | database | document | mixed}
+  stage: {1 | 2}
   round: {현재 라운드}
   status: in_progress
   module_inventory: [{Round 0에서 확정된 모듈 목록}]
@@ -563,9 +621,22 @@ delta:
 
   facts:
     - subject: "{도메인 개체 또는 관계}"
-      statement: "{도메인 사실}"
+      statement: "{도메인 사실 — 자연어 요약}"
       certainty: observed | pending
-      detail:  # 필수
+      lens: [structure | rationale | presentation]
+      fact_type: entity | enum | property | relation | state_transition | command | query | policy_constant | flow | code_mapping
+      structured_data:  # fact_type별 구조화 데이터 (optional)
+        # entity: {name, domain, db_table, properties: [{name, type, nullable, description, enum_ref, constraints}]}
+        # enum: {name, values: [{value, code, description}]}
+        # property: {entity, name, type, enum_ref, nullable}
+        # relation: {from, to, type, cardinality, fk_column}
+        # state_transition: {entity, field, from, to, trigger, guard, side_effects}
+        # command: {name, actor, target_entities, preconditions, results, state_transitions, side_effects, source_code}
+        # query: {name, actor, target_entities, description, source_code}
+        # policy_constant: {name, value, unit, description, used_by}
+        # flow: {name, steps, external_dependencies}
+        # code_mapping: {canonical, legacy_aliases, code_entity, db_table, fk_variants}
+      detail:
         - "{소스 위치 포함 설명}"
         # 코드: "필드 정의 — User.java:42"
         # 스프레드시트: "수식 =SUM(B2:B10) — Sheet1:B11"
@@ -762,6 +833,16 @@ wip.yml을 최종 검토하세요.
 
 **저장 파일**: `{project}/.onto-review/builds/{세션 ID}/raw.yml`
 
+**저장 형식은 선택된 schema에 따라 결정됩니다**:
+- Schema B: `golden/schema-b.yml`의 sections 구조를 따름
+- Schema C: `golden/schema-c.yml`의 sections 구조를 따름
+- Schema D: `golden/schema-d.yml`의 sections 구조를 따름
+- Schema E (커스텀): 사용자 정의 schema.yml의 구조를 따름
+
+각 schema의 구체적 형식은 해당 golden example을 참조하세요.
+
+**공통 meta 헤더** (모든 schema에 동일):
+
 ```yaml
 # Raw Ontology — 적분형 탐색으로 생성됨
 meta:
@@ -774,7 +855,11 @@ meta:
   convergence: converged | max_rounds_reached
   unexplored_directions: [{미탐색 영역 — max_rounds_reached 시}]
   agents: [explorer, {검증 에이전트 목록}, philosopher]
+```
 
+**Schema C 기본 형식** (Schema C 선택 시, 또는 커스텀 schema의 참고용):
+
+```yaml
 elements:
   - id: {요소 ID}
     type: {schema의 element_type}
@@ -832,6 +917,10 @@ issues:
     discovered_in_round: {라운드}
     justification: {이유}
 ```
+
+**Schema B/D의 raw.yml 형식**: 해당 golden example의 구조를 따릅니다. meta 헤더 아래에 각 schema의 sections를 그대로 사용합니다.
+- Schema B: `golden/object-types.yaml` + `golden/action-types.yaml`의 구조 (enums, object_types, link_types, actors, action_types, functions, domain_flows)
+- Schema D: `golden/d-domain-driven.yaml`의 구조 (bounded_contexts, aggregates, entities, value_objects, domain_events, commands, queries, sagas, relationships)
 
 **저장 규칙**:
 - schema.yml이 없으면 `.onto-review/builds/` 디렉토리와 함께 생성

@@ -314,7 +314,7 @@ onto-build 팀에 참여합니다.
 - team lead의 탐색 지시(통합 epsilon)를 받아 소스를 탐색합니다.
 - 탐색 결과를 delta 형식으로 team lead에게 보고합니다.
 - 탐색에 실패한 경우(파일 접근 불가, 파싱 불가 등), delta의 status를 failed로 보고합니다.
-- 한국어(존댓말)로 답변하세요.
+- Respond in {output_language}. (resolved from config.yml, default: en)
 - 비유/은유를 사용하지 마세요.
 ```
 
@@ -394,7 +394,7 @@ labels를 patch로 변환하여 wip.yml을 갱신합니다.
 
 [팀 규칙]
 - team lead의 지시를 받아 작업합니다.
-- 한국어(존댓말)로 답변하세요.
+- Respond in {output_language}. (resolved from config.yml, default: en)
 - 비유/은유를 사용하지 마세요.
 ```
 

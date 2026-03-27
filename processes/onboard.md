@@ -46,6 +46,7 @@
 - 사용자가 도메인을 지정하면, `.onto/config.yml`에 `domain: {domain}` 줄을 추가합니다. CLAUDE.md는 수정하지 않습니다.
 - 보조 도메인이 있는지도 확인합니다: "보조 도메인이 있나요? (예: healthcare 프로젝트이지만 fintech 규칙도 일부 적용) 없으면 '없음'이라고 답해주세요."
 - 보조 도메인이 있으면 `.onto/config.yml`에 `secondary_domains: {domain1}, {domain2}` 줄을 추가합니다.
+- `.onto/config.yml`에 `output_language: en` 기본값을 추가합니다. 사용자가 다른 언어를 원하면 변경 가능합니다.
 
 **3.3 글로벌 도메인 문서 설치**
 - 지정된 도메인의 글로벌 문서(`~/.onto/domains/{domain}/`)가 없거나 불완전하면:

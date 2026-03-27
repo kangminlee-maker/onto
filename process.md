@@ -90,6 +90,14 @@
 
 **도메인 문서 보호 원칙**: 도메인 문서는 사용자의 **명시적 승인 없이 자동 수정되지 않습니다.** promote 7단계의 갱신 제안, onboard의 초안 생성 모두 사용자 확인을 거칩니다. 에이전트가 리뷰/질문 실행 중 도메인 문서를 직접 수정하는 것은 금지됩니다. 도메인 문서는 프로젝트별 학습과 구분되는 **도메인 수준의 합의된 기준**이며, 특정 프로젝트의 특화 내용이 아닌 도메인 전체에 적용되는 범용 기준만 포함합니다.
 
+### 출력 언어 결정 규칙
+
+1. **config.yml 우선**: 프로젝트의 `{project}/.onto/config.yml`에 `output_language:` 선언이 있으면 해당 언어를 사용합니다.
+2. **기본값**: `output_language:`가 없으면 `en`(영어)을 사용합니다.
+3. **CLAUDE.md 우선순위**: config.yml의 `output_language`는 CLAUDE.md 내 언어 지시보다 항상 우선합니다.
+
+team lead는 Context Gathering에서 config.yml을 읽고, `output_language` 값을 resolve하여 teammate 초기 prompt의 `{output_language}` 변수에 채웁니다.
+
 ### 도메인 판별 규칙
 
 1. **플러그인 설정 우선**: 프로젝트의 `.onto/config.yml`에 `domain:` 선언이 있으면 해당 도메인을 사용합니다.
@@ -238,7 +246,7 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 - 저장 완료 후, team lead에게 **파일 경로만** 보고하세요. 리뷰 원문을 메시지에 포함하지 마세요.
 - Write 실패 시에만 SendMessage로 원문을 직접 보고하세요.
 - team lead가 허용하기 전에는 다른 teammate에게 직접 메시지를 보내지 마세요.
-- 한국어(존댓말)로 답변하세요.
+- Respond in {output_language}. (resolved from config.yml, default: en)
 - 비유/은유를 사용하지 마세요.
 ```
 
@@ -315,7 +323,7 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 
 ## Rules
 
-- 모든 에이전트는 한국어(존댓말)로 답변합니다.
+- All agents respond in the language specified by output_language in config.yml (default: en).
 - 에이전트는 비유/은유를 사용하지 않습니다. 직접 설명합니다.
 - 기술 용어는 유지하고 설명을 붙입니다.
 - 팀 리뷰 모드에서 만장일치에 도달해도, 합의의 **논리적 근거**를 별도로 검증합니다.

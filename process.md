@@ -70,7 +70,7 @@ When adding or removing an agent, all of the following files must be updated:
 ### Purpose Alignment Verifier (1 agent)
 | ID | Role |
 |---|---|
-| `philosopher` | Provides meta-perspective based on system purpose, synthesizes and reframes verification agents' adjudications from a purpose-oriented viewpoint, presents new perspectives |
+| `philosopher` | Provides meta-perspective based on system purpose, synthesizes and reframes verification agents' review findings from a purpose-oriented viewpoint, presents new perspectives |
 
 ### Domain Documents
 Each agent reads the corresponding domain documents at execution time (verified using general principles if no file exists):
@@ -242,7 +242,7 @@ If project-level learnings exist:
 {For build process: The definitions of certainty levels (observed, rationale-absent, inferred, ambiguous, not-in-source) are defined in the "Certainty Classification (2-Stage Adjudication)" section of processes/build.md as the SSOT.}
 
 [Team Rules]
-- Save your review result to {session path}/round1/{agent-id}.md using the Write tool.
+- Save your review finding to {session path}/round1/{agent-id}.md using the Write tool.
 - After saving, report **only the file path** to the team lead. Do not include the review text in the message.
 - Only report the full text via SendMessage if Write fails.
 - Do not send direct messages to other teammates until the team lead permits.

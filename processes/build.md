@@ -473,6 +473,16 @@ convergence_status:
 - Philosopher가 wip.yml에 추가하되, added_in_stage: 2, note: "Stage 2에서 보완 발견"을 표기합니다.
 - 이 Entity의 properties/relations는 Stage 2의 남은 라운드에서 탐색합니다.
 
+**Stage 간 certainty 전파 규칙**:
+
+Stage 1에서 확정된 element의 certainty는 Stage 2에서 변경될 수 있습니다. Stage 2의 행위 탐색이 Stage 1의 구조적 판단에 새로운 증거를 제공할 수 있기 때문입니다.
+
+| 상황 | 허용 여부 | 처리 |
+|---|---|---|
+| Stage 2에서 Stage 1 element의 certainty를 **강등**(demote) | 허용 | Stage 2 검증 에이전트가 issues에 "certainty 재분류 요청" 보고. Philosopher가 demote patch 적용 |
+| Stage 2에서 Stage 1 element의 certainty를 **승격**(upgrade: ambiguous→inferred) | 허용 | Stage 2의 추가 증거가 해석을 좁혔을 때. Philosopher가 upgrade patch 적용 |
+| Stage 2에서 Stage 1 element의 **type을 변경** | 불허 | type 변경이 필요하면 issues에 기록하고 Phase 3에서 사용자에게 제시 |
+
 Stage 1이 종료되면 (수렴 또는 최대 5회 도달):
 1. Philosopher가 Stage 1의 wip.yml을 확정합니다.
 2. wip.yml의 `meta.stage`를 2로 갱신합니다.

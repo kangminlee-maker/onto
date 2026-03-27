@@ -1004,6 +1004,6 @@ Explorer는 학습을 저장하지 않습니다 (해석을 하지 않으므로).
 | 문서 | 동기화 대상 섹션 |
 |---|---|
 | `README.md` | 3행(설명), 에이전트 테이블, "온톨로지 구축" 섹션, certainty 설명, 디렉토리 구조 |
-| `BLUEPRINT.md` | 2절(용어 정의), 3.6절(Explorer), 4.3절(build), certainty 테이블, 디렉토리 구조, MCP 인터페이스 |
+| `dev-docs/BLUEPRINT.md` | 2절(용어 정의), 3.6절(Explorer), 4.3절(build), certainty 테이블, 디렉토리 구조, MCP 인터페이스 |
 | `process.md` | Teammate prompt 템플릿의 certainty 관련, 에이전트-도메인 문서 매핑 |
 | `explorers/*.md` | 소스 유형별 프로파일 — build.md의 certainty 등급명/형식이 변경되면 프로파일의 예시도 동기화 |

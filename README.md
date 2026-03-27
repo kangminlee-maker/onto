@@ -181,8 +181,12 @@ onto-review/
 │   ├── onto_coverage.md    # 도메인 포괄성
 │   └── philosopher.md      # 목적 정합성
 ├── golden/                 # 스키마별 golden example + 스키마 템플릿
-├── KNOWN-ISSUES.md         # 알려진 이슈 및 해결 방안
-├── commands/               # 13개 명령어 정의
+├── dev-docs/               # 설계 문서, 이슈, 철학적 기반
+│   ├── BLUEPRINT.md
+│   ├── KNOWN-ISSUES.md
+│   ├── DESIGN-build-generalization.md
+│   └── philosophical-foundations-of-ontology.md
+├── commands/               # 명령어 정의
 └── .claude-plugin/         # 플러그인 메타데이터
 ```
 

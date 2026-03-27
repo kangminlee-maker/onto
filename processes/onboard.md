@@ -36,19 +36,23 @@ Proceed?
 
 Executes the following upon user approval:
 
-**3.1 Create project learning directory**
+**3.1 Output language configuration**
+- Asks the user first: "What language should agent output be in? (e.g., `en`, `ko`, `ja`) Default: `en`"
+- Creates `.onto/config.yml` with `output_language: {language}` as the first entry.
+- All subsequent onboarding messages are delivered in the configured language.
+
+**3.2 Create project learning directory**
 - Creates `.onto/learnings/` directory if it does not exist.
 - Creates `.onto/learnings/.gitkeep` file (for Git tracking of empty directories).
 
-**3.2 Domain configuration**
+**3.3 Domain configuration**
 - If `domain:` is not declared in either `.onto/config.yml` or CLAUDE.md, asks the user:
   "Please specify the domain for this project. (e.g., `healthcare`, `fintech`, `e-commerce`) If you want to verify using general principles only without domain rules, answer 'none'."
 - If the user specifies a domain, adds `domain: {domain}` to `.onto/config.yml`. Does not modify CLAUDE.md.
 - Also checks for secondary domains: "Are there secondary domains? (e.g., a healthcare project that also partially applies fintech rules) Answer 'none' if there are none."
 - If secondary domains exist, adds `secondary_domains: {domain1}, {domain2}` to `.onto/config.yml`.
-- Adds `output_language: en` as a default to `.onto/config.yml`. Can be changed if the user prefers a different language.
 
-**3.3 Install global domain documents**
+**3.4 Install global domain documents**
 - If global documents for the specified domain (`~/.onto/domains/{domain}/`) are missing or incomplete:
   1. Checks whether default documents for the domain exist in the plugin's `domains/` directory.
   2. If they exist, suggests installation:
@@ -60,12 +64,12 @@ Executes the following upon user approval:
 
 > **Note**: Default domains included in the plugin can be installed in bulk via `setup-domains.sh --all`, or selectively via `setup-domains.sh {domain1} {domain2}`.
 
-**3.4 Global learning status notification**
+**3.5 Global learning status notification**
 - If global learnings (`~/.onto/learnings/`) exist, notifies:
   "There are {N} global learnings for domain `{domain}`. Verification experience accumulated from previous projects will also be utilized in reviews for this project."
 - If none exist, does not notify.
 
-**3.5 Domain scope document draft generation**
+**3.6 Domain scope document draft generation**
 - `domain_scope.md` is the core reference document for onto_coverage (scope-defining — role rendered ineffective if absent).
 - If `~/.onto/domains/{domain}/domain_scope.md` does not exist, suggests draft generation to the user:
   "The scope document (domain_scope.md) for domain `{domain}` does not exist. This document serves as the basis for identifying 'what should exist but is missing.' Generate a draft?"

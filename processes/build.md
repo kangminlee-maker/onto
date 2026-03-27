@@ -1,45 +1,63 @@
-# 코드 기반 온톨로지 구축 프로세스 (적분형 탐색)
+# 온톨로지 구축 프로세스 (적분형 탐색)
 
-> Explorer가 코드를 탐색하고, 검증 에이전트들이 탐색 방향을 제시하는 반복 루프로 온톨로지를 점진적으로 구축합니다.
+> Explorer가 소스를 탐색하고, 검증 에이전트들이 탐색 방향을 제시하는 반복 루프로 온톨로지를 점진적으로 구축합니다.
 > 관련: 구축 후 `/onto-transform`으로 변환, `/onto-review`로 검증 가능.
+
+## 범용화 범위
+
+이 프로세스는 **확장 가능 설계**입니다. 현재 지원하는 소스 유형은 코드베이스, 스프레드시트, 데이터베이스, 문서이며, 새로운 소스 유형은 `explorers/{source_type}.md` 프로파일 파일 추가 및 Phase 0.5 맥락 질문 추가로 지원합니다. 모든 소스 유형에 대한 완전 범용 추상화가 아닙니다.
 
 ## 설계 원리
 
 ### 검증과 탐색의 구조적 차이
 
 - **검증(review)**: 범위가 확정된 입력에 대해 다관점으로 평가. 독립 병렬이 적합.
-- **탐색(build)**: 범위가 미확정인 코드베이스에서 도메인 지식을 발견. 독립 탐색은 중복은 N배, 빈 영역은 합의 때서야 발견되어 불리.
+- **탐색(build)**: 범위가 미확정인 소스에서 도메인 지식을 발견. 독립 탐색은 중복은 N배, 빈 영역은 합의 때서야 발견되어 불리.
 
 따라서 build는 **적분형 탐색** 구조를 사용합니다:
-- Explorer 1인이 코드를 읽고 **delta**(도메인 사실 보고)를 생성
+- Explorer 1인이 소스를 탐색하고 **delta**(도메인 사실 보고)를 생성
 - 검증 에이전트들이 delta를 분석하여 **label**(온톨로지 요소)을 부착하고 **epsilon**(다음 탐색 방향)을 제시
 - Philosopher가 epsilon을 조율하고 수렴을 판정
 - 종료 조건: (커버리지 충족) AND (새 fact = 0)
 
 ### 목적: 정밀 재현
 
-이 프로세스의 목적은 **코드베이스의 도메인 지식을 정밀하게 재현**(brownfield 파악)하는 것입니다. 온톨로지를 통해 새로운 문제를 판단하는 것이 아닙니다.
+이 프로세스의 목적은 **분석 대상의 도메인 지식을 정밀하게 재현**(brownfield 파악)하는 것입니다. 온톨로지를 통해 새로운 문제를 판단하는 것이 아닙니다.
 
-코드에는 서비스의 모든 정보가 존재하지 않습니다:
-- **코드에서 추출 가능**: 구조적 사실(Entity, 관계, 상태 전이, 의존)
-- **코드에 내장되어 있으나 근거가 없는 것**: 비즈니스 정책(하드코딩된 규칙의 이유)
-- **코드에 없는 것**: 사용자 경험, 설계 의도
+소스에는 대상의 모든 정보가 존재하지 않습니다:
+- **소스에서 직접 관찰 가능**: 구조적 사실(Entity, 관계, 상태 전이, 의존, 수식, 스키마)
+- **소스에 구현되어 있으나 근거가 없는 것**: 비즈니스 정책(하드코딩된 규칙의 이유, 서식 규칙의 의미)
+- **소스에 없는 것**: 설계 의도, 사용자 경험, 조직 맥락
 
 이 세 가지를 `certainty` 분류로 구분하여, 사용자가 "어디까지 확정이고 어디부터 결정이 필요한지" 파악할 수 있도록 합니다.
 
 ### Certainty 분류 (2단계 판정)
 
-| 등급 | 정의 | 판정 주체 |
-|---|---|---|
-| `deterministic` | 코드에서 직접 추출. 코드 변경 없이는 변하지 않음 | Explorer (1차) |
-| `non-deterministic` | 코드에서 직접 추출할 수 없음 | Explorer (1차) |
-| `code-embedded-policy` | 코드에 로직은 있으나 그 근거(정책)가 코드에 없음 | 검증 에이전트 (2차 세분화) |
-| `inferred` | 합리적 추론이지만 코드에서 직접 확인되지 않음 | 검증 에이전트 (2차 세분화) |
-| `not-in-code` | 이 소스에서 결정 불가. 다른 소스 필요 | 검증 에이전트 (2차 세분화) |
+**1차 판정 (Explorer)**:
 
-- **Explorer**는 `deterministic` / `non-deterministic`만 판정합니다 (코드 관찰 범위).
-- **검증 에이전트**가 label 부여 시 `non-deterministic`을 세분화합니다 (도메인 해석 범위).
-- 검증 에이전트가 Explorer의 certainty 판정이 잘못되었다고 판단하면, issues에 "certainty 재분류 요청"을 보고합니다. Philosopher가 patch 적용 시 반영합니다.
+| 등급 | 정의 | 판별 기준 |
+|---|---|---|
+| `observed` | 소스에서 직접 관찰한 사실. 소스 변경 없이는 변하지 않음 | "소스를 변경하지 않으면 이 사실도 변하지 않는가?" → 예 |
+| `pending` | 소스만으로 확정할 수 없는 사실 | 위 질문에 "아니오" 또는 "알 수 없음" |
+
+경계 사례: 하드코딩된 상수(예: MIN_PAYMENT=500)는 `observed`(값 자체는 소스에서 확인 가능). 그 상수의 근거(왜 500인가)는 `pending`.
+
+**2차 판정 (검증 에이전트가 label 부여 시 `pending`를 세분화)**:
+
+| 등급 | 정의 | 하류 행위 |
+|---|---|---|
+| `rationale-absent` | 구현은 소스에 있으나, 그 근거가 소스에 없음 | Phase 3에서 "정책 근거 미확인" 항목으로 사용자에게 제시 |
+| `inferred` | 합리적 추론이지만 소스에서 직접 확인되지 않음 | Phase 3에서 추론 품질과 함께 사용자에게 제시. 후속 라운드에서 반박 시 `pending`로 강등 가능 |
+| `not-in-source` | 이 소스에서 결정 불가. 다른 소스 또는 사용자 입력 필요 | Phase 3에서 "사용자 결정 필요" 항목으로 제시. label 부여 불가 — placeholder만 기록 |
+
+검증 에이전트가 Explorer의 1차 판정이 잘못되었다고 판단하면, issues에 "certainty 재분류 요청"을 보고합니다. Philosopher가 patch 적용 시 반영합니다.
+
+`inferred` 판정 시, 추론의 품질을 자기 평가합니다. 이 평가는 Phase 3에서 사용자 결정 항목의 우선순위 결정에 사용됩니다:
+```yaml
+abduction_quality:
+  explanatory_power: high | medium | low   # 관찰된 구조를 얼마나 잘 설명하는가
+  coherence: consistent | partial | conflicting  # 기존 확정 fact들과 모순 없는가
+```
 
 ---
 
@@ -47,11 +65,40 @@
 
 | ID | 역할 | build에서의 행동 |
 |---|---|---|
-| `explorer` | 코드 탐색자 | 코드를 직접 읽고 delta(도메인 사실 보고)를 생성. certainty는 binary(deterministic/non-deterministic)만 판정. 온톨로지적 해석을 하지 않음 |
-| 검증 에이전트 (N인) | 방향 제시자 | delta를 labeling하고, 자기 축에서 부족한 부분의 epsilon을 제시. **코드를 직접 읽지 않음**. non-deterministic fact의 certainty를 세분화 |
+| `explorer` | 소스 탐색자 | 소스를 직접 탐색하고 delta(도메인 사실 보고)를 생성. certainty는 binary(`observed`/`pending`)만 판정. 온톨로지적 해석을 하지 않음. 구조 인식은 수행 |
+| 검증 에이전트 (N인) | 방향 제시자 | delta를 labeling하고, 자기 축에서 부족한 부분의 epsilon을 제시. **소스를 직접 탐색하지 않음**. `pending` fact의 certainty를 세분화 |
 | `philosopher` | 조율자 | 검증 에이전트들의 epsilon을 통합 지시로 조율, 수렴 판정, 온톨로지 일관성 관리, patch 적용 |
 
 검증 에이전트 정의(`roles/{agent-id}.md`)는 review와 동일합니다. build에서는 "검증"이 아니라 "자기 축에서의 빈 영역 식별 + label 부여"로 역할이 전환됩니다. 현재 검증 에이전트 목록은 `process.md`의 에이전트 구성 테이블에서 관리합니다.
+
+### Explorer의 구조 인식과 온톨로지적 해석의 구분
+
+Explorer는 "무엇이 있는가"를 보고합니다. "그것이 무엇을 의미하는가"는 검증 에이전트가 판단합니다.
+
+| 행위 | 구조 인식 (Explorer 허용) | 온톨로지적 해석 (Explorer 금지) |
+|---|---|---|
+| 코드 | "이 클래스는 3개의 상태 필드를 가진다" | "이것은 Aggregate Root이다" |
+| 스프레드시트 | "이 행은 병합 셀, Bold, 배경색이 다르다" | "이것은 테이블의 헤더이다" |
+| DB | "이 테이블은 FK 없는 3개 컬럼을 가진다" | "이것은 Lookup 테이블이다" |
+
+구조 인식에 해석이 불가피하게 개입되는 경우(스프레드시트의 서식 패턴 등), Explorer는 **관찰 근거를 명시**합니다.
+
+### 소스 유형별 Explorer 프로파일
+
+Explorer의 프로세스 로직은 동일합니다. 소스 유형별 탐색 도구, 구조 인식 범위, 맥락 질문은 **Explorer 프로파일**에 정의됩니다.
+
+| 소스 유형 | 프로파일 |
+|---|---|
+| 코드베이스 | `explorers/code.md` |
+| 스프레드시트 | `explorers/spreadsheet.md` |
+| DB | `explorers/database.md` |
+| 문서 | `explorers/document.md` |
+
+새 소스 유형 추가 시: `explorers/{source_type}.md` 생성 + 이 테이블에 행 추가.
+
+각 프로파일 파일은 다음을 정의합니다: 탐색 도구, module_inventory 단위, 구조 인식 범위, 소스 유형 판별 조건, detail 위치 표기 형식, Phase 0.5 맥락 질문, Phase 0.5 스캔 대상.
+
+비코드 소스의 탐색 도구가 가용하지 않을 경우(MCP 서버 미설정 등), 사용자에게 안내하고 프로세스를 중단합니다.
 
 ---
 
@@ -114,19 +161,19 @@ element_types:
 
 탐색 시작 전에 가용한 맥락을 최대한 수집합니다.
 
-**0.5.1 프로젝트 전체 디렉토리 스캔**
-- 프로젝트 최상위 디렉토리 목록을 수집합니다. 이 목록은 Phase 1의 종료 조건(커버리지 분모)으로 사용됩니다.
-- `README.md`, `CLAUDE.md` 읽기 → 시스템 목적, 아키텍처 원칙 추출
-- 문서 디렉토리(`docs/`, `*-docs/`, `**/document/`) 존재 여부 확인 → Explorer 초기 탐색 대상에 포함
-- 테스트 코드(`test/`, `__tests__/`, `spec/`), CI/CD(`.github/workflows/`), API 명세(`openapi.yml`, `swagger.json`), 인프라(`Dockerfile`, `k8s/`, `terraform/`) 존재 여부 확인 → context_brief에 기록
+**0.5.1 소스 유형 판별 및 스캔**
+
+$ARGUMENTS와 파일 확장자/내용으로 소스 유형을 자동 판별합니다. 판별이 모호한 경우(`.json`, `.csv` 등 복수 유형에 해당하는 확장자), 사용자에게 소스 유형을 질문합니다.
+
+소스 유형 판별 후, 해당 프로파일(`explorers/{source_type}.md`)에 정의된 탐색 도구의 가용성을 확인합니다. 도구가 미가용(MCP 서버 미설정 등)이면 사용자에게 안내하고 프로세스를 중단합니다. 이 검증은 Schema 선택(Phase 0) 전에 완료하여, 사용자의 시간 낭비를 방지합니다.
+
+소스 유형별 스캔 대상은 각 Explorer 프로파일의 "Phase 0.5 스캔 대상" 섹션에 정의됩니다. 소스 유형별 맥락 질문은 프로파일의 "Phase 0.5 맥락 질문" 섹션에 정의됩니다.
+
+프로젝트 최상위 모듈 목록을 수집합니다(`all_modules`). 이 목록은 Explorer의 초기 탐색 범위를 안내하는 참조 정보입니다. 커버리지 분모는 Explorer가 Round 0에서 보고하는 `module_inventory`이며, `all_modules`와 다를 수 있습니다.
 
 **0.5.2 사용자 맥락 질문**
-- "이 시스템의 핵심 비즈니스 흐름을 한 문장으로 설명해 주실 수 있나요?"
-- "레거시 마이그레이션 이력이 있나요?"
-- "관련 레포지토리(프론트엔드, 문서 등)가 있나요?"
-- "이미 정의된 도메인 용어집이 있나요?"
 
-사용자가 "없음" 또는 "모름"이면 생략하고 진행합니다.
+Explorer 프로파일의 "Phase 0.5 맥락 질문"을 사용합니다. 사용자가 "없음" 또는 "모름"이면 생략하고 진행합니다.
 
 **0.5.3 관련 소스 식별**
 - $ARGUMENTS가 GitHub URL이면 자동 클론
@@ -139,23 +186,17 @@ element_types:
 
 ```yaml
 context_brief:
-  system_purpose: "{시스템이 해결하는 문제 — 1-2문장}"
-  architecture: "{주요 기술 스택, 패키지 구조 — CLAUDE.md 기반}"
+  source_type: code | spreadsheet | database | document | mixed
+  source_profile:
+    type: {소스 유형}
+    format: {xlsx | csv | sql | py | java | ...}
+  system_purpose: "{대상이 해결하는 문제 — 1-2문장}"
+  architecture: "{주요 기술 스택/구조 — CLAUDE.md 또는 사용자 발언 기반}"
   legacy_context: "{레거시 이력 — 사용자 발언 기반}"
   sources:
-    - type: backend-code
+    - type: {소스 유형}
       path: {경로}
-    - type: frontend-code
-      path: {경로}
-    - type: domain-docs
-      path: {경로}
-    - type: test-code
-      path: {경로}
-    - type: api-spec
-      path: {경로}
-    - type: infra
-      path: {경로}
-  all_directories: [{최상위 디렉토리 전체 목록}]
+  all_modules: [{최상위 모듈/시트/테이블 전체 목록}]
   known_terms: [{사용자가 제공한 도메인 용어}]
 ```
 
@@ -164,7 +205,7 @@ context_brief:
 ### Phase 1: 적분형 탐색 루프
 
 `process.md`의 **Agent Teams 실행 방식**을 따릅니다 (에러 처리 규칙 포함).
-TeamCreate로 팀(`onto-buildfromcode`)을 생성합니다.
+TeamCreate로 팀(`onto-build`)을 생성합니다.
 
 **에러 처리 (build 고유)**:
 - **Explorer 실패**: 프로세스 중단 + 사용자 안내 (대체 불가 단일 지점).
@@ -174,37 +215,40 @@ TeamCreate로 팀(`onto-buildfromcode`)을 생성합니다.
 #### 1.0 팀 구성
 
 다음 에이전트를 teammate로 생성합니다:
-- **explorer**: 코드 탐색 전담. Explore 타입 subagent 사용 권장.
-- **검증 에이전트 N인**: 코드를 직접 읽지 않는 분석 에이전트.
+- **explorer**: 소스 탐색 전담. Explore 타입 subagent 사용 권장.
+- **검증 에이전트 N인**: 소스를 직접 탐색하지 않는 분석 에이전트.
 - **philosopher**: epsilon 조율 + 수렴 판정 + patch 적용.
 
-Explorer 초기 prompt:
+Explorer 초기 prompt 구성:
+
+team lead가 Phase 0.5에서 판별한 소스 유형에 따라, `explorers/{source_type}.md` 프로파일을 읽고 아래 템플릿의 변수를 채웁니다.
+
 ```
-당신은 코드 탐색자(Explorer)입니다.
-onto-buildfromcode 팀에 참여합니다.
+당신은 소스 탐색자(Explorer)입니다.
+onto-build 팀에 참여합니다.
 
 [역할]
-코드베이스를 직접 읽고, 도메인 사실 보고(delta)를 생성합니다.
+분석 대상을 직접 탐색하고, 도메인 사실 보고(delta)를 생성합니다.
 당신은 온톨로지적 해석(이것이 Entity인가, Aggregate인가)을 하지 않습니다.
-코드에서 관찰한 사실을 도메인 언어로 서술하는 것이 당신의 역할입니다.
+소스에서 관찰한 사실을 도메인 언어로 서술하는 것이 당신의 역할입니다.
+구조 인식(서식 차이, 참조 관계 등의 관찰)은 수행하되, 관찰 근거를 명시하세요.
+
+[소스 유형: {source_type}]
+- 탐색 도구: {프로파일의 "탐색 도구"}
+- module_inventory 단위: {프로파일의 "module_inventory 단위"}
+- 구조 인식 범위: {프로파일의 "구조 인식 범위"}
+- detail 위치 표기: {프로파일의 "detail 위치 표기"}
+
+[구조 인식 예시]
+{프로파일의 "구조 인식 예시" — 올바른 보고 / 해서는 안 되는 보고}
 
 [certainty 판정 규칙]
-각 fact에 대해 2단계 중 1차만 판정합니다:
-- deterministic: 코드에서 직접 관찰한 사실 (클래스 정의, 필드, 관계, 제약)
-- non-deterministic: 코드만으로 완전히 확인할 수 없는 사실
+각 fact에 대해 1차 판정만 수행합니다:
+- observed: 소스에서 직접 관찰한 사실 (구조, 값, 관계, 제약)
+- pending: 소스만으로 완전히 확인할 수 없는 사실
 
-판별 기준: "코드를 변경하지 않으면 이 사실도 변하지 않는가?" → 예이면 deterministic.
-경계 사례: 하드코딩된 상수(예: MIN_PAYMENT=500)는 deterministic (값 자체는 코드에서 확인 가능). 그 상수의 근거(왜 500인가)는 non-deterministic.
-
-[해석 금지 범위]
-다음은 하지 마세요:
-- "이것은 Aggregate이다" 같은 온톨로지 유형 판단
-- "이 정책은 비즈니스 요구사항에서 비롯된 것이다" 같은 의도 추론
-- "이 구조는 좋다/나쁘다" 같은 가치 판단
-
-다음은 해야 합니다:
-- "이 클래스는 3개의 상태 필드를 가진다" 같은 관찰 사실 서술
-- "이 필드는 다른 테이블의 ID를 참조하지만 JPA 관계 매핑이 없다" 같은 관찰
+판별 기준: "소스를 변경하지 않으면 이 사실도 변하지 않는가?" → 예이면 observed.
+경계 사례: 하드코딩된 상수(예: MIN_PAYMENT=500)는 observed (값 자체는 소스에서 확인 가능). 그 상수의 근거(왜 500인가)는 pending.
 
 [context_brief]
 {Phase 0.5에서 수집한 맥락 — context_brief.yml 내용}
@@ -213,7 +257,7 @@ onto-buildfromcode 팀에 참여합니다.
 아래 "Delta 형식" 참조.
 
 [팀 규칙]
-- team lead의 탐색 지시(통합 epsilon)를 받아 코드를 탐색합니다.
+- team lead의 탐색 지시(통합 epsilon)를 받아 소스를 탐색합니다.
 - 탐색 결과를 delta 형식으로 team lead에게 보고합니다.
 - 탐색에 실패한 경우(파일 접근 불가, 파싱 불가 등), delta의 status를 failed로 보고합니다.
 - 한국어(존댓말)로 답변하세요.
@@ -226,27 +270,30 @@ onto-buildfromcode 팀에 참여합니다.
 [작업 지시 — build 모드]
 당신은 build 모드로 동작합니다.
 review 모드에서 당신의 역할은 "검증"이지만, build 모드에서는 "자기 축에서의 빈 영역 식별 + label 부여"로 전환됩니다.
-코드를 직접 읽지 않습니다. Explorer가 보고한 delta(도메인 사실 보고)를 분석합니다.
+소스를 직접 탐색하지 않습니다. Explorer가 보고한 delta(도메인 사실 보고)를 분석합니다.
 
 각 라운드에서 team lead가 전달하는 내용:
+- 소스 유형 (code / spreadsheet / database / document)
 - 이번 라운드의 delta (Explorer 보고)
 - 현재까지 확정된 요소 목록 (anonymized wip — 누가 labeling했는지는 미포함)
+
+delta의 `source.type`과 `detail` 필드의 위치 표기는 소스 유형에 따라 다릅니다 (파일:라인, 시트:셀범위, 스키마.테이블.컬럼 등). 소스 유형별 표기 규칙은 `explorers/{source_type}.md`의 "detail 위치 표기"를 참조하세요.
 
 수행 절차:
 1. **Label**: delta의 각 fact에 대해, 당신의 전문 영역 관점에서 온톨로지 요소 유형을 부여합니다.
    - schema의 element_types 중 해당하는 것을 지정
    - 해당 없으면 "label 없음"
    - 근거를 1문장으로 명시
-   - fact의 certainty가 non-deterministic이면, 아래 세분화를 수행:
-     * code-embedded-policy: 코드에 로직이 있으나 그 근거(정책)가 코드에 없음
-     * inferred: 코드에서 직접 확인되지 않는 추론
-     * not-in-code: 이 소스에서 결정 불가
+   - fact의 certainty가 pending이면, 아래 세분화를 수행:
+     * rationale-absent: 구현은 소스에 있으나 그 근거가 소스에 없음
+     * inferred: 소스에서 직접 확인되지 않는 추론. abduction_quality도 평가
+     * not-in-source: 이 소스에서 결정 불가
 
 2. **Certainty별 처리 규칙**:
-   - deterministic fact: 정상적으로 label 부여
-   - code-embedded-policy fact: label 부여 + "정책 근거 미확인" issue 등록
-   - inferred fact: label 부여 가능하나 certainty를 label에 전파
-   - not-in-code fact: label 부여 불가. "이 영역에 개념 존재 가능" placeholder 기록 → Phase 3에서 사용자 결정 대상
+   - observed fact: 정상적으로 label 부여
+   - rationale-absent fact: label 부여 + "근거 미확인" issue 등록
+   - inferred fact: label 부여 가능하나 certainty를 label에 전파. 후속 라운드에서 반박 시 pending로 강등
+   - not-in-source fact: label 부여 불가. "이 영역에 개념 존재 가능" placeholder 기록 → Phase 3에서 사용자 결정 대상
 
 3. **Epsilon**: 현재까지의 누적 요소 목록과 delta에서, 당신의 관점에서 아직 탐색되지 않은 영역을 제시합니다.
    - 구체적인 탐색 방향 (어디를, 무엇을 확인해야 하는지)
@@ -262,26 +309,59 @@ review 모드에서 당신의 역할은 "검증"이지만, build 모드에서는
 아래 "Label/Epsilon 형식" 참조.
 ```
 
+Philosopher 초기 prompt:
+```
+당신은 조율자(Philosopher)입니다.
+onto-build 팀에 참여합니다.
+
+[역할]
+검증 에이전트들의 epsilon을 통합 지시로 조율하고, 수렴을 판정하며, 온톨로지의 일관성을 관리합니다.
+labels를 patch로 변환하여 wip.yml을 갱신합니다.
+
+[수행 절차]
+각 라운드에서 team lead가 전달하는 내용:
+- 검증 에이전트들의 labels, epsilons, issues
+- 현재 wip.yml
+
+수행:
+1. labels를 아래 "Patch 형식"에 따라 patch로 변환하여 wip.yml 갱신
+2. epsilons 간 충돌 조율 (우선순위 판정)
+3. certainty 재분류 요청 반영
+4. 수렴 판정 — 아래 "convergence_status 형식" 사용
+5. 통합 탐색 지시 생성 — 아래 "epsilon 통합 형식" 사용
+
+[patch 형식]
+아래 "Patch 형식" 참조.
+
+[convergence_status 형식]
+아래 "Philosopher의 epsilon 통합 형식" 참조.
+
+[팀 규칙]
+- team lead의 지시를 받아 작업합니다.
+- 한국어(존댓말)로 답변하세요.
+- 비유/은유를 사용하지 마세요.
+```
+
 #### 1.1 Round 0: 초기 탐색
 
 team lead가 Explorer에게 초기 탐색을 지시합니다:
 
 ```
 [초기 탐색 지시]
-코드베이스의 전체 구조를 파악하세요:
-1. 소스 디렉토리 구조 (패키지/모듈 목록)
-2. 각 모듈의 핵심 엔티티 (domain/ 디렉토리의 클래스 목록과 1줄 요약)
-3. 프로젝트 문서가 있으면 (docs/, README.md 등) 핵심 내용 요약
-4. 기술 스택 확인 (build 파일, 설정 파일)
+분석 대상의 전체 구조를 파악하세요:
+1. 소스 구조 (패키지/모듈/시트/테이블 목록)
+2. 각 모듈의 핵심 엔티티 (도메인 모델의 목록과 1줄 요약)
+3. 문서가 있으면 핵심 내용 요약
+4. 기술 스택/포맷 확인
 
-깊이: 각 모듈의 domain/ 디렉토리까지만. 서비스 로직은 아직 보지 마세요.
-Phase 0.5에서 이미 수집한 문서(README.md, CLAUDE.md)는 중복 탐색하지 마세요.
+깊이: 각 모듈의 도메인 모델까지만. 세부 로직은 아직 보지 마세요.
+Phase 0.5에서 이미 수집한 문서는 중복 탐색하지 마세요.
 
 [module_inventory 보고]
 delta₀에 반드시 module_inventory를 포함하세요:
-- 탐색 대상이 되는 모든 소스 디렉토리/모듈의 목록
+- 탐색 대상이 되는 모든 모듈/시트/테이블의 목록
 - 이 목록은 종료 조건의 커버리지 분모로 사용됩니다
-- 형식: module_inventory: [{모듈 경로 목록}]
+- 형식: module_inventory: [{모듈 목록}]
 ```
 
 Explorer가 delta₀를 보고하면, team lead가 내용을 수정하지 않고 검증 에이전트들에게 전달합니다.
@@ -353,10 +433,10 @@ patch:
       type: {element_type}
       name: {이름}
       definition: {정의}
-      certainty: {deterministic | code-embedded-policy | inferred | not-in-code}
+      certainty: {observed | rationale-absent | inferred | not-in-source}
       labeled_by: [{label을 부여한 에이전트}]
       source_deltas: [{근거 delta ID}]
-      source_files: [{파일 목록}]
+      source_locations: [{소스 위치 목록}]
       details: {type별 상세}
 
     - operation: update
@@ -371,6 +451,13 @@ patch:
       reported_by: {보고 에이전트}
       resolution: pending | resolved
       # pending이면 issues에 기록, Phase 2에서 Philosopher가 최종 판정
+
+    - operation: demote
+      target_id: {기존 element ID}
+      from_certainty: inferred
+      to_certainty: pending
+      reason: "{반박 근거}"
+      # 후속 라운드에서 기존 inferred fact가 반박된 경우
 ```
 
 **Patch 적용 규칙**:
@@ -378,6 +465,7 @@ patch:
 - 기존 element에 추가 label (update): labeled_by에 에이전트 추가, details 보강
 - 동일 type의 복수 에이전트 label (update): labeled_by 목록에 에이전트 추가 (합의로 간주)
 - 기존 element과 모순되는 label (conflict): issues에 기록, Philosopher가 Phase 2에서 판정
+- 기존 inferred element 반박 (demote): certainty를 pending로 강등, 다음 라운드에서 재판정
 
 온톨로지는 `{project}/.onto-review/builds/{세션 ID}/wip.yml`에 라운드마다 갱신됩니다.
 Delta 원문은 `{project}/.onto-review/builds/{세션 ID}/deltas/d-{round}-{seq}.yml`에 저장됩니다.
@@ -386,6 +474,7 @@ Delta 원문은 `{project}/.onto-review/builds/{세션 ID}/deltas/d-{round}-{seq
 # wip.yml — 라운드마다 갱신
 meta:
   schema: ./schema.yml
+  source_type: {code | spreadsheet | database | document | mixed}
   round: {현재 라운드}
   status: in_progress
   module_inventory: [{Round 0에서 확정된 모듈 목록}]
@@ -400,7 +489,7 @@ elements:
     labeled_by: [{label을 부여한 에이전트 목록}]
     source_deltas: [{근거가 된 delta ID 목록}]
     source:
-      files: [{파일 목록}]
+      locations: [{소스 위치 목록}]
       scope: {탐색 범위}
     details: {type별 상세}
 
@@ -429,16 +518,19 @@ delta:
   module_inventory: [{탐색 대상 모듈 전체 목록}]
 
   source:
-    scope: "{탐색한 범위 (디렉토리 또는 파일 그룹)}"
-    files: [{읽은 파일 목록}]
+    type: {code | spreadsheet | database | document}
+    scope: "{탐색한 범위 (디렉토리, 시트, 테이블 등)}"
+    locations: [{탐색한 소스 위치 목록}]
 
   facts:
     - subject: "{도메인 개체 또는 관계}"
-      statement: "{도메인 사실 — Level 2}"
-      certainty: deterministic | non-deterministic
+      statement: "{도메인 사실}"
+      certainty: observed | pending
       detail:  # 필수
-        - "{코드 수준 사실 — 파일:라인}"  # certainty=deterministic 시
-        - "{추론 근거 — 어떤 관찰에서 추론했는가}"  # certainty=non-deterministic 시
+        - "{소스 위치 포함 설명}"
+        # 코드: "필드 정의 — User.java:42"
+        # 스프레드시트: "수식 =SUM(B2:B10) — Sheet1:B11"
+        # DB: "FK 제약 — orders.user_id → users.id"
     # ... 추가 fact
 
   open_questions:  # Explorer도 해결하지 못한 불확실성
@@ -447,38 +539,14 @@ delta:
 
 **status 필드**:
 - `success`: 탐색 성공, facts가 포함됨
-- `partial`: 일부 파일 탐색 실패, 읽은 파일의 facts는 포함됨
+- `partial`: 일부 소스 탐색 실패, 탐색된 부분의 facts는 포함됨
 - `failed`: 해당 방향 전체 탐색 실패, facts 비어 있음
 
 검증 에이전트는 status가 `failed`인 delta를 수신하면, 해당 방향을 "미탐색"으로 기록합니다 (delta=0과 구분).
 
 **detail 필드 형식 (certainty별)**:
-- `deterministic`: `"필드/관계 설명 — 파일:라인"` (코드 위치 필수)
-- `non-deterministic`: `"추론 근거 설명"` 또는 `"탐색 범위 — 어디를 확인했으나 발견하지 못했는가"`
-
-**Level 2 (도메인 사실)의 기준**:
-- 코드에 근거하되 도메인 언어로 서술
-- 온톨로지적 해석(Entity인가, Aggregate인가)을 포함하지 않음
-- 각 fact의 source(파일)를 통해 Level 0(코드)까지 역추적 가능
-
-예시 (이것은 올바른 Level 2):
-```yaml
-- subject: "수업(Lecture)"
-  statement: "수업에는 3개의 독립적 상태 축이 존재한다"
-  certainty: deterministic
-  detail:
-    - "status: LectureStatus enum (NONE=0, REGIST=1, DONE=2, CANCEL=3) — Lecture.java:77"
-    - "invoiceStatus: InvoiceStatus inner enum (8값) — Lecture.java:226"
-    - "classState: String (5값) — Lecture.java:199"
-```
-
-예시 (이것은 Level 2가 아님 — 온톨로지적 해석을 포함):
-```yaml
-# 잘못된 예시: Explorer가 해서는 안 되는 것
-- subject: "수업(Lecture)"
-  statement: "수업은 Aggregate Root이며, LectureOnline과 LectureStatusHistory를 하위 엔티티로 포함한다"
-  # → 이것은 검증 에이전트의 label 영역
-```
+- `observed`: `"구조/값 설명 — 소스 위치"` (소스 위치 필수)
+- `pending`: `"추론 근거 설명"` 또는 `"탐색 범위 — 어디를 확인했으나 발견하지 못했는가"`
 
 ---
 
@@ -495,22 +563,25 @@ labels:
     fact_index: {해당 fact의 인덱스, 0부터}
     type: "{schema의 element_type 또는 relation/constraint/issue}"
     target: "{온톨로지 요소 이름}"
-    certainty_refinement: "{non-deterministic → code-embedded-policy/inferred/not-in-code. deterministic이면 생략}"
-    rationale: "{왜 이 유형으로 판단했는가 — 1문장}"
+    certainty_refinement: "{pending → rationale-absent/inferred/not-in-source. observed이면 생략}"
+    abduction_quality:  # inferred일 때만. Phase 3 사용자 결정 우선순위에 사용
+      explanatory_power: high | medium | low
+      coherence: consistent | partial | conflicting
+    justification: "{왜 이 유형으로 판단했는가 — 1문장}"
     details: {추가 속성}
   # ... 추가 label
 
 epsilons:
   - direction: "{어디를 무엇을 확인해야 하는가}"
     priority: high | medium | low
-    rationale: "{왜 이 방향이 필요한가 — 1문장}"
+    justification: "{왜 이 방향이 필요한가 — 1문장}"
   # ... 없으면 빈 배열 []
 
 issues:
   - description: "{발견된 문제}"
     severity: critical | warning | info
     issue_type: finding | certainty_reclassification
-    rationale: "{왜 문제인가}"
+    justification: "{왜 문제인가}"
   # ... 없으면 빈 배열 []
 
 learnings:
@@ -556,7 +627,7 @@ integrated_directions:
 
 # 커버리지 미충족 시 강제 생성
 forced_directions:
-  - direction: "{미탐색 모듈} 디렉토리의 도메인 모델을 탐색하라"
+  - direction: "{미탐색 모듈}을 탐색하라"
     reason: "커버리지 미충족"
     priority: high
 ```
@@ -598,6 +669,7 @@ wip.yml을 최종 검토하세요.
 
 ### 구조: {schema name}
 ### 분석 대상: {$ARGUMENTS 또는 프로젝트 전체}
+### 소스 유형: {code | spreadsheet | database | document | mixed}
 ### 탐색 라운드: {N}회 ({수렴 | 최대 도달})
 
 ---
@@ -605,10 +677,10 @@ wip.yml을 최종 검토하세요.
 ### certainty 분포
 | 등급 | 요소 수 | 비율 |
 |---|---|---|
-| deterministic | N | N% |
-| code-embedded-policy | N | N% |
+| observed | N | N% |
+| rationale-absent | N | N% |
 | inferred | N | N% |
-| not-in-code | N | N% |
+| not-in-source | N | N% |
 
 ### 탐색 커버리지
 | 라운드 | 탐색 범위 | 새 fact 수 | 새 element 수 |
@@ -621,8 +693,12 @@ wip.yml을 최종 검토하세요.
 |---|---|---|---|---|---|
 
 ### 사용자 결정 필요 항목
-| # | 요소 | certainty | 결정 질문 |
-|---|---|---|---|
+| # | 요소 | certainty | 결정 질문 | 추론 품질 (inferred만) |
+|---|---|---|---|---|
+
+- `rationale-absent` 항목: "구현은 확인되었으나 근거를 알려주세요"
+- `inferred` 항목: 추론 품질(explanatory_power, coherence) 순으로 정렬 — 품질 낮은 추론이 우선 확인 대상
+- `not-in-source` 항목: "이 소스에서 확인할 수 없습니다. 정보를 제공해 주세요"
 
 ### 발견된 이슈 — N건
 | # | 심각도 | 설명 | 식별 라운드 |
@@ -649,6 +725,7 @@ wip.yml을 최종 검토하세요.
 # Raw Ontology — 적분형 탐색으로 생성됨
 meta:
   schema: ./schema.yml
+  source_type: {code | spreadsheet | database | document | mixed}
   domain: {domain}
   source: {분석 대상 경로}
   date: {날짜}
@@ -662,11 +739,11 @@ elements:
     type: {schema의 element_type}
     name: {이름}
     definition: {정의}
-    certainty: {deterministic | code-embedded-policy | inferred | not-in-code}
+    certainty: {observed | rationale-absent | inferred | not-in-source}
     added_in_round: {라운드}
     labeled_by: [{에이전트}]
     source:
-      files: [{파일}]
+      locations: [{소스 위치}]
       deltas: [{delta ID}]
     details: {}
 
@@ -680,7 +757,7 @@ relations:
     added_in_round: {라운드}
     labeled_by: [{에이전트}]
     source:
-      files: [{파일}]
+      locations: [{소스 위치}]
       deltas: [{delta ID}]
 
 constraints:
@@ -691,7 +768,7 @@ constraints:
     added_in_round: {라운드}
     labeled_by: [{에이전트}]
     source:
-      files: [{파일}]
+      locations: [{소스 위치}]
       deltas: [{delta ID}]
 
 ubiquitous_language:
@@ -712,11 +789,11 @@ issues:
     description: {설명}
     reported_by: [{agent-id}]
     discovered_in_round: {라운드}
-    rationale: {이유}
+    justification: {이유}
 ```
 
 **저장 규칙**:
-- schema.yml이 없으면 `.onto-review/builds/{세션 ID}/` 디렉토리와 함께 생성
+- schema.yml이 없으면 `.onto-review/builds/` 디렉토리와 함께 생성
 - raw.yml이 이미 존재하면 덮어쓰기 전에 사용자에게 확인
 - wip.yml, deltas/ 디렉토리는 raw.yml 저장 후 삭제
 - context_brief.yml은 유지 (향후 재실행 시 참조)
@@ -736,9 +813,10 @@ Explorer는 학습을 저장하지 않습니다 (해석을 하지 않으므로).
 | 항목 | 값 |
 |---|---|
 | 구조 | {schema name} |
+| 소스 유형 | {source_type} |
 | 탐색 라운드 | {N}회 |
 | 수렴 상태 | {converged / max_rounds_reached} |
-| 요소 | N건 (deterministic N / policy N / inferred N / not-in-code N) |
+| 요소 | N건 (observed N / rationale-absent N / inferred N / not-in-source N) |
 | 관계 | N건 |
 | 제약 | N건 |
 | 용어 | N건 |
@@ -756,11 +834,25 @@ Explorer는 학습을 저장하지 않습니다 (해석을 하지 않으므로).
 
 ---
 
-## 대상 코드 수집 규칙
+## 대상 소스 수집 규칙
 
 - $ARGUMENTS가 디렉토리인 경우: 해당 디렉토리를 주 탐색 대상으로 설정.
+- $ARGUMENTS가 파일(.xlsx, .csv 등)인 경우: 해당 파일을 탐색 대상으로 설정.
 - $ARGUMENTS가 GitHub URL인 경우: 자동 클론 후 탐색 대상으로 설정.
 - $ARGUMENTS가 없는 경우: 프로젝트 루트를 탐색 대상으로 설정.
 - 바이너리, node_modules, .git, 빌드 산출물은 제외.
 - 비코드 텍스트 파일(마이그레이션, Proto, ADR)은 탐색 대상에 포함.
 - Explorer가 Round 0에서 module_inventory를 보고. 50개 이상이면 Phase 0.5의 context_brief를 기반으로 초기 탐색 범위를 좁히되, module_inventory에는 전체 목록을 유지합니다.
+
+---
+
+## 변경 전파 체크리스트
+
+이 파일(build.md)을 변경할 때, 아래 문서의 해당 섹션을 동기화해야 합니다.
+
+| 문서 | 동기화 대상 섹션 |
+|---|---|
+| `README.md` | 3행(설명), 에이전트 테이블, "온톨로지 구축" 섹션, certainty 설명, 디렉토리 구조 |
+| `BLUEPRINT.md` | 2절(용어 정의), 3.6절(Explorer), 4.3절(build), certainty 테이블, 디렉토리 구조, MCP 인터페이스 |
+| `process.md` | Teammate prompt 템플릿의 certainty 관련, 에이전트-도메인 문서 매핑 |
+| `explorers/*.md` | 소스 유형별 프로파일 — build.md의 certainty 등급명/형식이 변경되면 프로파일의 예시도 동기화 |

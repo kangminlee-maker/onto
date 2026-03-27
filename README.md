@@ -149,7 +149,10 @@ Claude Code에서 아래 명령어를 순서대로 실행합니다:
 ```
 0.  Schema 협의 (사용자와 온톨로지 구조 선택)
 0.5 Context Gathering (문서, 사용자 맥락, 관련 레포 수집)
-1.  적분형 탐색 루프 (Explorer ↔ 검증 에이전트 ↔ Philosopher, 최대 7라운드)
+1.  적분형 탐색 루프 — 2개 Stage로 진행
+    ├── Stage 1: Structure (Entity, Enum, Relation, Property 식별, 최대 5라운드)
+    └── Stage 2: Behavior (State Machine, Command, Query, Policy, Flow 식별, 최대 5라운드)
+    Stage 1 수렴 후 Stage 2 진행. Stage 2는 Stage 1의 확정 결과를 참조합니다.
 2.  최종화 (Philosopher 검토, wip.yml → raw.yml)
 3.  사용자 확인 (certainty 분포, 커버리지, 결정 필요 항목 제시)
 4.  저장
@@ -177,6 +180,7 @@ onto-review/
 │   ├── onto_evolution.md   # 확장·진화 적합성
 │   ├── onto_coverage.md    # 도메인 포괄성
 │   └── philosopher.md      # 목적 정합성
+├── golden/                 # 스키마별 golden example + 스키마 템플릿
 ├── KNOWN-ISSUES.md         # 알려진 이슈 및 해결 방안
 ├── commands/               # 13개 명령어 정의
 └── .claude-plugin/         # 플러그인 메타데이터

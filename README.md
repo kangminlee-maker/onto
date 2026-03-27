@@ -205,9 +205,9 @@ onto-review/
 
 | 학습 유형 | 저장 위치 | 범위 | 유형 태깅 |
 |---|---|---|---|
-| 소통 학습 | `~/.claude/agent-memory/communication/` | 사용자 소통 선호 | — |
-| 방법론 학습 | `~/.claude/agent-memory/methodology/` | 도메인 무관 검증 원칙 | [사실] / [판단] |
-| 도메인 학습 | `{project}/.onto-review/learnings/` (프로젝트) 또는 `~/.claude/agent-memory/domains/{domain}/learnings/` (글로벌) | 특정 도메인/프로젝트 학습 | [사실] / [판단] |
+| 소통 학습 | `~/.onto-review/communication/` | 사용자 소통 선호 | — |
+| 방법론 학습 | `~/.onto-review/methodology/` | 도메인 무관 검증 원칙 | [사실] / [판단] |
+| 도메인 학습 | `{project}/.onto-review/learnings/` (프로젝트) 또는 `~/.onto-review/domains/{domain}/learnings/` (글로벌) | 특정 도메인/프로젝트 학습 | [사실] / [판단] |
 
 - 프로젝트 수준 학습은 `/onto-promotelearnings`로 글로벌 수준에 승격할 수 있습니다
 - 도메인 문서는 사용자의 명시적 승인 없이 자동 수정되지 않습니다

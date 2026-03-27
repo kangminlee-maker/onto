@@ -9,16 +9,16 @@
 
 1. **에이전트 파일 수집**:
    - 정의: `~/.claude/plugins/onto-review/roles/{agent-id}.md`
-   - 방법론 학습: `~/.claude/agent-memory/methodology/{agent-id}.md`
-   - 소통 학습 (공통): `~/.claude/agent-memory/communication/common.md`
-   - 소통 학습 (개별): `~/.claude/agent-memory/communication/{agent-id}.md`
+   - 방법론 학습: `~/.onto-review/methodology/{agent-id}.md`
+   - 소통 학습 (공통): `~/.onto-review/communication/common.md`
+   - 소통 학습 (개별): `~/.onto-review/communication/{agent-id}.md`
    - 파일이 없으면 무시합니다.
 
 2. **도메인 문서 수집**:
-   - 도메인 판별 후, `~/.claude/agent-memory/domains/{domain}/` 하위에서 해당 에이전트의 도메인 문서를 읽습니다.
+   - 도메인 판별 후, `~/.onto-review/domains/{domain}/` 하위에서 해당 에이전트의 도메인 문서를 읽습니다.
 
 3. **도메인 학습 수집** (반드시 수행):
-   - 글로벌: `~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md`
+   - 글로벌: `~/.onto-review/domains/{domain}/learnings/{agent-id}.md`
    - **프로젝트**: `{project}/.onto-review/learnings/{agent-id}.md` — 해당 프로젝트에서 축적된 학습. **이 디렉토리가 존재하면 반드시 읽어야 합니다.**
    - 파일이 없으면 무시합니다.
 
@@ -40,7 +40,7 @@ Agent tool로 해당 에이전트를 **1인 실행**합니다.
 {~/.claude/plugins/onto-review/roles/{agent-id}.md 내용}
 
 [과거 학습 — 방법론]
-{~/.claude/agent-memory/methodology/{agent-id}.md 내용. 없으면 "아직 없음"}
+{~/.onto-review/methodology/{agent-id}.md 내용. 없으면 "아직 없음"}
 
 [과거 학습 — 도메인]
 {도메인 학습 (글로벌 + 프로젝트) 내용. 없으면 "아직 없음"}

@@ -13,8 +13,8 @@
 |---|---|---|
 | 프로젝트 학습 디렉토리 | `{project}/.onto-review/learnings/` | 존재 / 미존재 |
 | 도메인 선언 | `{project}/.onto-review/config.yml` 또는 `{project}/CLAUDE.md` 내 `domain:` | 선언됨 / 미선언 |
-| 글로벌 도메인 문서 | `~/.claude/agent-memory/domains/{domain}/` | 존재 / 미존재 / 해당없음(도메인 미선언) |
-| 글로벌 에이전트 메모리 | `~/.claude/agent-memory/` 하위 디렉토리들 | 존재하는 파일 목록 |
+| 글로벌 도메인 문서 | `~/.onto-review/domains/{domain}/` | 존재 / 미존재 / 해당없음(도메인 미선언) |
+| 글로벌 에이전트 메모리 | `~/.onto-review/` 하위 디렉토리들 | 존재하는 파일 목록 |
 
 ### 2. 사용자 확인
 
@@ -48,11 +48,11 @@
 - 보조 도메인이 있으면 `.onto-review/config.yml`에 `secondary_domains: {domain1}, {domain2}` 줄을 추가합니다.
 
 **3.3 글로벌 도메인 문서 설치**
-- 지정된 도메인의 글로벌 문서(`~/.claude/agent-memory/domains/{domain}/`)가 없거나 불완전하면:
+- 지정된 도메인의 글로벌 문서(`~/.onto-review/domains/{domain}/`)가 없거나 불완전하면:
   1. 플러그인의 `domains/` 디렉토리에 해당 도메인의 기본 문서가 존재하는지 확인합니다.
   2. 존재하면 설치를 제안합니다:
      "도메인 `{domain}`의 기본 문서가 플러그인에 포함되어 있습니다 ({N}개 파일). 설치할까요? 기존 학습(learnings)은 보존됩니다."
-  3. 사용자가 승인하면: 플러그인의 `domains/{domain}/` 내 기본 문서(*.md)를 `~/.claude/agent-memory/domains/{domain}/`에 복사합니다. `learnings/` 디렉토리도 생성합니다. 기존 파일과 내용이 동일하면 건너뜁니다.
+  3. 사용자가 승인하면: 플러그인의 `domains/{domain}/` 내 기본 문서(*.md)를 `~/.onto-review/domains/{domain}/`에 복사합니다. `learnings/` 디렉토리도 생성합니다. 기존 파일과 내용이 동일하면 건너뜁니다.
   4. 플러그인에 해당 도메인이 없으면 기존 안내를 제공합니다:
      "도메인 `{domain}`의 글로벌 규칙 문서가 아직 없습니다. 리뷰/질문을 반복하면서 학습이 자동으로 축적됩니다. 별도의 도메인 규칙을 미리 정의하고 싶으시면 말씀해 주세요."
 - 보조 도메인이 있으면, 보조 도메인에 대해서도 동일한 설치 확인을 수행합니다.
@@ -60,13 +60,13 @@
 > **참고**: 플러그인에 포함된 기본 도메인 목록은 `setup-domains.sh --all`로 일괄 설치하거나, `setup-domains.sh {도메인1} {도메인2}`로 선택 설치할 수도 있습니다.
 
 **3.4 글로벌 학습 현황 안내**
-- 해당 도메인의 글로벌 학습(`~/.claude/agent-memory/domains/{domain}/learnings/`)이 존재하면 안내합니다:
+- 해당 도메인의 글로벌 학습(`~/.onto-review/domains/{domain}/learnings/`)이 존재하면 안내합니다:
   "도메인 `{domain}`의 글로벌 학습이 {N}건 존재합니다. 이전 프로젝트에서 축적된 검증 경험이 이 프로젝트의 리뷰에도 활용됩니다."
 - 존재하지 않으면 안내하지 않습니다.
 
 **3.5 도메인 범위 문서 초안 생성**
 - `domain_scope.md`는 onto_coverage의 핵심 기준 문서입니다 (범위 정의형 — 부재 시 역할 무력화).
-- `~/.claude/agent-memory/domains/{domain}/domain_scope.md`가 존재하지 않으면, 사용자에게 초안 생성을 제안합니다:
+- `~/.onto-review/domains/{domain}/domain_scope.md`가 존재하지 않으면, 사용자에게 초안 생성을 제안합니다:
   "도메인 `{domain}`의 범위 문서(domain_scope.md)가 없습니다. 이 문서는 '있어야 하는데 없는 것'을 식별하는 기준이 됩니다. 초안을 생성할까요?"
 - 사용자가 승인하면: 프로젝트 코드/문서와 LLM 지식을 활용하여 도메인의 하위 영역 목록, 필수 개념 범주, 참조 표준/프레임워크 초안을 생성합니다.
 - 사용자에게 초안을 제시하고, 수정/확인 후 저장합니다.

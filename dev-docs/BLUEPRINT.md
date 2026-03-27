@@ -471,7 +471,7 @@ build에서 발견한 모든 사실에는 확실성 등급이 부여됩니다.
 
 **도메인 문서 보호 원칙**: 도메인 문서는 에이전트가 자동으로 수정할 수 없습니다. promote의 갱신 제안, onboard의 초안 생성 모두 사용자 확인을 거칩니다. 도메인 문서는 "특정 프로젝트의 학습"이 아니라 "도메인 전체에 적용되는 합의된 기준"이므로, 자동 변경은 위험합니다.
 
-**저장 경로**: `~/.claude/agent-memory/domains/{도메인명}/`
+**저장 경로**: `~/.onto-review/domains/{도메인명}/`
 
 ### 5.3 제공되는 도메인
 
@@ -499,9 +499,9 @@ build에서 발견한 모든 사실에는 확실성 등급이 부여됩니다.
 
 | 학습 유형 | 저장 경로 | 범위 | 예시 |
 |---|---|---|---|
-| **소통 학습** | `~/.claude/agent-memory/communication/` | 사용자의 소통 선호 | "이 사용자는 비유를 싫어한다", "요약 없이 diff만 원한다" |
-| **방법론 학습** | `~/.claude/agent-memory/methodology/{agent-id}.md` | 도메인에 무관한 검증 원칙 | "단일 책임 위반 여부는 클래스명보다 의존 수로 판단하는 것이 정확하다" |
-| **도메인 학습** | `{project}/.onto-review/learnings/{agent-id}.md` (프로젝트) 또는 `~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md` (글로벌) | 특정 도메인/프로젝트에서만 유효한 교훈 | "이 프로젝트의 Payment 모듈은 이벤트 소싱을 사용한다" |
+| **소통 학습** | `~/.onto-review/communication/` | 사용자의 소통 선호 | "이 사용자는 비유를 싫어한다", "요약 없이 diff만 원한다" |
+| **방법론 학습** | `~/.onto-review/methodology/{agent-id}.md` | 도메인에 무관한 검증 원칙 | "단일 책임 위반 여부는 클래스명보다 의존 수로 판단하는 것이 정확하다" |
+| **도메인 학습** | `{project}/.onto-review/learnings/{agent-id}.md` (프로젝트) 또는 `~/.onto-review/domains/{domain}/learnings/{agent-id}.md` (글로벌) | 특정 도메인/프로젝트에서만 유효한 교훈 | "이 프로젝트의 Payment 모듈은 이벤트 소싱을 사용한다" |
 
 ### 6.2 유형 태깅
 
@@ -716,7 +716,7 @@ date: "{YYYY-MM-DD}"
 ### 8.3 글로벌 저장소 (사용자 홈 디렉토리)
 
 ```
-~/.claude/agent-memory/
+~/.onto-review/
 ├── communication/            # 소통 학습
 │   ├── common.md             #   전체 에이전트 공통
 │   └── {agent-id}.md         #   에이전트별 개별
@@ -926,9 +926,9 @@ MCP 서버가 오케스트레이션 소유
   ├─ 세션 관리
   │   └─ {project}/.onto-review/{프로세스}/{세션 ID}/
   ├─ 학습 저장 체계
-  │   └─ ~/.claude/agent-memory/ (기존 구조 유지)
+  │   └─ ~/.onto-review/ (기존 구조 유지)
   └─ 도메인 문서 관리
-      └─ ~/.claude/agent-memory/domains/{domain}/
+      └─ ~/.onto-review/domains/{domain}/
 ```
 
 ### 13.4 MCP Tool 설계

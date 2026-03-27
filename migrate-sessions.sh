@@ -8,6 +8,7 @@
 #   3. .claude/ontology/   → .onto-review/builds/{세션ID}/
 #   4. .onto-review/sessions/ 중간 계층 제거 (sessions/review/ → review/)
 #   5. CLAUDE.md의 domain 설정 → .onto-review/config.yml (CLAUDE.md 비침습)
+#   6. ~/.claude/agent-memory/ → ~/.onto-review/ (글로벌 데이터 분리)
 #
 # 사용법:
 #   ./migrate-sessions.sh                # 현재 디렉토리의 프로젝트를 마이그레이션
@@ -247,7 +248,7 @@ if [ -f "$CLAUDE_MD" ] && [ ! -f "$CONFIG_YML" ]; then
     SECONDARY=$(grep -E '^\s*secondary_domains\s*:' "$CLAUDE_MD" 2>/dev/null | head -1 | sed 's/.*:\s*//')
 
     if [ -n "$DOMAIN" ]; then
-        echo -e "${CYAN}[5/5] CLAUDE.md에서 도메인 설정 발견: ${DOMAIN}${NC}"
+        echo -e "${CYAN}[5/6] CLAUDE.md에서 도메인 설정 발견: ${DOMAIN}${NC}"
         ((TOTAL_ACTIONS++))
 
         if [ "$DRY_RUN" = false ]; then
@@ -262,14 +263,67 @@ if [ -f "$CLAUDE_MD" ] && [ ! -f "$CONFIG_YML" ]; then
         fi
         echo ""
     else
-        echo -e "[5/5] CLAUDE.md에 도메인 설정 없음 (건너뜀)"
+        echo -e "[5/6] CLAUDE.md에 도메인 설정 없음 (건너뜀)"
         echo ""
     fi
 elif [ -f "$CONFIG_YML" ]; then
-    echo -e "[5/5] .onto-review/config.yml 이미 존재 (건너뜀)"
+    echo -e "[5/6] .onto-review/config.yml 이미 존재 (건너뜀)"
     echo ""
 else
-    echo -e "[5/5] CLAUDE.md 없음 (건너뜀)"
+    echo -e "[5/6] CLAUDE.md 없음 (건너뜀)"
+    echo ""
+fi
+
+# ─── 6단계: ~/.claude/agent-memory/ → ~/.onto-review/ (글로벌 데이터) ───
+
+OLD_GLOBAL="$HOME/.claude/agent-memory"
+NEW_GLOBAL="$HOME/.onto-review"
+
+if [ -d "$OLD_GLOBAL" ]; then
+    file_count=$(find "$OLD_GLOBAL" -type f | wc -l | tr -d ' ')
+    echo -e "${CYAN}[6/6] ~/.claude/agent-memory/ 발견 (${file_count}개 파일)${NC}"
+    echo "  → ~/.onto-review/ 로 이동합니다."
+    ((TOTAL_ACTIONS++))
+
+    if [ "$DRY_RUN" = false ]; then
+        # 하위 디렉토리별로 이동 (methodology, communication, domains)
+        for subdir in "$OLD_GLOBAL"/*/; do
+            [ -d "$subdir" ] || continue
+            subname=$(basename "$subdir")
+            dst="$NEW_GLOBAL/$subname"
+
+            if [ -d "$dst" ]; then
+                # 이미 존재하면 파일 단위로 병합 (기존 파일 덮어쓰지 않음)
+                find "$subdir" -type f | while read -r srcfile; do
+                    relpath="${srcfile#$subdir}"
+                    dstfile="$dst/$relpath"
+                    if [ ! -f "$dstfile" ]; then
+                        mkdir -p "$(dirname "$dstfile")"
+                        mv "$srcfile" "$dstfile"
+                        echo -e "  ${GREEN}이동: $subname/$relpath${NC}"
+                    else
+                        echo -e "  ${YELLOW}건너뜀: $subname/$relpath (이미 존재)${NC}"
+                    fi
+                done
+            else
+                mkdir -p "$(dirname "$dst")"
+                mv "$subdir" "$dst"
+                echo -e "  ${GREEN}이동: $subname/${NC}"
+            fi
+        done
+
+        # 빈 디렉토리 정리
+        remaining=$(find "$OLD_GLOBAL" -type f 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$remaining" -eq 0 ]; then
+            rm -rf "$OLD_GLOBAL"
+            echo -e "  ${GREEN}~/.claude/agent-memory/ 삭제 완료${NC}"
+        else
+            echo -e "  ${YELLOW}${remaining}개 파일이 남아 있습니다. 수동 확인 필요: ~/.claude/agent-memory/${NC}"
+        fi
+    fi
+    echo ""
+else
+    echo -e "[6/6] ~/.claude/agent-memory/ — 없음 (건너뜀)"
     echo ""
 fi
 
@@ -287,9 +341,15 @@ fi
 
 echo ""
 echo "최종 구조:"
-echo "  .onto-review/"
-echo "  ├── config.yml                   # 도메인 설정 (domain, secondary_domains)"
-echo "  ├── review/{세션ID}/round1/     # review 라운드 결과 + 산출물"
-echo "  ├── builds/{세션ID}/round0~N/   # build 라운드 결과 + 산출물"
+echo ""
+echo "  글로벌 (~/.onto-review/):"
+echo "  ├── methodology/{agent-id}.md    # 방법론 학습"
+echo "  ├── communication/               # 소통 학습"
+echo "  └── domains/{domain}/            # 도메인 문서 + 글로벌 학습"
+echo ""
+echo "  프로젝트 ({project}/.onto-review/):"
+echo "  ├── config.yml                   # 도메인 설정"
+echo "  ├── review/{세션ID}/round1/     # review 결과"
+echo "  ├── builds/{세션ID}/round0~N/   # build 결과"
 echo "  └── learnings/                   # 프로젝트 수준 학습"
 echo ""

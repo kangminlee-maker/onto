@@ -70,7 +70,7 @@
 | **규칙 정의형** | `extension_cases.md` | onto_evolution | 성능 저하 (LLM 대체 가능) | 사용자 직접 작성/수정 |
 | **규칙 정의형** | `conciseness_rules.md` | onto_conciseness | 성능 저하 (LLM 대체 가능) | 사용자 직접 작성/수정 |
 
-경로: `~/.claude/agent-memory/domains/{domain}/`
+경로: `~/.onto-review/domains/{domain}/`
 
 **도메인 문서 보호 원칙**: 도메인 문서는 사용자의 **명시적 승인 없이 자동 수정되지 않습니다.** promote 7단계의 갱신 제안, onboard의 초안 생성 모두 사용자 확인을 거칩니다. 에이전트가 리뷰/질문 실행 중 도메인 문서를 직접 수정하는 것은 금지됩니다. 도메인 문서는 프로젝트별 학습과 구분되는 **도메인 수준의 합의된 기준**이며, 특정 프로젝트의 특화 내용이 아닌 도메인 전체에 적용되는 범용 기준만 포함합니다.
 
@@ -80,7 +80,7 @@
 2. **CLAUDE.md 하위 호환**: `.onto-review/config.yml`이 없거나 `domain:`이 없으면, CLAUDE.md의 `domain:` 또는 `agent-domain:` 선언을 사용합니다.
 3. **다중 도메인**: `secondary_domains:`가 선언되어 있으면(config.yml 또는 CLAUDE.md), 주 도메인 문서를 우선 참조하고, 보조 도메인 문서를 추가로 참조합니다. 규칙이 충돌하면 주 도메인이 우선합니다.
 4. **선언 없음**: 어디에도 도메인 선언이 없으면 사용자에게 질문합니다.
-5. **도메인 문서 없음**: 선언된 도메인의 문서(`~/.claude/agent-memory/domains/{domain}/`)가 존재하지 않으면, 도메인 규칙 없이 범용 원칙만으로 검증합니다.
+5. **도메인 문서 없음**: 선언된 도메인의 문서(`~/.onto-review/domains/{domain}/`)가 존재하지 않으면, 도메인 규칙 없이 범용 원칙만으로 검증합니다.
 6. **도메인 확장 시 에이전트 재평가**: 아래 조건에 해당하는 도메인에 진입하면, 에이전트 구성의 재평가가 필요합니다.
 
 | 조건 | 이유 | 재평가 대상 |
@@ -96,10 +96,10 @@
 
 | 학습 유형 | 저장 경로 | 내용 |
 |---|---|---|
-| **소통 학습 (공통)** | `~/.claude/agent-memory/communication/common.md` | 모든 에이전트에 적용되는 소통 규칙 |
-| **소통 학습 (개별)** | `~/.claude/agent-memory/communication/{agent-id}.md` | 특정 에이전트의 소통 선호 |
-| **방법론 학습** | `~/.claude/agent-memory/methodology/{agent-id}.md` | 도메인 무관한 검증 원칙, 일반적 교훈 |
-| **도메인 학습** | `~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md` | 특정 도메인에서만 유효한 학습 |
+| **소통 학습 (공통)** | `~/.onto-review/communication/common.md` | 모든 에이전트에 적용되는 소통 규칙 |
+| **소통 학습 (개별)** | `~/.onto-review/communication/{agent-id}.md` | 특정 에이전트의 소통 선호 |
+| **방법론 학습** | `~/.onto-review/methodology/{agent-id}.md` | 도메인 무관한 검증 원칙, 일반적 교훈 |
+| **도메인 학습** | `~/.onto-review/domains/{domain}/learnings/{agent-id}.md` | 특정 도메인에서만 유효한 학습 |
 
 ---
 
@@ -191,12 +191,12 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 
 [컨텍스트 자기 로딩]
 아래 파일들을 직접 읽고 자신의 컨텍스트를 구성하세요. 파일이 없으면 무시하세요:
-1. 방법론 학습: ~/.claude/agent-memory/methodology/{agent-id}.md
-2. 도메인 문서: ~/.claude/agent-memory/domains/{domain}/{해당 도메인 문서}
-3. 도메인 학습 (글로벌): ~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md
+1. 방법론 학습: ~/.onto-review/methodology/{agent-id}.md
+2. 도메인 문서: ~/.onto-review/domains/{domain}/{해당 도메인 문서}
+3. 도메인 학습 (글로벌): ~/.onto-review/domains/{domain}/learnings/{agent-id}.md
 4. 도메인 학습 (프로젝트): {project}/.onto-review/learnings/{agent-id}.md
-5. 소통 학습 (공통): ~/.claude/agent-memory/communication/common.md
-6. 소통 학습 (개별): ~/.claude/agent-memory/communication/{agent-id}.md
+5. 소통 학습 (공통): ~/.onto-review/communication/common.md
+6. 소통 학습 (개별): ~/.onto-review/communication/{agent-id}.md
 
 [에이전트-도메인 문서 매핑]
 | agent-id | 도메인 문서 |
@@ -234,8 +234,8 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 ### 3분류 저장
 
 **소통 학습**:
-- `~/.claude/agent-memory/communication/common.md` (공통): 모든 에이전트에 적용되는 소통 규칙. 팀 리뷰에서 발견된 사항은 여기에 저장합니다.
-- `~/.claude/agent-memory/communication/{agent-id}.md` (개별): 특정 에이전트의 소통 선호. 개별 질문(`/onto-{dimension}`)에서 발견된 사항만 여기에 저장합니다.
+- `~/.onto-review/communication/common.md` (공통): 모든 에이전트에 적용되는 소통 규칙. 팀 리뷰에서 발견된 사항은 여기에 저장합니다.
+- `~/.onto-review/communication/{agent-id}.md` (개별): 특정 에이전트의 소통 선호. 개별 질문(`/onto-{dimension}`)에서 발견된 사항만 여기에 저장합니다.
 - "소통 학습" 항목 중 "없음"이 아닌 것을 저장합니다.
 - 사용자의 소통 선호, 작업 방식, 피드백에 대한 발견입니다.
 
@@ -248,7 +248,7 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 - **반영 여부**: 미반영 (사용자 확인 필요)
 ```
 
-**방법론 학습** (`~/.claude/agent-memory/methodology/{agent-id}.md`):
+**방법론 학습** (`~/.onto-review/methodology/{agent-id}.md`):
 - "방법론 학습" 항목을 파일 끝에 추가합니다.
 - 도메인에 무관하게 적용 가능한 검증 원칙/교훈입니다.
 - 기존 항목과 중복되면 추가하지 않습니다.
@@ -270,7 +270,7 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 **도메인 학습**:
 - 저장 경로 판별:
   - 프로젝트에 `.onto-review/learnings/` 디렉토리가 존재하면: `{project}/.onto-review/learnings/{agent-id}.md` (프로젝트 수준)
-  - 존재하지 않으면: `~/.claude/agent-memory/domains/{domain}/learnings/{agent-id}.md` (글로벌 수준)
+  - 존재하지 않으면: `~/.onto-review/domains/{domain}/learnings/{agent-id}.md` (글로벌 수준)
 - "도메인 학습" 항목을 파일 끝에 추가합니다.
 - 해당 도메인/프로젝트에서만 유효한 학습입니다.
 - 동일한 중복/모순 규칙을 적용합니다.
@@ -295,7 +295,7 @@ team lead는 Context Gathering에서 확보한 **도메인명**, **플러그인 
 ### 저장 후 안내
 
 새로 추가된 communication 항목이 있으면 사용자에게 알립니다:
-"communication 발견사항이 N건 기록되었습니다. `~/.claude/agent-memory/communication/`에서 확인하시고, 전역 설정(`~/.claude/CLAUDE.md`)에 반영할지 결정해 주세요."
+"communication 발견사항이 N건 기록되었습니다. `~/.onto-review/communication/`에서 확인하시고, 전역 설정(`~/.claude/CLAUDE.md`)에 반영할지 결정해 주세요."
 
 ---
 

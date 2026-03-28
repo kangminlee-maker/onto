@@ -448,12 +448,26 @@ If domain document updates (`concepts.md`, `competency_qs.md`, `domain_scope.md`
 
 ### 5.1 Domain Determination Rules
 
-The order for determining which domain criteria agents use for verification:
+Domains use a **per-session selection** model. Each process execution selects a single `{session_domain}`.
 
-1. **Project declaration takes priority**: If CLAUDE.md contains a declaration like `domain: software-engineering`, use that domain
-2. **Multiple domains**: If a secondary domain declaration like `secondary_domains: ontology` exists, reference the primary domain first + additionally reference secondary domains
-3. **No declaration**: Ask the user
-4. **No domain documents**: If declared but the domain's documents are not installed, verify using general principles only
+**Project domains** (`config.yml`):
+```yaml
+domains:
+  - software-engineering
+  - ontology
+```
+`domains:` is an unordered set. No domain has priority over another. Old format (`domain:` + `secondary_domains:`) is auto-converted.
+
+**Session domain resolution**:
+1. `@{domain}` specified → non-interactive, use that domain
+2. `@-` specified → no-domain mode (agent default methodology only)
+3. Not specified → Domain Selection Flow (analyze target → suggest domain → user confirms)
+
+**No-domain mode**: Verifies using agent default methodology without domain rule documents. `[methodology]` tags only for learnings.
+
+**Command syntax**: `/onto:{process} {target} @{domain}` or `/onto:{process} {target} @-`
+
+For full edge case definitions, refer to `design-per-session-domain-selection.md` Section 4.
 
 ### 5.2 Domain Documents (7 Types)
 
@@ -493,15 +507,16 @@ Each domain has up to 7 reference documents. Each agent references the document 
 
 ## 6. Learning System
 
-### 6.1 Three-Way Classification of Learnings
+### 6.1 Learning Classification (2-Path + Axis Tag + Purpose Type)
 
-Agents separately store lessons discovered during reviews/queries across 3 paths.
+Agents store lessons via 2 paths with multi-dimensional tagging.
 
-| Learning Type | Storage Path | Scope | Example |
-|---|---|---|---|
-| **Communication learning** | `~/.onto/communication/` | User's communication preferences | "This user dislikes metaphors", "Wants diffs only, no summaries" |
-| **Methodology learning** | `~/.onto/methodology/{agent-id}.md` | Domain-independent verification principles | "Judging single-responsibility violations by dependency count rather than class name is more accurate" |
-| **Domain learning** | `{project}/.onto/learnings/{agent-id}.md` (project) or `~/.onto/domains/{domain}/learnings/{agent-id}.md` (global) | Lessons valid only in a specific domain/project | "This project's Payment module uses event sourcing" |
+| Learning Type | Storage Path | Scope |
+|---|---|---|
+| **Communication learning** | `~/.onto/communication/common.md` | User's communication preferences |
+| **Verification learning** | `{project}/.onto/learnings/{agent-id}.md` (project) or `~/.onto/learnings/{agent-id}.md` (global) | Methodology + domain learnings combined via axis tags |
+
+**Entry format**: `- [type] [axis tag] [purpose type] content (source: ...) [impact:severity]`
 
 ### 6.2 Type Tagging
 
@@ -510,19 +525,46 @@ Each learning item is tagged with `[fact]` or `[judgment]`.
 - **[fact]**: Objective descriptions of definitions, structures, relations. Accumulation does not introduce bias
 - **[judgment]**: Value judgments like "this pattern is problematic." Validity may change when context changes, so items with 10+ accumulations become re-verification targets
 
-### 6.3 Self-Verification of Methodology Learnings
+### 6.3 Axis Tag Determination
 
-Methodology learnings are stored directly at the global level without review, so self-verification before storage is mandatory:
+Each learning gets axis tags via bidirectional criteria:
+1. "Does the principle hold after removing domain-specific terms?" → `[methodology]`
+2. "Is it valid in the context of `{session_domain}`?" → `[domain/{session_domain}]`
+3. Both can apply. No-domain mode → `[methodology]` only
 
-> "If I remove specific tech stack/framework/domain terminology from this learning, does the principle still hold?"
+### 6.4 Purpose-Based Type Tags (Phase 0.5)
 
-If it holds, it is methodology; if not, it is reclassified as a domain learning.
+Orthogonal to type × axis tags. Determined at creation time:
 
-### 6.4 Verification at Learning Injection
+| Purpose Type | Definition | Tier (Phase 1) |
+|---|---|---|
+| `[guardrail]` | Failure-derived prohibition. 3 required elements: failure situation + observed result + corrective action | Tier-2 |
+| `[foundation]` | Prerequisite knowledge for other learnings | Tier-1 |
+| `[convention]` | Terminology/notation/procedure agreement | Tier-1 |
+| `[insight]` | Default — all other learnings | Tier-3 |
 
-When accumulated learnings are used in the next review/query:
-- **Source tagging verification**: Check if the learning's source domain matches the current target's domain. If mismatched, attach a `[different domain source]` tag so the agent can judge whether to apply it
-- **Judgment learning re-verification**: If `[judgment]` type items number 10 or more, re-verify the validity of existing judgments during promote execution
+### 6.5 Impact Severity + Failure Experience (Phase 0.5)
+
+- `impact_severity` (high/normal): Set once at creation, immutable. High if ignoring causes data loss/system failure, or reaching the same conclusion requires significant investigation
+- `is_failure_experience`: Auto-determined from presence of all 3 guardrail elements. Replaces former `conflict_resolution`
+
+### 6.6 Consumption Rules
+
+1. `[methodology]` → always apply
+2. `[domain/{session_domain}]` → always apply
+3. `[domain/{other}]` only → review then judge (does principle hold without domain terms?)
+4. No tags (legacy) → treat as `[methodology]`
+
+### 6.7 Learning Lifecycle Phases
+
+| Phase | Condition | Behavior |
+|---|---|---|
+| Phase 0 | <100 lines per agent | Full loading (current) |
+| Phase 0.5 | Now | Tag new learnings with purpose type + impact_severity |
+| Phase 1 | >100 lines per agent | 3-Tier loading priority (Tier-1 unconditional → Tier-2 purpose-based → Tier-3 recency) |
+| Phase 2 | Phase 1 + overload | Additional rules (quota, generation path weighting) |
+
+For full lifecycle design, refer to `design-learning-lifecycle-management.md`.
 
 ---
 
@@ -691,7 +733,7 @@ review frontmatter format:
 session_id: "{session ID}"
 process: review
 target: "{review target summary}"
-domain: "{domain / none}"
+domain: "{session_domain / none}"
 date: "{YYYY-MM-DD}"
 ---
 ```

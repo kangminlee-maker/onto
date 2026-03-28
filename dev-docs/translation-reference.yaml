@@ -277,6 +277,140 @@ concepts:
       Not 'interaction learning'. 'Communication' specifically covers
       user preferences and feedback style, not agent-to-agent interaction.
 
+  - ko: "세션 도메인"
+    en: "session domain"
+    definition: >
+      The single domain selected for the current process execution session.
+      Not the same as a Claude Code conversation session. Determined via
+      @{domain} argument, @- (no-domain), or interactive Domain Selection Flow.
+      Referenced as {session_domain} variable in templates.
+    relations:
+      - selected_from: "project domains | global domains"
+      - used_by: "domain document loading | learning storage tags"
+      - empty_means: "no-domain mode"
+    disambiguation: >
+      Not 'current domain' (implies persistence across sessions).
+      'Session domain' emphasizes per-execution selection.
+
+  - ko: "프로젝트 도메인"
+    en: "project domains"
+    definition: >
+      The set of domains declared in config.yml under the domains: key.
+      An unordered set — [A, B] and [B, A] are identical. Declares
+      which domains are relevant to the project, not which one is primary.
+    relations:
+      - declared_in: "config.yml domains:"
+      - subset_of: "global domains"
+      - used_in: "Domain Selection Flow (display order: project section)"
+    disambiguation: >
+      Not 'primary domain' or 'secondary domain' (old model). The unordered
+      set model has no priority ranking between domains.
+
+  - ko: "글로벌 도메인"
+    en: "global domains"
+    definition: >
+      All domains with documents installed at ~/.onto/domains/. Includes
+      but is not limited to project domains. Shown in the Domain Selection
+      Flow's global section.
+    relations:
+      - installed_at: "~/.onto/domains/{domain}/"
+      - superset_of: "project domains"
+    disambiguation: >
+      Not 'available domains' (which includes both project and global).
+
+  - ko: "노도메인 모드"
+    en: "no-domain mode"
+    definition: >
+      The state where {session_domain} is empty. Agents verify using their
+      default ontological methodology without loading any domain rule documents.
+      Selected via [-] interactively or @- non-interactively.
+    relations:
+      - triggered_by: "[-] selection | @- argument"
+      - skips: "domain document loading"
+      - tags_with: "[methodology] only"
+    disambiguation: >
+      Not 'general mode' (agents still use ontological methodology).
+      'No-domain' means no domain-specific rule documents, not no methodology.
+
+  - ko: "가드레일"
+    en: "guardrail"
+    definition: >
+      A purpose type tag for learnings derived from failure experiences.
+      Requires 3 elements: failure situation (action + context),
+      observed result (negative outcome), and corrective action
+      (what to do instead). Tagged with [guardrail].
+    relations:
+      - is_a: "purpose type tag"
+      - requires: "3 guardrail elements"
+      - tier: "Tier-2 (Phase 1)"
+    disambiguation: >
+      Not 'warning' or 'rule'. A guardrail specifically encodes a failure
+      experience, not a general prohibition.
+
+  - ko: "기반 지식"
+    en: "foundation"
+    definition: >
+      A purpose type tag for learnings that serve as prerequisites for
+      other learnings. Tagged with [foundation].
+    relations:
+      - is_a: "purpose type tag"
+      - tier: "Tier-1 (Phase 1)"
+    disambiguation: >
+      Not 'base' or 'core'. Foundation specifically means other learnings
+      depend on this one for context.
+
+  - ko: "합의 사항"
+    en: "convention"
+    definition: >
+      A purpose type tag for learnings about terminology, notation, or
+      procedure agreements. Tagged with [convention].
+    relations:
+      - is_a: "purpose type tag"
+      - tier: "Tier-1 (Phase 1)"
+    disambiguation: >
+      Not 'standard' (too authoritative). Convention implies agreement,
+      not mandate.
+
+  - ko: "인사이트"
+    en: "insight"
+    definition: >
+      The default purpose type tag for learnings that do not qualify as
+      guardrail, foundation, or convention. Tagged with [insight].
+    relations:
+      - is_a: "purpose type tag"
+      - tier: "Tier-3 (Phase 1)"
+    disambiguation: >
+      Not 'observation' or 'note'. Insight is the catch-all default.
+
+  - ko: "영향도"
+    en: "impact severity"
+    definition: >
+      A metadata field set once at learning creation time (immutable).
+      Values: high (ignoring causes data loss/system failure or requires
+      significant investigation to rediscover) or normal (neither criterion met).
+      Tagged as [impact:high] or [impact:normal].
+    relations:
+      - set_at: "learning creation"
+      - immutable: true
+      - tier: "Tier-2 (Phase 1, when high)"
+    disambiguation: >
+      Not 'surprise factor' (deprecated term with different semantics).
+      Not 'priority' (impact_severity is about consequence, not ordering).
+
+  - ko: "실패경험"
+    en: "failure experience"
+    definition: >
+      A boolean metadata field auto-determined at learning creation.
+      True when all 3 guardrail elements are present in the content.
+      Replaces the former conflict_resolution field.
+    relations:
+      - determined_by: "presence of 3 guardrail elements"
+      - replaces: "conflict_resolution"
+      - tier: "Tier-2 (Phase 1)"
+    disambiguation: >
+      Not 'error' or 'bug'. Failure experience specifically means an agent
+      took an action that produced a negative result, with a known correction.
+
   - ko: "프로젝트 수준"
     en: "project-level"
     definition: >

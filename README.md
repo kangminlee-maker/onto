@@ -37,7 +37,7 @@ If the learning storage structure has changed (3-path to 2-path + axis tag):
 Migration targets:
 - `~/.claude/agent-memory/` to `~/.onto/` (global learnings and domain documents)
 - `.claude/sessions/` to `.onto/` (project session data)
-- `domain:` in CLAUDE.md to `.onto/config.yml` (domain configuration separation)
+- `domain:` + `secondary_domains:` → `domains:` unordered set in `.onto/config.yml`
 
 ## Domain Document Installation (Optional)
 
@@ -72,10 +72,32 @@ Usable without domain documents (verified using general principles). Domain docu
 
 ```
 /onto:onboard                        # Set up project environment
-/onto:review {target}                # Run agent panel review
+/onto:review {target}                # Run agent panel review (interactive domain selection)
+/onto:review {target} @ontology      # Run with specific domain
+/onto:review {target} @-             # Run without domain rules
 /onto:ask-logic {question}           # Ask an individual agent
 /onto:build {path|GitHub URL}        # Build ontology from analysis target
 ```
+
+### Domain Selection
+
+Each process execution selects a single **session domain**. Three ways to specify:
+
+| Method | Syntax | Behavior |
+|--------|--------|----------|
+| Explicit | `@{domain}` | Non-interactive, uses specified domain |
+| No-domain | `@-` | Non-interactive, no domain rules applied |
+| Interactive | (omit) | Analyzes target, suggests domain, user confirms |
+
+Project domains are declared in `.onto/config.yml`:
+```yaml
+domains:
+  - software-engineering
+  - ontology
+output_language: ko
+```
+
+`domains:` is an unordered set — order does not matter, no domain has priority over another. Domains can also be selected per session without pre-declaring them.
 
 ## Agent Configuration
 
@@ -96,7 +118,9 @@ Usable without domain documents (verified using general principles). Domain docu
 ### Team Review
 | Command | Description |
 |---|---|
-| `/onto:review {target}` | Multi-perspective review of target by agent panel |
+| `/onto:review {target}` | Multi-perspective review (interactive domain selection) |
+| `/onto:review {target} @{domain}` | Review with specified domain |
+| `/onto:review {target} @-` | Review without domain rules |
 
 ### Individual Query
 | Command | Description |
@@ -126,6 +150,7 @@ Usable without domain documents (verified using general principles). Domain docu
 ## Team Review Flow (6 Steps)
 
 ```
+0. Domain Selection (session domain determination)
 1. Context Gathering (team lead)
 2. Team creation + Round 1 -- verification agents perform independent review (including structural inspection)
 3. Philosopher synthesis + adjudication
@@ -251,16 +276,21 @@ Agents accumulate learnings through reviews and queries. Learnings are stored us
 | `~/.onto/learnings/{agent-id}.md` | Global learnings |
 | `{project}/.onto/learnings/{agent-id}.md` | Project-level learnings |
 
-Each learning item is tagged with a type tag and axis tags:
+Each learning item is tagged with type, axis, and purpose tags:
 
 | Tag Category | Tag | Description |
 |---|---|---|
 | Type tag | `[fact]` / `[judgment]` | Classification of the learning's nature |
 | Axis tag | `[methodology]` | Domain-independent verification technique |
-| Axis tag | `[domain/{name}]` | Learning attributed to a specific domain |
+| Axis tag | `[domain/{name}]` | Learning attributed to a specific domain (uses session domain) |
+| Purpose tag | `[guardrail]` | Failure-derived prohibition (3 required elements) |
+| Purpose tag | `[foundation]` | Prerequisite knowledge for other learnings |
+| Purpose tag | `[convention]` | Terminology/procedure agreement |
+| Purpose tag | `[insight]` | Default — all other learnings |
 
 - Multiple axis tags allowed per item (e.g., `[methodology]` and `[domain/SE]` simultaneously)
-- Item format: `- [fact\|judgment] [methodology] [domain/SE] learning content (source: ...)`
+- Item format: `- [fact\|judgment] [methodology] [domain/SE] [insight] learning content (source: ...) [impact:normal]`
+- `impact_severity` (`high`/`normal`) is set at creation time and never changed
 - Communication learnings are stored separately at `~/.onto/communication/common.md` (unchanged)
 - Project-level learnings can be promoted to global-level via `/onto:promote`
 - Domain documents are never auto-modified without explicit user approval

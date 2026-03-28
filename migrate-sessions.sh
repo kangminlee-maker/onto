@@ -7,7 +7,7 @@
 #   2. .claude/learnings/  -> .onto/learnings/
 #   3. .claude/ontology/   -> .onto/builds/{session-id}/
 #   4. .onto/sessions/ intermediate layer removal (sessions/review/ -> review/)
-#   5. CLAUDE.md domain config -> .onto/config.yml (non-invasive to CLAUDE.md)
+#   5. domain: + secondary_domains: -> domains: unordered set in .onto/config.yml
 #   6. ~/.claude/agent-memory/ -> ~/.onto/ (global data separation)
 #
 # Usage:
@@ -237,13 +237,63 @@ else
     echo ""
 fi
 
-# --- Step 5: CLAUDE.md domain config -> .onto/config.yml ---
+# --- Step 5: Domain config migration -> .onto/config.yml (domains: unordered set) ---
 
 CLAUDE_MD="$PROJECT_DIR/CLAUDE.md"
 CONFIG_YML="$NEW_DIR/config.yml"
 
-if [ -f "$CLAUDE_MD" ] && [ ! -f "$CONFIG_YML" ]; then
-    # Extract domain-related settings from CLAUDE.md
+# Step 5a: Migrate existing config.yml from old format (domain: + secondary_domains:) to new (domains:)
+if [ -f "$CONFIG_YML" ]; then
+    OLD_DOMAIN=$(grep -E '^\s*domain\s*:' "$CONFIG_YML" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d ' ')
+    OLD_SECONDARY=$(grep -E '^\s*secondary_domains\s*:' "$CONFIG_YML" 2>/dev/null | head -1 | sed 's/.*:\s*//')
+    HAS_DOMAINS=$(grep -E '^\s*domains\s*:' "$CONFIG_YML" 2>/dev/null | head -1)
+
+    if [ -n "$OLD_DOMAIN" ] && [ -z "$HAS_DOMAINS" ]; then
+        echo -e "${CYAN}[5/6] Old domain format found in config.yml: domain: ${OLD_DOMAIN}${NC}"
+        ((TOTAL_ACTIONS++))
+
+        if [ "$DRY_RUN" = false ]; then
+            # Build domains list
+            DOMAINS_LIST="  - $OLD_DOMAIN"
+            if [ -n "$OLD_SECONDARY" ]; then
+                # Parse comma-separated secondary domains
+                IFS=',' read -ra SEC_ARRAY <<< "$OLD_SECONDARY"
+                for sec in "${SEC_ARRAY[@]}"; do
+                    sec_trimmed=$(echo "$sec" | tr -d ' ')
+                    [ -n "$sec_trimmed" ] && DOMAINS_LIST="$DOMAINS_LIST\n  - $sec_trimmed"
+                done
+            fi
+
+            # Remove old domain/secondary_domains lines, add domains: list
+            sed -i '' '/^\s*domain\s*:/d' "$CONFIG_YML"
+            sed -i '' '/^\s*secondary_domains\s*:/d' "$CONFIG_YML"
+
+            # Add domains: at the beginning (after output_language if present)
+            if grep -q 'output_language' "$CONFIG_YML"; then
+                # Insert after output_language line
+                sed -i '' "/output_language/a\\
+domains:\\
+$DOMAINS_LIST" "$CONFIG_YML"
+            else
+                # Prepend
+                TEMP_FILE=$(mktemp)
+                printf "domains:\n$DOMAINS_LIST\n" > "$TEMP_FILE"
+                cat "$CONFIG_YML" >> "$TEMP_FILE"
+                mv "$TEMP_FILE" "$CONFIG_YML"
+            fi
+
+            echo -e "  ${GREEN}-> Converted to domains: unordered set${NC}"
+        fi
+        echo ""
+    elif [ -n "$HAS_DOMAINS" ]; then
+        echo -e "[5/6] config.yml already uses domains: format (skipped)"
+        echo ""
+    else
+        echo -e "[5/6] No domain setting in config.yml (skipped)"
+        echo ""
+    fi
+# Step 5b: Extract from CLAUDE.md if no config.yml exists
+elif [ -f "$CLAUDE_MD" ]; then
     DOMAIN=$(grep -E '^\s*(domain|agent-domain)\s*:' "$CLAUDE_MD" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d ' ')
     SECONDARY=$(grep -E '^\s*secondary_domains\s*:' "$CLAUDE_MD" 2>/dev/null | head -1 | sed 's/.*:\s*//')
 
@@ -253,11 +303,19 @@ if [ -f "$CLAUDE_MD" ] && [ ! -f "$CONFIG_YML" ]; then
 
         if [ "$DRY_RUN" = false ]; then
             mkdir -p "$NEW_DIR"
-            echo "domain: $DOMAIN" > "$CONFIG_YML"
+
+            # Build domains: list format
+            echo "domains:" > "$CONFIG_YML"
+            echo "  - $DOMAIN" >> "$CONFIG_YML"
             if [ -n "$SECONDARY" ]; then
-                echo "secondary_domains: $SECONDARY" >> "$CONFIG_YML"
+                IFS=',' read -ra SEC_ARRAY <<< "$SECONDARY"
+                for sec in "${SEC_ARRAY[@]}"; do
+                    sec_trimmed=$(echo "$sec" | tr -d ' ')
+                    [ -n "$sec_trimmed" ] && echo "  - $sec_trimmed" >> "$CONFIG_YML"
+                done
             fi
-            echo -e "  ${GREEN}-> .onto/config.yml created${NC}"
+
+            echo -e "  ${GREEN}-> .onto/config.yml created with domains: format${NC}"
             echo -e "  ${YELLOW}Please manually remove the domain/secondary_domains lines from CLAUDE.md.${NC}"
             echo -e "  ${YELLOW}(Backward compatible: leaving them does not affect functionality)${NC}"
         fi
@@ -266,11 +324,8 @@ if [ -f "$CLAUDE_MD" ] && [ ! -f "$CONFIG_YML" ]; then
         echo -e "[5/6] No domain setting in CLAUDE.md (skipped)"
         echo ""
     fi
-elif [ -f "$CONFIG_YML" ]; then
-    echo -e "[5/6] .onto/config.yml already exists (skipped)"
-    echo ""
 else
-    echo -e "[5/6] CLAUDE.md not found (skipped)"
+    echo -e "[5/6] No CLAUDE.md or config.yml found (skipped)"
     echo ""
 fi
 

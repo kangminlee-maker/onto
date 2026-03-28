@@ -183,10 +183,13 @@ main() {
 
     echo ""
     echo -e "${GREEN}Installation complete.${NC}"
-    echo "To use a domain in your project, add the following to CLAUDE.md:"
+    echo "To use domains in your project, add the following to .onto/config.yml:"
     echo ""
-    echo "  domain: {domain-name}"
-    echo "  secondary_domains: {secondary-domain1}, {secondary-domain2}"
+    echo "  domains:"
+    echo "    - {domain-name}"
+    echo "    - {another-domain}"
+    echo ""
+    echo "Or select domains per session when running /onto:review, /onto:build, etc."
     echo ""
 }
 

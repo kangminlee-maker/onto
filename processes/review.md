@@ -10,8 +10,20 @@ Follows the **Agent Teams Execution** in `process.md`.
 - **Teammates**: verification agents + Philosopher
 
 **Execution paths**:
-- **Default** (consensus clear): 1→2→3→5→6
-- **Extended** (contested points exist): 1→2→3→4→5→6
+- **Default** (consensus clear): 0→1→2→3→5→6
+- **Extended** (contested points exist): 0→1→2→3→4→5→6
+
+---
+
+### 0. Domain Selection
+
+Determine `{session_domain}` per the "Domain Determination Rules" in `process.md`.
+
+- If `@{domain}` is specified in the command: use non-interactive resolution
+- If `@-` is specified: set `{session_domain}` to empty (no-domain mode)
+- Otherwise: run the Domain Selection Flow (target analysis → collect available domains → derive suggestion → display UI → await user input)
+
+The resolved `{session_domain}` is used throughout this session for domain document loading, learning storage tags, and the verification context section of the final output.
 
 ---
 
@@ -26,8 +38,8 @@ The team lead collects only the items below. Per-agent learnings/domain document
 2. **Project context collection**:
    - Identifies the system purpose and principles from CLAUDE.md, README.md, etc.
 
-3. **Domain determination + path resolution**:
-   - Identifies the project's domain.
+3. **Domain + path resolution**:
+   - Uses `{session_domain}` determined in Step 0.
    - Identifies the plugin path. (Used for path variables in teammate initial prompt)
 
 4. **Agent definition collection** (for all agents individually):
@@ -81,9 +93,20 @@ Perform the following items first (only if applicable to the review target. Mark
 Include the following section at the end of the review finding:
 
 ### Newly Learned
+For each learning, determine:
+1. **Purpose type**: Apply the determination flow from process.md Learning Storage Rules:
+   - guardrail (all 3 elements: failure situation + observed result + corrective action)
+   - foundation (prerequisite for other learnings)
+   - convention (terminology/notation/procedure agreement)
+   - insight (default — none of the above)
+2. **Impact severity**: high or normal (per criteria in process.md)
+3. **Failure experience**: true if all 3 guardrail elements present
+
 - Communication learning: (findings about user preferences/communication style)
-- Methodology learning: (verification principles applicable in any domain)
-- Domain learning: (learnings valid only in this domain)
+- Methodology learning: [{fact|judgment}] [{purpose type}] (verification principles applicable in any domain) [impact:{severity}]
+- Domain learning: [{fact|judgment}] [{purpose type}] (learnings valid only in {session_domain}) [impact:{severity}]
+  - If {session_domain} is empty: skip domain learning, report methodology only
+  - For guardrail type, use template: **Situation**: ... **Result**: ... **Corrective action**: ...
 Mark each as "none" if there is nothing to report.
 ```
 
@@ -169,7 +192,7 @@ If none apply, answer "not needed" — in this case, write the final output dire
 session_id: {session ID}
 process: review
 target: "{review target summary}"
-domain: {domain / none}
+domain: {session_domain / none}
 date: {YYYY-MM-DD}
 ---
 
@@ -179,9 +202,10 @@ date: {YYYY-MM-DD}
 {review target summary}
 
 ### Verification Context
-- Domain: {domain / none}
+- Domain: {session_domain / none (no-domain mode)}
 - Domain rule documents: {N}/7 loaded {list of absent documents}
-- (If domain documents are absent) "Verified using general principles (no domain document). Creating domain documents via `/onto:onboard` will improve verification precision."
+- (If session_domain is empty) "Verified using agent default methodology (no-domain mode). Domain-specific issues may be missed."
+- (If domain documents are absent but session_domain is set) "Verified using general principles (no domain document). Creating domain documents via `/onto:onboard` will improve verification precision."
 
 ### Consensus (N/{participating agent count})
 - (List of judgments with full consensus)
@@ -264,7 +288,7 @@ Write the final output reflecting the deliberation results.
 session_id: {session ID}
 process: review
 target: "{review target summary}"
-domain: {domain / none}
+domain: {session_domain / none}
 date: {YYYY-MM-DD}
 ---
 

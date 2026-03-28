@@ -43,8 +43,8 @@ Checks the following items in order:
 | Check Item | Path | Status Value |
 |---|---|---|
 | Project learning directory | `{project}/.onto/learnings/` | exists / does not exist |
-| Domain declaration | `{project}/.onto/config.yml` or `domain:` in `{project}/CLAUDE.md` | declared / not declared |
-| Global domain document | `~/.onto/domains/{domain}/` | exists / does not exist / N/A (domain not declared) |
+| Domain declaration | `{project}/.onto/config.yml` `domains:` or `domain:`/`agent-domain:` in `{project}/CLAUDE.md` | declared / not declared |
+| Global domain documents | `~/.onto/domains/{domain}/` for each declared domain | exists / does not exist / N/A (domains not declared) |
 | Global agent memory | Subdirectories under `~/.onto/` | list of existing files |
 
 ### 2. User Confirmation
@@ -57,8 +57,8 @@ Presents the diagnosis results in the format below and confirms whether to proce
 | Item | Status | Action |
 |---|---|---|
 | Project learning directory | {status} | {to be created / already exists} |
-| Domain declaration | {status} | {to be asked / already declared: {domain}} |
-| Global domain document | {status} | {guidance to be provided / already exists} |
+| Domain declaration | {status} | {to be asked / already declared: {domains list}} |
+| Global domain documents | {status per domain} | {guidance to be provided / already exists} |
 
 Proceed?
 ```
@@ -77,11 +77,16 @@ Executes the following upon user approval:
 - Creates `.onto/learnings/.gitkeep` file (for Git tracking of empty directories).
 
 **3.3 Domain configuration**
-- If `domain:` is not declared in either `.onto/config.yml` or CLAUDE.md, asks the user:
-  "Please specify the domain for this project. (e.g., `healthcare`, `fintech`, `e-commerce`) If you want to verify using general principles only without domain rules, answer 'none'."
-- If the user specifies a domain, adds `domain: {domain}` to `.onto/config.yml`. Does not modify CLAUDE.md.
-- Also checks for secondary domains: "Are there secondary domains? (e.g., a healthcare project that also partially applies fintech rules) Answer 'none' if there are none."
-- If secondary domains exist, adds `secondary_domains: {domain1}, {domain2}` to `.onto/config.yml`.
+- If `domains:` is not declared in `.onto/config.yml` (and no `domain:`/`agent-domain:` in CLAUDE.md), asks the user:
+  "Which domains are relevant to this project? You can specify multiple. (e.g., `software-engineering`, `ontology`) Order does not matter. If unsure, you can skip and select domains per review."
+- If the user specifies domains, adds `domains:` list to `.onto/config.yml`. Does not modify CLAUDE.md.
+  ```yaml
+  domains:
+    - software-engineering
+    - ontology
+  ```
+- If the user says 'none' or 'skip': omit `domains:` from config.yml (domains will be selected per session).
+- **Old format detection**: If `.onto/config.yml` has `domain:` + `secondary_domains:`, convert to `domains:` unordered set and notify the user of the migration.
 
 **3.4 Install global domain documents**
 - If global documents for the specified domain (`~/.onto/domains/{domain}/`) are missing or incomplete:
@@ -91,7 +96,7 @@ Executes the following upon user approval:
   3. Upon user approval: copies default documents (*.md) from the plugin's `domains/{domain}/` to `~/.onto/domains/{domain}/`. Also creates the `learnings/` directory. Skips files with identical content.
   4. If the domain does not exist in the plugin, provides existing guidance:
      "Global rule documents for domain `{domain}` do not yet exist. Learnings will accumulate automatically through repeated reviews/queries. Let me know if you would like to define domain rules in advance."
-- If secondary domains exist, performs the same installation check for secondary domains.
+- Repeats the installation check for each domain in the `domains:` list.
 
 > **Note**: Default domains included in the plugin can be installed in bulk via `setup-domains.sh --all`, or selectively via `setup-domains.sh {domain1} {domain2}`.
 
@@ -115,9 +120,8 @@ Executes the following upon user approval:
 | Item | Result |
 |---|---|
 | `.onto/learnings/` | {created / already exists} |
-| Domain | {domain / none (general mode)} |
-| Secondary domains | {domains / none} |
-| Global domain document | {N present / not present (auto-accumulation pending)} |
+| Domains | {domains list / none (select per session)} |
+| Global domain documents | {N present per domain / not present (auto-accumulation pending)} |
 
 ### Next Steps
 - `/onto:review {target}` — run agent panel review

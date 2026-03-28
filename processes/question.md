@@ -3,6 +3,16 @@
 > Asks a question to a single agent from a specific perspective. Executed via Agent tool (subagent) without Agent Teams.
 > Related: If multiple perspectives are needed, run a team review via `/onto:review`. If learnings accumulate, promotion is possible via `processes/promote.md`.
 
+### 0. Domain Selection
+
+Determine `{session_domain}` per the "Domain Determination Rules" in `process.md`.
+
+- If `@{domain}` is specified in the command: use non-interactive resolution
+- If `@-` is specified: set `{session_domain}` to empty (no-domain mode)
+- Otherwise: run the Domain Selection Flow
+
+---
+
 ### 1. Context Gathering
 
 Follows the **error handling rules** in `process.md`: halts the process on agent definition/query target read failure. Treats learning/domain document absence as "not yet available" and continues.
@@ -14,7 +24,8 @@ Follows the **error handling rules** in `process.md`: halts the process on agent
    - Skip if file does not exist.
 
 2. **Domain document collection**:
-   - After domain determination, reads the agent's domain document from `~/.onto/domains/{domain}/`.
+   - Reads the agent's domain document from `~/.onto/domains/{session_domain}/`.
+   - Skip if `{session_domain}` is empty (no-domain mode).
 
 3. **Project-level learning collection** (mandatory):
    - **Project**: `{project}/.onto/learnings/{agent-id}.md` — learnings accumulated in the project. **Must be read if this directory exists.**
@@ -62,9 +73,13 @@ Answer the question below from your specialized perspective.
 Include the following section at the end of your answer:
 
 ### Newly Learned
+For each learning, determine purpose type (guardrail/foundation/convention/insight) and impact severity (high/normal) per process.md Learning Storage Rules.
+
 - Communication learning: (findings about user preferences/communication style)
-- Methodology learning: [{fact|judgment}] (verification principles applicable in any domain)
-- Domain learning: [{fact|judgment}] (learnings valid only in this domain)
+- Methodology learning: [{fact|judgment}] [{purpose type}] (verification principles applicable in any domain) [impact:{severity}]
+- Domain learning: [{fact|judgment}] [{purpose type}] (learnings valid only in {session_domain}) [impact:{severity}]
+  - If {session_domain} is empty: skip domain learning, report methodology only
+  - For guardrail type, use template: **Situation**: ... **Result**: ... **Corrective action**: ...
 Mark each as "none" if there is nothing to report.
 ```
 

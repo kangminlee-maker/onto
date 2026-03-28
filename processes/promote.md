@@ -8,9 +8,10 @@ Reviews project-level learnings (`{project}/.onto/learnings/`) and promotes them
 ### Prerequisites
 
 - The `{project}/.onto/learnings/` directory must exist.
-- `domain:` must be declared in `.onto/config.yml` or CLAUDE.md.
 - At least one project learning file must exist.
 - If prerequisites are not met, inform the user and halt.
+
+**Domain resolution**: Promote does not use session domain selection. Domains are automatically determined from learning tags' `[domain/X]`. Learnings without domain tags are promoted as methodology-only.
 
 ### 1. Target Collection
 
@@ -53,8 +54,8 @@ Content to deliver to each review agent:
 You are {role}.
 Please review whether the project-level learnings below should be promoted to global.
 
-[Domain]
-{domain}
+[Domains]
+{domains derived from learning tags' [domain/X] — list all unique domains found in candidates}
 
 [Promotion Candidates]
 {item list — each item includes new/contradiction tag + axis tags}
@@ -98,7 +99,7 @@ Presents the judgment results to the user:
 ```markdown
 ## Learning Promotion Review Result
 
-### Domain: {domain}
+### Domains: {domains derived from learning tags}
 ### Target Agents: {agent-id list}
 
 ---

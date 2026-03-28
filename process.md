@@ -100,12 +100,107 @@ The team lead reads config.yml during Context Gathering, resolves the `output_la
 
 ### Domain Determination Rules
 
-1. **Plugin config takes priority**: If the project's `.onto/config.yml` declares `domain:`, that domain is used.
-2. **CLAUDE.md backward compatibility**: If `.onto/config.yml` does not exist or lacks `domain:`, the `domain:` or `agent-domain:` declaration in CLAUDE.md is used.
-3. **Multiple domains**: If `secondary_domains:` is declared (in config.yml or CLAUDE.md), the primary domain document is referenced first, and secondary domain documents are additionally referenced. If rules conflict, the primary domain takes precedence.
-4. **No declaration**: If no domain declaration exists anywhere, ask the user.
-5. **No domain documents**: If documents for the declared domain (`~/.onto/domains/{domain}/`) do not exist, verified using general principles (no domain document).
-6. **Agent re-evaluation on domain expansion**: When entering a domain that meets the conditions below, agent configuration re-evaluation is required.
+Domains use a **per-session selection** model. Each process execution selects a single `{session_domain}`.
+
+#### Session domain (per process execution)
+
+1. `@{domain}` specified → verify existence (if not found → warn + re-ask, no auto-fallback) → `{session_domain}` = `{domain}`
+2. `@-` specified → `{session_domain}` = empty (no-domain mode)
+3. `@{domain}` not specified → run Domain Selection Flow → set selected domain
+4. `[-]` selected → `{session_domain}` = empty (no-domain mode)
+
+**Command syntax**: `@` is recognized as a domain prefix only when it is an **independent whitespace-delimited token**. `@` within paths (e.g., `node_modules/@types/`) is not parsed as a domain. If 2+ `@` tokens appear, only the first is recognized; the rest are warned and ignored. `@-` specifies no-domain mode non-interactively.
+
+#### Domain Selection Flow (shared module — review, build, question)
+
+1. **Target analysis** — Read the target and summarize in 1-2 sentences
+2. **Collect available domains** — config.yml `domains:` + `~/.onto/domains/` combined, deduplicated
+3. **Derive suggested domain** — LLM recommends based on available domains + target analysis + session context. Recommendation is a **suggestion** and does not override the user's final choice
+4. **Display selection UI**
+
+```
+## Target Summary
+{1-2 sentence target summary}
+
+Suggested domain: {domain} ({reason})
+
+Available domains:
+  [a] {suggested domain} ← suggested
+  ──────────────────────────
+  [b] {project domain 1} ← project
+  ──────────────────────────
+  [c] {global domain 1}
+  [d] {global domain 2}
+  ...
+  ──────────────────────────
+  [-] Verify without domain rules (agent default methodology only)
+
+Select domain [a]: _
+```
+
+5. **Await input (Enter to confirm)** — Enter selects the suggested domain. Other label/domain name input selects that domain. No timer
+6. **Proceed after confirmation**
+
+**UI rules**:
+- Labels: lowercase a-z (not numbers). Display order: suggested > project > global — this order is for display convenience and does not imply priority between domains
+- Deduplication: higher section takes precedence (suggested > project > global)
+- 26+ domains: "Type the domain name directly for N additional domains"
+- 0 suggestions (LLM fails to produce a recommendation): display available domains only, no default, await user input
+
+#### "No domain" mode (`{session_domain}` empty)
+
+The agents' default verification methodology (logical consistency, structural completeness, etc.) is based on ontological methodology. No-domain mode verifies using only this default methodology, without applying any specific domain's rule documents.
+
+- Domain document loading: skipped
+- Self-Loading: domain document line skipped (file absence graceful degradation already handles this)
+- Learning storage: `[methodology]` tag only. No `[domain/...]` tag
+- Learning storage path: `{project}/.onto/learnings/{agent-id}.md`
+- Verification scope notice: domain-specific issues may be missed in this mode
+
+#### Project domains (config.yml)
+
+`domains:` is an **unordered set**. `[A, B]` and `[B, A]` are identical. No domain has priority over another. It declares only "which domains are relevant to this project."
+
+1. config.yml `domains:` exists → project-relevant domains (unordered set)
+2. config.yml `domains:` absent + CLAUDE.md `domain:`/`agent-domain:` exists → backward-compatible fallback (converted to unordered set)
+3. config.yml `domains:` exists → CLAUDE.md domain declarations are ignored
+4. `domains: []` (empty array) = same as key absence (CLAUDE.md fallback applies)
+5. No declaration anywhere → ask during onboard, or ask at first execution
+
+Config.yml format:
+```yaml
+domains:
+  - software-engineering
+  - ontology
+output_language: ko
+```
+
+Old format compatibility: `domain: A` + `secondary_domains: B` → automatically converted to `domains: [A, B]` with migration guidance.
+
+#### Per-process domain resolution
+
+| Process | Domain resolution |
+|---------|-------------------|
+| review, build, question | Session domain selection (above) |
+| promote | Auto-determined from learning tags' `[domain/X]` (no selection needed) |
+| transform | No domain context needed |
+| onboard | Asks user for relevant domain list |
+
+#### Cross-domain targets
+
+When a target spans multiple domains, **run a separate review for each relevant domain**. Each execution is an independent session: results are not cross-referenced, and learnings are stored separately. Multi-domain simultaneous application is planned for future design.
+
+#### Edge cases
+
+For the complete edge case table, refer to Section 4 of `design-per-session-domain-selection.md`. Key behaviors:
+- Non-existent `@{domain}` → warn + re-ask (no auto-fallback)
+- No config.yml + no global domains → skip selection, no-domain mode
+- Domain directory exists but 0 files → listed with "(empty — no rules)" marker
+- Mid-session domain change → finish current process, re-run with different domain
+
+#### Agent re-evaluation on domain expansion
+
+When entering a domain that meets the conditions below, agent configuration re-evaluation is required.
 
 | Condition | Reason | Re-evaluation Target |
 |------|------|------------|
@@ -206,7 +301,7 @@ The team lead is a **structure coordinator**. It manages the relationships betwe
 
 When creating each teammate (Agent tool's prompt), combine identity setup + self-loading instructions + **Round 1 task directives** into a single prompt. The teammate begins work immediately upon creation.
 
-The team lead resolves the **domain name**, **plugin path**, **review target**, and **system purpose** obtained during Context Gathering to fill in the variables.
+The team lead resolves the **session domain**, **plugin path**, **review target**, and **system purpose** obtained during Context Gathering to fill in the variables.
 
 ```
 You are {role}.
@@ -218,7 +313,8 @@ You are joining the {team name} team.
 [Context Self-Loading]
 Read the files below and construct your own context. Skip if file does not exist:
 1. Learnings: ~/.onto/learnings/{agent-id}.md
-2. Domain document: ~/.onto/domains/{domain}/{corresponding domain document}
+2. Domain document: ~/.onto/domains/{session_domain}/{corresponding domain document}
+   (Skip this line if {session_domain} is empty)
 3. Communication learning: ~/.onto/communication/common.md
 If project-level learnings exist:
 4. Project-level learnings: {project}/.onto/learnings/{agent-id}.md
@@ -281,7 +377,7 @@ Entry format:
 
 Entry format:
 ```markdown
-- [{type}] [{axis tag}] {learning content} (source: {project name}, {domain}, {date})
+- [{type}] [{axis tag}] [{purpose type}] {learning content} (source: {project name}, {session_domain}, {date}) [impact:{impact_severity}]
 ```
 
 `{type}` tags:
@@ -290,23 +386,68 @@ Entry format:
 
 `{axis tag}` (multiple allowed):
 - `[methodology]`: Practical verification techniques applicable regardless of domain
-- `[domain/{name}]`: Learnings valid in the context of a specific domain
+- `[domain/{name}]`: Learnings valid in the context of a specific domain. Uses `{session_domain}` value
 - A single learning can be tagged with both `[methodology]` and `[domain/{name}]`
 - **Tag absence = open-world**: The absence of a specific axis tag does not mean "invalid for that axis." It means "validity for that axis has not yet been confirmed."
+- **No-domain mode**: When `{session_domain}` is empty, use `[methodology]` tag only. No `[domain/...]` tag
 
 **Axis tag determination criteria** (mandatory before storage, bidirectional):
 1. "If domain-specific terms are removed from this learning, does the principle still hold?" -> If yes, assign `[methodology]` tag
-2. "Did this learning arise from or is it valid in the context of a specific domain?" -> If yes, assign `[domain/{name}]` tag
+2. "Did this learning arise from or is it valid in the context of a specific domain?" -> If yes, assign `[domain/{session_domain}]` tag
 3. If both apply, assign both tags
+
+#### Purpose-Based Type Tags (Phase 0.5)
+
+Each learning is tagged with a purpose type in addition to the existing type and axis tags. This is an **orthogonal axis** independent of `[fact/judgment]` × `[methodology/domain]`.
+
+`{purpose type}` tags:
+- `[guardrail]`: Prohibition/warning derived from failure experience. **3 required elements** must all be present in the content: (1) failure situation — the specific action taken and context, (2) observed result — the negative outcome, (3) corrective action — what should be done instead. If any element is missing, do not tag as guardrail
+- `[foundation]`: Foundational knowledge that serves as a prerequisite for other learnings
+- `[convention]`: Terminology/notation/procedure agreement or conflict resolution
+- `[insight]`: All learnings that do not qualify as the above 3 types (default)
+
+**Determination flow** (mandatory at learning creation time):
+```
+All 3 elements present? (failure situation + observed result + corrective action)
+  → Yes: guardrail
+  → No: Prerequisite for other learnings?
+    → Yes: foundation
+    → No: Terminology/notation/procedure agreement?
+      → Yes: convention
+      → No: insight
+```
+
+#### Impact Severity (Phase 0.5)
+
+Each learning is tagged with `impact_severity` at creation time. This value is **immutable** — set once and never changed.
+
+| Value | Criteria |
+|-------|----------|
+| `high` | Either: (a) ignoring this learning could cause data loss, system failure, or user-facing errors; OR (b) reaching the same conclusion without this learning would require significant investigation/debugging |
+| `normal` | Neither criterion met |
+
+Tag format: `[impact:high]` or `[impact:normal]` appended after source info.
+
+#### Failure Experience Detection (Phase 0.5)
+
+`is_failure_experience` is determined automatically at creation time based on whether the learning content contains all 3 guardrail elements (failure situation + observed result + corrective action). If `true`, the learning qualifies as a `[guardrail]` type. This replaces the former `conflict_resolution` field.
+
+#### Guardrail Template
+
+When storing a `[guardrail]` learning, use this structure:
+```markdown
+- [judgment] [domain/{session_domain}] [guardrail] **Situation**: {what action was taken and why}. **Result**: {what went wrong}. **Corrective action**: {what to do instead}. (source: {project}, {session_domain}, {date}) [impact:high]
+```
 
 ### Consumption Rules
 
 After an agent loads its learning file, each entry is processed according to the following rules:
 
 1. Items with `[methodology]` tag: **Always apply**
-2. Items with `[domain/{current-domain}]` tag: **Always apply**
+2. Items with `[domain/{session_domain}]` tag: **Always apply** (where `{session_domain}` is the current session's domain)
 3. Items with only `[domain/{other-domain}]` tag: **Review then judge** — If the principle still holds after removing domain-specific terms from the learning content, apply it. Otherwise, ignore.
 4. Items without tags (legacy): Treat as `[methodology]`
+5. Items with purpose type tags (`[guardrail]`, `[foundation]`, `[convention]`, `[insight]`): Apply using the same rules above. Purpose type does not affect consumption filtering (it is used for loading priority in Phase 1)
 
 ### Learning Verification Rules
 

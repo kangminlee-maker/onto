@@ -123,6 +123,18 @@ If non-code source traversal tools are unavailable (MCP server not configured, e
 
 ---
 
+### Domain Selection (before Phase 0)
+
+Determine `{session_domain}` per the "Domain Determination Rules" in `process.md`.
+
+- If `@{domain}` is specified in the command: use non-interactive resolution
+- If `@-` is specified: set `{session_domain}` to empty (no-domain mode)
+- Otherwise: run the Domain Selection Flow
+
+The resolved `{session_domain}` is used for domain document loading in teammate prompts and learning storage tags.
+
+---
+
 ### Phase 0: Schema Negotiation
 
 Determines the ontology structure in consultation with the user. **Must be executed before exploration begins.**

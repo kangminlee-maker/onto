@@ -1,3 +1,10 @@
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+
 # Software Engineering Domain — Extension Cases
 
 The onto_evolution agent simulates each scenario to verify whether the existing structure breaks.

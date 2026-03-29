@@ -1,3 +1,10 @@
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+
 # LLM-Native Development Domain — Structure Specification
 
 ## Project Required Files (Meta Files)

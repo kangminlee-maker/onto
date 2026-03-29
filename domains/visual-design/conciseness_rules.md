@@ -1,3 +1,10 @@
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+
 # Conciseness Rules (visual-design)
 
 This document contains the domain-specific rules that onto_conciseness references during conciseness verification.

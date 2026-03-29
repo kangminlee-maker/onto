@@ -106,6 +106,28 @@ Each agent reads the corresponding domain documents at execution time (verified 
 
 Path: `~/.onto/domains/{domain}/`
 
+#### Domain Document Frontmatter
+
+Every domain document (both `domains/` and `drafts/`) must have YAML frontmatter:
+
+```yaml
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | int | Starts at 1. Incremented on every content update |
+| `last_updated` | date | Date of last content modification |
+| `source` | string | How this document was created: `setup-domains`, `create-domain`, `feedback`, `promote-domain`, `manual` |
+| `status` | enum | `established` (in `domains/`) or `seed` (in `drafts/`) |
+
+**Update rule**: Any process that modifies a domain document (`/onto:feedback`, `/onto:promote-domain`, promote Step 7, manual edit) must increment `version` and update `last_updated`. The `source` field reflects the **most recent** update method.
+
 #### Seed Documents (drafts/)
 
 Path: `~/.onto/drafts/{domain}/`

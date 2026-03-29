@@ -1,3 +1,10 @@
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+
 # Visual Design Domain — Concept Dictionary and Interpretation Rules
 
 ## Composition Principle Core Terms

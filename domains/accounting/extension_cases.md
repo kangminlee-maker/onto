@@ -1,3 +1,10 @@
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+
 # Accounting Domain — Extension Scenarios
 
 The onto_evolution agent simulates each scenario to verify whether the existing accounting system breaks.

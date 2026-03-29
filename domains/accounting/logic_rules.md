@@ -1,3 +1,10 @@
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+
 # Accounting Domain — Logic Rules
 
 ## Debit (차변)/Credit (대변) Balance Logic

@@ -1,3 +1,10 @@
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+
 # Accounting Domain — Competency Questions
 
 A list of core questions that this domain's system must be able to answer.

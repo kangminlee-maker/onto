@@ -1,3 +1,10 @@
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+
 # LLM-Native Development Domain — Domain Scope Definition
 
 The reference document used by onto_coverage when identifying "what should be there but is missing" in an LLM-native system.

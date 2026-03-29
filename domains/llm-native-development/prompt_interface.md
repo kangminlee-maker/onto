@@ -1,3 +1,10 @@
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+
 # LLM-Native Development Domain — Prompt/Interface Design
 
 This document defines the design criteria for structures that issue instructions to LLMs — system prompts, tool definitions, role definitions, and response formats.

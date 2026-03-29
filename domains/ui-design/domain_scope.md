@@ -1,3 +1,10 @@
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+
 # UI Design Domain — Domain Scope Definition
 
 This domain applies when **reviewing** the structure, patterns, and interaction design of user interfaces (UI).

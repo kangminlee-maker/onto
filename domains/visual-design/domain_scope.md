@@ -1,3 +1,10 @@
+---
+version: 1
+last_updated: "2026-03-29"
+source: setup-domains
+status: established
+---
+
 # Visual Design Domain — Domain Scope Definition
 
 This domain applies when **reviewing** visual design systems (design systems, brand identity, UI/UX visual elements, print/digital media design).

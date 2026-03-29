@@ -66,6 +66,8 @@ Terms used repeatedly in this document.
 | **SEED marker** | `<!-- SEED: low-confidence, needs evidence -->` HTML comment marking LLM-inferred content in seed documents |
 | **feedback loop** | Process of feeding accumulated learnings back into domain documents via `/onto:feedback` |
 | **promotion** | Moving a seed domain from `drafts/` to `domains/` after all SEED markers are removed via `/onto:promote-domain` |
+| **backup** | Timestamped snapshot of `~/.onto/` user data for rollback |
+| **restore** | Rollback to a previous backup state with pre-restore safety net |
 
 ---
 
@@ -476,6 +478,26 @@ If domain document updates (`concepts.md`, `competency_qs.md`, `domain_scope.md`
 
 ---
 
+### 4.10 Data Backup (backup)
+
+**Command**: `/onto:backup` or `/onto:backup "reason"`
+**Input**: Optional reason string
+**Output**: Timestamped snapshot at `~/.onto/_backups/{backup-id}/`
+
+Snapshots learnings, domains, drafts, and communication data. Includes a manifest with file counts and domain lists.
+
+---
+
+### 4.11 Data Restore (restore)
+
+**Command**: `/onto:restore` (list) or `/onto:restore {backup-id}`
+**Input**: Backup ID or none (list mode)
+**Output**: Restored data + safety backup of pre-restore state
+
+Automatically creates a safety backup before restoring. Supports rollback of the rollback.
+
+---
+
 ## 5. Domain System
 
 ### 5.1 Domain Determination Rules
@@ -692,7 +714,7 @@ onto/
 |                             #   Agent configuration, domain documents, Agent Teams execution,
 |                             #   learning storage rules, team lifecycle, team lead role
 |
-+-- processes/                # Process definitions (9)
++-- processes/                # Process definitions (11)
 |   +-- review.md             #   Team review (agent panel)
 |   +-- question.md           #   Individual query (1 agent)
 |   +-- build.md              #   Ontology build (integral exploration)
@@ -702,6 +724,8 @@ onto/
 |   +-- create-domain.md      #   Seed domain generation
 |   +-- feedback.md           #   Domain document feedback loop
 |   +-- promote-domain.md     #   Seed to established promotion
+|   +-- backup.md             #   Data backup
+|   +-- restore.md            #   Data restore
 |
 +-- roles/                    # Agent role definitions (8)
 |   +-- onto_logic.md         #   Logical consistency
@@ -713,12 +737,18 @@ onto/
 |   +-- onto_coverage.md      #   Domain coverage
 |   +-- philosopher.md        #   Purpose alignment
 |
-+-- commands/                 # Command definitions (16)
++-- commands/                 # Command definitions (20)
 |   +-- review.md
 |   +-- build.md
 |   +-- transform.md
 |   +-- onboard.md
 |   +-- promote.md
+|   +-- create-domain.md
+|   +-- feedback.md
+|   +-- promote-domain.md
+|   +-- backup.md
+|   +-- restore.md
+|   +-- help.md
 |   +-- ask-logic.md
 |   +-- ask-structure.md
 |   +-- ask-dependency.md
@@ -726,6 +756,7 @@ onto/
 |   +-- ask-pragmatics.md
 |   +-- ask-evolution.md
 |   +-- ask-coverage.md
+|   +-- ask-conciseness.md
 |   +-- ask-philosopher.md
 |
 +-- domains/                  # Domain reference documents (9 domains)
@@ -938,8 +969,8 @@ The key decision sequence when rebuilding this system from scratch:
 1. `.claude-plugin/plugin.json` -- Plugin metadata
 2. `process.md` -- Common definitions (top-level rules for all processes)
 3. `roles/` -- Agent role definitions
-4. `processes/` -- 6 process definitions
-5. `commands/` -- 16 command definitions (each specifying which process file to read and execute)
+4. `processes/` -- 11 process definitions
+5. `commands/` -- 20 command definitions (each specifying which process file to read and execute)
 6. `domains/` -- Domain reference documents
 7. `setup-domains.sh` -- Domain document installation script
 

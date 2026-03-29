@@ -251,6 +251,8 @@ onto/
 |   +-- create-domain.md    # Seed domain generation
 |   +-- feedback.md         # Domain document feedback loop
 |   +-- promote-domain.md   # Seed to established promotion
+|   +-- backup.md            # Data backup
+|   +-- restore.md           # Data restore
 +-- roles/
 |   +-- onto_logic.md        # Logical consistency
 |   +-- onto_structure.md    # Structural completeness
@@ -269,7 +271,7 @@ onto/
 |   +-- KNOWN-ISSUES.md
 |   +-- DESIGN-build-generalization.md
 |   +-- philosophical-foundations-of-ontology.md
-+-- commands/                # Command definitions (16: 13 existing + 3 domain management)
++-- commands/                # Command definitions (20)
 +-- setup-domains.sh         # Domain base document installation
 +-- migrate-sessions.sh      # Previous version data migration
 +-- migrate-learnings.sh     # Learning storage structure migration

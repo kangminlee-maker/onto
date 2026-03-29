@@ -145,7 +145,7 @@ output_language: ko
 | Command | Description |
 |---|---|
 | `/onto:onboard` | Set up onto environment for a project |
-| `/onto:promote` | Promote project-level learnings to global-level |
+| `/onto:promote` | Learning Quality Assurance — 승격, 큐레이션, 감사 |
 
 ### Domain Document Management
 | Command | Description |
@@ -289,7 +289,7 @@ onto/
 
 ## Learning System
 
-Agents accumulate learnings through reviews and queries. Learnings are stored using a 2-path + axis tag model:
+Agents accumulate learnings through reviews and queries. 학습의 전체 수명주기(생성·승격·보존·소비·퇴역)는 Learning Management로 정의되며, promote 프로세스가 Learning Quality Assurance(승격·큐레이션·감사)를 수행한다. Learnings are stored using a 2-path + axis tag model:
 
 | Storage Location | Scope |
 |---|---|
@@ -348,6 +348,14 @@ During reviews and queries, if a domain-specific fact (data format, industry rul
 ### Deduplication at Promote
 
 When promoting learnings via `/onto:promote`, a "same principle" test identifies domain variants of existing global learnings. Same-principle entries are consolidated into a single entry with representative cases from diverse domains.
+
+### Consumption Feedback
+
+리뷰/질문 수행 시 적용된 학습을 기록하고, 적용 후 무효/유해로 판단된 학습에는 이벤트 마커를 부착한다. 마커가 축적된 학습은 promote 실행 시 퇴역 후보로 표면화된다.
+
+### Collection Health Snapshot
+
+promote 완료 시 학습 풀의 집합 상태를 스냅샷으로 보고한다: 축별 분포, 목적 유형 분포, judgment 비율, 중복 후보, 태그 재평가 변경 건수 등.
 
 ## Domain Documents (8 types)
 

@@ -1,9 +1,14 @@
 # Learning Promotion Process
 
-> Reviews project-level learnings and promotes them to global-level.
+> 학습 품질 보증(Learning Quality Assurance) — 다음 3가지 활동을 수행한다:
+> 1. **승격(Promotion)**: project-level 학습의 global-level 승격
+> 2. **큐레이션(Curation)**: 기존 global 학습의 축 태그 재평가 및 교차 에이전트 중복 제거
+> 3. **감사(Audit)**: judgment 학습 재검증 및 event marker 보유 학습 퇴역 검토
+>
+> 프로세스 이름 "promote"는 활동 1에서 유래하며, 활동 2-3을 포함하는 확장된 범위를 갖는다.
 > Related: Learnings accumulated from reviews (`processes/review.md`) or queries (`processes/question.md`) are the target.
 
-Reviews project-level learnings (`{project}/.onto/learnings/`) and promotes them to global-level (`~/.onto/learnings/`). Axis tags are preserved, and tag appropriateness is also reviewed during promotion.
+학습 품질 보증(LQA)을 수행한다. Project-level learnings (`{project}/.onto/learnings/`)의 global-level 승격, 기존 global 학습의 축 태그 재평가와 교차 에이전트 중복 제거, judgment 학습 재검증 및 event marker 보유 학습 퇴역 검토를 포함한다.
 
 ### Prerequisites
 
@@ -12,6 +17,11 @@ Reviews project-level learnings (`{project}/.onto/learnings/`) and promotes them
 - If prerequisites are not met, inform the user and halt.
 
 **Domain resolution**: Promote does not use session domain selection. Domains are automatically determined from learning tags' `[domain/X]`. Learnings without domain tags are promoted as methodology-only.
+
+**Note**: 활동 1(승격)은 project learnings 존재를 필요로 한다. 활동 2(큐레이션)와
+활동 3(감사)은 global learnings를 대상으로 하므로 project learnings 없이도
+원칙적으로 실행 가능하나, 현재는 promote 전체가 단일 트리거로 실행되므로
+project learnings 존재를 전제로 한다. 이것은 의도적 결합이다.
 
 ### 1. Target Collection
 
@@ -67,8 +77,15 @@ Please review whether the project-level learnings below should be promoted to gl
 1. Generalizability: Is this learning valid only in this project, or also valid in other projects?
 2. Accuracy: Is the learning content based on facts, or a coincidence from a unique situation?
 3. Contradiction handling: If it contradicts an existing global learning, which is more generally correct?
-4. Axis tag appropriateness: Apply 2+1 stage test per process.md.
-   For entries with uncertainty flags: resolve using 3-agent panel's domain knowledge.
+4. **Axis tag appropriateness (승격 후보 + 기존 global 재평가)**:
+   - 승격 후보: Apply 2+1 stage test per process.md.
+     For entries with uncertainty flags: resolve using 3-agent panel's domain knowledge.
+   - tag-incomplete 마커(`<!-- tag-incomplete: ... -->`) 보유 항목: 우선 검토.
+   - 기존 global 재평가: 동일 에이전트 파일 내 dual-tag([methodology] + [domain/X])
+     항목에 Stage A를 재적용. 승격 이후 축적된 도메인 경험을 기준으로 판단.
+     Stage A 실패(도메인 용어 제거 시 원칙 소멸) → [methodology] 제거를 권고.
+     재평가 결과는 Step 5 User Approval에 "Axis Tag Re-evaluation" 섹션으로 표시.
+     태그 변경은 User Approval Tier "정보 변경"에 해당 → 일괄 승인/거절.
 5. **Deduplication**: Is this candidate a domain variant of an existing
    global learning that expresses the same principle?
 
@@ -86,6 +103,39 @@ Please review whether the project-level learnings below should be promoted to gl
    - Retain up to 3 representative cases. Maximize domain diversity.
    - citation_count of consolidated entry = max(original entries).
    - Original entries preserved as `<!-- consolidated into: [principle] -->`.
+
+   Note: The "same principle" test defined above is also used by criterion 6
+   with a different removal target (agent-specific framing instead of
+   domain-specific terms).
+
+6. **Cross-agent deduplication (교차 에이전트 중복 제거)**:
+   승격 후보 및 기존 global 학습 전체에서, 다른 에이전트 파일에 동일 원칙이
+   관점만 달리하여 반복되는 항목을 식별한다.
+
+   Same-principle test: criterion 5와 동일한 테스트를 사용하되,
+   제거 대상이 다르다:
+   - criterion 5: domain-specific terms 제거 후 비교
+   - criterion 6: agent-specific framing 제거 후 비교
+
+   Primary owner 결정: 원칙의 내용에 가장 가까운 검증 차원의 에이전트.
+   Tiebreaker: 먼저 생성된 학습의 에이전트가 primary owner.
+
+   통합 형식: criterion 5의 consolidated format을 준용.
+   비주(non-owner) 파일의 원본은 `<!-- consolidated into: [principle] -->` 주석 처리.
+
+   실행 모델: 단일 주체(philosopher 또는 designated reviewer)가 순차 실행.
+   Step 3의 다른 criteria는 3-agent 병렬이나, criterion 6만 단일 순차.
+   양방향 삭제 위험을 방지하기 위함.
+
+   User Approval: 통합은 복합 연산(생성 + 주석 처리)이므로
+   가장 엄격한 티어 적용 → 항목별 승인.
+
+**Step 3 내 실행 순서**:
+criterion 4 (축 태그 재평가) → criterion 6 (교차 에이전트 중복 제거) →
+criterion 5 (후보 vs global 중복 제거).
+
+이유: 태그 변경은 중복 판정에 영향을 미치고, 중복 제거는 비율에 영향을 미친다.
+역전 시 중간 결과 불일치가 발생한다.
 
 [Report Format]
 For each item:
@@ -107,6 +157,19 @@ Aggregates the 3 reviewers' results:
 | 2/3 or more reject | Reject |
 
 **Contradiction items**: Regardless of consensus, always require user confirmation.
+
+### 4a. Event Marker Review
+
+Event marker(`<!-- applied-then-found-invalid: ... -->`)가 2개 이상 부착된 global 학습을 식별하여 퇴역 후보로 분류한다.
+
+**실행 조건**: event marker 2개 이상 보유 학습이 존재할 때. Judgment 재검증(Step 8)의 "10개 이상" 조건과 독립적으로 실행된다.
+
+**`<!-- retention-confirmed: ... -->` 마커 처리**: retention-confirmed 이후에 새로 추가된 event marker만 카운트한다.
+
+**출력**: Step 5 User Approval에 "Event Marker Review" 섹션으로 포함.
+
+**Note**: 이 단계의 분석 로직은 Step 5 이전에 실행되어야 하므로 Step 4a에 배치한다.
+Event marker에 기반한 퇴역은 process.md의 Consumption Feedback 정의를 참조한다.
 
 ### 5. User Approval
 
@@ -203,7 +266,7 @@ Upon user approval:
 
 ### 8. Judgment Learning Re-verification
 
-If any agent has accumulated 10 or more `[judgment]`-type learnings, re-verifies the contextual validity of existing judgment learnings:
+If any agent has accumulated 10 or more `[judgment]`-type learnings, re-verifies the contextual validity of existing judgment learnings. (Event marker review is handled independently in Step 4a.)
 
 ```markdown
 ## Judgment Learning Re-verification
@@ -232,4 +295,26 @@ Re-verification criteria: Is this judgment still valid in the current context?
 | Judgment learning deleted/modified | N items |
 
 Global learning path: `~/.onto/learnings/`
+
+### Collection Health Snapshot
+
+| Metric | Value |
+|--------|-------|
+| Total global learnings | N |
+| Axis distribution: methodology-only / domain-only / dual | N% / N% / N% |
+| Purpose distribution: guardrail / foundation / convention / insight | N / N / N / N |
+| Judgment ratio | N% |
+| Cross-agent dedup candidates remaining | N clusters |
+| Axis tag re-evaluation changes this session | N items |
+| Event marker review candidates | N items |
+| Creation gate failures (tag-incomplete markers) | N items |
+| Applied Learnings yes/no aggregate | yes: N / no: N (from review results in scope) |
+
+### Separation Trigger Check
+- 에이전트당 학습 파일 100행 초과: {list or "none"}
+- 분리 1차 후보: criterion 4(태그 재평가), criterion 6(교차 에이전트 중복 제거)
+- 트리거 발동 시: 별도 설계 세션을 실행하여 분리 방법을 결정한다.
+
+(Note: 시계열 비교(Previous/Δ)는 현재 규모에서 구현하지 않는다.
+사용자가 직전 promote 보고서와 수동 비교하여 추세를 판단한다.)
 ```

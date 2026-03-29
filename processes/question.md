@@ -84,6 +84,16 @@ per process.md Learning Storage Rules.
   - For guardrail type: **Situation**: ... **Result**: ... **Corrective action**: ...
   - If a domain-specific fact **influenced your judgment**, record it separately.
 Mark each as "none" if there is nothing to report.
+
+### Applied Learnings
+List learnings from your learning file that influenced your review judgment:
+- Learning: {summary} (source: {source})
+  - "이 학습이 없었다면 이번 리뷰에서 놓쳤을 발견이 있는가?" (yes/no)
+- If a loaded learning was applied but found invalid/harmful during this review,
+  attach event marker to the learning file:
+  `<!-- applied-then-found-invalid: {date}, {session_id}, {reason} -->`
+  (Event marker attachment is agent-autonomous — no approval needed.)
+Mark "none" if no learnings were applied.
 ```
 
 ### 3. Result Output

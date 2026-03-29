@@ -61,6 +61,11 @@ Terms used repeatedly in this document.
 | **Stage 1 / Stage 2** | The two-stage division of build Phase 1. Stage 1 (Structure) identifies Entity, Enum, Relation, Property, and Stage 2 (Behavior) identifies State Machine, Command, Query, Policy, Flow based on Stage 1 results. Each Stage independently performs an integral exploration loop |
 | **canonical.yaml** | The schema-neutral source example in the golden directory. The common starting point for how each schema (B/C/D) represents the same domain facts |
 | **golden** | The directory containing golden examples (exemplary output samples) per schema. Referenced when determining raw.yml format during Phase 4 (storage) |
+| **seed** | LLM-generated draft domain documents in `~/.onto/drafts/`. Contains SEED markers. Not used as verification standards |
+| **established** | Domain documents in `~/.onto/domains/` with zero SEED markers. Used as verification standards by agents |
+| **SEED marker** | `<!-- SEED: low-confidence, needs evidence -->` HTML comment marking LLM-inferred content in seed documents |
+| **feedback loop** | Process of feeding accumulated learnings back into domain documents via `/onto:feedback` |
+| **promotion** | Moving a seed domain from `drafts/` to `domains/` after all SEED markers are removed via `/onto:promote-domain` |
 
 ---
 
@@ -444,6 +449,33 @@ If domain document updates (`concepts.md`, `competency_qs.md`, `domain_scope.md`
 
 ---
 
+### 4.7 Domain Creation (create-domain)
+
+**Command**: `/onto:create-domain {name} {description}`
+**Input**: Domain name and brief description
+**Output**: 8 seed domain documents in `~/.onto/drafts/{name}/`
+**Key behavior**: LLM generates all 8 document types from the provided description. Low-confidence content is marked with `<!-- SEED: low-confidence, needs evidence -->`. Seed documents are never loaded as verification standards.
+
+---
+
+### 4.8 Domain Feedback (feedback)
+
+**Command**: `/onto:feedback {domain}`
+**Input**: A seed domain in `~/.onto/drafts/{domain}/` with accumulated learnings
+**Output**: Updated seed documents with learnings incorporated, SEED markers adjusted
+**Key behavior**: Feeds `[domain/{domain}]` learnings back into the seed documents. May remove SEED markers where learnings provide sufficient evidence. Only the user can make final decisions on SEED marker removal.
+
+---
+
+### 4.9 Domain Promotion (promote-domain)
+
+**Command**: `/onto:promote-domain {domain}`
+**Input**: A seed domain in `~/.onto/drafts/{domain}/` with zero SEED markers
+**Output**: Domain documents moved to `~/.onto/domains/{domain}/`
+**Key behavior**: Pre-checks that zero SEED markers remain. If any SEED markers exist, promotion is blocked with a list of remaining markers. After promotion, the domain becomes an established verification standard.
+
+---
+
 ## 5. Domain System
 
 ### 5.1 Domain Determination Rules
@@ -502,6 +534,16 @@ Each domain has up to 7 reference documents. Each agent references the document 
 | `ui-design` | Navigation, forms, feedback, responsive design, WAI-ARIA accessibility |
 
 **Installation method**: Run `./setup-domains.sh` (interactive selection or `--all` for full installation)
+
+### Seed Documents and the Feedback Loop
+
+Seed documents (`~/.onto/drafts/`) are LLM-generated domain document drafts sharing the same 8-file structure as established documents but containing SEED markers on low-confidence content.
+
+**Lifecycle**: create → review → feedback → (repeat) → promote
+
+**Key invariants**: (1) Seeds are never loaded as verification standards. (2) Seeds may be review targets. (3) Promotion requires zero SEED markers. (4) Only the user can remove SEED markers.
+
+Design reference: `dev-docs/design-domain-document-creation.md`
 
 ---
 
@@ -650,13 +692,16 @@ onto/
 |                             #   Agent configuration, domain documents, Agent Teams execution,
 |                             #   learning storage rules, team lifecycle, team lead role
 |
-+-- processes/                # Process definitions (6)
++-- processes/                # Process definitions (9)
 |   +-- review.md             #   Team review (agent panel)
 |   +-- question.md           #   Individual query (1 agent)
 |   +-- build.md              #   Ontology build (integral exploration)
 |   +-- transform.md          #   Ontology transform
 |   +-- onboard.md            #   Project onboarding
 |   +-- promote.md            #   Learning promotion
+|   +-- create-domain.md      #   Seed domain generation
+|   +-- feedback.md           #   Domain document feedback loop
+|   +-- promote-domain.md     #   Seed to established promotion
 |
 +-- roles/                    # Agent role definitions (8)
 |   +-- onto_logic.md         #   Logical consistency
@@ -668,7 +713,7 @@ onto/
 |   +-- onto_coverage.md      #   Domain coverage
 |   +-- philosopher.md        #   Purpose alignment
 |
-+-- commands/                 # Command definitions (13)
++-- commands/                 # Command definitions (16)
 |   +-- review.md
 |   +-- build.md
 |   +-- transform.md
@@ -894,7 +939,7 @@ The key decision sequence when rebuilding this system from scratch:
 2. `process.md` -- Common definitions (top-level rules for all processes)
 3. `roles/` -- Agent role definitions
 4. `processes/` -- 6 process definitions
-5. `commands/` -- 13 command definitions (each specifying which process file to read and execute)
+5. `commands/` -- 16 command definitions (each specifying which process file to read and execute)
 6. `domains/` -- Domain reference documents
 7. `setup-domains.sh` -- Domain document installation script
 

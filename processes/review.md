@@ -22,6 +22,9 @@ Determine `{session_domain}` per the "Domain Determination Rules" in `process.md
 - If `@{domain}` is specified in the command: use non-interactive resolution
 - If `@-` is specified: set `{session_domain}` to empty (no-domain mode)
 - Otherwise: run the Domain Selection Flow (target analysis → collect available domains → derive suggestion → display UI → await user input)
+- **Seed review detection**: If the review target path matches `drafts/{domain}`:
+  - Default domain recommendation: `@-` (no-domain mode) unless user explicitly specifies otherwise
+  - Reason: seed content is unverified, so applying domain-specific rules would use unverified content as standards
 
 The resolved `{session_domain}` is used throughout this session for domain document loading, learning storage tags, and the verification context section of the final output.
 
@@ -34,6 +37,7 @@ The team lead collects only the items below. Per-agent learnings/domain document
 1. **Review target collection**:
    - If file/directory: reads the relevant code.
    - If design/decision: reads the related documents.
+   - If `drafts/{domain}` path: reads all 8 files from `~/.onto/drafts/{domain}/` as the review target (seed review mode). The seed domain's documents are the review target, not verification standards. Verification standards come from: (a) agent intrinsic methodology, (b) `@{other-domain}` if specified, (c) LLM pre-training knowledge.
 
 2. **Project context collection**:
    - Identifies the system purpose and principles from CLAUDE.md, README.md, etc.
@@ -324,6 +328,7 @@ The team lead delivers the Philosopher's final output to the user **without modi
 ### 6. Wrap-Up (Learning Storage + Team Shutdown)
 
 1. **Learning storage**: Stores learnings from all members. Follows the "Learning Storage Rules" in `process.md`. If deliberation occurred, also includes learnings generated during the deliberation process. **Learning data collection must be completed before team shutdown.**
+   - **Seed review learning tag**: When reviewing a seed domain (`drafts/{domain}`), learnings about the seed domain's content are tagged with `[domain/{seed-domain}]`. These learnings become input for the feedback loop (`/onto:feedback {domain}`).
 
 2. **Promotion guidance** (conditional): Provide guidance only if new domain learnings were stored in this review:
    "Project domain learnings have accumulated to {N} entries. If promotion is needed, run `/onto:promote`."

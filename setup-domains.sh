@@ -123,6 +123,9 @@ main() {
     echo "Installs domain base documents to ~/.onto/domains/."
     echo "Existing learnings (accumulated knowledge) are preserved."
     echo ""
+    echo "Note: Seed domains (created via /onto:create-domain) are stored in ~/.onto/drafts/"
+    echo "      and are not affected by this installation."
+    echo ""
 
     local available=$(get_available_domains)
 
@@ -190,6 +193,8 @@ main() {
     echo "    - {another-domain}"
     echo ""
     echo "Or select domains per session when running /onto:review, /onto:build, etc."
+    echo ""
+    echo "To create a new domain from scratch: /onto:create-domain {name} {description}"
     echo ""
 }
 

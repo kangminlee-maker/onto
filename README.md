@@ -147,6 +147,13 @@ output_language: ko
 | `/onto:onboard` | Set up onto environment for a project |
 | `/onto:promote` | Promote project-level learnings to global-level |
 
+### Domain Document Management
+| Command | Description |
+|---|---|
+| `/onto:create-domain {name} {desc}` | Generate seed domain documents from minimal input |
+| `/onto:feedback {domain}` | Feed accumulated learnings back into domain documents |
+| `/onto:promote-domain {domain}` | Promote seed domain from drafts/ to domains/ |
+
 ## Team Review Flow (6 Steps)
 
 ```
@@ -233,6 +240,9 @@ onto/
 |   +-- transform.md        # Ontology transform
 |   +-- onboard.md          # Onboarding
 |   +-- promote.md          # Learning promotion
+|   +-- create-domain.md    # Seed domain generation
+|   +-- feedback.md         # Domain document feedback loop
+|   +-- promote-domain.md   # Seed to established promotion
 +-- roles/
 |   +-- onto_logic.md        # Logical consistency
 |   +-- onto_structure.md    # Structural completeness
@@ -251,7 +261,7 @@ onto/
 |   +-- KNOWN-ISSUES.md
 |   +-- DESIGN-build-generalization.md
 |   +-- philosophical-foundations-of-ontology.md
-+-- commands/                # Command definitions
++-- commands/                # Command definitions (16: 13 existing + 3 domain management)
 +-- setup-domains.sh         # Domain base document installation
 +-- migrate-sessions.sh      # Previous version data migration
 +-- migrate-learnings.sh     # Learning storage structure migration
@@ -336,6 +346,12 @@ When promoting learnings via `/onto:promote`, a "same principle" test identifies
 | Scope-defining | `domain_scope.md` | Role becomes ineffective | Promote suggestion -> user approval |
 | Accumulable | `concepts.md`, `competency_qs.md` | Reduced performance | Promote suggestion -> user approval |
 | Rule-defining | `logic_rules.md`, `structure_spec.md`, `dependency_rules.md`, `extension_cases.md`, `conciseness_rules.md` | Reduced performance (LLM can substitute) | User writes directly |
+
+### Seed Documents (drafts/)
+
+Seed documents share the same 8-file structure but are generated from minimal input via `/onto:create-domain`. They contain SEED markers on low-confidence content and are stored in `~/.onto/drafts/{domain}/`. Seeds are improved through `/onto:feedback` and promoted via `/onto:promote-domain` once all SEED markers are removed.
+
+**Key invariant**: Seed documents are never used as agent verification standards.
 
 ## Migration
 

@@ -1,6 +1,7 @@
 # Onto Help
 
-Display the command reference below to the user. Do not read any other files.
+Read `{project}/.onto/config.yml` to check `output_language:` (default: `en`).
+Display the command reference below in the configured language.
 
 ---
 

@@ -73,13 +73,16 @@ Answer the question below from your specialized perspective.
 Include the following section at the end of your answer:
 
 ### Newly Learned
-For each learning, determine purpose type (guardrail/foundation/convention/insight) and impact severity (high/normal) per process.md Learning Storage Rules.
+For each learning, determine purpose type, impact severity, and axis tags
+per process.md Learning Storage Rules.
 
 - Communication learning: (findings about user preferences/communication style)
-- Methodology learning: [{fact|judgment}] [{purpose type}] (verification principles applicable in any domain) [impact:{severity}]
-- Domain learning: [{fact|judgment}] [{purpose type}] (learnings valid only in {session_domain}) [impact:{severity}]
-  - If {session_domain} is empty: skip domain learning, report methodology only
-  - For guardrail type, use template: **Situation**: ... **Result**: ... **Corrective action**: ...
+- Learning: [{fact|judgment}] [{axis tags}] [{purpose type}] (content) [impact:{severity}]
+  - Axis tags: `[methodology]` and/or `[domain/{session_domain}]`.
+    Apply 2+1 stage test per process.md.
+  - If {session_domain} is empty: `[methodology]` only
+  - For guardrail type: **Situation**: ... **Result**: ... **Corrective action**: ...
+  - If a domain-specific fact **influenced your judgment**, record it separately.
 Mark each as "none" if there is nothing to report.
 ```
 

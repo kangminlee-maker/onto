@@ -23,7 +23,7 @@
 |---------------|------------------|------|
 | 자주 참조되는 학습은 활용 가치가 높다 | `citation_count ≥ T` | Tier-2 |
 | 영향도가 큰 학습은 빈도 무관 보호 | `impact_severity == high` | Tier-2 |
-| 실패를 통해 얻은 학습은 대체 불가능하다 | `is_failure_experience == true` | Tier-2 |
+| 실패를 통해 얻은 학습은 대체 불가능하다 | `purpose_type == guardrail` | Tier-2 |
 | 다른 학습의 전제가 되는 기반 지식 보호 | `is_foundation == true` | Tier-1 |
 | 사용자가 직접 제공한 학습은 권위 기반 보호 | `source_type ∈ {user, promoted}` | Tier-1 |
 | 도메인 문서에 반영 완료 = 목적 달성 (졸업) | `reflected_in_doc` → Tier-3 경쟁 | Tier-3 |
@@ -121,7 +121,7 @@
 
   → [Step-2] Tier-2: 목적 기반 보호
       impact_severity == high
-      ∨ is_failure_experience == true
+      ∨ purpose_type == guardrail
       ∨ citation_count ≥ T (초기 T=2)
       → 전량 로딩
 
@@ -138,7 +138,7 @@
 
 Tier-1 + Tier-2 > 행 상한 시:
 1. Tier-1은 절대 삭감하지 않음
-2. Tier-2 내: `impact_severity==high` 또는 `is_failure_experience==true` → 유지. `citation_count ≥ T`만으로 진입한 항목 → citation_count 내림차순으로 삭감
+2. Tier-2 내: `impact_severity==high` 또는 `purpose_type==guardrail` → 유지. `citation_count ≥ T`만으로 진입한 항목 → citation_count 내림차순으로 삭감
 3. 이 상황 자체가 Phase 2 활성화 신호
 
 ### Graceful Degradation
@@ -160,17 +160,11 @@ Tier-1 + Tier-2 > 행 상한 시:
 | | (a) "이 learning이 무시되었을 때 데이터 유실, 시스템 장애, 또는 사용자 대면 오류가 발생할 수 있는가?" |
 | | (b) "이 learning 없이 동일 결론에 도달하려면 상당한 조사/디버깅이 필요했을 것인가?" |
 
-### is_failure_experience (실패경험)
+### is_failure_experience (실패경험) — 폐기
 
-| 항목 | 정의 |
-|------|------|
-| 타입 | boolean |
-| 판정 시점 | learning 생성 시 자동, 이후 고정 |
-| 판정 기준 | 다음 3요소가 **모두** 본문에 포함 시 `true`: |
-| | (1) **실패 상황**: 에이전트가 취한 구체적 행동과 맥락 |
-| | (2) **관찰된 결과**: 그 행동의 부정적 결과 |
-| | (3) **교정 행동**: 대신 취해야 할 행동 |
-| 기존 필드 흡수 | `conflict_resolution` → 충돌이 한 쪽의 실패로 판명된 경우 흡수 |
+> **폐기됨**: `[guardrail]` 태그가 failure experience를 표현한다.
+> `[guardrail]` 태그 존재 = `is_failure_experience == true`.
+> 별도 boolean 필드 불필요. 판정 기준은 `[guardrail]` 태그 정의(process.md)를 참조.
 
 ### is_foundation (기반 지식)
 
@@ -195,7 +189,7 @@ Phase 0.5부터 적용:
 | `source_type` | enum (user/agent/promoted) | 자동 | Tier-1 | 유지 |
 | `schema_version` | int | 자동 | — | 유지 |
 | `impact_severity` | enum (high/normal) | 생성 시 1회 | Tier-2 | **신규** |
-| `is_failure_experience` | boolean | 생성 시 자동 | Tier-2 | **신규** |
+| `is_failure_experience` | boolean | 생성 시 자동 | Tier-2 | **폐기** — `[guardrail]` 태그로 대체 |
 | `is_foundation` | boolean | 배치 재평가 | Tier-1 | 유지 |
 | `reflected_in_doc` | boolean | 배치 재평가 | Tier-3 (졸업) | **변경** |
 | `citation_count` | int (cap 10) | 배치 재평가 | Tier-2 | 승격 |

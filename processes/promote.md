@@ -30,7 +30,7 @@ Compares each project learning entry against global learnings and classifies:
 
 | Classification | Criteria | Action |
 |---|---|---|
-| **Duplicate** | Identical content already exists in global | Excluded from promotion targets |
+| **Duplicate** | Identical or near-identical content already exists in global (string-level match). Note: semantic-level deduplication ("same principle, different domain phrasing") is handled in Step 3 criterion 5, not here. | Excluded from promotion targets |
 | **Contradiction** | Conflicts with existing global entry | Explicit judgment required during review |
 | **New** | New learning not in global | Promotion candidate |
 
@@ -67,9 +67,25 @@ Please review whether the project-level learnings below should be promoted to gl
 1. Generalizability: Is this learning valid only in this project, or also valid in other projects?
 2. Accuracy: Is the learning content based on facts, or a coincidence from a unique situation?
 3. Contradiction handling: If it contradicts an existing global learning, which is more generally correct?
-4. Axis tag appropriateness: Are this learning's axis tags appropriate?
-   - "Does the principle still hold after removing domain-specific terms?" → whether [methodology] tag is needed
-   - "Is it also valid in domains other than the current project domain?" → whether additional [domain/X] tag is needed
+4. Axis tag appropriateness: Apply 2+1 stage test per process.md.
+   For entries with uncertainty flags: resolve using 3-agent panel's domain knowledge.
+5. **Deduplication**: Is this candidate a domain variant of an existing
+   global learning that expresses the same principle?
+
+   "Same principle" test (2-step):
+   (a) Remove domain-specific terms from both candidate and existing entry.
+       Do the remaining sentences prescribe the same action?
+   (b) Can you identify a situation where one applies but the other does not?
+       If yes, they are different principles.
+
+   If same principle: recommend consolidation.
+   - Consolidated format (inline, flat-compatible):
+     `- [{type}] [{axis tags}] [{purpose type}] General principle statement.
+       (Representative cases: domain-A에서 X; domain-B에서 Y; domain-C에서 Z)
+       (source: consolidated from [sources])`
+   - Retain up to 3 representative cases. Maximize domain diversity.
+   - citation_count of consolidated entry = max(original entries).
+   - Original entries preserved as `<!-- consolidated into: [principle] -->`.
 
 [Report Format]
 For each item:

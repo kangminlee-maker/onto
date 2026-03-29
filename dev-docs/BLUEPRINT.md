@@ -525,12 +525,15 @@ Each learning item is tagged with `[fact]` or `[judgment]`.
 - **[fact]**: Objective descriptions of definitions, structures, relations. Accumulation does not introduce bias
 - **[judgment]**: Value judgments like "this pattern is problematic." Validity may change when context changes, so items with 10+ accumulations become re-verification targets
 
-### 6.3 Axis Tag Determination
+### 6.3 Axis Tag Determination (2+1 Stage Test)
 
-Each learning gets axis tags via bidirectional criteria:
-1. "Does the principle hold after removing domain-specific terms?" → `[methodology]`
-2. "Is it valid in the context of `{session_domain}`?" → `[domain/{session_domain}]`
-3. Both can apply. No-domain mode → `[methodology]` only
+Each learning gets axis tags via a 2+1 stage test:
+- Sanity check (A): "Holds without domain terms?" → No → domain-only
+- Stage B: "Requires domain-specific preconditions (presence or absence)?" → Yes → dual-tag
+- Stage C: "Counterexample domain exists?" → Yes → dual-tag
+- All pass → methodology-only. Uncertainty → dual-tag + flag.
+
+Dual-tag consumption: always load and apply. Domain tag is provenance.
 
 ### 6.4 Purpose-Based Type Tags (Phase 0.5)
 
@@ -546,7 +549,7 @@ Orthogonal to type × axis tags. Determined at creation time:
 ### 6.5 Impact Severity + Failure Experience (Phase 0.5)
 
 - `impact_severity` (high/normal): Set once at creation, immutable. High if ignoring causes data loss/system failure, or reaching the same conclusion requires significant investigation
-- `is_failure_experience`: Auto-determined from presence of all 3 guardrail elements. Replaces former `conflict_resolution`
+- Failure experience: The `[guardrail]` tag is the sole indicator of failure experience. Separate boolean field (`is_failure_experience`) deprecated — presence of `[guardrail]` tag implies failure experience
 
 ### 6.6 Consumption Rules
 
@@ -554,6 +557,7 @@ Orthogonal to type × axis tags. Determined at creation time:
 2. `[domain/{session_domain}]` → always apply
 3. `[domain/{other}]` only → review then judge (does principle hold without domain terms?)
 4. No tags (legacy) → treat as `[methodology]`
+5. `[methodology]` + `[domain/X]` dual-tag → always load and apply. Domain tag is provenance
 
 ### 6.7 Learning Lifecycle Phases
 

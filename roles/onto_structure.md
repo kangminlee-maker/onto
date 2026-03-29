@@ -6,6 +6,7 @@
   - Are there orphaned elements not connected to any relationship?
   - Are required relationships missing?
   - Does the structural connectivity match the design intent?
+  - If your verification relied on a domain-specific structural rule, record it — regardless of whether it is already in structure_spec.md.
 - **Boundary -- NOT responsible for**:
   - Expressional coverage relative to the domain scope -> handled by onto_coverage
   - Directional accuracy of relationships and cycle detection -> handled by onto_dependency

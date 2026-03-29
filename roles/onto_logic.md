@@ -7,6 +7,7 @@
   - Do property, type, and range definitions conflict with each other?
   - Can all constraints be satisfied simultaneously?
   - Are constraint modalities (necessary/possible/obligatory) distinguished?
+  - If your verification relied on a domain-specific logic rule, record it — regardless of whether it is already in logic_rules.md.
 - **Boundary -- NOT responsible for**:
   - Directionality and cyclic structures of relationships -> handled by onto_dependency
   - Correspondence between names and meanings -> handled by onto_semantics

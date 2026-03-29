@@ -94,19 +94,22 @@ Include the following section at the end of the review finding:
 
 ### Newly Learned
 For each learning, determine:
-1. **Purpose type**: Apply the determination flow from process.md Learning Storage Rules:
-   - guardrail (all 3 elements: failure situation + observed result + corrective action)
-   - foundation (prerequisite for other learnings)
-   - convention (terminology/notation/procedure agreement)
-   - insight (default — none of the above)
+1. **Purpose type**: per process.md Learning Storage Rules
+   (guardrail / foundation / convention / insight)
 2. **Impact severity**: high or normal (per criteria in process.md)
-3. **Failure experience**: true if all 3 guardrail elements present
+3. **Axis tags**: Apply 2+1 stage test per process.md
 
 - Communication learning: (findings about user preferences/communication style)
-- Methodology learning: [{fact|judgment}] [{purpose type}] (verification principles applicable in any domain) [impact:{severity}]
-- Domain learning: [{fact|judgment}] [{purpose type}] (learnings valid only in {session_domain}) [impact:{severity}]
-  - If {session_domain} is empty: skip domain learning, report methodology only
-  - For guardrail type, use template: **Situation**: ... **Result**: ... **Corrective action**: ...
+- Learning: [{fact|judgment}] [{axis tags}] [{purpose type}] (content) [impact:{severity}]
+  - Axis tags: `[methodology]` and/or `[domain/{session_domain}]`.
+    Apply 2+1 stage test per process.md.
+  - If {session_domain} is empty: `[methodology]` only, no `[domain/...]` tag
+  - For guardrail type, use template:
+    **Situation**: ... **Result**: ... **Corrective action**: ...
+  - **Domain fact recording**: If a domain-specific fact (data format,
+    industry rule, tool behavior, regulatory constraint, etc.)
+    **influenced your review judgment** during this session,
+    record it as a separate `[fact] [domain/{session_domain}]` learning entry.
 Mark each as "none" if there is nothing to report.
 ```
 

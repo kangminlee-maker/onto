@@ -9,6 +9,7 @@
   - Are mappings to external standards semantically accurate?
   - Are concepts defined appropriately for their ontological type (physical entity/institutional construct)?
   - Is the concept essential to its instances? (OntoClean Rigidity verification)
+  - If your verification relied on a domain-specific concept definition, record it — regardless of whether it is already in concepts.md.
 - **Boundary -- NOT responsible for**:
   - Structural connection completeness (not naming) -> handled by onto_structure
   - Detection of duplicate/over-specification -> handled by onto_conciseness (onto_semantics only determines semantic identity as a preceding step; once synonymy is confirmed, onto_conciseness makes the subsequent merge decision)

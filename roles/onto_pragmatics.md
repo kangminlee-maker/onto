@@ -6,6 +6,7 @@
   - For each defined competency question, can an answer be derived by traversing the system?
   - Does the result have exactly one interpretation? (No ambiguity?)
   - Do all components and relationships required to derive the answer exist?
+  - If your verification relied on a domain-specific usage context, record it — regardless of whether it is already in competency_qs.md.
 - **Boundary -- NOT responsible for**:
   - The existence of unnecessary elements per se -> handled by onto_conciseness
   - Missing domain areas -> handled by onto_coverage

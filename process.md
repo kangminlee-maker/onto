@@ -380,6 +380,11 @@ Entry format:
 - [{type}] [{axis tag}] [{purpose type}] {learning content} (source: {project name}, {session_domain}, {date}) [impact:{impact_severity}]
 ```
 
+> **Source of truth rule**: Inline tags are the source of truth for classification.
+> Section headers (## methodology, ## domain/X) are human navigation aids.
+> No mechanical synchronization is required, but gross divergence impairs
+> human navigation and should be corrected opportunistically.
+
 `{type}` tags:
 - `fact`: Objective description of definitions, structures, or relations. Accumulation does not introduce judgment bias.
 - `judgment`: Value judgments such as "this pattern is/is not problematic." Validity may change with context, making these subject to re-verification.
@@ -391,10 +396,44 @@ Entry format:
 - **Tag absence = open-world**: The absence of a specific axis tag does not mean "invalid for that axis." It means "validity for that axis has not yet been confirmed."
 - **No-domain mode**: When `{session_domain}` is empty, use `[methodology]` tag only. No `[domain/...]` tag
 
-**Axis tag determination criteria** (mandatory before storage, bidirectional):
-1. "If domain-specific terms are removed from this learning, does the principle still hold?" -> If yes, assign `[methodology]` tag
-2. "Did this learning arise from or is it valid in the context of a specific domain?" -> If yes, assign `[domain/{session_domain}]` tag
-3. If both apply, assign both tags
+**Axis tag determination (2+1 stage test)** (mandatory before storage):
+
+**Sanity check (Stage A)**: "Does the principle hold after removing domain-specific terms?"
+→ No → `[domain/{session_domain}]` only. Test ends.
+→ Yes → proceed to Stage B.
+
+**Stage B — Applicability independence**: "Does applying this principle
+presuppose conditions unique to a specific domain (presence OR absence)?"
+(General structures — e.g., "cross-checking two representations" — are
+not domain-specific preconditions.)
+→ Yes (domain precondition required) → `[methodology]` + `[domain/{session_domain}]`
+→ Uncertain → dual-tag + uncertainty flag. Re-evaluated at promote.
+→ No → proceed to Stage C.
+
+**Stage C — Effect independence (counterexample-based)**: "Can you identify
+a specific domain where applying this principle would produce incorrect results?"
+→ Yes (counterexample exists) → `[methodology]` + `[domain/{session_domain}]`
+→ Uncertain → dual-tag + uncertainty flag. Re-evaluated at promote.
+→ No (no counterexample) → `[methodology]` only
+
+**[domain/{session_domain}] determination**:
+"Did this learning arise from or is it valid in the context of {session_domain}?"
+→ Yes → add `[domain/{session_domain}]` tag
+
+**Summary**:
+- A fails → `[domain/{session_domain}]` only
+- A passes + B passes + C passes (no counterexample) → `[methodology]` only
+- A passes + B or C blocks → `[methodology]` + `[domain/{session_domain}]`
+- No-domain mode → `[methodology]` only
+
+**Uncertainty default**: Both B and C → dual-tag + uncertainty flag.
+
+**Retroactive reclassification**: New entries use this test immediately.
+Existing entries reclassified during promote. Transition period: existing
+[methodology]-only entries remain over-classified (safe direction).
+
+**Domain document absence**: Skip Stage B, assign dual-tag.
+Re-evaluate at first promote after domain document is created.
 
 #### Purpose-Based Type Tags (Phase 0.5)
 
@@ -430,7 +469,7 @@ Tag format: `[impact:high]` or `[impact:normal]` appended after source info.
 
 #### Failure Experience Detection (Phase 0.5)
 
-`is_failure_experience` is determined automatically at creation time based on whether the learning content contains all 3 guardrail elements (failure situation + observed result + corrective action). If `true`, the learning qualifies as a `[guardrail]` type. This replaces the former `conflict_resolution` field.
+The `[guardrail]` tag is the sole indicator of failure experience. A separate boolean field (`is_failure_experience`) is unnecessary — presence of the `[guardrail]` tag implies `is_failure_experience == true`. This replaces the former `conflict_resolution` field.
 
 #### Guardrail Template
 
@@ -447,7 +486,14 @@ After an agent loads its learning file, each entry is processed according to the
 2. Items with `[domain/{session_domain}]` tag: **Always apply** (where `{session_domain}` is the current session's domain)
 3. Items with only `[domain/{other-domain}]` tag: **Review then judge** — If the principle still holds after removing domain-specific terms from the learning content, apply it. Otherwise, ignore.
 4. Items without tags (legacy): Treat as `[methodology]`
-5. Items with purpose type tags (`[guardrail]`, `[foundation]`, `[convention]`, `[insight]`): Apply using the same rules above. Purpose type does not affect consumption filtering (it is used for loading priority in Phase 1)
+5. Items with `[methodology]` + `[domain/X]` dual-tag:
+   **Always load and apply.** The `[domain/X]` tag indicates the domain
+   context in which this learning was verified (provenance).
+   When the current session domain differs from X, apply the principle
+   while noting the domain context difference.
+   Uncertainty flags are ignored during consumption
+   (flags are referenced only during promote re-evaluation).
+6. Items with purpose type tags (`[guardrail]`, `[foundation]`, `[convention]`, `[insight]`): Apply using the same rules above. Purpose type does not affect consumption filtering (it is used for loading priority in Phase 1)
 
 ### Learning Verification Rules
 

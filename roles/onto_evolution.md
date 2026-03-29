@@ -8,6 +8,7 @@
   - When external standards change, is the continuity of existing data/rules maintained?
   - Do conflicts arise when integrating with systems from other domains?
   - Has the current structure reached its extension limit, requiring a rebuild?
+  - If your verification relied on a domain-specific evolution constraint, record it — regardless of whether it is already in extension_cases.md.
 - **Domain examples**:
   - Software: Schema migration scope when adding new entities, API version compatibility
   - Law: Interpretive continuity of existing contracts/precedents upon statutory amendments, accommodation of new regulations in the existing system

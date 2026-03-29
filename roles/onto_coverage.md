@@ -7,6 +7,7 @@
   - Are there missing concept categories compared to industry standards/frameworks?
   - Are there areas where top-level concepts exist but lack sufficient sub-level granularity?
   - Is the concept distribution skewed toward certain areas?
+  - If your verification relied on a domain-specific scope criterion, record it — regardless of whether it is already in domain_scope.md.
 - **Boundary -- NOT responsible for**:
   - Internal connection completeness among existing elements -> handled by onto_structure
   - Detection of unnecessary elements -> handled by onto_conciseness

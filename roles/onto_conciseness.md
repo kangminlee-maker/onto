@@ -7,6 +7,7 @@
   - Is there over-specification where sub-levels re-declare constraints already guaranteed by a parent concept?
   - Do sub-classifications exist that produce no actual difference?
   - Are there unnecessary intermediate layers with only a single child?
+  - If your verification relied on a domain-specific conciseness criterion, record it — regardless of whether it is already in conciseness_rules.md.
 - **Boundary -- NOT responsible for**:
   - Answer obstruction caused by unnecessary information during query execution -> handled by onto_pragmatics
   - Whether domain areas are missing -> handled by onto_coverage

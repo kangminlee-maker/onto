@@ -8,6 +8,7 @@
   - When an element is reachable via multiple paths, does unintended double-processing occur?
   - Are non-hierarchical relationships (usage, production, trigger, etc.) precisely defined?
   - Does the absence of a relationship that should exist cause an implicit dependency? (Counterfactual check: "If this element were absent, which functions/relationships would break?")
+  - If your verification relied on a domain-specific dependency rule, record it — regardless of whether it is already in dependency_rules.md.
 - **Boundary -- NOT responsible for**:
   - Formal contradictions and type conflicts -> handled by onto_logic
   - Existential completeness of hierarchical structures (is-a) -> handled by onto_structure

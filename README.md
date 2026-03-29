@@ -283,17 +283,51 @@ Each learning item is tagged with type, axis, and purpose tags:
 | Type tag | `[fact]` / `[judgment]` | Classification of the learning's nature |
 | Axis tag | `[methodology]` | Domain-independent verification technique |
 | Axis tag | `[domain/{name}]` | Learning attributed to a specific domain (uses session domain) |
-| Purpose tag | `[guardrail]` | Failure-derived prohibition (3 required elements) |
+| Purpose tag | `[guardrail]` | Failure-derived prohibition (3 required elements). Also serves as the sole indicator of failure experience |
 | Purpose tag | `[foundation]` | Prerequisite knowledge for other learnings |
 | Purpose tag | `[convention]` | Terminology/procedure agreement |
 | Purpose tag | `[insight]` | Default — all other learnings |
 
-- Multiple axis tags allowed per item (e.g., `[methodology]` and `[domain/SE]` simultaneously)
-- Item format: `- [fact\|judgment] [methodology] [domain/SE] [insight] learning content (source: ...) [impact:normal]`
+- Item format: `- [fact|judgment] [methodology] [domain/SE] [insight] learning content (source: ...) [impact:normal]`
+- Inline tags are the **source of truth** for classification; section headers are human navigation aids
 - `impact_severity` (`high`/`normal`) is set at creation time and never changed
 - Communication learnings are stored separately at `~/.onto/communication/common.md` (unchanged)
 - Project-level learnings can be promoted to global-level via `/onto:promote`
 - Domain documents are never auto-modified without explicit user approval
+
+### Axis Tag Determination (2+1 Stage Test)
+
+Each learning's axis tags are determined via a mandatory 2+1 stage test before storage:
+
+| Stage | Question | If triggered |
+|---|---|---|
+| **A** (Sanity check) | Does the principle hold after removing domain-specific terms? | No → `[domain/X]` only |
+| **B** (Applicability) | Does applying this presuppose domain-specific conditions? | Yes → `[methodology]` + `[domain/X]` |
+| **C** (Counterexample) | Can you identify a domain where this produces incorrect results? | Yes → `[methodology]` + `[domain/X]` |
+
+- A passes + B passes + C passes (no counterexample) → `[methodology]` only
+- Uncertainty at B or C → dual-tag + uncertainty flag (resolved at promote)
+- No-domain mode → `[methodology]` only
+- Domain document absent → skip B, assign dual-tag (re-evaluate at first promote)
+
+### Consumption Rules
+
+| Rule | Condition | Action |
+|---|---|---|
+| 1 | `[methodology]` | Always apply |
+| 2 | `[domain/{session_domain}]` | Always apply |
+| 3 | `[domain/{other}]` only | Review then judge |
+| 4 | No tags (legacy) | Treat as `[methodology]` |
+| 5 | `[methodology]` + `[domain/X]` dual-tag | Always apply. Domain tag is provenance |
+| 6 | Purpose type tags | Do not affect consumption filtering |
+
+### Domain Fact Recording
+
+During reviews and queries, if a domain-specific fact (data format, industry rule, tool behavior, regulatory constraint, etc.) **influenced an agent's judgment**, it is recorded as a separate `[fact] [domain/{session_domain}]` learning entry. Each verification agent also surfaces domain-specific premises used during verification, regardless of whether they are already documented.
+
+### Deduplication at Promote
+
+When promoting learnings via `/onto:promote`, a "same principle" test identifies domain variants of existing global learnings. Same-principle entries are consolidated into a single entry with representative cases from diverse domains.
 
 ## Domain Documents (8 types)
 

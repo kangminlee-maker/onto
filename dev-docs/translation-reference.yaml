@@ -399,6 +399,8 @@ concepts:
 
   - ko: "실패경험"
     en: "failure experience"
+    deprecated: true
+    merged_into: "guardrail"
     definition: >
       A boolean metadata field auto-determined at learning creation.
       True when all 3 guardrail elements are present in the content.

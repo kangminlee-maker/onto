@@ -324,11 +324,17 @@ When TeamCreate fails, fall back to the Agent tool (subagent) approach. The **pu
 
 ### Error Handling Rules
 
-Errors are classified into 2 categories for response:
+Errors are classified into 3 categories for response:
 - **Process-halting**: Review target read failure, agent definition file read failure -> halt the process + inform the user.
-- **Graceful degradation**: Teammate non-response/failure, learning file absence, domain document absence -> exclude the affected agent or mark as "not yet available" and continue with remaining agents. Adjusts the consensus denominator during determination.
+- **Transient error → retry**: API error (500, timeout, rate limit), agent crash during execution -> team lead retries the failed agent via SendMessage. Retry up to 2 times. If the agent fails after 2 retries, fall back to graceful degradation.
+- **Graceful degradation**: Teammate non-response/failure after retry exhaustion, learning file absence, domain document absence -> exclude the affected agent or mark as "not yet available" and continue with remaining agents. Adjusts the consensus denominator during determination.
 
-**Per-process error handling extension**: If an irreplaceable single role within a process (e.g., Explorer in build, Philosopher) fails, it is classified as process-halting. This is specified in the respective process file.
+**Retry protocol**: When a teammate fails with a transient error:
+1. Team lead sends a retry message to the failed teammate with the original task directives and file paths.
+2. If the teammate is unresponsive (no reply after 60 seconds), team lead resends once more.
+3. After 2 failed retries, the teammate is excluded (graceful degradation) and the team lead informs the user.
+
+**Per-process error handling extension**: If an irreplaceable single role within a process (e.g., Explorer in build, Philosopher) fails, it is classified as process-halting. This is specified in the respective process file. For irreplaceable roles, retry is attempted before halting.
 
 ### Team Lifecycle Management
 

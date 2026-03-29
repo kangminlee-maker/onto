@@ -19,6 +19,11 @@ Run the following commands in order within Claude Code:
 
 ## Update
 
+```
+/plugin install onto@kangminlee-maker/onto
+```
+
+Or if installed via git clone:
 ```bash
 cd ~/.claude/plugins/onto && git pull
 ```

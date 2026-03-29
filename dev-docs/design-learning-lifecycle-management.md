@@ -2,6 +2,11 @@
 
 > 리뷰 5회 (sessions 8d23a6fa, 5ccfc665, eae3c280, 5df5ac85), 8+1 에이전트 패널 리뷰 완료
 > 경로 A 확정: 목적 기반 3-Tier + 4유형 + Phase 0.5
+>
+> **2026-03-29 업데이트**: Phase 0.5 구현 완료. Phase 1(3-Tier, /onto:curate)은
+> Learning Management Redesign(commit a63303c)에 흡수되었다.
+> promote 확장(criterion 4/6, Step 4a, Step 9 snapshot)이 /onto:curate를 대체하며,
+> 3-Tier 보호는 규모 증가 시 재평가 대상이다.
 
 ## 해결하려는 문제
 
@@ -104,7 +109,12 @@
 
 ---
 
-## Phase 1: 3-Tier 보호 체계
+## Phase 1: 3-Tier 보호 체계 (DEFERRED — promote 확장으로 대체)
+
+> **2026-03-29**: 이 섹션의 /onto:curate 및 3-Tier 보호 체계는 Learning Management Redesign에 의해
+> 대체되었다. promote의 criterion 4(축 태그 재평가), criterion 6(교차 에이전트 중복 제거),
+> Step 4a(Event Marker Review), Step 9(Collection Health Snapshot)이 동일 목적을 달성한다.
+> 3-Tier 로딩 보호는 에이전트당 100행 초과 시 재평가한다. 아래 내용은 설계 이력으로 보존한다.
 
 ### 처리 순서
 

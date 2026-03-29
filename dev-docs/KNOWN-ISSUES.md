@@ -2,7 +2,7 @@
 
 ## Issue 1-A: Partial Inbox Message Recognition Failure Due to Team-Lead LLM Context Saturation (2026-03-25)
 
-### Status: Confirmed, resolution designed
+### Status: Resolved, implemented
 
 ### Observed Symptoms
 
@@ -68,7 +68,7 @@ Write failure fallback:
 
 ## Issue 1-B: Inter-Session Agent Leakage Due to Fixed team_name (2026-03-25)
 
-### Status: Confirmed, resolution designed
+### Status: Resolved, implemented
 
 ### Observed Symptoms
 

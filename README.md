@@ -154,6 +154,14 @@ output_language: ko
 | `/onto:feedback {domain}` | Feed accumulated learnings back into domain documents |
 | `/onto:promote-domain {domain}` | Promote seed domain from drafts/ to domains/ |
 
+### Data Management
+| Command | Description |
+|---|---|
+| `/onto:backup` | Snapshot learnings, domains, drafts, communication for rollback |
+| `/onto:backup "reason"` | Backup with descriptive reason |
+| `/onto:restore` | List available backups |
+| `/onto:restore {backup-id}` | Restore from specific backup (auto-creates safety backup) |
+
 ## Team Review Flow (6 Steps)
 
 ```

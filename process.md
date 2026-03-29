@@ -17,6 +17,8 @@ Common definitions referenced by each process file (`processes/`).
 | Domain Creation | `processes/create-domain.md` | Generate seed domain documents from minimal input | -> Feedback, Review |
 | Domain Feedback | `processes/feedback.md` | Feed learnings back into domain documents | Review/Query -> |
 | Domain Promotion | `processes/promote-domain.md` | Promote seed domain to established | Feedback -> |
+| Data Backup | `processes/backup.md` | Snapshot onto user data for rollback | -> Restore |
+| Data Restore | `processes/restore.md` | Restore user data from backup | Backup -> |
 
 ---
 
@@ -229,6 +231,8 @@ Old format compatibility: `domain: A` + `secondary_domains: B` → automatically
 | create-domain | Not applicable (creates a new domain in drafts/) |
 | feedback | Command argument `{domain}` (auto-resolved to drafts/ or domains/) |
 | promote-domain | Command argument `{domain}` (must exist in drafts/) |
+| backup | Not applicable (operates on ~/.onto/ global data) |
+| restore | Command argument `{backup-id}` or none (list mode) |
 
 #### Cross-domain targets
 

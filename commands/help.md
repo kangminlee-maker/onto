@@ -45,6 +45,15 @@ Display the command reference below to the user. Do not read any other files.
 /onto:promote                              Promote project learnings to global
 ```
 
+### Data Management
+
+```
+/onto:backup                               Snapshot learnings + domains for rollback
+/onto:backup "reason"                      Backup with reason
+/onto:restore                              List available backups
+/onto:restore {backup-id}                  Restore from specific backup
+```
+
 ### Domain Selection
 
 Each review/build/question selects a single **session domain**:

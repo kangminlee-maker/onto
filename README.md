@@ -1,4 +1,4 @@
-# Onto Review
+# Onto
 
 A Claude Code plugin that performs multi-perspective verification of logical systems using an agent panel (verification agents + Philosopher) and automatically builds ontologies from analysis targets.
 
@@ -152,6 +152,7 @@ output_language: ko
 | `/onto:onboard` | Set up onto environment for a project |
 | `/onto:promote` | Learning Quality Assurance — 승격, 큐레이션, 감사 |
 | `/onto:health` | Show learning pool health dashboard |
+| `/onto:help` | Display full command reference (respects output_language) |
 
 ### Domain Document Management
 | Command | Description |
@@ -278,8 +279,14 @@ onto/
 |   +-- BLUEPRINT.md
 |   +-- KNOWN-ISSUES.md
 |   +-- DESIGN-build-generalization.md
+|   +-- BUG-subagent-fallback-on-first-install.md
+|   +-- design-domain-document-creation.md
+|   +-- design-learning-lifecycle-management.md
+|   +-- design-optimization-4features.md
+|   +-- design-per-session-domain-selection.md
 |   +-- philosophical-foundations-of-ontology.md
-+-- commands/                # Command definitions (20)
+|   +-- translation-reference.yaml
++-- commands/                # Command definitions (21)
 +-- setup-domains.sh         # Domain base document installation
 +-- migrate-sessions.sh      # Previous version data migration
 +-- migrate-learnings.sh     # Learning storage structure migration
@@ -381,7 +388,7 @@ Seed documents share the same 8-file structure but are generated from minimal in
 
 ## Migration
 
-> **Note**: If this is a fresh installation, skip this section. Migration is only needed when upgrading from the deprecated `onto-review` plugin.
+> **Note**: If this is a fresh installation, skip this section. Migration is only needed when upgrading from a previous version.
 
 If runtime data from a previous version is stored under `.claude/`, the following scripts can move it to `.onto/`.
 

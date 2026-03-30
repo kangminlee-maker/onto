@@ -78,7 +78,7 @@ Please review whether the project-level learnings below should be promoted to gl
 2. Accuracy: Is the learning content based on facts, or a coincidence from a unique situation?
 3. Contradiction handling: If it contradicts an existing global learning, which is more generally correct?
 4. **Axis tag appropriateness (승격 후보 + 기존 global 재평가)**:
-   - 승격 후보: Apply 2+1 stage test per process.md.
+   - 승격 후보: Apply 2+1 stage test per learning-rules.md.
      For entries with uncertainty flags: resolve using 3-agent panel's domain knowledge.
    - tag-incomplete 마커(`<!-- tag-incomplete: ... -->`) 보유 항목: 우선 검토.
    - 기존 global 재평가: 동일 에이전트 파일 내 dual-tag([methodology] + [domain/X])

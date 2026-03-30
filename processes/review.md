@@ -98,15 +98,15 @@ Include the following section at the end of the review finding:
 
 ### Newly Learned
 For each learning, determine:
-1. **Purpose type**: per process.md Learning Storage Rules
+1. **Purpose type**: per learning-rules.md
    (guardrail / foundation / convention / insight)
-2. **Impact severity**: high or normal (per criteria in process.md)
-3. **Axis tags**: Apply 2+1 stage test per process.md
+2. **Impact severity**: high or normal (per criteria in learning-rules.md)
+3. **Axis tags**: Apply 2+1 stage test per learning-rules.md
 
 - Communication learning: (findings about user preferences/communication style)
 - Learning: [{fact|judgment}] [{axis tags}] [{purpose type}] (content) [impact:{severity}]
   - Axis tags: `[methodology]` and/or `[domain/{session_domain}]`.
-    Apply 2+1 stage test per process.md.
+    Apply 2+1 stage test per learning-rules.md.
   - If {session_domain} is empty: `[methodology]` only, no `[domain/...]` tag
   - For guardrail type, use template:
     **Situation**: ... **Result**: ... **Corrective action**: ...
@@ -337,7 +337,7 @@ The team lead delivers the Philosopher's final output to the user **without modi
 
 ### 6. Wrap-Up (Learning Storage + Team Shutdown)
 
-1. **Learning storage**: Stores learnings from all members. Follows the "Learning Storage Rules" in `process.md`. If deliberation occurred, also includes learnings generated during the deliberation process. **Learning data collection must be completed before team shutdown.**
+1. **Learning storage**: Stores learnings from all members. Follows the "Learning Storage Rules" in `learning-rules.md`. If deliberation occurred, also includes learnings generated during the deliberation process. **Learning data collection must be completed before team shutdown.**
    - **Seed review learning tag**: When reviewing a seed domain (`drafts/{domain}`), learnings about the seed domain's content are tagged with `[domain/{seed-domain}]`. These learnings become input for the feedback loop (`/onto:feedback {domain}`).
 
 2. **Promotion guidance** (conditional): Provide guidance only if new domain learnings were stored in this review:

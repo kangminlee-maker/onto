@@ -964,7 +964,7 @@ issues:
 
 ### Phase 5: Learning Storage
 
-Stores learnings from all verification agents. Follows the "Learning Storage Rules" in `process.md`.
+Stores learnings from all verification agents. Follows the "Learning Storage Rules" in `learning-rules.md`.
 The Explorer does not store learnings (since it does not perform interpretation).
 
 Completion report:

@@ -74,12 +74,12 @@ Include the following section at the end of your answer:
 
 ### Newly Learned
 For each learning, determine purpose type, impact severity, and axis tags
-per process.md Learning Storage Rules.
+per learning-rules.md.
 
 - Communication learning: (findings about user preferences/communication style)
 - Learning: [{fact|judgment}] [{axis tags}] [{purpose type}] (content) [impact:{severity}]
   - Axis tags: `[methodology]` and/or `[domain/{session_domain}]`.
-    Apply 2+1 stage test per process.md.
+    Apply 2+1 stage test per learning-rules.md.
   - If {session_domain} is empty: `[methodology]` only
   - For guardrail type: **Situation**: ... **Result**: ... **Corrective action**: ...
   - If a domain-specific fact **influenced your judgment**, record it separately.
@@ -104,4 +104,4 @@ If any items are marked as requiring another agent's perspective, inform the use
 
 ### 4. Learning Storage
 
-Follows the "Learning Storage Rules" in `process.md`.
+Follows the "Learning Storage Rules" in `learning-rules.md`.

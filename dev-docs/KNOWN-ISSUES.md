@@ -143,3 +143,98 @@ PO decision:
 - MCP externalization separated as **optional activation** (requires MCP Key configuration)
 - Default mode retains existing Agent Teams -> fallback -> Subagent
 - Design complexity managed by clearly defining branches and designing processes independently
+
+---
+
+## Issue 2: Onboard Plugin Path Resolution Failure (2026-03-30)
+
+### Status: Open
+
+### Observed Symptoms
+
+`/onto:onboard` 스킬 실행 시, 스킬 정의가 참조하는 파일 경로에서 파일을 찾지 못함.
+
+- 스킬이 참조하는 경로: `~/.claude/plugins/onto/process.md`, `~/.claude/plugins/onto/processes/onboard.md`
+- 실제 파일 위치: `~/.claude/plugins/marketplaces/onto/process.md`, `~/.claude/plugins/marketplaces/onto/processes/onboard.md`
+- 캐시 경로에도 존재: `~/.claude/plugins/cache/onto/onto/0ad72242adb7/`
+
+### Root Cause
+
+스킬 정의(`commands/onboard.md`)에 하드코딩된 경로 `~/.claude/plugins/onto/`가 실제 설치 구조와 불일치. Claude Code 플러그인 시스템은 `marketplaces/` 또는 `cache/` 하위에 플러그인을 배치하지만, 스킬 정의는 이 중간 경로를 포함하지 않음.
+
+### Impact
+
+- 에이전트가 Glob으로 실제 경로를 탐색해야 하므로 불필요한 도구 호출 3회 발생
+- 프로세스 실행 지연 (경로 탐색에 소요되는 시간)
+- 에이전트가 경로를 찾지 못할 경우 프로세스가 시작 자체를 못하는 위험
+
+### Suggested Fix
+
+스킬 정의에서 절대 경로 대신 상대 경로 또는 플러그인 루트 기준 경로를 사용하거나, 경로 해석 시 `marketplaces/` 및 `cache/` prefix를 자동 탐색하는 로직 추가.
+
+---
+
+## Issue 3: Bash Multi-Command Output Parsing Error During Onboard Diagnosis (2026-03-30)
+
+### Status: Resolved (workaround applied)
+
+### Observed Symptoms
+
+온보딩 Status Diagnosis 단계에서, 여러 `ls` 명령을 하나의 Bash 호출에 `;` + `echo` 마커로 연결하여 실행. 출력 결과에서 마커 전후의 출력 소속을 잘못 읽어 다음 오판 발생:
+
+1. **프로젝트 `.onto/` 존재 오판**: 실제로는 존재하지 않는 프로젝트 레벨 `.onto/`가 존재한다고 판단
+2. **글로벌 `~/.onto/` 구조 오판**: `domains/` 하위 디렉토리가 없고 도메인 폴더가 루트에 직접 있다고 판단 (실제로는 `~/.onto/domains/` 아래에 정상 존재)
+
+### Root Cause
+
+LLM이 연속된 Bash 출력에서 echo 마커(`---PROJECT_ONTO---`, `---GLOBAL_ONTO---` 등)의 위치와 각 명령의 출력 범위를 정확히 매핑하지 못함. 특히 다수의 `ls -la` 출력이 유사한 구조(디렉토리 목록)를 가질 때, 어떤 출력이 어떤 명령에 속하는지 혼동 발생.
+
+### Resolution (Workaround)
+
+- `test -d` (boolean 존재 확인) + `stat -f '%i'` (inode 비교) + `ls -lai` (inode 포함 목록)으로 3중 검증
+- 진단에 추가 Bash 호출 4회 소요
+
+### Suggested Prevention
+
+1. 상태 진단 시 여러 경로를 하나의 Bash 호출에 넣지 말고, 독립적인 Bash 호출로 분리
+2. 존재 여부 확인은 `test -d` + `echo` 패턴 사용 (ls 출력 파싱에 의존하지 않음)
+3. 디렉토리 내용 확인이 필요한 경우 Bash 대신 전용 도구(Glob) 사용
+
+---
+
+## Issue 4: Domain Seed Generation Using Project-Internal Files as Source (2026-03-30)
+
+### Status: Resolved (user-corrected), feedback saved
+
+### Observed Symptoms
+
+`/onto:create-domain paid-marketing` 실행 시, 프로젝트 내부 파일(`dev_docs/pre-research/01_performance_marketer_research.md`)을 읽고 이를 기반으로 도메인 시드 문서(`domain_scope.md`) 생성을 시작.
+
+사용자가 즉시 중단: "paid marketing 도메인을 만들기 위한 기반자료는 이 프로젝트 내의 파일이 되어서는 안돼. 외부 리서치를 통해 진행해야 해."
+
+### Root Cause
+
+`create-domain` 프로세스 정의에 "기반자료의 출처 제한"에 대한 명시적 규칙이 없음. 프로세스는 "LLM infers key sub-areas from description"이라고만 명시하며, 추론의 소스가 외부 지식이어야 하는지, 프로젝트 내부 파일을 참조할 수 있는지에 대한 가이드가 부재.
+
+에이전트는 프로젝트 컨텍스트를 활용하는 것이 유용하다고 판단했으나, 이는 도메인 문서의 근본 원칙에 위배:
+
+> **도메인 문서는 특정 프로젝트에 종속되지 않는 범용적 도메인 지식이어야 한다.**
+
+프로젝트 파일은 해당 프로젝트의 맥락, 판단, 도구 선택이 섞여 있어 도메인 표준 문서의 기반으로 부적합.
+
+### Resolution
+
+1. 생성된 `domain_scope.md` 삭제
+2. 외부 웹 리서치 에이전트를 통해 Google Ads Help, Meta Business Help, IAB 표준, 산업 문헌 등 권위 있는 외부 소스 기반으로 재생성
+3. 피드백을 프로젝트 메모리에 저장 (`feedback_domain_creation.md`)
+
+### Suggested Fix (process definition)
+
+`processes/create-domain.md` Step 1에 다음 규칙 추가 권장:
+
+> **Source restriction**: Domain seed content must be derived from the LLM's general domain knowledge and/or external authoritative sources (industry standards, official documentation, academic references). Project-internal files must not be used as source material, as domain documents must remain project-agnostic.
+
+### Impact
+
+- `domain_scope.md` 1회 작성 후 폐기
+- 전체 create-domain 프로세스 재시작 (외부 리서치 포함 ~6분 추가 소요)

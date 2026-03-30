@@ -6,5 +6,6 @@ Reviews $ARGUMENTS with the agent panel (team review).
 Examples: `/onto:review process.md @ontology`, `/onto:review src/ @-`
 Seed review: `/onto:review drafts/palantir-foundry @-` (recommended for initial seed review)
 
-Read `~/.claude/plugins/onto/process.md` (common definitions) and
+Read `~/.claude/plugins/onto/process.md` (common definitions),
+`~/.claude/plugins/onto/learning-rules.md` (learning storage rules), and
 `~/.claude/plugins/onto/processes/review.md`, then execute.

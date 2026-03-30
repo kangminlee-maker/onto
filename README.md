@@ -245,7 +245,8 @@ The purpose of ontology build is to **precisely reproduce the analysis target**.
 
 ```
 onto/
-+-- process.md              # Common definitions (agent configuration, domain rules, Agent Teams, learning storage)
++-- process.md              # Common definitions (agent configuration, domain rules, Agent Teams)
++-- learning-rules.md        # Learning storage rules, tags, consumption (teammate reference)
 +-- processes/
 |   +-- review.md           # Team review mode (6 steps)
 |   +-- question.md         # Individual query mode

@@ -145,6 +145,12 @@ For each item:
 - If a contradiction item: whether to replace the existing global entry or defer
 ```
 
+#### Error Recovery
+
+> process.md Error Handling Rules의 Retry Protocol을 적용한다.
+> 감지 시점: 패널 에이전트 전원 응답 완료 시 미응답 에이전트.
+> promote 고유 사항: 없음 (review.md와 동일 패턴).
+
 ### 4. Consensus Judgment
 
 Aggregates the 3 reviewers' results:

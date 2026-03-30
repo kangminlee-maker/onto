@@ -10,8 +10,8 @@ Follows the **Agent Teams Execution** in `process.md`.
 - **Teammates**: verification agents + Philosopher
 
 **Execution paths**:
-- **Default** (consensus clear): 0→1→2→3→5→6
-- **Extended** (contested points exist): 0→1→2→3→4→5→6
+- **Default** (consensus clear): 0→1→1.5→2→3→5→6
+- **Extended** (contested points exist): 0→1→1.5→2→3→4→5→6
 
 ---
 
@@ -51,6 +51,78 @@ The team lead collects only the items below. Per-agent learnings/domain document
 
 ---
 
+### 1.5 Complexity Assessment (performed by team lead)
+
+Step 1에서 수집한 리뷰 대상을 분석하여 복잡도를 평가한다.
+3개 질문에 모두 "경량 가능"으로 답해야 경량 리뷰를 제안한다.
+하나라도 아니면 전원 리뷰로 진행한다.
+
+**Q1: 관련 검증 차원이 4개 이하 `(= ⌊검증 차원 수 / 2⌋)` 인가?**
+리뷰 대상이 8개 검증 차원(논리, 구조, 의존, 의미, 실용, 진화, 커버리지, 간결성) 중
+몇 개와 관련되는지 평가.
+→ 4개 이하: 경량 가능 / 5개 이상: 전원 필요
+
+**Q2: 에이전트 간 교차 검증이 부차적인가?**
+교차 검증이 핵심인 경우: 시스템 전체 설계 변경, 다중 파일 수정, 새 개념 도입
+교차 검증이 부차적인 경우: 단일 관점 판단, 기존 설계 내 수정, 문서 정확성 확인
+→ 부차적: 경량 가능 / 핵심: 전원 필요
+
+**Q3: 놓칠 수 있는 발견의 위험도가 수용 가능한가?**
+위험도 높음: 구현 직전 최종 검증, 안전장치 설계, 기존 사용자 영향 변경
+위험도 낮음: 탐색적 질문, 초기 방향, 내부 문서, 이미 리뷰 거친 후속 확인
+→ 수용 가능: 경량 가능 / 수용 불가: 전원 필요
+
+**경량 가능 판단 시:**
+사용자에게 사유와 함께 선택지를 제시한다.
+
+```
+## Review Complexity Assessment
+
+**대상**: {리뷰 대상 요약}
+**판단**: 경량 리뷰 가능
+**사유**:
+- Q1: {관련 차원과 수}
+- Q2: {교차 검증이 부차적인 근거}
+- Q3: {놓칠 위험이 수용 가능한 근거}
+
+**권장 구성** ({N}명):
+  [a] {agent-id} — {이 대상에서 필요한 이유}
+  [b] {agent-id} — {이유}
+  [c] {agent-id} — {이유}
+  [d] philosopher — 목적 정합 검증 (항상 포함)
+
+**전원 리뷰와의 차이**:
+  제외되는 관점: {제외 에이전트 목록}
+  놓칠 수 있는 것: {구체적 설명}
+
+[a] 경량 리뷰 ({N}명, ~{토큰}k 토큰)
+[b] 전원 리뷰 (9명, ~550k 토큰)
+
+Select [a]:
+```
+
+**전원 필요 판단 시:**
+별도 안내 없이 기존 프로세스대로 9명 스폰.
+리뷰 시작 시 "9명 전원 리뷰로 진행합니다"를 표시.
+
+**에이전트 선택 규칙:**
+
+1. **philosopher**: 항상 포함
+2. **나머지 2-3명**: 리뷰 대상의 성격에 따라 팀 리드가 선택
+
+참고 테이블 (팀 리드 판단 보조):
+| 대상 성격 | 권장 3명 |
+|-----------|---------|
+| 설계 결정/프로세스 | logic + pragmatics + evolution |
+| 용어/명명/정의 | semantics + logic + pragmatics |
+| 구조/파일 분리 | structure + dependency + conciseness |
+| 도메인 커버리지 | coverage + semantics + pragmatics |
+| 코드/구현 | logic + structure + evolution |
+
+사용자에게는 선택한 에이전트와 그 이유를 함께 제시한다.
+
+---
+
 ### 2. Team Creation + Round 1 — Verification Agent Independent Review
 
 **Step 1 — Session ID generation**: `$(date +%Y%m%d)-$(openssl rand -hex 4)` (e.g., `20260325-a3f7b2c1`)
@@ -62,9 +134,12 @@ The team lead collects only the items below. Per-agent learnings/domain document
 - description: `Agent Panel Review: {review target summary}`
 
 **Step 4 — Create all teammates**: After TeamCreate, create all teammates **simultaneously in a single message** via Agent tool. The initial prompt combines identity + self-loading + task directives, so **Round 1 begins immediately upon creation**.
+- **경량 모드 (light)**: Step 1.5에서 선택된 2-3명의 검증 에이전트 + philosopher만 생성한다.
+- **전원 모드 (full) 또는 Complexity Assessment 미수행**: 기존 동작 — 8명 검증 에이전트 + philosopher 전원 생성.
 - Each teammate's `name`: agent-id (e.g., `onto_logic`, `philosopher`)
 - Each teammate's `team_name`: team_name created in Step 3
 - Initial prompt: use the **Teammate Initial Prompt Template** from `process.md` (including session path)
+- 세션 메타데이터에 `review_mode: light | full` 기록
 
 **[Task Directives]** section to include in verification agents' initial prompt:
 
@@ -135,6 +210,27 @@ The team lead will deliver results once the verification agents complete their R
 
 **This is the only independent round.** In subsequent steps, other agents' perspectives are shared through Philosopher synthesis.
 
+#### Error Recovery (Round 1)
+
+> process.md Error Handling Rules의 Retry Protocol을 적용한다.
+
+Round 1에서 에이전트 에러 발생 시:
+
+1. **감지**: 다른 에이전트가 전원 응답을 완료한 시점에 아직 응답하지 않은 에이전트,
+   또는 에러를 보고한 에이전트를 감지한다.
+
+2. **재시도**: 해당 에이전트에 SendMessage로 재실행을 요청한다.
+   메시지에 원래 Task Directives + 파일 경로를 포함한다.
+
+3. **종료 조건**: 2회 재시도 후에도 실패하면 graceful degradation 적용.
+   해당 에이전트를 제외하고 합의 분모를 조정.
+   Philosopher 전달 시: "※ {agent-id}: 에러로 제외됨" 명시.
+
+4. **로깅**: {session path}/error-log.md에 에러 이력 기록.
+   (디버깅 참조용. 자동 소비 경로 없음.)
+
+에러 제외 후 잔존 검증 에이전트가 2명 미만이면 process-halting. 사용자에게 전원 리뷰 전환 또는 중단을 제안한다.
+
 ---
 
 ### 3. Philosopher Synthesis + Adjudication
@@ -148,14 +244,8 @@ Synthesize the verification agents' Round 1 review results and adjudicate from t
 
 [Verification Agents' Review Result Files]
 Read the files at the paths below directly using the Read tool:
-{session path}/round1/onto_logic.md
-{session path}/round1/onto_structure.md
-{session path}/round1/onto_dependency.md
-{session path}/round1/onto_semantics.md
-{session path}/round1/onto_pragmatics.md
-{session path}/round1/onto_evolution.md
-{session path}/round1/onto_coverage.md
-{session path}/round1/onto_conciseness.md
+{참여 에이전트의 review result 파일 경로 목록}
+※ 경량 모드에서는 참여하지 않은 에이전트의 파일을 포함하지 않는다.
 
 ※ Results from agents whose Write failed are included directly below:
 {Original text of Write-failed agents (only if applicable)}
@@ -225,6 +315,7 @@ date: {YYYY-MM-DD}
 - (If domain documents are absent but session_domain is set) "Verified using general principles (no domain document). Creating domain documents via `/onto:onboard` will improve verification precision."
 
 ### Consensus (N/{participating agent count})
+※ 합의 분모는 실제 참여한 검증 에이전트 수 (고정값 8이 아님). 경량 모드 및 에러 제외를 반영.
 - (List of judgments with full consensus)
 
 ### Conditional Consensus
@@ -259,6 +350,7 @@ Classify each verification agent's findings into the 3 categories below. A "uniq
 ### 4. Deliberation (Conditional)
 
 Executed only if the Philosopher judges "deliberation needed."
+경량 모드에서는 Philosopher에게 'deliberation not needed' 지시를 포함한다.
 
 In this step, **direct SendMessage between teammates is permitted**.
 The team lead notifies the relevant agents (including the Philosopher) of deliberation commencement:

@@ -22,6 +22,7 @@ Common definitions referenced by each process file (`processes/`).
 | Domain Promotion | `processes/promote-domain.md` | Promote seed domain to established | Feedback -> |
 | Data Backup | `processes/backup.md` | Snapshot onto user data for rollback | -> Restore |
 | Data Restore | `processes/restore.md` | Restore user data from backup | Backup -> |
+| Health Dashboard | `processes/health.md` | Show learning pool health metrics | Standalone |
 
 ---
 
@@ -246,6 +247,7 @@ Old format compatibility: `domain: A` + `secondary_domains: B` → automatically
 | promote-domain | Command argument `{domain}` (must exist in drafts/) |
 | backup | Not applicable (operates on ~/.onto/ global data) |
 | restore | Command argument `{backup-id}` or none (list mode) |
+| health | Not applicable (reads learning files directly) |
 
 #### Cross-domain targets
 

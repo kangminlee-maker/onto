@@ -268,6 +268,12 @@ Creates a team (`onto-build`) via TeamCreate.
 - **Philosopher failure**: Halt the process + inform the user (irreplaceable single point).
 - **Partial failure among N verification agents**: Apply graceful degradation from process.md. Adjust the denominator to the number of responding agents when judging convergence.
 
+#### Error Recovery
+
+> process.md Error Handling Rules의 Retry Protocol을 적용한다.
+> build 고유 사항: Explorer는 irreplaceable role이므로 에러 시 process-halting.
+> Verification agents와 Philosopher에 대해서만 retry → graceful degradation 적용.
+
 #### 1.0 Team Composition
 
 Creates the following agents as teammates:

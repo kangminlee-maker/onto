@@ -151,6 +151,7 @@ output_language: ko
 |---|---|
 | `/onto:onboard` | Set up onto environment for a project |
 | `/onto:promote` | Learning Quality Assurance — 승격, 큐레이션, 감사 |
+| `/onto:health` | Show learning pool health dashboard |
 
 ### Domain Document Management
 | Command | Description |
@@ -259,6 +260,7 @@ onto/
 |   +-- promote-domain.md   # Seed to established promotion
 |   +-- backup.md            # Data backup
 |   +-- restore.md           # Data restore
+|   +-- health.md            # Learning health dashboard
 +-- roles/
 |   +-- onto_logic.md        # Logical consistency
 |   +-- onto_structure.md    # Structural completeness

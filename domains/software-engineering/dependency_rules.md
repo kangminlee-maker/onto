@@ -1,25 +1,64 @@
 ---
-version: 1
-last_updated: "2026-03-29"
+version: 2
+last_updated: "2026-03-30"
 source: setup-domains
 status: established
 ---
 
 # Software Engineering Domain — Dependency Rules
 
-## Acyclic Required Relationships
+Classification axis: **linkage type** — dependencies and connections classified by the type of relationship between components.
+
+## Acyclic Dependencies
+
+### Acyclic Dependencies Principle (ADP)
+
+The dependency graph of packages/modules must be a Directed Acyclic Graph (DAG). If cycles exist, there is no valid build order, and changes in one module propagate unpredictably through the cycle.
 
 - Module dependency graph: acyclic (DAG). Cycles make build order undeterminable and initialization order indeterminate
 - Package/library dependencies: acyclic. Circular dependencies prevent deployment units from being separated
 - Type-only imports and value imports must be distinguished. Type-only imports do not cause runtime cycles and are therefore evaluated at a separate severity level
+- **Build order implication**: A DAG can be topologically sorted — this sort defines the build order. If module A depends on B, B must be built before A. Cycles make topological sort impossible, which is why build systems reject circular dependencies
+
+### Breaking Cycles
+
+When a circular dependency is detected, apply one of the following strategies:
+
+- **Dependency Inversion**: If module A depends on module B and B depends on A, extract an interface from the dependency direction that should be reversed. Module A defines the interface; module B implements it. The dependency direction reverses: B now depends on A's interface, breaking the cycle. Cross-reference: 'Direction Rules' (Dependency Inversion Principle)
+- **Event-based decoupling**: Replace direct calls with events. Module A publishes an event; module B subscribes. Neither module imports the other. The event schema becomes the contract. Appropriate when the interaction is asynchronous or fire-and-forget
+- **Shared kernel**: Extract the shared types/functions that both modules need into a third module. Both A and B depend on the shared module, but not on each other. Appropriate when the cycle is caused by shared type definitions. Cross-reference: 'Package/Module Dependency Patterns' (Shared Kernel pattern)
+- Real example: npm detects circular dependencies at install time and logs a warning. Go prohibits import cycles entirely — the compiler rejects them. Python allows circular imports but they cause `ImportError` at runtime if the cycle involves module-level code execution
 
 ## Direction Rules
+
+### Dependency Inversion Principle (DIP)
+
+High-level modules must not depend on low-level modules. Both must depend on abstractions. Abstractions must not depend on details. Details must depend on abstractions.
 
 - Upper layer -> lower layer: allowed
 - Lower layer -> upper layer: prohibited (layer inversion)
 - Business logic -> direct dependency on external library: discouraged (abstract via interface)
 - Test -> production code: allowed
 - Production code -> test: prohibited
+
+### Clean Architecture Dependency Rule
+
+Source code dependencies must point inward. The innermost layer (Entities/Domain) depends on nothing. The outermost layer (Frameworks/Drivers) depends on everything inward. No inner layer may import, reference, or name anything from an outer layer. Cross-reference: structure_spec.md 'Architectural Patterns' (Clean Architecture)
+
+### Stable Dependencies Principle (SDP)
+
+Depend in the direction of stability. A module should depend only on modules that are more stable (harder to change) than itself. Stability is measured by the ratio of incoming dependencies (afferent coupling) to total dependencies. A module with many dependents and few dependencies is stable — changing it would break many consumers, so it resists change.
+
+- If a volatile module (frequently changed) depends on another volatile module, changes cascade unpredictably
+- If a stable module depends on a volatile module, the stable module is forced to change when the volatile module changes, contradicting its stability
+- Real example: Spring Framework's `@Autowired` — the application code depends on Spring's stable interfaces (DI container), not on specific implementation classes. NestJS providers follow the same pattern. Go achieves this through implicit interface satisfaction — any type that implements the methods of an interface satisfies it, without declaring the dependency
+
+### Stable Abstractions Principle (SAP)
+
+A package should be as abstract as it is stable. Stable packages (many dependents) should consist primarily of interfaces and abstract classes, so that dependents can extend them without modifying them. Volatile packages (few dependents) should be concrete, containing implementations.
+
+- A stable, concrete package is a problem: it is hard to change (many dependents) and impossible to extend (no abstractions)
+- An abstract, volatile package is a problem: it has abstractions that nobody uses
 
 ## Type Location and Dependency Direction
 
@@ -31,6 +70,123 @@ status: established
 
 - A diamond of the form A -> B, A -> C, B -> D, C -> D: allowed (provided D's versions match)
 - Simultaneous dependency on different versions of the same module: prohibited (version conflict)
+- Resolution: the dependency management system must select a single version. npm uses tree deduplication (hoisting); Go uses minimum version selection; Maven uses "nearest definition wins." Each strategy has different conflict behavior
+
+## Package/Module Dependency Patterns
+
+### Shared Kernel
+
+- Extract types/functions that multiple modules need into a dedicated "kernel" module. Both depend on the kernel, not on each other
+- The shared kernel must be small and change infrequently. Frequent changes make it a bottleneck
+- Real example: shared protobuf/gRPC definitions placed in a dedicated schema repository
+
+### Anti-corruption Layer
+
+- When integrating with an external system whose model does not match the internal domain, create an adapter layer that translates between the two. Internal code depends on the adapter, not on the external model
+- Real example: Stripe SDK wraps Stripe's REST API with typed objects matching the consumer's language idioms
+
+### Published Language
+
+- When two systems exchange data, define a shared contract (schema, message format) that both agree to. Neither side's internal model leaks through the contract. Versioned independently
+- Real example: Protocol Buffers `.proto` files — both client and server generate code from the same definition
+
+### Conformist
+
+- When a dependency's model cannot be changed (third-party API, legacy system), the consumer adopts the dependency's model as-is. Simplest pattern but creates tight coupling
+- Real example: AWS SDK — consumers conform to AWS's API model (ARNs, IAM policy format) rather than translating
+
+## API Dependency Management
+
+### REST API Versioning Strategies
+
+| Strategy | Mechanism | Trade-off |
+|---|---|---|
+| URL path versioning | `/api/v1/users`, `/api/v2/users` | Simple routing but pollutes URI space. Most common in practice (GitHub, Stripe, Google) |
+| Header versioning | `Accept: application/vnd.api.v2+json` | Clean URLs but harder to test (requires custom headers). Used by GitHub API |
+| Query parameter | `/api/users?version=2` | Simple but easy to forget. Rarely used for major versioning |
+| Content negotiation | Media type includes version | Most RESTful but complex implementation |
+
+Real example: Stripe uses URL path versioning combined with API version dates (`Stripe-Version: 2023-10-16`). Each API version is a snapshot of the API's behavior. Old versions are maintained indefinitely.
+
+### gRPC Backward Compatibility Rules
+
+- **Field numbering**: Never reuse a field number after removing a field. Mark removed fields as `reserved`. Reusing a number causes existing clients to misinterpret the data
+- **Field evolution**: Adding a new field is backward compatible (old clients ignore unknown fields). Removing a required field is a breaking change. Changing a field's type is a breaking change
+- **`oneof` evolution**: Adding a new field to a `oneof` is backward compatible. Removing a field from a `oneof` is a breaking change
+- **Service evolution**: Adding a new RPC method is backward compatible. Removing or renaming an RPC method is a breaking change
+
+### GraphQL Schema Evolution
+
+- Adding a new field to a type is backward compatible (existing queries do not request it)
+- Removing a field is a breaking change (existing queries that request it will fail). Use `@deprecated(reason: "Use fieldX instead")` before removal
+- Adding a required argument to a field is a breaking change. Adding an optional argument is backward compatible
+- Schema stitching and federation introduce cross-service schema dependencies. A change in one service's schema can break the composed schema
+
+### Breaking vs Non-breaking Changes Classification
+
+| Change Type | Breaking? | Explanation |
+|---|---|---|
+| Add optional field | No | Existing consumers ignore it |
+| Add required field | Yes | Existing consumers do not send it |
+| Remove field | Yes | Existing consumers still expect it |
+| Rename field | Yes | Equivalent to remove + add |
+| Change field type | Yes | Existing consumers send/expect wrong type |
+| Widen value range | No | Existing consumers send a subset |
+| Narrow value range | Yes | Existing consumers may send invalid values |
+| Add enum value | Depends | Breaking if consumers use exhaustive matching |
+
+Cross-reference: logic_rules.md 'Type System Logic' (enum/union breaking changes); logic_rules.md 'Inter-module Contract Logic' (backward compatibility rules).
+
+## Runtime Dependency Rules
+
+### Service Discovery Patterns
+
+- **DNS-based**: Services registered in DNS (e.g., `user-service.internal`). Simple but DNS TTL causes stale entries; no health checking
+- **Service registry (Consul, Eureka, etcd)**: Services register and discover through a registry with health checking. Registry itself must be clustered to avoid single point of failure
+- **Sidecar proxy (Envoy, Istio)**: Proxy co-located with each service handles discovery, routing, load balancing. Language-agnostic but adds operational complexity
+
+### Circuit Breaker
+
+- When a dependency fails repeatedly, stop sending requests (open circuit). After a timeout, allow a probe request (half-open). If it succeeds, close; if it fails, re-open
+- Key thresholds: failure rate (e.g., 50%), minimum request count before evaluating (e.g., 20), open-state timeout (e.g., 30s)
+- Real example: Resilience4j (JVM), Envoy proxy (infrastructure level)
+
+### Bulkhead
+
+- Isolate resources (thread pools, connection pools) between dependencies. If one dependency exhausts its allocation, others are unaffected
+- Without bulkheads, one slow dependency can consume all connection pool entries, causing cascading failure
+
+### Timeout and Retry Policies
+
+- Every outbound call must have an explicit timeout. Without it, an unresponsive dependency blocks indefinitely
+- **Exponential backoff with jitter**: Wait 2^n * base_delay + random jitter. Prevents thundering herd (synchronized retries after failure)
+- **Maximum retries**: 2-3 for idempotent operations, 0 for non-idempotent (unless idempotency keys are used). Unlimited retries overload recovering dependencies
+
+## Build/Package Dependency Rules
+
+### Lock File Management
+
+- Lock files (`package-lock.json`, `yarn.lock`, `Pipfile.lock`, `go.sum`, `Cargo.lock`) must be committed to version control. They ensure deterministic builds — every developer and CI system installs exactly the same dependency versions
+- Without a lock file, `npm install` or `pip install` may resolve to different versions at different times, causing "works on my machine" failures
+- Lock file conflicts during merge should be resolved by running the package manager's install/lock command, not by manually editing the lock file
+
+### Dependency Resolution Algorithms
+
+- **SAT solving (npm, pip)**: The dependency resolver models version constraints as a boolean satisfiability problem and finds a compatible set of versions. Can handle complex constraints but may be slow for large dependency trees. npm v7+ uses a tree-building algorithm with deduplication
+- **Minimum version selection (Go)**: Always selects the minimum version that satisfies all constraints. Produces reproducible builds without a lock file (go.sum verifies checksums, not versions). Simpler and more predictable than SAT solving, but requires all modules to declare accurate minimum versions
+- **Nearest definition wins (Maven)**: In a diamond dependency, the version declared closest to the root of the dependency tree wins. Can produce surprising results when transitive dependencies declare different versions
+
+### Transitive Dependency Management
+
+- **Peer dependencies (npm)**: Package requires a specific version installed by the consumer, not by itself. Used for plugins. npm v7+ warns if missing
+- **Optional dependencies**: Enhance functionality but are not required. Package must function if absent. Checked at runtime with try/catch on import
+- **Phantom dependencies**: npm/Yarn hoist shared dependencies to root `node_modules`, allowing code to import undeclared packages. pnpm prevents this with strict `node_modules` structure
+
+### Dependency Security
+
+- **Audit**: Run `npm audit`, `pip audit`, or equivalent in CI. Critical vulnerabilities (RCE, data breach): fix immediately. High: within days. Medium: within sprint
+- **Supply chain security**: Verify integrity via checksums (go.sum), signatures (Sigstore), and SBOM generation. Real example: `event-stream` npm incident (2018) — malicious dependency added by compromised maintainer
+- **Update strategy**: Dependabot/Renovate create PRs for updates. Auto-merge patches (semver-compatible), manual review for minor/major. Full test suite required on every update PR
 
 ## Referential Integrity
 
@@ -48,12 +204,13 @@ status: established
 ## External Dependency Management
 
 - Production dependencies and development-only dependencies must be distinguished (dependencies vs devDependencies)
-- External API calls must have a fallback path in case of failure
+- External API calls must have a fallback path in case of failure. Cross-reference: 'Runtime Dependency Rules' (Circuit Breaker, Timeout and Retry Policies)
 - The license of external dependencies must be compatible with the project license
 - For detecting changes from external-service-based sources, using service-provided metadata (lastModified, etc.) is advantageous for preventing false positives
 - A pattern that concentrates external interface definitions in a single file (like MCP tool definitions) is prone to growing into a God Module. A distributed registration pattern maintains correct dependency directions
 
 ## Related Documents
-- concepts.md — term definitions for dependency, source of truth, contract, etc.
-- structure_spec.md — layer structure principles, module structure rules
-- logic_rules.md — dependency logic, circular dependency rules
+- concepts.md — term definitions for dependency, source of truth, contract, API versioning, etc.
+- structure_spec.md — layer structure principles, module structure rules, architectural patterns
+- logic_rules.md — dependency logic, circular dependency rules, inter-module contract logic, security logic
+- competency_qs.md — dependency verification questions

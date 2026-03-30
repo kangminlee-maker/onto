@@ -1,6 +1,6 @@
 ---
-version: 1
-last_updated: "2026-03-29"
+version: 2
+last_updated: "2026-03-30"
 source: setup-domains
 status: established
 ---
@@ -8,7 +8,7 @@ status: established
 # Conciseness Rules (software-engineering)
 
 This document contains the domain-specific rules referenced by onto_conciseness during conciseness verification.
-It is organized in the order: **type (allow/remove) -> verification criteria -> role boundary -> measurement method**.
+It is organized in the order: **type (allow/remove) → verification criteria → role boundary → measurement method**.
 
 ---
 
@@ -32,6 +32,22 @@ Each rule is tagged with a strength level:
 
 - [MUST-ALLOW] Bilateral redeclaration of interface contracts — provider (server) and consumer (client) each define the contract. Removal makes independent verification impossible.
 - [MAY-ALLOW] Error paths and happy paths describing the same data in different contexts. Retain for readability purposes; consolidate if completely redundant.
+
+### Testing
+
+- [MUST-ALLOW] Unit test and integration test for the same rule — different verification levels targeting the same logic. Unit tests verify correctness in isolation (mock dependencies, fast feedback); integration tests verify correctness under real conditions (real DB, network, environment). Real example: payment calculation unit-tested with mock DB (formula correctness) and integration-tested with real DB (data type handling, rounding, transactions). Removing either leaves a verification gap.
+
+### API Contracts
+
+- [MUST-ALLOW] OpenAPI specification and server-side validation for the same constraints — the spec serves consumers (documentation, code generation, contract testing), while server validation enforces at runtime. Real example: `maxLength: 100` in the OpenAPI spec and `if len(field) > 100: raise ValidationError` in the handler. Removing the spec breaks consumer tooling; removing the validation breaks runtime safety.
+
+### Type Definitions
+
+- [MAY-ALLOW] Client-side and server-side type definitions for the same API — client types are shaped for the consumer's needs (e.g., optional fields for partial updates, camelCase naming), while server types are shaped for internal processing (e.g., required fields after validation, snake_case naming). Retain when the two sides have genuinely different shapes or naming conventions. Consolidate when the types are identical and a shared schema (e.g., generated from OpenAPI or GraphQL) can serve both.
+
+### Monitoring
+
+- [MAY-ALLOW] Application-level and infrastructure-level metrics for the same quantity — application metrics (e.g., handler-measured latency, per-endpoint) and infrastructure metrics (e.g., load-balancer-measured latency, per-host) measure the same thing at different granularity and observation points. Retain when the difference matters for diagnosis; consolidate when identical and only one consumer uses them.
 
 ### Cross-cutting Concerns
 
@@ -57,8 +73,18 @@ Each rule is tagged with a strength level:
 
 ### Definition Redundancy
 
-- [MUST-REMOVE] Duplicate definition of the same concept under different paths/names — determine based on the synonym mapping in concepts.md.
+- [MUST-REMOVE] Duplicate definition of the same concept under different paths/names — determine based on the Homonyms list in concepts.md §Homonyms Requiring Attention. Note: synonym detection requires cross-file term comparison; no dedicated synonym section exists. Use the Homonyms list in concepts.md as a starting reference.
 - [SHOULD-REMOVE] Same verification logic copied across multiple modules — needs extraction into a common module.
+
+### Dead Code and Feature Flags
+
+- [MUST-REMOVE] Dead feature flags — flags fully rolled out (100% traffic) but not removed. Dead flags accumulate never-taken branches and risk accidental reactivation. Real example: Knight Capital Group (2012) lost $440M in 45 minutes when a dead flag was repurposed during deployment, reactivating retired trading code. Fix: remove the flag and its branches after rollout is confirmed stable.
+- [MUST-REMOVE] Commented-out code in production — VCS preserves all historical code, so commented-out blocks serve no purpose except to confuse readers. Retrieve from git history if needed later.
+
+### Over-Abstraction
+
+- [SHOULD-REMOVE] Single-implementation interfaces — an interface with exactly one implementing class, created "for testability" or "future flexibility," that has remained single-implementation for an extended period. The interface adds indirection without providing polymorphism. Remove and depend on the concrete class; re-extract when a genuine second implementation arises (YAGNI principle).
+- [SHOULD-REMOVE] Redundant null checks after type-system verification — when the type system guarantees non-null (e.g., non-optional type in TypeScript strict mode, `@NonNull` in Java), a runtime null check duplicates the guarantee without adding safety. Exception: retain checks at system boundaries (external API responses, deserialized data) where the type system cannot verify the actual value.
 
 ---
 
@@ -66,13 +92,17 @@ Each rule is tagged with a strength level:
 
 A sub-classification is allowed only when it satisfies **one or more** of the following. If none are satisfied, merge with the parent.
 
-1. **Competency question difference**: Does it produce a different answer to a question in competency_qs.md?
-2. **Constraint difference**: Do different constraints (cardinality, type, range) apply?
-3. **Dependency relationship difference**: Does it depend on different modules/systems, or do different modules/systems depend on it?
+1. **Competency question difference**: Does it produce a different answer to a question in competency_qs.md? The CQ-S (Structural Understanding), CQ-D (Data Flow), and CQ-T (Types and Constraints) question groups each target different verification concerns — if a sub-classification produces different answers in any of these groups, the classification is justified.
+2. **Constraint difference**: Do different constraints (cardinality, type, range) apply? As defined in logic_rules.md 'Type System Logic' and structure_spec.md 'Required Relationships'.
+3. **Dependency relationship difference**: Does it depend on different modules/systems, or do different modules/systems depend on it? As defined in dependency_rules.md 'Acyclic Dependencies' and 'Direction Rules'.
 
 Examples:
-- `HttpError` and `ValidationError` are justified as separate classifications because different constraints apply (HTTP status code vs field list).
-- `InternalServerError` and `UnexpectedError` are merge candidates if they follow the same processing logic.
+- `HttpError` and `ValidationError` are justified as separate classifications because different constraints apply (HTTP status code vs field list), and they answer CQ-T questions differently (one relates to transport-layer type safety, the other to input-domain type safety).
+- `InternalServerError` and `UnexpectedError` are merge candidates if they follow the same processing logic, answer the same competency questions, and have no constraint or dependency differences.
+
+Anti-examples of premature classification:
+- Splitting `UserRepository` into `ReadUserRepository` and `WriteUserRepository` before any consumer actually needs the separation — the split satisfies no competency question difference, no constraint difference, and no dependency difference. The two classes have the same dependents and dependencies. Wait until CQRS is actually adopted before splitting.
+- Creating `BaseService`, `AbstractBaseService`, and `ConcreteService` hierarchy when there is only one service implementation — the intermediate nodes have no classification value and should be collapsed to a single class.
 
 ---
 
@@ -84,40 +114,54 @@ The authoritative source for boundary definitions is `roles/onto_conciseness.md`
 
 - onto_conciseness: Does an unnecessary element **exist**? (structural level)
 - onto_pragmatics: Does unnecessary information **hinder** query execution? (execution level)
-- Example: Unused fields included in API response -> onto_pragmatics. Unused entity defined in schema -> onto_conciseness.
+- Example: Unused fields included in API response → onto_pragmatics. Unused entity defined in schema → onto_conciseness.
 
 ### onto_coverage Boundary
 
 - onto_conciseness: Does something that should not exist, exist? (reduction direction)
 - onto_coverage: Does something that should exist, not exist? (expansion direction)
-- Example: Security/authentication exists but authorization system is undefined -> onto_coverage. Authentication and authorization are redundantly defined in the same module -> onto_conciseness.
+- Example: Security/authentication exists but authorization system is undefined → onto_coverage. Authentication and authorization are redundantly defined in the same module → onto_conciseness.
 
 ### onto_logic Boundary (predecessor/successor relationship)
 
-- onto_logic precedes: determines logical equivalence (entailment)
+- onto_logic precedes: determines logical equivalence (entailment). Cross-reference: logic_rules.md 'Type System Logic' for type-level entailment rules, 'State Management Logic' for state-transition equivalence.
 - onto_conciseness follows: determines whether to remove after equivalence is confirmed
-- Example: Superordinate interface's constraint entails subordinate implementation's constraint -> onto_logic determines equivalence -> onto_conciseness rules "subordinate redeclaration unnecessary."
+- Example: Superordinate interface's constraint entails subordinate implementation's constraint → onto_logic determines equivalence → onto_conciseness rules "subordinate redeclaration unnecessary."
 
 ### onto_semantics Boundary (predecessor/successor relationship)
 
-- onto_semantics precedes: determines semantic identity (synonym status)
+- onto_semantics precedes: determines semantic identity (synonym status). Cross-reference: concepts.md §Homonyms Requiring Attention for canonical term resolution.
 - onto_conciseness follows: determines merge necessity after synonym is confirmed
-- Example: user/account/member are the same concept -> onto_semantics determines synonymy -> onto_conciseness rules "consolidate to one canonical term."
+- Example: user/account/member are the same concept → onto_semantics determines synonymy → onto_conciseness rules "consolidate to one canonical term."
+
+### onto_structure Boundary
+
+- onto_structure: Does the element conform to structural rules? (structure_spec.md 'Required Module Structure Elements', 'Architectural Patterns')
+- onto_conciseness: Is the element duplicated or unnecessary given the structure?
+- Example: A module exists but violates the declared architectural pattern → onto_structure. A module duplicates another module's functionality → onto_conciseness.
 
 ---
 
 ## 5. Quantitative Criteria
 
-Domain-observed thresholds are recorded as they accumulate.
+Domain-observed thresholds for conciseness judgment. Each threshold is a signal for review, not an automatic removal trigger.
 
-- (Not yet defined — accumulated through reviews)
+- **Code duplication**: >3 copies of the same logic (each >10 lines) → extraction candidate. Two copies may have different change-reasons (DRY targets knowledge duplication, not code duplication — see concepts.md 'DRY'); three copies almost certainly share one.
+- **Feature flag lifetime**: >30 days after 100% rollout → removal candidate. The 30-day window allows rollback observation; after that, conditional branches are dead code (see Section 2).
+- **Single-implementation interface lifetime**: >6 months with one implementation → review for removal. Sufficient time for a second implementation to arise if justified (see Section 2).
+- **Module size after split**: <100 LOC each → premature split signal. Re-merge unless modules have genuinely different dependencies or change-reasons.
+- **Test duplication**: Unit and integration tests sharing >80% identical assertions → consolidation candidate. Refactor to differentiate: unit tests for edge cases in isolation, integration tests for cross-component behavior.
+- **Unused imports/exports**: >0 → removal target. Increases build time and creates false dependency signals. Most linters flag these automatically.
+- **API field usage**: <5% consumer usage → deprecation candidate. Deprecate with a sunset period, then remove.
 
 ---
 
 ## Related Documents
 
-- `concepts.md` — term definitions, synonym mappings, homonym list (semantic criteria for redundancy determination)
-- `structure_spec.md` — isolated node rules, required relationship requirements (structural removal criteria)
-- `competency_qs.md` — competency question list (criteria for "actual difference" in minimum granularity judgment)
-- `dependency_rules.md` — source of truth management rules (basis for allowing reference copies)
-- `logic_rules.md` — constraint conflict detection rules (criteria for logical equivalence determination)
+- `concepts.md` — Homonyms requiring attention, abstraction layer classification (semantic criteria for redundancy). Key: 'Abstraction Layer Classification', 'SOLID Principles' (SRP, OCP, LSP, ISP, DIP) and 'Other Principles' (DRY, KISS, YAGNI)
+- `structure_spec.md` — Module structure, architectural patterns, required relationships (structural removal criteria). Key: 'Required Module Structure Elements', 'Architectural Patterns', 'Required Relationships'
+- `competency_qs.md` — Competency questions by verification concern (minimum granularity criteria). Key: CQ-S, CQ-D, CQ-T
+- `dependency_rules.md` — Acyclic dependencies, direction rules, stability metrics (reference copy allowance basis). Key: 'Acyclic Dependencies', 'Direction Rules', 'Stable Dependencies Principle'
+- `logic_rules.md` — Type system logic, state management logic (logical equivalence criteria). Key: 'Type System Logic', 'State Management Logic', 'Variance Rules'
+- `domain_scope.md` — Sub-areas and concern classification (cross-boundary duplication context)
+- `extension_cases.md` — Reserved future extensions (exception for retaining empty classifications)

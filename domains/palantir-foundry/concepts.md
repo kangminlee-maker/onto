@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 last_updated: "2026-03-31"
 source: manual
 status: established
@@ -37,6 +37,7 @@ The Kinetic Layer answers "what can be done." It connects the Semantic Layer to 
 - `[관찰→참여]` Side Effect Rule = External effect triggered by an Action -> Two types: notification rules (user alerts) and webhook rules (external system calls). When a webhook is configured as writeback, it executes before other rules — failure cancels all changes (simplified saga pattern). Side effects are declared in the Action definition, not embedded in application code
 - `[관찰→참여]` Function = Server-side business logic -> Implemented in TypeScript or Python. Uses ontology Objects as inputs and outputs. Read-only (no state changes) — distinguished from Action (state-changing). Corresponds to Query in CQRS
 - `[관찰→참여]` Function-Backed Action = Action whose logic is implemented via Function code rather than declarative rules -> Used when built-in rules are insufficient for complex multi-object mutations. Two-tier design principle: declarative rules as default (auditable, validatable), imperative code as escape hatch (flexible, complex). Most business logic should be expressible declaratively
+- `[관찰→참여]` Action Inbox = UI pattern for assigning tasks and capturing decisions as ontology mutations -> Users are assigned work items, explore data, make decisions, and those decisions are recorded as Property changes on Objects. The decision then propagates to downstream processes and external systems. Presupposes Process Ontology (workflow: assignee, status, priority) + Subject Matter Ontology (domain data) separation
 
 ## Dynamic Layer Core Terms
 
@@ -63,6 +64,8 @@ These terms describe Foundry's data integration infrastructure — how external 
 - `[관찰→참여]` Sync Schedule = Configuration for data movement frequency -> Batch, streaming, or file-based. Determines data freshness in the ontology. Design principle: "choose the integration pattern per workflow requirements, not globally"
 - `[관찰→참여]` Transform = A computation unit within a Pipeline -> Takes input datasets, applies transformation logic, produces output datasets. Foundry tracks input-output dependencies automatically for incremental rebuilds
 - `[관찰]` Object Storage V2 = Read/Write separated storage architecture -> Object Data Funnel (write path) orchestrates all data writes. Object Set Service (read path) handles queries, filters, aggregation. Independent scaling of read and write paths. Performance: up to 10,000 object edits per Action, up to 2,000 properties per Object Type
+- `[관찰→참여]` Canonical Data Model (CDM) = Common schema definition owned by participating organizations in a federated ontology -> Each organization maps its internal data to the CDM via transformation pipelines. CDM follows Object Type structure but uses organization-specific business concepts. CDM IP ownership belongs to the consortium, not the platform vendor
+- `[관찰→참여]` De-identification Rule = Property-level rule for removing personally identifiable information (PHI/PII) during cross-organization data sharing -> Must be defined at Property definition time, not after indexing. Masking, anonymization, or redaction applied per Property classification. Best practice: classify PII/PHI during ontology design, not retroactively
 
 ## Data Classification Terms
 
@@ -99,6 +102,8 @@ Code generation bridges the ontology definition and application development. The
 
 - `[관찰]` OSDK = Ontology Software Development Kit -> Auto-generates TypeScript/Python/Java clients (or OpenAPI spec for arbitrary languages). Generates only the subset of ontology relevant to the application (not the full ontology). Dual-layer security: token scope limits accessible ontology entities, user permissions further restrict data access
 - `[관찰→참여]` codegen = Ontology definition -> typed client auto-generation pipeline. Schema changes produce compile errors that automatically detect impact scope at build time, not runtime. Generated mappings: Object Type -> interface, Property -> readonly field, Link Type -> reference type, Enum -> union type. This pattern applies to any schema-driven system
+- `[관찰→참여]` Schema-Type-UI Pipeline = End-to-end change detection pipeline from ontology schema through generated types to UI components -> Schema change → type regeneration → UI compile errors. Extends the codegen pattern to the presentation layer, ensuring that ontology changes are caught before deployment. The polymorphic rendering pattern maps ontology Interfaces to UI component hierarchies via `$objectType` discrimination
+- `[관찰]` OSDK v2 = Second generation of Foundry's Ontology SDK -> Key improvements: performance scales with ontology shape (not size), lazy loading, client-code decoupling (library updates don't require SDK regeneration), GeoJSON types, ISO 8601 string types. React integration via hooks (useOsdkObjects, useOsdkObject, useLinks) with SWR caching strategy
 
 ## AI/LLM Integration Terms
 
@@ -135,6 +140,7 @@ Terms that share names across Foundry, general software engineering, and competi
 | Function | Read-only server-side logic (TypeScript/Python) returning ontology data | Programming function | SAP CDS: unbound function (read-only); Snowflake: UDF |
 | Marking | Mandatory access restriction tag that propagates with data | n/a | Snowflake: Row Access Policy (no propagation); Databricks: ABAC tag |
 | AI Agent | LLM-based operator within ontology security boundaries | Autonomous software agent (no security inheritance) | Databricks: AI/BI Genie (analytics-only); SAP: Joule (CDS-bound, no writeback) |
+| CDM | Common schema for federated ontology data sharing | Canonical Data Model (generic data integration term) | SAP: Master Data Governance (MDG); Snowflake: n/a (no built-in federation) |
 | Ontology | Executable business model (read + write + govern) | Formal knowledge representation (OWL/RDFS, read-only reasoning) | Databricks: Unity Catalog (metadata governance); SAP: CDS domain model |
 | Sync | Data movement from source to Foundry (batch/streaming/file) | File synchronization, state sync | Databricks: ingestion; Snowflake: COPY INTO / Snowpipe |
 | Transform | Computation unit within a Pipeline (input datasets -> output datasets) | Data transformation (generic ETL step) | Databricks: Notebook cell; dbt: model |

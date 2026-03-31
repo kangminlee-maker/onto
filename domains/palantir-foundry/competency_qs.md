@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 last_updated: "2026-03-31"
 source: manual
 status: established
@@ -90,6 +90,8 @@ Verifies that business operations are correctly formalized as executable, audita
   -> concepts.md 'Kinetic Layer Core Terms'; logic_rules.md 'Temporal and Ordering Rules'
 - **CQ-KIN-05** [P2] [T] Is business logic isolated from the ontology platform via the DAO pattern, enabling unit testing with mock implementations?
   -> structure_spec.md 'Testing Structure'; concepts.md 'Kinetic Layer Core Terms'
+- **CQ-KIN-06** [P2] [T] Is the Action Inbox pattern applied — decisions captured as Object Property changes and propagated to downstream processes?
+  -> domain_scope.md 'Action Inbox Pattern'; concepts.md 'Kinetic Layer Core Terms'
 
 ---
 
@@ -157,6 +159,10 @@ Verifies concerns that inherently span multiple layers, requiring inter-layer ju
   -> concepts.md 'Architecture Framework Terms'; domain_scope.md 'Three-Layer Architecture'; competitive_comparison.md 'Platform Comparison'
 - **CQ-X-08** [P2] [T] Does the end-to-end pipeline (Source → Raw → Clean → Transform → Ontology binding → codegen → compile) pass without errors?
   -> structure_spec.md 'Testing Structure'; logic_rules.md 'Pipeline Quality Rules'
+- **CQ-X-09** [P2] [T] Does the Schema-Type-UI pipeline ensure that ontology schema changes propagate as compile errors to UI components?
+  -> structure_spec.md 'Frontend Integration Structure'; concepts.md 'Code Generation Terms'
+- **CQ-X-10** [P2] [T] In a federated ontology, is a CDM defined with organization-owned IP, and are de-identification rules applied at the Property level?
+  -> domain_scope.md 'Data Sharing and De-identification'; concepts.md 'Platform Terms'
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 last_updated: "2026-03-31"
 source: manual
 status: established
@@ -146,6 +146,24 @@ Classification axes: **trigger** (내부/외부) × **impact** (단일 레이어
 - [ ] Pipeline naming conventions (snake_case, distinctive portion first) enforced?
 - **Files**: structure_spec.md, logic_rules.md, dependency_rules.md | **CQ**: CQ-KIN-05, CQ-DAT-07, CQ-DAT-08, CQ-X-08
 
+## Case 17: Frontend Integration via Codegen [관찰→참여]
+내부 × 다중 레이어. OSDK-style generated types are consumed by a frontend application, extending the codegen change detection pipeline to the UI layer.
+- [ ] Generated types imported into UI components with full type safety?
+- [ ] Ontology Interface mapped to polymorphic UI component hierarchy ($objectType discrimination)?
+- [ ] Schema change → type regeneration → UI compile errors detected before deployment?
+- [ ] State management follows provider + hook-level caching (no global store required)?
+- [ ] Real-time subscription handles onChange, onError, onOutOfDate events?
+- **Files**: structure_spec.md, concepts.md, dependency_rules.md | **CQ**: CQ-X-09, CQ-X-01, CQ-SEM-03
+
+## Case 18: Platform Adoption Expansion [관찰→참여]
+외부 × 전체. The ontology expands from internal single-use-case to external partner sharing to industry-wide platform.
+- [ ] Multi-Ontology structure supports external organizations (Shared + Private ontologies per organization)?
+- [ ] Organization-level access isolation prevents cross-tenant data leakage?
+- [ ] CDM defined for cross-organization data sharing with organization-owned IP?
+- [ ] De-identification rules applied at Property level for cross-organization data?
+- [ ] Adoption follows prove-small-scale-big methodology (AIP Bootcamp pattern)?
+- **Files**: domain_scope.md, structure_spec.md, dependency_rules.md | **CQ**: CQ-X-02, CQ-X-03, CQ-X-10, CQ-DYN-01, CQ-DYN-02
+
 ---
 
 ## Scenario Interconnection Matrix
@@ -164,6 +182,9 @@ Classification axes: **trigger** (내부/외부) × **impact** (단일 레이어
 | 13 (Scale Transfer) | → 12 (Stack Transfer) | Scale reduction is a subset of transfer decisions |
 | 14 (Ontology Retirement) | → 2 (New Ontology) | Retired ontology may be replaced by new one |
 | 16 (Testing) | ← 12 (Stack Transfer) | Transfer validation requires testing infrastructure |
+| 17 (Frontend) | ← 12 (Stack Transfer) | Frontend integration requires codegen pipeline from transfer |
+| 18 (Adoption Expansion) | → 2 (New Ontology) | Platform expansion requires new ontologies per partner/organization |
+| 18 (Adoption Expansion) | → 10 (Org Restructuring) | Industry platform may restructure ontology boundaries |
 
 ## ME Cross-Verification (9-15 vs 1-8)
 
@@ -177,6 +198,8 @@ Classification axes: **trigger** (내부/외부) × **impact** (단일 레이어
 | 14 | Ontology decommissioning | 2 adds ontologies; 14 removes them |
 | 15 | Greenfield design from patterns | 1-8 modify existing systems; 15 creates new |
 | 16 | Implementation testing infrastructure | 1-15 focus on design verification; 16 validates implementation |
+| 17 | Frontend-to-ontology type safety pipeline | 1-16 focus on backend/data; 17 extends to presentation |
+| 18 | Multi-stage adoption expansion | 11 observes adoption; 18 verifies expansion design readiness |
 
 ## Related Documents
 - domain_scope.md — layer and scope to which each scenario pertains

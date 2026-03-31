@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 last_updated: "2026-03-31"
 source: manual
 status: established
@@ -222,6 +222,42 @@ Source Systems → Data Connection → Sync → Dataset → Transform (Pipeline)
 [참여] End-to-end validation of the complete pipeline:
 - Source → Pipeline (Raw→Clean→Transform) → Ontology binding → codegen → compile
 - Action execution → Writeback Dataset → re-indexing → query verification
+
+## Frontend Integration Structure
+
+[관찰→참여] The ontology-to-UI pipeline extends codegen to the presentation layer, ensuring type safety from schema to screen. (Ref: OSDK v2 React patterns, RESEARCH_NOTES.md Section 12)
+
+### Schema-Type-UI Pipeline
+
+[관찰→참여] The change detection chain extends beyond codegen:
+```
+Ontology Schema → codegen → Generated Types → UI Components
+                                    ↓
+                            Compile errors propagate
+                            to component boundaries
+```
+
+### Polymorphic Component Rendering
+
+[관찰→참여] Ontology Interfaces map to UI component hierarchies:
+- Interface defines the common shape (e.g., ITask with status, assignee)
+- Each implementing Object Type ($objectType field: CodingTask, LearningTask) renders via a distinct sub-component
+- New Object Type implementations are automatically handled if the Interface contract is satisfied
+
+### State Management
+
+[관찰→참여] Ontology-backed applications follow:
+- Context-based authentication (provider pattern) — no global state store required
+- Hook-level caching with SWR (stale-while-revalidate) strategy
+- Real-time subscription for onChange, onError, onOutOfDate events
+
+### OSDK v2 Specifics
+
+[관찰] Foundry OSDK v2 design decisions:
+- Performance scales with ontology shape (metadata), not ontology size (total data)
+- Lazy loading: types loaded at use time, not at initialization
+- Client-code decoupling: library updates do not require SDK regeneration
+- React Hooks: useOsdkObjects (collection), useOsdkObject (single), useLinks (relations)
 
 ## Quantitative Thresholds
 

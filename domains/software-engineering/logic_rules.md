@@ -1,6 +1,6 @@
 ---
-version: 2
-last_updated: "2026-03-30"
+version: 3
+last_updated: "2026-03-31"
 source: setup-domains
 status: established
 ---
@@ -111,6 +111,37 @@ See concepts.md §Type System Terms for definitions of structural and nominal ty
 - **Defense in depth**: Input validation at the API boundary does not eliminate the need for parameterized queries, output encoding, and CSP headers. Each layer defends against a different failure mode. If the validation layer has a bug, the inner layers still prevent exploitation
 - **Injection prevention**: SQL injection is prevented by parameterized queries, not by input sanitization. XSS is prevented by output encoding (context-dependent: HTML, JavaScript, URL, CSS), not by input validation alone. Command injection is prevented by avoiding shell execution with user input, not by escaping
 
+## Error Handling Logic
+
+### Error Classification
+
+- **Operational errors** (recoverable): network timeout, connection refused, validation failure, rate limit exceeded. The system is designed to handle these. Recovery strategies: retry, fallback, circuit break, queue for later
+- **Programmer errors** (non-recoverable): null dereference, assertion violation, type error at runtime, index out of bounds. These indicate code defects. Strategy: fail fast, log with full context, do not retry
+
+### Error Propagation Patterns
+
+- **Result types (Rust, modern TS)**: Errors as values in the return type. Forces callers to handle both success and failure. No hidden control flow. Composable with map/flatMap
+- **Exception hierarchy (Java, Python, C#)**: Errors as thrown objects. Checked exceptions (Java) force handling at compile time but erode with catch-all. Unchecked exceptions preserve ergonomics but errors pass silently
+- **Error middleware (Express, Koa, ASP.NET)**: Centralized error handling in request pipeline. Transforms internal errors into user-facing responses. Must not swallow errors silently
+- **Anti-pattern**: catch-and-ignore (`catch (e) {}`) creates silent failures. Every catch block must log, re-throw, or return an error value
+
+### User-Facing Error Requirements
+
+- User-facing errors must include: (1) what went wrong (human-readable), (2) what the user can do (recommended action), (3) correlation ID (for support/debugging)
+- Raw stack traces, internal class names, and SQL errors must never reach end users. These expose implementation details and assist attackers
+- Error messages must be locale-aware when i18n is applicable (see domain_scope.md §Internationalization/Accessibility)
+
+### Cascading Failure Prevention
+
+- A single downstream failure must not cascade to the entire system
+- For circuit breaker, bulkhead, timeout, and retry patterns, see dependency_rules.md §Runtime Dependency Rules (SSOT for cascading failure prevention mechanisms)
+- This section owns only the classification and propagation design; dependency_rules.md owns the runtime resilience mechanisms
+
+### Error Logging and Observability
+
+- Errors must be logged with sufficient context for diagnosis without reproduction: timestamp, request ID, user context, input that caused the error, stack trace (for programmer errors)
+- Cross-reference: competency_qs.md CQ-E-01~CQ-E-08
+
 ## Concurrency Logic
 
 ### Deadlock Conditions
@@ -155,6 +186,32 @@ See concepts.md §Type System Terms for definitions of structural and nominal ty
 - Mutation testing is computationally expensive. Apply it selectively to critical business logic, not the entire codebase
 - A surviving mutant in a trivial location (e.g., log message formatting) may not warrant a new test. Prioritize mutants in business logic and security-sensitive code
 
+## Performance Logic
+
+### Caching Rules
+
+- **Cache invalidation strategies**: TTL-based (time-to-live: simplest, eventual consistency), event-based (publish invalidation on write: stronger consistency, more complex), versioned keys (append version to cache key: no invalidation needed, key space grows)
+- Cache must declare its source of truth and staleness tolerance. Cross-reference: dependency_rules.md §Source of Truth Management
+- **Cache stampede prevention**: When a popular cache key expires, hundreds of requests simultaneously compute the value. Strategies: probabilistic early expiration, mutex/lock on recomputation, background refresh before TTL
+
+### N+1 Query Detection
+
+- **Pattern**: Loading a list of N items, then issuing 1 query per item to fetch related data. Total: N+1 queries instead of 2 (one list + one batch)
+- **Detection**: ORM query logging, database query count assertions in tests, static analysis tools (bullet gem for Rails, dataloader for GraphQL)
+- **Resolution**: Eager loading (JOIN), batch loading (WHERE id IN (...)), DataLoader pattern (batch + deduplicate within request)
+
+### Index Strategy
+
+- Every query in a production hot path must have a supporting index. Unindexed queries on tables >10K rows cause full table scans
+- Composite indexes: column order matters (leftmost prefix rule). Index on (A, B, C) supports queries on A, (A, B), and (A, B, C) but not B alone or (B, C)
+- Index maintenance cost: every write operation updates all indexes. Over-indexing slows writes. Balance read performance against write overhead
+
+### Load Testing Criteria
+
+- For quantitative load testing thresholds (P99 > 1s triggers review), see structure_spec.md §Quantitative Thresholds (SSOT for performance thresholds)
+- For SLI/SLO definitions, see domain_scope.md §Operations, Deployment & Maintenance (SSOT for service level targets)
+- This section owns only the caching, query optimization, and indexing rules; structure_spec.md owns the thresholds and domain_scope.md owns the SLO framework
+
 ## Dependency Logic
 
 See dependency_rules.md for all dependency-related rules.
@@ -178,4 +235,6 @@ See dependency_rules.md for all dependency-related rules.
 - concepts.md — term definitions for type system, constraint design, concurrency, security, and testing
 - dependency_rules.md — dependency direction rules, API dependency management, build/package dependency rules
 - structure_spec.md — module structure, layer structure principles, verification structure
-- competency_qs.md — CQ-T01~CQ-T08 (Types and Constraints verification questions)
+- competency_qs.md — CQ-T-01~CQ-T-08 (Types and Constraints verification questions)
+- competency_qs.md — CQ-E-01~CQ-E-08 (Error Handling verification questions)
+- competency_qs.md — CQ-P-01~CQ-P-04 (Performance verification questions)

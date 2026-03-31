@@ -401,3 +401,4 @@ If project-level learnings exist:
 - Even when unanimous consensus is reached in team review mode, the **logical rationale** of the consensus is verified separately.
 - If the query/review target is unclear, ask the user.
 - If a learning file exceeds 200 lines, notify the user. The user decides whether and to what extent to clean up.
+- When domain document expansion involves multiple stages editing the same files, verify before starting each subsequent stage that the previous stage's edits are complete and the file state is consistent. Run: diff between global (`~/.onto/domains/`) and plugin bundle copies to confirm sync.

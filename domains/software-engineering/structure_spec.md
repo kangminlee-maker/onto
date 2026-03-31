@@ -182,4 +182,4 @@ Cross-reference: logic_rules.md 'Testing Logic' (test boundary rules inform cove
 - concepts.md — term definitions for module, interface, layer, architecture patterns, etc.
 - dependency_rules.md — dependency direction and circular dependency rules, build/package dependency management
 - logic_rules.md — type system logic, constraint design, security logic, testing logic
-- competency_qs.md — CQ-S01~CQ-S10 (Structural Understanding verification questions)
+- competency_qs.md — CQ-S-01~CQ-S-10 (Structural Understanding verification questions)

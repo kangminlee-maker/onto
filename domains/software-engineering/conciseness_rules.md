@@ -158,7 +158,7 @@ Domain-observed thresholds for conciseness judgment. Each threshold is a signal 
 
 ## Related Documents
 
-- `concepts.md` — Homonyms requiring attention, abstraction layer classification (semantic criteria for redundancy). Key: 'Abstraction Layer Classification', 'SOLID Principles' (SRP, OCP, LSP, ISP, DIP) and 'Other Principles' (DRY, KISS, YAGNI)
+- `concepts.md` — Homonyms requiring attention, abstraction layer classification (semantic criteria for redundancy). Key: 'Abstraction Layer Reference', 'Architecture Core Terms' ([L2] SRP, OCP, LSP, ISP, DIP, DRY, KISS, YAGNI)
 - `structure_spec.md` — Module structure, architectural patterns, required relationships (structural removal criteria). Key: 'Required Module Structure Elements', 'Architectural Patterns', 'Required Relationships'
 - `competency_qs.md` — Competency questions by verification concern (minimum granularity criteria). Key: CQ-S, CQ-D, CQ-T
 - `dependency_rules.md` — Acyclic dependencies, direction rules, stability metrics (reference copy allowance basis). Key: 'Acyclic Dependencies', 'Direction Rules', 'Stable Dependencies Principle'

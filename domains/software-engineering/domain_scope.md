@@ -1,6 +1,6 @@
 ---
-version: 2
-last_updated: "2026-03-30"
+version: 3
+last_updated: "2026-03-31"
 source: setup-domains
 status: established
 ---
@@ -14,6 +14,11 @@ This domain applies when **reviewing** a software system.
 
 Classification axis: **concern** — classified by the design concerns that a software system must address.
 
+Applicability markers:
+- **(required)**: Must be addressed in any software system review. Absence indicates a fundamental gap
+- **(when applicable)**: Address when the system's architecture includes the relevant pattern. Not addressing it when the pattern is absent is correct, not a gap
+- **(scale-dependent)**: Becomes required beyond a scale threshold. The threshold should be documented per sub-area
+
 ### Data & State
 - **Data Modeling** (required): entities, relationships, type definitions, schema design. Uber's Schemaless demonstrates schema-on-read (MySQL stores JSON blobs, schema evolution without migrations). Netflix EVCache handles 30M+ req/s, illustrating consistency vs availability trade-offs. Event Sourcing (Greg Young, EventStore) stores state as immutable event logs — Axon Framework implements this on the JVM with built-in CQRS. Data modeling must declare schema-on-write vs schema-on-read, as this determines migration strategy and consistency guarantees
 - **State Management** (required): state transitions, invariants, recovery paths, concurrency control. CQRS (Command Query Responsibility Segregation) separates read and write models — the write side enforces invariants via commands, the read side serves optimized projections. Saga patterns (choreography vs orchestration) coordinate distributed state changes across service boundaries without distributed transactions
@@ -23,6 +28,7 @@ Classification axis: **concern** — classified by the design concerns that a so
 - **API Design** (required): public interfaces, versioning, contracts, backward compatibility. REST maturity is measured by Richardson's Maturity Model (L0: HTTP tunnel → L3: hypermedia/HATEOAS). GraphQL (Facebook, 2015) lets clients specify exact data shapes, solving over/under-fetching. gRPC (Google) uses Protocol Buffers for schema-first, strongly-typed RPC with HTTP/2 multiplexing. Stripe's rolling API versioning pins each customer to their integration version, avoiding the "upgrade cliff." OpenAPI/Swagger provides machine-readable specs enabling automated client generation and contract testing
 - **Type System** (required): discriminated union, exhaustive check, type-level safety mechanisms. TypeScript's discriminated unions with exhaustive switch/case checking eliminate an entire class of runtime errors at compile time. Rust's `Result<T, E>` and `Option<T>` force callers to handle both success and failure paths (see also: concepts.md §Type Safety Mechanisms)
 - **Error Handling** (required): error classification, recovery strategies, fallback paths, user guidance. Error classification should distinguish operational errors (expected, recoverable: network timeout, validation failure) from programmer errors (unexpected, non-recoverable: null dereference, assertion violation). Circuit breaker patterns (Netflix Hystrix, Resilience4j) prevent cascading failures by failing fast when downstream services are unhealthy
+- **Requirements & Specification** (when applicable): functional and non-functional requirements capture, acceptance criteria, traceability from requirements to implementation. IEEE 830 (SRS) provides a standard format. Requirements must be testable — each requirement should map to at least one verification method. Non-functional requirements (performance, security, availability) must be quantified. Applicable when formal requirements management is practiced; implicit for small-team projects with clear verbal agreements
 
 ### Security & Auth
 - **Authentication/Authorization** (required): user identification, permission systems, access control. OAuth 2.0/OIDC are the industry standards for delegated auth. JWT enables stateless authentication but requires careful token expiration, refresh rotation, and revocation handling. RBAC vs ABAC represent different authorization models — RBAC assigns permissions to roles, ABAC evaluates policies against attributes at runtime
@@ -38,9 +44,10 @@ Classification axis: **concern** — classified by the design concerns that a so
 - **Data Flow** (required): input-to-processing-to-output paths, transformation chains, source of truth designation. Pipe-and-filter architecture (Unix philosophy) composes systems from small, focused transformations. Event-driven architecture uses event buses (Kafka, RabbitMQ) to decouple producers from consumers
 - **Event/Messaging** (when applicable): message queues, asynchronous processing, pipeline scalability. Apache Kafka provides durable, partitioned event logs enabling replay and exactly-once semantics. Message delivery guarantees (at-most-once, at-least-once, exactly-once) have fundamental trade-offs with latency and complexity
 
-### Operations & Deployment
+### Operations, Deployment & Maintenance
 - **Deployment/Operations** (scale-dependent): CI/CD, environment separation, monitoring, logging. The 12-Factor App defines 12 principles for cloud-native applications (codebase, dependencies, config, backing services, build/release/run, processes, port binding, concurrency, disposability, dev/prod parity, logs, admin processes). GitOps (Weaveworks) uses Git as the single source of truth for declarative infrastructure. Feature flags (LaunchDarkly, Unleash) decouple deployment from release, enabling progressive rollouts without redeployment. Google SRE defines error budgets, SLIs/SLOs/SLAs, and toil reduction. DORA metrics (Deployment Frequency, Lead Time, Change Failure Rate, Time to Restore) measure delivery performance
-- **Internationalization/Accessibility** (scale-dependent): multi-language, time zones, accessibility standards. WCAG 2.1 (Web Content Accessibility Guidelines) defines A/AA/AAA conformance levels. ICU (International Components for Unicode) handles locale-aware formatting, collation, and transliteration
+- **Internationalization/Accessibility** (scale-dependent): multi-language, time zones, accessibility standards. **Applicability conditions**: Required when (1) the system serves users in multiple locales, (2) the system is subject to accessibility regulations (ADA, EAA, EN 301 549), or (3) the system is public-facing web/mobile. Not applicable for internal tools with a single-locale user base unless regulatory requirements mandate it. WCAG 2.1 defines A/AA/AAA conformance levels. ICU handles locale-aware formatting, collation, and transliteration. See concepts.md §Internationalization/Accessibility Terms for definitions
+- **Maintenance** (when applicable): corrective maintenance (fixing defects discovered after delivery), adaptive maintenance (accommodating environment changes — OS upgrades, dependency updates, regulatory changes), perfective maintenance (improving performance/maintainability based on user feedback), preventive maintenance (refactoring to prevent anticipated problems). IEEE 14764 classifies these four categories. Technical debt management maps to preventive maintenance. Corrective/adaptive are reactive; perfective/preventive are proactive. See concepts.md §Change Management Terms for related terminology
 
 ### Documentation & Consumers
 - **Document Design** (when applicable): dual-consumer handling for AI agents and humans, separation of contract documents vs guide documents, separation of information structure and rendering. Diátaxis classifies documentation into 4 types: tutorials (learning), how-to guides (task), reference (information), explanation (understanding). ADRs (Michael Nygard) capture the "why" behind architectural choices in structured format (context, decision, consequences). API-first design ensures contracts are defined before implementation
@@ -91,10 +98,12 @@ These are concept categories that must be addressed in any software system.
 | Arc42 | Architecture | Pragmatic architecture documentation template (12 sections) | Documenting system architecture decisions |
 | Domain-Driven Design (Eric Evans) | Structure & Architecture | Bounded contexts, aggregates, ubiquitous language | Complex domains with rich business logic |
 | Google SRE Workbook | Operations | Error budgets, SLIs/SLOs, incident management | Production systems requiring reliability guarantees |
+| IEEE 14764 | Maintenance | Software maintenance process and classification (corrective/adaptive/perfective/preventive) | Systems with ongoing maintenance operations |
+| WCAG 2.1 | Accessibility | Web Content Accessibility Guidelines (A/AA/AAA conformance levels) | Public-facing web applications; legally mandated accessibility |
 
 ## Bias Detection Criteria
 
-- If 3 or more of the 7 concern areas are not represented at all → **insufficient coverage**
+- If 3 or more of the Major Sub-areas (§Major Sub-areas) are not represented at all → **insufficient coverage**. The threshold is ⌈sub-area count / 2.5⌉ (currently: ⌈7/2.5⌉ = 3)
 - If concepts from a specific area account for more than 70% of the total → **area bias**
 - If only the happy path is defined with no error path → **path bias**
 - If creation/use is defined but disposal/cleanup is missing → **incomplete lifecycle**
@@ -120,6 +129,8 @@ This section declares which file owns which cross-cutting topic, preventing rule
 | Structural coherence rules | structure_spec.md §Golden Relationships | Other files reference |
 | Conciseness criteria | conciseness_rules.md | Other files reference |
 | Competency questions | competency_qs.md | Other files provide inference path targets |
+| Error handling design | logic_rules.md §Error Handling Logic | dependency_rules.md (cascading failure mechanisms) |
+| Performance optimization rules | logic_rules.md §Performance Logic | structure_spec.md (thresholds), domain_scope.md (SLOs) |
 
 ### Required Substance per Sub-area
 
@@ -129,6 +140,42 @@ Each sub-area declared in Major Sub-areas must have corresponding substance in a
 - competency_qs.md: verification questions
 
 A sub-area with declaration but no substance in any file is a "ghost sub-area" and must either be populated or annotated with applicability conditions.
+
+### Cross-cutting Concern Attribution
+
+When a concern spans multiple sub-areas, attribute it to the sub-area where the concern has its **primary enforcement point**:
+
+1. **Primary enforcement point**: The sub-area whose rules would be violated if the concern is not addressed. Example: input validation spans Interface & Contract (API design) and Security & Auth (injection prevention). Primary enforcement: Security & Auth, because the security consequence is the enforcement driver
+2. **Secondary references**: Other sub-areas reference the primary sub-area's rules rather than duplicating them
+3. **Tie-breaking**: If enforcement is equally distributed, attribute to the sub-area with fewer existing items (load balancing)
+
+### Classification Axis Relationships
+
+The domain files use three related concern axes — they are facets of the same domain, not independent classification systems:
+
+| File | Axis | Facet |
+|---|---|---|
+| domain_scope.md | concern | What design concerns exist (scope) |
+| logic_rules.md | system construction concern | What concerns are governed by rules (rules) |
+| competency_qs.md | verification concern | What concerns must be verified (questions) |
+
+### Sub-area to CQ Section Mapping
+
+| Sub-area | CQ Sections | Coverage |
+|---|---|---|
+| Data & State | CQ-D (Data Flow) | Full |
+| Interface & Contract | CQ-I (Change Impact), CQ-E (Error Handling), CQ-R (Requirements) | Full |
+| Security & Auth | CQ-SE (Security) | Full |
+| Verification & Quality | CQ-V (Testing/Verification), CQ-P (Performance) | Full |
+| Structure & Architecture | CQ-S (Structural Understanding), CQ-M (Event/Messaging) | Full |
+| Operations, Deployment & Maintenance | CQ-O (Deployment/Operations), CQ-MT (Maintenance) | Full |
+| Documentation & Consumers | CQ-A (AI Agent Collaboration) | Partial (AI-focused) |
+
+Cross-cutting CQ sections (not mapped to a single sub-area):
+- CQ-T (Types and Constraints) — spans Interface & Contract + Data & State
+- CQ-B (Boundary Conditions) — spans all sub-areas
+- CQ-C (Concurrency) — spans Data & State + Structure & Architecture
+- CQ-DE (Dependencies) — spans Structure & Architecture + Operations
 
 ## Related Documents
 - concepts.md §Architecture Core Terms — definitions of terms within this scope

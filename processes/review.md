@@ -153,6 +153,10 @@ Perform the following items first (only if applicable to the review target. Mark
 - [ ] Is each item's definition explicitly stated?
 - [ ] Is the axis (criteria) used for classification explicitly stated?
 - [ ] Are learning items tagged with type tags ([fact]/[judgment])? (Only for learning-related reviews)
+- [ ] Are all cross-references between domain document files valid (referenced sections exist, referenced CQ codes exist)? (Only for domain document reviews)
+- [ ] Does each sub-area declared in domain_scope.md have substance in at least one other file? (Ghost sub-area check — domain document reviews only)
+- [ ] Does each logic_rules.md section have a corresponding CQ in competency_qs.md? (Rule-CQ linkage check — domain document reviews only)
+- [ ] Does each concepts.md section referenced by inference paths actually contain the referenced term? (Inference path validity check — domain document reviews only)
 
 [Review Target]
 {review target content}

@@ -1,11 +1,13 @@
 ---
-version: 2
-last_updated: "2026-03-30"
+version: 3
+last_updated: "2026-03-31"
 source: setup-domains
 status: established
 ---
 
 # Software Engineering Domain — Extension Cases
+
+Classification axis: **change trigger** — cases classified by the type of change that triggers structural evolution. Cases cover both growth triggers (Cases 1–11) and shrinkage triggers (Cases 12–13).
 
 The onto_evolution agent simulates each scenario to verify whether the existing structure breaks.
 
@@ -32,7 +34,7 @@ Slack added real-time audio (Huddles) to an asynchronous text messaging platform
 
 ### Verification Checklist
 
-- [ ] Can the feature be added as a new module without modifying existing modules? → concepts.md §Layer 2 — Design Pattern/Principle Terms (OCP)
+- [ ] Can the feature be added as a new module without modifying existing modules? → concepts.md §Architecture Core Terms ([L2] OCP)
 - [ ] Existing tests pass without modification → logic_rules.md §Testing Logic
 - [ ] New module follows dependency direction rules → dependency_rules.md §Direction Rules
 - [ ] Public API changes are backward compatible → dependency_rules.md §API Dependency Management (Breaking vs Non-breaking Changes Classification)
@@ -348,7 +350,7 @@ Stripe pins each merchant to the API version at integration time (e.g., `2023-10
 - [ ] Is the change classified as breaking or non-breaking? → dependency_rules.md §API Dependency Management (Breaking vs Non-breaking Changes Classification)
 - [ ] Is a versioning strategy selected? → dependency_rules.md §API Dependency Management (REST API Versioning Strategies)
 - [ ] Is backward compatibility maintained for the deprecation period? → concepts.md §Change Management Terms (Deprecation)
-- [ ] Are contract tests in place? → concepts.md §Layer 3 — Domain/Practice Terms (Contract Test)
+- [ ] Are contract tests in place? → concepts.md §Testing Terms ([L3] Contract Test)
 - [ ] Are gRPC/GraphQL evolution rules followed if applicable? → dependency_rules.md §API Dependency Management
 
 ### Affected Files
@@ -441,6 +443,82 @@ GitHub migrated to Vitess (clustering system from YouTube) for 5B+ API requests/
 | structure_spec.md | Verify | §Storage/Data Layer, §Golden Relationships |
 | logic_rules.md | Verify | §Constraint Design Logic |
 | concepts.md | Verify | §Data/State Management Terms |
+
+---
+
+## Case 12: Feature Removal / Deprecation
+
+### Situation
+
+Removing an existing feature, including deprecation notice, migration path for consumers, dead code cleanup, and data retention/deletion decisions.
+
+### Case Study: Google — Google Reader Shutdown (2013)
+
+Google Reader served millions of RSS subscribers. Shutdown required: 6-month deprecation notice, Google Takeout data export for user data, API deprecation for third-party clients (Feedly, Reeder migrated 500K+ users in 3 months), redirects from old URLs. Key lesson: feature removal affects both direct users and API consumers differently.
+
+### Impact Analysis
+
+| Principle | Impact |
+|---|---|
+| Deprecation protocol | Must specify what, when, and replacement |
+| Dead code cleanup | Removal must not break unrelated code paths |
+| Data lifecycle | User data must be exported or archived before deletion |
+| Consumer migration | API consumers need migration guides and timeline |
+
+### Verification Checklist
+
+- [ ] Is deprecation announced with timeline and replacement? → concepts.md §Change Management Terms (Deprecation)
+- [ ] Are all consumers of the deprecated feature enumerated? → dependency_rules.md §Referential Integrity
+- [ ] Is dead code fully removed (no conditional branches for removed feature)? → structure_spec.md §Isolated Node Prohibition
+- [ ] Is user data handled (export, archive, deletion)? → domain_scope.md §Required Concept Categories (Lifecycle)
+- [ ] Are feature flags for the removed feature cleaned up? → concepts.md §Change Management Terms (Feature Toggle)
+- [ ] Are tests for the removed feature deleted to prevent confusion? → logic_rules.md §Testing Logic (Test Independence)
+
+### Affected Files
+
+| File | Impact | Section |
+|---|---|---|
+| concepts.md | Verify | §Change Management Terms (Deprecation, Feature Toggle) |
+| dependency_rules.md | Verify | §Referential Integrity, §API Dependency Management |
+| structure_spec.md | Verify | §Isolated Node Prohibition |
+
+---
+
+## Case 13: Service Decommissioning
+
+### Situation
+
+Permanently shutting down a service, including traffic drain, data archival, dependency cleanup, and DNS/routing removal.
+
+### Case Study: AWS — SimpleDB Sunset (Gradual, 2012–)
+
+AWS SimpleDB was superseded by DynamoDB. AWS approach: no new customers accepted, existing customers given multi-year migration window, DynamoDB migration guides published, SimpleDB API maintained read-only during transition, data export tools provided. Key lesson: decommissioning a service with external consumers requires years-long migration support.
+
+### Impact Analysis
+
+| Principle | Impact |
+|---|---|
+| Traffic drain | All consumers must be migrated before shutdown |
+| Data archival | Data must be archived or migrated to successor service |
+| Dependency cleanup | All references to the service must be removed |
+| DNS/routing | Service endpoints must return informative errors, not timeouts |
+
+### Verification Checklist
+
+- [ ] Are all consumers identified and migrated? → dependency_rules.md §Referential Integrity
+- [ ] Is data archived with retention policy? → domain_scope.md §Required Concept Categories (Lifecycle)
+- [ ] Are inter-service dependencies cleaned up (no dangling references)? → dependency_rules.md §Acyclic Dependencies
+- [ ] Are monitoring/alerts for the decommissioned service removed? → domain_scope.md §Required Concept Categories (Observability)
+- [ ] Is DNS/routing updated (informative 410 Gone, not timeout)? → dependency_rules.md §API Dependency Management
+- [ ] Is the decommissioned service removed from CI/CD pipelines? → structure_spec.md §Verification Structure (CI/CD Pipeline Structure)
+
+### Affected Files
+
+| File | Impact | Section |
+|---|---|---|
+| dependency_rules.md | Modify | §Referential Integrity, §External Dependency Management |
+| structure_spec.md | Verify | §Verification Structure |
+| domain_scope.md | Verify | §Required Concept Categories |
 
 ---
 

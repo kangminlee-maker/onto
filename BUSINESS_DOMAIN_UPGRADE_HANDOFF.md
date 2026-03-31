@@ -2,7 +2,7 @@
 
 > 작성일: 2026-03-31
 > 목적: `/clear` 이후 다음 세션에서 business 도메인 업그레이드를 정확히 이어받기 위한 최신 상태 문서
-> 현재 기준: **교차 참조 무결성 점검 완료 + 글로벌 동기화 완료**
+> 현재 기준: **교차 참조 무결성 점검 완료 + 프로젝트/글로벌 동기화 완료**
 
 ---
 
@@ -38,6 +38,8 @@ business 도메인 핵심 문서 8개를 기존 59K 수준에서, accounting-kr 
 [완료] 교차 참조 무결성 점검 (엄밀 모드)
 [완료] section-level reference / Rule Ownership / Related Documents 정리
 [완료] execution-contracts.md 와 실제 문서 상태 동기화
+[완료] 프로젝트 → 글로벌 (`~/.onto/domains/business/`) 단방향 복사
+[완료] 프로젝트/글로벌 MD5 검증
 [완료] focused commit 준비 검증
 ━━━━━━━━━━ ← 세션 종료 상태
 ```
@@ -51,6 +53,7 @@ business 도메인 핵심 문서 8개를 기존 59K 수준에서, accounting-kr 
 - explicit `§` section reference 재검증 완료
 - `extension_cases.md`의 `Related CQs` / `Primary Owner File` 앵커 무결성 확인 완료
 - tier-sensitive `Applicability`와 `domain_scope.md §Scale Tier Definitions` 정합성 확인 완료
+- 글로벌 `~/.onto/domains/business/` 8개 core 문서와 프로젝트본 동기화 완료
 
 ---
 
@@ -83,6 +86,13 @@ business 도메인 핵심 문서 8개를 기존 59K 수준에서, accounting-kr 
 |------|------|----------------|
 | Execution Contracts | `/Users/kangmin/cowork/onto/.onto/review/20260331-1101bc80/execution-contracts.md` | 즉시 조치, CQ-SC-03, scale/skip semantics, mapping 보강, Gate 2 extension-case wording sync |
 | Scale Tier Review Target | `/Users/kangmin/cowork/onto/.onto/review/20260331-93dcf27e/review-target.md` | 방향 A 기준으로 재작성, 추가 수정 없이 유지 가능 상태 확인 |
+
+### 3.4 글로벌 도메인 문서 동기화
+
+- 대상 경로: `/Users/kangmin/.onto/domains/business/`
+- 동기화 방식: 프로젝트 `domains/business/`의 8개 core `.md` 파일을 글로벌 established domain으로 단방향 복사
+- 제외 범위: research notes 10개는 글로벌 verification standard에 포함하지 않음
+- 검증 방식: 프로젝트본과 글로벌본의 MD5 비교로 동기화 확인
 
 ---
 
@@ -171,6 +181,7 @@ business 도메인 핵심 문서 8개를 기존 59K 수준에서, accounting-kr 
 - research notes 10개는 이번 focused close-out의 커밋 대상에서 제외해도 됨
 - ui-design 등 unrelated worktree 변경과 섞지 않는 것이 안전함
 - business domain 후속 작업도 기본적으로 위 파일 집합 안에서 닫는 것이 안전함
+- 글로벌 verification standard는 `~/.onto/domains/business/` 기준으로도 현재 프로젝트본과 동기화된 상태임
 
 ---
 

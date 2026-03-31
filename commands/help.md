@@ -14,6 +14,8 @@ Display the command reference below in the configured language.
 /onto:review {target}                      Agent panel review (8+1 agents)
 /onto:review {target} @{domain}            Review with specific domain
 /onto:review {target} @-                   Review without domain rules
+/onto:review {target} --codex              Review in Codex mode (~80% Claude token reduction)
+/onto:review {target} --claude             Force Agent Teams mode (overrides config)
 /onto:build {path|URL}                     Build ontology from analysis target
 /onto:transform {file}                     Transform raw ontology to desired format
 ```
@@ -64,6 +66,21 @@ Each review/build/question selects a single **session domain**:
 | Explicit | `@{domain}` | Uses specified domain |
 | No-domain | `@-` | No domain rules applied |
 | Interactive | (omit) | Suggests domain, user confirms |
+
+### Execution Mode
+
+Review supports three execution modes:
+
+| Mode | How to select | Deliberation | Claude Tokens |
+|------|--------------|-------------|---------------|
+| Agent Teams | Default | Supported | Full |
+| Subagent | Automatic fallback | Skipped | Full |
+| Codex | `--codex` or `execution_mode: codex` | Skipped (by design) | ~80% reduced |
+
+Codex mode requires Codex CLI (`/codex:setup`). Set as default in `.onto/config.yml`:
+```yaml
+execution_mode: codex
+```
 
 ### Domain Document Lifecycle
 

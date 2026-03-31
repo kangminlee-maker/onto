@@ -80,6 +80,7 @@ Usable without domain documents (verified using general principles). Domain docu
 /onto:review {target}                # Run agent panel review (interactive domain selection)
 /onto:review {target} @ontology      # Run with specific domain
 /onto:review {target} @-             # Run without domain rules
+/onto:review {target} --codex        # Run in Codex mode (Claude tokens ~80% reduced)
 /onto:ask-logic {question}           # Ask an individual agent
 /onto:build {path|GitHub URL}        # Build ontology from analysis target
 ```
@@ -94,15 +95,21 @@ Each process execution selects a single **session domain**. Three ways to specif
 | No-domain | `@-` | Non-interactive, no domain rules applied |
 | Interactive | (omit) | Analyzes target, suggests domain, user confirms |
 
-Project domains are declared in `.onto/config.yml`:
+Project domains and execution mode are declared in `.onto/config.yml`:
 ```yaml
 domains:
   - software-engineering
   - ontology
 output_language: ko
+execution_mode: codex          # agent-teams (default) | codex
+codex:
+  model: gpt-5.4               # omit → ~/.codex/config.toml
+  effort: xhigh                 # omit → ~/.codex/config.toml
 ```
 
 `domains:` is an unordered set — order does not matter, no domain has priority over another. Domains can also be selected per session without pre-declaring them.
+
+`execution_mode: codex` delegates reviewer passes to OpenAI Codex, reducing Claude token usage by ~80%. Tradeoff: deliberation (agent-to-agent exchange) is not possible. Currently supported for review only. Append `--codex` or `--claude` to override per-command.
 
 ## Agent Configuration
 
@@ -126,6 +133,8 @@ output_language: ko
 | `/onto:review {target}` | Multi-perspective review (interactive domain selection) |
 | `/onto:review {target} @{domain}` | Review with specified domain |
 | `/onto:review {target} @-` | Review without domain rules |
+| `/onto:review {target} --codex` | Review in Codex mode (Claude tokens ~80% reduced) |
+| `/onto:review {target} --claude` | Force Agent Teams mode (overrides config) |
 
 ### Individual Query
 | Command | Description |
@@ -186,7 +195,16 @@ output_language: ko
 - **File-based relay**: Verification agents write results to session directory -> report only the path to team lead -> Philosopher reads directly via Read (prevents team lead context saturation)
 - **Session ID**: Format `{YYYYMMDD}-{hash8}`, uniquely identifies team_name and session directory (prevents inter-session collision, traceable like git commits)
 - Deliberation: Direct communication between specific agents only when contradictions or overlooked premises exist
-- Fallback: If TeamCreate fails, switches to Agent tool (subagent) mode (file-based relay still applies)
+
+**Three execution modes**:
+
+| Mode | Trigger | Deliberation | Claude Tokens |
+|------|---------|-------------|---------------|
+| **Agent Teams** (default) | Default, or `--claude` | Supported | Full |
+| **Subagent Fallback** | Automatic (TeamCreate failure) | Skipped (technical limitation) | Full |
+| **Codex** | `--codex` flag or `execution_mode: codex` | Skipped (by design) | Team lead only (~80% reduction) |
+
+Codex mode delegates reviewer passes to OpenAI Codex via `codex:codex-rescue`. Requires Codex CLI installed and authenticated (`/codex:setup`). Currently supported for review only.
 
 ## Ontology Build (Integral Exploration)
 

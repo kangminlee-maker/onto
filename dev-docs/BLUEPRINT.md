@@ -56,6 +56,8 @@ Terms used repeatedly in this document.
 | **promote** | The process of elevating project-level learnings to global-level (domain-wide) |
 | **Agent Teams** | Claude Code's multi-agent feature. Create teams with TeamCreate, communicate with SendMessage |
 | **subagent (fallback)** | The alternative execution method used when Agent Teams fails. Sequentially executes individual agents via the Agent tool |
+| **Codex mode** | Third execution mode. Delegates reviewer passes to OpenAI Codex via `codex:codex-rescue` subagent. Claude tokens reduced ~80% (team lead only). Deliberation structurally not possible (by design). Currently review-only |
+| **process-halting-with-partial-result** | Error subcategory. Irreplaceable role fails after retry, but intermediate results already exist in files. Delivers partial results with explicit limitation disclosure |
 | **fact_type** | The type of domain facts reported by the Explorer. 10 types: entity, enum, property, relation, state_transition, command, query, policy_constant, flow, code_mapping. Used as criteria for limiting exploration scope in Stage 1/2 |
 | **structured_data** | Structured supplementary data for facts within deltas. Contains fields specific to each fact_type (e.g., name, fields for entity). Optional but included whenever possible |
 | **Stage 1 / Stage 2** | The two-stage division of build Phase 1. Stage 1 (Structure) identifies Entity, Enum, Relation, Property, and Stage 2 (Behavior) identifies State Machine, Command, Query, Policy, Flow based on Stage 1 results. Each Stage independently performs an integral exploration loop |
@@ -659,16 +661,46 @@ Differences:
 - Direct deliberation via SendMessage is not possible -> deliberation is skipped (disagreement items are included as-is in the final report)
 - File-based relay still applies
 
-### 7.3 Error Handling
+### 7.3 Codex Execution Mode
 
-Errors are classified into 2 categories:
+When `execution_mode: codex` is set or `--codex` flag is used, reviewer passes are delegated to OpenAI Codex via `codex:codex-rescue` subagent.
+
+**Purpose**: Reduce Claude token consumption by ~80%. Team lead coordination is the only Claude cost; all reviewer and philosopher passes run on Codex.
+
+**Tradeoff**: Deliberation (Step 4) is structurally not possible — this is a design choice, not a technical limitation. Contested points are reported as-is in the final output's "Disagreement" section.
+
+**Scope**: Currently supported for review only. Other processes always use Agent Teams.
+
+Differences from Agent Teams:
+- Self-loading is supported (Codex reads files via Bash)
+- File I/O uses Bash (cat/shell redirect) instead of Read/Write tools
+- learning-rules.md is inlined by team lead (not self-loaded)
+- No team lifecycle (TeamCreate/TeamDelete not used)
+- Prompt templates: Codex Reviewer Prompt Template + Codex Philosopher Prompt Template (defined in process.md)
+- Model/effort configurable via `codex.model`/`codex.effort` in config.yml (fallback: `~/.codex/config.toml`)
+
+**Prerequisites**: Codex CLI installed and authenticated (`/codex:setup`). Onboarding includes optional Codex setup (Step 3.7).
+
+| Aspect | Agent Teams | Subagent Fallback | Codex Mode |
+|--------|------------|-------------------|------------|
+| Selection type | User-selectable (default) | Automatic (on TeamCreate failure) | User-selectable |
+| Runtime | Claude (TeamCreate) | Claude (Agent tool) | Codex (codex-rescue) |
+| Self-loading | Agent performs | Team lead inlines | Hybrid (agent + learning-rules inlined) |
+| Deliberation | Supported | Skipped (technical limitation) | Skipped (by design) |
+| Claude token usage | Full | Full | Team lead only |
+
+### 7.4 Error Handling
+
+Errors are classified into 4 categories:
 
 | Category | Condition | Response |
 |---|---|---|
 | **Process-halting** | Review target read failure, agent definition file read failure, Explorer failure (build), Philosopher failure (build) | Halt the process and inform the user |
+| **Process-halting-with-partial-result** | Irreplaceable role fails after retry, but intermediate results already exist in files | Halt the process, deliver collected results with limitation disclosure |
+| **Transient error → retry** | API error, agent crash during execution | Retry up to 2 times, then graceful degradation |
 | **Graceful degradation** | Partial verification agent failure, learning file absence, domain document absence | Exclude the affected agent and proceed with the rest. Adjust the consensus denominator |
 
-### 7.4 Team Lifecycle Management
+### 7.5 Team Lifecycle Management
 
 #### Pre-creation Check
 - Check for existing teams matching `~/.claude/teams/{process}-*` pattern
@@ -962,7 +994,7 @@ The key decision sequence when rebuilding this system from scratch:
 
 6. **Session ID isolation**: Generates a unique session ID for each execution, preventing agents from other sessions from contaminating the current session.
 
-7. **Fallback system**: Agent Teams -> subagent. Execution methods differ but purpose and output format are identical. Deliberation is skipped in subagent mode.
+7. **Three execution modes**: Agent Teams (default) -> Subagent fallback (automatic) -> Codex mode (user-selectable). Execution methods differ but purpose and output format are identical. Deliberation is supported in Agent Teams only; skipped in Subagent (technical limitation) and Codex (design choice for cost efficiency).
 
 ### 11.3 File Creation Order
 

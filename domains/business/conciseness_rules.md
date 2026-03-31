@@ -1,127 +1,135 @@
 ---
-version: 1
-last_updated: "2026-03-29"
-source: setup-domains
+version: 2
+last_updated: "2026-03-31"
+source: manual
 status: established
 ---
 
 # Conciseness Rules (business)
 
-This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
-It is organized in the order: **type (allow/remove) -> verification criteria -> role boundaries -> measurement methods**.
-
----
+This document defines the business-domain rules used by onto_conciseness.
+It controls where repetition is necessary, where it becomes harmful, and which thresholds should trigger consolidation review.
 
 ## 1. Allowed Redundancy
 
 Each rule is tagged with a severity level:
-- **[MUST-ALLOW]**: Redundancy that breaks the system if removed. Must be retained.
-- **[MAY-ALLOW]**: Redundancy kept for convenience. Can be consolidated, but only remove when the benefit clearly outweighs the consolidation cost.
+- **[MUST-ALLOW]**: Removing the redundancy would break inference, traceability, or execution.
+- **[MAY-ALLOW]**: The redundancy may remain when it serves a clearly different review purpose.
 
-### Performance Measurement
+### Performance and Measurement
 
-- [MUST-ALLOW] Parallel definition of leading indicators and lagging indicators — both leading indicators (activity/input measurement) and lagging indicators (outcome measurement) exist for the same goal. Retaining only one breaks the cause-effect linkage, making it impossible to determine improvement direction.
-- [MUST-ALLOW] Balanced Scorecard's 4 perspectives (financial/customer/internal process/learning & growth) referencing the same KPI from different perspectives. Since each perspective's interpretation differs, consolidation prevents multi-dimensional performance assessment.
+- [MUST-ALLOW] Leading and lagging indicators for the same objective appearing together. Removing either side breaks the causal interpretation of performance.
+- [MUST-ALLOW] Balanced Scorecard perspectives referring to the same KPI from different lenses. The perspectives are not duplicates because they support different judgments.
+- [MAY-ALLOW] The same metric appearing in `concepts.md §Benchmark Registry` and a CQ verification criterion, as long as the CQ cites the registry rather than redefining the number.
 
-### Revenue Model
+### Strategy and Operating Translation
 
-- [MAY-ALLOW] Revenue model appearing in both strategic management and operations management — at the strategic level it serves as the basis for market selection and pricing strategy; at the operational level it serves as the standard for revenue realization processes. Since the reference contexts differ, retention is acceptable, but if the definitions themselves are inconsistent, consolidation is needed.
-- [MAY-ALLOW] Cost structure described in both finance (cost analysis) and operations management (waste elimination). Retain if the analysis purposes differ; consolidate if it is a simple repetition of the same figures.
+- [MUST-ALLOW] A strategic claim in `domain_scope.md` and the operating consequence in `logic_rules.md` or `structure_spec.md`. These are not duplicates because one declares scope and the other declares behavior.
+- [MAY-ALLOW] A revenue model appearing in both strategic and operational contexts when the strategic version explains choice and the operational version explains delivery mechanics.
+- [MAY-ALLOW] The same case being referenced in both `extension_cases.md` and another file, provided only one file is the detailed owner and the others use it as a compressed anchor.
 
-### Source of Truth Related
+### Source of Truth and Reference Copies
 
-- [MUST-ALLOW] When the source of truth resides in external systems (regulatory bodies, contracts, accounting systems), maintaining an internal reference copy. Removing it makes external dependency tracking impossible.
-- [MAY-ALLOW] Reinterpreting accounting domain financial statement figures in the context of management decision-making. Since the original is under the accounting domain's jurisdiction, retain if the reference copy's interpretive context is stated.
+- [MUST-ALLOW] An internal reference to an external authority such as a legal rule, accounting output, or benchmark source. Without the reference copy, the business domain loses reviewability.
+- [MUST-ALLOW] A benchmark value in `concepts.md §Benchmark Registry` and a qualitative interpretation of that benchmark in `logic_rules.md`. Numeric authority and business interpretation are different functions.
+- [MAY-ALLOW] The same stakeholder appearing under governance and ESG if one reference concerns control ownership and the other concerns impact ownership.
 
-### Stakeholder Related
+### Modern Business Patterns
 
-- [MUST-ALLOW] The same stakeholder referenced in both governance (decision-making authority) and ESG (stakeholder impact management). Since the concerns differ, retain each. Removing one causes the analysis from that perspective to be missing.
-
----
+- [MUST-ALLOW] A platform metric in both platform logic and governance analysis when the first explains economics and the second explains participant fairness or enforcement.
+- [MUST-ALLOW] Subscription metrics in both finance and customer-management contexts when one explains unit economics and the other explains retention operations.
+- [MUST-ALLOW] AI concepts appearing in economic and governance contexts when one explains value capture and the other explains control obligations.
 
 ## 2. Removal Target Patterns
 
 Each rule is tagged with a severity level:
-- **[MUST-REMOVE]**: Redundancy whose mere existence causes errors or incorrect inferences.
-- **[SHOULD-REMOVE]**: Redundancy that is not very harmful but adds unnecessary complexity.
+- **[MUST-REMOVE]**: The duplication itself creates wrong inferences or conflicting authority.
+- **[SHOULD-REMOVE]**: The duplication adds complexity without adding a distinct review function.
 
 ### Relation Redundancy
 
-- [MUST-REMOVE] Multiple path representations of the same causal relation — when "price cut -> revenue increase" and "price cut -> customer count increase -> revenue increase" have the same meaning, retain only one path. Maintaining both causes causal relation inconsistencies due to missed updates.
-- [MUST-REMOVE] Redeclaration of subordinate tactics already guaranteed by the superior strategy — when the superior competitive strategy is confirmed as "differentiation," there is no need to redeclare "adopt differentiation strategy" in subordinate marketing tactics.
+- [MUST-REMOVE] Multiple causal chains that express the same business rule with no extra decision value. If both can change independently but should not, one should be removed.
+- [MUST-REMOVE] A subordinate tactic restated as if it were an independent strategy when it is already entailed by the superior strategic choice.
+- [SHOULD-REMOVE] Parallel lists of "important factors" that have the same members and no different ownership, threshold, or CQ impact.
 
 ### Classification Redundancy
 
-- [SHOULD-REMOVE] Purposeless sub-classification — intermediate hierarchy nodes with only 1 child, or nodes that have the same constraints/behaviors as the parent classification. They have no classification significance and should be merged with the parent.
-- [SHOULD-REMOVE] Classification nodes with no instances — empty classifications to which no actual business activities are mapped should be removed. However, retain if reserved for future expansion (see extension_cases.md).
+- [SHOULD-REMOVE] Intermediate classifications with only one child and no distinct CQ, dependency, or constraint effect.
+- [SHOULD-REMOVE] Separate classifications for labels that differ only in wording but not in review behavior.
+- [SHOULD-REMOVE] Scale distinctions that do not change review behavior. If Micro, Small, Mid, or Large labels do not alter the rule, keep the rule at the broader level.
 
 ### Definition Redundancy
 
-- [MUST-REMOVE] Duplicate definitions of the same concept under different paths/names — use the synonym mappings in concepts.md as the basis for identification. Note in particular that homonyms ("cost," "value," "model," "risk," "governance," "innovation," "automation") have different meanings and are therefore not duplicates.
-- [SHOULD-REMOVE] Strategy items without execution plans — items where only the strategic goal is declared without an execution path (responsible organization, timeline, resource allocation). Non-executable declarations add unnecessary complexity.
+- [MUST-REMOVE] Competing definitions of the same metric, concept, or benchmark under different sections.
+- [MUST-REMOVE] Re-stating a benchmark number outside `concepts.md §Benchmark Registry` without a reference back to the canonical source.
+- [SHOULD-REMOVE] Re-explaining a concept in multiple files when the downstream file only needs to apply the concept.
 
-### Measurement Redundancy
+### Case Redundancy
 
-- [MUST-REMOVE] Multiple definitions of the same metric — when the same KPI is defined with different formulas or criteria, it is impossible to determine which is the authoritative version. Designate one as the source of truth and remove the rest.
-
----
+- [MUST-REMOVE] The same company case explained in detail in two or more files with no declared primary owner.
+- [SHOULD-REMOVE] Multiple cases used to prove the same exact logic when one case already anchors the behavior and the others add no new boundary condition.
+- [SHOULD-REMOVE] Extension cases that only restate existing CQ wording without adding a change event, impact pattern, or affected-file path.
 
 ## 3. Minimum Granularity Criteria
 
-A sub-classification is permitted only if it satisfies **at least one** of the following. If none are satisfied, merge with the parent.
+A sub-classification is justified only if it satisfies at least one of the following:
 
-1. **Competency question difference**: Does it generate a different answer to a question in competency_qs.md?
-2. **Constraint difference**: Do different constraints (measurement metrics, decision-making authority, time horizon) apply?
-3. **Dependency difference**: Does it depend on different stakeholders/departments/external systems, or do different stakeholders/departments/external systems depend on it?
+1. **Competency-question difference**: It changes the answer or evaluation path for at least one CQ in `competency_qs.md`.
+2. **Constraint difference**: It introduces different metrics, thresholds, authorities, or time horizons.
+3. **Dependency difference**: It changes which teams, systems, or stakeholders depend on the concept.
 
 Examples:
-- "Market penetration strategy" and "market development strategy" are justified as separate classifications because different constraints (existing market vs. new market) and different dependencies (existing customer base vs. new channels) apply.
-- If "customer retention strategy" and "customer loyalty strategy" share the same KPIs (churn rate, repurchase rate) and the same target (existing customers), they are candidates for merging.
-
----
+- Platform governance and corporate governance remain separate because they change different authorities and CQ paths.
+- Churn and NRR remain separate because both relate to retention but diagnose different economic behavior.
+- If two customer-segmentation labels lead to the same target, same metrics, and same execution path, they should be merged.
 
 ## 4. Boundaries — Domain-Specific Application Cases
 
-The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the business domain.
+The authoritative source for general boundary definitions is `roles/onto_conciseness.md`. This section only states the business-domain-specific edge cases.
 
 ### onto_pragmatics boundary
 
-- onto_conciseness: Does an unnecessary element **exist**? (structural level)
-- onto_pragmatics: Does unnecessary information **hinder** query execution? (execution level)
-- Example: Unused metrics included in a decision-making report -> onto_pragmatics. An empty classification with no mapped business activities defined in the system -> onto_conciseness.
+- onto_conciseness asks whether an element should exist at all.
+- onto_pragmatics asks whether the current amount or placement of information prevents effective use.
+- Example: a dashboard with too many KPIs but still structurally legitimate is a pragmatics issue. Three different definitions of CAC is a conciseness issue.
 
 ### onto_coverage boundary
 
-- onto_conciseness: Does something exist that should not? (reduction direction)
-- onto_coverage: Is something missing that should exist? (expansion direction)
-- Example: Only revenue model is defined with no cost structure -> onto_coverage. Revenue model is duplicated with different definitions in strategy/operations/marketing -> onto_conciseness.
+- onto_conciseness removes unjustified duplication.
+- onto_coverage adds missing concerns, rules, or CQ anchors.
+- Example: missing supply-chain risk logic is coverage. Repeating the same supply-chain rule across three files is conciseness.
 
-### onto_logic boundary (predecessor/successor relationship)
+### onto_logic boundary
 
-- onto_logic predecessor: determines logical equivalence (entailment)
-- onto_conciseness successor: decides whether to remove after equivalence is confirmed
-- Example: The superior competitive strategy ("differentiation") entails the subordinate marketing strategy ("premium positioning") -> onto_logic determines equivalence -> onto_conciseness determines "subordinate redeclaration is unnecessary."
+- onto_logic determines whether two statements are functionally equivalent or whether one entails the other.
+- onto_conciseness decides whether one of the equivalent statements should be removed after that equivalence is established.
+- Example: if a premium position already entails premium pricing, a separate "use premium pricing" tactic may be removable.
 
-### onto_semantics boundary (predecessor/successor relationship)
+### onto_semantics boundary
 
-- onto_semantics predecessor: determines semantic identity (synonym status)
-- onto_conciseness successor: decides whether merging is needed after synonym confirmation
-- Example: "Churn Rate" in Korean and "Churn Rate" in English are the same concept -> onto_semantics determines they are synonyms -> onto_conciseness determines "consolidate to a single canonical term." However, "financial risk" and "operational risk" are homonyms with different meanings — onto_semantics determines "distinct concepts" -> onto_conciseness does not intervene.
-
----
+- onto_semantics determines whether two terms refer to the same concept.
+- onto_conciseness decides whether multiple names for that concept should be consolidated.
+- Example: "recurring revenue retention" and "NRR" may be the same concept. "financial risk" and "model risk" are not.
 
 ## 5. Quantitative Criteria
 
-Observed thresholds from the domain are recorded as they accumulate.
+These thresholds trigger consolidation review. They do not force deletion automatically, but they require an explicit owner or exception rationale.
 
-- (Not yet defined — accumulated through reviews)
-
----
+| Criterion | Threshold | Review Action |
+|---|---|---|
+| Same detailed case appearing in multiple files | 2+ files with 3+ sentences each | Require a declared primary owner and compress other mentions |
+| Intermediate classification with one child | 1 child | Merge unless the child changes CQ, dependency, or authority behavior |
+| Empty classification | 0 concrete instances or no landing rule | Remove or mark as reserved for future extension |
+| CQ duplication | Same target, same reasoning path, same pass/fail behavior | Merge or justify distinct scope |
+| Benchmark duplication outside registry | 1+ uncited repeated numeric definitions | Replace with a reference to `concepts.md §Benchmark Registry` |
+| Repeated threshold across CQ sections | 2+ CQ sections using the same threshold with different formulas | Normalize formula and designate one canonical interpretation |
+| Same business pattern transferred across cases with no new boundary condition | 2+ cases | Merge into one stronger case or state the new boundary condition |
+| Scale-specific rule with no changed review behavior | 1 occurrence is enough | Collapse to the broader rule and remove tier-specific wording |
 
 ## Related Documents
 
-- `concepts.md` — term definitions, synonym mappings, homonym lists (semantic criteria for redundancy determination)
-- `structure_spec.md` — structural requirements for business systems (structural removal criteria)
-- `competency_qs.md` — competency question list (criteria for "actual difference" in minimum granularity determination)
-- `dependency_rules.md` — source of truth management rules (basis for allowing reference copies)
-- `logic_rules.md` — financial logic, strategy logic, and automation scope rules (criteria for logical equivalence determination)
+- `concepts.md §Benchmark Registry` and `concepts.md §Homonyms Requiring Attention` — canonical numeric authority and concept-boundary checks used in duplication review
+- `structure_spec.md §Business System Required Elements` and `structure_spec.md §Authority and Responsibility Separation` — structural elements used to detect unjustified duplication of roles, systems, or hierarchies
+- `competency_qs.md §4. Revenue and Cost Structure (CQ-RC)` and `competency_qs.md §13. Scalability and Adaptation (CQ-SC)` — CQ sections used to test whether a distinction creates a real verification difference
+- `dependency_rules.md §Source of Truth Management` and `dependency_rules.md §Platform Dependency Chains` — authority and dependency rules that justify some reference copies
+- `logic_rules.md §Constraint Conflict Checking` and `logic_rules.md §Transfer Patterns` — rule sections used to test whether repeated statements are actually distinct or just rephrasings

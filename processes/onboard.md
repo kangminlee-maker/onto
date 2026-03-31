@@ -46,6 +46,8 @@ Checks the following items in order:
 | Domain declaration | `{project}/.onto/config.yml` `domains:` or `domain:`/`agent-domain:` in `{project}/CLAUDE.md` | declared / not declared |
 | Global domain documents | `~/.onto/domains/{domain}/` for each declared domain | exists / does not exist / N/A (domains not declared) |
 | Global agent memory | Subdirectories under `~/.onto/` | list of existing files |
+| Codex CLI | `codex --version` | installed (version) / not installed |
+| Codex execution mode | `{project}/.onto/config.yml` `execution_mode:` | codex / agent-teams / not declared |
 
 ### 2. User Confirmation
 
@@ -59,6 +61,8 @@ Presents the diagnosis results in the format below and confirms whether to proce
 | Project learning directory | {status} | {to be created / already exists} |
 | Domain declaration | {status} | {to be asked / already declared: {domains list}} |
 | Global domain documents | {status per domain} | {guidance to be provided / already exists} |
+| Codex CLI | {installed v{version} / not installed} | {setup to be offered / already available} |
+| Execution mode | {codex / agent-teams / not declared} | {to be asked / already configured} |
 
 Proceed?
 ```
@@ -113,6 +117,53 @@ Executes the following upon user approval:
 - Upon user approval: generates a draft of domain sub-area lists, required concept categories, and reference standards/frameworks using project code/documents and LLM knowledge.
 - Presents the draft to the user for revision/confirmation before saving.
 
+**3.7 Codex execution mode setup (optional)**
+
+Codex mode delegates reviewer passes to OpenAI Codex, reducing Claude token consumption by ~80%. The tradeoff: deliberation (agent-to-agent exchange) is structurally not possible.
+
+- Ask: "Codex 모드를 사용하시겠습니까? Claude 토큰을 ~80% 절감할 수 있지만, 에이전트 간 숙의(deliberation)가 불가합니다. 현재 review 프로세스에서만 지원됩니다."
+
+**If user selects yes:**
+
+1. **Codex CLI installation check**: Run `codex --version`.
+   - If installed: report version and proceed.
+   - If not installed: suggest installation:
+     "Codex CLI가 설치되어 있지 않습니다. 설치 방법:"
+     - macOS: `brew install codex`
+     - npm: `npm install -g @openai/codex`
+     "설치 후 다시 진행하거나, `! brew install codex`로 지금 설치할 수 있습니다."
+     Wait for user to install, then re-check.
+
+2. **Authentication check**: Run `codex --version` (authenticated state is verified when Codex attempts a task; there is no dedicated auth-check command). Suggest: `! codex login` for the user to authenticate interactively.
+   - "Codex 인증이 필요합니다. `! codex login`을 실행하여 ChatGPT 구독 또는 OpenAI API 키로 로그인하세요."
+   - Wait for user confirmation that login is complete.
+
+3. **Base configuration check**: Check if `~/.codex/config.toml` exists and contains `model` and `model_reasoning_effort` fields.
+   - If config exists with both fields: report current settings (e.g., "model = gpt-5.4, effort = xhigh").
+   - If config is missing or incomplete: suggest defaults:
+     "Codex 기본 설정이 없습니다. 권장 설정을 적용하시겠습니까?"
+     ```toml
+     model = "gpt-5.4"
+     model_reasoning_effort = "xhigh"
+     ```
+     Upon user approval: create/update `~/.codex/config.toml` (preserve existing entries).
+
+4. **Project config update**: Add `execution_mode` and `codex` block to `.onto/config.yml`:
+   ```yaml
+   execution_mode: codex
+   codex:
+     model: gpt-5.4        # override per-project, or omit to use ~/.codex/config.toml
+     effort: xhigh          # override per-project, or omit to use ~/.codex/config.toml
+   ```
+   - Ask user whether to set per-project overrides or rely on global `~/.codex/config.toml` defaults.
+   - If user chooses global defaults: add only `execution_mode: codex` (omit `codex:` block).
+
+5. **Verification**: Run a minimal Codex readiness check: `node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" setup --check 2>/dev/null`.
+   - If successful: "Codex 모드가 정상적으로 설정되었습니다."
+   - If failed: "Codex 연결에 실패했습니다. `/codex:setup`으로 상세 진단을 실행하세요." Set `execution_mode` back to `agent-teams` in config.yml.
+
+**If user selects no/skip:** No changes. Default `execution_mode` remains `agent-teams`.
+
 ### 4. Completion Report
 
 ```markdown
@@ -123,9 +174,11 @@ Executes the following upon user approval:
 | `.onto/learnings/` | {created / already exists} |
 | Domains | {domains list / none (select per session)} |
 | Global domain documents | {N present per domain / not present (auto-accumulation pending)} |
+| Execution mode | {codex / agent-teams (default)} |
 
 ### Next Steps
 - `/onto:review {target}` — run agent panel review
+- `/onto:review {target} --codex` — run review in Codex mode (if not set as default)
 - `/onto:ask-{dimension} {question}` — individual expert query
 - `/onto:create-domain {name} {desc}` — generate seed domain documents for a new domain
 - `/onto:backup` — snapshot current learnings and domains for rollback

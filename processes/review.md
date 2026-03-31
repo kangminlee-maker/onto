@@ -214,6 +214,25 @@ The team lead will deliver results once the verification agents complete their R
 
 **This is the only independent round.** In subsequent steps, other agents' perspectives are shared through Philosopher synthesis.
 
+#### Step 2 — Codex Mode Variation
+
+Codex 모드에서는 TeamCreate를 생략한다. 대신 각 검증 에이전트를 `codex:codex-rescue` subagent_type의 Agent tool로 생성한다.
+
+**Sub-step 2.3 — Team creation**: 생략. TeamCreate/TeamDelete를 사용하지 않는다.
+
+**Sub-step 2.4 — Create all reviewer Agents**: 모든 검증 에이전트 Agent를 **단일 메시지에서 동시에** 호출하되, 각각 `run_in_background: true`로 설정한다.
+- 각 Agent의 `subagent_type`: `"codex:codex-rescue"`
+- 각 Agent의 프롬프트: `process.md`의 **Codex Reviewer Prompt Template** 사용
+- 경량 모드(light): 선택된 2-3명의 검증 에이전트만 Codex task로 생성
+- 전원 모드(full): 8명 전원 Codex task로 생성
+- Philosopher는 이 단계에서 생성하지 않는다 (메인 프로세스 Step 3에서 별도 실행)
+- `codex.model`/`codex.effort` 전달: process.md "Model and effort" 섹션 참조
+- 세션 메타데이터에 `execution_mode: codex` 기록
+
+Philosopher의 초기 prompt 대신: 팀 리드가 모든 백그라운드 task 완료를 대기한다.
+
+Task Directives는 Agent Teams 모드와 **동일한 내용**을 사용한다. 차이점은 프롬프트 래핑(Codex Reviewer Prompt Template)과 실행 런타임뿐이다.
+
 #### Error Recovery (Round 1)
 
 > process.md Error Handling Rules의 Retry Protocol을 적용한다.
@@ -223,7 +242,9 @@ Round 1에서 에이전트 에러 발생 시:
 1. **감지**: 다른 에이전트가 전원 응답을 완료한 시점에 아직 응답하지 않은 에이전트,
    또는 에러를 보고한 에이전트를 감지한다.
 
-2. **재시도**: 해당 에이전트에 SendMessage로 재실행을 요청한다.
+2. **재시도**:
+   - Agent Teams / Subagent: 해당 에이전트에 SendMessage로 재실행을 요청한다.
+   - Codex 모드: 새로운 `codex:codex-rescue` Agent를 동일 프롬프트로 re-spawn한다.
    메시지에 원래 Task Directives + 파일 경로를 포함한다.
 
 3. **종료 조건**: 2회 재시도 후에도 실패하면 graceful degradation 적용.
@@ -325,6 +346,15 @@ date: {YYYY-MM-DD}
 ### Conditional Consensus
 - (Majority consensus + minority reservations. Reservation reasons specified)
 
+### Disagreement
+(Include only when deliberation was not performed — Codex mode, Subagent fallback.)
+Map Contradicting Opinions that were not resolved through deliberation to this section.
+Tag each disagreement item with a type:
+- **[Factual discrepancy]** — verifiable via external reference (code, documents). PO action: gather additional information
+- **[Criteria discrepancy]** — resolvable by applying a higher-level principle. PO action: confirm/decide on the higher-level principle
+- **[Value discrepancy]** — no conditions for reaching consensus, unresolvable through repetition. PO action: make a direct value judgment
+(When deliberation was performed, this section appears in the deliberation output format instead.)
+
 ### Purpose Alignment Verification
 - (Whether conclusions align with the system purpose, with rationale)
 
@@ -348,6 +378,18 @@ Classify each verification agent's findings into the 3 categories below. A "uniq
 
 **If the Philosopher judges "not needed"** → the final output has already been written. Proceed directly to Step 5.
 **If the Philosopher judges "needed"** → proceed to Step 4 (deliberation).
+
+#### Step 3 — Codex Mode Variation
+
+Codex 모드에서는 Philosopher도 `codex:codex-rescue` Agent로 실행한다.
+
+- 팀 리드가 Philosopher를 foreground `codex:codex-rescue` Agent로 생성한다 (백그라운드 아님 — 결과를 즉시 사용해야 하므로).
+- 프롬프트: `process.md`의 **Codex Philosopher Prompt Template** 사용.
+- 프롬프트에 검증 에이전트의 결과 파일 경로를 포함한다. Codex가 파일을 직접 읽고 종합한다.
+- 결과를 `{session path}/philosopher_synthesis.md`에 저장하도록 지시한다.
+- **숙의 불가 지시**: Codex 모드에서는 Philosopher 프롬프트에 다음 지시를 추가한다:
+  "Codex 모드에서는 숙의(deliberation)를 수행할 수 없습니다. 재검토 필요 여부 판정은 항상 '불필요'로 처리하고, 모순 항목은 '미합의' 섹션에 포함하여 최종 출력을 직접 작성하세요."
+- Philosopher 실패 시: 1회 재시도 후에도 실패하면 `process-halting-with-partial-result`를 적용한다 (process.md Error Handling Rules 참조).
 
 ---
 
@@ -439,4 +481,6 @@ The team lead delivers the Philosopher's final output to the user **without modi
 2. **Promotion guidance** (conditional): Provide guidance only if new domain learnings were stored in this review:
    "Project domain learnings have accumulated to {N} entries. If promotion is needed, run `/onto:promote`."
 
-3. **Team shutdown**: The team lead sends shutdown_request to all members via **individual SendMessage** (structured messages cannot use `to: "*"` broadcast). After all members have shut down, clean up the team via TeamDelete.
+3. **Team shutdown**:
+   - Agent Teams: The team lead sends shutdown_request to all members via **individual SendMessage** (structured messages cannot use `to: "*"` broadcast). After all members have shut down, clean up the team via TeamDelete.
+   - Codex 모드: 팀 라이프사이클 관리가 없다. 모든 Codex task는 실행 완료 후 자동 종료된다. 팀 리드는 학습 저장 완료 후 세션을 종료한다.

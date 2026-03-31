@@ -230,7 +230,16 @@ domains:
   - software-engineering
   - ontology
 output_language: ko
+execution_mode: codex          # agent-teams (default) | codex
+codex:
+  model: gpt-5.4               # omit → ~/.codex/config.toml model
+  effort: xhigh                 # omit → ~/.codex/config.toml model_reasoning_effort
 ```
+
+`execution_mode` and `codex` fields:
+- `execution_mode`: `agent-teams` (default if absent) or `codex`. Command flags `--codex` / `--claude` override this.
+- `codex.model`: Codex model to use. If omitted, falls back to `~/.codex/config.toml` `model` field. If that is also absent, uses Codex CLI default.
+- `codex.effort`: Reasoning effort level (`none` | `minimal` | `low` | `medium` | `high` | `xhigh`). Same fallback chain as `codex.model`.
 
 Old format compatibility: `domain: A` + `secondary_domains: B` → automatically converted to `domains: [A, B]` with migration guidance.
 
@@ -285,10 +294,74 @@ When TeamCreate fails, fall back to the Agent tool (subagent) approach. The **pu
 - Deliberation (direct SendMessage) is skipped. Even if the Philosopher determines "deliberation needed," disagreement items are included as-is in the final report.
 - Content the team lead must include in each Agent tool call during fallback: agent definition + learning file (with axis tag filtering) + domain document + communication learning + task directives + **session path**. (All context must be included directly since self-loading is not possible.)
 
+### Codex Execution Mode
+
+When `execution_mode: codex` is set in config.yml or a `--codex` command flag is used, reviewer passes are delegated to Codex (OpenAI) via the `codex:codex-rescue` subagent type. The **purpose and output format** remain identical to Agent Teams and Subagent fallback.
+
+**Scope**: Currently supported for the **review** process only. Other processes (build, promote, question) always use Agent Teams regardless of this setting. This scope will expand as Codex mode is validated in review.
+
+**Purpose and tradeoffs**:
+Codex mode delegates reviewer passes to an external runtime (OpenAI Codex) to reduce Claude token consumption. The team lead coordination (~50-100k tokens) is the only Claude cost; all reviewer and philosopher passes run on Codex. The tradeoff: deliberation (Step 4, direct agent-to-agent exchange) is structurally not possible in Codex mode because Codex tasks are independent processes without inter-agent messaging. Contested points that would be resolved through deliberation in Agent Teams mode are instead reported as-is in the final output's "Disagreement" section. This is a **design choice** (not a technical limitation like Subagent fallback) — users selecting Codex mode accept this tradeoff in exchange for cost efficiency.
+
+**Prerequisites**:
+- Codex CLI must be installed and authenticated. Verify via `/codex:setup`.
+- If Codex is unavailable at execution time → process-halting. Inform the user: "Codex CLI가 설정되지 않았습니다. `/codex:setup`을 실행하거나 `--claude` 플래그로 Agent Teams 모드를 사용하세요."
+
+**Mode selection priority**:
+1. Command flag (`--codex` / `--claude`) → overrides config
+2. config.yml `execution_mode` → applies if no flag
+3. Neither specified → `agent-teams` (default), with Subagent fallback on TeamCreate failure
+
+**Execution model**:
+- Team lead (Claude): Context Gathering, Complexity Assessment, prompt construction, result collection, learning storage, final output delivery.
+- Reviewer passes (Codex): Independent review execution with self-loading.
+- Philosopher synthesis (Codex): Result synthesis and adjudication.
+
+**Prompt delivery**:
+- Self-loading instructions are included. Codex reads domain documents and learnings via Bash (cat). Unlike Subagent fallback, the team lead does NOT inline domain documents or learnings.
+- The team lead DOES inline: agent definition (~14 lines), review target content, system purpose, **learning-rules.md content**. These are inlined to guarantee the core context and the learning candidate format specification.
+
+**File I/O**:
+- Reviewer results are written to the same session directory: `{session path}/round1/{agent-id}.md`.
+- Codex writes files via Bash (shell redirect). If file write fails, Codex returns the review text as stdout.
+
+**Parallel execution**:
+- All reviewer Agents are launched simultaneously via Agent tool with `subagent_type: "codex:codex-rescue"` and `run_in_background: true`.
+- The team lead waits for all background tasks to complete before proceeding to Philosopher synthesis.
+- Philosopher is executed as a Codex task in foreground (depends on all reviewer results).
+
+**Model and effort**:
+- The team lead reads config.yml `codex.model` and `codex.effort` during Context Gathering.
+- These values are inserted into the `[Codex Configuration]` section of the prompt template as the **delivery mechanism** (not merely documentation). The delivery path is:
+  1. Team lead inserts values into the prompt text (`[Codex Configuration]` section).
+  2. The `codex:codex-rescue` subagent parses these from the prompt.
+  3. The subagent converts them to CLI flags (`--model {value}`, `--effort {value}`) when invoking `codex-companion.mjs task`.
+- Note: The Agent tool's `model` parameter only accepts Claude model names (sonnet/opus/haiku) and cannot pass Codex model names. The prompt text is the only delivery path.
+- If either is absent → omit from `[Codex Configuration]` (Codex uses `~/.codex/config.toml` or its own default).
+
+**Deliberation**: Skipped (by design). The outcome is the same as Subagent fallback (disagreement items included as-is), but the cause differs — Subagent fallback skips due to technical limitation, Codex mode skips as a deliberate tradeoff for cost efficiency. See "Purpose and tradeoffs" above and the Comparison table's Deliberation row.
+
+**Error handling**: Same 4-category classification as Agent Teams (process-halting / process-halting-with-partial-result / transient retry / graceful degradation). Differences:
+- Retry: re-spawn a new `codex:codex-rescue` Agent (not SendMessage).
+- Philosopher failure: process-halting (irreplaceable role). Retry once before halting.
+
+**Comparison**:
+
+| Aspect | Agent Teams | Subagent Fallback | Codex Mode |
+|--------|------------|-------------------|------------|
+| Selection type | User-selectable (default) | Automatic (on TeamCreate failure) | User-selectable |
+| Runtime | Claude (TeamCreate) | Claude (Agent tool) | Codex (codex-rescue) |
+| Self-loading | Agent performs | Team lead inlines | Hybrid (agent performs; learning-rules.md inlined) |
+| Deliberation | Supported | Skipped (technical limitation) | Skipped (by design) |
+| File I/O | Read/Write tools | Read/Write tools | Bash |
+| Team lifecycle | TeamCreate/TeamDelete | N/A | N/A |
+| Claude token usage | Full | Full | Team lead only |
+
 ### Error Handling Rules
 
-Errors are classified into 3 categories for response:
+Errors are classified into 4 categories for response:
 - **Process-halting**: Review target read failure, agent definition file read failure -> halt the process + inform the user.
+- **Process-halting-with-partial-result**: An irreplaceable role (e.g., Philosopher) fails after retry exhaustion, but intermediate results have already been collected to files. -> Halt the process, deliver collected intermediate results with explicit limitation disclosure. This applies regardless of execution mode — the determining factor is **whether intermediate artifacts exist at the point of failure**, not the execution mode.
 - **Transient error → retry**: API error (500, timeout, rate limit), agent crash during execution -> team lead retries the failed agent via SendMessage. Retry up to 2 times. If the agent fails after 2 retries, fall back to graceful degradation.
 - **Graceful degradation**: Teammate non-response/failure after retry exhaustion, learning file absence, domain document absence -> exclude the affected agent or mark as "not yet available" and continue with remaining agents. Adjusts the consensus denominator during determination.
 
@@ -393,6 +466,101 @@ If project-level learnings exist:
 ```
 
 **Agent definitions** (roles/{agent-id}.md) are read by the team lead and included directly in the initial prompt (~14 lines per agent, minimal overhead). The remaining context is self-loaded by the teammate.
+
+### Codex Reviewer Prompt Template
+
+Used when execution_mode is `codex`. The team lead resolves variables and passes this as the Agent tool's `prompt` parameter with `subagent_type: "codex:codex-rescue"`.
+
+Differences from the Teammate Initial Prompt Template:
+- No team_name or SendMessage rules (Codex tasks are independent).
+- Self-loading uses Bash (cat) instead of Read tool.
+- learning-rules.md is inlined by the team lead (not self-loaded).
+- File write uses Bash (shell redirect) instead of Write tool.
+
+```
+You are {role}.
+
+[Your Definition]
+{Content of roles/{agent-id}.md}
+
+[Context Self-Loading]
+Read the files below using `cat` and use them as your verification context.
+Skip if file does not exist:
+1. Learnings: ~/.onto/learnings/{agent-id}.md
+2. Domain document: ~/.onto/domains/{session_domain}/{corresponding domain document}
+   (Skip this line if {session_domain} is empty)
+   (Note: Documents in ~/.onto/drafts/ are never loaded as verification standards.
+    When reviewing seed documents, they are loaded as review targets, not as domain documents here.)
+3. Communication learning: ~/.onto/communication/common.md
+If project-level learnings exist:
+4. Project-level learnings: {project}/.onto/learnings/{agent-id}.md
+
+[Agent-Domain Document Mapping]
+(Refer to the Domain Documents table in process.md.)
+
+[Codex Configuration]
+{If codex.model is set: --model {value}}
+{If codex.effort is set: --effort {value}}
+(These are passed as CLI flags to the codex-companion task command by the team lead.
+ If absent, Codex uses ~/.codex/config.toml or its own default.)
+
+[Learning Rules]
+{Content of learning-rules.md — inlined by the team lead}
+
+[Task Directives]
+{Per-process task directives — review target, system purpose, specific instructions}
+
+[Output Rules]
+- Write your review finding to {session path}/round1/{agent-id}.md using shell redirect (e.g., cat << 'EOF' > {path}).
+- If file write fails, return the full review text as your response.
+- Respond in {output_language}. (resolved from config.yml, default: en)
+- Do not use metaphors or analogies.
+```
+
+### Codex Philosopher Prompt Template
+
+Used when execution_mode is `codex` for the Philosopher synthesis step. The team lead resolves variables and passes this as the Agent tool's `prompt` parameter with `subagent_type: "codex:codex-rescue"` in **foreground** (not background).
+
+Differences from Codex Reviewer Prompt Template:
+- Role is Philosopher (synthesis + adjudication), not verification agent.
+- Output path is `{session path}/philosopher_synthesis.md`, not `round1/{agent-id}.md`.
+- Includes deliberation-not-possible directive.
+- No domain document self-loading (Philosopher has no domain document).
+
+```
+You are Philosopher (purpose alignment mediator).
+
+[Your Definition]
+{Content of roles/philosopher.md}
+
+[Context Self-Loading]
+Read the files below using `cat`. Skip if file does not exist:
+1. Learnings: ~/.onto/learnings/philosopher.md
+2. Communication learning: ~/.onto/communication/common.md
+If project-level learnings exist:
+3. Project-level learnings: {project}/.onto/learnings/philosopher.md
+
+[Codex Configuration]
+{If codex.model is set: --model {value}}
+{If codex.effort is set: --effort {value}}
+
+[Learning Rules]
+{Content of learning-rules.md — inlined by the team lead}
+
+[Task Directives]
+{Philosopher-specific synthesis directives — reviewer result file paths,
+ system purpose, synthesis format, adjudication rules}
+
+Codex 모드에서는 숙의(deliberation)를 수행할 수 없습니다.
+재검토 필요 여부 판정은 항상 '불필요'로 처리하고,
+모순 항목은 '미합의' 섹션에 포함하여 최종 출력을 직접 작성하세요.
+
+[Output Rules]
+- Write the final output to {session path}/philosopher_synthesis.md using shell redirect.
+- If file write fails, return the full synthesis text as your response.
+- Respond in {output_language}. (resolved from config.yml, default: en)
+- Do not use metaphors or analogies.
+```
 
 ---
 

@@ -1,3 +1,8 @@
 # onto runtime data (sessions, build outputs, learnings)
 .onto/
 .onto-review/
+.DS_Store
+__pycache__/
+*.pyc
+node_modules/
+dist/

@@ -1,11 +1,59 @@
 # Onto
 
-A Claude Code plugin that performs multi-perspective verification of logical systems using an agent panel (verification agents + Philosopher) and automatically builds ontologies from analysis targets.
+A Claude Code plugin that performs multi-perspective verification of logical systems using a 9-lens review structure plus a separate synthesize stage, and automatically builds ontologies from analysis targets.
+
+> Productization note:
+> this repository is the current prototype/reference line.
+> The service-transition authority for this repository starts in:
+> - `AGENTS.md`
+> - `dev-docs/productization-charter.md`
+> - `authority/core-lexicon.yaml`
+> - `dev-docs/ontology-as-code-naming-charter.md`
+> - `dev-docs/ontology-as-code-korean-terminology-guide.md`
+> - `dev-docs/development-methodology.md`
+> - `dev-docs/prototype-to-service-productization-plan.md`
+> - `dev-docs/prototype-runtime-llm-boundary-audit.md`
+> - `dev-docs/review-prototype-to-product-mapping.md`
+> - `dev-docs/review-lens-registry.md`
+> - `dev-docs/review-interpretation-contract.md`
+> - `dev-docs/review-binding-contract.md`
+> - `dev-docs/review-productized-live-path.md`
+> - `dev-docs/review-record-contract.md`
+> - `dev-docs/review-record-field-mapping.md`
+> - `dev-docs/review-execution-preparation-artifacts.md`
+> - `dev-docs/review-prompt-execution-runner-contract.md`
+> - `dev-docs/review-lens-prompt-contract.md`
+> - `dev-docs/review-synthesize-prompt-contract.md`
+> - `src/core-runtime/review/artifact-types.ts`
+> - `src/core-runtime/review/review-artifact-utils.ts`
+> - `src/core-runtime/cli/write-review-interpretation.ts`
+> - `src/core-runtime/cli/bootstrap-review-binding.ts`
+> - `src/core-runtime/cli/materialize-review-execution-preparation.ts`
+> - `src/core-runtime/cli/prepare-review-session.ts`
+> - `src/core-runtime/cli/materialize-review-prompt-packets.ts`
+> - `src/core-runtime/cli/start-review-session.ts`
+> - `src/core-runtime/cli/run-review-prompt-execution.ts`
+> - `src/core-runtime/cli/mock-review-unit-executor.ts`
+> - `src/core-runtime/cli/codex-review-unit-executor.ts`
+> - `src/core-runtime/cli/render-review-final-output.ts`
+> - `src/core-runtime/cli/assemble-review-record.ts`
+> - `src/core-runtime/cli/complete-review-session.ts`
+> - `package.json`
+> - `tsconfig.json`
+
+Current bounded `review` path:
+- preferred combined entrypoint: `npm run review:invoke -- ...`
+- current actual semantic executor realization: `subagent` via `codex exec`
+- internal bounded path:
+  - `npm run review:start-session -- ...`
+  - `npm run review:run-prompt-execution -- ...`
+  - prompt-backed lens / synthesize execution uses `execution-plan.yaml` and `prompt-packets/`
+  - `npm run review:complete-session -- ...`
 
 Designed with inspiration from ontology structures, applicable across domains regardless of field -- software, law, accounting, and more.
 
 **Two core capabilities**:
-- **Verification (review)**: The agent panel independently and in parallel performs multi-perspective verification on scope-defined targets
+- **Verification (review)**: 9 review lenses independently inspect scope-defined targets, then a separate synthesize stage writes the final review result
 - **Build**: Incrementally constructs ontologies from scope-undefined analysis targets (code, spreadsheets, databases, documents) using integral exploration
 
 ## Installation
@@ -77,10 +125,10 @@ Usable without domain documents (verified using general principles). Domain docu
 
 ```
 /onto:onboard                        # Set up project environment
-/onto:review {target}                # Run agent panel review (interactive domain selection)
+/onto:review {target}                # Run 9-lens review + synthesize (interactive domain selection)
 /onto:review {target} @ontology      # Run with specific domain
 /onto:review {target} @-             # Run without domain rules
-/onto:review {target} --codex        # Run in Codex mode (Claude tokens ~80% reduced)
+/onto:review {target} --codex        # Use codex host runtime (defaults to subagent)
 /onto:ask-logic {question}           # Ask an individual agent
 /onto:build {path|GitHub URL}        # Build ontology from analysis target
 ```
@@ -95,21 +143,34 @@ Each process execution selects a single **session domain**. Three ways to specif
 | No-domain | `@-` | Non-interactive, no domain rules applied |
 | Interactive | (omit) | Analyzes target, suggests domain, user confirms |
 
-Project domains and execution mode are declared in `.onto/config.yml`:
+Project domains and execution profile are declared in `.onto/config.yml`:
 ```yaml
 domains:
   - software-engineering
   - ontology
 output_language: ko
-execution_mode: codex          # agent-teams (default) | codex
-codex:
+execution_realization: subagent   # subagent | agent-teams
+host_runtime: codex               # codex | claude
+codex:                            # used when host_runtime: codex
   model: gpt-5.4               # omit → ~/.codex/config.toml
   effort: xhigh                 # omit → ~/.codex/config.toml
 ```
 
 `domains:` is an unordered set — order does not matter, no domain has priority over another. Domains can also be selected per session without pre-declaring them.
 
-`execution_mode: codex` delegates reviewer passes to OpenAI Codex, reducing Claude token usage by ~80%. Tradeoff: deliberation (agent-to-agent exchange) is not possible. Currently supported for review only. Append `--codex` or `--claude` to override per-command.
+Canonical execution profile is:
+- `execution_realization`
+- `host_runtime`
+
+Legacy `execution_mode` is accepted as a compatibility alias.
+
+Current implementation status:
+- `execution_realization: subagent` + `host_runtime: codex` is wired into the TS bounded review path
+- `execution_realization: subagent` + `host_runtime: claude` is wired into the TS bounded review path
+- `execution_realization: agent-teams` + `host_runtime: claude` is wired into the TS bounded review path
+- `execution_realization: agent-teams` + `host_runtime: codex` is not supported
+
+This is a current implementation-status difference, not a canonical hierarchy or quality ranking. Append `--codex` or `--claude` as host-runtime convenience aliases, or use canonical execution-profile flags directly.
 
 ## Agent Configuration
 
@@ -123,18 +184,21 @@ codex:
 | `onto_evolution` | Evolution fitness verifier | Breakage on new data/domain addition |
 | `onto_coverage` | Domain coverage verifier | Missing subdomains, concept bias, gaps vs. standards |
 | `onto_conciseness` | Conciseness verifier | Duplicate definitions, over-specification, unnecessary distinctions |
-| `philosopher` | Purpose alignment verifier | Preventing fixation on details, returning to purpose, presenting new perspectives |
+| `onto_axiology` | Purpose and value alignment verifier | Preventing purpose drift, surfacing value conflicts, checking mission alignment |
+| `onto_synthesize` | Review synthesis stage | Organizing consensus, disagreement, and final review output from the lens set |
+
+> Legacy note: `philosopher` remains in some non-review prototype flows such as the current build prototype. The canonical review structure is now `9 lenses + synthesize`.
 
 ## Commands
 
 ### Team Review
 | Command | Description |
 |---|---|
-| `/onto:review {target}` | Multi-perspective review (interactive domain selection) |
+| `/onto:review {target}` | 9-lens review + synthesize (interactive domain selection) |
 | `/onto:review {target} @{domain}` | Review with specified domain |
 | `/onto:review {target} @-` | Review without domain rules |
-| `/onto:review {target} --codex` | Review in Codex mode (Claude tokens ~80% reduced) |
-| `/onto:review {target} --claude` | Force Agent Teams mode (overrides config) |
+| `/onto:review {target} --codex` | Use codex host runtime (defaults to subagent) |
+| `/onto:review {target} --claude` | Use claude host runtime (defaults to agent-teams) |
 
 ### Individual Query
 | Command | Description |
@@ -147,7 +211,8 @@ codex:
 | `/onto:ask-evolution {question}` | Evolution fitness perspective |
 | `/onto:ask-coverage {question}` | Domain coverage perspective |
 | `/onto:ask-conciseness {question}` | Conciseness perspective |
-| `/onto:ask-philosopher {question}` | Purpose alignment perspective |
+| `/onto:ask-axiology {question}` | Purpose and value alignment perspective |
+| `/onto:ask-philosopher {question}` | Legacy alias for axiology |
 
 ### Ontology Build/Transform
 | Command | Description |
@@ -178,33 +243,43 @@ codex:
 | `/onto:restore` | List available backups |
 | `/onto:restore {backup-id}` | Restore from specific backup (auto-creates safety backup) |
 
-## Team Review Flow (6 Steps)
+## Review Flow (Canonical Live Path)
 
 ```
-0. Domain Selection (session domain determination)
-1. Context Gathering (team lead)
-2. Team creation + Round 1 -- verification agents perform independent review (including structural inspection)
-3. Philosopher synthesis + adjudication
-   +-- Consensus clear -> final output
-   +-- Contested points exist -> 4. Direct deliberation -> final output
-5. Final output
-6. Wrap-up (learning storage + promotion guidance + Team shutdown)
+user request
+-> 호출 해석 (InvocationInterpretation)
+-> 사용자 확인 / 선택 확정
+-> 호출 고정 (InvocationBinding)
+-> execution preparation artifacts
+-> 9개 lens 독립 실행
+-> 종합 단계 (onto_synthesize)
+-> 리뷰 기록 (ReviewRecord)
+-> human-readable final output
 ```
 
-- Round 1: Fully independent -- agents review after structural inspection (ME+CE) without knowing other agents' perspectives
-- **File-based relay**: Verification agents write results to session directory -> report only the path to team lead -> Philosopher reads directly via Read (prevents team lead context saturation)
-- **Session ID**: Format `{YYYYMMDD}-{hash8}`, uniquely identifies team_name and session directory (prevents inter-session collision, traceable like git commits)
-- Deliberation: Direct communication between specific agents only when contradictions or overlooked premises exist
+- `legacy source path`는 여전히 참고 source이지만, canonical live execution truth는 위 순서다
+- Round 1 lens 실행은 서로 독립적이어야 하며, 다른 lens 결과를 보지 않는다
+- `맥락 격리 추론 단위 (ContextIsolatedReasoningUnit)`는 선택적 최적화가 아니라, `lens별 독립성`과 메인 콘텍스트 보존을 위한 canonical requirement다
+- lens 결과 markdown과 `synthesis.md`는 human-readable source layer이고, primary artifact는 `review-record.yaml`이다
+- deliberation은 contested point가 있을 때만 조건부로 추가된다
+- `review` core replacement는 TypeScript로 구현되며, artifact seat와 type name은 ontology-as-code 개념어와 직접 연결된다
 
-**Three execution modes**:
+**Execution profile defaults**:
 
-| Mode | Trigger | Deliberation | Claude Tokens |
-|------|---------|-------------|---------------|
-| **Agent Teams** (default) | Default, or `--claude` | Supported | Full |
-| **Subagent Fallback** | Automatic (TeamCreate failure) | Skipped (technical limitation) | Full |
-| **Codex** | `--codex` flag or `execution_mode: codex` | Skipped (by design) | Team lead only (~80% reduction) |
+| Resolved host runtime | Default execution realization | Supported user override |
+|------|---------|---------------|
+| `codex` | `subagent` | `subagent` |
+| `claude` | `agent-teams` | `agent-teams`, `subagent` |
 
-Codex mode delegates reviewer passes to OpenAI Codex via `codex:codex-rescue`. Requires Codex CLI installed and authenticated (`/codex:setup`). Currently supported for review only.
+Convenience aliases:
+- `--codex` means `host_runtime: codex`
+- `--claude` means `host_runtime: claude`
+
+If `execution_realization` is not explicitly set, the runtime defaults by resolved host runtime:
+- `codex` → `subagent`
+- `claude` → `agent-teams`
+
+These defaults are configuration behavior, not a quality hierarchy. Users can still choose `subagent` on `claude` when needed.
 
 ## Ontology Build (Integral Exploration)
 
@@ -289,7 +364,9 @@ onto/
 |   +-- onto_evolution.md    # Evolution fitness
 |   +-- onto_coverage.md     # Domain coverage
 |   +-- onto_conciseness.md  # Conciseness
-|   +-- philosopher.md       # Purpose alignment
+|   +-- onto_axiology.md     # Purpose and value alignment
+|   +-- onto_synthesize.md   # Review synthesis
+|   +-- philosopher.md       # Legacy build coordinator
 +-- explorers/               # Explorer profiles for build process
 +-- domains/                 # Domain base documents (8 per domain)
 +-- golden/                  # Golden examples per schema + schema templates
@@ -304,7 +381,7 @@ onto/
 |   +-- design-per-session-domain-selection.md
 |   +-- philosophical-foundations-of-ontology.md
 |   +-- translation-reference.yaml
-+-- commands/                # Command definitions (21)
++-- commands/                # Command definitions
 +-- setup-domains.sh         # Domain base document installation
 +-- migrate-sessions.sh      # Previous version data migration
 +-- migrate-learnings.sh     # Learning storage structure migration
@@ -315,7 +392,7 @@ onto/
 
 ```
 {project}/.onto/           # Runtime data (gitignored)
-+-- review/{session-id}/          #   review session (round1/ + philosopher_synthesis.md)
++-- review/{session-id}/          #   review session (round1/ + synthesis.md)
 +-- builds/{session-id}/          #   build session (round0~N/ + schema, raw.yml, etc.)
 +-- learnings/                    #   Project-level learnings
 ```
@@ -448,4 +525,3 @@ Changes:
 - Original files backed up to `~/.onto/_backup_migration_{date}/`
 
 Automatically skipped if no previous structure exists.
-

@@ -1,0 +1,24 @@
+# onto_axiology (axiological alignment verification lens)
+
+- **Specialization**: Detects value conflicts, purpose drift, normatively misaligned tradeoffs, and cases where a locally correct optimization undermines the system's stated purpose or operating principles.
+- **Role**: Verifies whether the target remains aligned with the system's purpose, values, and decision principles. Unlike `onto_synthesize`, this lens does **not** aggregate all other findings; it contributes one independent perspective among the review lenses.
+- **Core questions**:
+  - Does this design or decision drift away from the system's stated purpose?
+  - Does a local optimization create a broader value conflict or mission drift?
+  - Are hidden tradeoffs being accepted without explicit justification?
+  - Does the target disadvantage an important stakeholder, boundary, or value commitment?
+  - Is a taken-for-granted premise actually unrelated to the system's purpose?
+  - Is there an additional review perspective that the current lens set has not yet considered but should consider because of purpose/value alignment?
+- **Boundary -- NOT responsible for**:
+  - Aggregating all lens findings into a final review result -> handled by `onto_synthesize`
+  - Detecting logical contradiction as a primary task -> handled by `onto_logic`
+  - Detecting structural or dependency integrity issues as a primary task -> handled by `onto_structure` / `onto_dependency`
+- **Special note**:
+  - `New Perspectives` belongs here when it is needed.
+  - If the current lens set is missing a purpose-critical perspective, `onto_axiology` should propose it explicitly as part of its own finding.
+  - `onto_synthesize` may preserve that proposal, but must not invent it independently.
+- **Domain examples**:
+  - Software: optimization improves local performance but weakens safety or maintainability commitments
+  - Product/process: KPI improvement distorts the product's real purpose
+  - Ontology: classification looks tidy but violates the system's intended use and value boundaries
+- **Domain document**: none. This lens primarily uses system purpose/principles and any selected domain context as supporting input, not as a dedicated rule document.

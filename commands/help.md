@@ -11,11 +11,11 @@ Display the command reference below in the configured language.
 
 ```
 /onto:onboard                              Set up onto environment for a project
-/onto:review {target}                      Agent panel review (8+1 agents)
+/onto:review {target}                      9-lens review + synthesize
 /onto:review {target} @{domain}            Review with specific domain
 /onto:review {target} @-                   Review without domain rules
-/onto:review {target} --codex              Review in Codex mode (~80% Claude token reduction)
-/onto:review {target} --claude             Force Agent Teams mode (overrides config)
+/onto:review {target} --codex              Use codex host runtime (defaults to subagent)
+/onto:review {target} --claude             Use claude host runtime (defaults to agent-teams)
 /onto:build {path|URL}                     Build ontology from analysis target
 /onto:transform {file}                     Transform raw ontology to desired format
 ```
@@ -31,7 +31,8 @@ Display the command reference below in the configured language.
 /onto:ask-evolution {question}             Evolution fitness
 /onto:ask-coverage {question}              Domain coverage
 /onto:ask-conciseness {question}           Conciseness
-/onto:ask-philosopher {question}           Purpose alignment
+/onto:ask-axiology {question}              Purpose and value alignment
+/onto:ask-philosopher {question}           Legacy alias for axiology
 ```
 
 ### Domain Document Management
@@ -67,19 +68,28 @@ Each review/build/question selects a single **session domain**:
 | No-domain | `@-` | No domain rules applied |
 | Interactive | (omit) | Suggests domain, user confirms |
 
-### Execution Mode
+### Execution Profile
 
-Review supports three execution modes:
+Review resolves an execution profile from two axes:
 
-| Mode | How to select | Deliberation | Claude Tokens |
-|------|--------------|-------------|---------------|
-| Agent Teams | Default | Supported | Full |
-| Subagent | Automatic fallback | Skipped | Full |
-| Codex | `--codex` or `execution_mode: codex` | Skipped (by design) | ~80% reduced |
+- `execution_realization`: `subagent` | `agent-teams`
+- `host_runtime`: `codex` | `claude`
 
-Codex mode requires Codex CLI (`/codex:setup`). Set as default in `.onto/config.yml`:
+Host-runtime convenience aliases:
+- `--codex` → `host_runtime: codex`
+- `--claude` → `host_runtime: claude`
+
+Default realization by host runtime:
+
+| Host runtime | Default realization | Optional override |
+|------|--------------|-------------|
+| `codex` | `subagent` | none |
+| `claude` | `agent-teams` | `subagent` or `agent-teams` |
+
+Legacy `execution_mode` is accepted as a compatibility alias. Example:
 ```yaml
-execution_mode: codex
+execution_realization: subagent
+host_runtime: codex
 ```
 
 ### Domain Document Lifecycle

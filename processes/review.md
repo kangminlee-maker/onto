@@ -1,21 +1,63 @@
-# Team Review Mode
+# Review Reference Execution
 
-> The agent panel (verification agents + Philosopher) reviews a target from multiple perspectives.
+> The 9 review lenses plus a separate synthesize stage review a target from multiple perspectives.
 > Related: If learnings accumulate after review, promotion is possible via `processes/promote.md`.
 
-Follows the **Agent Teams Execution** in `process.md`.
+This document is the prompt-backed reference execution for `검토 (review)`.
+The canonical live execution authority is `dev-docs/review-productized-live-path.md`.
 
-**Team composition**:
-- **Team lead**: main context (structure coordinator)
-- **Teammates**: verification agents + Philosopher
+## Canonical bounded path
 
-**Execution paths**:
+The live path should be understood first as the following 3 bounded stages:
+
+Preferred repo-local combined entrypoint:
+
+- `npm run review:invoke -- ...`
+
+Internal bounded path:
+
+1. `npm run review:start-session -- ...`
+2. `npm run review:run-prompt-execution -- ...`
+3. `npm run review:complete-session -- ...`
+
+The remaining sections explain how the prompt-backed reference execution should behave so that
+it matches the productized live path and produces the same artifact truth.
+
+**Reference execution composition**:
+- **Main context coordinator**: temporary prompt-path coordinator only
+- **Review lenses**: 9 independent review lenses
+- **Synthesize stage**: `onto_synthesize`
+
+**Productization mapping note**:
+- The canonical live execution truth is defined in `dev-docs/review-productized-live-path.md`.
+- Step 0 and Step 1.5 are primary source material for `검토 해석 (InvocationInterpretation)`.
+- Step 1 and the deterministic parts of Step 2 are primary source material for `검토 고정 (InvocationBinding)`.
+- The independent review work of Step 2 maps to per-lens execution.
+- Step 3 maps to the synthesize stage.
+- In the prompt-backed reference path, each review lens is executed as a `ContextIsolatedReasoningUnit` so that lens-specific context remains isolated.
+- In a productized prompt path, Step 0 and Step 1.5 are executed as pre-process interpretation work and should not be semantically re-done a second time inside the live review pass.
+- In a productized prompt path, `round1/*.md` and `synthesis.md` are human-readable source layers, while the primary artifact is `review-record.yaml` per `dev-docs/review-record-contract.md`.
+
+**Important boundary**:
+- Step 0, Step 1, and Step 1.5 below are not the canonical live execution order.
+- They remain here as source material and reference logic for the prompt-backed path.
+- The actual live path begins after the invocation artifacts and execution preparation artifacts already exist.
+
+**Legacy source path**:
 - **Default** (consensus clear): 0→1→1.5→2→3→5→6
 - **Extended** (contested points exist): 0→1→1.5→2→3→4→5→6
+
+**Productized prompt path**:
+- **Default** (consensus clear): `review:invoke` or internally `review:start-session` → `review:run-prompt-execution` → `review:complete-session`
+- **Extended** (contested points exist): `review:invoke` with deliberation branch, or internally `review:start-session` → `review:run-prompt-execution` → 4→5→`review:complete-session`
 
 ---
 
 ### 0. Domain Selection
+
+Legacy source material for `검토 해석 (InvocationInterpretation)`.
+Productized live path에서는 이 내용을 직접 다시 실행하지 않고,
+이미 해석 단계에서 결정된 결과를 사용한다.
 
 Determine `{session_domain}` per the "Domain Determination Rules" in `process.md`.
 
@@ -32,6 +74,9 @@ The resolved `{session_domain}` is used throughout this session for domain docum
 
 ### 1. Context Gathering (performed by team lead)
 
+Legacy source material for `검토 해석 (InvocationInterpretation)` + `검토 고정 (InvocationBinding)`.
+Productized live path에서는 이 내용이 `binding`과 `execution preparation artifact`로 재배치된다.
+
 The team lead collects only the items below. Per-agent learnings/domain documents are self-loaded by the teammate.
 
 1. **Review target collection**:
@@ -47,18 +92,21 @@ The team lead collects only the items below. Per-agent learnings/domain document
    - Identifies the plugin path. (Used for path variables in teammate initial prompt)
 
 4. **Agent definition collection** (for all agents individually):
-   - `~/.claude/plugins/onto/roles/{agent-id}.md` — ~14 lines per agent. The team lead reads and includes directly in the initial prompt.
+   - `roles/{agent-id}.md` — role definition source material. The prompt-backed path reads the current repo copy and packages the needed content into deterministic prompt packets.
 
 ---
 
 ### 1.5 Complexity Assessment (performed by team lead)
+
+Legacy source material for `검토 해석 (InvocationInterpretation)`.
+Productized live path에서는 이 semantic 판단이 live review pass 바깥에서 한 번만 수행된다.
 
 Step 1에서 수집한 리뷰 대상을 분석하여 복잡도를 평가한다.
 3개 질문에 모두 "경량 가능"으로 답해야 경량 리뷰를 제안한다.
 하나라도 아니면 전원 리뷰로 진행한다.
 
 **Q1: 관련 검증 차원이 4개 이하 `(= ⌊검증 차원 수 / 2⌋)` 인가?**
-리뷰 대상이 8개 검증 차원(논리, 구조, 의존, 의미, 실용, 진화, 커버리지, 간결성) 중
+리뷰 대상이 9개 review lens 차원(논리, 구조, 의존, 의미, 실용, 진화, 커버리지, 간결성, 가치/목적 정합) 중
 몇 개와 관련되는지 평가.
 → 4개 이하: 경량 가능 / 5개 이상: 전원 필요
 
@@ -89,25 +137,25 @@ Step 1에서 수집한 리뷰 대상을 분석하여 복잡도를 평가한다.
   [a] {agent-id} — {이 대상에서 필요한 이유}
   [b] {agent-id} — {이유}
   [c] {agent-id} — {이유}
-  [d] philosopher — 목적 정합 검증 (항상 포함)
+  [d] onto_axiology — 목적 및 가치 정합 검증 (항상 포함)
 
 **전원 리뷰와의 차이**:
   제외되는 관점: {제외 에이전트 목록}
   놓칠 수 있는 것: {구체적 설명}
 
-[a] 경량 리뷰 ({N}명, ~{토큰}k 토큰)
-[b] 전원 리뷰 (9명, ~550k 토큰)
+[a] 경량 리뷰 ({N}개 lens + synthesize, ~{토큰}k 토큰)
+[b] 전원 리뷰 (9개 lens + synthesize, ~550k 토큰)
 
 Select [a]:
 ```
 
 **전원 필요 판단 시:**
-별도 안내 없이 기존 프로세스대로 9명 스폰.
-리뷰 시작 시 "9명 전원 리뷰로 진행합니다"를 표시.
+별도 안내 없이 기존 프로세스대로 9개 lens + synthesize로 진행한다.
+리뷰 시작 시 "9개 lens 전원 + synthesize로 진행합니다"를 표시.
 
 **에이전트 선택 규칙:**
 
-1. **philosopher**: 항상 포함
+1. **onto_axiology**: 항상 포함
 2. **나머지 2-3명**: 리뷰 대상의 성격에 따라 팀 리드가 선택
 
 참고 테이블 (팀 리드 판단 보조):
@@ -123,25 +171,194 @@ Select [a]:
 
 ---
 
-### 2. Team Creation + Round 1 — Verification Agent Independent Review
+### 2. Reference Execution — Round 1 Lens Review
+
+This section starts after `review:start-session` has already written:
+
+- `interpretation.yaml`
+- `binding.yaml`
+- `session-metadata.yaml`
+- `execution-plan.yaml`
+- `execution-preparation/*`
+
+Before any lens or synthesize unit is actually invoked, the prompt-backed path should prefer:
+
+```bash
+npm run review:start-session -- \
+  --project-root {project} \
+  --session-id "{session id}" \
+  ...
+```
+
+This writes invocation artifacts, execution preparation artifacts, and deterministic prompt handoff packets under `{session path}/prompt-packets/`.
+
+The actual prompt dispatch step should then prefer:
+
+```bash
+npm run review:run-prompt-execution -- \
+  --project-root {project} \
+  --session-root "{session path}" \
+  --executor-bin {executor bin} \
+  --executor-arg {executor arg}
+```
+
+Everything below is reference execution behavior for the prompt-backed path.
+Host-specific realization details are allowed only if they preserve the same artifact truth and
+the same `ContextIsolatedReasoningUnit` boundary.
 
 **Step 1 — Session ID generation**: `$(date +%Y%m%d)-$(openssl rand -hex 4)` (e.g., `20260325-a3f7b2c1`)
 
-**Step 2 — Session directory creation**: `{project}/.onto/review/{session ID}/round1/`
+**Step 2 — Session directory creation**:
 
-**Step 3 — Team creation via TeamCreate**:
+```text
+{project}/.onto/review/{session ID}/
+  session-metadata.yaml
+  interpretation.yaml
+  binding.yaml
+  execution-plan.yaml
+  review-record.yaml
+  synthesis.md
+  deliberation.md
+  final-output.md
+  round1/
+  execution-preparation/
+    target-snapshot.md
+    target-snapshot-manifest.yaml
+    materialized-input.md
+    context-candidate-assembly.yaml
+```
+
+Productized prompt path 기준으로:
+
+- `round1/*.md`와 `synthesis.md`는 human-readable source layer다
+- primary artifact는 `review-record.yaml`이다
+- execution preparation artifact seat는 `dev-docs/review-execution-preparation-artifacts.md`를 따른다
+
+**Step 2.1 — Write invocation artifacts**
+
+The team lead writes:
+
+- `{session path}/interpretation.yaml`
+- `{session path}/binding.yaml`
+- `{session path}/session-metadata.yaml`
+- `{session path}/execution-plan.yaml`
+
+These artifacts must follow:
+
+- `dev-docs/review-interpretation-contract.md`
+- `dev-docs/review-binding-contract.md`
+- `dev-docs/review-execution-preparation-artifacts.md`
+
+Bounded runtime replacement for deterministic binding:
+
+Preferred combined step:
+
+```bash
+npm run review:prepare-session -- \
+  --project-root {project} \
+  --requested-target "{original target token}" \
+  --requested-domain-token "{original domain token or empty}" \
+  --target-scope-kind {file|directory|bundle} \
+  --primary-ref "{target scope primary ref}" \
+  --member-ref "{target scope member ref}" \
+  --intent-summary "{interpreted intent summary}" \
+  --domain-recommendation "{recommended domain token}" \
+  --domain-selection-required "{true|false}" \
+  --review-mode-recommendation "{light|full}" \
+  --always-include-lens-id "{lens id}" \
+  --recommended-lens-id "{lens id}" \
+  --rationale "{lens rationale}" \
+  --ambiguity-note "{ambiguity note}" \
+  --resolved-target-ref "{resolved target ref}" \
+  --domain-final-value "{final domain or none}" \
+  --domain-selection-mode "{selection mode}" \
+  --execution-realization "{subagent|agent-teams}" \
+  --host-runtime "{codex|claude}" \
+  --review-mode "{light|full}" \
+  --lens-id "{lens id}" \
+  --materialized-kind "{single_text|directory_listing_plus_selected_contents|bundle_member_texts}" \
+  --materialized-ref "{materialized target ref}" \
+  --system-purpose-ref "{system purpose ref}" \
+  --execution-rule-ref "{execution rule ref}"
+```
+
+Decomposed steps:
+
+```bash
+npm run review:write-interpretation -- \
+  --session-root "{session path}" \
+  --target-scope-kind {file|directory|bundle} \
+  --primary-ref "{target scope primary ref}" \
+  --member-ref "{target scope member ref}" \
+  --intent-summary "{interpreted intent summary}" \
+  --domain-recommendation "{recommended domain token}" \
+  --domain-selection-required "{true|false}" \
+  --review-mode-recommendation "{light|full}" \
+  --always-include-lens-id "{lens id}" \
+  --recommended-lens-id "{lens id}" \
+  --rationale "{lens rationale}" \
+  --ambiguity-note "{ambiguity note}"
+
+npm run review:bootstrap-binding -- \
+  --project-root {project} \
+  --requested-target "{original target token}" \
+  --requested-domain-token "{original domain token or empty}" \
+  --target-scope-kind {file|directory|bundle} \
+  --resolved-target-ref "{resolved target ref}" \
+  --domain-recommendation "{recommended domain token}" \
+  --domain-final-value "{final domain or none}" \
+  --domain-selection-mode "{selection mode}" \
+  --execution-realization "{subagent|agent-teams}" \
+  --host-runtime "{codex|claude}" \
+  --review-mode "{light|full}" \
+  --lens-id "{lens id}" ...
+```
+
+**Step 2.2 — Write execution preparation artifacts**
+
+Before any lens is spawned, the team lead materializes:
+
+- `{session path}/execution-preparation/target-snapshot.md`
+- `{session path}/execution-preparation/target-snapshot-manifest.yaml`
+- `{session path}/execution-preparation/materialized-input.md`
+- `{session path}/execution-preparation/context-candidate-assembly.yaml`
+
+`execution-plan.yaml` is the deterministic seat map for:
+
+- `round1/{lens}.md`
+- `synthesis.md`
+- `deliberation.md`
+- `final-output.md`
+- `review-record.yaml`
+
+These artifacts become the basis for all Round 1 lens execution.
+
+Bounded runtime replacement for execution preparation:
+
+```bash
+npm run review:materialize-execution-preparation -- \
+  --session-root "{session path}" \
+  --scope-kind {file|directory|bundle} \
+  --resolved-target-ref "{resolved target ref}" \
+  --materialized-kind "{single_text|directory_listing_plus_selected_contents|bundle_member_texts}" \
+  --materialized-ref "{materialized target ref}" \
+  --system-purpose-ref "{system purpose ref}" \
+  --execution-rule-ref "{execution rule ref}" ...
+```
+
+**Step 3 — Example realization: Team creation via TeamCreate**:
 - team_name: `onto-{session ID}`
 - description: `Agent Panel Review: {review target summary}`
 
-**Step 4 — Create all teammates**: After TeamCreate, create all teammates **simultaneously in a single message** via Agent tool. The initial prompt combines identity + self-loading + task directives, so **Round 1 begins immediately upon creation**.
-- **경량 모드 (light)**: Step 1.5에서 선택된 2-3명의 검증 에이전트 + philosopher만 생성한다.
-- **전원 모드 (full) 또는 Complexity Assessment 미수행**: 기존 동작 — 8명 검증 에이전트 + philosopher 전원 생성.
-- Each teammate's `name`: agent-id (e.g., `onto_logic`, `philosopher`)
+**Step 4 — Create all teammates**: After TeamCreate, create all teammates **simultaneously in a single message** via Agent tool. The initial prompt combines identity + self-loading + task directives. Each review lens is realized as a `ContextIsolatedReasoningUnit`. Review lenses begin Round 1 immediately; `onto_synthesize` waits until Step 3.
+- **경량 모드 (light)**: Step 1.5에서 선택된 2-3명의 검증 lens + `onto_axiology` + `onto_synthesize`를 생성한다.
+- **전원 모드 (full) 또는 Complexity Assessment 미수행**: 8명 기존 검증 lens + `onto_axiology` + `onto_synthesize`를 생성한다.
+- Each teammate's `name`: agent-id (e.g., `onto_logic`, `onto_synthesize`)
 - Each teammate's `team_name`: team_name created in Step 3
 - Initial prompt: use the **Teammate Initial Prompt Template** from `process.md` (including session path)
 - 세션 메타데이터에 `review_mode: light | full` 기록
 
-**[Task Directives]** section to include in verification agents' initial prompt:
+**[Task Directives]** section to include in review lenses' initial prompt:
 
 ```
 Begin Round 1 review.
@@ -159,7 +376,7 @@ Perform the following items first (only if applicable to the review target. Mark
 - [ ] Does each concepts.md section referenced by inference paths actually contain the referenced term? (Inference path validity check — domain document reviews only)
 
 [Review Target]
-{review target content}
+Read `{session path}/execution-preparation/materialized-input.md` and treat it as the authoritative execution input.
 
 [System Purpose and Principles]
 {CLAUDE.md/README.md content}
@@ -206,30 +423,30 @@ List learnings from your learning file that influenced your review judgment:
 Mark "none" if no learnings were applied.
 ```
 
-**[Task Directives]** section to include in the Philosopher's initial prompt:
+**[Task Directives]** section to include in the synthesize initial prompt:
 
 ```
-The team lead will deliver results once the verification agents complete their Round 1 review. Wait until then.
+The team lead will deliver lens result paths once the review lenses complete their Round 1 review. Wait until then.
 ```
 
-**This is the only independent round.** In subsequent steps, other agents' perspectives are shared through Philosopher synthesis.
+**This is the only independent round.** In subsequent steps, other lens perspectives are shared through the synthesize stage.
 
-#### Step 2 — Codex Mode Variation
+#### Step 2 — Example realization: Codex Mode Variation
 
-Codex 모드에서는 TeamCreate를 생략한다. 대신 각 검증 에이전트를 `codex:codex-rescue` subagent_type의 Agent tool로 생성한다.
+Codex 모드에서는 TeamCreate를 생략한다. 대신 각 review lens를 `codex:codex-rescue` subagent_type의 Agent tool로 생성한다. 이 경우에도 canonical requirement는 `ContextIsolatedReasoningUnit` 유지다.
 
 **Sub-step 2.3 — Team creation**: 생략. TeamCreate/TeamDelete를 사용하지 않는다.
 
-**Sub-step 2.4 — Create all reviewer Agents**: 모든 검증 에이전트 Agent를 **단일 메시지에서 동시에** 호출하되, 각각 `run_in_background: true`로 설정한다.
+**Sub-step 2.4 — Create all reviewer Agents**: 모든 review lens Agent를 **단일 메시지에서 동시에** 호출하되, 각각 `run_in_background: true`로 설정한다.
 - 각 Agent의 `subagent_type`: `"codex:codex-rescue"`
 - 각 Agent의 프롬프트: `process.md`의 **Codex Reviewer Prompt Template** 사용
-- 경량 모드(light): 선택된 2-3명의 검증 에이전트만 Codex task로 생성
+- 경량 모드(light): 선택된 2-3명의 review lens + `onto_axiology`만 Codex task로 생성
 - 전원 모드(full): 8명 전원 Codex task로 생성
-- Philosopher는 이 단계에서 생성하지 않는다 (메인 프로세스 Step 3에서 별도 실행)
+- `onto_synthesize`는 이 단계에서 생성하지 않는다 (메인 프로세스 Step 3에서 별도 실행)
 - `codex.model`/`codex.effort` 전달: process.md "Model and effort" 섹션 참조
-- 세션 메타데이터에 `execution_mode: codex` 기록
+- 세션 메타데이터에 `execution_realization: subagent`, `host_runtime: codex` 기록
 
-Philosopher의 초기 prompt 대신: 팀 리드가 모든 백그라운드 task 완료를 대기한다.
+`onto_synthesize`의 초기 prompt 대신: 팀 리드가 모든 백그라운드 task 완료를 대기한다.
 
 Task Directives는 Agent Teams 모드와 **동일한 내용**을 사용한다. 차이점은 프롬프트 래핑(Codex Reviewer Prompt Template)과 실행 런타임뿐이다.
 
@@ -249,28 +466,37 @@ Round 1에서 에이전트 에러 발생 시:
 
 3. **종료 조건**: 2회 재시도 후에도 실패하면 graceful degradation 적용.
    해당 에이전트를 제외하고 합의 분모를 조정.
-   Philosopher 전달 시: "※ {agent-id}: 에러로 제외됨" 명시.
+   synthesize 전달 시: "※ {agent-id}: 에러로 제외됨" 명시.
 
 4. **로깅**: {session path}/error-log.md에 에러 이력 기록.
    (디버깅 참조용. 자동 소비 경로 없음.)
 
-에러 제외 후 잔존 검증 에이전트가 2명 미만이면 process-halting. 사용자에게 전원 리뷰 전환 또는 중단을 제안한다.
+에러 제외 후 잔존 review lens가 2명 미만이면 process-halting. 사용자에게 전원 리뷰 전환 또는 중단을 제안한다.
 
 ---
 
-### 3. Philosopher Synthesis + Adjudication
+### 3. Reference Execution — Synthesize
 
-The team lead delivers the verification agents' review finding file paths to the Philosopher teammate via SendMessage. **Since the original text is preserved in the files, the team lead does not include the original text in the message.**
+The team lead delivers the review lenses' review finding file paths to the `onto_synthesize` teammate via SendMessage. **Since the original text is preserved in the files, the team lead does not include the original text in the message.**
 
-SendMessage content to deliver to the Philosopher:
+SendMessage content to deliver to the synthesize stage:
 
 ```
-Synthesize the verification agents' Round 1 review results and adjudicate from the perspective of system purpose.
+Synthesize the review lenses' Round 1 review results and adjudicate while preserving lens evidence and system purpose.
 
-[Verification Agents' Review Result Files]
+[Review Lens Result Files]
 Read the files at the paths below directly using the Read tool:
 {참여 에이전트의 review result 파일 경로 목록}
 ※ 경량 모드에서는 참여하지 않은 에이전트의 파일을 포함하지 않는다.
+
+[Execution Preparation Artifacts]
+Read the files below directly using the Read tool:
+- {session path}/interpretation.yaml
+- {session path}/binding.yaml
+- {session path}/session-metadata.yaml
+- {session path}/execution-preparation/target-snapshot.md
+- {session path}/execution-preparation/materialized-input.md
+- {session path}/execution-preparation/context-candidate-assembly.yaml
 
 ※ Results from agents whose Write failed are included directly below:
 {Original text of Write-failed agents (only if applicable)}
@@ -281,34 +507,35 @@ Read the files at the paths below directly using the Read tool:
 [Directives]
 Step 1 — Synthesis:
 
-## Philosopher Synthesis
+## Review Synthesis
 
 ### Consensus Items
-- (Judgments agreed upon by a majority of verification agents)
+- (Judgments agreed upon by a majority of participating review lenses)
 
 ### Contradicting Opinions
 - (Conflicting judgments + summary of each rationale)
 
 ### Overlooked Premises
-- (Items not mentioned by any agent but requiring examination given the system purpose/principles)
-- Refer to the "Verification Dimension Coverage Checklist" in process.md to confirm that no verification dimension has gone uncovered by any agent.
+- (Items not mentioned by any lens but requiring examination given the system purpose/principles)
+- Refer to the "Verification Dimension Coverage Checklist" in process.md to confirm that no review lens dimension has gone uncovered.
 
-### New Perspectives
-- (Perspectives derived from the system's purpose and philosophical principles that verification agents have not yet considered)
+### Axiology-Proposed Additional Perspectives
+- (Include only perspectives explicitly proposed by `onto_axiology`)
+- Do not invent a new independent perspective here.
 
 Step 3 — Unique Finding Tagging:
-Classify each verification agent's findings as "unique finding / shared finding / cross-verified finding." Include in the "Unique Finding Tagging" section of the final output.
+Classify each lens's findings as "unique finding / shared finding / cross-verified finding." Include in the "Unique Finding Tagging" section of the final output.
 
 Step 4 — Adjudication:
 
 ### Judgment Conflict Resolution Rules
 
-Judgment conflicts between verification agents are resolved by the following rules:
+Judgment conflicts between review lenses are resolved by the following rules:
 
-**General rule**: Judgment conflicts are used as error detection signals. If multiple agents render opposing judgments on the same target, mark it as a "high-probability error point" and the Philosopher adjudicates from the perspective of system purpose.
+**General rule**: Judgment conflicts are used as error detection signals. If multiple lenses render opposing judgments on the same target, mark it as a "high-probability error point" and the synthesize stage adjudicates while preserving system purpose.
 
-**Special rule — removal vs. retention conflict**: If onto_conciseness judges "removal needed" and another agent judges "retention needed":
-1. The Philosopher compares both sides' rationale.
+**Special rule — removal vs. retention conflict**: If onto_conciseness judges "removal needed" and another lens judges "retention needed":
+1. The synthesize stage compares both sides' rationale.
 2. Adjudicates in light of the system's purpose (improving the quality of the review target).
 3. Does not decide by simple majority — since the conciseness "removal" perspective is structurally in the minority, majority rule would always result in "retention," neutralizing the function of conciseness.
 
@@ -328,7 +555,7 @@ domain: {session_domain / none}
 date: {YYYY-MM-DD}
 ---
 
-## Agent Panel Review Result
+## 9-Lens Review Result
 
 ### Review Target
 {review target summary}
@@ -340,7 +567,7 @@ date: {YYYY-MM-DD}
 - (If domain documents are absent but session_domain is set) "Verified using general principles (no domain document). Creating domain documents via `/onto:onboard` will improve verification precision."
 
 ### Consensus (N/{participating agent count})
-※ 합의 분모는 실제 참여한 검증 에이전트 수 (고정값 8이 아님). 경량 모드 및 에러 제외를 반영.
+※ 합의 분모는 실제 참여한 review lens 수 (고정값 9가 아님). 경량 모드 및 에러 제외를 반영.
 - (List of judgments with full consensus)
 
 ### Conditional Consensus
@@ -355,8 +582,11 @@ Tag each disagreement item with a type:
 - **[Value discrepancy]** — no conditions for reaching consensus, unresolvable through repetition. PO action: make a direct value judgment
 (When deliberation was performed, this section appears in the deliberation output format instead.)
 
+### Axiology-Proposed Additional Perspectives
+- (Only if explicitly proposed by `onto_axiology`)
+
 ### Purpose Alignment Verification
-- (Whether conclusions align with the system purpose, with rationale)
+- (Preserve and summarize the purpose/value alignment judgment provided by `onto_axiology`)
 
 ### Immediate Actions Required
 - (Among consensus items, those that should be applied immediately)
@@ -365,72 +595,72 @@ Tag each disagreement item with a type:
 - (Among consensus items, those that can be applied later)
 
 ### Unique Finding Tagging
-Classify each verification agent's findings into the 3 categories below. A "unique finding" is an issue that no other agent discovered, detectable only from that agent's verification dimension.
+Classify each lens's findings into the 3 categories below. A "unique finding" is an issue that no other lens discovered, detectable only from that lens's verification dimension.
 
-| Agent | Unique Finding | Shared Finding | Cross-Verified Finding |
+| Lens | Unique Finding | Shared Finding | Cross-Verified Finding |
 |---------|----------|----------|----------|
-| (Record the count and one representative case per agent) | | | |
+| (Record the count and one representative case per lens) | | | |
 
-- **Unique finding**: an issue discovered only by that agent (no other agent reported the same issue)
-- **Shared finding**: an issue independently reported by 2 or more agents from their respective perspectives
-- **Cross-verified finding**: a case where one agent's finding combines with another agent's finding to produce a new insight
+- **Unique finding**: an issue discovered only by that lens (no other lens reported the same issue)
+- **Shared finding**: an issue independently reported by 2 or more lenses from their respective perspectives
+- **Cross-verified finding**: a case where one lens's finding combines with another lens's finding to produce a new insight
 ```
 
-**If the Philosopher judges "not needed"** → the final output has already been written. Proceed directly to Step 5.
-**If the Philosopher judges "needed"** → proceed to Step 4 (deliberation).
+**If the synthesize stage judges "not needed"** → the final output has already been written. Proceed directly to Step 5.
+**If the synthesize stage judges "needed"** → proceed to Step 4 (deliberation).
 
-#### Step 3 — Codex Mode Variation
+#### Step 3 — Example realization: Codex Mode Variation
 
-Codex 모드에서는 Philosopher도 `codex:codex-rescue` Agent로 실행한다.
+Codex 모드에서는 `onto_synthesize`도 `codex:codex-rescue` Agent로 실행한다.
 
-- 팀 리드가 Philosopher를 foreground `codex:codex-rescue` Agent로 생성한다 (백그라운드 아님 — 결과를 즉시 사용해야 하므로).
-- 프롬프트: `process.md`의 **Codex Philosopher Prompt Template** 사용.
-- 프롬프트에 검증 에이전트의 결과 파일 경로를 포함한다. Codex가 파일을 직접 읽고 종합한다.
-- 결과를 `{session path}/philosopher_synthesis.md`에 저장하도록 지시한다.
-- **숙의 불가 지시**: Codex 모드에서는 Philosopher 프롬프트에 다음 지시를 추가한다:
+- 팀 리드가 `onto_synthesize`를 foreground `codex:codex-rescue` Agent로 생성한다 (백그라운드 아님 — 결과를 즉시 사용해야 하므로).
+- 프롬프트: `process.md`의 **Codex Review Synthesize Prompt Template** 사용.
+- 프롬프트에 review lens의 결과 파일 경로를 포함한다. Codex가 파일을 직접 읽고 종합한다.
+- 결과를 `{session path}/synthesis.md`에 저장하도록 지시한다.
+- **숙의 불가 지시**: Codex 모드에서는 synthesize 프롬프트에 다음 지시를 추가한다:
   "Codex 모드에서는 숙의(deliberation)를 수행할 수 없습니다. 재검토 필요 여부 판정은 항상 '불필요'로 처리하고, 모순 항목은 '미합의' 섹션에 포함하여 최종 출력을 직접 작성하세요."
-- Philosopher 실패 시: 1회 재시도 후에도 실패하면 `process-halting-with-partial-result`를 적용한다 (process.md Error Handling Rules 참조).
+- `onto_synthesize` 실패 시: 1회 재시도 후에도 실패하면 `process-halting-with-partial-result`를 적용한다 (process.md Error Handling Rules 참조).
 
 ---
 
-### 4. Deliberation (Conditional)
+### 4. Reference Execution — Deliberation (Conditional)
 
-Executed only if the Philosopher judges "deliberation needed."
-경량 모드에서는 Philosopher에게 'deliberation not needed' 지시를 포함한다.
+Executed only if the synthesize stage judges "deliberation needed."
+경량 모드에서는 `onto_synthesize`에게 'deliberation not needed' 지시를 포함한다.
 
 In this step, **direct SendMessage between teammates is permitted**.
-The team lead notifies the relevant agents (including the Philosopher) of deliberation commencement:
+The team lead notifies the relevant lenses (including `onto_synthesize`) of deliberation commencement:
 
 ```
 Deliberation begins.
-Engage in direct deliberation with the relevant agents on the items below.
+Engage in direct deliberation with the relevant lenses on the items below.
 
 [Deliberation Items]
-Items classified by type by the Philosopher:
+Items classified by type by the synthesize stage:
 
 **Contradicting opinions** (resolution method: direct exchange between opposing agents)
 {applicable items. "None" if none}
 
-**Overlooked premises** (resolution method: request additional verification from related agents)
+**Overlooked premises** (resolution method: request additional verification from related lenses)
 {applicable items. "None" if none}
 
-**New perspectives** (resolution method: request validity assessment from related agents)
+**New perspectives** (resolution method: request validity assessment from related lenses)
 {applicable items. "None" if none}
 
 [Deliberation Participants]
-{Agent list designated by the Philosopher}
+{Lens list designated by the synthesize stage}
 
 [Deliberation Rules]
 - Before starting deliberation, first confirm whether the definitions of key terms used in contested points are aligned among participating agents. Attempt definition alignment within 1 round-trip. If alignment is not reached, proceed with each agent stating their own definition. This round-trip does not count toward the 3-trip limit.
 - Respond directly to the counterpart's arguments. Do not merely repeat your own position.
 - If the counterpart's argument is valid, accept it.
 - If a new alternative combining both sides' arguments is possible, propose it.
-- If a derived contested point arises during deliberation that falls outside the original participants' areas of expertise, request the team lead to include the relevant specialist agent. If addition is not possible, record the contested point as an "unverified item."
+- If a derived contested point arises during deliberation that falls outside the original participants' areas of expertise, request the team lead to include the relevant specialist lens. If addition is not possible, record the contested point as an "unverified item."
 - Round-trip definition: the team lead delivers the contested point and the relevant agents return their responses — this constitutes 1 round-trip. The team lead manages the round-trip count.
 - If consensus is not reached after 3 round-trips, each party reports their final position to the team lead.
 ```
 
-After deliberation concludes, the team lead delivers the results to the Philosopher to **write the final output**:
+After deliberation concludes, the team lead delivers the results to `onto_synthesize` to **write the final output**:
 
 ```
 Write the final output reflecting the deliberation results.
@@ -447,7 +677,7 @@ domain: {session_domain / none}
 date: {YYYY-MM-DD}
 ---
 
-## Agent Panel Review Result
+## 9-Lens Review Result
 
 ### Review Target
 ### Verification Context
@@ -460,20 +690,76 @@ Tag each disagreement item with a type:
 - **[Value discrepancy]** — no conditions for reaching consensus, unresolvable through repetition. PO action: make a direct value judgment
 ### Unverified
 Items classified as outside the verification scope (e.g., cases where adding a specialist agent for derived contested points was not possible). PO action: request separate verification from a domain expert, or accept as tolerable risk.
+### Axiology-Proposed Additional Perspectives
+- (Only if explicitly proposed by `onto_axiology`)
+
 ### Purpose Alignment Verification
+- (Preserve and summarize the purpose/value alignment judgment provided by `onto_axiology`)
 ### Immediate Actions Required
 ### Recommendations
 ```
 
 ---
 
-### 5. Final Output
+### 5. Reference Execution — Final Output + ReviewRecord Assembly
 
-The team lead delivers the Philosopher's final output to the user **without modification**.
+The team lead first writes `final-output.md`, then assembles `review-record.yaml`, then delivers the final output to the user.
+
+Preferred bounded completion step:
+
+```bash
+npm run review:complete-session -- \
+  --project-root {project} \
+  --session-root "{session path}" \
+  --request-text "{original user request}"
+```
+
+Minimum `review-record.yaml` assembly input:
+
+- `interpretation.yaml`
+- `binding.yaml`
+- `session-metadata.yaml`
+- `execution-preparation/*`
+- `round1/*.md`
+- `synthesis.md`
+- `final-output.md`
+- `error-log.md` (optional; required when degradation occurred)
+
+The aggregate contract follows `dev-docs/review-record-contract.md`.
+Field mapping follows `dev-docs/review-record-field-mapping.md`.
+
+`final-output.md` should be the persisted human-readable rendering of the same final result delivered to the user.
+
+If available, use the bounded finalization runtime step:
+
+```bash
+npm run review:finalize-session -- \
+  --project-root {project} \
+  --session-root "{session path}" \
+  --request-text "{original user request}"
+```
+
+Internal implementation alias:
+
+```bash
+npm run review:assemble-record -- \
+  --project-root {project} \
+  --session-root "{session path}" \
+  --request-text "{original user request}"
+```
+
+This is the first `구현 치환 단계 (ImplementationReplacementStep)` for review aggregate assembly.
+
+Assembly rules:
+
+- if `error-log.md` is absent and `deliberation.md` is absent, default to `record_status: completed`, `deliberation_status: not_needed`
+- if `error-log.md` records failed/excluded lenses but final output exists, set `record_status: completed_with_degradation`
+- if `synthesis.md` requires deliberation but `deliberation.md` is absent, set `deliberation_status: required_but_unperformed`
+- if `deliberation.md` exists, set `deliberation_status: performed`
 
 ---
 
-### 6. Wrap-Up (Learning Storage + Team Shutdown)
+### 6. Example realization — Wrap-Up (Learning Storage + Team Shutdown)
 
 1. **Learning storage**: Stores learnings from all members. Follows the "Learning Storage Rules" in `learning-rules.md`. If deliberation occurred, also includes learnings generated during the deliberation process. **Learning data collection must be completed before team shutdown.**
    - **Seed review learning tag**: When reviewing a seed domain (`drafts/{domain}`), learnings about the seed domain's content are tagged with `[domain/{seed-domain}]`. These learnings become input for the feedback loop (`/onto:feedback {domain}`).

@@ -1,9 +1,6 @@
-# Onto Philosopher (legacy compatibility alias)
+# Onto Axiology (purpose and value alignment verification)
 
-Legacy alias for the axiological alignment perspective.
-
-Use `/onto:ask-axiology` for new usage.
-This compatibility command continues to route the question to the axiological lens so existing workflows do not break during productization.
+Asks $ARGUMENTS to the axiological alignment verification lens.
 
 Agent ID: `onto_axiology`
 

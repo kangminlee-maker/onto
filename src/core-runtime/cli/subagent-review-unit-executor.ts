@@ -1,0 +1,275 @@
+#!/usr/bin/env node
+
+import fs from "node:fs/promises";
+import path from "node:path";
+import { spawn } from "node:child_process";
+import { parseArgs } from "node:util";
+import { pathToFileURL } from "node:url";
+
+function requireString(
+  value: string | boolean | undefined,
+  optionName: string,
+): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Missing required option --${optionName}`);
+  }
+  return value;
+}
+
+function buildBoundedPrompt(
+  packetText: string,
+  outputPath: string,
+  unitId: string,
+  unitKind: string,
+): string {
+  return `You are executing a single bounded review unit as a ContextIsolatedReasoningUnit.
+
+Unit id: ${unitId}
+Unit kind: ${unitKind}
+Canonical output path: ${outputPath}
+
+Rules:
+- Treat the prompt packet below as the authoritative contract.
+- Produce only the final markdown content for the canonical output path.
+- Do not wrap the answer in code fences.
+- Do not add commentary before or after the markdown.
+- Do not modify repository files yourself.
+- Do not run shell commands or other tools.
+- Do not change the required output structure from the packet.
+- If the packet asks you to preserve disagreement or uncertainty, preserve it explicitly.
+
+Authoritative prompt packet follows:
+
+${packetText}
+`;
+}
+
+async function runCodexSubagent(
+  projectRoot: string,
+  boundedPrompt: string,
+  outputPath: string,
+  model: string | boolean | undefined,
+  sandboxMode: string | boolean | undefined,
+  reasoningEffort: string | boolean | undefined,
+  configOverrides: string[],
+): Promise<void> {
+  const codexArgs: string[] = [
+    "exec",
+    "-C",
+    projectRoot,
+    "-s",
+    requireString(sandboxMode, "sandbox-mode"),
+    "-c",
+    `model_reasoning_effort="${requireString(reasoningEffort, "reasoning-effort")}"`,
+    "-o",
+    outputPath,
+    "--skip-git-repo-check",
+  ];
+
+  if (typeof model === "string" && model.length > 0) {
+    codexArgs.push("-m", model);
+  }
+
+  for (const override of configOverrides) {
+    codexArgs.push("-c", override);
+  }
+
+  codexArgs.push("-");
+
+  const child = spawn("codex", codexArgs, {
+    cwd: projectRoot,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  let stdout = "";
+  let stderr = "";
+
+  child.stdout.on("data", (chunk: Buffer | string) => {
+    stdout += String(chunk);
+  });
+  child.stderr.on("data", (chunk: Buffer | string) => {
+    stderr += String(chunk);
+  });
+
+  child.stdin.write(boundedPrompt);
+  child.stdin.end();
+
+  const exitCode = await new Promise<number>((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (code) => resolve(code ?? 1));
+  });
+
+  if (exitCode !== 0) {
+    const combinedMessage = [stderr.trim(), stdout.trim()]
+      .filter((message) => message.length > 0)
+      .join("\n");
+    throw new Error(
+      combinedMessage.length > 0
+        ? combinedMessage
+        : `subagent executor exited with code ${exitCode}`,
+    );
+  }
+}
+
+async function runClaudeSubagent(
+  projectRoot: string,
+  boundedPrompt: string,
+  outputPath: string,
+  model: string | boolean | undefined,
+  reasoningEffort: string | boolean | undefined,
+): Promise<void> {
+  const claudeArgs: string[] = [
+    "-p",
+    "--bare",
+    "--output-format",
+    "text",
+    "--tools",
+    "",
+    "--permission-mode",
+    "default",
+    "--add-dir",
+    projectRoot,
+  ];
+
+  if (typeof model === "string" && model.length > 0) {
+    claudeArgs.push("--model", model);
+  }
+
+  if (typeof reasoningEffort === "string" && reasoningEffort.length > 0) {
+    claudeArgs.push("--effort", reasoningEffort);
+  }
+
+  const child = spawn("claude", claudeArgs, {
+    cwd: projectRoot,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  let stdout = "";
+  let stderr = "";
+
+  child.stdout.on("data", (chunk: Buffer | string) => {
+    stdout += String(chunk);
+  });
+  child.stderr.on("data", (chunk: Buffer | string) => {
+    stderr += String(chunk);
+  });
+
+  child.stdin.write(boundedPrompt);
+  child.stdin.end();
+
+  const exitCode = await new Promise<number>((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (code) => resolve(code ?? 1));
+  });
+
+  if (exitCode !== 0) {
+    const combinedMessage = [stderr.trim(), stdout.trim()]
+      .filter((message) => message.length > 0)
+      .join("\n");
+    throw new Error(
+      combinedMessage.length > 0
+        ? combinedMessage
+        : `claude subagent executor exited with code ${exitCode}`,
+    );
+  }
+
+  const normalizedOutput = stdout.trim();
+  if (normalizedOutput.length === 0) {
+    throw new Error("Claude subagent executor produced empty output.");
+  }
+
+  await fs.writeFile(outputPath, `${normalizedOutput}\n`, "utf8");
+}
+
+export async function runSubagentReviewUnitExecutorCli(
+  argv: string[],
+): Promise<number> {
+  const { values } = parseArgs({
+    options: {
+      "project-root": { type: "string", default: "." },
+      "session-root": { type: "string" },
+      "unit-id": { type: "string" },
+      "unit-kind": { type: "string" },
+      "packet-path": { type: "string" },
+      "output-path": { type: "string" },
+      model: { type: "string" },
+      "host-runtime": { type: "string", default: "codex" },
+      "sandbox-mode": { type: "string", default: "read-only" },
+      "reasoning-effort": { type: "string", default: "low" },
+      "config-override": { type: "string", multiple: true, default: [] },
+    },
+    strict: true,
+    allowPositionals: false,
+    args: argv,
+  });
+
+  const projectRoot = path.resolve(
+    requireString(values["project-root"], "project-root"),
+  );
+  const unitId = requireString(values["unit-id"], "unit-id");
+  const unitKind = requireString(values["unit-kind"], "unit-kind");
+  const packetPath = path.resolve(requireString(values["packet-path"], "packet-path"));
+  const outputPath = path.resolve(requireString(values["output-path"], "output-path"));
+  const packetText = await fs.readFile(packetPath, "utf8");
+  const boundedPrompt = buildBoundedPrompt(packetText, outputPath, unitId, unitKind);
+  const hostRuntime = requireString(values["host-runtime"], "host-runtime");
+
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+
+  if (hostRuntime === "codex") {
+    await runCodexSubagent(
+      projectRoot,
+      boundedPrompt,
+      outputPath,
+      values.model,
+      values["sandbox-mode"],
+      values["reasoning-effort"],
+      values["config-override"],
+    );
+  } else if (hostRuntime === "claude") {
+    await runClaudeSubagent(
+      projectRoot,
+      boundedPrompt,
+      outputPath,
+      values.model,
+      values["reasoning-effort"],
+    );
+  } else {
+    throw new Error(`Unsupported --host-runtime for subagent: ${hostRuntime}`);
+  }
+
+  const outputText = await fs.readFile(outputPath, "utf8");
+  if (outputText.trim().length === 0) {
+    throw new Error(`Subagent executor produced empty output: ${outputPath}`);
+  }
+
+  console.log(
+    JSON.stringify(
+      {
+        unit_id: unitId,
+        unit_kind: unitKind,
+        packet_path: packetPath,
+        output_path: outputPath,
+        realization: "subagent",
+        host_runtime: hostRuntime,
+      },
+      null,
+      2,
+    ),
+  );
+  return 0;
+}
+
+async function main(): Promise<number> {
+  return runSubagentReviewUnitExecutorCli(process.argv.slice(2));
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().then(
+    (exitCode) => process.exit(exitCode),
+    (error: unknown) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    },
+  );
+}

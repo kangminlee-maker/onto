@@ -1,0 +1,33 @@
+{
+  "name": "onto-productization-core",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:ts-core": "tsc -p tsconfig.json",
+    "check:ts-core": "tsc -p tsconfig.json --noEmit",
+    "review:write-interpretation": "tsx src/core-runtime/cli/write-review-interpretation.ts",
+    "review:bootstrap-binding": "tsx src/core-runtime/cli/bootstrap-review-binding.ts",
+    "review:materialize-execution-preparation": "tsx src/core-runtime/cli/materialize-review-execution-preparation.ts",
+    "review:prepare-session": "tsx src/core-runtime/cli/prepare-review-session.ts",
+    "review:materialize-prompt-packets": "tsx src/core-runtime/cli/materialize-review-prompt-packets.ts",
+    "review:start-session": "tsx src/core-runtime/cli/start-review-session.ts",
+    "review:run-prompt-execution": "tsx src/core-runtime/cli/run-review-prompt-execution.ts",
+    "review:mock-unit-executor": "tsx src/core-runtime/cli/mock-review-unit-executor.ts",
+    "review:subagent-unit-executor": "tsx src/core-runtime/cli/subagent-review-unit-executor.ts",
+    "review:agent-teams-unit-executor": "tsx src/core-runtime/cli/agent-teams-review-unit-executor.ts",
+    "review:codex-unit-executor": "tsx src/core-runtime/cli/codex-review-unit-executor.ts",
+    "review:invoke": "tsx src/core-runtime/cli/review-invoke.ts",
+    "review:render-final-output": "tsx src/core-runtime/cli/render-review-final-output.ts",
+    "review:finalize-session": "tsx src/core-runtime/cli/assemble-review-record.ts",
+    "review:complete-session": "tsx src/core-runtime/cli/complete-review-session.ts",
+    "review:assemble-record": "tsx src/core-runtime/cli/assemble-review-record.ts"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

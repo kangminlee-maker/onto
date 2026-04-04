@@ -1,0 +1,601 @@
+# Productization Charter
+
+> 상태: Active
+> 목적: `onto` 메인 레포의 제품화 목표, 개발 원칙, 개발 방향, 현재 우선순위를 하나의 상위 문서로 고정한다.
+> 기준 문서:
+> - `authority/core-lexicon.yaml`
+> - `dev-docs/development-methodology.md`
+> - `dev-docs/ontology-as-code-naming-charter.md`
+> - `dev-docs/ontology-as-code-korean-terminology-guide.md`
+> - `dev-docs/prototype-to-service-productization-plan.md`
+> - `dev-docs/review-productized-live-path.md`
+
+---
+
+## 1. Position
+
+현재 [`onto`](/Users/kangmin/cowork/onto) 메인 레포는
+`LLM 프롬프트 + 규칙` 중심의 프로토타입이다.
+
+우리가 하고 있는 일은 이 프로토타입을 버리고 새 제품을 만드는 것이 아니다.
+
+정확히는:
+
+- 이미 동작하는 프로토타입의 핵심 behavior를 보존하면서
+- `ontology as code` 기준으로 개념, 계약, artifact를 다시 세우고
+- 그 위에 `제품화된 실시간 경로 (productized live path)`를 먼저 정착시키고
+- 이후 한 경계씩 제품형 구현으로 치환하는 것
+
+이다.
+
+즉 이 레포는:
+
+- `reference prototype`
+- `prompt-backed reference execution source`
+- `productization target`
+
+를 동시에 가진 전환 레포다.
+
+---
+
+## 2. Product Goal
+
+이 레포의 목표는 단순한 runtime rewrite가 아니다.
+
+최종 목표는 아래와 같다.
+
+1. `LLM`의 강점을 유지한다
+2. 형식, 내용, 로직이 모두 결정론적으로 고정된 책임만 코드로 치환한다
+3. host/model/provider가 바뀌어도 유지되는 `model-independent structure`를 만든다
+4. prompt path와 implementation path가 같은 artifact truth를 보도록 만든다
+5. 모든 핵심 개념이 파일시스템, 타입, 변수명, 문서에서 일관되게 연결되도록 만든다
+
+한 문장으로 말하면:
+
+`onto`를 `prompt-heavy prototype`에서
+`ontology-as-code authority를 가진 service/product line`으로 바꾸는 것이 목표다.
+
+---
+
+## 3. Non-Goals
+
+아래는 현재 목표가 아니다.
+
+1. 모든 영역을 무조건 deterministic runtime code로 바꾸는 것
+2. `LLM`을 없애는 것
+3. 기존 프로토타입의 prompt path를 성급하게 폐기하는 것
+4. host-specific 구현을 먼저 최적화하는 것
+5. artifact truth 없이 코드만 먼저 늘리는 것
+
+즉 현재 방향은:
+
+- `LLM-free system`
+- `prompt 제거`
+- `runtime-first rewrite`
+
+가 아니다.
+
+---
+
+## 4. Fundamental Principle
+
+### 4.1 `LLM-independent`는 `model-independent`
+
+이 프로젝트에서 `LLM-independent`는
+`LLM 없이 동작한다`는 뜻이 아니다.
+
+정확한 뜻은:
+
+- 특정 model에 종속되지 않는다
+- 특정 host에 종속되지 않는다
+- 특정 provider나 prompt surface에 종속되지 않는다
+
+이다.
+
+### 4.2 mixed product를 허용한다
+
+최종 제품은 두 형태 모두 가능하다.
+
+1. 대부분이 runtime code로 치환된 제품
+2. `LLM`과 runtime이 함께 작동하는 mixed 제품
+
+따라서 중요한 것은 치환 비율이 아니라
+`어떤 책임이 LLM 소유인가`, `어떤 책임이 runtime 소유인가`를 정확히 자르는 것이다.
+
+### 4.3 의미 판단은 `LLM`, 결정론적 계약 실행은 runtime
+
+원칙은 아래다.
+
+- semantic interpretation, semantic judgment, relevance judgment, evidence sufficiency judgment는 `LLM`
+- explicit input을 닫힌 세계에서 검증하고, 미리 정해진 규칙대로 결속/기록하는 일만 runtime
+
+즉:
+
+- `호출 해석 (InvocationInterpretation)`은 `LLM`
+- `호출 고정 (InvocationBinding)`은 runtime
+
+이다.
+
+여기서 runtime은:
+
+- `reasoner`가 아니다
+- 넓은 의미의 `orchestrator`도 아니다
+- **결정론적 계약 실행기 (deterministic contract executor)** 여야 한다
+- 동시에 **적합성 게이트 (conformance gate)** 여야 한다
+
+즉 runtime이 맡을 수 있는 일은 아래 조건을 모두 만족해야 한다.
+
+1. 입력이 명시적이다
+2. 규칙이 사전에 고정되어 있다
+3. hidden interpretation이 없다
+4. 같은 입력이면 같은 출력이 나온다
+5. 형식, 내용, 로직이 모두 결정론적이다
+
+아주 간단한 실무 규칙으로 말하면:
+
+- `script`로 안전하게 자동화할 수 없는 일은 `LLM` 소유다
+
+여기서 중요한 보조 원칙은 아래다.
+
+- runtime은 `LLM`의 의미 판단을 대신하지 않는다
+- runtime은 `LLM`의 변동을 **허용된 계약 범위 안에만 머물게 강제**한다
+- contract를 충족하지 못한 output은 해석하거나 타협하지 않고 `fail-close` 한다
+
+즉 runtime의 역할은
+`LLM`을 semantic하게 결정론적으로 만드는 것이 아니라,
+**입력, 출력, artifact, gate를 결정론적으로 고정해서 drift를 봉쇄하는 것**이다.
+
+### 4.4 core는 TypeScript로 구현한다
+
+`ontology as code`의 core productization layer는 TypeScript로 구현한다.
+
+이 원칙은 아래를 함께 묶는다.
+
+1. `authority/core-lexicon.yaml`
+2. contract 문서
+3. TypeScript type/interface
+4. artifact field name
+5. runtime variable name
+6. filesystem artifact seat
+
+즉 concept, type, variable, path가 따로 놀면 안 된다.
+
+### 4.5 혼합 단계는 반드시 분리한다
+
+semantic interpretation와 deterministic binding이 섞인 단계는
+하나의 단계로 collapse하면 안 된다.
+
+즉 mixed stage가 보이면 아래 둘로 분리해야 한다.
+
+1. `LLM interpretation`
+2. `runtime binding`
+
+이 레포에서 그 canonical seat가
+`호출 해석 (InvocationInterpretation)`과 `호출 고정 (InvocationBinding)`이다.
+
+### 4.6 prompt process identity를 강제한다
+
+`프롬프트 기반 기준 경로 (PromptBackedReferencePath)`는
+설계의 대략적인 근사치가 아니라,
+설계된 execution contract의 reference realization이어야 한다.
+
+즉 아래는 authority contract에 의해 고정되어야 한다.
+
+1. 어떤 prompt contract를 쓰는가
+2. 어떤 input artifact bundle을 읽는가
+3. 어떤 execution step을 따르는가
+4. 어떤 output shape를 반환하는가
+5. 어떤 lineage artifact를 남기는가
+
+허용되지 않는 것:
+
+- target마다 ad hoc prompt로 절차를 바꾸는 것
+- 설계 문서에 없는 reasoning step을 adapter 내부에서 암묵적으로 추가하는 것
+- contract에 없는 output field를 사실상 required처럼 쓰는 것
+
+### 4.7 invocation usability와 semantic usefulness를 분리한다
+
+artifact를 만들 수 있고 호출이 된다고 해서,
+그 결과가 곧 유용한 semantic result라는 뜻은 아니다.
+
+따라서 아래는 분리해서 다룬다.
+
+1. invocation usability
+2. semantic usefulness
+
+특히 `review`는 route/E2E가 통과해도 semantic usefulness가 별도로 증명되어야 한다.
+
+### 4.8 fail-close가 기본 posture다
+
+semantic quality와 unlock 조건이 증명되기 전까지는
+최종 result를 production truth로 공개하지 않는다.
+
+즉:
+
+- lineage가 있어도 자동 unlock하지 않는다
+- useful-result quality bar가 있어야 한다
+- provenance와 unlock policy가 있어야 한다
+
+증명 전 기본 posture는 `fail-close`다.
+
+### 4.9 hardened runtime authority는 prose-only 문서를 직접 authority로 소비하지 않는다
+
+prompt-backed reference path에서는 prose 문서가 reference execution source가 될 수 있다.
+
+하지만 hardened runtime core는 궁극적으로 아래를 authoritative input으로 삼아야 한다.
+
+1. machine-readable authority asset
+2. typed artifact
+3. typed contract
+
+즉 prose `dev-docs/`는 설명과 source material일 수는 있어도,
+hardened runtime의 최종 input authority가 되면 안 된다.
+
+### 4.10 reference path는 comparison path이지 authoritative core가 아니다
+
+prototype path, reference path, comparison path는 기준과 회귀 비교의 역할을 할 수 있다.
+
+하지만 아래는 금지한다.
+
+1. reference path를 authoritative core로 장기 병행 운영
+2. TS core 실패 시 reference path로 silent fallback
+3. reference path와 core path가 다른 artifact truth를 독자적으로 발전시키는 것
+
+---
+
+## 5. Decision Criteria
+
+현재 제품화 판단은 아래 기준으로 수행한다.
+
+### 5.1 `LLM` / runtime ownership 판정 기준
+
+아래 질문으로 판정한다.
+
+1. semantic ambiguity가 있는가
+2. open-world judgment가 필요한가
+3. context relevance ranking이 필요한가
+4. evidence sufficiency judgment가 필요한가
+5. explicit input을 closed-world로 검증/결속/기록하는 일인가
+6. hidden interpretation 없이 end-to-end `script` 자동화가 가능한가
+7. 같은 입력에 대해 항상 같은 출력이 나오는가
+8. 결과를 semantic 재해석 없이 predeclared contract로 적합성 검사할 수 있는가
+
+판정:
+
+- `semantic ambiguity`가 있으면 `LLM`
+- `open-world judgment`가 필요하면 `LLM`
+- relevance ranking은 `LLM`
+- evidence sufficiency judgment는 `LLM`
+- hidden interpretation 없는 `closed-world validation`이면 runtime
+- same-input/same-output가 보장되는 binding / persistence만 runtime
+- semantic 재해석 없이 contract conformance를 강제할 수 있으면 runtime
+
+### 5.2 core runtime 언어 선택 기준
+
+core runtime 언어는 아래 기준으로 평가한다.
+
+1. core contract 표현력
+2. ontology-as-code 적합성
+3. optional worker 연계성
+4. 성능 모델 적합성
+5. 구현 비용
+6. 변경 용이성
+7. boundary 적합성
+
+### 5.3 cutover 기준
+
+authoritative core cutover는 parity 없이 하지 않는다.
+
+최소 기준:
+
+1. artifact parity
+2. route parity
+3. fail-closed parity
+4. freshness parity
+5. comparison path가 authoritative가 아님이 보장됨
+
+### 5.4 semantic unlock 기준
+
+`review` unlock은 아래 두 축이 모두 필요하다.
+
+1. execution lineage 신뢰 가능성
+2. production semantic quality bar 충족
+
+즉 lineage completeness만으로는 unlock되지 않는다.
+
+---
+
+## 6. Current Decisions
+
+현재 시점의 핵심 결정은 아래다.
+
+### 6.1 TS core first
+
+`ontology as code`의 core runtime과 현재 MVP 구현 우선순위는 TypeScript에 둔다.
+
+의미:
+
+- typed contract와 artifact를 TS에서 먼저 닫는다
+- current MVP path는 TS-only로도 완결 가능해야 한다
+
+### 6.2 optional worker는 언어중립 boundary로 둔다
+
+optional worker는 허용하지만 architecture의 중심축이 되면 안 된다.
+
+의미:
+
+- worker boundary는 열어 둔다
+- protocol은 언어중립으로 유지한다
+- current MVP path는 worker 없이도 작동해야 한다
+
+### 6.3 reference path는 bounded comparison role만 가진다
+
+prototype/reference path는 아래 역할만 가진다.
+
+1. 설계 해석의 기준
+2. parity 검증의 비교 대상
+3. adapter 구조 설계의 힌트
+
+즉 authoritative core가 아니다.
+
+### 6.4 `review`는 final unlock 전까지 fail-close를 유지한다
+
+현재 `review`는 lineage와 artifact를 만들 수 있어도
+semantic quality bar와 unlock policy가 닫히기 전까지는
+fail-close posture를 유지한다.
+
+### 6.5 `review`가 `learn/govern`보다 먼저 boundary를 닫는다
+
+현재 단계에서 `review`는 record를 만드는 단계이고,
+`learn/govern`는 그 이후 읽는 단계로 둔다.
+
+즉 `review`가 candidate/provisional/promotion을 직접 먹는 구조로 되돌아가면 안 된다.
+
+### 6.6 host-native invocation을 유지한다
+
+사용자는 shell 인자를 기억하지 않아도 되어야 한다.
+
+즉 host는 자기 방식으로 자연어 요청을 받아
+canonical entrypoint path로 연결할 수 있어야 한다.
+
+---
+
+## 7. Development Method
+
+개발 순서는 아래를 따른다.
+
+`설계 -> 프롬프트 기반 기준 경로 (PromptBackedReferencePath) -> acceptance observation -> 구현 치환 단계 (ImplementationReplacementStep)`
+
+의미:
+
+1. 먼저 contract와 ontology seat를 설계한다
+2. 그 설계대로 실제 prompt path를 작동시킨다
+3. 실제 결과를 보고 useful-result와 quality를 확인한다
+4. 그 다음에 한 boundary씩 runtime implementation으로 치환한다
+
+중요:
+
+- implementation이 prompt path를 추월하면 안 된다
+- prompt path와 implementation path는 같은 artifact truth를 봐야 한다
+- replacement 이후에는 artifact completeness와 semantic usefulness drift를 비교해야 한다
+
+---
+
+## 8. Always-Keep-Working Rule
+
+이 레포는 매 단계에서 실제로 작동 가능한 상태를 유지해야 한다.
+
+즉 아래 interface는 항상 유효해야 한다.
+
+1. 이미 치환된 runtime 단계
+2. 아직 prompt로 남아 있는 단계
+3. 둘 사이의 artifact handoff
+
+허용되지 않는 것:
+
+- 중간 단계에서 path가 끊기는 상태를 오래 두는 것
+- prompt path와 runtime path가 다른 artifact를 쓰는 것
+- 문서상 계약과 실제 실행 seat가 어긋나는 것
+
+---
+
+## 9. Review-First Strategy
+
+현재 제품화의 첫 대상은 `검토 (review)`다.
+
+이유:
+
+1. 현재 프로토타입에서 가장 핵심적인 사용자 가치가 `review`에 있다
+2. `review`는 `LLM` 판단과 결정론적 계약 실행 경계를 가장 선명하게 나눌 수 있다
+3. `review`를 정리하면 이후 `build`, `learn`, `govern`에도 공통 구조를 이식할 수 있다
+
+따라서 현재 1순위는:
+
+`검토 (review)`의 `제품화된 실시간 경로 (productized live path)`를 canonical execution truth로 정착시키는 것
+
+이다.
+
+---
+
+## 10. Canonical Review Direction
+
+`review`의 canonical 구조는 아래다.
+
+1. `호출 해석 (InvocationInterpretation)`
+2. 사용자 확인 / 선택 확정
+3. `호출 고정 (InvocationBinding)`
+4. execution preparation artifacts
+5. `9개 lens` 독립 실행
+6. `종합 단계 (synthesize)`
+7. `리뷰 기록 (ReviewRecord)`
+8. human-readable final output
+
+여기서 중요한 구조 원칙은 세 가지다.
+
+### 8.1 `9개 lens + synthesize`
+
+`review`는 더 이상 legacy `agent panel + philosopher` 구조를 canonical로 두지 않는다.
+
+canonical은:
+
+- `onto_logic`
+- `onto_structure`
+- `onto_dependency`
+- `onto_semantics`
+- `onto_pragmatics`
+- `onto_evolution`
+- `onto_coverage`
+- `onto_conciseness`
+- `onto_axiology`
+- `onto_synthesize`
+
+이다.
+
+### 8.2 `New Perspectives`는 `onto_axiology` 소유
+
+새 관점을 제안하는 일은 `종합 단계 (synthesize)`가 아니라
+`가치/목적 정합 lens (onto_axiology)`가 맡아야 한다.
+
+`onto_synthesize`는 새 lens가 아니며,
+기존 lens 결과를 보존적으로 종합해야 한다.
+
+### 8.3 맥락 격리 추론 단위 유지
+
+legacy source path의 `subagent`/독립 teammate 모드는 우연한 구현이 아니다.
+
+우리가 실제로 보존해야 하는 canonical 개념은
+**맥락 격리 추론 단위 (ContextIsolatedReasoningUnit)** 다.
+
+이건 canonical requirement다.
+
+이유:
+
+1. `lens`별 독립성 보장
+2. 메인 `LLM` 콘텍스트 보존
+3. 메인 콘텍스트의 의미 drift를 무비판적으로 따라가지 않는 독립 의미 검증 확보
+
+가능한 realization 예:
+
+- `Agent Teams teammate`
+- `subagent`
+- `MCP`로 분리된 `LLM`
+- `external model worker`
+
+host realization은 달라도 아래는 유지해야 한다.
+
+- 각 lens는 독립 실행 단위로 돈다
+- Round 1에서 다른 lens 결과를 보지 않는다
+- 메인 콘텍스트는 per-lens reasoning으로 포화되지 않는다
+- `synthesize`는 후행 단계로 lens 결과를 읽는다
+
+즉 중요한 것은 구현 이름이 아니라
+`맥락 비공유`, `계약된 입력/출력`, `독립 판단`이라는 성질이다.
+
+### 8.4 execution profile 기본값은 host-runtime 기반이지만 사용자 override 가능
+
+canonical execution profile은 아래 두 축으로 표현한다.
+
+- `execution_realization`
+- `host_runtime`
+
+기본 매핑은 아래다.
+
+- `codex` host runtime → `subagent`
+- `claude` host runtime → `agent-teams`
+
+하지만 이건 절대 우선순위나 품질 위계가 아니다.
+사용자가 명시적으로 설정하면 그것이 우선한다.
+
+즉 현재 채택된 원칙은:
+
+- `codex` 환경에서 `subagent`가 기본
+- `claude` 환경에서 `agent-teams`가 기본
+- `claude` 환경에서도 `subagent`를 선택할 수 있음
+
+이다.
+
+---
+
+## 11. Artifact Truth
+
+현재 제품화의 핵심 artifact는 `리뷰 기록 (ReviewRecord)`다.
+
+원칙:
+
+- `round1/*.md`와 `synthesis.md`는 human-readable source layer
+- canonical primary artifact는 `review-record.yaml`
+- later `learn/govern`는 `ReviewRecord`를 읽어야 한다
+
+즉 prompt path와 runtime path는 모두 아래를 중심으로 맞춰야 한다.
+
+- `interpretation.yaml`
+- `binding.yaml`
+- `session-metadata.yaml`
+- `execution-preparation/*`
+- `review-record.yaml`
+
+이 artifact seat가 이 레포의 현재 `review` truth다.
+
+---
+
+## 12. Current Priority Order
+
+현재 우선순위는 아래 순서를 따른다.
+
+1. `검토 (review)`의 `제품화된 실시간 경로 (productized live path)`를 canonical 실행 경로로 재정의
+2. `9개 lens + 종합 단계 (synthesize)` 구조를 실제 실행 truth로 정착
+3. `맥락 격리 추론 단위 (ContextIsolatedReasoningUnit)`를 유지해서
+   - `lens` 독립성 보장
+   - 메인 콘텍스트 보존
+4. `리뷰 기록 (ReviewRecord)`를 actual primary artifact로 도입
+5. 그 뒤에 한 경계씩 runtime 구현으로 치환
+
+지금은 1~4의 기준선과 첫 bounded TS runtime replacement가 올라간 상태다.
+
+---
+
+## 13. Success Criteria
+
+현재 라운드의 성공 기준은 아래다.
+
+1. 문서, 명령, process, type, artifact seat가 같은 ontology concept를 가리킨다
+2. prompt-backed path가 실제 artifact를 만든다
+3. bounded runtime replacement가 같은 artifact를 쓴다
+4. `review`의 live path가 legacy wording이 아니라 canonical live truth를 따른다
+5. 이후 `build`, `learn`, `govern`도 같은 방법론으로 확장 가능하다
+
+---
+
+## 14. Operating Rule
+
+앞으로 새 작업을 시작할 때는 아래 순서로 판단한다.
+
+1. 이 작업이 어떤 ontology concept를 바꾸는가
+2. 그 concept의 canonical seat가 어디인가
+3. 이것이 `LLM` 소유인지 runtime 소유인지
+4. prompt-backed path에서 먼저 작동시킬 수 있는가
+5. 이후 어떤 bounded TS runtime step으로 치환할 것인가
+
+즉:
+
+- 개념 없이 코드로 가지 않는다
+- artifact truth 없이 구현하지 않는다
+- prompt path와 runtime path를 따로 진화시키지 않는다
+
+---
+
+## 15. Authority
+
+이 문서는 아래를 한 번에 묶는 상위 charter다.
+
+- 목표
+- 비목표
+- 책임 분리 원칙
+- 판정 기준
+- 현재 결정
+- 제품화 방법론
+- 현재 우선순위
+- `review-first` 방향
+- artifact truth 기준
+
+세부 실행 계약은 하위 문서들이 가진다.

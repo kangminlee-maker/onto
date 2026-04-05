@@ -444,6 +444,46 @@ rm -f /tmp/onto-e2e-a.out /tmp/onto-e2e-b.out
 echo ""
 
 # ─────────────────────────────────────────────
+# 10. PREPARE-ONLY
+# ─────────────────────────────────────────────
+
+echo "── Prepare-Only ──"
+
+echo "=== E38: prepare-only ==="
+E38_OUT=$(npm run review:invoke -- \
+  src/ "prepare only test" \
+  --executor-realization mock --review-mode light --prepare-only 2>&1)
+E38_EXIT=$?
+E38_PREPARE=$(echo "$E38_OUT" | grep '"prepare_only"' | head -1)
+E38_SESSION_ROOT=$(echo "$E38_OUT" | grep '"session_root"' | head -1 | sed 's/.*: "//;s/".*//')
+
+if [ $E38_EXIT -eq 0 ] && [ -n "$E38_PREPARE" ] && [ -d "$E38_SESSION_ROOT" ]; then
+  # Verify session artifacts exist
+  if [ -f "$E38_SESSION_ROOT/execution-plan.yaml" ] && \
+     [ -f "$E38_SESSION_ROOT/binding.yaml" ] && \
+     [ -d "$E38_SESSION_ROOT/prompt-packets" ]; then
+    # Verify execution artifacts do NOT exist (execution was skipped)
+    if [ ! -f "$E38_SESSION_ROOT/execution-result.yaml" ] && \
+       [ ! -f "$E38_SESSION_ROOT/review-record.yaml" ] && \
+       [ ! -f "$E38_SESSION_ROOT/final-output.md" ]; then
+      echo "  PASS  E38: prepare-only (session prepared, execution skipped)"
+      PASS_COUNT=$((PASS_COUNT + 1))
+    else
+      echo "  FAIL! E38: prepare-only (execution artifacts should not exist)"
+      UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+    fi
+  else
+    echo "  FAIL! E38: prepare-only (session artifacts missing)"
+    UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+  fi
+else
+  echo "  FAIL! E38: prepare-only (exit=$E38_EXIT, prepare_only=$E38_PREPARE)"
+  UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+fi
+
+echo ""
+
+# ─────────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────────
 

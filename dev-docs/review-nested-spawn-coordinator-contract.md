@@ -27,9 +27,14 @@
 
 1. Bash tool로 실행:
    ```
-   npm run review:start-session -- {$ARGUMENTS 전체 전달}
+   npm run review:invoke -- {$ARGUMENTS} --prepare-only
    ```
-2. JSON stdout에서 `session_root` 파싱.
+   이 명령은 모든 전처리(positional 파싱, target stat, 도메인 해석, lens set 결정)와
+   세션 준비(artifact, prompt packet 생성)를 수행한 뒤, 실행/완료 없이 반환한다.
+2. JSON stdout(`PrepareOnlyResult`)에서 파싱:
+   - `session_root` — 세션 디렉토리 경로
+   - `request_text` — 원본 요청 텍스트. **이 값은 `execution-plan.yaml`에 없으며, Phase 6의 `review:complete-session --request-text`에 필수**. 반드시 보존한다.
+   - `execution_realization`, `host_runtime`, `review_mode` — 참고용 (execution-plan.yaml에서도 도출 가능)
 3. `{session_root}/execution-plan.yaml` 읽기. 이하 모든 값은 이 artifact에서 도출:
    - `session_id`
    - `execution_realization`

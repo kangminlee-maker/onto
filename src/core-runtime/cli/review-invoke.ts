@@ -29,6 +29,29 @@ type HostRuntime = "codex" | "claude";
 type ReviewTargetScopeKind = "file" | "directory" | "bundle";
 type ReviewMode = "light" | "full";
 type BoundaryDecisionAction = "approve_external_boundary" | "rerun_target" | "cancel";
+
+/**
+ * Output of `review:invoke --prepare-only`.
+ *
+ * Runs all pre-processing (positional parsing, target stat, domain resolution,
+ * lens set determination) and session preparation (artifacts, prompt packets),
+ * then returns without executing lenses or completing the session.
+ *
+ * The Nested Spawn Coordinator uses this to get `session_root` and then
+ * dispatches lenses via Agent tool.
+ *
+ * `request_text` is the **only** value not derivable from session artifacts
+ * (not present in execution-plan.yaml). It must be preserved and passed to
+ * `review:complete-session --request-text` later.
+ */
+interface PrepareOnlyResult {
+  prepare_only: true;
+  session_root: string;
+  request_text: string;
+  execution_realization: ExecutionRealization;
+  host_runtime: HostRuntime;
+  review_mode: ReviewMode;
+}
 interface OntoConfig {
   /** Conceptual execution model: subagent | agent-teams */
   execution_realization?: string;
@@ -173,7 +196,7 @@ const KNOWN_INVOKE_ONLY_OPTION_NAMES = [
   "diff-range",
 ] as const;
 
-const KNOWN_INVOKE_ONLY_FLAG_NAMES = ["codex", "claude"] as const;
+const KNOWN_INVOKE_ONLY_FLAG_NAMES = ["codex", "claude", "prepare-only"] as const;
 
 function requireString(
   value: string | undefined,
@@ -1345,6 +1368,7 @@ function appendDirectoryListingConfigArgs(
 }
 
 export async function runReviewInvokeCli(argv: string[]): Promise<number> {
+  const prepareOnly = hasOptionFlag(argv, "prepare-only");
   const projectRoot = path.resolve(
     readSingleOptionValueFromArgv(argv, "project-root") ?? ".",
   );
@@ -1395,7 +1419,9 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   const resolvedExecutorRealization =
     readSingleOptionValueFromArgv(argv, "executor-realization") ??
     ontoConfig.executor_realization;
-  if (resolvedExecutorRealization === "api") {
+  // Skip API key validation when --prepare-only: no executor runs in that mode.
+  // Precondition: startReviewSession() does not call any external API.
+  if (!prepareOnly && resolvedExecutorRealization === "api") {
     const apiProvider = readSingleOptionValueFromArgv(argv, "api-provider") ??
       ontoConfig.api_provider ?? "anthropic";
     if (apiProvider === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
@@ -1411,6 +1437,20 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   }
 
   const startResult = await startReviewSession(startArgv);
+
+  if (prepareOnly) {
+    const sessionRoot = path.resolve(startResult.session_root);
+    const result: PrepareOnlyResult = {
+      prepare_only: true,
+      session_root: sessionRoot,
+      request_text: resolvedInvokeInputs.requestText,
+      execution_realization: executionRealization,
+      host_runtime: hostRuntime,
+      review_mode: resolvedInvokeInputs.reviewMode,
+    };
+    console.log(JSON.stringify(result, null, 2));
+    return 0;
+  }
 
   const resolvedProjectRoot = path.resolve(
     readSingleOptionValueFromArgv(startArgv, "project-root") ?? ".",

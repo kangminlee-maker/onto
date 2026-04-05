@@ -36,7 +36,7 @@ When this skill is invoked in a Claude Code session, choose the execution path:
 | 위 플래그 없음 (기본) | **Nested Spawn Coordinator** | Agent tool (현재 세션 내) | 구독 내 |
 
 - **CLI executor path**: 모든 원본 인자를 `npm run review:invoke -- ...`에 전달하고 종료.
-- **Nested Spawn Coordinator (default)**: `dev-docs/review-nested-spawn-coordinator-contract.md`의 7-phase 실행 계약을 따른다. Agent tool로 lens dispatch하므로 세션 인증을 상속하고, lens별 진정한 컨텍스트 격리를 제공한다.
+- **Nested Spawn Coordinator (default)**: `dev-docs/review-nested-spawn-coordinator-contract.md`의 7-phase 실행 계약을 따른다. 전처리와 세션 준비는 `npm run review:invoke -- {$ARGUMENTS} --prepare-only`로 수행하고, lens dispatch는 Agent tool로 실행한다.
 
 해소되는 실무 질문:
 - "Claude Code에서 기본으로 어느 경로?" → Nested Spawn Coordinator (Agent tool)

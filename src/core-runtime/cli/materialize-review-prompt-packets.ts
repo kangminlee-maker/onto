@@ -281,6 +281,20 @@ ${(executionPlan.lens_execution_seats ?? binding.resolved_lens_set.map((lensId) 
 - Start the output with YAML frontmatter using this exact field:
   - \`deliberation_status: not_needed | performed | required_but_unperformed\`
 - Write your result to: ${toRelativePath(executionPlan.synthesis_output_path, projectRoot)}
+
+## Required Output Sections
+Use exactly these heading names in your output. The downstream renderer extracts sections by exact heading match. Do not add numbering prefixes, suffixes, or rename these headings.
+
+\`\`\`
+## Consensus
+## Conditional Consensus
+## Disagreement
+## Axiology-Proposed Additional Perspectives
+## Purpose Alignment Verification
+## Immediate Actions Required
+## Recommendations
+## Unique Finding Tagging
+\`\`\`
 `;
 
   await fs.writeFile(

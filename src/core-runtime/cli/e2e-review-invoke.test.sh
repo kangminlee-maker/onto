@@ -148,7 +148,7 @@ run_expect_pass "T2: dir/full/mock" \
   --executor-realization mock --review-mode full
 
 run_expect_pass "T3: external-dir/auto-approve" \
-  ../AI-data-dashboard "patterns review" \
+  /tmp "external dir review" \
   --executor-realization mock
 
 run_expect_pass "T4: domain-token" \
@@ -156,8 +156,8 @@ run_expect_pass "T4: domain-token" \
   --executor-realization mock --review-mode light
 
 run_expect_pass "T5: diff-range" \
-  ../AI-data-dashboard "changes review" \
-  --diff-range HEAD~1 \
+  . "changes review" \
+  --diff-range ad8ce13..c19e107 \
   --executor-realization mock --review-mode light
 
 run_expect_pass "T6: custom-lenses" \
@@ -201,7 +201,7 @@ echo ""
 echo "── Security ──"
 
 run_expect_fail "E1: diff-range-injection" \
-  ../AI-data-dashboard "test" \
+  . "test" \
   --diff-range '$(echo hacked)' \
   --executor-realization mock
 
@@ -275,7 +275,7 @@ run_expect_fail "E9: diff-no-git" \
   --executor-realization mock --review-mode light
 
 run_expect_fail "E10: invalid-commit" \
-  ../AI-data-dashboard "test" \
+  . "test" \
   --diff-range "0000000..fffffff" \
   --executor-realization mock --review-mode light
 
@@ -304,7 +304,7 @@ run_expect_pass "E19: dotfile" \
   --executor-realization mock --review-mode light
 
 run_expect_fail "E20: diff-empty-range" \
-  ../AI-data-dashboard "no change" \
+  . "no change" \
   --diff-range "HEAD..HEAD" \
   --executor-realization mock --review-mode light
 
@@ -338,13 +338,13 @@ echo ""
 echo "── Option Interactions ──"
 
 run_expect_pass "E24: diff+bundle-priority" \
-  --diff-range HEAD~1 \
+  --diff-range ad8ce13..c19e107 \
   --primary-ref src/core-runtime/cli/review-invoke.ts \
   --member-ref package.json \
   --target-scope-kind bundle \
   --executor-realization mock \
   --request-text "conflict test" \
-  --requested-target ../AI-data-dashboard
+  --requested-target .
 
 run_expect_pass "E25: light+9lenses-override" \
   src/ "override test" \

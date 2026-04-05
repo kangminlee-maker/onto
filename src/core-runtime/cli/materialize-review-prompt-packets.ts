@@ -295,6 +295,9 @@ Use exactly these heading names in your output. The downstream renderer extracts
 ## Recommendations
 ## Unique Finding Tagging
 \`\`\`
+
+## Tagging Completeness Rule
+Every finding from the participating lens outputs must be accounted for in exactly one of these four classification sections: Consensus, Conditional Consensus, Disagreement, or Unique Finding Tagging. A finding may additionally appear in other sections (Recommendations, Immediate Actions, etc.), but it must have a primary classification in one of the four. If a finding is part of a cross-lens consensus, classify it under Consensus or Conditional Consensus. If it is unique to a single lens, classify it under Unique Finding Tagging.
 `;
 
   await fs.writeFile(

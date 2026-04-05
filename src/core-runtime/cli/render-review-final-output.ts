@@ -6,6 +6,7 @@ import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import type {
   InvocationBindingArtifact,
+  ReviewExecutionPlan,
   ReviewExecutionResultArtifact,
   ReviewSessionMetadata,
 } from "../review/artifact-types.js";
@@ -79,6 +80,25 @@ function sectionOrDefault(markdownText: string, headings: string[], fallback = "
   return fallback;
 }
 
+function renderLensFindingsRefs(
+  executionPlan: ReviewExecutionPlan | null,
+  executionResult: ReviewExecutionResultArtifact | null,
+  projectRoot: string,
+): string {
+  const seats = executionPlan?.lens_execution_seats;
+  if (!seats || seats.length === 0) {
+    return "- lens output references unavailable";
+  }
+  const degradedSet = new Set(executionResult?.degraded_lens_ids ?? []);
+  return seats
+    .map((seat) => {
+      const relativePath = toRelativePath(seat.output_path, projectRoot);
+      const marker = degradedSet.has(seat.lens_id) ? " (degraded)" : "";
+      return `- ${seat.lens_id}: \`${relativePath}\`${marker}`;
+    })
+    .join("\n");
+}
+
 function renderTargetSummary(
   bindingArtifact: InvocationBindingArtifact,
   projectRoot: string,
@@ -135,6 +155,10 @@ export async function runRenderReviewFinalOutputCli(
     path.join(sessionRoot, "execution-result.yaml");
   const executionResult = (await fileExists(executionResultPath))
     ? await readYamlDocument<ReviewExecutionResultArtifact>(executionResultPath)
+    : null;
+  const executionPlanPath = path.join(sessionRoot, "execution-plan.yaml");
+  const executionPlan = (await fileExists(executionPlanPath))
+    ? await readYamlDocument<ReviewExecutionPlan>(executionPlanPath)
     : null;
   const sourcePath = (await fileExists(deliberationPath))
     ? deliberationPath
@@ -266,6 +290,9 @@ ${sourceText.length > 0 ? recommendations : "- inspect execution-result.yaml and
 
 ### Unique Finding Tagging
 ${sourceText.length > 0 ? uniqueFindingTagging : degradationSummary}
+
+### Individual Lens Findings
+${renderLensFindingsRefs(executionPlan, executionResult, projectRoot)}
 `;
 
   await fs.writeFile(finalOutputPath, finalOutputText.trimEnd() + "\n", "utf8");

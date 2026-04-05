@@ -40,15 +40,16 @@
 `review`를 건드릴 때는 위 6개 다음으로 아래를 읽는다.
 
 1. [review-productized-live-path.md](/Users/kangmin/cowork/onto/dev-docs/review-productized-live-path.md)
-2. [review-lens-registry.md](/Users/kangmin/cowork/onto/dev-docs/review-lens-registry.md)
-3. [review-interpretation-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-interpretation-contract.md)
-4. [review-binding-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-binding-contract.md)
-5. [review-lens-prompt-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-lens-prompt-contract.md)
-6. [review-synthesize-prompt-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-synthesize-prompt-contract.md)
-7. [review-execution-preparation-artifacts.md](/Users/kangmin/cowork/onto/dev-docs/review-execution-preparation-artifacts.md)
-8. [review-prompt-execution-runner-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-prompt-execution-runner-contract.md)
-9. [review-record-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-record-contract.md)
-10. [review-record-field-mapping.md](/Users/kangmin/cowork/onto/dev-docs/review-record-field-mapping.md)
+2. [review-nested-spawn-coordinator-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-nested-spawn-coordinator-contract.md)
+3. [review-lens-registry.md](/Users/kangmin/cowork/onto/dev-docs/review-lens-registry.md)
+4. [review-interpretation-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-interpretation-contract.md)
+5. [review-binding-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-binding-contract.md)
+6. [review-lens-prompt-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-lens-prompt-contract.md)
+7. [review-synthesize-prompt-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-synthesize-prompt-contract.md)
+8. [review-execution-preparation-artifacts.md](/Users/kangmin/cowork/onto/dev-docs/review-execution-preparation-artifacts.md)
+9. [review-prompt-execution-runner-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-prompt-execution-runner-contract.md)
+10. [review-record-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-record-contract.md)
+11. [review-record-field-mapping.md](/Users/kangmin/cowork/onto/dev-docs/review-record-field-mapping.md)
 
 ---
 

@@ -14,7 +14,7 @@ Preferred repo-local entrypoint:
 
 Internal bounded path:
 
-1. `검토 해석 (InvocationInterpretation)`
+1. `���토 해석 (InvocationInterpretation)`
 2. 사용자 확인 / 선택 확정
 3. `npm run review:start-session -- ...`
 4. `npm run review:run-prompt-execution -- ...`
@@ -26,10 +26,29 @@ Internal bounded path:
    - if the realization has a concurrency limit, use bounded parallel dispatch and backfill freed slots with the next pending lens
 5. `npm run review:complete-session -- --project-root {project} --session-root "{session_root}" --request-text "{original user request}"`
 
+## Execution path selection
+
+When this skill is invoked in a Claude Code session, choose the execution path:
+
+| 조건 | 경로 | 실행 주체 | 비용 모델 |
+|---|---|---|---|
+| `$ARGUMENTS`에 `--execution-realization`, `--executor-bin`, `--host-runtime`, `--codex` 중 하나라도 있음 | **CLI executor** | `npm run review:invoke` (child process) | executor별 (codex 할당량 / API 과금) |
+| 위 플래그 없음 (기본) | **Nested Spawn Coordinator** | Agent tool (현재 세션 내) | 구독 내 |
+
+- **CLI executor path**: 모든 원본 인자를 `npm run review:invoke -- ...`에 전달하고 종료.
+- **Nested Spawn Coordinator (default)**: `dev-docs/review-nested-spawn-coordinator-contract.md`의 7-phase 실행 계약을 따른다. Agent tool로 lens dispatch하므로 세션 인증을 상속하고, lens별 진정한 컨텍스트 격리를 제공한다.
+
+해소되는 실무 질문:
+- "Claude Code에서 기본으로 어느 경로?" → Nested Spawn Coordinator (Agent tool)
+- "`--claude`를 붙이면?" → CLI executor path (`review:invoke`가 resolved profile로 실행)
+- "플래그 없이 실행하면 bound profile은?" → `execution-plan.yaml`의 `execution_realization` + `host_runtime`에서 도출
+
+The coordinator contract is the authority for execution procedure. This command surface only selects the path.
+
 The command surface should stay thin:
-- do not restate detailed process prose here
-- do not invent a parallel execution order here
-- use this file only as the entrypoint instruction that points to the repo-local bounded path
+- do not restate coordinator procedure here — read the contract document
+- do not hard-code lens counts, concurrency values, or execution profile constants
+- all runtime values are derived from `execution-plan.yaml` and `binding.yaml`
 
 **Domain selection**:
 - Append `@{domain}` to specify a domain
@@ -84,6 +103,7 @@ Examples:
 Read the current repo copies of:
 - `AGENTS.md`
 - `dev-docs/review-productized-live-path.md`
+- `dev-docs/review-nested-spawn-coordinator-contract.md`
 - `dev-docs/review-interpretation-contract.md`
 - `dev-docs/review-binding-contract.md`
 - `dev-docs/review-execution-preparation-artifacts.md`

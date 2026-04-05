@@ -18,6 +18,7 @@
 5. `dev-docs/llm-runtime-interface-principles.md`
 6. `commands/review.md`
 7. `dev-docs/review-productized-live-path.md`
+8. `dev-docs/review-nested-spawn-coordinator-contract.md`
 
 중요:
 
@@ -35,29 +36,34 @@
 - directory listing 필터 (62K → 348줄), embed truncation (300줄), kind `directory_listing` 통일 완료.
 - **4 lens + synthesize**: codex executor로 E2E 성공 (세션 `20260405-e8b28bc0`).
 - **9 lens + synthesize**: Agent tool로 E2E 성공 (세션 `20260405-a98b65a7`).
-- E2E 테스트 37건 ALL PASS (`npm run test:e2e`).
+- E2E 테스트 37건 중 36건 PASS (`npm run test:e2e`). 1건(E24 diff+bundle)은 외부 레포 git 상태 문제.
 - edge case 107건 분석, 보안/높은/중간 우선순위 전부 수정.
 - executor 5종 구현: mock, subagent, agent-teams, codex, api (anthropic/openai).
 - `--diff-range` git diff target 지원.
 - 외부 target boundary auto-approve.
 - Claude→codex 자동 fallback.
 - `discovered-enhancements.md`에 진화 항목 4건 기록.
+- **Nested Spawn Coordinator 스킬 구현 완료** (2026-04-06):
+  - `commands/review.md`를 thin entrypoint로 축소 (경로 선택 + 사용자 옵션만 남김)
+  - `dev-docs/review-nested-spawn-coordinator-contract.md` 신규 생성 (7-phase 실행 계약)
+  - 9-lens 자가 리뷰로 검증 → 6건 finding 전부 반영
+  - authority seat 분리, artifact-derived 값 참조, ReviewRecord chain 보강, boundary quartet/extension points 선언
 
 ### 2.2 작동하는 실행 경로
 
 | 환경 | coordinator | lens executor | 비용 | 상태 |
 |---|---|---|---|---|
+| Claude Code 세션 | **Nested Spawn Coordinator** | Agent tool (세션 내) | 구독 | **작동 (권장)** |
 | Claude Code 세션 | Agent coordinator (nested) | Agent subagent | 구독 | **작동** |
-| Claude Code 세션 | Agent coordinator | codex exec | codex 할당량 | **작동** |
-| CLI (어디서든) | `review:invoke` | codex exec | codex 할당량 | **작동** |
 | CLI (어디서든) | `review:invoke` | api (anthropic) | API 과금 | **작동** |
 | CLI (어디서든) | `review:invoke` | api (openai) | API 과금 | **작동** |
-| CLI (어디서든) | `review:invoke` | claude subprocess | 구독 | **불가** (CLI 인증 버그) |
+| CLI (어디서든) | `review:invoke` | mock | 무료 | **작동 (테스트용)** |
 
-### 2.3 작동하지 않는 것
+### 2.3 작동하지 않는 것 / 제한
 
-- Claude CLI subprocess 인증: `CLAUDE_CODE_OAUTH_TOKEN`, setup-token, Keychain 모두 `-p` 모드에서 작동 안 함. `anthropics/claude-code#8938` 미해결. `CLAUDECODE=1` 환경변수 상속 문제도 존재.
-- Claude CLI 버그 수정 전까지 codex executor 또는 Agent tool이 실제 경로.
+- **Codex CLI 비활성화** (2026-04-06): 과금 문제로 `codex` → `codex.disabled`로 이름 변경. codex executor, codex fallback 모두 차단 상태. 재활성화: `mv /opt/homebrew/bin/codex.disabled /opt/homebrew/bin/codex`
+- **Claude CLI subprocess 인증**: `CLAUDE_CODE_OAUTH_TOKEN`, setup-token, Keychain 모두 `-p` 모드에서 작동 안 함. `anthropics/claude-code#8938` 미해결.
+- Claude CLI + Codex 모두 차단된 상태에서 **Nested Spawn Coordinator (Agent tool)이 유일한 실제 리뷰 경로**.
 
 ---
 
@@ -65,17 +71,15 @@
 
 ### 3.1 즉시 진행 가능
 
-1. **nested spawn coordinator 스킬 구현**: Claude Code 세션에서 Agent coordinator가 9 lens를 spawn하는 흐름을 `commands/review.md` 또는 onto:review 스킬에 코드화. 설계는 완료됨.
+1. **Nested Spawn Coordinator 실전 E2E 검증**: Agent tool 경로로 실제 리뷰 1건 실행. `review:start-session` → Agent dispatch → `review:complete-session` 흐름을 commands/review.md 스킬 호출로 end-to-end 검증.
 
-2. **`--diff-range` 실제 executor 테스트**: mock으로만 검증됨. codex executor로 실제 diff review 1건 실행.
+2. **`start-session` arg pre-processing gap 해소**: 현재 coordinator의 Phase 1에서 `review:start-session`에 positional arg를 직접 전달할 수 없음 (start-session은 `--option value` 형식만 인식). `review:invoke`의 `resolveReviewInvokeInputs()` 로직을 coordinator가 수행하거나, `review:invoke --skip-execution` 플래그 추가 필요.
 
-3. **글로벌 플러그인 재동기화**: 코드 변경이 많으므로 글로벌 캐시/마켓플레이스 sync 필요.
+3. **`--diff-range` 실제 executor 테스트**: mock으로만 검증됨. Agent tool 경로로 실제 diff review 1건 실행.
 
-### 3.2 codex 할당량 갱신 후
+4. **글로벌 플러그인 재동기화**: 코드 변경이 많으므로 글로벌 캐시/마켓플레이스 sync 필요.
 
-4. **CLI executor 기반 9-lens full E2E**: codex executor로 `--review-mode full` 실행.
-
-### 3.3 진화 항목 (discovered-enhancements.md)
+### 3.2 진화 항목 (discovered-enhancements.md)
 
 5. directory target 패턴 기반 최소 파일 세트 포함
 6. git diff target의 kind/scope 분리 (현재 `single_text`로 우회)
@@ -110,10 +114,17 @@
 | artifact 유틸 | `src/core-runtime/review/review-artifact-utils.ts`, `materializers.ts` |
 | 타입 | `src/core-runtime/review/artifact-types.ts` |
 | 설정 | `.onto/config.yml` |
+| **스킬 (thin entrypoint)** | `commands/review.md` |
+| **coordinator 계약** | `dev-docs/review-nested-spawn-coordinator-contract.md` |
 
 ---
 
 ## 6. 작업 트리 주의사항
 
-현재 worktree는 dirty 상태다. 문서 + 런타임 코드 변경이 모두 포함되어 있다.
-이 변경들은 현재 제품화 작업의 일부이므로 함부로 reset하지 않는다.
+현재 worktree에 uncommitted 변경이 있다:
+- `AGENTS.md` (수정)
+- `commands/review.md` (수정)
+- `dev-docs/review-nested-spawn-coordinator-contract.md` (신규)
+- `CURRENT_WORK_HANDOFF.md` (수정)
+
+이 변경들은 nested spawn coordinator 구현의 일부이므로 함부로 reset하지 않는다.

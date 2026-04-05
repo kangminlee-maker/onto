@@ -44,6 +44,12 @@
 | `synthesize` | 종합 단계 |
 | `PromptBackedReferencePath` | 프롬프트 기반 기준 경로 |
 | `ImplementationReplacementStep` | 구현 치환 단계 |
+| `DeclaredHandoffInputs` | 선언형 handoff 입력 |
+| `SelfDirectedExplorationInputs` | 자율 탐색 입력 |
+| `BoundaryPolicy` | 경계 정책 |
+| `BoundaryPresentation` | 경계 제시 |
+| `BoundaryEnforcementProfile` | 경계 강제 프로필 |
+| `EffectiveBoundaryState` | 실효 경계 상태 |
 
 ---
 
@@ -66,3 +72,5 @@
 - `운영 결정 (govern)`이 승격 여부를 판단한다.
 - `맥락 격리 추론 단위 (ContextIsolatedReasoningUnit)`의 realization은
   `subagent`, `Agent Teams teammate`, `MCP`로 분리된 `LLM`, `external model worker`처럼 매우 다양할 수 있다.
+- runtime은 `선언형 handoff 입력 (DeclaredHandoffInputs)`만 고정하고,
+  어떤 추가 파일이나 웹 근거를 더 읽을지는 `자율 탐색 입력 (SelfDirectedExplorationInputs)`으로 `LLM`이 스스로 결정한다.

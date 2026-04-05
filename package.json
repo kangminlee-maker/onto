@@ -1,10 +1,13 @@
 {
   "name": "onto-productization-core",
+  "onto_release_channel": "beta",
+  "onto_release_label": "onto-harness",
   "private": true,
   "type": "module",
   "scripts": {
     "build:ts-core": "tsc -p tsconfig.json",
     "check:ts-core": "tsc -p tsconfig.json --noEmit",
+    "test:e2e": "bash src/core-runtime/cli/e2e-review-invoke.test.sh",
     "review:write-interpretation": "tsx src/core-runtime/cli/write-review-interpretation.ts",
     "review:bootstrap-binding": "tsx src/core-runtime/cli/bootstrap-review-binding.ts",
     "review:materialize-execution-preparation": "tsx src/core-runtime/cli/materialize-review-execution-preparation.ts",
@@ -16,6 +19,7 @@
     "review:subagent-unit-executor": "tsx src/core-runtime/cli/subagent-review-unit-executor.ts",
     "review:agent-teams-unit-executor": "tsx src/core-runtime/cli/agent-teams-review-unit-executor.ts",
     "review:codex-unit-executor": "tsx src/core-runtime/cli/codex-review-unit-executor.ts",
+    "review:api-unit-executor": "tsx src/core-runtime/cli/api-review-unit-executor.ts",
     "review:invoke": "tsx src/core-runtime/cli/review-invoke.ts",
     "review:render-final-output": "tsx src/core-runtime/cli/render-review-final-output.ts",
     "review:finalize-session": "tsx src/core-runtime/cli/assemble-review-record.ts",
@@ -23,6 +27,8 @@
     "review:assemble-record": "tsx src/core-runtime/cli/assemble-review-record.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
+    "openai": "^6.33.0",
     "yaml": "^2.8.1"
   },
   "devDependencies": {

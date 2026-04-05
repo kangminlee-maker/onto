@@ -10,6 +10,7 @@ import {
   parseBooleanFlag,
 } from "../review/review-artifact-utils.js";
 import { writeInvocationInterpretationArtifact } from "../review/materializers.js";
+import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -40,6 +41,7 @@ function requireReviewMode(value: string): ReviewMode {
 }
 
 async function main(): Promise<number> {
+  await printOntoReleaseChannelNotice();
   const { values } = parseArgs({
     options: {
       "session-root": { type: "string" },

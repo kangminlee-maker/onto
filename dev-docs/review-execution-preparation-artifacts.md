@@ -36,6 +36,7 @@ lens가 실제로 무엇을 읽어야 하는지가 닫히지 않는다.
   interpretation.yaml
   binding.yaml
   execution-plan.yaml
+  error-log.md
   execution-preparation/
     target-snapshot.md
     target-snapshot-manifest.yaml
@@ -47,6 +48,12 @@ lens가 실제로 무엇을 읽어야 하는지가 닫히지 않는다.
 
 - `interpretation.yaml`과 `binding.yaml`은 invocation phase 산출물이다
 - `execution-plan.yaml`은 lens/synthesize/finalize seat를 고정하는 deterministic coordination artifact다
+- `binding.yaml`과 `execution-plan.yaml`은 boundary seat도 함께 가진다
+  - `BoundaryPolicy`
+  - `BoundaryPresentation`
+  - `BoundaryEnforcementProfile`
+  - `EffectiveBoundaryState`
+- `error-log.md`는 degraded case / partial failure를 기록하는 deterministic conformance log seat다
 - `execution-preparation/` 아래 artifact들은 lens 실행 직전 basis artifact다
 - later runtime implementation도 이 구분은 유지해야 한다
 
@@ -127,7 +134,7 @@ capture_reason: prompt-backed review execution
 허용 shape:
 
 1. `single_text`
-2. `directory_listing_plus_selected_contents`
+2. `directory_listing`
 3. `bundle_member_texts`
 
 원칙:

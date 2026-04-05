@@ -191,6 +191,7 @@ npm run review:start-session -- \
 ```
 
 This writes invocation artifacts, execution preparation artifacts, and deterministic prompt handoff packets under `{session path}/prompt-packets/`.
+These packets should stay lightweight and point to authoritative artifact files rather than duplicating large embedded payloads.
 
 The actual prompt dispatch step should then prefer:
 
@@ -199,8 +200,15 @@ npm run review:run-prompt-execution -- \
   --project-root {project} \
   --session-root "{session path}" \
   --executor-bin {executor bin} \
-  --executor-arg {executor arg}
+  --executor-arg={executor arg} \
+  --max-concurrent-lenses {N}
 ```
+
+canonical requirement:
+
+- lens dispatch는 병렬 실행이 기본이다
+- realization에 동시 실행 제한이 있으면 bounded parallel dispatch를 사용한다
+- slot이 비면 다음 pending lens를 즉시 투입한다
 
 Everything below is reference execution behavior for the prompt-backed path.
 Host-specific realization details are allowed only if they preserve the same artifact truth and
@@ -276,7 +284,7 @@ npm run review:prepare-session -- \
   --host-runtime "{codex|claude}" \
   --review-mode "{light|full}" \
   --lens-id "{lens id}" \
-  --materialized-kind "{single_text|directory_listing_plus_selected_contents|bundle_member_texts}" \
+  --materialized-kind "{single_text|directory_listing|bundle_member_texts}" \
   --materialized-ref "{materialized target ref}" \
   --system-purpose-ref "{system purpose ref}" \
   --execution-rule-ref "{execution rule ref}"
@@ -340,7 +348,7 @@ npm run review:materialize-execution-preparation -- \
   --session-root "{session path}" \
   --scope-kind {file|directory|bundle} \
   --resolved-target-ref "{resolved target ref}" \
-  --materialized-kind "{single_text|directory_listing_plus_selected_contents|bundle_member_texts}" \
+  --materialized-kind "{single_text|directory_listing|bundle_member_texts}" \
   --materialized-ref "{materialized target ref}" \
   --system-purpose-ref "{system purpose ref}" \
   --execution-rule-ref "{execution rule ref}" ...

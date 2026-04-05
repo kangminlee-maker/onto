@@ -193,6 +193,70 @@ review 당시 실제로 읽은 target basis를 보존하는 artifact다.
 
 review lens가 실제 relevance judgment를 하기 전에 접근 가능한 candidate context set이다.
 
+### 3.16 `DeclaredHandoffInputs` (선언형 handoff 입력)
+
+runtime이 한 번의 `LLM` 호출을 위해 미리 선언하고 고정하는 입력 집합이다.
+
+이 집합은 최소 아래를 포함할 수 있다.
+
+- role / task instruction
+- primary target
+- required context
+- output seat
+- control policy
+
+### 3.17 `SelfDirectedExplorationInputs` (자율 탐색 입력)
+
+`LLM`이 문제 해결 중 스스로 획득하는 추가 입력이다.
+
+예:
+
+- 추가 파일 탐색
+- repo 내부 탐색
+- 필요 시 웹 리서치
+- 추가 evidence 확보
+
+중요한 점은,
+이 입력은 `LLM`이 판단해서 획득하는 것이지 runtime이 semantic하게 대신 선택하는 것이 아니라는 점이다.
+
+### 3.18 `BoundaryPolicy` (경계 정책)
+
+하나의 `LLM` 실행에서 무엇이 허용되고 금지되는지 선언하는 정책이다.
+
+예:
+
+- web research 금지
+- 특정 repo root만 read 허용
+- output seat 외 write 금지
+
+### 3.19 `BoundaryPresentation` (경계 제시)
+
+`BoundaryPolicy`를 `LLM`에게 어떤 방식으로 드러내는지에 대한 개념이다.
+
+예:
+
+- prompt packet에 embed
+- artifact ref로 제시
+- capability notice로 제시
+
+### 3.20 `BoundaryEnforcementProfile` (경계 강제 프로필)
+
+선언된 경계가 실제 실행 환경에서 어떻게 강제되는지 설명하는 프로필이다.
+
+예:
+
+- prompt-declared only
+- host-enforced
+- MCP-scoped
+- environment-enforced
+
+### 3.21 `EffectiveBoundaryState` (실효 경계 상태)
+
+정책 선언과 실제 강제 결과를 종합한 최종 적용 경계 상태다.
+
+중요한 점은,
+선언된 정책과 실제 적용 상태가 항상 같다고 가정하면 안 된다는 것이다.
+
 ---
 
 ## 4. Immediate Naming Migration Direction

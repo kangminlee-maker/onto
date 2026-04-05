@@ -10,6 +10,7 @@ import type {
 } from "../review/artifact-types.js";
 import { hasOptionFlag } from "../review/review-artifact-utils.js";
 import { bootstrapInvocationBindingArtifacts } from "../review/materializers.js";
+import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -120,6 +121,7 @@ function requireTargetScopeKind(value: string): ReviewTargetScopeKind {
 }
 
 async function main(): Promise<number> {
+  await printOntoReleaseChannelNotice();
   const { values } = parseArgs({
     options: {
       "project-root": { type: "string", default: "." },

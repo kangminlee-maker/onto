@@ -87,7 +87,11 @@ closed-world validation에 가깝다.
 20. `synthesis_output_path`
 21. `review_record_path`
 22. `final_output_path`
-23. `binding_notes`
+23. `boundary_policy`
+24. `boundary_presentation`
+25. `boundary_enforcement_profile`
+26. `effective_boundary_state`
+27. `binding_notes`
 
 ### 4.1 `resolved_target_scope` shape
 
@@ -178,8 +182,24 @@ target_snapshot_manifest_path: /Users/kangmin/cowork/onto/.onto/review/20260404-
 materialized_input_path: /Users/kangmin/cowork/onto/.onto/review/20260404-a1b2c3d4/execution-preparation/materialized-input.md
 context_candidate_assembly_path: /Users/kangmin/cowork/onto/.onto/review/20260404-a1b2c3d4/execution-preparation/context-candidate-assembly.yaml
 synthesis_output_path: /Users/kangmin/cowork/onto/.onto/review/20260404-a1b2c3d4/synthesis.md
+error_log_path: /Users/kangmin/cowork/onto/.onto/review/20260404-a1b2c3d4/error-log.md
 review_record_path: /Users/kangmin/cowork/onto/.onto/review/20260404-a1b2c3d4/review-record.yaml
 final_output_path: /Users/kangmin/cowork/onto/.onto/review/20260404-a1b2c3d4/final-output.md
+boundary_policy:
+  web_research_policy: denied
+  repo_exploration_policy: allowed
+  recursive_reference_expansion_policy: denied
+boundary_presentation:
+  primary_target_presentation: embedded_and_ref
+  required_context_presentation: ref_only
+boundary_enforcement_profile:
+  prompt_boundary_enforcement: prompt_declared_only
+  network_boundary_enforcement: prompt_declared_only
+effective_boundary_state:
+  web_research:
+    requested_policy: denied
+    effective_policy: denied
+    guarantee_level: prompt_declared_only
 binding_notes:
   - "explicit domain token was not provided; ontology was recommended by interpretation and explicitly confirmed by the user"
   - "full review was preserved from interpretation recommendation"
@@ -238,6 +258,13 @@ prompt-backed reference path에서 team lead는
 
 즉 `binding`은 단순 내부 결정이 아니라,
 artifact seat를 포함한 deterministic shell materialization이다.
+
+또한 현재 `binding`은 최소한 아래 boundary seat를 같이 가져야 한다.
+
+1. `BoundaryPolicy`
+2. `BoundaryPresentation`
+3. `BoundaryEnforcementProfile`
+4. `EffectiveBoundaryState`
 
 ---
 

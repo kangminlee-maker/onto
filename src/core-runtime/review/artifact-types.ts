@@ -3,6 +3,12 @@ export type ReviewTargetScopeKind = "file" | "directory" | "bundle";
 export type ReviewExecutionRealization = "subagent" | "agent-teams";
 export type ReviewHostRuntime = "codex" | "claude";
 export type ReviewMode = "light" | "full";
+export type BoundaryAccessPolicy = "allowed" | "denied";
+export type BoundaryGuaranteeLevel =
+  | "prompt_declared_only"
+  | "host_enforced"
+  | "mcp_scoped"
+  | "environment_enforced";
 export type ReviewRecordStatus =
   | "completed"
   | "completed_with_degradation"
@@ -11,9 +17,15 @@ export type DeliberationStatus =
   | "not_needed"
   | "performed"
   | "required_but_unperformed";
+export type ReviewExecutionStatus =
+  | "completed"
+  | "completed_with_degradation"
+  | "halted_partial";
+export type ReviewUnitKind = "lens" | "synthesize";
+export type ReviewUnitExecutionStatus = "completed" | "failed" | "skipped";
 export type ReviewTargetMaterializedInputKind =
   | "single_text"
-  | "directory_listing_plus_selected_contents"
+  | "directory_listing"
   | "bundle_member_texts";
 
 export interface ReviewTargetScopeCandidate {
@@ -52,6 +64,60 @@ export interface ResolvedTargetScope {
   bundle_kind?: string;
 }
 
+export interface BoundaryPolicy {
+  web_research_policy: BoundaryAccessPolicy;
+  repo_exploration_policy: BoundaryAccessPolicy;
+  recursive_reference_expansion_policy: BoundaryAccessPolicy;
+  filesystem_scope: {
+    allowed_roots: string[];
+  };
+  write_policy: {
+    source_mutation_policy: BoundaryAccessPolicy;
+    allowed_output_refs: string[];
+  };
+  provenance_policy: {
+    extra_exploration_citation_required: boolean;
+    web_source_citation_required: boolean;
+  };
+}
+
+export interface BoundaryPresentation {
+  role_definition_presentation: "embedded_and_ref";
+  primary_target_presentation: "embedded_and_ref";
+  required_context_presentation: "ref_only";
+  output_seat_presentation: "declared";
+  control_policy_presentation: "declared";
+}
+
+export interface BoundaryEnforcementProfile {
+  prompt_boundary_enforcement: BoundaryGuaranteeLevel;
+  filesystem_boundary_enforcement: BoundaryGuaranteeLevel;
+  network_boundary_enforcement: BoundaryGuaranteeLevel;
+  write_boundary_enforcement: BoundaryGuaranteeLevel;
+}
+
+export interface EffectiveBoundaryDecision {
+  requested_policy: BoundaryAccessPolicy;
+  effective_policy: BoundaryAccessPolicy;
+  guarantee_level: BoundaryGuaranteeLevel;
+  notes: string[];
+}
+
+export interface EffectiveFilesystemScope {
+  requested_allowed_roots: string[];
+  effective_allowed_roots: string[];
+  guarantee_level: BoundaryGuaranteeLevel;
+  notes: string[];
+}
+
+export interface EffectiveBoundaryState {
+  web_research: EffectiveBoundaryDecision;
+  repo_exploration: EffectiveBoundaryDecision;
+  recursive_reference_expansion: EffectiveBoundaryDecision;
+  source_mutation: EffectiveBoundaryDecision;
+  filesystem_scope: EffectiveFilesystemScope;
+}
+
 export interface InvocationBindingArtifact {
   resolved_target_scope: ResolvedTargetScope;
   domain_final_selection: DomainFinalSelection;
@@ -73,8 +139,14 @@ export interface InvocationBindingArtifact {
   materialized_input_path: string;
   context_candidate_assembly_path: string;
   synthesis_output_path: string;
+  execution_result_path: string;
+  error_log_path: string;
   review_record_path: string;
   final_output_path: string;
+  boundary_policy: BoundaryPolicy;
+  boundary_presentation: BoundaryPresentation;
+  boundary_enforcement_profile: BoundaryEnforcementProfile;
+  effective_boundary_state: EffectiveBoundaryState;
   binding_notes: string[];
 }
 
@@ -106,8 +178,14 @@ export interface ReviewExecutionPlan {
   synthesize_prompt_packet_path: string;
   synthesis_output_path: string;
   deliberation_output_path: string;
+  execution_result_path: string;
+  error_log_path: string;
   final_output_path: string;
   review_record_path: string;
+  boundary_policy: BoundaryPolicy;
+  boundary_presentation: BoundaryPresentation;
+  boundary_enforcement_profile: BoundaryEnforcementProfile;
+  effective_boundary_state: EffectiveBoundaryState;
 }
 
 export interface ReviewSessionMetadata {
@@ -138,6 +216,47 @@ export interface ContextCandidateAssembly {
   execution_rule_refs: string[];
 }
 
+export interface ReviewUnitExecutionResult {
+  unit_id: string;
+  unit_kind: ReviewUnitKind;
+  packet_path: string;
+  output_path: string;
+  status: ReviewUnitExecutionStatus;
+  started_at: string;
+  completed_at: string;
+  duration_ms: number;
+  failure_message?: string | null;
+}
+
+export interface ReviewExecutionResultArtifact {
+  session_id: string;
+  session_root: string;
+  execution_realization: ReviewExecutionRealization;
+  host_runtime: ReviewHostRuntime;
+  review_mode: ReviewMode;
+  execution_status: ReviewExecutionStatus;
+  execution_started_at: string;
+  execution_completed_at: string;
+  total_duration_ms: number;
+  planned_lens_ids: string[];
+  participating_lens_ids: string[];
+  degraded_lens_ids: string[];
+  excluded_lens_ids: string[];
+  executed_lens_count: number;
+  synthesis_executed: boolean;
+  deliberation_status?: DeliberationStatus | null;
+  halt_reason?: string | null;
+  error_log_path: string;
+  lens_execution_results: ReviewUnitExecutionResult[];
+  synthesize_execution_result?: ReviewUnitExecutionResult | null;
+}
+
+export interface DirectoryListingOptions {
+  excluded_names: string[];
+  max_depth: number;
+  max_entries: number;
+}
+
 export interface ReviewRecord {
   review_record_id: string;
   session_id: string;
@@ -154,6 +273,7 @@ export interface ReviewRecord {
   resolved_execution_realization?: string;
   resolved_host_runtime?: string;
   resolved_lens_ids: string[];
+  execution_result_ref?: string | null;
   session_metadata_ref?: string | null;
   target_snapshot_ref?: string | null;
   materialized_input_ref?: string | null;

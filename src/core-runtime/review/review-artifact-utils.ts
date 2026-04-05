@@ -1,6 +1,33 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import YAML from "yaml";
+import type { DirectoryListingOptions } from "./artifact-types.js";
+
+export const DEFAULT_EXCLUDED_NAMES: readonly string[] = [
+  ".git",
+  "node_modules",
+  ".onto",
+  "dist",
+  "build",
+  ".next",
+  "out",
+  "__pycache__",
+  ".venv",
+  "venv",
+  "coverage",
+  ".cache",
+  ".turbo",
+  ".nuxt",
+  ".output",
+  ".svelte-kit",
+  ".parcel-cache",
+];
+
+export const DEFAULT_DIRECTORY_LISTING_OPTIONS: DirectoryListingOptions = {
+  excluded_names: [...DEFAULT_EXCLUDED_NAMES],
+  max_depth: 10,
+  max_entries: 5000,
+};
 
 export function dumpYamlDocument(data: unknown): string {
   return YAML.stringify(data).trimEnd();
@@ -15,8 +42,51 @@ export async function writeYamlDocument(
 }
 
 export async function readYamlDocument<T>(filePath: string): Promise<T> {
-  const text = await fs.readFile(filePath, "utf8");
-  return YAML.parse(text) as T;
+  let text: string;
+  try {
+    text = await fs.readFile(filePath, "utf8");
+  } catch (error: unknown) {
+    throw new Error(
+      `Failed to read artifact: ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  try {
+    return YAML.parse(text) as T;
+  } catch (error: unknown) {
+    throw new Error(
+      `Failed to parse YAML: ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+export function parseMarkdownFrontmatter<T>(
+  markdownText: string,
+): {
+  metadata: T | null;
+  body: string;
+} {
+  if (!markdownText.startsWith("---\n")) {
+    return {
+      metadata: null,
+      body: markdownText,
+    };
+  }
+
+  const closingIndex = markdownText.indexOf("\n---\n", 4);
+  if (closingIndex === -1) {
+    return {
+      metadata: null,
+      body: markdownText,
+    };
+  }
+
+  const frontmatterText = markdownText.slice(4, closingIndex);
+  const bodyStart = closingIndex + "\n---\n".length;
+  const body = markdownText.slice(bodyStart);
+  return {
+    metadata: YAML.parse(frontmatterText) as T,
+    body,
+  };
 }
 
 export async function ensureDirectory(directoryPath: string): Promise<void> {
@@ -84,14 +154,30 @@ export function parseBooleanFlag(
   throw new Error(`Invalid boolean value for --${optionName}: ${optionValue}`);
 }
 
-export async function collectFilePathsRecursively(rootPath: string): Promise<string[]> {
+export async function collectFilePathsRecursively(
+  rootPath: string,
+  options?: DirectoryListingOptions,
+  currentDepth?: number,
+): Promise<string[]> {
+  const opts = options ?? DEFAULT_DIRECTORY_LISTING_OPTIONS;
+  const depth = currentDepth ?? 0;
+
+  if (depth >= opts.max_depth) {
+    return [];
+  }
+
   const directoryEntries = await fs.readdir(rootPath, { withFileTypes: true });
   const collected: string[] = [];
 
   for (const entry of directoryEntries) {
+    if (opts.excluded_names.includes(entry.name)) {
+      continue;
+    }
     const entryPath = path.join(rootPath, entry.name);
     if (entry.isDirectory()) {
-      collected.push(...(await collectFilePathsRecursively(entryPath)));
+      collected.push(
+        ...(await collectFilePathsRecursively(entryPath, opts, depth + 1)),
+      );
       continue;
     }
     if (entry.isFile()) {
@@ -102,25 +188,56 @@ export async function collectFilePathsRecursively(rootPath: string): Promise<str
   return collected.sort();
 }
 
-export async function readTextOrDirectoryListing(targetPath: string): Promise<string> {
+export async function readTextOrDirectoryListing(
+  targetPath: string,
+  options?: DirectoryListingOptions,
+): Promise<string> {
   const stats = await fs.stat(targetPath);
   if (!stats.isDirectory()) {
-    return fs.readFile(targetPath, "utf8");
+    try {
+      return await fs.readFile(targetPath, "utf8");
+    } catch (error: unknown) {
+      throw new Error(
+        `Failed to read target file: ${targetPath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
-  const filePaths = await collectFilePathsRecursively(targetPath);
-  const listing = filePaths.length
-    ? filePaths
-        .map((filePath) => `- ${path.relative(targetPath, filePath).split(path.sep).join(path.posix.sep)}`)
-        .join("\n")
-    : "(empty directory)";
-  return `[Directory Listing]\n${listing}\n`;
+  const opts = options ?? DEFAULT_DIRECTORY_LISTING_OPTIONS;
+  if (opts.max_depth < 1) {
+    console.warn(
+      `[onto] Warning: max_depth is ${opts.max_depth}. No files will be listed.`,
+    );
+  }
+  const allPaths = await collectFilePathsRecursively(targetPath, opts);
+  const truncated = allPaths.length > opts.max_entries;
+  const filePaths = truncated ? allPaths.slice(0, opts.max_entries) : allPaths;
+
+  let listing: string;
+  if (filePaths.length > 0) {
+    listing = filePaths
+      .map((filePath) => `- ${path.relative(targetPath, filePath).split(path.sep).join(path.posix.sep)}`)
+      .join("\n");
+  } else {
+    const rawEntries = await fs.readdir(targetPath);
+    listing = rawEntries.length > 0
+      ? `(empty after filtering — ${rawEntries.length} entries excluded by listing options)`
+      : "(empty directory)";
+  }
+
+  const truncationNote = truncated
+    ? `\n(listing truncated at ${opts.max_entries} entries; ${allPaths.length} total files found)\n`
+    : "";
+  return `[Directory Listing]\n${listing}\n${truncationNote}`;
 }
 
-export async function renderTargetSnapshot(resolvedTargetRefs: string[]): Promise<string> {
+export async function renderTargetSnapshot(
+  resolvedTargetRefs: string[],
+  options?: DirectoryListingOptions,
+): Promise<string> {
   const sections: string[] = [];
   for (const resolvedTargetRef of resolvedTargetRefs) {
-    sections.push(`## ${resolvedTargetRef}`, "", await readTextOrDirectoryListing(resolvedTargetRef), "");
+    sections.push(`## ${resolvedTargetRef}`, "", await readTextOrDirectoryListing(resolvedTargetRef, options), "");
   }
   return `${sections.join("\n").trimEnd()}\n`;
 }
@@ -128,16 +245,30 @@ export async function renderTargetSnapshot(resolvedTargetRefs: string[]): Promis
 export async function renderReviewTargetMaterializedInput(
   materializedKind: string,
   materializedRefs: string[],
+  options?: DirectoryListingOptions,
 ): Promise<string> {
   const sections: string[] = [`kind: ${materializedKind}`, ""];
   for (const materializedRef of materializedRefs) {
     sections.push(`## ${path.basename(materializedRef)}`);
     sections.push(`ref: ${materializedRef}`);
     sections.push("");
-    sections.push(await readTextOrDirectoryListing(materializedRef));
+    sections.push(await readTextOrDirectoryListing(materializedRef, options));
     sections.push("");
   }
   return `${sections.join("\n").trimEnd()}\n`;
+}
+
+export function truncateForEmbedding(
+  text: string,
+  maxLines: number,
+  fullRefPath: string,
+): string {
+  const lines = text.split("\n");
+  if (lines.length <= maxLines) {
+    return text;
+  }
+  const truncatedText = lines.slice(0, maxLines).join("\n");
+  return `${truncatedText}\n\n(truncated at ${maxLines} lines — full materialized input: ${fullRefPath})\n`;
 }
 
 export async function fileExists(targetPath: string): Promise<boolean> {
@@ -149,13 +280,40 @@ export async function fileExists(targetPath: string): Promise<boolean> {
   }
 }
 
+export async function removeFileIfExists(targetPath: string): Promise<void> {
+  try {
+    await fs.unlink(targetPath);
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      return;
+    }
+    throw error;
+  }
+}
+
+export async function appendMarkdownLogEntry(
+  logPath: string,
+  title: string,
+  body: string,
+): Promise<void> {
+  await fs.mkdir(path.dirname(logPath), { recursive: true });
+  const trimmedBody = body.trim().length > 0 ? body.trim() : "(no details)";
+  const entryText = `## ${isoNow()} | ${title}\n${trimmedBody}\n\n`;
+  await fs.appendFile(logPath, entryText, "utf8");
+}
+
 export function readSingleOptionValueFromArgv(
   argv: string[],
   optionName: string,
 ): string | undefined {
   const optionToken = `--${optionName}`;
+  const equalsPrefix = `${optionToken}=`;
   for (let index = 0; index < argv.length; index += 1) {
-    if (argv[index] !== optionToken) {
+    const token = argv[index];
+    if (typeof token === "string" && token.startsWith(equalsPrefix)) {
+      return token.slice(equalsPrefix.length);
+    }
+    if (token !== optionToken) {
       continue;
     }
     const nextToken = argv[index + 1];

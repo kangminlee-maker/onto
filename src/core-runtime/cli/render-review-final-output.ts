@@ -4,12 +4,17 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
-import type { InvocationBindingArtifact, ReviewSessionMetadata } from "../review/artifact-types.js";
+import type {
+  InvocationBindingArtifact,
+  ReviewExecutionResultArtifact,
+  ReviewSessionMetadata,
+} from "../review/artifact-types.js";
 import {
   fileExists,
   readYamlDocument,
   toRelativePath,
 } from "../review/review-artifact-utils.js";
+import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -19,6 +24,14 @@ function requireString(
     throw new Error(`Missing required option --${optionName}`);
   }
   return value;
+}
+
+function headingLevel(line: string): number | null {
+  const match = /^(#{2,6})\s+/.exec(line.trim());
+  if (!match) {
+    return null;
+  }
+  return match[1]?.length ?? null;
 }
 
 function extractSection(markdownText: string, heading: string): string | null {
@@ -31,13 +44,23 @@ function extractSection(markdownText: string, heading: string): string | null {
     return null;
   }
 
+  const startLine = lines[startIndex];
+  const startHeadingLevel = typeof startLine === "string"
+    ? headingLevel(startLine)
+    : null;
+
   const collected: string[] = [];
   for (let index = startIndex + 1; index < lines.length; index += 1) {
     const line = lines[index];
     if (line === undefined) {
       break;
     }
-    if (line.startsWith("## ")) {
+    const currentHeadingLevel = headingLevel(line);
+    if (
+      currentHeadingLevel !== null &&
+      startHeadingLevel !== null &&
+      currentHeadingLevel <= startHeadingLevel
+    ) {
       break;
     }
     collected.push(line);
@@ -67,12 +90,13 @@ function renderTargetSummary(
 
 function renderConsensusHeading(
   participatingLensCount: number,
+  plannedLensCount: number,
   reviewMode: string,
 ): string {
   if (reviewMode === "full") {
-    return `### Consensus (${participatingLensCount}/${participatingLensCount})`;
+    return `### Consensus (${participatingLensCount}/${plannedLensCount})`;
   }
-  return `### Consensus (${participatingLensCount}/${participatingLensCount}, light mode)`;
+  return `### Consensus (${participatingLensCount}/${plannedLensCount}, light mode)`;
 }
 
 export async function runRenderReviewFinalOutputCli(
@@ -103,15 +127,38 @@ export async function runRenderReviewFinalOutputCli(
   if (!(await fileExists(sessionMetadataPath))) {
     throw new Error(`Missing session metadata artifact: ${sessionMetadataPath}`);
   }
-  if (!(await fileExists(synthesisPath))) {
-    throw new Error(`Missing synthesis artifact: ${synthesisPath}`);
-  }
 
   const bindingArtifact = await readYamlDocument<InvocationBindingArtifact>(bindingPath);
   const sessionMetadata = await readYamlDocument<ReviewSessionMetadata>(sessionMetadataPath);
-  const sourcePath = (await fileExists(deliberationPath)) ? deliberationPath : synthesisPath;
-  const sourceText = await fs.readFile(sourcePath, "utf8");
+  const executionResultPath =
+    bindingArtifact.execution_result_path ??
+    path.join(sessionRoot, "execution-result.yaml");
+  const executionResult = (await fileExists(executionResultPath))
+    ? await readYamlDocument<ReviewExecutionResultArtifact>(executionResultPath)
+    : null;
+  const sourcePath = (await fileExists(deliberationPath))
+    ? deliberationPath
+    : (await fileExists(synthesisPath))
+      ? synthesisPath
+      : executionResultPath;
+  if (sourcePath === executionResultPath && !(await fileExists(executionResultPath))) {
+    throw new Error(
+      `Missing synthesize result and execution result artifacts: ${synthesisPath}, ${executionResultPath}`,
+    );
+  }
+  const sourceText =
+    sourcePath === executionResultPath
+      ? ""
+      : await fs.readFile(sourcePath, "utf8");
   const sessionDate = (sessionMetadata.created_at ?? "").slice(0, 10);
+  const participatingLensCount =
+    executionResult?.participating_lens_ids.length ??
+    bindingArtifact.resolved_lens_set.length;
+  const plannedLensCount =
+    executionResult?.planned_lens_ids.length ?? bindingArtifact.resolved_lens_set.length;
+  const degradedLensIds = executionResult?.degraded_lens_ids ?? [];
+  const haltReason = executionResult?.halt_reason ?? null;
+  const executionStatus = executionResult?.execution_status ?? "completed";
 
   const consensus = sectionOrDefault(sourceText, [
     "Consensus",
@@ -149,6 +196,25 @@ export async function runRenderReviewFinalOutputCli(
     "Unique Finding Tagging",
     "Preserved Specific Issues",
   ]);
+  const degradationSummary =
+    degradedLensIds.length > 0
+      ? degradedLensIds.map((lensId) => `- degraded lens: ${lensId}`).join("\n")
+      : "- none";
+  const fallbackConditionalConsensus =
+    executionStatus === "completed"
+      ? "- none"
+      : [
+          degradedLensIds.length > 0
+            ? `- degraded lens count: ${degradedLensIds.length}`
+            : null,
+          haltReason ? `- halt reason: ${haltReason}` : null,
+        ]
+          .filter((line): line is string => line !== null)
+          .join("\n") || "- none";
+  const fallbackPurposeAlignment =
+    executionStatus === "completed"
+      ? "- bounded review execution completed"
+      : `- execution status: ${executionStatus}`;
 
   const finalOutputText = `---
 session_id: ${bindingArtifact.session_id}
@@ -171,33 +237,35 @@ ${renderTargetSummary(bindingArtifact, projectRoot)}
 - Execution realization: ${bindingArtifact.resolved_execution_realization}
 - Host runtime: ${bindingArtifact.resolved_host_runtime}
 - Source artifact: \`${toRelativePath(sourcePath, projectRoot)}\`
+- Execution status: ${executionStatus}
 
 ${renderConsensusHeading(
-    bindingArtifact.resolved_lens_set.length,
+    participatingLensCount,
+    plannedLensCount,
     bindingArtifact.resolved_review_mode,
   )}
-${consensus}
+${sourceText.length > 0 ? consensus : "- synthesize output unavailable"}
 
 ### Conditional Consensus
-${conditionalConsensus}
+${sourceText.length > 0 ? conditionalConsensus : fallbackConditionalConsensus}
 
 ### Disagreement
-${disagreement}
+${sourceText.length > 0 ? disagreement : degradationSummary}
 
 ### Axiology-Proposed Additional Perspectives
-${axiologyPerspectives}
+${sourceText.length > 0 ? axiologyPerspectives : "- unavailable"}
 
 ### Purpose Alignment Verification
-${purposeAlignment}
+${sourceText.length > 0 ? purposeAlignment : fallbackPurposeAlignment}
 
 ### Immediate Actions Required
-${immediateActions}
+${sourceText.length > 0 ? immediateActions : degradationSummary}
 
 ### Recommendations
-${recommendations}
+${sourceText.length > 0 ? recommendations : "- inspect execution-result.yaml and error-log.md"}
 
 ### Unique Finding Tagging
-${uniqueFindingTagging}
+${sourceText.length > 0 ? uniqueFindingTagging : degradationSummary}
 `;
 
   await fs.writeFile(finalOutputPath, finalOutputText.trimEnd() + "\n", "utf8");
@@ -206,6 +274,7 @@ ${uniqueFindingTagging}
 }
 
 async function main(): Promise<number> {
+  await printOntoReleaseChannelNotice();
   return runRenderReviewFinalOutputCli(process.argv.slice(2));
 }
 

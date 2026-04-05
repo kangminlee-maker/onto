@@ -2,6 +2,12 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type {
+  BoundaryAccessPolicy,
+  BoundaryEnforcementProfile,
+  BoundaryPolicy,
+  BoundaryPresentation,
+  DirectoryListingOptions,
+  EffectiveBoundaryState,
   ContextCandidateAssembly,
   InvocationBindingArtifact,
   InvocationInterpretationArtifact,
@@ -56,6 +62,10 @@ export interface BootstrapInvocationBindingArtifactsParams {
   hostRuntime: ReviewHostRuntime;
   reviewMode: ReviewMode;
   resolvedLensIds: string[];
+  webResearchPolicy?: BoundaryAccessPolicy;
+  repoExplorationPolicy?: BoundaryAccessPolicy;
+  recursiveReferenceExpansionPolicy?: BoundaryAccessPolicy;
+  filesystemAllowedRoots?: string[];
   bindingNotes?: string[];
 }
 
@@ -70,6 +80,7 @@ export interface MaterializeReviewExecutionPreparationArtifactsParams {
   learningContextRefs?: string[];
   roleDefinitionRefs?: string[];
   executionRuleRefs?: string[];
+  directoryListingOptions?: DirectoryListingOptions;
 }
 
 export function generateReviewSessionId(): string {
@@ -78,6 +89,108 @@ export function generateReviewSessionId(): string {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}${month}${day}-${crypto.randomBytes(4).toString("hex")}`;
+}
+
+function resolveBoundaryPolicy(
+  params: BootstrapInvocationBindingArtifactsParams,
+  projectRoot: string,
+  allowedOutputRefs: string[],
+): BoundaryPolicy {
+  const allowedRoots =
+    params.filesystemAllowedRoots && params.filesystemAllowedRoots.length > 0
+      ? params.filesystemAllowedRoots.map((rootPath) => path.resolve(rootPath))
+      : [projectRoot];
+
+  return {
+    web_research_policy: params.webResearchPolicy ?? "denied",
+    repo_exploration_policy: params.repoExplorationPolicy ?? "allowed",
+    recursive_reference_expansion_policy:
+      params.recursiveReferenceExpansionPolicy ?? "denied",
+    filesystem_scope: {
+      allowed_roots: allowedRoots,
+    },
+    write_policy: {
+      source_mutation_policy: "denied",
+      allowed_output_refs: allowedOutputRefs,
+    },
+    provenance_policy: {
+      extra_exploration_citation_required: true,
+      web_source_citation_required: true,
+    },
+  };
+}
+
+function resolveBoundaryPresentation(): BoundaryPresentation {
+  return {
+    role_definition_presentation: "embedded_and_ref",
+    primary_target_presentation: "embedded_and_ref",
+    required_context_presentation: "ref_only",
+    output_seat_presentation: "declared",
+    control_policy_presentation: "declared",
+  };
+}
+
+function resolveBoundaryEnforcementProfile(): BoundaryEnforcementProfile {
+  return {
+    prompt_boundary_enforcement: "prompt_declared_only",
+    filesystem_boundary_enforcement: "prompt_declared_only",
+    network_boundary_enforcement: "prompt_declared_only",
+    write_boundary_enforcement: "prompt_declared_only",
+  };
+}
+
+function toEffectiveBoundaryDecision(
+  requestedPolicy: BoundaryAccessPolicy,
+  guaranteeLevel: BoundaryEnforcementProfile[keyof BoundaryEnforcementProfile],
+  note: string,
+): {
+  requested_policy: BoundaryAccessPolicy;
+  effective_policy: BoundaryAccessPolicy;
+  guarantee_level: BoundaryEnforcementProfile[keyof BoundaryEnforcementProfile];
+  notes: string[];
+} {
+  return {
+    requested_policy: requestedPolicy,
+    effective_policy: requestedPolicy,
+    guarantee_level: guaranteeLevel,
+    notes: [note],
+  };
+}
+
+function resolveEffectiveBoundaryState(
+  boundaryPolicy: BoundaryPolicy,
+  boundaryEnforcementProfile: BoundaryEnforcementProfile,
+): EffectiveBoundaryState {
+  return {
+    web_research: toEffectiveBoundaryDecision(
+      boundaryPolicy.web_research_policy,
+      boundaryEnforcementProfile.network_boundary_enforcement,
+      "Current execution relies on declared boundary guidance; web access is not environment-enforced yet.",
+    ),
+    repo_exploration: toEffectiveBoundaryDecision(
+      boundaryPolicy.repo_exploration_policy,
+      boundaryEnforcementProfile.filesystem_boundary_enforcement,
+      "Current execution relies on declared boundary guidance for repo exploration scope.",
+    ),
+    recursive_reference_expansion: toEffectiveBoundaryDecision(
+      boundaryPolicy.recursive_reference_expansion_policy,
+      boundaryEnforcementProfile.prompt_boundary_enforcement,
+      "Current execution relies on prompt-declared no-hidden-expansion guidance.",
+    ),
+    source_mutation: toEffectiveBoundaryDecision(
+      boundaryPolicy.write_policy.source_mutation_policy,
+      boundaryEnforcementProfile.write_boundary_enforcement,
+      "Current execution declares output-seat-only writing and source mutation denial in the prompt path.",
+    ),
+    filesystem_scope: {
+      requested_allowed_roots: boundaryPolicy.filesystem_scope.allowed_roots,
+      effective_allowed_roots: boundaryPolicy.filesystem_scope.allowed_roots,
+      guarantee_level: boundaryEnforcementProfile.filesystem_boundary_enforcement,
+      notes: [
+        "Current execution does not enforce filesystem scope below the host boundary; allowed roots are currently prompt-declared.",
+      ],
+    },
+  };
 }
 
 export async function writeInvocationInterpretationArtifact(
@@ -132,6 +245,16 @@ export async function bootstrapInvocationBindingArtifacts(
   const projectRoot = path.resolve(params.projectRoot);
   const sessionId = params.sessionId ?? generateReviewSessionId();
   const sessionRoot = path.join(projectRoot, ".onto", "review", sessionId);
+  try {
+    await fs.access(sessionRoot);
+    throw new Error(
+      `Session directory already exists: ${sessionRoot}. Use a different --session-id or remove the existing session.`,
+    );
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") {
+      throw error;
+    }
+  }
   const round1Root = path.join(sessionRoot, "round1");
   const executionPreparationRoot = path.join(sessionRoot, "execution-preparation");
   const promptPacketsRoot = path.join(sessionRoot, "prompt-packets");
@@ -151,8 +274,15 @@ export async function bootstrapInvocationBindingArtifacts(
   );
   const synthesisOutputPath = path.join(sessionRoot, "synthesis.md");
   const deliberationOutputPath = path.join(sessionRoot, "deliberation.md");
+  const executionResultPath = path.join(sessionRoot, "execution-result.yaml");
+  const errorLogPath = path.join(sessionRoot, "error-log.md");
   const reviewRecordPath = path.join(sessionRoot, "review-record.yaml");
   const finalOutputPath = path.join(sessionRoot, "final-output.md");
+  const allowedOutputRefs = [
+    ...params.resolvedLensIds.map((lensId) => path.join(round1Root, `${lensId}.md`)),
+    synthesisOutputPath,
+    deliberationOutputPath,
+  ];
 
   await Promise.all([
     ensureDirectory(sessionRoot),
@@ -177,6 +307,18 @@ export async function bootstrapInvocationBindingArtifacts(
     requested_domain_token: params.requestedDomainToken ?? "",
     plugin_root: pluginRoot,
   };
+
+  const boundaryPolicy = resolveBoundaryPolicy(
+    params,
+    projectRoot,
+    allowedOutputRefs,
+  );
+  const boundaryPresentation = resolveBoundaryPresentation();
+  const boundaryEnforcementProfile = resolveBoundaryEnforcementProfile();
+  const effectiveBoundaryState = resolveEffectiveBoundaryState(
+    boundaryPolicy,
+    boundaryEnforcementProfile,
+  );
 
   const invocationBindingArtifact: InvocationBindingArtifact = {
     resolved_target_scope: {
@@ -207,8 +349,14 @@ export async function bootstrapInvocationBindingArtifacts(
     materialized_input_path: materializedInputPath,
     context_candidate_assembly_path: contextCandidateAssemblyPath,
     synthesis_output_path: synthesisOutputPath,
+    execution_result_path: executionResultPath,
+    error_log_path: errorLogPath,
     review_record_path: reviewRecordPath,
     final_output_path: finalOutputPath,
+    boundary_policy: boundaryPolicy,
+    boundary_presentation: boundaryPresentation,
+    boundary_enforcement_profile: boundaryEnforcementProfile,
+    effective_boundary_state: effectiveBoundaryState,
     binding_notes: params.bindingNotes ?? [],
   };
 
@@ -236,8 +384,14 @@ export async function bootstrapInvocationBindingArtifacts(
     synthesize_prompt_packet_path: path.join(promptPacketsRoot, "onto_synthesize.prompt.md"),
     synthesis_output_path: synthesisOutputPath,
     deliberation_output_path: deliberationOutputPath,
+    execution_result_path: executionResultPath,
+    error_log_path: errorLogPath,
     final_output_path: finalOutputPath,
     review_record_path: reviewRecordPath,
+    boundary_policy: boundaryPolicy,
+    boundary_presentation: boundaryPresentation,
+    boundary_enforcement_profile: boundaryEnforcementProfile,
+    effective_boundary_state: effectiveBoundaryState,
   };
 
   await Promise.all([
@@ -300,6 +454,7 @@ export async function materializeReviewExecutionPreparationArtifacts(
       targetSnapshotPath,
       await renderTargetSnapshot(
         params.resolvedTargetRefs.map((ref) => path.resolve(ref)),
+        params.directoryListingOptions,
       ),
       "utf8",
     ),
@@ -309,6 +464,7 @@ export async function materializeReviewExecutionPreparationArtifacts(
       await renderReviewTargetMaterializedInput(
         params.materializedKind,
         materializedRefs,
+        params.directoryListingOptions,
       ),
       "utf8",
     ),

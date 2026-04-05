@@ -30,10 +30,12 @@
 
 1. [productization-charter.md](/Users/kangmin/cowork/onto/dev-docs/productization-charter.md)
 2. [development-methodology.md](/Users/kangmin/cowork/onto/dev-docs/development-methodology.md)
-3. [principles-criteria-decisions-inventory.md](/Users/kangmin/cowork/onto/dev-docs/principles-criteria-decisions-inventory.md)
-4. [core-lexicon.yaml](/Users/kangmin/cowork/onto/authority/core-lexicon.yaml)
-5. [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-naming-charter.md)
-6. [ontology-as-code-korean-terminology-guide.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-korean-terminology-guide.md)
+3. [ontology-as-code-guideline.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-guideline.md)
+4. [llm-runtime-interface-principles.md](/Users/kangmin/cowork/onto/dev-docs/llm-runtime-interface-principles.md)
+5. [principles-criteria-decisions-inventory.md](/Users/kangmin/cowork/onto/dev-docs/principles-criteria-decisions-inventory.md)
+6. [core-lexicon.yaml](/Users/kangmin/cowork/onto/authority/core-lexicon.yaml)
+7. [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-naming-charter.md)
+8. [ontology-as-code-korean-terminology-guide.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-korean-terminology-guide.md)
 
 `review`를 건드릴 때는 위 6개 다음으로 아래를 읽는다.
 
@@ -56,6 +58,8 @@
 
 - [productization-charter.md](/Users/kangmin/cowork/onto/dev-docs/productization-charter.md)
 - [development-methodology.md](/Users/kangmin/cowork/onto/dev-docs/development-methodology.md)
+- [ontology-as-code-guideline.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-guideline.md)
+- [llm-runtime-interface-principles.md](/Users/kangmin/cowork/onto/dev-docs/llm-runtime-interface-principles.md)
 - [principles-criteria-decisions-inventory.md](/Users/kangmin/cowork/onto/dev-docs/principles-criteria-decisions-inventory.md)
 
 핵심 요약:
@@ -65,6 +69,11 @@
 3. 개발 순서는 `설계 -> 프롬프트 기반 기준 경로 -> acceptance observation -> 구현 치환 단계`다.
 4. 시스템은 매 단계에서 실제로 작동 가능한 상태를 유지해야 한다.
 5. prompt path와 implementation path는 같은 artifact truth를 유지해야 한다.
+6. `LLM`/runtime interface는 artifact-first minimal handoff여야 한다.
+7. `LLM` 입력은 runtime이 주는 `선언형 handoff 입력`과 `LLM`이 스스로 확보하는 `자율 탐색 입력`으로 나뉜다.
+8. boundary는 input list뿐 아니라 presentation mode와 control policy까지 포함한다.
+9. 필요하면 boundary를 `경계 정책`, `경계 제시`, `경계 강제 프로필`, `실효 경계 상태`로 분리한다.
+10. 여러 제약이 충돌할 때는 가장 강한 deny가 승리한다.
 
 ---
 

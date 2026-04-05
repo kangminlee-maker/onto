@@ -13,6 +13,7 @@
 > - `/Users/kangmin/cowork/onto-llm-independent/dev-docs/review-semantic-unlock-policy.md`
 > - `dev-docs/development-methodology.md`
 > - `dev-docs/review-productized-live-path.md`
+> - `dev-docs/llm-runtime-interface-principles.md`
 
 ---
 
@@ -82,6 +83,21 @@
 3. hardened runtime authority는 prose-only 문서를 직접 authoritative input으로 소비하면 안 된다.
 4. reference path는 bounded comparison path이지 authoritative core가 아니다.
 
+### 2.7 interface 원칙
+
+1. `LLM`/runtime interface는 artifact-first여야 한다.
+2. interface는 `선언형 handoff 입력`과 `자율 탐색 입력`을 구분해야 한다.
+3. runtime은 첫 번째 층만 제공하고, 두 번째 층의 대상 선택을 대신하면 안 된다.
+4. interface bundle은 `smallest sufficient bundle`이어야 한다.
+5. primary target content는 embed 가능하지만 supporting context는 원칙적으로 ref로 넘긴다.
+6. packet은 giant duplicated payload가 아니라 lightweight handoff여야 한다.
+7. packet에 명시되지 않은 reference chain을 hidden하게 재귀 확장하면 안 된다.
+8. boundary는 input list뿐 아니라 presentation mode와 control policy까지 선언해야 한다.
+9. runtime은 interface의 meaning이 아니라 seat와 gate만 고정한다.
+10. boundary는 필요 시 `BoundaryPolicy`, `BoundaryPresentation`, `BoundaryEnforcementProfile`, `EffectiveBoundaryState`로 분리해야 한다.
+11. 여러 제약이 충돌할 때는 가장 강한 deny가 승리해야 한다.
+12. boundary 때문에 문제를 풀 수 없으면 degraded/fail-close 상태로 끝나야 한다.
+
 ---
 
 ## 3. Criteria
@@ -140,6 +156,51 @@ unlock 최소 기준:
 
 즉 lineage completeness만으로 unlock되지 않는다.
 
+### 3.5 embed vs ref criteria
+
+판정 질문:
+
+1. 이 정보가 이번 reasoning의 primary object인가
+2. file lookup보다 즉시 가시성이 더 중요한가
+3. supporting context인가
+4. 이미 authoritative file seat가 있는가
+5. giant repeated payload를 만들 위험이 있는가
+
+판정 규칙:
+
+- primary reasoning object이면서 짧고 핵심적인 것은 embed 가능
+- supporting context와 reusable artifact는 ref
+- 이미 file seat가 있는 큰 문서는 ref 우선
+- repeated giant payload를 만들면 ref로 내린다
+
+### 3.6 declared boundary criteria
+
+판정 질문:
+
+1. 어떤 요소가 declared handoff input인가
+2. 어떤 요소가 self-directed exploration input인가
+3. 이 요소는 embed가 맞는가 ref가 맞는가
+4. exploration allowance를 어디까지 선언해야 하는가
+5. write boundary를 어떻게 제한해야 하는가
+6. provenance obligation이 필요한가
+7. missing output 시 어떤 fail-close 상태로 끝내야 하는가
+
+판정 규칙:
+
+- role, primary target, required context, output seat는 declared handoff input
+- 추가 파일 선택과 웹 리서치는 self-directed exploration input
+- primary reasoning object는 embed 가능, supporting context는 ref
+- write는 output seat로 제한
+- self-directed exploration이 있으면 provenance obligation을 선언
+- contract 미달 output은 semantic repair 없이 fail-close
+
+추가 판정 규칙:
+
+- 정책 선언과 실제 강제를 구분해야 하면 `BoundaryPolicy`와 `BoundaryEnforcementProfile`을 분리한다
+- 실제 적용 상태가 중요하면 `EffectiveBoundaryState`를 별도 seat로 둔다
+- 여러 층의 제약이 충돌하면 strongest deny wins
+- 경계 제약 때문에 evidence 확보가 불가능하면 degraded 또는 fail-close로 끝낸다
+
 ---
 
 ## 4. Decisions
@@ -173,6 +234,7 @@ unlock 최소 기준:
 1. `review`는 final unlock 전까지 fail-close 유지
 2. semantic usefulness는 invocation usability와 별도 검증
 3. prompt-backed path가 먼저 살아야 하고, 그 뒤에만 implementation replacement를 진행
+4. interface tuning에서는 “더 많은 deterministicization”보다 “더 잘 작동하는 bounded LLM handoff”를 우선한다
 
 ---
 

@@ -6,17 +6,19 @@ import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import type {
   InvocationBindingArtifact,
+  ReviewExecutionResultArtifact,
   ReviewRecord,
   ReviewRecordStatus,
 } from "../review/artifact-types.js";
 import {
-  collectFilePathsRecursively,
   fileExists,
   isoFromTimestamp,
+  parseMarkdownFrontmatter,
   readYamlDocument,
   toRelativePath,
   writeYamlDocument,
 } from "../review/review-artifact-utils.js";
+import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -29,9 +31,18 @@ function requireString(
 }
 
 async function detectDeliberationStatus(
+  executionResult: ReviewExecutionResultArtifact | null,
   synthesisPath: string,
   deliberationPath: string,
 ): Promise<ReviewRecord["deliberation_status"]> {
+  if (
+    executionResult?.deliberation_status === "not_needed" ||
+    executionResult?.deliberation_status === "performed" ||
+    executionResult?.deliberation_status === "required_but_unperformed"
+  ) {
+    return executionResult.deliberation_status;
+  }
+
   if (await fileExists(deliberationPath)) {
     return "performed";
   }
@@ -40,40 +51,80 @@ async function detectDeliberationStatus(
     return "required_but_unperformed";
   }
 
-  const synthesisText = (await fs.readFile(synthesisPath, "utf8")).toLowerCase();
-  if (synthesisText.includes("not needed") || synthesisText.includes("불필요")) {
+  const synthesisText = await fs.readFile(synthesisPath, "utf8");
+  const parsed = parseMarkdownFrontmatter<{ deliberation_status?: string }>(
+    synthesisText,
+  );
+  const frontmatterStatus = parsed.metadata?.deliberation_status;
+  if (
+    frontmatterStatus === "not_needed" ||
+    frontmatterStatus === "performed" ||
+    frontmatterStatus === "required_but_unperformed"
+  ) {
+    return frontmatterStatus;
+  }
+  const loweredBody = parsed.body.toLowerCase();
+  if (loweredBody.includes("not needed") || loweredBody.includes("불필요")) {
     return "not_needed";
   }
-  if (synthesisText.includes("needed") || synthesisText.includes("필요")) {
+  if (loweredBody.includes("needed") || loweredBody.includes("필요")) {
     return "required_but_unperformed";
   }
   return "not_needed";
 }
 
-async function collectDegradedLensIds(errorLogPath: string): Promise<string[]> {
+interface ErrorLogSummary {
+  degradedLensIds: string[];
+  hasExecutionFailure: boolean;
+  hasRunnerHalt: boolean;
+}
+
+async function summarizeErrorLog(errorLogPath: string): Promise<ErrorLogSummary> {
   if (!(await fileExists(errorLogPath))) {
-    return [];
+    return {
+      degradedLensIds: [],
+      hasExecutionFailure: false,
+      hasRunnerHalt: false,
+    };
   }
 
   const errorLogText = await fs.readFile(errorLogPath, "utf8");
-  const matches = errorLogText.match(/\bonto_[a-z_]+\b/g) ?? [];
+  const lensFailureMatches = Array.from(
+    errorLogText.matchAll(/\|\s+lens failure:\s+(onto_[a-z_]+)/g),
+  );
   const uniqueLensIds: string[] = [];
-  for (const lensId of matches) {
+  for (const match of lensFailureMatches) {
+    const lensId = match[1];
+    if (typeof lensId !== "string") {
+      continue;
+    }
     if (!uniqueLensIds.includes(lensId)) {
       uniqueLensIds.push(lensId);
     }
   }
-  return uniqueLensIds;
+
+  return {
+    degradedLensIds: uniqueLensIds,
+    hasExecutionFailure:
+      /\|\s+(?:lens|synthesize) failure:\s+/m.test(errorLogText),
+    hasRunnerHalt: /\|\s+runner halted before synthesize/m.test(errorLogText),
+  };
 }
 
 async function deriveRecordStatus(
-  errorLogPath: string,
+  executionResult: ReviewExecutionResultArtifact | null,
+  errorLogSummary: ErrorLogSummary,
   finalOutputPath: string,
 ): Promise<ReviewRecordStatus> {
-  if (!(await fileExists(errorLogPath))) {
-    return "completed";
+  if (executionResult) {
+    return executionResult.execution_status;
   }
-  if (await fileExists(finalOutputPath)) {
+
+  const finalOutputExists = await fileExists(finalOutputPath);
+  if (!errorLogSummary.hasExecutionFailure && !errorLogSummary.hasRunnerHalt) {
+    return finalOutputExists ? "completed" : "halted_partial";
+  }
+  if (finalOutputExists) {
     return "completed_with_degradation";
   }
   return "halted_partial";
@@ -111,6 +162,7 @@ export async function runAssembleReviewRecordCli(
   const synthesisPath = path.join(sessionRoot, "synthesis.md");
   const deliberationPath = path.join(sessionRoot, "deliberation.md");
   const finalOutputPath = path.join(sessionRoot, "final-output.md");
+  const executionResultPath = path.join(sessionRoot, "execution-result.yaml");
   const errorLogPath = path.join(sessionRoot, "error-log.md");
   const reviewRecordPath = path.join(sessionRoot, "review-record.yaml");
   const round1Root = path.join(sessionRoot, "round1");
@@ -124,13 +176,28 @@ export async function runAssembleReviewRecordCli(
 
   const invocationBindingArtifact =
     await readYamlDocument<InvocationBindingArtifact>(bindingPath);
+  const executionResult = (await fileExists(executionResultPath))
+    ? await readYamlDocument<ReviewExecutionResultArtifact>(executionResultPath)
+    : null;
   const sessionMetadata = await readYamlDocument<{ created_at?: string }>(
     sessionMetadataPath,
   );
 
   const lensResultRefs: Record<string, string> = {};
-  const participatingLensIds: string[] = [];
-  if (await fileExists(round1Root)) {
+  const participatingLensIds: string[] = executionResult?.participating_lens_ids
+    ? [...executionResult.participating_lens_ids]
+    : [];
+  if (executionResult) {
+    for (const unitResult of executionResult.lens_execution_results) {
+      if (unitResult.status !== "completed") {
+        continue;
+      }
+      lensResultRefs[unitResult.unit_id] = toRelativePath(
+        unitResult.output_path,
+        projectRoot,
+      );
+    }
+  } else if (await fileExists(round1Root)) {
     const round1FilePaths = await fs.readdir(round1Root);
     for (const entryName of round1FilePaths.sort()) {
       if (!entryName.endsWith(".md")) {
@@ -143,29 +210,28 @@ export async function runAssembleReviewRecordCli(
     }
   }
 
-  const degradedLensIds = await collectDegradedLensIds(errorLogPath);
-  const excludedLensIds = invocationBindingArtifact.resolved_lens_set.filter(
-    (lensId) =>
-      !participatingLensIds.includes(lensId) && !degradedLensIds.includes(lensId),
-  );
-
-  const sessionFilePaths = await collectFilePathsRecursively(sessionRoot);
-  const updatedAtSource =
-    sessionFilePaths.length > 0
-      ? Math.max(
-          ...(
-            await Promise.all(
-              sessionFilePaths.map(async (filePath) => (await fs.stat(filePath)).mtimeMs),
-            )
-          ),
-        )
-      : (await fs.stat(sessionRoot)).mtimeMs;
+  const errorLogSummary = await summarizeErrorLog(errorLogPath);
+  const degradedLensIds =
+    executionResult?.degraded_lens_ids ?? errorLogSummary.degradedLensIds;
+  const excludedLensIds =
+    executionResult?.excluded_lens_ids ??
+    invocationBindingArtifact.resolved_lens_set.filter(
+      (lensId) =>
+        !participatingLensIds.includes(lensId) && !degradedLensIds.includes(lensId),
+    );
+  const updatedAtSource = executionResult
+    ? Date.parse(executionResult.execution_completed_at)
+    : (await fs.stat(sessionRoot)).mtimeMs;
 
   const reviewRecord: ReviewRecord = {
     review_record_id: sessionId,
     session_id: sessionId,
     entrypoint: "review",
-    record_status: await deriveRecordStatus(errorLogPath, finalOutputPath),
+    record_status: await deriveRecordStatus(
+      executionResult,
+      errorLogSummary,
+      finalOutputPath,
+    ),
     created_at:
       sessionMetadata.created_at ?? isoFromTimestamp((await fs.stat(sessionRoot)).mtimeMs),
     updated_at: isoFromTimestamp(updatedAtSource),
@@ -179,6 +245,9 @@ export async function runAssembleReviewRecordCli(
       invocationBindingArtifact.resolved_execution_realization,
     resolved_host_runtime: invocationBindingArtifact.resolved_host_runtime,
     resolved_lens_ids: invocationBindingArtifact.resolved_lens_set,
+    execution_result_ref: executionResult
+      ? toRelativePath(executionResultPath, projectRoot)
+      : null,
     session_metadata_ref: (await fileExists(sessionMetadataPath))
       ? toRelativePath(sessionMetadataPath, projectRoot)
       : null,
@@ -195,13 +264,18 @@ export async function runAssembleReviewRecordCli(
     participating_lens_ids: participatingLensIds,
     excluded_lens_ids: excludedLensIds,
     degraded_lens_ids: degradedLensIds,
-    degradation_notes_ref: (await fileExists(errorLogPath))
+    degradation_notes_ref:
+      ((executionResult?.execution_status !== "completed") ||
+        errorLogSummary.hasExecutionFailure ||
+        errorLogSummary.hasRunnerHalt) &&
+      (await fileExists(errorLogPath))
       ? toRelativePath(errorLogPath, projectRoot)
       : null,
     synthesis_result_ref: (await fileExists(synthesisPath))
       ? toRelativePath(synthesisPath, projectRoot)
       : null,
     deliberation_status: await detectDeliberationStatus(
+      executionResult,
       synthesisPath,
       deliberationPath,
     ),
@@ -219,6 +293,7 @@ export async function runAssembleReviewRecordCli(
 }
 
 async function main(): Promise<number> {
+  await printOntoReleaseChannelNotice();
   return runAssembleReviewRecordCli(process.argv.slice(2));
 }
 

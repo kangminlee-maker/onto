@@ -66,7 +66,8 @@ later hardened implementation에서 identity policy가 바뀌더라도,
 6. `context candidate assembly`
 7. per-lens result artifacts
 8. synthesize result artifact
-9. human-readable final output
+9. execution result artifact
+10. human-readable final output
 
 즉 `ReviewRecord`는 자기 안에 모든 내용을 복붙하는 문서가 아니라,
 위 artifact들을 묶는 aggregate record다.
@@ -107,6 +108,7 @@ later hardened implementation에서 identity policy가 바뀌더라도,
 - `resolved_execution_realization`
 - `resolved_host_runtime`
 - `resolved_lens_ids`
+- `execution_result_ref`
 
 원칙:
 
@@ -142,6 +144,7 @@ later hardened implementation에서 identity policy가 바뀌더라도,
 - `light` 모드와 degraded case를 구분할 수 있어야 한다
 - `onto_axiology`는 canonical lens set에 항상 포함되어야 한다
 - degraded case가 발생하면 later audit가 그 원인을 다시 읽을 수 있어야 한다
+- `error-log.md`가 boundary/conformance state만 담는 경우에는 `degradation_notes_ref`로 간주하지 않는다
 
 예시:
 
@@ -177,6 +180,8 @@ degraded_lens_ids: []
 원칙:
 
 - `synthesis_result_ref`는 `synthesis.md`를 가리킨다
+- `deliberation_status`의 canonical source는 우선 `execution-result.yaml`이다
+- `synthesis.md`는 frontmatter로 `deliberation_status`를 선언해야 한다
 - `final_output_ref`는 사용자에게 보여주는 rendered output을 가리킨다
 - `ReviewRecord`가 primary artifact이고 `final-output.md`는 secondary human-readable output이다
 
@@ -210,6 +215,7 @@ resolved_lens_ids:
   - onto_coverage
   - onto_conciseness
   - onto_axiology
+execution_result_ref: .onto/review/20260404-a1b2c3d4/execution-result.yaml
 
 session_metadata_ref: .onto/review/20260404-a1b2c3d4/session-metadata.yaml
 target_snapshot_ref: .onto/review/20260404-a1b2c3d4/execution-preparation/target-snapshot.md

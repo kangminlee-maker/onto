@@ -4,7 +4,10 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { runPrepareReviewSessionCli } from "./prepare-review-session.js";
 import { runMaterializeReviewPromptPacketsCli } from "./materialize-review-prompt-packets.js";
-import { readSingleOptionValueFromArgv } from "../review/review-artifact-utils.js";
+import {
+  readSingleOptionValueFromArgv,
+} from "../review/review-artifact-utils.js";
+import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -17,6 +20,7 @@ function requireString(
 }
 
 async function main(): Promise<number> {
+  await printOntoReleaseChannelNotice();
   return runStartReviewSessionCli(process.argv.slice(2));
 }
 
@@ -39,12 +43,18 @@ export async function startReviewSession(
   );
   const sessionRoot = path.join(projectRoot, ".onto", "review", sessionId);
 
-  await runMaterializeReviewPromptPacketsCli([
+  const maxEmbedLines = readSingleOptionValueFromArgv(argv, "max-embed-lines");
+  const promptPacketsArgs = [
     "--project-root",
     projectRoot,
     "--session-root",
     sessionRoot,
-  ]);
+  ];
+  if (typeof maxEmbedLines === "string" && maxEmbedLines.length > 0) {
+    promptPacketsArgs.push("--max-embed-lines", maxEmbedLines);
+  }
+
+  await runMaterializeReviewPromptPacketsCli(promptPacketsArgs);
 
   return {
     session_root: sessionRoot,

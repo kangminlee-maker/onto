@@ -19,14 +19,15 @@ runtime은 아래만 한다.
 
 1. `execution-plan.yaml`을 읽는다
 2. lens/synthesize prompt packet seat를 확인한다
-3. 각 packet을 외부 실행 단위에 deterministic하게 전달한다
+3. 각 lens packet을 병렬로 외부 실행 단위에 deterministic하게 전달한다
 4. 각 output seat에 실제 결과 파일이 생성되었는지 검사한다
 5. 기준 미달이면 `fail-close` 한다
+6. `EffectiveBoundaryState`를 `error-log.md`와 degraded 판단의 구조적 basis로 남긴다
 
 추가로 synthesize dispatch 직전에는 runtime이
-이미 생성된 lens output을 읽어 synthesize runtime packet에 embedded한다.
+participating lens output의 seat/ref를 synthesize runtime packet에 반영할 수 있다.
 이건 새로운 semantic 판단이 아니라,
-이미 존재하는 lens 결과를 declared seat에 따라 전달하는 deterministic handoff다.
+이미 존재하는 lens 결과 seat를 declared handoff에 맞게 전달하는 deterministic handoff다.
 
 즉 이 runner는:
 
@@ -54,11 +55,13 @@ runtime은 아래만 한다.
 7. host runtime
    - `codex`
    - `claude`
+8. `max_concurrent_lenses`
 
 중요:
 
 - runtime은 packet 내용을 해석하지 않는다
 - packet과 output seat를 외부 실행 단위에 전달만 한다
+- lens dispatch order는 deterministic하게 유지하되, 실행은 bounded parallel이어야 한다
 
 ---
 
@@ -68,12 +71,24 @@ runtime은 아래만 한다.
 
 1. `round1/{lens}.md`
 2. `synthesis.md`
+3. `execution-result.yaml`
+4. `error-log.md`
 
 원칙:
 
 - lens output seat는 `execution-plan.yaml`이 고정한다
 - synthesize output seat도 `execution-plan.yaml`이 고정한다
+- `execution-result.yaml`은 actual execution truth의 canonical seat다
+- degraded case / partial failure는 `error-log.md`에 기록해야 한다
+- `error-log.md`는 최소 한 번 `EffectiveBoundaryState`를 기록해야 한다
+- `error-log.md`는 runner progress seat도 겸할 수 있다
 - runner는 seat를 바꾸면 안 된다
+- `execution-result.yaml`은 최소 아래를 담아야 한다
+  - planned/participating/degraded/excluded lens ids
+  - per-unit started/completed timestamps
+  - per-unit duration
+  - synthesize execution status
+  - halt reason
 
 ---
 
@@ -86,7 +101,8 @@ npm run review:run-prompt-execution -- \
   --project-root {project_root} \
   --session-root {session_root} \
   --executor-bin {executor_bin} \
-  --executor-arg {executor_arg}
+  --executor-arg {executor_arg} \
+  --max-concurrent-lenses {N}
 ```
 
 옵션:
@@ -103,11 +119,11 @@ npm run review:run-prompt-execution -- \
   --project-root {project_root} \
   --session-root {session_root} \
   --executor-bin npm \
-  --executor-arg run \
-  --executor-arg review:subagent-unit-executor \
+  --executor-arg=run \
+  --executor-arg=review:subagent-unit-executor \
   --executor-arg=-- \
-  --executor-arg --host-runtime \
-  --executor-arg codex
+  --executor-arg=--host-runtime \
+  --executor-arg=codex
 ```
 
 현재 구현에서는 아래 execution profile이 wired 되어 있다.
@@ -117,6 +133,18 @@ npm run review:run-prompt-execution -- \
 - `agent-teams + claude`
 
 즉 canonical realization name과 host runtime은 분리해서 본다.
+
+현재 기본 병렬성:
+
+- `subagent` → `3`
+- `agent-teams` → `9`
+
+원칙:
+
+- 병렬 실행은 필수다
+- realization에 동시 실행 제한이 있으면 worker-pool 방식으로 bounded parallel dispatch를 사용한다
+- slot이 비면 다음 pending lens를 즉시 dispatch한다
+- synthesize는 participating lens outputs가 확정된 뒤에만 시작한다
 
 ---
 
@@ -133,6 +161,16 @@ npm run review:run-prompt-execution -- \
 즉 이 단계는 semantic execution engine이 아니라
 semantic execution dispatch engine이다.
 
+packet은 가능하면 lightweight해야 한다.
+runtime은 packet을 giant embedded payload로 만들기보다,
+authoritative artifact path와 output seat를 고정하는 쪽을 우선한다.
+
+또한 runner는 boundary seat를 semantic하게 재해석하지 않는다.
+다만 아래는 해야 한다.
+
+1. `EffectiveBoundaryState`를 log basis로 남긴다
+2. 경계 제약 아래에서 output이 생성되지 않았을 때 degraded/fail-close 경로를 탄다
+
 ---
 
 ## 6. Immediate Follow-up
@@ -141,4 +179,4 @@ semantic execution dispatch engine이다.
 
 1. `review:start-session -> review:run-prompt-execution -> review:complete-session`를 `/onto:review`의 canonical bounded path로 올린다
 2. 실제 host realization이 이 contract를 따르도록 연결한다
-3. degraded case / partial failure를 이 runner contract에 추가한다
+3. deliberation branch를 bounded path에 추가한다

@@ -101,8 +101,8 @@ lens가 실제로 읽는 입력도 최소 아래 shape를 허용해야 한다.
 
 1. `single_text`
    - 단일 파일 또는 단일 문서 본문
-2. `directory_listing_plus_selected_contents`
-   - 디렉터리 목록 + 선택된 핵심 파일 본문
+2. `directory_listing`
+   - 디렉터리 파일 목록 (LLM이 필요한 파일을 자율 탐색)
 3. `bundle_member_texts`
    - bundle member별 본문 집합
 

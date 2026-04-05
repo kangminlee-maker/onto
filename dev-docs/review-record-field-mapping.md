@@ -97,12 +97,18 @@ degraded case rule:
 - `resolved_lens_ids`에는 있었지만 결과 파일이 없고 `error-log.md` 또는 synthesize 전달 메시지에 제외 사실이 남은 lens는 `degraded_lens_ids`로 분류한다
 - `excluded_lens_ids`는 원래 실행 대상에서 빠진 lens만 뜻한다
 
-### 4.3 From `synthesis.md` and `deliberation.md`
+### 4.3 From `execution-result.yaml`, `synthesis.md`, and `deliberation.md`
 
 아래는 종합 단계 artifact에서 derive된다.
 
 - `deliberation_status`
 - `deliberation_result_ref`
+
+우선순위:
+
+1. `execution-result.yaml.deliberation_status`
+2. `synthesis.md` frontmatter `deliberation_status`
+3. compatibility fallback
 
 예:
 
@@ -122,12 +128,18 @@ degraded case rule:
 
 예:
 
-- `error-log.md`가 비어 있거나 존재하지 않으면
+- `error-log.md`가 없거나 boundary/conformance state만 있고 실행 실패가 없으면
   - `record_status: completed`
 - 일부 lens 실패가 기록되어 있으나 최종 output이 존재하면
   - `record_status: completed_with_degradation`
 - synthesize 실패 등으로 final output이 불완전하면
   - `record_status: halted_partial`
+
+중요:
+
+- `error-log.md`는 이제 boundary/conformance log seat이기도 하다
+- 따라서 파일 존재 자체가 곧 degraded를 뜻하지는 않는다
+- 실제 degradation은 `lens failure`, `synthesize failure`, `runner halted` 같은 실행 실패 entry가 있을 때만 의미한다
 
 ---
 

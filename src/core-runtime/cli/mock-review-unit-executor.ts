@@ -39,7 +39,11 @@ function renderLensOutput(unitId: string, packetPath: string): string {
 }
 
 function renderSynthesizeOutput(packetPath: string): string {
-  return `# onto_synthesize Result
+  return `---
+deliberation_status: not_needed
+---
+
+# onto_synthesize Result
 
 ### Consensus
 - The bounded runner dispatched all participating lens prompt packets.

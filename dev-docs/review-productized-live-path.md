@@ -83,6 +83,13 @@ prompt-backed path에서도 이 단계의 결과는 최종적으로
 이 단계는 semantic recommendation과 deterministic binding의 중간에서
 사용자가 최종 authority를 행사하는 구간이다.
 
+현재 host-facing `review:invoke`의 기본 규칙:
+
+- explicit `@{domain}` 또는 `@-`가 있으면 그대로 사용
+- configured domain이 하나면 바로 사용
+- configured domain이 여러 개면 interactive selection을 수행
+- interactive selection이 불가능한 non-interactive 환경이면 fail-fast 하고 explicit domain token을 요구
+
 ### 3.4 호출 고정 (InvocationBinding)
 
 runtime/host가 아래를 고정한다.
@@ -126,6 +133,7 @@ binding 다음에는 최소 아래 artifact가 materialize되어야 한다.
 4. `context candidate assembly`
 5. `execution plan`
 6. `prompt packets`
+7. `execution result`
 
 이 단계는 later `ReviewRecord`와 runtime replacement의 bridge다.
 
@@ -139,8 +147,15 @@ prompt-backed path에서도 실제 파일이 만들어져야 한다.
 - lens별 output seat
 - `synthesis.md` seat
 - `deliberation.md` seat
+- `error-log.md` seat
 - `final-output.md` seat
 - `review-record.yaml` seat
+- `execution-result.yaml` seat
+- boundary seat
+  - `BoundaryPolicy`
+  - `BoundaryPresentation`
+  - `BoundaryEnforcementProfile`
+  - `EffectiveBoundaryState`
 
 `prompt packets`는 아래를 deterministic하게 고정한다.
 
@@ -148,8 +163,10 @@ prompt-backed path에서도 실제 파일이 만들어져야 한다.
 - `onto_synthesize` prompt handoff text
 - 각 packet이 읽어야 할 artifact path
 - 각 packet이 써야 할 output path
-- lens packet에는 authoritative artifact 내용을 embedded한다
-- synthesize runtime packet에는 participating lens output 내용을 embedded한다
+- packet은 가급적 lightweight handoff여야 하며, authoritative artifact의 전체 본문을 과도하게 embedded하지 않는다
+- `맥락 격리 추론 단위 (ContextIsolatedReasoningUnit)`는 packet이 가리키는 artifact file을 직접 읽는다
+- synthesize runtime packet은 participating lens output의 seat/ref를 넘기되, 가능하면 본문 전체를 다시 중복 embedded하지 않는다
+- packet은 boundary policy와 effective boundary state를 함께 제시해, 허용된 탐색 공간과 강제 강도를 분명히 해야 한다
 
 ### 3.6 9개 lens 독립 실행
 
@@ -160,11 +177,17 @@ prompt-backed path에서도 실제 파일이 만들어져야 한다.
 
 - `npm run review:run-prompt-execution -- ...`
 
+이 step은 실행 종료 시 `execution-result.yaml`을 반드시 materialize해야 한다.
+
 canonical requirement:
 
 1. 각 lens는 자기 전용 맥락을 가진다
 2. Round 1에서는 다른 lens 결과를 보지 않는다
 3. 메인 `LLM` 콘텍스트는 per-lens detailed reasoning을 직접 모두 담지 않는다
+4. 각 실행 단위는 packet에 제시된 `BoundaryPolicy`와 `EffectiveBoundaryState`를 hard constraint로 읽는다
+5. 경계 안에서 충분한 근거를 얻지 못하면 broad search로 타협하지 않고 degraded/uncertain output을 남긴다
+6. lens dispatch는 병렬 실행이 기본이다
+7. realization에 동시 실행 제한이 있으면 bounded parallel dispatch를 사용하고, slot이 비면 다음 pending lens를 즉시 투입한다
 
 가능한 realization:
 
@@ -195,6 +218,13 @@ canonical requirement:
 packet materialization만 단독으로 디버깅해야 할 때는 아래 내부 bounded step을 쓸 수 있다.
 
 - `npm run review:materialize-prompt-packets -- ...`
+
+현재 TS bounded runner의 기본 병렬성:
+
+- `subagent` → `max_concurrent_lenses = 3`
+- `agent-teams` → `max_concurrent_lenses = 9`
+
+필요하면 `--max-concurrent-lenses`로 override할 수 있다.
 
 ### 3.7 종합 단계 (onto_synthesize)
 
@@ -257,6 +287,12 @@ later system handoff artifact를 분리한다.
 기본 bounded render step은 아래다.
 
 - `npm run review:render-final-output -- ...`
+
+중요:
+
+- degraded case가 발생하면 `review:run-prompt-execution`은 `error-log.md`를 기록한다
+- `review:complete-session`은 `final-output.md` render가 실패해도 `review-record.yaml` 조립은 계속 시도한다
+- 따라서 partial failure에서도 `ReviewRecord`는 남아야 한다
 
 ---
 

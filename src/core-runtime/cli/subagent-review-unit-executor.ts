@@ -2,7 +2,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 
@@ -17,6 +17,7 @@ function requireString(
 }
 
 function buildBoundedPrompt(
+  packetPath: string,
   packetText: string,
   outputPath: string,
   unitId: string,
@@ -26,22 +27,65 @@ function buildBoundedPrompt(
 
 Unit id: ${unitId}
 Unit kind: ${unitKind}
+Authoritative prompt packet path: ${packetPath}
 Canonical output path: ${outputPath}
 
 Rules:
 - Treat the prompt packet below as the authoritative contract.
+- Treat the Boundary Policy and Effective Boundary State in the packet as hard constraints.
+- Read the files referenced by the prompt packet when needed.
+- Stay within the smallest sufficient file set implied by the packet.
+- Do not recursively follow reference chains beyond the files explicitly listed in the packet unless the packet requires it.
+- Do not use web research when the packet says web research is denied.
+- Do not read outside the allowed filesystem scope described in the packet.
 - Produce only the final markdown content for the canonical output path.
 - Do not wrap the answer in code fences.
 - Do not add commentary before or after the markdown.
 - Do not modify repository files yourself.
-- Do not run shell commands or other tools.
 - Do not change the required output structure from the packet.
 - If the packet asks you to preserve disagreement or uncertainty, preserve it explicitly.
+- If you cannot complete the task within the declared boundary, preserve that limitation explicitly as insufficient access or insufficient evidence within boundary instead of broadening the search.
 
 Authoritative prompt packet follows:
 
 ${packetText}
 `;
+}
+
+function resolveSetupToken(): string | undefined {
+  const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "";
+  const candidatePaths = [
+    process.env.CLAUDE_CONFIG_DIR
+      ? `${process.env.CLAUDE_CONFIG_DIR}/.oauth-token`
+      : "",
+    `${homeDir}/.claude-1/.oauth-token`,
+    `${homeDir}/.claude-2/.oauth-token`,
+    `${homeDir}/.claude/.oauth-token`,
+  ].filter(Boolean);
+
+  for (const tokenPath of candidatePaths) {
+    try {
+      const token = require("node:fs").readFileSync(tokenPath, "utf8").trim();
+      if (token.startsWith("sk-ant-")) {
+        return token;
+      }
+    } catch { /* continue */ }
+  }
+  return undefined;
+}
+
+function buildClaudeChildEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  delete env.CLAUDECODE;
+  delete env.CLAUDE_CODE_ENTRYPOINT;
+  delete env.CLAUDE_CODE_EXECPATH;
+  if (!env.CLAUDE_CODE_OAUTH_TOKEN) {
+    const setupToken = resolveSetupToken();
+    if (setupToken) {
+      env.CLAUDE_CODE_OAUTH_TOKEN = setupToken;
+    }
+  }
+  return env;
 }
 
 async function runCodexSubagent(
@@ -95,7 +139,13 @@ async function runCodexSubagent(
   child.stdin.end();
 
   const exitCode = await new Promise<number>((resolve, reject) => {
-    child.on("error", reject);
+    child.on("error", (err: NodeJS.ErrnoException) => {
+      if (err.code === "ENOENT") {
+        reject(new Error("codex CLI not found. Install codex or use a different executor."));
+      } else {
+        reject(err);
+      }
+    });
     child.on("close", (code) => resolve(code ?? 1));
   });
 
@@ -106,7 +156,7 @@ async function runCodexSubagent(
     throw new Error(
       combinedMessage.length > 0
         ? combinedMessage
-        : `subagent executor exited with code ${exitCode}`,
+        : `codex subagent executor exited with code ${exitCode}`,
     );
   }
 }
@@ -123,8 +173,6 @@ async function runClaudeSubagent(
     "--bare",
     "--output-format",
     "text",
-    "--tools",
-    "",
     "--permission-mode",
     "default",
     "--add-dir",
@@ -139,9 +187,12 @@ async function runClaudeSubagent(
     claudeArgs.push("--effort", reasoningEffort);
   }
 
+  const claudeEnv = buildClaudeChildEnv();
+
   const child = spawn("claude", claudeArgs, {
     cwd: projectRoot,
     stdio: ["pipe", "pipe", "pipe"],
+    env: claudeEnv,
   });
 
   let stdout = "";
@@ -211,7 +262,13 @@ export async function runSubagentReviewUnitExecutorCli(
   const packetPath = path.resolve(requireString(values["packet-path"], "packet-path"));
   const outputPath = path.resolve(requireString(values["output-path"], "output-path"));
   const packetText = await fs.readFile(packetPath, "utf8");
-  const boundedPrompt = buildBoundedPrompt(packetText, outputPath, unitId, unitKind);
+  const boundedPrompt = buildBoundedPrompt(
+    packetPath,
+    packetText,
+    outputPath,
+    unitId,
+    unitKind,
+  );
   const hostRuntime = requireString(values["host-runtime"], "host-runtime");
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
@@ -227,13 +284,33 @@ export async function runSubagentReviewUnitExecutorCli(
       values["config-override"],
     );
   } else if (hostRuntime === "claude") {
-    await runClaudeSubagent(
-      projectRoot,
-      boundedPrompt,
-      outputPath,
-      values.model,
-      values["reasoning-effort"],
-    );
+    try {
+      await runClaudeSubagent(
+        projectRoot,
+        boundedPrompt,
+        outputPath,
+        values.model,
+        values["reasoning-effort"],
+      );
+    } catch (claudeError: unknown) {
+      const claudeMessage = claudeError instanceof Error ? claudeError.message : String(claudeError);
+      if (claudeMessage.includes("Not logged in")) {
+        console.error(
+          `[onto] Claude subagent auth failed for ${unitId}. Falling back to codex executor.`,
+        );
+        await runCodexSubagent(
+          projectRoot,
+          boundedPrompt,
+          outputPath,
+          values.model,
+          values["sandbox-mode"],
+          values["reasoning-effort"],
+          values["config-override"],
+        );
+      } else {
+        throw claudeError;
+      }
+    }
   } else {
     throw new Error(`Unsupported --host-runtime for subagent: ${hostRuntime}`);
   }

@@ -3,10 +3,13 @@
 import path from "node:path";
 import { parseArgs } from "node:util";
 import type {
+  DirectoryListingOptions,
   ReviewTargetScopeKind,
   ReviewTargetMaterializedInputKind,
 } from "../review/artifact-types.js";
 import { materializeReviewExecutionPreparationArtifacts } from "../review/materializers.js";
+import { DEFAULT_DIRECTORY_LISTING_OPTIONS } from "../review/review-artifact-utils.js";
+import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -30,7 +33,7 @@ function requireMaterializedInputKind(
 ): ReviewTargetMaterializedInputKind {
   if (
     value === "single_text" ||
-    value === "directory_listing_plus_selected_contents" ||
+    value === "directory_listing" ||
     value === "bundle_member_texts"
   ) {
     return value;
@@ -39,6 +42,7 @@ function requireMaterializedInputKind(
 }
 
 async function main(): Promise<number> {
+  await printOntoReleaseChannelNotice();
   const { values } = parseArgs({
     options: {
       "session-root": { type: "string" },
@@ -51,6 +55,9 @@ async function main(): Promise<number> {
       "learning-context-ref": { type: "string", multiple: true, default: [] },
       "role-definition-ref": { type: "string", multiple: true, default: [] },
       "execution-rule-ref": { type: "string", multiple: true, default: [] },
+      "excluded-name": { type: "string", multiple: true, default: [] },
+      "max-listing-depth": { type: "string" },
+      "max-listing-entries": { type: "string" },
     },
     strict: true,
     allowPositionals: false,
@@ -60,6 +67,21 @@ async function main(): Promise<number> {
   if (resolvedTargetRefs.length === 0) {
     throw new Error("At least one --resolved-target-ref is required.");
   }
+
+  const directoryListingOptions: DirectoryListingOptions = {
+    excluded_names:
+      values["excluded-name"].length > 0
+        ? values["excluded-name"]
+        : DEFAULT_DIRECTORY_LISTING_OPTIONS.excluded_names,
+    max_depth:
+      typeof values["max-listing-depth"] === "string"
+        ? Number.parseInt(values["max-listing-depth"], 10)
+        : DEFAULT_DIRECTORY_LISTING_OPTIONS.max_depth,
+    max_entries:
+      typeof values["max-listing-entries"] === "string"
+        ? Number.parseInt(values["max-listing-entries"], 10)
+        : DEFAULT_DIRECTORY_LISTING_OPTIONS.max_entries,
+  };
 
   const executionPreparationRoot =
     await materializeReviewExecutionPreparationArtifacts({
@@ -77,6 +99,7 @@ async function main(): Promise<number> {
       learningContextRefs: values["learning-context-ref"],
       roleDefinitionRefs: values["role-definition-ref"],
       executionRuleRefs: values["execution-rule-ref"],
+      directoryListingOptions,
     });
   console.log(executionPreparationRoot);
   return 0;

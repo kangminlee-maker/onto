@@ -10,6 +10,7 @@ The installed plugin copy is only a packaged realization and must not override n
 Preferred repo-local entrypoint:
 
 - `npm run review:invoke -- ...`
+- `onto-harness` 채널에서는 user-facing `review:*` CLI 실행 시 베타 채널 안내가 먼저 출력됩니다
 
 Internal bounded path:
 
@@ -20,6 +21,9 @@ Internal bounded path:
    using:
    - `execution-plan.yaml`
    - `prompt-packets/*.prompt.md`
+   - each packet should stay lightweight and point to authoritative artifact files
+   - lens execution must be parallel by default
+   - if the realization has a concurrency limit, use bounded parallel dispatch and backfill freed slots with the next pending lens
 5. `npm run review:complete-session -- --project-root {project} --session-root "{session_root}" --request-text "{original user request}"`
 
 The command surface should stay thin:
@@ -27,7 +31,24 @@ The command surface should stay thin:
 - do not invent a parallel execution order here
 - use this file only as the entrypoint instruction that points to the repo-local bounded path
 
-**Domain selection**: Append `@{domain}` to specify a domain, or `@-` for no-domain mode. If omitted, the Domain Selection Flow runs interactively.
+**Domain selection**:
+- Append `@{domain}` to specify a domain
+- Append `@-` for no-domain mode
+- If omitted:
+  - one configured domain -> use it directly
+  - multiple configured domains -> prompt for interactive selection when a TTY is available
+  - multiple configured domains in a non-interactive environment -> fail fast and require an explicit domain token
+
+**Boundary selection**
+- If the requested target resolves outside `project-root`, runtime now asks for explicit user decision in TTY mode.
+- Default options in an interactive session:
+  - approve review on that external target and add an explicit filesystem boundary
+  - stop and rerun with an in-repo target
+  - cancel
+- In non-interactive mode, choose one explicit decision before rerun:
+  - `--filesystem-boundary-decision approve --filesystem-allowed-root <external_root>`
+  - `--filesystem-boundary-decision rerun` (with repo-relative target)
+  - `--filesystem-boundary-decision cancel`
 
 **Execution profile**:
 - canonical:
@@ -57,6 +78,7 @@ Examples:
 - `/onto:review process.md @ontology --claude` — claude host runtime, defaulting to `agent-teams`
 - `/onto:review process.md @ontology --claude --execution-realization subagent` — claude host runtime with `subagent`
 - `/onto:review src/ @- --codex` — codex host runtime, no-domain
+- `/onto:review --target-scope-kind bundle --primary-ref drafts/ontology --member-ref drafts/ontology/domain_scope.md --member-ref drafts/ontology/concepts.md "seed bundle review"` — explicit bundle target
 - `/onto:review drafts/palantir-foundry @-` — seed review (recommended for initial seed review)
 
 Read the current repo copies of:
@@ -101,4 +123,9 @@ Read the current repo copies of:
    - `review:start-session`
    - `review:run-prompt-execution`
    - `review:complete-session`
-11. Treat `review:prepare-session`, `review:materialize-prompt-packets`, `review:render-final-output`, and `review:finalize-session` as internal bounded steps unless a narrower replacement boundary is being debugged.
+11. `review:run-prompt-execution` accepts `--max-concurrent-lenses`
+   - default:
+     - `subagent` → `3`
+     - `agent-teams` → `9`
+   - override is allowed per user or project config
+12. Treat `review:prepare-session`, `review:materialize-prompt-packets`, `review:render-final-output`, and `review:finalize-session` as internal bounded steps unless a narrower replacement boundary is being debugged.

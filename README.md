@@ -11,6 +11,8 @@ A Claude Code plugin that performs multi-perspective verification of logical sys
 > - `dev-docs/ontology-as-code-naming-charter.md`
 > - `dev-docs/ontology-as-code-korean-terminology-guide.md`
 > - `dev-docs/development-methodology.md`
+> - `dev-docs/ontology-as-code-guideline.md`
+> - `dev-docs/llm-runtime-interface-principles.md`
 > - `dev-docs/prototype-to-service-productization-plan.md`
 > - `dev-docs/prototype-runtime-llm-boundary-audit.md`
 > - `dev-docs/review-prototype-to-product-mapping.md`
@@ -44,6 +46,7 @@ A Claude Code plugin that performs multi-perspective verification of logical sys
 Current bounded `review` path:
 - preferred combined entrypoint: `npm run review:invoke -- ...`
 - current actual semantic executor realization: `subagent` via `codex exec`
+- `onto-harness` 베타 채널에서는 user-facing `review:*` CLI 실행 시 베타 채널 안내가 먼저 출력됨
 - internal bounded path:
   - `npm run review:start-session -- ...`
   - `npm run review:run-prompt-execution -- ...`
@@ -141,7 +144,7 @@ Each process execution selects a single **session domain**. Three ways to specif
 |--------|--------|----------|
 | Explicit | `@{domain}` | Non-interactive, uses specified domain |
 | No-domain | `@-` | Non-interactive, no domain rules applied |
-| Interactive | (omit) | Analyzes target, suggests domain, user confirms |
+| Interactive / resolved default | (omit) | One configured domain: use it directly. Multiple configured domains: prompt for selection when interactive; otherwise fail fast and require explicit `@{domain}` or `@-`. |
 
 Project domains and execution profile are declared in `.onto/config.yml`:
 ```yaml
@@ -199,6 +202,7 @@ This is a current implementation-status difference, not a canonical hierarchy or
 | `/onto:review {target} @-` | Review without domain rules |
 | `/onto:review {target} --codex` | Use codex host runtime (defaults to subagent) |
 | `/onto:review {target} --claude` | Use claude host runtime (defaults to agent-teams) |
+| `/onto:review --target-scope-kind bundle --primary-ref {root} --member-ref {path}` | Review an explicit bundle target |
 
 ### Individual Query
 | Command | Description |

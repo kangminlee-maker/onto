@@ -3,6 +3,8 @@
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import type {
+  BoundaryAccessPolicy,
+  DirectoryListingOptions,
   ReviewExecutionRealization,
   ReviewHostRuntime,
   ReviewMode,
@@ -10,6 +12,7 @@ import type {
   ReviewTargetScopeKind,
 } from "../review/artifact-types.js";
 import {
+  DEFAULT_DIRECTORY_LISTING_OPTIONS,
   hasOptionFlag,
   parseBooleanFlag,
 } from "../review/review-artifact-utils.js";
@@ -18,6 +21,7 @@ import {
   materializeReviewExecutionPreparationArtifacts,
   writeInvocationInterpretationArtifact,
 } from "../review/materializers.js";
+import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -134,7 +138,7 @@ function requireMaterializedInputKind(
 ): ReviewTargetMaterializedInputKind {
   if (
     value === "single_text" ||
-    value === "directory_listing_plus_selected_contents" ||
+    value === "directory_listing" ||
     value === "bundle_member_texts"
   ) {
     return value;
@@ -142,7 +146,18 @@ function requireMaterializedInputKind(
   throw new Error(`Invalid materialized input kind: ${value}`);
 }
 
+function requireBoundaryAccessPolicy(
+  value: string,
+  optionName: string,
+): BoundaryAccessPolicy {
+  if (value === "allowed" || value === "denied") {
+    return value;
+  }
+  throw new Error(`Invalid value for --${optionName}: ${value}`);
+}
+
 async function main(): Promise<number> {
+  await printOntoReleaseChannelNotice();
   return runPrepareReviewSessionCli(process.argv.slice(2));
 }
 
@@ -180,6 +195,13 @@ export async function runPrepareReviewSessionCli(
       "review-mode": { type: "string" },
       "lens-id": { type: "string", multiple: true, default: [] },
       "binding-note": { type: "string", multiple: true, default: [] },
+      "web-research-policy": { type: "string", default: "denied" },
+      "repo-exploration-policy": { type: "string", default: "allowed" },
+      "recursive-reference-expansion-policy": {
+        type: "string",
+        default: "denied",
+      },
+      "filesystem-allowed-root": { type: "string", multiple: true, default: [] },
       "materialized-kind": { type: "string" },
       "materialized-ref": { type: "string", multiple: true, default: [] },
       "system-purpose-ref": { type: "string", multiple: true, default: [] },
@@ -187,6 +209,10 @@ export async function runPrepareReviewSessionCli(
       "learning-context-ref": { type: "string", multiple: true, default: [] },
       "role-definition-ref": { type: "string", multiple: true, default: [] },
       "execution-rule-ref": { type: "string", multiple: true, default: [] },
+      "excluded-name": { type: "string", multiple: true, default: [] },
+      "max-listing-depth": { type: "string" },
+      "max-listing-entries": { type: "string" },
+      "max-embed-lines": { type: "string" },
     },
     strict: true,
     allowPositionals: false,
@@ -231,6 +257,22 @@ export async function runPrepareReviewSessionCli(
     hostRuntime,
     reviewMode: requireReviewMode(requireString(values["review-mode"], "review-mode")),
     resolvedLensIds: values["lens-id"],
+    webResearchPolicy: requireBoundaryAccessPolicy(
+      requireString(values["web-research-policy"], "web-research-policy"),
+      "web-research-policy",
+    ),
+    repoExplorationPolicy: requireBoundaryAccessPolicy(
+      requireString(values["repo-exploration-policy"], "repo-exploration-policy"),
+      "repo-exploration-policy",
+    ),
+    recursiveReferenceExpansionPolicy: requireBoundaryAccessPolicy(
+      requireString(
+        values["recursive-reference-expansion-policy"],
+        "recursive-reference-expansion-policy",
+      ),
+      "recursive-reference-expansion-policy",
+    ),
+    filesystemAllowedRoots: values["filesystem-allowed-root"],
     bindingNotes: values["binding-note"],
     ...(typeof values["plugin-root"] === "string" && values["plugin-root"].length > 0
       ? { pluginRoot: values["plugin-root"] }
@@ -275,6 +317,21 @@ export async function runPrepareReviewSessionCli(
     interpretationParams,
   );
 
+  const directoryListingOptions: DirectoryListingOptions = {
+    excluded_names:
+      values["excluded-name"].length > 0
+        ? values["excluded-name"]
+        : DEFAULT_DIRECTORY_LISTING_OPTIONS.excluded_names,
+    max_depth:
+      typeof values["max-listing-depth"] === "string"
+        ? Number.parseInt(values["max-listing-depth"], 10)
+        : DEFAULT_DIRECTORY_LISTING_OPTIONS.max_depth,
+    max_entries:
+      typeof values["max-listing-entries"] === "string"
+        ? Number.parseInt(values["max-listing-entries"], 10)
+        : DEFAULT_DIRECTORY_LISTING_OPTIONS.max_entries,
+  };
+
   const executionPreparationRoot =
     await materializeReviewExecutionPreparationArtifacts({
       sessionRoot,
@@ -289,6 +346,7 @@ export async function runPrepareReviewSessionCli(
       learningContextRefs: values["learning-context-ref"],
       roleDefinitionRefs: values["role-definition-ref"],
       executionRuleRefs: values["execution-rule-ref"],
+      directoryListingOptions,
     });
 
   console.log(

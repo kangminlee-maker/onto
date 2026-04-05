@@ -86,6 +86,14 @@
 
 최소 아래를 포함해야 한다.
 
+또한 output은 YAML frontmatter로 시작해야 하며, 최소 아래 field를 가져야 한다.
+
+```yaml
+---
+deliberation_status: not_needed | performed | required_but_unperformed
+---
+```
+
 1. consensus
 2. conditional consensus
 3. disagreement

@@ -457,16 +457,22 @@ E38_EXIT=$?
 E38_PREPARE=$(echo "$E38_OUT" | grep '"prepare_only"' | head -1)
 E38_SESSION_ROOT=$(echo "$E38_OUT" | grep '"session_root"' | head -1 | sed 's/.*: "//;s/".*//')
 
+E38_REQUEST_TEXT=$(echo "$E38_OUT" | grep '"request_text"' | head -1 | sed 's/.*: "//;s/".*//')
+
 if [ $E38_EXIT -eq 0 ] && [ -n "$E38_PREPARE" ] && [ -d "$E38_SESSION_ROOT" ]; then
+  # Verify request_text is present and non-empty (only non-derivable value in PrepareOnlyResult)
+  if [ -z "$E38_REQUEST_TEXT" ]; then
+    echo "  FAIL! E38: prepare-only (request_text missing or empty in PrepareOnlyResult)"
+    UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
   # Verify session artifacts exist
-  if [ -f "$E38_SESSION_ROOT/execution-plan.yaml" ] && \
+  elif [ -f "$E38_SESSION_ROOT/execution-plan.yaml" ] && \
      [ -f "$E38_SESSION_ROOT/binding.yaml" ] && \
      [ -d "$E38_SESSION_ROOT/prompt-packets" ]; then
     # Verify execution artifacts do NOT exist (execution was skipped)
     if [ ! -f "$E38_SESSION_ROOT/execution-result.yaml" ] && \
        [ ! -f "$E38_SESSION_ROOT/review-record.yaml" ] && \
        [ ! -f "$E38_SESSION_ROOT/final-output.md" ]; then
-      echo "  PASS  E38: prepare-only (session prepared, execution skipped)"
+      echo "  PASS  E38: prepare-only (session prepared, execution skipped, request_text present)"
       PASS_COUNT=$((PASS_COUNT + 1))
     else
       echo "  FAIL! E38: prepare-only (execution artifacts should not exist)"

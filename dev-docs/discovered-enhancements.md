@@ -55,6 +55,15 @@
 - **발견일**: 2026-04-05
 - **출처**: 타 세션에서 AI-data-dashboard 프로젝트 내에서 `cd /Users/kangmin/cowork/onto && npm run review:invoke`로 실행
 - **개념**: onto harness의 `review:invoke`가 onto 레포 내에서만 실행 가능. 다른 프로젝트를 리뷰하려면 cd로 이동해야 하고, target은 절대 경로로 지정해야 함. filesystem boundary 승인도 필요
-- **현재 상태**: 기록만. `--filesystem-boundary-decision approve`로 우회 가능
-- **판단**: enhancement — 기능적으로는 작동하지만 UX가 불편
-- **비고**: 장기적으로 onto를 글로벌 CLI로 설치하면 해결됨. 단기적으로는 alias나 wrapper script로 완화 가능
+- **현재 상태**: **해결됨** (2026-04-06). 글로벌 CLI `onto review` 구현 완료. `bin/onto` + `src/cli.ts` + discovery 모듈.
+- **판단**: ~~enhancement~~ → 해결됨
+- **비고**: `npm link`로 글로벌 설치 후 어디서든 `onto review <target> <intent>` 실행 가능. 42/42 E2E ALL PASS.
+
+### 5. Cross-project Trust Boundary: .onto/ 최초 생성 확인
+
+- **발견일**: 2026-04-06
+- **출처**: 글로벌 CLI 설계 9-lens full review (session `20260406-b28811ff`). onto_axiology AX-4 제안, Consensus C-3/CC-1 관련.
+- **개념**: 외부 프로젝트에 `.onto/` 디렉토리를 처음 생성할 때 사용자 확인이 필요함. 현재는 `--project-root`를 명시적으로 전달하면 silent하게 생성됨. auto-detection(`--project-root` 없이 CWD에서 자동 결정)이 활성화되면 사용자가 의도하지 않은 디렉토리 생성이 발생할 수 있음.
+- **현재 상태**: 기록만. `--project-root` 명시적 전달이 사실상 사용자 동의로 작동.
+- **판단**: blocker (auto-detection 프로덕션 적용 전) — auto-detection 없이는 enhancement
+- **비고**: TTY: interactive prompt ("이 프로젝트에 .onto/ 디렉토리를 생성합니다. 계속하시겠습니까?"). non-TTY: `--allow-onto-init` flag 필수. `.gitignore`에 `.onto/review/` 추가 안내. 9-lens review의 Trust Boundary perspective에서 도출.

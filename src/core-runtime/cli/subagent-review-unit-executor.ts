@@ -2,7 +2,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 
@@ -295,21 +295,11 @@ export async function runSubagentReviewUnitExecutorCli(
     } catch (claudeError: unknown) {
       const claudeMessage = claudeError instanceof Error ? claudeError.message : String(claudeError);
       if (claudeMessage.includes("Not logged in")) {
-        console.error(
-          `[onto] Claude subagent auth failed for ${unitId}. Falling back to codex executor.`,
+        throw new Error(
+          `[CLAUDE_AUTH_FAILED] Claude subagent auth failed for ${unitId}: ${claudeMessage}`,
         );
-        await runCodexSubagent(
-          projectRoot,
-          boundedPrompt,
-          outputPath,
-          values.model,
-          values["sandbox-mode"],
-          values["reasoning-effort"],
-          values["config-override"],
-        );
-      } else {
-        throw claudeError;
       }
+      throw claudeError;
     }
   } else {
     throw new Error(`Unsupported --host-runtime for subagent: ${hostRuntime}`);

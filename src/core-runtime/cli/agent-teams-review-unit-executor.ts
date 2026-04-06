@@ -2,7 +2,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 
@@ -150,90 +150,51 @@ export async function runAgentTeamsReviewUnitExecutorCli(
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
 
-  let claudeError: Error | null = null;
+  const child = spawn("claude", claudeArgs, {
+    cwd: projectRoot,
+    stdio: ["pipe", "pipe", "pipe"],
+    env: buildClaudeChildEnv(),
+  });
 
-  try {
-    const child = spawn("claude", claudeArgs, {
-      cwd: projectRoot,
-      stdio: ["pipe", "pipe", "pipe"],
-      env: buildClaudeChildEnv(),
-    });
+  let stdout = "";
+  let stderr = "";
 
-    let stdout = "";
-    let stderr = "";
+  child.stdout.on("data", (chunk: Buffer | string) => {
+    stdout += String(chunk);
+  });
+  child.stderr.on("data", (chunk: Buffer | string) => {
+    stderr += String(chunk);
+  });
 
-    child.stdout.on("data", (chunk: Buffer | string) => {
-      stdout += String(chunk);
-    });
-    child.stderr.on("data", (chunk: Buffer | string) => {
-      stderr += String(chunk);
-    });
+  child.stdin.write(packetText);
+  child.stdin.end();
 
-    child.stdin.write(packetText);
-    child.stdin.end();
+  const exitCode = await new Promise<number>((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (code) => resolve(code ?? 1));
+  });
 
-    const exitCode = await new Promise<number>((resolve, reject) => {
-      child.on("error", reject);
-      child.on("close", (code) => resolve(code ?? 1));
-    });
-
-    if (exitCode !== 0) {
-      const combinedMessage = [stderr.trim(), stdout.trim()]
-        .filter((message) => message.length > 0)
-        .join("\n");
+  if (exitCode !== 0) {
+    const combinedMessage = [stderr.trim(), stdout.trim()]
+      .filter((message) => message.length > 0)
+      .join("\n");
+    const errorMessage = combinedMessage.length > 0
+      ? combinedMessage
+      : `agent-teams executor exited with code ${exitCode}`;
+    if (errorMessage.includes("Not logged in")) {
       throw new Error(
-        combinedMessage.length > 0
-          ? combinedMessage
-          : `agent-teams executor exited with code ${exitCode}`,
+        `[CLAUDE_AUTH_FAILED] Claude agent-teams auth failed for ${unitId}: ${errorMessage}`,
       );
     }
-
-    const normalizedOutput = stdout.trim();
-    if (normalizedOutput.length === 0) {
-      throw new Error(`Agent-teams executor produced empty output: ${outputPath}`);
-    }
-
-    await fs.writeFile(outputPath, `${normalizedOutput}\n`, "utf8");
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes("Not logged in")) {
-      claudeError = error instanceof Error ? error : new Error(errorMessage);
-    } else {
-      throw error;
-    }
+    throw new Error(errorMessage);
   }
 
-  if (claudeError) {
-    console.error(
-      `[onto] Claude agent-teams auth failed for ${unitId}. Falling back to codex subagent.`,
-    );
-    const boundedPrompt = `${agentPrompt}\n\nAuthoritative prompt packet follows:\n\n${packetText}`;
-    const codexChild = spawn("codex", [
-      "exec", "-C", projectRoot, "-s", "read-only",
-      "-c", 'model_reasoning_effort="low"',
-      "-o", outputPath, "--skip-git-repo-check", "-",
-    ], {
-      cwd: projectRoot,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-
-    let codexStdout = "";
-    let codexStderr = "";
-    codexChild.stdout.on("data", (chunk: Buffer | string) => { codexStdout += String(chunk); });
-    codexChild.stderr.on("data", (chunk: Buffer | string) => { codexStderr += String(chunk); });
-    codexChild.stdin.write(boundedPrompt);
-    codexChild.stdin.end();
-
-    const codexExitCode = await new Promise<number>((resolve, reject) => {
-      codexChild.on("error", reject);
-      codexChild.on("close", (code) => resolve(code ?? 1));
-    });
-
-    if (codexExitCode !== 0) {
-      const msg = [codexStderr.trim(), codexStdout.trim()].filter(Boolean).join("\n");
-      throw new Error(msg || `codex fallback exited with code ${codexExitCode}`);
-    }
+  const normalizedOutput = stdout.trim();
+  if (normalizedOutput.length === 0) {
+    throw new Error(`Agent-teams executor produced empty output: ${outputPath}`);
   }
+
+  await fs.writeFile(outputPath, `${normalizedOutput}\n`, "utf8");
 
   console.log(
     JSON.stringify(

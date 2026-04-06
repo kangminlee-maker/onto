@@ -39,9 +39,45 @@ When this skill is invoked in a Claude Code session, choose the execution path:
 - **CLI executor path**: 모든 원본 인자를 `npm run review:invoke -- ...`에 전달하고 종료.
 - **Nested Spawn Coordinator (default)**: `dev-docs/review-nested-spawn-coordinator-contract.md`의 7-phase 실행 계약을 따른다. 전처리와 세션 준비는 `onto review {$ARGUMENTS} --prepare-only` (또는 `npm run review:invoke -- {$ARGUMENTS} --prepare-only`)로 수행하고, lens dispatch는 Agent tool로 실행한다.
 
+### Agent Teams 필수 규칙
+
+Claude Code에서 Nested Spawn Coordinator를 실행할 때, lens dispatch는 반드시 **Agent Teams를 통해** 수행한다:
+
+1. Agent Teams로 coordinator agent 1개를 생성한다 (TeamCreate → TaskCreate).
+2. 해당 agent가 Agent tool로 lens별 subagent를 spawn한다 (nested spawn 구조).
+3. Agent Teams가 비활성화된 환경에서만 메인 컨텍스트에서 직접 lens를 dispatch한다.
+
+### 3-Tier Executor Fallback
+
+CLI executor 경로(`--claude`, `--agent-teams` 등)에서 실행 실패 시, 다음 순서로 fallback한다.
+각 tier 전환 시 세션 재준비는 불필요하다 — `--prepare-only`로 이미 생성된 세션 artifact를 재사용한다.
+
+| Tier | 실행 방식 | 전환 조건 | 비용 |
+|---|---|---|---|
+| 1 | CLI executor (claude CLI subagent) | `[CLAUDE_AUTH_FAILED]` 감지 시 → Tier 2 | 구독 내 |
+| 2 | Nested Spawn Coordinator (Agent Teams → Agent tool) | dispatch 실패 시 → Tier 3 | 구독 내 |
+| 3 | Codex CLI | **사용자 동의 필수** — 추가 과금 발생 고지 후 승인 시에만 실행 | 추가 과금 |
+
+#### Tier 1 → Tier 2 전환
+
+CLI executor 출력(stdout/stderr)에 `[CLAUDE_AUTH_FAILED]`가 포함되면:
+1. CLI executor 결과의 `session_root`를 확인한다 (세션 artifact는 이미 존재).
+2. `{session_root}/execution-plan.yaml`을 읽어 lens seats를 도출한다.
+3. Nested Spawn Coordinator의 Phase 2부터 실행한다 (Phase 1 preparation은 CLI executor가 이미 완료).
+
+#### Tier 2 → Tier 3 전환
+
+Nested Spawn Coordinator의 lens dispatch도 실패하면:
+1. 사용자에게 Codex CLI 사용 동의를 구한다:
+   `"Codex CLI로 재시도할까요? 추가 과금이 발생합니다. (y/n)"`
+2. 승인 시: `onto review {$ARGUMENTS} --codex`로 재실행 (codex executor 경로).
+3. 거부 시: 실패를 보고하고 종료.
+
 해소되는 실무 질문:
-- "Claude Code에서 기본으로 어느 경로?" → Nested Spawn Coordinator (Agent tool)
+- "Claude Code에서 기본으로 어느 경로?" → Nested Spawn Coordinator (Agent Teams → Agent tool)
 - "`--claude`를 붙이면?" → CLI executor path (`review:invoke`가 resolved profile로 실행)
+- "CLI executor가 auth 실패하면?" → 자동으로 Nested Spawn Coordinator로 전환 (Tier 2)
+- "Codex는 언제 사용?" → Tier 2까지 모두 실패 + 사용자 명시적 동의 시에만
 - "플래그 없이 실행하면 bound profile은?" → `execution-plan.yaml`의 `execution_realization` + `host_runtime`에서 도출
 
 The coordinator contract is the authority for execution procedure. This command surface only selects the path.

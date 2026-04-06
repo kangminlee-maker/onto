@@ -36,7 +36,7 @@
 - directory listing 필터 (62K → 348줄), embed truncation (300줄), kind `directory_listing` 통일 완료.
 - **4 lens + synthesize**: codex executor로 E2E 성공 (세션 `20260405-e8b28bc0`).
 - **9 lens + synthesize**: Agent tool로 E2E 성공 (세션 `20260405-a98b65a7`).
-- E2E 테스트 **38건 ALL PASS** (`npm run test:e2e`). 외부 레포 의존성 제거 완료.
+- E2E 테스트 **42건 ALL PASS** (`npm run test:e2e`). 외부 레포 의존성 제거 완료.
 - edge case 107건 분석, 보안/높은/중간 우선순위 전부 수정.
 - executor 5종 구현: mock, subagent, agent-teams, codex, api (anthropic/openai).
 - `--diff-range` git diff target 지원.
@@ -62,15 +62,25 @@
 - **Codex CLI 비활성화** (2026-04-06): 과금 문제. `codex` → `codex.disabled` 이름 변경.
 - **외부 레포 의존성 제거** (2026-04-06): E2E 테스트에서 `../AI-data-dashboard` 참조를 onto 레포 내부 커밋으로 교체.
 - **`--diff-range` Agent tool 경로 E2E 성공** (2026-04-06): 세션 `20260406-832810a9`. `--prepare-only` + Agent dispatch + `complete-session`.
+- **글로벌 CLI 구현 완료** (2026-04-06):
+  - `onto review <target> <intent>` — 어디서든 실행 가능
+  - `onto info` — resolved onto home, project root 표시
+  - `bin/onto` 진입점 + `src/cli.ts` dispatcher
+  - `src/core-runtime/discovery/` 모듈: onto-home.ts, project-root.ts, config-chain.ts
+  - Onto Home 해석: `--onto-home` flag > `ONTO_HOME` env > `import.meta.url` walk-up
+  - Executor 해석: `npm run` 대신 직접 스크립트 경로 사용 (ontoHome 기반)
+  - `ONTO_HOME` env를 spawned executor에 전파
+  - E2E 테스트 42건 ALL PASS (E39-E42 추가)
 
 ### 2.2 작동하는 실행 경로
 
 | 환경 | 방법 | 비용 | 상태 |
 |---|---|---|---|
-| Claude Code 세션 (기본) | `review:invoke --prepare-only` → Agent tool dispatch → `review:complete-session` | 구독 | **작동 (권장)** |
+| Claude Code 세션 (기본) | `onto review --prepare-only` → Agent tool dispatch → `onto review --complete-session` | 구독 | **작동 (권장)** |
 | Claude Code 세션 (기본, diff) | 위와 동일 + `--diff-range` | 구독 | **작동** |
-| CLI | `review:invoke --executor-realization api` | API 과금 | **작동** |
-| CLI | `review:invoke --executor-realization mock` | 무료 | **작동 (테스트용)** |
+| 글로벌 CLI (어디서든) | `onto review <target> <intent> --executor-realization mock` | 무료 | **작동** |
+| 글로벌 CLI (어디서든) | `onto review <target> <intent> --executor-realization api` | API 과금 | **작동** |
+| repo-local CLI | `npm run review:invoke -- ...` | executor별 | **작동 (하위 호환)** |
 
 ### 2.3 작동하지 않는 것 / 제한
 
@@ -129,6 +139,8 @@
 | 설정 | `.onto/config.yml` |
 | **스킬 (thin entrypoint)** | `commands/review.md` |
 | **coordinator 계약** | `dev-docs/review-nested-spawn-coordinator-contract.md` |
+| **글로벌 CLI dispatcher** | `src/cli.ts`, `bin/onto` |
+| **discovery 모듈** | `src/core-runtime/discovery/onto-home.ts`, `project-root.ts`, `config-chain.ts` |
 
 ---
 

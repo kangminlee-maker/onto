@@ -27,8 +27,9 @@
 
 1. Bash tool로 실행:
    ```
-   npm run review:invoke -- {$ARGUMENTS} --prepare-only
+   onto review {$ARGUMENTS} --prepare-only
    ```
+   또는 onto 레포 내부에서: `npm run review:invoke -- {$ARGUMENTS} --prepare-only`.
    이 명령은 모든 전처리(positional 파싱, target stat, 도메인 해석, lens set 결정)와
    세션 준비(artifact, prompt packet 생성)를 수행한 뒤, 실행/완료 없이 반환한다.
 2. JSON stdout(`PrepareOnlyResult`)에서 파싱:

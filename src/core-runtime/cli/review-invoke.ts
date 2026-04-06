@@ -22,6 +22,7 @@ import {
   readSingleOptionValueFromArgv,
 } from "../review/review-artifact-utils.js";
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
+import { resolveOntoHome } from "../discovery/onto-home.js";
 
 type ExecutorRealization = "subagent" | "agent-teams" | "codex" | "api" | "mock";
 type ExecutionRealization = "subagent" | "agent-teams";
@@ -135,6 +136,7 @@ const LIGHT_REVIEW_LENS_IDS = [
 
 const KNOWN_PASSTHROUGH_OPTION_NAMES = [
   "project-root",
+  "onto-home",
   "plugin-root",
   "session-id",
   "requested-target",
@@ -228,10 +230,59 @@ function resolveExecutorScript(realization: ExecutorRealization): string {
   return "review:mock-unit-executor";
 }
 
+const EXECUTOR_SCRIPT_FILENAMES: Record<ExecutorRealization, string> = {
+  subagent: "subagent-review-unit-executor",
+  "agent-teams": "agent-teams-review-unit-executor",
+  codex: "codex-review-unit-executor",
+  api: "api-review-unit-executor",
+  mock: "mock-review-unit-executor",
+};
+
+function resolveDirectExecutorPath(
+  realization: ExecutorRealization,
+  ontoHome: string,
+): { bin: string; scriptPath: string } | null {
+  const filename = EXECUTOR_SCRIPT_FILENAMES[realization];
+  if (!filename) return null;
+
+  // Prefer compiled dist/ if available
+  const distPath = path.join(
+    ontoHome, "dist", "core-runtime", "cli", `${filename}.js`,
+  );
+  if (fsSync.existsSync(distPath)) {
+    return { bin: "node", scriptPath: distPath };
+  }
+
+  // Dev mode: use tsx with source
+  const srcPath = path.join(
+    ontoHome, "src", "core-runtime", "cli", `${filename}.ts`,
+  );
+  const tsxBin = path.join(ontoHome, "node_modules", ".bin", "tsx");
+  if (fsSync.existsSync(srcPath) && fsSync.existsSync(tsxBin)) {
+    return { bin: tsxBin, scriptPath: srcPath };
+  }
+
+  return null;
+}
+
 function buildExecutorConfigFromRealization(
   realization: ExecutorRealization,
   hostRuntime?: HostRuntime,
+  ontoHome?: string,
 ): ReviewUnitExecutorConfig {
+  // When ontoHome is available, use direct script paths (global CLI path)
+  if (typeof ontoHome === "string" && ontoHome.length > 0) {
+    const direct = resolveDirectExecutorPath(realization, ontoHome);
+    if (direct) {
+      const args = [direct.scriptPath, "--"];
+      if ((realization === "subagent" || realization === "agent-teams") && hostRuntime) {
+        args.push("--host-runtime", hostRuntime);
+      }
+      return { bin: direct.bin, args };
+    }
+  }
+
+  // Legacy npm run fallback (when invoked via npm run from onto repo)
   const args = ["run", resolveExecutorScript(realization), "--"];
   if (realization === "subagent" && hostRuntime) {
     args.push("--host-runtime", hostRuntime);
@@ -333,6 +384,7 @@ function resolveExecutorConfig(
   hostRuntime: HostRuntime,
   optionPrefix: "" | "synthesize-",
   ontoConfig?: OntoConfig,
+  ontoHome?: string,
 ): ReviewUnitExecutorConfig {
   const optionPrefixLabel = optionPrefix.length > 0 ? optionPrefix : "";
   const explicitBin = readSingleOptionValueFromArgv(
@@ -361,7 +413,7 @@ function resolveExecutorConfig(
     explicitRealization === "api" ||
     explicitRealization === "mock"
   ) {
-    return buildExecutorConfigFromRealization(explicitRealization, hostRuntime);
+    return buildExecutorConfigFromRealization(explicitRealization, hostRuntime, ontoHome);
   }
 
   const configRealization = ontoConfig?.executor_realization;
@@ -372,19 +424,19 @@ function resolveExecutorConfig(
     configRealization === "api" ||
     configRealization === "mock"
   ) {
-    return buildExecutorConfigFromRealization(configRealization as ExecutorRealization, hostRuntime);
+    return buildExecutorConfigFromRealization(configRealization as ExecutorRealization, hostRuntime, ontoHome);
   }
 
   if (executionRealization === "subagent" && hostRuntime === "codex") {
-    return buildExecutorConfigFromRealization("subagent", "codex");
+    return buildExecutorConfigFromRealization("subagent", "codex", ontoHome);
   }
 
   if (executionRealization === "subagent" && hostRuntime === "claude") {
-    return buildExecutorConfigFromRealization("subagent", "claude");
+    return buildExecutorConfigFromRealization("subagent", "claude", ontoHome);
   }
 
   if (executionRealization === "agent-teams" && hostRuntime === "claude") {
-    return buildExecutorConfigFromRealization("agent-teams", "claude");
+    return buildExecutorConfigFromRealization("agent-teams", "claude", ontoHome);
   }
 
   throw new Error(
@@ -1369,6 +1421,16 @@ function appendDirectoryListingConfigArgs(
 
 export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   const prepareOnly = hasOptionFlag(argv, "prepare-only");
+  const ontoHomeFlag = readSingleOptionValueFromArgv(argv, "onto-home");
+  let ontoHome: string | undefined;
+  try {
+    ontoHome = resolveOntoHome(ontoHomeFlag);
+  } catch {
+    // When invoked via npm run (legacy path), onto home resolution from
+    // import.meta.url or CWD will succeed. If it fails, we proceed without
+    // ontoHome — executor resolution falls back to npm run scripts.
+    ontoHome = undefined;
+  }
   const projectRoot = path.resolve(
     readSingleOptionValueFromArgv(argv, "project-root") ?? ".",
   );
@@ -1463,6 +1525,7 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     hostRuntime,
     "",
     ontoConfig,
+    ontoHome,
   );
   const synthesizeExecutorConfig = resolveExecutorConfig(
     argv,
@@ -1470,6 +1533,7 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     hostRuntime,
     "synthesize-",
     ontoConfig,
+    ontoHome,
   );
 
   const promptExecutionResult = await executeReviewPromptExecution({

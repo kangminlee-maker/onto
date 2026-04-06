@@ -44,12 +44,16 @@ export async function startReviewSession(
   const sessionRoot = path.join(projectRoot, ".onto", "review", sessionId);
 
   const maxEmbedLines = readSingleOptionValueFromArgv(argv, "max-embed-lines");
+  const ontoHomePassthrough = readSingleOptionValueFromArgv(argv, "onto-home");
   const promptPacketsArgs = [
     "--project-root",
     projectRoot,
     "--session-root",
     sessionRoot,
   ];
+  if (typeof ontoHomePassthrough === "string" && ontoHomePassthrough.length > 0) {
+    promptPacketsArgs.push("--onto-home", ontoHomePassthrough);
+  }
   if (typeof maxEmbedLines === "string" && maxEmbedLines.length > 0) {
     promptPacketsArgs.push("--max-embed-lines", maxEmbedLines);
   }

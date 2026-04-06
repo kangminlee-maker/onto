@@ -167,6 +167,7 @@ export async function runPrepareReviewSessionCli(
   const { values } = parseArgs({
     options: {
       "project-root": { type: "string", default: "." },
+      "onto-home": { type: "string" },
       "plugin-root": { type: "string" },
       "session-id": { type: "string" },
       "requested-target": { type: "string" },

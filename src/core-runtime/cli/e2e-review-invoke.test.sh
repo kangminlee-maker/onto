@@ -490,6 +490,75 @@ fi
 echo ""
 
 # ─────────────────────────────────────────────
+# 11. GLOBAL CLI
+# ─────────────────────────────────────────────
+
+echo "── Global CLI ──"
+
+# E39: onto info from project root
+echo "=== E39: onto-info ==="
+E39_OUT=$(onto info 2>&1)
+E39_EXIT=$?
+E39_ONTO_HOME=$(echo "$E39_OUT" | grep '"onto_home"' | head -1 | sed 's/.*: "//;s/".*//')
+
+if [ $E39_EXIT -eq 0 ] && [ -n "$E39_ONTO_HOME" ] && [ -d "$E39_ONTO_HOME/roles" ]; then
+  echo "  PASS  E39: onto-info (onto_home=$E39_ONTO_HOME)"
+  PASS_COUNT=$((PASS_COUNT + 1))
+else
+  echo "  FAIL! E39: onto-info (exit=$E39_EXIT, onto_home=$E39_ONTO_HOME)"
+  UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+fi
+
+# E40: onto review with mock executor via global CLI
+echo "=== E40: onto-review-mock ==="
+E40_OUT=$(onto review src/ "global cli mock test" \
+  --executor-realization mock --review-mode light \
+  --project-root "$PROJECT_ROOT" 2>&1)
+E40_EXIT=$?
+E40_STATUS=$(echo "$E40_OUT" | grep '"record_status"' | head -1 | sed 's/.*: "//;s/".*//')
+
+if [ $E40_EXIT -eq 0 ]; then
+  echo "  PASS  E40: onto-review-mock (status=$E40_STATUS)"
+  PASS_COUNT=$((PASS_COUNT + 1))
+else
+  echo "  FAIL! E40: onto-review-mock (exit=$E40_EXIT)"
+  UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+fi
+
+# E41: onto review --prepare-only via global CLI
+echo "=== E41: onto-prepare-only ==="
+E41_OUT=$(onto review src/ "global cli prepare test" \
+  --executor-realization mock --review-mode light --prepare-only \
+  --project-root "$PROJECT_ROOT" 2>&1)
+E41_EXIT=$?
+E41_PREPARE=$(echo "$E41_OUT" | grep '"prepare_only"' | head -1)
+E41_REQUEST=$(echo "$E41_OUT" | grep '"request_text"' | head -1 | sed 's/.*: "//;s/".*//')
+
+if [ $E41_EXIT -eq 0 ] && [ -n "$E41_PREPARE" ] && [ -n "$E41_REQUEST" ]; then
+  echo "  PASS  E41: onto-prepare-only (request_text present)"
+  PASS_COUNT=$((PASS_COUNT + 1))
+else
+  echo "  FAIL! E41: onto-prepare-only (exit=$E41_EXIT)"
+  UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+fi
+
+# E42: onto info from external directory
+echo "=== E42: onto-info-external ==="
+E42_OUT=$(cd /tmp && onto info 2>&1)
+E42_EXIT=$?
+E42_ONTO_HOME=$(echo "$E42_OUT" | grep '"onto_home"' | head -1 | sed 's/.*: "//;s/".*//')
+
+if [ $E42_EXIT -eq 0 ] && [ -n "$E42_ONTO_HOME" ] && [ -d "$E42_ONTO_HOME/roles" ]; then
+  echo "  PASS  E42: onto-info-external (onto_home resolved from /tmp)"
+  PASS_COUNT=$((PASS_COUNT + 1))
+else
+  echo "  FAIL! E42: onto-info-external (exit=$E42_EXIT)"
+  UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+fi
+
+echo ""
+
+# ─────────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────────
 

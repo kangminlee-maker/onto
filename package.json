@@ -4,6 +4,9 @@
   "onto_release_label": "onto-harness",
   "private": true,
   "type": "module",
+  "bin": {
+    "onto": "./bin/onto"
+  },
   "scripts": {
     "build:ts-core": "tsc -p tsconfig.json",
     "check:ts-core": "tsc -p tsconfig.json --noEmit",

@@ -208,6 +208,10 @@ async function invokeExecutor(
     {
       cwd: projectRoot,
       stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        ...(process.env.ONTO_HOME ? { ONTO_HOME: process.env.ONTO_HOME } : {}),
+      },
     },
   );
 

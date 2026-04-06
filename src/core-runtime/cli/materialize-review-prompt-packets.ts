@@ -116,7 +116,10 @@ function resolveRoleDefinitionPath(
   ontoHome: string | undefined,
 ): string {
   if (CORE_ROLE_IDS.has(lensId)) {
-    // Core roles: ontoHome only
+    // Core roles: ontoHome only. Project override forbidden.
+    // When ontoHome is undefined (legacy npm run path), projectRoot is used.
+    // Precondition: in legacy path, projectRoot === ontoHome (both are the onto repo).
+    // This fallback does NOT violate the policy because the two paths are identical.
     const homePath = typeof ontoHome === "string" && ontoHome.length > 0
       ? path.resolve(ontoHome, "roles", `${lensId}.md`)
       : path.resolve(projectRoot, "roles", `${lensId}.md`);

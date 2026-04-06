@@ -35,6 +35,7 @@ export async function completeReviewSession(
   const { values } = parseArgs({
     options: {
       "project-root": { type: "string", default: "." },
+      "onto-home": { type: "string" },
       "session-root": { type: "string" },
       "request-text": { type: "string" },
     },

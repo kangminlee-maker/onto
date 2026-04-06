@@ -33,7 +33,7 @@ When this skill is invoked in a Claude Code session, choose the execution path:
 
 | 조건 | 경로 | 실행 주체 | 비용 모델 |
 |---|---|---|---|
-| `$ARGUMENTS`에 `--execution-realization`, `--executor-bin`, `--host-runtime`, `--codex` 중 하나라도 있음 | **CLI executor** | `npm run review:invoke` (child process) | executor별 (codex 할당량 / API 과금) |
+| `$ARGUMENTS`에 `--execution-realization`, `--executor-bin`, `--host-runtime`, `--codex`, `--claude` 중 하나라도 있음 | **CLI executor** | `npm run review:invoke` (child process) | executor별 (codex 할당량 / API 과금) |
 | 위 플래그 없음 (기본) | **Nested Spawn Coordinator** | Agent tool (현재 세션 내) | 구독 내 |
 
 - **CLI executor path**: 모든 원본 인자를 `npm run review:invoke -- ...`에 전달하고 종료.

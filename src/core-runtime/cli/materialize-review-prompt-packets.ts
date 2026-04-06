@@ -91,18 +91,9 @@ ${state.filesystem_scope.effective_allowed_roots
 
 const DEFAULT_MAX_EMBED_LINES = 300;
 
-const CORE_ROLE_IDS = new Set([
-  "onto_logic",
-  "onto_structure",
-  "onto_dependency",
-  "onto_semantics",
-  "onto_pragmatics",
-  "onto_evolution",
-  "onto_coverage",
-  "onto_conciseness",
-  "onto_axiology",
-  "onto_synthesize",
-]);
+// Core role IDs derived from authority/core-lens-registry.yaml (single source of truth)
+import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
+const CORE_ROLE_IDS = new Set(loadCoreLensRegistry().core_role_ids);
 
 /**
  * Resolve role definition path per the Role/Domain policy:

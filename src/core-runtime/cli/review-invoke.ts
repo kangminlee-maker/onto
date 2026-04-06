@@ -25,6 +25,7 @@ import {
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 import { resolveOntoHome } from "../discovery/onto-home.js";
 import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.js";
+import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 
 type ExecutorRealization = "subagent" | "agent-teams" | "codex" | "api" | "mock";
 type ExecutionRealization = "subagent" | "agent-teams";
@@ -78,24 +79,10 @@ interface ReviewInvokeRouteSummary {
   synthesize_waits_for_all_lenses: true;
 }
 
-const FULL_REVIEW_LENS_IDS = [
-  "onto_logic",
-  "onto_structure",
-  "onto_dependency",
-  "onto_semantics",
-  "onto_pragmatics",
-  "onto_evolution",
-  "onto_coverage",
-  "onto_conciseness",
-  "onto_axiology",
-] as const;
-
-const LIGHT_REVIEW_LENS_IDS = [
-  "onto_logic",
-  "onto_pragmatics",
-  "onto_evolution",
-  "onto_axiology",
-] as const;
+// Lens IDs derived from authority/core-lens-registry.yaml (single source of truth)
+const _registry = loadCoreLensRegistry();
+const FULL_REVIEW_LENS_IDS = _registry.full_review_lens_ids;
+const LIGHT_REVIEW_LENS_IDS = _registry.light_review_lens_ids;
 
 const KNOWN_PASSTHROUGH_OPTION_NAMES = [
   "project-root",
@@ -744,7 +731,7 @@ function resolveLensDefaultsForReviewMode(reviewMode: ReviewMode): {
   if (reviewMode === "light") {
     return {
       resolvedLensIds: [...LIGHT_REVIEW_LENS_IDS],
-      alwaysIncludeLensIds: ["onto_axiology"],
+      alwaysIncludeLensIds: [..._registry.always_include_lens_ids],
       recommendedLensIds: ["onto_logic", "onto_pragmatics", "onto_evolution"],
       rationale: [
         "host-facing positional invoke currently defaults light review to logic, pragmatics, evolution, and axiology.",

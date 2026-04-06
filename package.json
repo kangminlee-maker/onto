@@ -27,7 +27,10 @@
     "review:render-final-output": "tsx src/core-runtime/cli/render-review-final-output.ts",
     "review:finalize-session": "tsx src/core-runtime/cli/assemble-review-record.ts",
     "review:complete-session": "tsx src/core-runtime/cli/complete-review-session.ts",
-    "review:assemble-record": "tsx src/core-runtime/cli/assemble-review-record.ts"
+    "review:assemble-record": "tsx src/core-runtime/cli/assemble-review-record.ts",
+    "review:coordinator-init-log": "tsx src/core-runtime/cli/coordinator-helpers.ts init-log",
+    "review:coordinator-build-synthesize-packet": "tsx src/core-runtime/cli/coordinator-helpers.ts build-synthesize-packet",
+    "review:coordinator-write-execution-result": "tsx src/core-runtime/cli/coordinator-helpers.ts write-execution-result"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",

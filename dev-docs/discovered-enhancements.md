@@ -67,3 +67,13 @@
 - **현재 상태**: 기록만. `--project-root` 명시적 전달이 사실상 사용자 동의로 작동.
 - **판단**: blocker (auto-detection 프로덕션 적용 전) — auto-detection 없이는 enhancement
 - **비고**: TTY: interactive prompt ("이 프로젝트에 .onto/ 디렉토리를 생성합니다. 계속하시겠습니까?"). non-TTY: `--allow-onto-init` flag 필수. `.gitignore`에 `.onto/review/` 추가 안내. 9-lens review의 Trust Boundary perspective에서 도출.
+
+### 6. Cross-project Domain 해석 정책
+
+- **발견일**: 2026-04-06
+- **출처**: 이번 세션 full 9-lens review (session `20260406-6ca3a965`). CC-4, CV-7.
+- **개념**: Role 해석은 core/custom/fallback 정책이 구현되었으나, domain 해석은 기존 로직 그대로(`projectRoot/domains/`에서만 탐색). 외부 프로젝트를 리뷰하면서 도메인을 지정하면(`@ontology`), 해당 프로젝트에 `domains/ontology/` 디렉토리가 없어 domain context가 빈 문자열이 됨.
+- **현재 상태**: 기록만. onto 레포 내부 리뷰에서는 문제 없음.
+- **판단**: blocker (cross-project + domain 지정 리뷰 시)
+- **설계 필요**: Role 정책과 동일 패턴 적용 — onto 제공 도메인은 `ontoHome/domains/` only, 프로젝트 정의 도메인은 `projectRoot/domains/` → `ontoHome/domains/` fallback, 디렉토리 단위 all-or-nothing.
+- **영향 파일**: `materializers.ts` (domain context path 해석), `materialize-review-prompt-packets.ts` (domain context ref), `prepare-review-session.ts` (context candidate assembly)

@@ -1,12 +1,66 @@
 #!/usr/bin/env node
 
+import fs from "node:fs";
 import path from "node:path";
+import { createInterface } from "node:readline/promises";
 import { resolveOntoHome } from "./core-runtime/discovery/onto-home.js";
 import { resolveProjectRoot } from "./core-runtime/discovery/project-root.js";
 import { printOntoReleaseChannelNotice } from "./core-runtime/release-channel/release-channel.js";
 import {
   readSingleOptionValueFromArgv,
 } from "./core-runtime/review/review-artifact-utils.js";
+
+/**
+ * Trust Boundary: check if .onto/ directory needs to be created in the
+ * target project. If .onto/ doesn't exist yet, ask for user confirmation
+ * before proceeding (the review will create .onto/review/{session}/).
+ */
+async function checkOntoDirectoryInit(
+  projectRoot: string,
+  ontoHome: string,
+  argv: string[],
+): Promise<boolean> {
+  const ontoDir = path.join(projectRoot, ".onto");
+
+  // Already exists — previous consent assumed
+  if (fs.existsSync(ontoDir)) return true;
+
+  // Self-review (projectRoot === ontoHome) — no consent needed
+  if (path.resolve(projectRoot) === path.resolve(ontoHome)) return true;
+
+  // Non-interactive: require --allow-onto-init
+  if (argv.includes("--allow-onto-init")) return true;
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    console.error(
+      [
+        `[onto] This project does not have a .onto/ directory yet: ${projectRoot}`,
+        "Running a review will create .onto/review/ in this project.",
+        "Pass --allow-onto-init to proceed, or create .onto/ manually.",
+      ].join("\n"),
+    );
+    return false;
+  }
+
+  // Interactive: prompt user
+  const readline = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  try {
+    const answer = await readline.question(
+      [
+        `[onto] This project does not have a .onto/ directory: ${projectRoot}`,
+        "A review session will create .onto/review/ in this directory.",
+        "Consider adding .onto/review/ to .gitignore.",
+        "Continue? (y/n): ",
+      ].join("\n"),
+    );
+    return /^(y|yes)$/i.test(answer.trim());
+  } finally {
+    readline.close();
+  }
+}
 
 async function handleReview(
   ontoHome: string,
@@ -18,13 +72,29 @@ async function handleReview(
     enrichedArgv.push("--onto-home", ontoHome);
   }
 
+  let projectRoot: string | undefined;
   if (!argv.includes("--project-root")) {
-    // Extract target from positionals to help project root detection
     const firstNonFlag = argv.find(
       (arg) => !arg.startsWith("--") && !arg.startsWith("@"),
     );
-    const projectRoot = resolveProjectRoot(firstNonFlag);
+    projectRoot = resolveProjectRoot(firstNonFlag);
     enrichedArgv.push("--project-root", projectRoot);
+  } else {
+    const idx = argv.indexOf("--project-root");
+    projectRoot = idx >= 0 && idx + 1 < argv.length ? argv[idx + 1] : undefined;
+  }
+
+  // Trust Boundary: confirm .onto/ creation in external projects
+  if (projectRoot) {
+    const allowed = await checkOntoDirectoryInit(
+      path.resolve(projectRoot),
+      ontoHome,
+      argv,
+    );
+    if (!allowed) {
+      console.error("[onto] Review canceled: .onto/ directory creation not approved.");
+      return 1;
+    }
   }
 
   const { runReviewInvokeCli } = await import(
@@ -123,6 +193,7 @@ async function main(): Promise<number> {
           "  --onto-home <path>         Override onto installation directory",
           "  --project-root <path>      Override target project root",
           "  --prepare-only             Prepare session without executing lenses",
+          "  --allow-onto-init          Allow .onto/ creation in new projects (non-interactive)",
           "  --version, -v              Show version",
           "  --help, -h                 Show this help",
         ].join("\n"),

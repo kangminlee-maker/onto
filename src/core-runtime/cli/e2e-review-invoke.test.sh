@@ -556,6 +556,43 @@ else
   UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
 fi
 
+# E43: trust boundary — reject .onto/ creation without --allow-onto-init (non-TTY)
+echo "=== E43: trust-boundary-reject ==="
+E43_TMPDIR=$(mktemp -d)
+mkdir -p "$E43_TMPDIR/.git"  # make it look like a project
+E43_OUT=$(onto review "$E43_TMPDIR/test.txt" "trust test" \
+  --executor-realization mock --review-mode light \
+  --project-root "$E43_TMPDIR" 2>&1)
+E43_EXIT=$?
+
+if [ $E43_EXIT -ne 0 ] && echo "$E43_OUT" | grep -q "not approved\|allow-onto-init"; then
+  echo "  PASS  E43: trust-boundary-reject (blocked without --allow-onto-init)"
+  PASS_COUNT=$((PASS_COUNT + 1))
+else
+  echo "  FAIL! E43: trust-boundary-reject (exit=$E43_EXIT, expected rejection)"
+  UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+fi
+rm -rf "$E43_TMPDIR"
+
+# E44: trust boundary — allow with --allow-onto-init
+echo "=== E44: trust-boundary-allow ==="
+E44_TMPDIR=$(mktemp -d)
+mkdir -p "$E44_TMPDIR/.git"
+echo "test content" > "$E44_TMPDIR/test.txt"
+E44_OUT=$(onto review "$E44_TMPDIR/test.txt" "trust allow test" \
+  --executor-realization mock --review-mode light \
+  --project-root "$E44_TMPDIR" --allow-onto-init 2>&1)
+E44_EXIT=$?
+
+if [ $E44_EXIT -eq 0 ]; then
+  echo "  PASS  E44: trust-boundary-allow (proceeded with --allow-onto-init)"
+  PASS_COUNT=$((PASS_COUNT + 1))
+else
+  echo "  FAIL! E44: trust-boundary-allow (exit=$E44_EXIT)"
+  UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+fi
+rm -rf "$E44_TMPDIR"
+
 echo ""
 
 # ─────────────────────────────────────────────

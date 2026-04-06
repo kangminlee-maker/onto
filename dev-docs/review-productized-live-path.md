@@ -2,6 +2,9 @@
 
 > 상태: Active
 > 목적: `검토 (review)`의 `제품화된 실시간 경로 (productized live path)`를 canonical 실행 경로로 고정한다.
+> 하위 실행 계약:
+> - `dev-docs/review-nested-spawn-coordinator-contract.md` — Claude Code 세션에서 Agent tool 기반 lens dispatch coordinator
+>
 > 기준 문서:
 > - `dev-docs/development-methodology.md`
 > - `dev-docs/review-interpretation-contract.md`

@@ -1,19 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-
-function walkUpFor(
-  startDir: string,
-  predicate: (dir: string) => boolean,
-): string | null {
-  let current = path.resolve(startDir);
-  const root = path.parse(current).root;
-  while (true) {
-    if (predicate(current)) return current;
-    const parent = path.dirname(current);
-    if (parent === current || current === root) return null;
-    current = parent;
-  }
-}
+import { walkUpFor } from "./walk-up.js";
 
 /**
  * Checks for .onto/config.yml existence only as a directory marker.

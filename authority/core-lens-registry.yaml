@@ -1,0 +1,39 @@
+# Core Lens Registry
+#
+# Single source of truth for all core lens IDs.
+# Consumed by: review-invoke.ts (lens set defaults), materialize-review-prompt-packets.ts (core role detection).
+# Adding a new core lens: add it here. The runtime derives FULL/LIGHT/CORE sets from this file.
+
+full_review_lens_ids:
+  - onto_logic
+  - onto_structure
+  - onto_dependency
+  - onto_semantics
+  - onto_pragmatics
+  - onto_evolution
+  - onto_coverage
+  - onto_conciseness
+  - onto_axiology
+
+light_review_lens_ids:
+  - onto_logic
+  - onto_pragmatics
+  - onto_evolution
+  - onto_axiology
+
+# Core role IDs: these lenses have system-level role definitions in ontoHome/roles/.
+# Project override is forbidden for these roles.
+core_role_ids:
+  - onto_logic
+  - onto_structure
+  - onto_dependency
+  - onto_semantics
+  - onto_pragmatics
+  - onto_evolution
+  - onto_coverage
+  - onto_conciseness
+  - onto_axiology
+  - onto_synthesize
+
+always_include_lens_ids:
+  - onto_axiology

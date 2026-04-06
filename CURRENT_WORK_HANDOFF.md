@@ -63,8 +63,17 @@
 
 - **Codex CLI 비활성화**: 과금 문제로 차단. 재활성화: `mv /opt/homebrew/bin/codex.disabled /opt/homebrew/bin/codex`
 - **Claude CLI subprocess 인증**: `-p` 모드에서 작동 안 함. `anthropics/claude-code#8938` 미해결.
-- **Nested Spawn Coordinator (Agent tool)이 유일한 실제 리뷰 경로** (Codex + Claude CLI 모두 차단 상태).
-- **Platform scope**: macOS, Linux만 ��원. Windows는 별도 설계.
+- **Platform scope**: macOS, Linux만 지원. Windows는 별도 설계.
+
+### 2.4 실행 경로 복구 계획
+
+Nested Spawn Coordinator (Agent tool)이 현재 유일한 실제 리뷰 경로. model-independent 실행 가치의 임시 축소 상태.
+
+| 차단된 경로 | 차단 원인 | 복구 조건 | 복구 행동 |
+|---|---|---|---|
+| subagent + codex | codex CLI 비활성화 (과금) | 예산 확보 | `mv codex.disabled codex` + E2E 검증 |
+| subagent/agent-teams + claude | Claude CLI -p 인증 버그 #8938 | upstream 수정 | CLI 업데이트 + E2E 검증 |
+| api + anthropic | API 키 + 과금 필요 | `ANTHROPIC_API_KEY` 설정 | `--executor-realization api` E2E 검증 |
 
 ---
 

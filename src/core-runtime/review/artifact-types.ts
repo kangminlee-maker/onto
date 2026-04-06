@@ -182,6 +182,8 @@ export interface ReviewExecutionPlan {
   error_log_path: string;
   final_output_path: string;
   review_record_path: string;
+  max_concurrent_lenses?: number;
+  minimum_participating_lenses?: number;
   boundary_policy: BoundaryPolicy;
   boundary_presentation: BoundaryPresentation;
   boundary_enforcement_profile: BoundaryEnforcementProfile;
@@ -287,4 +289,24 @@ export interface ReviewRecord {
   deliberation_status: DeliberationStatus;
   deliberation_result_ref?: string | null;
   final_output_ref?: string | null;
+}
+
+/**
+ * Output of `review:invoke --prepare-only`.
+ *
+ * Runs all pre-processing and session preparation, then returns without
+ * executing lenses or completing the session. The Nested Spawn Coordinator
+ * uses this to get `session_root` and then dispatches lenses via Agent tool.
+ *
+ * `request_text` is the **only** value not derivable from session artifacts
+ * (not present in execution-plan.yaml). It must be preserved and passed to
+ * `review:complete-session --request-text` later.
+ */
+export interface PrepareOnlyResult {
+  prepare_only: true;
+  session_root: string;
+  request_text: string;
+  execution_realization: ReviewExecutionRealization;
+  host_runtime: ReviewHostRuntime;
+  review_mode: ReviewMode;
 }

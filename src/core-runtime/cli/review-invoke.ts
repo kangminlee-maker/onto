@@ -11,6 +11,7 @@ import {
   executeReviewPromptExecution,
   type ReviewUnitExecutorConfig,
 } from "./run-review-prompt-execution.js";
+import type { PrepareOnlyResult } from "../review/artifact-types.js";
 import { startReviewSession } from "./start-review-session.js";
 import { generateReviewSessionId } from "../review/materializers.js";
 import {
@@ -23,7 +24,7 @@ import {
 } from "../review/review-artifact-utils.js";
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 import { resolveOntoHome } from "../discovery/onto-home.js";
-import { resolveConfigChain } from "../discovery/config-chain.js";
+import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.js";
 
 type ExecutorRealization = "subagent" | "agent-teams" | "codex" | "api" | "mock";
 type ExecutionRealization = "subagent" | "agent-teams";
@@ -32,47 +33,8 @@ type ReviewTargetScopeKind = "file" | "directory" | "bundle";
 type ReviewMode = "light" | "full";
 type BoundaryDecisionAction = "approve_external_boundary" | "rerun_target" | "cancel";
 
-/**
- * Output of `review:invoke --prepare-only`.
- *
- * Runs all pre-processing (positional parsing, target stat, domain resolution,
- * lens set determination) and session preparation (artifacts, prompt packets),
- * then returns without executing lenses or completing the session.
- *
- * The Nested Spawn Coordinator uses this to get `session_root` and then
- * dispatches lenses via Agent tool.
- *
- * `request_text` is the **only** value not derivable from session artifacts
- * (not present in execution-plan.yaml). It must be preserved and passed to
- * `review:complete-session --request-text` later.
- */
-interface PrepareOnlyResult {
-  prepare_only: true;
-  session_root: string;
-  request_text: string;
-  execution_realization: ExecutionRealization;
-  host_runtime: HostRuntime;
-  review_mode: ReviewMode;
-}
-interface OntoConfig {
-  /** Conceptual execution model: subagent | agent-teams */
-  execution_realization?: string;
-  host_runtime?: string;
-  /** Legacy alias for execution_realization */
-  execution_mode?: string;
-  /** Specific executor to use: subagent | agent-teams | codex | api | mock */
-  executor_realization?: string;
-  /** API provider for api executor: anthropic | openai */
-  api_provider?: string;
-  max_concurrent_lenses?: number | string;
-  domain?: string;
-  secondary_domains?: string[] | string;
-  domains?: string[];
-  excluded_names?: string[];
-  max_listing_depth?: number | string;
-  max_listing_entries?: number | string;
-  max_embed_lines?: number | string;
-}
+// PrepareOnlyResult is imported from artifact-types.ts (canonical type authority)
+// OntoConfig is imported from discovery/config-chain.ts (single source of truth)
 
 interface HostFacingPositionals {
   target?: string;
@@ -215,22 +177,7 @@ function packageManagerBin(): string {
   return process.platform === "win32" ? "npm.cmd" : "npm";
 }
 
-function resolveExecutorScript(realization: ExecutorRealization): string {
-  if (realization === "subagent") {
-    return "review:subagent-unit-executor";
-  }
-  if (realization === "agent-teams") {
-    return "review:agent-teams-unit-executor";
-  }
-  if (realization === "codex") {
-    return "review:codex-unit-executor";
-  }
-  if (realization === "api") {
-    return "review:api-unit-executor";
-  }
-  return "review:mock-unit-executor";
-}
-
+// Single source for executor script names. Used by both npm-run and direct-path resolution.
 const EXECUTOR_SCRIPT_FILENAMES: Record<ExecutorRealization, string> = {
   subagent: "subagent-review-unit-executor",
   "agent-teams": "agent-teams-review-unit-executor",
@@ -238,6 +185,18 @@ const EXECUTOR_SCRIPT_FILENAMES: Record<ExecutorRealization, string> = {
   api: "api-review-unit-executor",
   mock: "mock-review-unit-executor",
 };
+
+const EXECUTOR_NPM_SCRIPTS: Record<ExecutorRealization, string> = {
+  subagent: "review:subagent-unit-executor",
+  "agent-teams": "review:agent-teams-unit-executor",
+  codex: "review:codex-unit-executor",
+  api: "review:api-unit-executor",
+  mock: "review:mock-unit-executor",
+};
+
+function resolveExecutorScript(realization: ExecutorRealization): string {
+  return EXECUTOR_NPM_SCRIPTS[realization] ?? "review:mock-unit-executor";
+}
 
 function resolveDirectExecutorPath(
   realization: ExecutorRealization,

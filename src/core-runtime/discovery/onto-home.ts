@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { walkUpFor } from "./walk-up.js";
 
 /**
  * Validates whether a directory is an onto installation root.
@@ -19,20 +20,6 @@ function isOntoRoot(dir: string): boolean {
     return true;
   } catch {
     return false;
-  }
-}
-
-function walkUpFor(
-  startDir: string,
-  predicate: (dir: string) => boolean,
-): string | null {
-  let current = path.resolve(startDir);
-  const root = path.parse(current).root;
-  while (true) {
-    if (predicate(current)) return current;
-    const parent = path.dirname(current);
-    if (parent === current || current === root) return null;
-    current = parent;
   }
 }
 

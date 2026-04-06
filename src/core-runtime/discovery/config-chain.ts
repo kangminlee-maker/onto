@@ -1,6 +1,5 @@
-import fs from "node:fs/promises";
 import path from "node:path";
-import { readYamlDocument } from "../review/review-artifact-utils.js";
+import { fileExists, readYamlDocument } from "../review/review-artifact-utils.js";
 
 export interface OntoConfig {
   /** Conceptual execution model: subagent | agent-teams */
@@ -21,15 +20,6 @@ export interface OntoConfig {
   max_listing_entries?: number | string;
   max_embed_lines?: number | string;
   output_language?: string;
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 async function readConfigAt(dir: string): Promise<OntoConfig> {

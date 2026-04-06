@@ -149,40 +149,24 @@ function resolveDomainDirectory(
  */
 /**
  * Render the "Domain Document Refs" section for a lens prompt packet.
- * - Primary: the lens-specific mapped file (e.g., logic_rules.md for onto_logic)
- * - Supplementary: all other .md files in the domain directory
- * - If no domain or no mapped file: empty string
+ * Only includes the primary file mapped to this specific lens.
+ * Extension files (9th+) are available via domain_context_refs in
+ * context-candidate-assembly.yaml, not in individual lens packets.
  */
 function renderDomainDocumentRefsSection(
   lensId: string,
   domainDir: string | null,
-  allDomainFiles: string[],
   projectRoot: string,
 ): string {
-  if (!domainDir || allDomainFiles.length === 0) return "";
+  if (!domainDir) return "";
 
   const mappedFileName = LENS_DOMAIN_FILE_MAP[lensId];
-  const lines: string[] = ["", "## Domain Document Refs"];
+  if (!mappedFileName) return "";
 
-  if (mappedFileName) {
-    const primaryPath = path.join(domainDir, mappedFileName);
-    if (fsSync.existsSync(primaryPath)) {
-      lines.push(`- primary: ${toRelativePath(primaryPath, projectRoot)}`);
-    }
-  }
+  const primaryPath = path.join(domainDir, mappedFileName);
+  if (!fsSync.existsSync(primaryPath)) return "";
 
-  // Supplementary: all domain files except the primary
-  const supplementary = allDomainFiles.filter(
-    (filePath) => path.basename(filePath) !== mappedFileName,
-  );
-  if (supplementary.length > 0) {
-    lines.push("- supplementary context:");
-    for (const filePath of supplementary) {
-      lines.push(`  - ${toRelativePath(filePath, projectRoot)}`);
-    }
-  }
-
-  return lines.join("\n");
+  return `\n## Domain Document Ref\n- ${toRelativePath(primaryPath, projectRoot)}`;
 }
 
 function scanDomainFiles(domainDir: string): string[] {
@@ -388,7 +372,7 @@ ${binding.resolved_target_scope.resolved_refs
 - If you find an issue, state what, why, and how to fix it.
 - If you find no issue, state why it is correct.
 - Write your result to: ${toRelativePath(seat.output_path, projectRoot)}
-${renderDomainDocumentRefsSection(seat.lens_id, resolvedDomainDir, domainAllFiles, projectRoot)}
+${renderDomainDocumentRefsSection(seat.lens_id, resolvedDomainDir, projectRoot)}
 `;
 
     await fs.writeFile(seat.packet_path, lensPacketText.trimEnd() + "\n", "utf8");

@@ -77,13 +77,36 @@ Nested Spawn Coordinator (Agent tool)이 현재 유일한 실제 리뷰 경로. 
 
 ---
 
-## 3. 다음 작업 우선순위
+## 3. 다음 작업
 
-### 3.1 진화 항목 (discovered-enhancements.md)
+### 3.1 즉시 진행: Coordinator State Machine 구현
 
-1. directory target 패턴 기반 최소 파일 세트 포함
-2. git diff target의 kind/scope 분리 (현재 `single_text`로 우회)
-3. Trust Boundary: .onto/ 최초 생성 확인 (auto-detection 프로덕션 전 blocker)
+설계 완료 (v3, 3회 9-lens review 거침). 설계 파일: `.onto/temp/coordinator-state-machine-v3.md`
+
+구현 대상:
+
+| 파일 | 변경 |
+|---|---|
+| `src/core-runtime/cli/coordinator-state-machine.ts` | **신규**. 상태 전이 + auto state 실행 + dispatch 지시 생성 |
+| `src/core-runtime/review/artifact-types.ts` | CoordinatorStateName, CoordinatorStateFile, CoordinatorStateTransition, CoordinatorAgentInstruction, CoordinatorStartResult, CoordinatorNextResult, ALLOWED_TRANSITIONS |
+| `src/cli.ts` | `coordinator start`, `coordinator next`, `coordinator status` 서브커맨드 |
+| `package.json` | 스크립트 추가 |
+| `commands/review.md` | `onto coordinator start` → `next` 패턴으로 갱신 |
+| `dev-docs/review-nested-spawn-coordinator-contract.md` | state machine 기반 재서술 |
+| `authority/core-lexicon.yaml` | DeterministicStateEnforcer 등록 |
+| E2E 테스트 | coordinator start/next/status 케이스 추가 |
+
+핵심 설계 결정:
+- 9개 state (auto 3, await 3, terminal 3). DAG, 12 간선
+- auto state 전이는 완료 후 기록 → 크래시 시 이전 await에서 재개
+- deliberation slot: 미구현이지만 전이 그래프에 선언적으로 포함
+- 명칭: DeterministicStateEnforcer (Bounded Orchestrator 아님)
+- 내부 호출: TypeScript import (subprocess 아님)
+
+### 3.2 진화 항목
+
+1. directory target 패턴 기반 최소 파일 세트 포함 (enhancement)
+2. git diff target의 kind/scope 분리 (enhancement, 영향 범위 큼)
 
 ---
 
@@ -122,18 +145,13 @@ Nested Spawn Coordinator (Agent tool)이 현재 유일한 실제 리뷰 경로. 
 
 ---
 
-## 6. 커밋 이력 (2026-04-06)
+## 6. 이번 세션 요약
 
-| Commit | 내용 |
-|---|---|
-| `56904f8` | Nested Spawn Coordinator: thin entrypoint + execution contract |
-| `3489920` | synthesize heading mismatch 수정 |
-| `4ed31fe` | `--prepare-only` 플래그 추가 |
-| `25a9658` | 외부 레포 의존성 제거 |
-| `3e8e74d` | Individual Lens Findings 참조 추가 |
-| `907330d` | HANDOFF 갱신 |
-| `3cdd5c5` | E38 request_text 검증 |
-| `8bd9b53` | Synthesize tagging 예방 규칙 |
-| `96c49b4` | 글로벌 CLI 구현 (42/42 ALL PASS) |
-| `c556342` | Role/Domain 해석 정책 + Config chain 교체 |
-| `40366d2` | discovered-enhancements 갱신 (Trust Boundary 기록) |
+22건 커밋. 44/44 E2E ALL PASS. 주요 성과:
+
+- Nested Spawn Coordinator + 글로벌 CLI `onto review` + `--prepare-only`
+- Role/Domain 해석 정책 + Config 적용 순서 체인 + Lens registry
+- Coordinator CLI helpers + Trust Boundary + Domain 해석 정책
+- Synthesize heading fix + Lens findings refs + Tagging 규칙
+- 9-lens self-review 5회 실행, 각 리뷰 결과 반영
+- Coordinator State Machine v3 설계 완료 (3회 리뷰 iteration)

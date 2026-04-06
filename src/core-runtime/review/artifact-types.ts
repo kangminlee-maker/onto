@@ -246,7 +246,7 @@ export interface ReviewExecutionResultArtifact {
   excluded_lens_ids: string[];
   executed_lens_count: number;
   synthesis_executed: boolean;
-  deliberation_status?: DeliberationStatus | null;
+  deliberation_status?: DeliberationStatus | null | undefined;
   halt_reason?: string | null;
   error_log_path: string;
   lens_execution_results: ReviewUnitExecutionResult[];

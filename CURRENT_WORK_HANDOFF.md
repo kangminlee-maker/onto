@@ -33,79 +33,48 @@
 ### 2.1 달성된 것
 
 - `review:invoke` canonical entrypoint가 작동한다.
-- directory listing 필터 (62K → 348줄), embed truncation (300줄), kind `directory_listing` 통일 완료.
-- **4 lens + synthesize**: codex executor로 E2E 성공 (세션 `20260405-e8b28bc0`).
-- **9 lens + synthesize**: Agent tool로 E2E 성공 (세션 `20260405-a98b65a7`).
-- E2E 테스트 **42건 ALL PASS** (`npm run test:e2e`). 외부 레포 의존성 제거 완료.
-- edge case 107건 분석, 보안/높은/중간 우선순위 전부 수정.
-- executor 5종 구현: mock, subagent, agent-teams, codex, api (anthropic/openai).
-- `--diff-range` git diff target 지원.
-- 외부 target boundary auto-approve.
-- `discovered-enhancements.md`에 진화 항목 4건 기록.
-- **Nested Spawn Coordinator 구현 완료** (2026-04-06):
-  - `commands/review.md`를 thin entrypoint로 축소 (경로 선택 + 사용자 옵션만 남김)
-  - `dev-docs/review-nested-spawn-coordinator-contract.md` 신규 생성 (7-phase 실행 계약)
-  - 9-lens 자가 리뷰로 검증 → 6건 finding 전부 반영
-  - authority seat 분리, artifact-derived 값 참조, ReviewRecord chain 보강, boundary quartet/extension points 선언
-- **`--prepare-only` 플래그 구현** (2026-04-06):
-  - `review:invoke --prepare-only`가 전처리 + session 준비까지만 수행, 실행/완료 건너뜀
-  - `PrepareOnlyResult` TypeScript interface 선언 (concept→contract→type chain)
-  - coordinator Phase 1의 22-arg 수동 구성 문제 해소
-  - E2E 테스트 E38 추가
-- **Synthesize heading mismatch 수정** (2026-04-06):
-  - synthesize packet에 Required Output Sections 추가 — renderer가 기대하는 정확한 heading 8개 명시
-  - final-output.md가 synthesis 내용을 정상 렌더링
-- **Individual Lens Findings 참조** (2026-04-06):
-  - final-output.md에 각 lens output 파일 경로 포함
-  - synthesis가 finding을 누락해도 lens output에서 항상 확인 가능 — 구조적 누락 방지
-  - degraded lens 표시 포함
-- **Codex CLI 비활성화** (2026-04-06): 과금 문제. `codex` → `codex.disabled` 이름 변경.
-- **외부 레포 의존성 제거** (2026-04-06): E2E 테스트에서 `../AI-data-dashboard` 참조를 onto 레포 내부 커밋으로 교체.
-- **`--diff-range` Agent tool 경로 E2E 성공** (2026-04-06): 세션 `20260406-832810a9`. `--prepare-only` + Agent dispatch + `complete-session`.
-- **글로벌 CLI 구현 완료** (2026-04-06):
-  - `onto review <target> <intent>` — 어디서든 실행 가능
-  - `onto info` — resolved onto home, project root 표시
-  - `bin/onto` 진입점 + `src/cli.ts` dispatcher
-  - `src/core-runtime/discovery/` 모듈: onto-home.ts, project-root.ts, config-chain.ts
-  - Onto Home 해석: `--onto-home` flag > `ONTO_HOME` env > `import.meta.url` walk-up
-  - Executor 해석: `npm run` 대신 직접 스크립트 경로 사용 (ontoHome 기반)
-  - `ONTO_HOME` env를 spawned executor에 전파
-  - E2E 테스트 42건 ALL PASS (E39-E42 추가)
+- **글로벌 CLI** `onto review <target> <intent>` — 어디서든 실행 가능 (2026-04-06).
+- `onto info` — resolved onto home, project root 표시.
+- **Nested Spawn Coordinator**: `onto review --prepare-only` → Agent tool dispatch → `onto review --complete-session`. Codex/Claude CLI 없이 구독 내 작동.
+- **`--prepare-only` 플래그**: 전처리 + 세션 준비까지만 수행. `PrepareOnlyResult` interface.
+- **Role/Domain 해석 정책**: core roles는 ontoHome only (project override 금지). custom roles는 projectRoot → ontoHome fallback. terminal failure = error.
+- **Config 우선순위 체인**: ontoHome config + projectRoot config 4-tier merge. 스칼라: last-wins, 배열: replace, excluded_names: union.
+- **Discovery 모듈**: `src/core-runtime/discovery/` — onto-home.ts, project-root.ts, config-chain.ts.
+- **Executor 직접 경로 해석**: `npm run` 대신 `{ontoHome}/dist/` 또는 `{ontoHome}/src/` + tsx. `ONTO_HOME` env를 spawned executor에 전파.
+- directory listing 필터 (62K → 348줄), embed truncation (300줄), kind `directory_listing` 통일.
+- executor 5종: mock, subagent, agent-teams, codex, api (anthropic/openai).
+- `--diff-range` git diff target 지원. Agent tool 경로 E2E 성공.
+- synthesize packet에 Required Output Sections + Tagging Completeness Rule.
+- Individual Lens Findings 참조가 final-output.md에 포함.
+- E2E 테스트 **42건 ALL PASS**.
+- **Codex CLI 비활성화** (과금 문제). 재활성화: `mv /opt/homebrew/bin/codex.disabled /opt/homebrew/bin/codex`
 
 ### 2.2 작동하는 실행 경로
 
 | 환경 | 방법 | 비용 | 상태 |
 |---|---|---|---|
 | Claude Code 세션 (기본) | `onto review --prepare-only` → Agent tool dispatch → `onto review --complete-session` | 구독 | **작동 (권장)** |
-| Claude Code 세션 (기본, diff) | 위와 동일 + `--diff-range` | 구독 | **작동** |
+| Claude Code 세션 (diff) | 위와 동일 + `--diff-range` | 구독 | **작동** |
 | 글로벌 CLI (어디서든) | `onto review <target> <intent> --executor-realization mock` | 무료 | **작동** |
 | 글로벌 CLI (어디서든) | `onto review <target> <intent> --executor-realization api` | API 과금 | **작동** |
 | repo-local CLI | `npm run review:invoke -- ...` | executor별 | **작동 (하위 호환)** |
 
 ### 2.3 작동하지 않는 것 / 제한
 
-- **Codex CLI 비활성화**: 과금 문제로 차단. codex executor, codex fallback 모두 불가. 재활성화: `mv /opt/homebrew/bin/codex.disabled /opt/homebrew/bin/codex`
+- **Codex CLI 비활성화**: 과금 문제로 차단. 재활성화: `mv /opt/homebrew/bin/codex.disabled /opt/homebrew/bin/codex`
 - **Claude CLI subprocess 인증**: `-p` 모드에서 작동 안 함. `anthropics/claude-code#8938` 미해결.
-- **`--codex`, `--claude` 플래그**: CLI executor path로 라우팅되나, 위 두 문제로 실제 실행 불가.
-- Claude CLI + Codex 모두 차단된 상태에서 **Nested Spawn Coordinator (Agent tool)이 유일한 실제 리뷰 경로**.
+- **Nested Spawn Coordinator (Agent tool)이 유일한 실제 리뷰 경로** (Codex + Claude CLI 모두 차단 상태).
+- **Platform scope**: macOS, Linux만 ��원. Windows는 별도 설계.
 
 ---
 
 ## 3. 다음 작업 우선순위
 
-### 3.1 즉시 진행 가능
+### 3.1 진화 항목 (discovered-enhancements.md)
 
-1. **글로벌 플러그인 재동기화**: 코드 변경이 많으므로 글로벌 캐시/마켓플레이스 sync 필요.
-
-2. **E38 테스트에 `request_text` 검증 추가**: diff review에서 pragmatics와 evolution 두 lens가 독립적으로 지적. `request_text`가 `PrepareOnlyResult`에서 유일한 비파생 값이므로 존재/비공백 검증 필요.
-
-3. **Synthesize packet에 tagging 예방 규칙 추가**: "Every finding ID from lens outputs must appear in exactly one of the 4 classification sections" — 태깅 누락 확률을 낮추는 예방 조치. (감지/재시도는 불필요하다고 판단 — lens output 파일 참조로 구조적 누락 방지 완료.)
-
-### 3.2 진화 항목 (discovered-enhancements.md)
-
-4. directory target 패턴 기반 최소 파일 세트 포함
-5. git diff target의 kind/scope 분리 (현재 `single_text`로 우회)
-6. cross-project 리뷰 UX 개선
+1. directory target 패턴 기반 최소 파일 세트 포함
+2. git diff target의 kind/scope 분리 (현재 `single_text`로 우회)
+3. Trust Boundary: .onto/ 최초 생성 확인 (auto-detection 프로덕션 전 blocker)
 
 ---
 
@@ -139,17 +108,23 @@
 | 설정 | `.onto/config.yml` |
 | **스킬 (thin entrypoint)** | `commands/review.md` |
 | **coordinator 계약** | `dev-docs/review-nested-spawn-coordinator-contract.md` |
-| **글로벌 CLI dispatcher** | `src/cli.ts`, `bin/onto` |
-| **discovery 모듈** | `src/core-runtime/discovery/onto-home.ts`, `project-root.ts`, `config-chain.ts` |
+| **글로벌 CLI** | `src/cli.ts`, `bin/onto` |
+| **discovery** | `src/core-runtime/discovery/onto-home.ts`, `project-root.ts`, `config-chain.ts` |
 
 ---
 
-## 6. 이번 세션 커밋 이력 (2026-04-06)
+## 6. 커밋 이력 (2026-04-06)
 
 | Commit | 내용 |
 |---|---|
 | `56904f8` | Nested Spawn Coordinator: thin entrypoint + execution contract |
 | `3489920` | synthesize heading mismatch 수정 |
 | `4ed31fe` | `--prepare-only` 플래그 추가 |
-| `25a9658` | 외부 레포 의존성 제거 (38/38 ALL PASS) |
-| `3e8e74d` | Individual Lens Findings 참조를 final output에 추가 |
+| `25a9658` | 외부 레포 의존성 제거 |
+| `3e8e74d` | Individual Lens Findings 참조 추가 |
+| `907330d` | HANDOFF 갱신 |
+| `3cdd5c5` | E38 request_text 검증 |
+| `8bd9b53` | Synthesize tagging 예방 규칙 |
+| `96c49b4` | 글로벌 CLI 구현 (42/42 ALL PASS) |
+| `c556342` | Role/Domain 해석 정책 + Config chain 교체 |
+| `40366d2` | discovered-enhancements 갱신 (Trust Boundary 기록) |

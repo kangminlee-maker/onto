@@ -255,13 +255,41 @@ async function handleCoordinator(
   }
 }
 
+/**
+ * Detects how onto is installed relative to the current project.
+ *
+ * - "user": npm install -g — installed for the user, shared across projects
+ * - "project": npm install — installed in this project's node_modules, version pinned
+ * - "development": git clone + npm link — running from onto source repo
+ */
+function detectInstallationMode(
+  ontoHome: string,
+  projectRoot: string,
+): "user" | "project" | "development" {
+  const normalizedHome = path.resolve(ontoHome);
+  const normalizedProject = path.resolve(projectRoot);
+
+  // Development: ontoHome is the project itself (running from onto repo)
+  if (normalizedHome === normalizedProject) return "development";
+
+  // Project: ontoHome is under projectRoot/node_modules/
+  const nodeModulesPrefix = path.join(normalizedProject, "node_modules");
+  if (normalizedHome.startsWith(nodeModulesPrefix)) return "project";
+
+  // User: ontoHome is outside projectRoot (global installation)
+  return "user";
+}
+
 async function handleInfo(ontoHome: string): Promise<number> {
   const projectRoot = resolveProjectRoot();
+  const installationMode = detectInstallationMode(ontoHome, projectRoot);
   console.log(
     JSON.stringify(
       {
         onto_home: ontoHome,
         project_root: projectRoot,
+        installation_mode: installationMode,
+        version: "0.1.0",
         cwd: process.cwd(),
         node_version: process.version,
       },
@@ -313,7 +341,7 @@ async function main(): Promise<number> {
 
     case "--version":
     case "-v":
-      console.log("onto-productization-core (global CLI)");
+      console.log("onto-core 0.1.0");
       return 0;
 
     case "--help":
@@ -327,7 +355,7 @@ async function main(): Promise<number> {
           "  review <target> <intent>   Run 9-lens review",
           "  review --complete-session   Complete a prepared session",
           "  coordinator start|next|status  State machine coordinated review",
-          "  info                        Show resolved onto home and project root",
+          "  info                        Show installation mode, onto home, project root",
           "",
           "Options:",
           "  --onto-home <path>         Override onto installation directory",
@@ -336,6 +364,10 @@ async function main(): Promise<number> {
           "  --allow-onto-init          Allow .onto/ creation in new projects (non-interactive)",
           "  --version, -v              Show version",
           "  --help, -h                 Show this help",
+          "",
+          "Installation:",
+          "  npm install -g onto-core   User install (onto command everywhere)",
+          "  npm install onto-core       Project install (npx onto within project)",
         ].join("\n"),
       );
       return 0;

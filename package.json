@@ -1,13 +1,27 @@
 {
-  "name": "onto-productization-core",
+  "name": "onto-core",
+  "version": "0.1.0",
+  "description": "Ontology-as-Code productization core — 9-lens review, domain knowledge management, deterministic state enforcement",
   "onto_release_channel": "beta",
   "onto_release_label": "onto-harness",
-  "private": true,
   "type": "module",
   "bin": {
     "onto": "./bin/onto"
   },
+  "files": [
+    "bin/",
+    "dist/",
+    "roles/",
+    "domains/",
+    "authority/",
+    "commands/",
+    "processes/",
+    "explorers/",
+    "CLAUDE.md",
+    "AGENTS.md"
+  ],
   "scripts": {
+    "prepare": "npm run build:ts-core",
     "build:ts-core": "tsc -p tsconfig.json",
     "check:ts-core": "tsc -p tsconfig.json --noEmit",
     "test:e2e": "bash src/core-runtime/cli/e2e-review-invoke.test.sh",

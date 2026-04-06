@@ -6,7 +6,7 @@ import { walkUpFor } from "./walk-up.js";
 /**
  * Validates whether a directory is an onto installation root.
  *
- * Marker: package.json with name "onto-productization-core" AND
+ * Marker: package.json with name "onto-core" AND
  * roles/ directory AND authority/ directory.
  */
 function isOntoRoot(dir: string): boolean {
@@ -14,7 +14,7 @@ function isOntoRoot(dir: string): boolean {
     const pkgPath = path.join(dir, "package.json");
     if (!fs.existsSync(pkgPath)) return false;
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
-    if (pkg.name !== "onto-productization-core") return false;
+    if (pkg.name !== "onto-core") return false;
     if (!fs.existsSync(path.join(dir, "roles"))) return false;
     if (!fs.existsSync(path.join(dir, "authority"))) return false;
     return true;
@@ -41,7 +41,7 @@ export function resolveOntoHome(
     const resolved = path.resolve(ontoHomeFlag);
     if (!isOntoRoot(resolved)) {
       throw new Error(
-        `Invalid onto home: ${resolved}. Expected package.json with name "onto-productization-core", roles/ and authority/ directories.`,
+        `Invalid onto home: ${resolved}. Expected package.json with name "onto-core", roles/ and authority/ directories.`,
       );
     }
     return resolved;
@@ -53,7 +53,7 @@ export function resolveOntoHome(
     const resolved = path.resolve(envHome);
     if (!isOntoRoot(resolved)) {
       throw new Error(
-        `Invalid ONTO_HOME: ${resolved}. Expected package.json with name "onto-productization-core", roles/ and authority/ directories.`,
+        `Invalid ONTO_HOME: ${resolved}. Expected package.json with name "onto-core", roles/ and authority/ directories.`,
       );
     }
     return resolved;

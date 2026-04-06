@@ -64,15 +64,16 @@
 
 ### 2.3 작동하지 않는 것 / 제한
 
-- **Claude CLI subprocess 인증**: `-p` 모드에서 작동 안 함. `anthropics/claude-code#8938` 미해결.
+- **Claude CLI subprocess 경로 차단**: `--claude` 플래그 (subagent/agent-teams + claude CLI subprocess). 인증 버그 `anthropics/claude-code#8938` 미해결 + 복구 계획 없음. Agent Teams/Agent tool 경로는 정상 작동.
 - **Platform scope**: macOS, Linux만 지원. Windows는 별도 설계.
 
 ### 2.4 실행 경로 복구 계획
 
 | 차단된 경로 | 차단 원인 | 복구 조건 | 복구 행동 |
 |---|---|---|---|
-| subagent/agent-teams + claude | Claude CLI -p 인증 버그 #8938 | upstream 수정 | CLI 업데이트 + E2E 검증 |
 | api + anthropic | API 키 + 과금 필요 | `ANTHROPIC_API_KEY` 설정 | `--executor-realization api` E2E 검증 |
+
+**참고**: Claude CLI subprocess 경로(`--claude`)는 복구 계획에서 제외. Agent Teams + Agent tool이 동일 기능을 구독 내에서 제공하므로 Claude CLI subprocess 경로의 실질적 가치가 없음.
 
 ---
 

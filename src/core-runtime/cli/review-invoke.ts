@@ -221,7 +221,12 @@ function buildExecutorConfigFromRealization(
   if (typeof ontoHome === "string" && ontoHome.length > 0) {
     const direct = resolveDirectExecutorPath(realization, ontoHome);
     if (direct) {
-      const args = [direct.scriptPath, "--"];
+      // No "--" separator for direct invocation. The "--" is only needed
+      // for npm run (to separate npm args from script args). With direct
+      // tsx/node invocation, "--" would be interpreted by parseArgs as
+      // end-of-options, causing all subsequent args to be treated as
+      // positional — triggering "Unexpected argument" errors.
+      const args = [direct.scriptPath];
       if ((realization === "subagent" || realization === "agent-teams") && hostRuntime) {
         args.push("--host-runtime", hostRuntime);
       }

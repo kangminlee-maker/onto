@@ -15,6 +15,7 @@ import type {
 import {
   fileExists,
   readYamlDocument,
+  writeYamlDocument,
   toRelativePath,
   truncateForEmbedding,
 } from "../review/review-artifact-utils.js";
@@ -94,6 +95,106 @@ const DEFAULT_MAX_EMBED_LINES = 300;
 // Core role IDs derived from authority/core-lens-registry.yaml (single source of truth)
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 const CORE_ROLE_IDS = new Set(loadCoreLensRegistry().core_role_ids);
+
+/**
+ * Lens-to-domain file mapping. Each core lens reads one specific domain file.
+ * onto_axiology and onto_synthesize have no domain document (by design).
+ */
+const LENS_DOMAIN_FILE_MAP: Record<string, string> = {
+  onto_logic: "logic_rules.md",
+  onto_structure: "structure_spec.md",
+  onto_dependency: "dependency_rules.md",
+  onto_semantics: "concepts.md",
+  onto_pragmatics: "competency_qs.md",
+  onto_evolution: "extension_cases.md",
+  onto_coverage: "domain_scope.md",
+  onto_conciseness: "conciseness_rules.md",
+};
+
+/**
+ * Resolve domain directory per the Domain Resolution Policy:
+ * - Discriminator: if ontoHome/domains/{domain}/ exists → "onto-provided" → ontoHome only
+ * - Otherwise: projectRoot/domains/{domain}/ → "project-defined"
+ * - Terminal failure: null (caller must error)
+ *
+ * Directory-level all-or-nothing: the entire directory from one location is used.
+ */
+function resolveDomainDirectory(
+  domain: string,
+  projectRoot: string,
+  ontoHome: string | undefined,
+): string | null {
+  // 1. onto-provided domain: ontoHome has it → use ontoHome (project override forbidden)
+  if (typeof ontoHome === "string" && ontoHome.length > 0) {
+    const homePath = path.join(ontoHome, "domains", domain);
+    if (fsSync.existsSync(homePath)) return homePath;
+  }
+
+  // 2. project-defined domain: projectRoot has it
+  const projectPath = path.join(projectRoot, "domains", domain);
+  if (fsSync.existsSync(projectPath)) return projectPath;
+
+  // 3. Legacy fallback: when ontoHome is undefined, projectRoot is the onto repo
+  // Precondition: in legacy npm-run path, projectRoot === ontoHome
+  if (!ontoHome) {
+    return null; // already checked projectPath above
+  }
+
+  return null;
+}
+
+/**
+ * Scan a domain directory for all .md files, returning absolute paths.
+ * Includes both standard files (8 mapped) and extension files (9th+).
+ */
+/**
+ * Render the "Domain Document Refs" section for a lens prompt packet.
+ * - Primary: the lens-specific mapped file (e.g., logic_rules.md for onto_logic)
+ * - Supplementary: all other .md files in the domain directory
+ * - If no domain or no mapped file: empty string
+ */
+function renderDomainDocumentRefsSection(
+  lensId: string,
+  domainDir: string | null,
+  allDomainFiles: string[],
+  projectRoot: string,
+): string {
+  if (!domainDir || allDomainFiles.length === 0) return "";
+
+  const mappedFileName = LENS_DOMAIN_FILE_MAP[lensId];
+  const lines: string[] = ["", "## Domain Document Refs"];
+
+  if (mappedFileName) {
+    const primaryPath = path.join(domainDir, mappedFileName);
+    if (fsSync.existsSync(primaryPath)) {
+      lines.push(`- primary: ${toRelativePath(primaryPath, projectRoot)}`);
+    }
+  }
+
+  // Supplementary: all domain files except the primary
+  const supplementary = allDomainFiles.filter(
+    (filePath) => path.basename(filePath) !== mappedFileName,
+  );
+  if (supplementary.length > 0) {
+    lines.push("- supplementary context:");
+    for (const filePath of supplementary) {
+      lines.push(`  - ${toRelativePath(filePath, projectRoot)}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function scanDomainFiles(domainDir: string): string[] {
+  try {
+    return fsSync.readdirSync(domainDir)
+      .filter((name) => name.endsWith(".md"))
+      .map((name) => path.join(domainDir, name))
+      .sort();
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Resolve role definition path per the Role/Domain policy:
@@ -198,6 +299,23 @@ export async function runMaterializeReviewPromptPacketsCli(
     ? path.resolve(values["onto-home"])
     : undefined;
 
+  // Resolve domain directory once for all lenses (directory-level all-or-nothing)
+  const sessionDomain = binding.resolved_session_domain;
+  const isNoDomain = !sessionDomain || sessionDomain === "none" || sessionDomain === "@-";
+  let resolvedDomainDir: string | null = null;
+  let domainAllFiles: string[] = [];
+  if (!isNoDomain) {
+    resolvedDomainDir = resolveDomainDirectory(sessionDomain, projectRoot, ontoHome);
+    if (!resolvedDomainDir) {
+      throw new Error(
+        `Domain directory not found for "${sessionDomain}". ` +
+        `Searched: ${ontoHome ? path.join(ontoHome, "domains", sessionDomain) + " and " : ""}` +
+        `${path.join(projectRoot, "domains", sessionDomain)}`,
+      );
+    }
+    domainAllFiles = scanDomainFiles(resolvedDomainDir);
+  }
+
   for (const seat of lensPromptPacketSeats) {
     const roleDefinitionPath = resolveRoleDefinitionPath(seat.lens_id, projectRoot, ontoHome);
     const roleDefinitionText = await readOptionalText(roleDefinitionPath);
@@ -270,9 +388,21 @@ ${binding.resolved_target_scope.resolved_refs
 - If you find an issue, state what, why, and how to fix it.
 - If you find no issue, state why it is correct.
 - Write your result to: ${toRelativePath(seat.output_path, projectRoot)}
+${renderDomainDocumentRefsSection(seat.lens_id, resolvedDomainDir, domainAllFiles, projectRoot)}
 `;
 
     await fs.writeFile(seat.packet_path, lensPacketText.trimEnd() + "\n", "utf8");
+  }
+
+  // CC3: Auto-populate domain_context_refs in context-candidate-assembly.yaml
+  if (domainAllFiles.length > 0 && await fileExists(contextCandidateAssemblyPath)) {
+    const assembly = await readYamlDocument<Record<string, unknown>>(contextCandidateAssemblyPath);
+    const existingRefs = Array.isArray(assembly?.domain_context_refs) ? assembly.domain_context_refs as string[] : [];
+    const mergedRefs = [...new Set([...existingRefs, ...domainAllFiles])];
+    if (mergedRefs.length > existingRefs.length) {
+      (assembly as Record<string, unknown>).domain_context_refs = mergedRefs;
+      await writeYamlDocument(contextCandidateAssemblyPath, assembly);
+    }
   }
 
   const synthesizePacketText = `# Review Synthesize Prompt Packet

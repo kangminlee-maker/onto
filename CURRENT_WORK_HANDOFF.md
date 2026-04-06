@@ -38,7 +38,7 @@
 - **Nested Spawn Coordinator**: `onto review --prepare-only` → Agent tool dispatch → `onto review --complete-session`. Codex/Claude CLI 없이 구독 내 작동.
 - **`--prepare-only` 플래그**: 전처리 + 세션 준비까지만 수행. `PrepareOnlyResult` interface.
 - **Role/Domain 해석 정책**: core roles는 ontoHome only (project override 금지). custom roles는 projectRoot → ontoHome fallback. terminal failure = error.
-- **Config 우선순위 체인**: ontoHome config + projectRoot config 4-tier merge. 스칼라: last-wins, 배열: replace, excluded_names: union.
+- **Config 적용 순서 체인**: 내장 기본값 → ontoHome config → projectRoot config → CLI 플래그 (last-wins: 나중에 적용되는 것이 이전 것을 덮어씀). 배열: replace, excluded_names: union.
 - **Discovery 모듈**: `src/core-runtime/discovery/` — onto-home.ts, project-root.ts, config-chain.ts.
 - **Executor 직접 경로 해석**: `npm run` 대신 `{ontoHome}/dist/` 또는 `{ontoHome}/src/` + tsx. `ONTO_HOME` env를 spawned executor에 전파.
 - directory listing 필터 (62K → 348줄), embed truncation (300줄), kind `directory_listing` 통일.

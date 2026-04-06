@@ -35,13 +35,13 @@ async function readConfigAt(dir: string): Promise<OntoConfig> {
 }
 
 /**
- * 4-tier config merge.
+ * 4-tier config merge (last-wins: later application overrides earlier).
  *
- * Priority (later overrides earlier):
+ * Application order (each step overrides the previous):
  * 1. Built-in defaults (not in this function — caller provides)
  * 2. {ontoHome}/.onto/config.yml — installation-level defaults
- * 3. {projectRoot}/.onto/config.yml — project-specific overrides
- * 4. CLI flags — handled upstream by the caller
+ * 3. {projectRoot}/.onto/config.yml — project-specific overrides (wins over ontoHome)
+ * 4. CLI flags — handled upstream by the caller (wins over everything)
  *
  * Merge strategy:
  * - Scalar keys: last-wins (project overrides onto-home)

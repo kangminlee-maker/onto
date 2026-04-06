@@ -149,24 +149,43 @@ function resolveDomainDirectory(
  */
 /**
  * Render the "Domain Document Refs" section for a lens prompt packet.
- * Only includes the primary file mapped to this specific lens.
- * Extension files (9th+) are available via domain_context_refs in
- * context-candidate-assembly.yaml, not in individual lens packets.
+ * - Primary: the lens-specific mapped file (mandatory reading for this lens)
+ * - Supplementary: other domain files (optional — agent decides whether to read)
+ *
+ * Domain documents cross-reference each other (e.g., logic_rules.md references
+ * concepts.md definitions). Providing supplementary refs as file paths (not
+ * embedded content) costs ~7 lines and gives the agent access to the full
+ * domain context when needed.
  */
 function renderDomainDocumentRefsSection(
   lensId: string,
   domainDir: string | null,
+  allDomainFiles: string[],
   projectRoot: string,
 ): string {
-  if (!domainDir) return "";
+  if (!domainDir || allDomainFiles.length === 0) return "";
 
   const mappedFileName = LENS_DOMAIN_FILE_MAP[lensId];
-  if (!mappedFileName) return "";
+  const lines: string[] = ["", "## Domain Document Refs"];
 
-  const primaryPath = path.join(domainDir, mappedFileName);
-  if (!fsSync.existsSync(primaryPath)) return "";
+  if (mappedFileName) {
+    const primaryPath = path.join(domainDir, mappedFileName);
+    if (fsSync.existsSync(primaryPath)) {
+      lines.push(`- primary: ${toRelativePath(primaryPath, projectRoot)}`);
+    }
+  }
 
-  return `\n## Domain Document Ref\n- ${toRelativePath(primaryPath, projectRoot)}`;
+  const supplementary = allDomainFiles.filter(
+    (filePath) => path.basename(filePath) !== mappedFileName,
+  );
+  if (supplementary.length > 0) {
+    lines.push("- supplementary:");
+    for (const filePath of supplementary) {
+      lines.push(`  - ${toRelativePath(filePath, projectRoot)}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 function scanDomainFiles(domainDir: string): string[] {
@@ -372,7 +391,7 @@ ${binding.resolved_target_scope.resolved_refs
 - If you find an issue, state what, why, and how to fix it.
 - If you find no issue, state why it is correct.
 - Write your result to: ${toRelativePath(seat.output_path, projectRoot)}
-${renderDomainDocumentRefsSection(seat.lens_id, resolvedDomainDir, projectRoot)}
+${renderDomainDocumentRefsSection(seat.lens_id, resolvedDomainDir, domainAllFiles, projectRoot)}
 `;
 
     await fs.writeFile(seat.packet_path, lensPacketText.trimEnd() + "\n", "utf8");

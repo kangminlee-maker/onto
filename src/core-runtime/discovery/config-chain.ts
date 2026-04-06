@@ -11,6 +11,12 @@ export interface OntoConfig {
   executor_realization?: string;
   /** API provider for api executor: anthropic | openai */
   api_provider?: string;
+  /** LLM model to use (e.g. gpt-5.4, claude-sonnet-4-20250514) */
+  model?: string;
+  /** Review mode: light | full */
+  review_mode?: string;
+  /** Reasoning effort level passed to executor (e.g. low, medium, high, xhigh) */
+  reasoning_effort?: string;
   max_concurrent_lenses?: number | string;
   domain?: string;
   secondary_domains?: string[] | string;

@@ -146,6 +146,8 @@ const KNOWN_INVOKE_ONLY_OPTION_NAMES = [
   "max-concurrent-lenses",
   "filesystem-boundary-decision",
   "diff-range",
+  "model",
+  "reasoning-effort",
 ] as const;
 
 const KNOWN_INVOKE_ONLY_FLAG_NAMES = ["codex", "claude", "prepare-only"] as const;
@@ -330,6 +332,25 @@ function ensureSessionIdArg(argv: string[]): string[] {
   return [...argv, "--session-id", generateReviewSessionId()];
 }
 
+function appendExecutorModelArgs(
+  config: ReviewUnitExecutorConfig,
+  argv: string[],
+  ontoConfig?: OntoConfig,
+): ReviewUnitExecutorConfig {
+  const args = [...config.args];
+  const model = readSingleOptionValueFromArgv(argv, "model") ?? ontoConfig?.model;
+  if (typeof model === "string" && model.length > 0) {
+    args.push("--model", model);
+  }
+  const reasoningEffort =
+    readSingleOptionValueFromArgv(argv, "reasoning-effort") ??
+    ontoConfig?.reasoning_effort;
+  if (typeof reasoningEffort === "string" && reasoningEffort.length > 0) {
+    args.push("--reasoning-effort", reasoningEffort);
+  }
+  return { bin: config.bin, args };
+}
+
 function resolveExecutorConfig(
   argv: string[],
   executionRealization: ExecutionRealization,
@@ -348,10 +369,11 @@ function resolveExecutorConfig(
     `${optionPrefixLabel}executor-arg`,
   );
   if (typeof explicitBin === "string" && explicitBin.length > 0) {
-    return {
-      bin: explicitBin,
-      args: explicitArgs,
-    };
+    return appendExecutorModelArgs(
+      { bin: explicitBin, args: explicitArgs },
+      argv,
+      ontoConfig,
+    );
   }
 
   const explicitRealization = readSingleOptionValueFromArgv(
@@ -365,7 +387,11 @@ function resolveExecutorConfig(
     explicitRealization === "api" ||
     explicitRealization === "mock"
   ) {
-    return buildExecutorConfigFromRealization(explicitRealization, hostRuntime, ontoHome);
+    return appendExecutorModelArgs(
+      buildExecutorConfigFromRealization(explicitRealization, hostRuntime, ontoHome),
+      argv,
+      ontoConfig,
+    );
   }
 
   const configRealization = ontoConfig?.executor_realization;
@@ -376,19 +402,35 @@ function resolveExecutorConfig(
     configRealization === "api" ||
     configRealization === "mock"
   ) {
-    return buildExecutorConfigFromRealization(configRealization as ExecutorRealization, hostRuntime, ontoHome);
+    return appendExecutorModelArgs(
+      buildExecutorConfigFromRealization(configRealization as ExecutorRealization, hostRuntime, ontoHome),
+      argv,
+      ontoConfig,
+    );
   }
 
   if (executionRealization === "subagent" && hostRuntime === "codex") {
-    return buildExecutorConfigFromRealization("subagent", "codex", ontoHome);
+    return appendExecutorModelArgs(
+      buildExecutorConfigFromRealization("subagent", "codex", ontoHome),
+      argv,
+      ontoConfig,
+    );
   }
 
   if (executionRealization === "subagent" && hostRuntime === "claude") {
-    return buildExecutorConfigFromRealization("subagent", "claude", ontoHome);
+    return appendExecutorModelArgs(
+      buildExecutorConfigFromRealization("subagent", "claude", ontoHome),
+      argv,
+      ontoConfig,
+    );
   }
 
   if (executionRealization === "agent-teams" && hostRuntime === "claude") {
-    return buildExecutorConfigFromRealization("agent-teams", "claude", ontoHome);
+    return appendExecutorModelArgs(
+      buildExecutorConfigFromRealization("agent-teams", "claude", ontoHome),
+      argv,
+      ontoConfig,
+    );
   }
 
   throw new Error(
@@ -719,10 +761,14 @@ async function resolveDomainSelection(
   };
 }
 
-function resolveReviewMode(argv: string[]): ReviewMode {
+function resolveReviewMode(argv: string[], ontoConfig?: OntoConfig): ReviewMode {
   const explicitValue = readSingleOptionValueFromArgv(argv, "review-mode");
   if (explicitValue === "light" || explicitValue === "full") {
     return explicitValue;
+  }
+  const configValue = ontoConfig?.review_mode;
+  if (configValue === "light" || configValue === "full") {
+    return configValue;
   }
   return "full";
 }
@@ -937,7 +983,7 @@ async function resolveReviewInvokeInputs(
     ontoConfig,
   );
 
-  const reviewMode = resolveReviewMode(argv);
+  const reviewMode = resolveReviewMode(argv, ontoConfig);
   const explicitLensIds = readMultiOptionValuesFromArgv(argv, "lens-id");
   const lensDefaults = resolveLensDefaultsForReviewMode(reviewMode);
   const resolvedLensIds = explicitLensIds.length > 0

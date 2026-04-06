@@ -23,6 +23,7 @@ import {
 } from "../review/review-artifact-utils.js";
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 import { resolveOntoHome } from "../discovery/onto-home.js";
+import { resolveConfigChain } from "../discovery/config-chain.js";
 
 type ExecutorRealization = "subagent" | "agent-teams" | "codex" | "api" | "mock";
 type ExecutionRealization = "subagent" | "agent-teams";
@@ -1434,7 +1435,9 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   const projectRoot = path.resolve(
     readSingleOptionValueFromArgv(argv, "project-root") ?? ".",
   );
-  const ontoConfig = await readOntoConfig(projectRoot);
+  const ontoConfig = ontoHome
+    ? await resolveConfigChain(ontoHome, projectRoot)
+    : await readOntoConfig(projectRoot);
   const resolvedInvokeInputs = await resolveReviewInvokeInputs(
     argv,
     ontoConfig,

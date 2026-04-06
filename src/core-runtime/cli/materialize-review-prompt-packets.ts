@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
@@ -90,6 +91,52 @@ ${state.filesystem_scope.effective_allowed_roots
 
 const DEFAULT_MAX_EMBED_LINES = 300;
 
+const CORE_ROLE_IDS = new Set([
+  "onto_logic",
+  "onto_structure",
+  "onto_dependency",
+  "onto_semantics",
+  "onto_pragmatics",
+  "onto_evolution",
+  "onto_coverage",
+  "onto_conciseness",
+  "onto_axiology",
+  "onto_synthesize",
+]);
+
+/**
+ * Resolve role definition path per the Role/Domain policy:
+ * - Core roles: ontoHome/roles/ only. Project override forbidden.
+ * - Custom roles: projectRoot/roles/ → ontoHome/roles/ fallback.
+ * - Terminal failure: throw (no silent degradation).
+ */
+function resolveRoleDefinitionPath(
+  lensId: string,
+  projectRoot: string,
+  ontoHome: string | undefined,
+): string {
+  if (CORE_ROLE_IDS.has(lensId)) {
+    // Core roles: ontoHome only
+    const homePath = typeof ontoHome === "string" && ontoHome.length > 0
+      ? path.resolve(ontoHome, "roles", `${lensId}.md`)
+      : path.resolve(projectRoot, "roles", `${lensId}.md`);
+    return homePath;
+  }
+
+  // Custom roles: projectRoot first, then ontoHome fallback
+  const projectPath = path.resolve(projectRoot, "roles", `${lensId}.md`);
+  if (fsSync.existsSync(projectPath)) {
+    return projectPath;
+  }
+  if (typeof ontoHome === "string" && ontoHome.length > 0) {
+    const homePath = path.resolve(ontoHome, "roles", `${lensId}.md`);
+    if (fsSync.existsSync(homePath)) {
+      return homePath;
+    }
+  }
+  return projectPath; // will produce warning downstream
+}
+
 export async function runMaterializeReviewPromptPacketsCli(
   argv: string[],
 ): Promise<number> {
@@ -153,12 +200,17 @@ export async function runMaterializeReviewPromptPacketsCli(
 
   await fs.mkdir(promptPacketsRoot, { recursive: true });
 
+  const ontoHome = typeof values["onto-home"] === "string" && values["onto-home"].length > 0
+    ? path.resolve(values["onto-home"])
+    : undefined;
+
   for (const seat of lensPromptPacketSeats) {
-    const roleDefinitionPath = path.resolve(projectRoot, "roles", `${seat.lens_id}.md`);
+    const roleDefinitionPath = resolveRoleDefinitionPath(seat.lens_id, projectRoot, ontoHome);
     const roleDefinitionText = await readOptionalText(roleDefinitionPath);
     if (roleDefinitionText.trim().length === 0) {
-      console.warn(
-        `[onto] Warning: role definition not found for ${seat.lens_id} at ${roleDefinitionPath}`,
+      throw new Error(
+        `Role definition not found for ${seat.lens_id}. Searched: ${roleDefinitionPath}` +
+        (ontoHome ? ` (ontoHome: ${ontoHome})` : ""),
       );
     }
     const lensPacketText = `# Review Lens Prompt Packet

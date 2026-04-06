@@ -119,6 +119,142 @@ async function handleCompleteSession(
   return runCompleteReviewSessionCli(enrichedArgv);
 }
 
+async function handleCoordinator(
+  ontoHome: string,
+  argv: string[],
+): Promise<number> {
+  const subcommand = argv[0];
+  const subArgv = argv.slice(1);
+
+  const enrichedArgv = [...subArgv];
+  if (!subArgv.includes("--onto-home")) {
+    enrichedArgv.push("--onto-home", ontoHome);
+  }
+
+  switch (subcommand) {
+    case "start": {
+      // Resolve project root like handleReview does
+      if (!enrichedArgv.includes("--project-root")) {
+        const firstNonFlag = enrichedArgv.find(
+          (arg) => !arg.startsWith("--") && !arg.startsWith("@"),
+        );
+        const projectRoot = resolveProjectRoot(firstNonFlag);
+        enrichedArgv.push("--project-root", projectRoot);
+      }
+
+      // Trust Boundary: confirm .onto/ creation in external projects
+      const prIdx = enrichedArgv.indexOf("--project-root");
+      const projectRoot = prIdx >= 0 && prIdx + 1 < enrichedArgv.length
+        ? enrichedArgv[prIdx + 1]
+        : undefined;
+      if (projectRoot) {
+        const allowed = await checkOntoDirectoryInit(
+          path.resolve(projectRoot),
+          ontoHome,
+          enrichedArgv,
+        );
+        if (!allowed) {
+          console.error("[onto] Coordinator canceled: .onto/ directory creation not approved.");
+          return 1;
+        }
+      }
+
+      const { coordinatorStart } = await import(
+        "./core-runtime/cli/coordinator-state-machine.js"
+      );
+      try {
+        const result = await coordinatorStart(enrichedArgv);
+        console.log(JSON.stringify(result, null, 2));
+        return 0;
+      } catch (error) {
+        console.error(
+          `[onto] coordinator start failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return 1;
+      }
+    }
+
+    case "next": {
+      if (!enrichedArgv.includes("--project-root")) {
+        const projectRoot = resolveProjectRoot();
+        enrichedArgv.push("--project-root", projectRoot);
+      }
+
+      const { coordinatorNext } = await import(
+        "./core-runtime/cli/coordinator-state-machine.js"
+      );
+
+      const sessionRootIdx = enrichedArgv.indexOf("--session-root");
+      const nextSessionRootRaw = sessionRootIdx >= 0 ? enrichedArgv[sessionRootIdx + 1] : undefined;
+      const nextSessionRoot = nextSessionRootRaw ? path.resolve(nextSessionRootRaw) : "";
+      const projRootIdx = enrichedArgv.indexOf("--project-root");
+      const nextProjectRootRaw = projRootIdx >= 0 ? enrichedArgv[projRootIdx + 1] : undefined;
+      const nextProjectRoot = nextProjectRootRaw ? path.resolve(nextProjectRootRaw) : process.cwd();
+
+      if (!nextSessionRoot) {
+        console.error("[onto] coordinator next requires --session-root");
+        return 1;
+      }
+
+      try {
+        const result = await coordinatorNext(nextSessionRoot, nextProjectRoot);
+        console.log(JSON.stringify(result, null, 2));
+        return 0;
+      } catch (error) {
+        console.error(
+          `[onto] coordinator next failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return 1;
+      }
+    }
+
+    case "status": {
+      const { coordinatorStatus } = await import(
+        "./core-runtime/cli/coordinator-state-machine.js"
+      );
+
+      const srIdx = enrichedArgv.indexOf("--session-root");
+      const statusSessionRootRaw = srIdx >= 0 ? enrichedArgv[srIdx + 1] : undefined;
+      const statusSessionRoot = statusSessionRootRaw ? path.resolve(statusSessionRootRaw) : "";
+
+      if (!statusSessionRoot) {
+        console.error("[onto] coordinator status requires --session-root");
+        return 1;
+      }
+
+      try {
+        const state = await coordinatorStatus(statusSessionRoot);
+        console.log(JSON.stringify(state, null, 2));
+        return 0;
+      } catch (error) {
+        console.error(
+          `[onto] coordinator status failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return 1;
+      }
+    }
+
+    case "--help":
+    case "-h":
+    case undefined:
+      console.log(
+        [
+          "Usage: onto coordinator <subcommand> [options]",
+          "",
+          "Subcommands:",
+          "  start <target> <intent>     Start a coordinated review session",
+          "  next --session-root <path>  Advance to the next state",
+          "  status --session-root <path>  Show current coordinator state",
+        ].join("\n"),
+      );
+      return 0;
+
+    default:
+      console.error(`[onto] Unknown coordinator subcommand: ${subcommand}`);
+      return 1;
+  }
+}
+
 async function handleInfo(ontoHome: string): Promise<number> {
   const projectRoot = resolveProjectRoot();
   console.log(
@@ -160,6 +296,9 @@ async function main(): Promise<number> {
       }
       return handleReview(ontoHome, subcommandArgv);
 
+    case "coordinator":
+      return handleCoordinator(ontoHome, subcommandArgv);
+
     case "info":
       return handleInfo(ontoHome);
 
@@ -187,6 +326,7 @@ async function main(): Promise<number> {
           "Subcommands:",
           "  review <target> <intent>   Run 9-lens review",
           "  review --complete-session   Complete a prepared session",
+          "  coordinator start|next|status  State machine coordinated review",
           "  info                        Show resolved onto home and project root",
           "",
           "Options:",

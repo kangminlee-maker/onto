@@ -4,7 +4,7 @@
 > 목적: canonical 영문 용어를 유지하면서, 설계 문서와 대화에서 일관되게 쓸 한국어 대응어를 고정한다.
 > 기준 문서:
 > - `authority/core-lexicon.yaml`
-> - `dev-docs/ontology-as-code-naming-charter.md`
+> - `authority/ontology-as-code-naming-charter.md`
 
 ---
 

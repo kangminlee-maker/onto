@@ -135,7 +135,7 @@ business 도메인 핵심 문서 8개를 기존 59K 수준에서, accounting-kr 
 추가 business-domain 작업이 다시 필요해지면 아래 순서로 시작하면 된다.
 
 1. **이 문서와 계약 문서만 먼저 읽기**
-   - `cat /Users/kangmin/cowork/onto/BUSINESS_DOMAIN_UPGRADE_HANDOFF.md`
+   - `cat /Users/kangmin/cowork/onto/dev-docs/handoff/20260331-business-domain-upgrade.md`
    - `cat /Users/kangmin/cowork/onto/.onto/review/20260331-1101bc80/execution-contracts.md`
    - `cat /Users/kangmin/cowork/onto/.onto/review/20260331-93dcf27e/review-target.md`
 
@@ -172,7 +172,7 @@ business 도메인 핵심 문서 8개를 기존 59K 수준에서, accounting-kr 
 
 ### 수정된 설계/계약 문서
 - `.onto/review/20260331-1101bc80/execution-contracts.md`
-- `BUSINESS_DOMAIN_UPGRADE_HANDOFF.md`
+- `dev-docs/handoff/20260331-business-domain-upgrade.md`
 
 ### 참조 상태 확인만 한 설계 문서
 - `.onto/review/20260331-93dcf27e/review-target.md`

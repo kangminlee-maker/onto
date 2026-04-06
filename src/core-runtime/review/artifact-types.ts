@@ -291,6 +291,83 @@ export interface ReviewRecord {
   final_output_ref?: string | null;
 }
 
+// ─────────────────────────────────────────────
+// Coordinator State Machine types
+// ─────────────────────────────────────────────
+
+export type CoordinatorStateName =
+  | "preparing"
+  | "awaiting_lens_dispatch"
+  | "validating_lenses"
+  | "awaiting_synthesize_dispatch"
+  | "awaiting_deliberation"
+  | "completing"
+  | "completed"
+  | "halted_partial"
+  | "failed";
+
+export interface CoordinatorStateTransition {
+  from: CoordinatorStateName | "(init)";
+  to: CoordinatorStateName;
+  at: string;
+}
+
+export interface CoordinatorStateFile {
+  schema_version: string;
+  current_state: CoordinatorStateName;
+  session_root: string;
+  /** Source: PrepareOnlyResult.request_text */
+  request_text: string;
+  started_at: string;
+  halt_reason: string | null;
+  error_message: string | null;
+  transitions: CoordinatorStateTransition[];
+}
+
+export interface CoordinatorAgentInstruction {
+  lens_id: string;
+  description: string;
+  prompt: string;
+  output_path: string;
+  packet_path?: string;
+}
+
+export interface CoordinatorStartResult {
+  state: "awaiting_lens_dispatch";
+  session_root: string;
+  request_text: string;
+  agents: CoordinatorAgentInstruction[];
+}
+
+export interface CoordinatorNextResult {
+  state: CoordinatorStateName;
+  session_root: string;
+  agent?: CoordinatorAgentInstruction | undefined;
+  final_output_path?: string | undefined;
+  review_record_path?: string | undefined;
+  record_status?: string | undefined;
+  halt_reason?: string | undefined;
+  error_message?: string | undefined;
+  participating_lens_ids?: string[] | undefined;
+  degraded_lens_ids?: string[] | undefined;
+}
+
+export const ALLOWED_TRANSITIONS: Record<
+  CoordinatorStateName | "(init)",
+  CoordinatorStateName[]
+> = {
+  "(init)": ["preparing"],
+  preparing: ["awaiting_lens_dispatch", "failed"],
+  awaiting_lens_dispatch: ["validating_lenses"],
+  validating_lenses: ["awaiting_synthesize_dispatch", "halted_partial", "failed"],
+  awaiting_synthesize_dispatch: ["completing", "awaiting_deliberation"],
+  awaiting_deliberation: ["completing"],
+  completing: ["completed", "failed"],
+  completed: [],
+  halted_partial: [],
+  failed: [],
+};
+
 /**
  * Output of `review:invoke --prepare-only`.
  *

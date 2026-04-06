@@ -3,10 +3,10 @@
 > 상태: Active
 > 목적: `LLM`과 runtime 사이의 interface를 어떤 원칙과 기준으로 구성할지 고정한다.
 > 기준 문서:
-> - `dev-docs/productization-charter.md`
-> - `dev-docs/development-methodology.md`
-> - `dev-docs/review-productized-live-path.md`
-> - `dev-docs/review-prompt-execution-runner-contract.md`
+> - `authority/productization-charter.md`
+> - `authority/development-methodology.md`
+> - `processes/review/productized-live-path.md`
+> - `processes/review/prompt-execution-runner-contract.md`
 > - `authority/core-lexicon.yaml`
 
 ---

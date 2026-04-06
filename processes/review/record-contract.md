@@ -3,13 +3,13 @@
 > 상태: Active
 > 목적: `검토 (review)`의 primary artifact인 `리뷰 기록 (ReviewRecord)`의 최소 contract를 고정한다.
 > 기준 문서:
-> - `dev-docs/review-productized-live-path.md`
-> - `dev-docs/review-interpretation-contract.md`
-> - `dev-docs/review-binding-contract.md`
-> - `dev-docs/review-lens-prompt-contract.md`
-> - `dev-docs/review-synthesize-prompt-contract.md`
-> - `dev-docs/review-execution-preparation-artifacts.md`
-> - `dev-docs/review-record-field-mapping.md`
+> - `processes/review/productized-live-path.md`
+> - `processes/review/interpretation-contract.md`
+> - `processes/review/binding-contract.md`
+> - `processes/review/lens-prompt-contract.md`
+> - `processes/review/synthesize-prompt-contract.md`
+> - `processes/review/execution-preparation-artifacts.md`
+> - `processes/review/record-field-mapping.md`
 > - `authority/core-lexicon.yaml`
 
 ---

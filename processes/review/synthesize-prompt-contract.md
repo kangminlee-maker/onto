@@ -3,11 +3,10 @@
 > 상태: Active
 > 목적: 현재 `onto` 프로토타입의 `종합 단계 (onto_synthesize)`가 따라야 하는 `종합 프롬프트 계약 (SynthesizePromptContract)`을 고정한다.
 > 기준 문서:
-> - `dev-docs/review-lens-registry.md`
-> - `dev-docs/review-lens-prompt-contract.md`
-> - `dev-docs/review-prototype-to-product-mapping.md`
+> - `processes/review/lens-registry.md`
+> - `processes/review/lens-prompt-contract.md`
 > - `process.md`
-> - `processes/review.md`
+> - `processes/review/review.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -21,7 +20,7 @@
 
 - `roles/onto_synthesize.md`
 - `process.md`의 `Codex Review Synthesize Prompt Template`
-- `processes/review.md`의 Step 3/4
+- `processes/review/review.md`의 Step 3/4
 
 ---
 
@@ -113,7 +112,7 @@ later productization에서는 이 output이
 `ReviewRecord`의 human-readable layer source가 된다.
 
 aggregate primary artifact는
-`dev-docs/review-record-contract.md`에서 정의하는 `ReviewRecord`다.
+`processes/review/record-contract.md`에서 정의하는 `ReviewRecord`다.
 
 ---
 

@@ -114,6 +114,16 @@ function formatLocalIso(date: Date): string {
   )}`;
 }
 
+export function requireString(
+  value: string | boolean | undefined,
+  optionName: string,
+): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Missing required option --${optionName}`);
+  }
+  return value;
+}
+
 export function isoNow(): string {
   return formatLocalIso(new Date());
 }

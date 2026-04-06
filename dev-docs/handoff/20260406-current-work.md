@@ -13,12 +13,12 @@
 
 1. `CLAUDE.md`
 2. `AGENTS.md`
-3. `dev-docs/ontology-as-code-guideline.md`
-4. `dev-docs/llm-native-development-guideline.md`
-5. `dev-docs/llm-runtime-interface-principles.md`
+3. `authority/ontology-as-code-guideline.md`
+4. `authority/llm-native-development-guideline.md`
+5. `authority/llm-runtime-interface-principles.md`
 6. `commands/review.md`
-7. `dev-docs/review-productized-live-path.md`
-8. `dev-docs/review-nested-spawn-coordinator-contract.md`
+7. `processes/review/productized-live-path.md`
+8. `processes/review/nested-spawn-coordinator-contract.md`
 
 중요:
 
@@ -46,32 +46,31 @@
 - `--diff-range` git diff target 지원. Agent tool 경로 E2E 성공.
 - synthesize packet에 Required Output Sections + Tagging Completeness Rule.
 - Individual Lens Findings 참조가 final-output.md에 포함.
-- E2E 테스트 **42건 ALL PASS**.
-- **Codex CLI 비활성화** (과금 문제). 재활성화: `mv /opt/homebrew/bin/codex.disabled /opt/homebrew/bin/codex`
+- **Coordinator State Machine (DeterministicStateEnforcer)**: `onto coordinator start` → `next` → `next` 패턴. 9개 state, 12 간선. auto state 전이는 완료 후 기록 (크래시 안전).
+- E2E 테스트 **49건 ALL PASS**.
+- **Codex CLI 재활성화됨** (v0.118.0). `subagent + codex` 경로 사용 가능.
 
 ### 2.2 작동하는 실행 경로
 
 | 환경 | 방법 | 비용 | 상태 |
 |---|---|---|---|
-| Claude Code 세션 (기본) | `onto review --prepare-only` → Agent tool dispatch → `onto review --complete-session` | 구독 | **작동 (권장)** |
+| Claude Code 세션 (state machine) | `onto coordinator start` → Agent dispatch → `onto coordinator next` × 2 | 구독 | **작동 (권장)** |
+| Claude Code 세션 (기존) | `onto review --prepare-only` → Agent tool dispatch → `onto review --complete-session` | 구독 | **작동 (하위 호환)** |
 | Claude Code 세션 (diff) | 위와 동일 + `--diff-range` | 구독 | **작동** |
+| CLI (codex executor) | `onto review <target> <intent> --codex` | Codex 할당량 | **작동 (재활성화됨)** |
 | 글로벌 CLI (어디서든) | `onto review <target> <intent> --executor-realization mock` | 무료 | **작동** |
 | 글로벌 CLI (어디서든) | `onto review <target> <intent> --executor-realization api` | API 과금 | **작동** |
 | repo-local CLI | `npm run review:invoke -- ...` | executor별 | **작동 (하위 호환)** |
 
 ### 2.3 작동하지 않는 것 / 제한
 
-- **Codex CLI 비활성화**: 과금 문제로 차단. 재활성화: `mv /opt/homebrew/bin/codex.disabled /opt/homebrew/bin/codex`
 - **Claude CLI subprocess 인증**: `-p` 모드에서 작동 안 함. `anthropics/claude-code#8938` 미해결.
 - **Platform scope**: macOS, Linux만 지원. Windows는 별도 설계.
 
 ### 2.4 실행 경로 복구 계획
 
-Nested Spawn Coordinator (Agent tool)이 현재 유일한 실제 리뷰 경로. model-independent 실행 가치의 임시 축소 상태.
-
 | 차단된 경로 | 차단 원인 | 복구 조건 | 복구 행동 |
 |---|---|---|---|
-| subagent + codex | codex CLI 비활성화 (과금) | 예산 확보 | `mv codex.disabled codex` + E2E 검증 |
 | subagent/agent-teams + claude | Claude CLI -p 인증 버그 #8938 | upstream 수정 | CLI 업데이트 + E2E 검증 |
 | api + anthropic | API 키 + 과금 필요 | `ANTHROPIC_API_KEY` 설정 | `--executor-realization api` E2E 검증 |
 
@@ -79,29 +78,22 @@ Nested Spawn Coordinator (Agent tool)이 현재 유일한 실제 리뷰 경로. 
 
 ## 3. 다음 작업
 
-### 3.1 즉시 진행: Coordinator State Machine 구현
+### 3.1 완료: Coordinator State Machine 구현
 
-설계 완료 (v3, 3회 9-lens review 거침). 설계 파일: `.onto/temp/coordinator-state-machine-v3.md`
-
-구현 대상:
+설계 v3 기반 구현 완료. E2E 49/49 ALL PASS.
 
 | 파일 | 변경 |
 |---|---|
 | `src/core-runtime/cli/coordinator-state-machine.ts` | **신규**. 상태 전이 + auto state 실행 + dispatch 지시 생성 |
 | `src/core-runtime/review/artifact-types.ts` | CoordinatorStateName, CoordinatorStateFile, CoordinatorStateTransition, CoordinatorAgentInstruction, CoordinatorStartResult, CoordinatorNextResult, ALLOWED_TRANSITIONS |
 | `src/cli.ts` | `coordinator start`, `coordinator next`, `coordinator status` 서브커맨드 |
-| `package.json` | 스크립트 추가 |
-| `commands/review.md` | `onto coordinator start` → `next` 패턴으로 갱신 |
-| `dev-docs/review-nested-spawn-coordinator-contract.md` | state machine 기반 재서술 |
-| `authority/core-lexicon.yaml` | DeterministicStateEnforcer 등록 |
-| E2E 테스트 | coordinator start/next/status 케이스 추가 |
+| `package.json` | coordinator:start/next/status 스크립트 추가 |
+| `commands/review.md` | state machine 기반 coordinator 패턴으로 갱신 |
+| `processes/review/nested-spawn-coordinator-contract.md` | state machine 기반 재서술 (7-phase → state machine) |
+| `authority/core-lexicon.yaml` | DeterministicStateEnforcer, auto_state, await_state, terminal_state 등록 |
+| E2E 테스트 | E45~E49: coordinator start/status/next-halt/next-terminal/full-cycle |
 
-핵심 설계 결정:
-- 9개 state (auto 3, await 3, terminal 3). DAG, 12 간선
-- auto state 전이는 완료 후 기록 → 크래시 시 이전 await에서 재개
-- deliberation slot: 미구현이지만 전이 그래프에 선언적으로 포함
-- 명칭: DeterministicStateEnforcer (Bounded Orchestrator 아님)
-- 내부 호출: TypeScript import (subprocess 아님)
+실행 패턴: `onto coordinator start <target> <intent>` → lens Agent dispatch → `onto coordinator next` → synthesize Agent dispatch → `onto coordinator next` → presentation
 
 ### 3.2 진화 항목
 
@@ -112,13 +104,13 @@ Nested Spawn Coordinator (Agent tool)이 현재 유일한 실제 리뷰 경로. 
 
 ## 4. 개발 원칙 요약
 
-치환 작업 시 아래를 따른다 (`dev-docs/ontology-as-code-guideline.md` §8.3):
+치환 작업 시 아래를 따른다 (`authority/ontology-as-code-guideline.md` §8.3):
 
 > **"이것 없이 다음 실행이 성공할 수 있는가?"**
 > - 아니오 → 지금 구현 (blocker)
 > - 예 → 기록만 하고, 실행 성공 이후에 구현 (enhancement)
 
-의사결정 프레임 (`dev-docs/llm-native-development-guideline.md`):
+의사결정 프레임 (`authority/llm-native-development-guideline.md`):
 1. 의미 판단 필요? → LLM
 2. 경계 제어 필요? → runtime
 3. 품질 무해 고정 가능? → script
@@ -129,8 +121,8 @@ Nested Spawn Coordinator (Agent tool)이 현재 유일한 실제 리뷰 경로. 
 
 | 역할 | 파일 |
 |---|---|
-| 개발 원칙 | `CLAUDE.md`, `dev-docs/ontology-as-code-guideline.md`, `dev-docs/llm-native-development-guideline.md` |
-| 진화 기록 | `dev-docs/discovered-enhancements.md` |
+| 개발 원칙 | `CLAUDE.md`, `authority/ontology-as-code-guideline.md`, `authority/llm-native-development-guideline.md` |
+| 진화 기록 | `authority/discovered-enhancements.md` |
 | E2E 테스트 | `src/core-runtime/cli/e2e-review-invoke.test.sh` (`npm run test:e2e`) |
 | 실행 entrypoint | `src/core-runtime/cli/review-invoke.ts` |
 | executor | `src/core-runtime/cli/subagent-review-unit-executor.ts`, `api-review-unit-executor.ts`, `agent-teams-review-unit-executor.ts` |
@@ -139,7 +131,8 @@ Nested Spawn Coordinator (Agent tool)이 현재 유일한 실제 리뷰 경로. 
 | 렌더러 | `src/core-runtime/cli/render-review-final-output.ts` |
 | 설정 | `.onto/config.yml` |
 | **스킬 (thin entrypoint)** | `commands/review.md` |
-| **coordinator 계약** | `dev-docs/review-nested-spawn-coordinator-contract.md` |
+| **coordinator state machine** | `src/core-runtime/cli/coordinator-state-machine.ts` |
+| **coordinator 계약** | `processes/review/nested-spawn-coordinator-contract.md` |
 | **글로벌 CLI** | `src/cli.ts`, `bin/onto` |
 | **discovery** | `src/core-runtime/discovery/onto-home.ts`, `project-root.ts`, `config-chain.ts` |
 
@@ -147,7 +140,7 @@ Nested Spawn Coordinator (Agent tool)이 현재 유일한 실제 리뷰 경로. 
 
 ## 6. 이번 세션 요약
 
-22건 커밋. 44/44 E2E ALL PASS. 주요 성과:
+23건 커밋. 49/49 E2E ALL PASS. 주요 성과:
 
 - Nested Spawn Coordinator + 글로벌 CLI `onto review` + `--prepare-only`
 - Role/Domain 해석 정책 + Config 적용 순서 체인 + Lens registry
@@ -155,3 +148,4 @@ Nested Spawn Coordinator (Agent tool)이 현재 유일한 실제 리뷰 경로. 
 - Synthesize heading fix + Lens findings refs + Tagging 규칙
 - 9-lens self-review 5회 실행, 각 리뷰 결과 반영
 - Coordinator State Machine v3 설계 완료 (3회 리뷰 iteration)
+- **Coordinator State Machine 구현**: 8파일 변경, E2E 5건 추가 (E45~E49)

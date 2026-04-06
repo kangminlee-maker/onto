@@ -3,12 +3,12 @@
 > 상태: Active
 > 목적: prompt-backed review execution에서 생성되는 source artifact를 `리뷰 기록 (ReviewRecord)` field로 어떻게 매핑하는지 고정한다.
 > 기준 문서:
-> - `dev-docs/review-record-contract.md`
-> - `dev-docs/review-execution-preparation-artifacts.md`
-> - `dev-docs/review-interpretation-contract.md`
-> - `dev-docs/review-binding-contract.md`
-> - `dev-docs/review-lens-prompt-contract.md`
-> - `dev-docs/review-synthesize-prompt-contract.md`
+> - `processes/review/record-contract.md`
+> - `processes/review/execution-preparation-artifacts.md`
+> - `processes/review/interpretation-contract.md`
+> - `processes/review/binding-contract.md`
+> - `processes/review/lens-prompt-contract.md`
+> - `processes/review/synthesize-prompt-contract.md`
 
 ---
 

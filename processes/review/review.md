@@ -4,7 +4,7 @@
 > Related: If learnings accumulate after review, promotion is possible via `processes/promote.md`.
 
 This document is the prompt-backed reference execution for `검토 (review)`.
-The canonical live execution authority is `dev-docs/review-productized-live-path.md`.
+The canonical live execution authority is `processes/review/productized-live-path.md`.
 
 ## Canonical bounded path
 
@@ -29,14 +29,14 @@ it matches the productized live path and produces the same artifact truth.
 - **Synthesize stage**: `onto_synthesize`
 
 **Productization mapping note**:
-- The canonical live execution truth is defined in `dev-docs/review-productized-live-path.md`.
+- The canonical live execution truth is defined in `processes/review/productized-live-path.md`.
 - Step 0 and Step 1.5 are primary source material for `검토 해석 (InvocationInterpretation)`.
 - Step 1 and the deterministic parts of Step 2 are primary source material for `검토 고정 (InvocationBinding)`.
 - The independent review work of Step 2 maps to per-lens execution.
 - Step 3 maps to the synthesize stage.
 - In the prompt-backed reference path, each review lens is executed as a `ContextIsolatedReasoningUnit` so that lens-specific context remains isolated.
 - In a productized prompt path, Step 0 and Step 1.5 are executed as pre-process interpretation work and should not be semantically re-done a second time inside the live review pass.
-- In a productized prompt path, `round1/*.md` and `synthesis.md` are human-readable source layers, while the primary artifact is `review-record.yaml` per `dev-docs/review-record-contract.md`.
+- In a productized prompt path, `round1/*.md` and `synthesis.md` are human-readable source layers, while the primary artifact is `review-record.yaml` per `processes/review/record-contract.md`.
 
 **Important boundary**:
 - Step 0, Step 1, and Step 1.5 below are not the canonical live execution order.
@@ -240,7 +240,7 @@ Productized prompt path 기준으로:
 
 - `round1/*.md`와 `synthesis.md`는 human-readable source layer다
 - primary artifact는 `review-record.yaml`이다
-- execution preparation artifact seat는 `dev-docs/review-execution-preparation-artifacts.md`를 따른다
+- execution preparation artifact seat는 `processes/review/execution-preparation-artifacts.md`를 따른다
 
 **Step 2.1 — Write invocation artifacts**
 
@@ -253,9 +253,9 @@ The team lead writes:
 
 These artifacts must follow:
 
-- `dev-docs/review-interpretation-contract.md`
-- `dev-docs/review-binding-contract.md`
-- `dev-docs/review-execution-preparation-artifacts.md`
+- `processes/review/interpretation-contract.md`
+- `processes/review/binding-contract.md`
+- `processes/review/execution-preparation-artifacts.md`
 
 Bounded runtime replacement for deterministic binding:
 
@@ -733,8 +733,8 @@ Minimum `review-record.yaml` assembly input:
 - `final-output.md`
 - `error-log.md` (optional; required when degradation occurred)
 
-The aggregate contract follows `dev-docs/review-record-contract.md`.
-Field mapping follows `dev-docs/review-record-field-mapping.md`.
+The aggregate contract follows `processes/review/record-contract.md`.
+Field mapping follows `processes/review/record-field-mapping.md`.
 
 `final-output.md` should be the persisted human-readable rendering of the same final result delivered to the user.
 

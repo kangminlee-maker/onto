@@ -523,8 +523,6 @@ domains:
 
 **Command syntax**: `/onto:{process} {target} @{domain}` or `/onto:{process} {target} @-`
 
-For full edge case definitions, refer to `design-per-session-domain-selection.md` Section 4.
-
 ### 5.2 Domain Documents (7 Types)
 
 Each domain has up to 7 reference documents. Each agent references the document corresponding to its dimension.
@@ -566,8 +564,6 @@ Seed documents (`~/.onto/drafts/`) are LLM-generated domain document drafts shar
 **Lifecycle**: create → review → feedback → (repeat) → promote
 
 **Key invariants**: (1) Seeds are never loaded as verification standards. (2) Seeds may be review targets. (3) Promotion requires zero SEED markers. (4) Only the user can remove SEED markers.
-
-Design reference: `dev-docs/design-domain-document-creation.md`
 
 ---
 
@@ -633,8 +629,6 @@ Orthogonal to type × axis tags. Determined at creation time:
 | Phase 0.5 | Now | Tag new learnings with purpose type + impact_severity |
 | Phase 1 | >100 lines per agent | 3-Tier loading priority (Tier-1 unconditional → Tier-2 purpose-based → Tier-3 recency) |
 | Phase 2 | Phase 1 + overload | Additional rules (quota, generation path weighting) |
-
-For full lifecycle design, refer to `design-learning-lifecycle-management.md`.
 
 ---
 
@@ -812,7 +806,7 @@ onto/
 +-- setup-domains.sh          # Domain document installation script
 +-- CLAUDE.md                 # Project domain declaration
 +-- README.md                 # User guide
-+-- KNOWN-ISSUES.md           # Known issues and resolutions
++-- dev-docs/                 # Deprecated/historical documents
 ```
 
 ### 8.2 Runtime-Generated Directories (Created During Execution)

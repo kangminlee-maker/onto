@@ -4,11 +4,11 @@
 > 목적: 이 레포가 제품화를 진행하면서 정리한 `Ontology as Code` 원칙을 하나의 guideline으로 고정한다.
 > 기준 문서:
 > - `authority/core-lexicon.yaml`
-> - `dev-docs/productization-charter.md`
-> - `dev-docs/development-methodology.md`
-> - `dev-docs/llm-runtime-interface-principles.md`
-> - `dev-docs/ontology-as-code-naming-charter.md`
-> - `dev-docs/ontology-as-code-korean-terminology-guide.md`
+> - `authority/productization-charter.md`
+> - `authority/development-methodology.md`
+> - `authority/llm-runtime-interface-principles.md`
+> - `authority/ontology-as-code-naming-charter.md`
+> - `authority/ontology-as-code-korean-terminology-guide.md`
 
 ---
 

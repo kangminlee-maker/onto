@@ -3,9 +3,8 @@
 > 상태: Active
 > 목적: 현재 `onto` 프로토타입의 `/onto:review`가 먼저 수행해야 하는 `검토 해석 (InvocationInterpretation)` 책임을 고정한다.
 > 기준 문서:
-> - `dev-docs/development-methodology.md`
-> - `dev-docs/review-lens-registry.md`
-> - `dev-docs/review-prototype-to-product-mapping.md`
+> - `authority/development-methodology.md`
+> - `processes/review/lens-registry.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -130,7 +129,7 @@ target_scope_candidate:
 사용자 요청:
 
 ```text
-/onto:review dev-docs/review-semantic-unlock-policy.md
+/onto:review authority/ontology-as-code-guideline.md
 production semantic quality bar 기획이 완결적인지 검토해줘
 ```
 
@@ -140,7 +139,7 @@ production semantic quality bar 기획이 완결적인지 검토해줘
 entrypoint: review
 target_scope_candidate:
   kind: file
-  primary_ref: dev-docs/review-semantic-unlock-policy.md
+  primary_ref: authority/ontology-as-code-guideline.md
 intent_summary: production semantic quality bar planning의 완결성과 실용성을 검토한다.
 domain_recommendation: "@ontology"
 domain_selection_required: true
@@ -183,7 +182,7 @@ ambiguity_notes:
 
 - `commands/review.md`
 - `process.md`의 domain determination rules
-- `processes/review.md`의 Step 0, Step 1.5
+- `processes/review/review.md`의 Step 0, Step 1.5
 
 즉 현재 `/onto:review` 프롬프트는 먼저 아래 순서를 따라야 한다.
 
@@ -194,7 +193,7 @@ ambiguity_notes:
 5. 그 다음에만 binding 단계로 넘어간다
 
 이때 productized prompt path에서는 이 단계가
-`processes/review.md`의 live step보다 먼저 한 번 실행된 것으로 간주한다.
+`processes/review/review.md`의 live step보다 먼저 한 번 실행된 것으로 간주한다.
 
 ---
 
@@ -243,4 +242,4 @@ prompt-backed path에서는 이 중 interpretation 결과를
 
 1. `검토 고정 계약 (review binding contract)`을 고정한다
 2. `commands/review.md`가 이 두 단계를 명시적으로 읽도록 바꾼다
-3. 이후 `processes/review.md` Step 0/1/1.5를 interpretation/binding 기준으로 다시 정리한다
+3. 이후 `processes/review/review.md` Step 0/1/1.5를 interpretation/binding 기준으로 다시 정리한다

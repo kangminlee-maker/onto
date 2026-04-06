@@ -1021,6 +1021,6 @@ When modifying this file (build.md), the following documents must be synchronize
 | Document | Sections to Synchronize |
 |---|---|
 | `README.md` | Line 3 (description), agent table, "Ontology Build" section, certainty description, directory structure |
-| `dev-docs/BLUEPRINT.md` | Section 2 (term definitions), Section 3.6 (Explorer), Section 4.3 (build), certainty table, directory structure, MCP interface |
+| `authority/BLUEPRINT.md` | Section 2 (term definitions), Section 3.6 (Explorer), Section 4.3 (build), certainty table, directory structure, MCP interface |
 | `process.md` | Certainty-related content in Teammate prompt template, agent-domain document mapping |
 | `explorers/*.md` | Source-type profiles — if certainty level names/formats in build.md change, synchronize the examples in the profiles |

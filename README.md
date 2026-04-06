@@ -6,26 +6,26 @@ A Claude Code plugin that performs multi-perspective verification of logical sys
 > this repository is the current prototype/reference line.
 > The service-transition authority for this repository starts in:
 > - `AGENTS.md`
-> - `dev-docs/productization-charter.md`
+> - `authority/productization-charter.md`
 > - `authority/core-lexicon.yaml`
-> - `dev-docs/ontology-as-code-naming-charter.md`
-> - `dev-docs/ontology-as-code-korean-terminology-guide.md`
-> - `dev-docs/development-methodology.md`
-> - `dev-docs/ontology-as-code-guideline.md`
-> - `dev-docs/llm-runtime-interface-principles.md`
-> - `dev-docs/prototype-to-service-productization-plan.md`
-> - `dev-docs/prototype-runtime-llm-boundary-audit.md`
-> - `dev-docs/review-prototype-to-product-mapping.md`
-> - `dev-docs/review-lens-registry.md`
-> - `dev-docs/review-interpretation-contract.md`
-> - `dev-docs/review-binding-contract.md`
-> - `dev-docs/review-productized-live-path.md`
-> - `dev-docs/review-record-contract.md`
-> - `dev-docs/review-record-field-mapping.md`
-> - `dev-docs/review-execution-preparation-artifacts.md`
-> - `dev-docs/review-prompt-execution-runner-contract.md`
-> - `dev-docs/review-lens-prompt-contract.md`
-> - `dev-docs/review-synthesize-prompt-contract.md`
+> - `authority/ontology-as-code-naming-charter.md`
+> - `authority/ontology-as-code-korean-terminology-guide.md`
+> - `authority/development-methodology.md`
+> - `authority/ontology-as-code-guideline.md`
+> - `authority/llm-runtime-interface-principles.md`
+> - `dev-docs/plan/20260404-prototype-to-service-productization-plan.md`
+> - `dev-docs/audit/20260404-prototype-runtime-llm-boundary-audit.md`
+> - `dev-docs/plan/20260404-review-prototype-to-product-mapping.md`
+> - `processes/review/lens-registry.md`
+> - `processes/review/interpretation-contract.md`
+> - `processes/review/binding-contract.md`
+> - `processes/review/productized-live-path.md`
+> - `processes/review/record-contract.md`
+> - `processes/review/record-field-mapping.md`
+> - `processes/review/execution-preparation-artifacts.md`
+> - `processes/review/prompt-execution-runner-contract.md`
+> - `processes/review/lens-prompt-contract.md`
+> - `processes/review/synthesize-prompt-contract.md`
 > - `src/core-runtime/review/artifact-types.ts`
 > - `src/core-runtime/review/review-artifact-utils.ts`
 > - `src/core-runtime/cli/write-review-interpretation.ts`
@@ -376,13 +376,13 @@ onto/
 +-- golden/                  # Golden examples per schema + schema templates
 +-- dev-docs/                # Design documents, issues, philosophical foundations
 |   +-- BLUEPRINT.md
-|   +-- KNOWN-ISSUES.md
-|   +-- DESIGN-build-generalization.md
-|   +-- BUG-subagent-fallback-on-first-install.md
-|   +-- design-domain-document-creation.md
-|   +-- design-learning-lifecycle-management.md
-|   +-- design-optimization-4features.md
-|   +-- design-per-session-domain-selection.md
+|   +-- tracking/20260330-known-issues.md
+|   +-- design/20260327-build-generalization.md
+|   +-- bug/20260330-subagent-fallback-on-first-install.md
+|   +-- design/20260329-domain-document-creation.md
+|   +-- design/20260330-learning-lifecycle-management.md
+|   +-- design/20260330-optimization-4features.md
+|   +-- design/20260328-per-session-domain-selection.md
 |   +-- philosophical-foundations-of-ontology.md
 |   +-- translation-reference.yaml
 +-- commands/                # Command definitions

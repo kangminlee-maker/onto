@@ -28,28 +28,28 @@
 
 새 작업을 시작할 때는 아래 순서로 읽는다.
 
-1. [productization-charter.md](/Users/kangmin/cowork/onto/dev-docs/productization-charter.md)
-2. [development-methodology.md](/Users/kangmin/cowork/onto/dev-docs/development-methodology.md)
-3. [ontology-as-code-guideline.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-guideline.md)
-4. [llm-runtime-interface-principles.md](/Users/kangmin/cowork/onto/dev-docs/llm-runtime-interface-principles.md)
-5. [principles-criteria-decisions-inventory.md](/Users/kangmin/cowork/onto/dev-docs/principles-criteria-decisions-inventory.md)
+1. [productization-charter.md](/Users/kangmin/cowork/onto/authority/productization-charter.md)
+2. [development-methodology.md](/Users/kangmin/cowork/onto/authority/development-methodology.md)
+3. [ontology-as-code-guideline.md](/Users/kangmin/cowork/onto/authority/ontology-as-code-guideline.md)
+4. [llm-runtime-interface-principles.md](/Users/kangmin/cowork/onto/authority/llm-runtime-interface-principles.md)
+5. [principles-criteria-decisions-inventory.md](/Users/kangmin/cowork/onto/authority/principles-criteria-decisions-inventory.md)
 6. [core-lexicon.yaml](/Users/kangmin/cowork/onto/authority/core-lexicon.yaml)
-7. [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-naming-charter.md)
-8. [ontology-as-code-korean-terminology-guide.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-korean-terminology-guide.md)
+7. [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/authority/ontology-as-code-naming-charter.md)
+8. [ontology-as-code-korean-terminology-guide.md](/Users/kangmin/cowork/onto/authority/ontology-as-code-korean-terminology-guide.md)
 
 `review`를 건드릴 때는 위 6개 다음으로 아래를 읽는다.
 
-1. [review-productized-live-path.md](/Users/kangmin/cowork/onto/dev-docs/review-productized-live-path.md)
-2. [review-nested-spawn-coordinator-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-nested-spawn-coordinator-contract.md)
-3. [review-lens-registry.md](/Users/kangmin/cowork/onto/dev-docs/review-lens-registry.md)
-4. [review-interpretation-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-interpretation-contract.md)
-5. [review-binding-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-binding-contract.md)
-6. [review-lens-prompt-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-lens-prompt-contract.md)
-7. [review-synthesize-prompt-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-synthesize-prompt-contract.md)
-8. [review-execution-preparation-artifacts.md](/Users/kangmin/cowork/onto/dev-docs/review-execution-preparation-artifacts.md)
-9. [review-prompt-execution-runner-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-prompt-execution-runner-contract.md)
-10. [review-record-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-record-contract.md)
-11. [review-record-field-mapping.md](/Users/kangmin/cowork/onto/dev-docs/review-record-field-mapping.md)
+1. [productized-live-path.md](/Users/kangmin/cowork/onto/processes/review/productized-live-path.md)
+2. [nested-spawn-coordinator-contract.md](/Users/kangmin/cowork/onto/processes/review/nested-spawn-coordinator-contract.md)
+3. [lens-registry.md](/Users/kangmin/cowork/onto/processes/review/lens-registry.md)
+4. [interpretation-contract.md](/Users/kangmin/cowork/onto/processes/review/interpretation-contract.md)
+5. [binding-contract.md](/Users/kangmin/cowork/onto/processes/review/binding-contract.md)
+6. [lens-prompt-contract.md](/Users/kangmin/cowork/onto/processes/review/lens-prompt-contract.md)
+7. [synthesize-prompt-contract.md](/Users/kangmin/cowork/onto/processes/review/synthesize-prompt-contract.md)
+8. [execution-preparation-artifacts.md](/Users/kangmin/cowork/onto/processes/review/execution-preparation-artifacts.md)
+9. [prompt-execution-runner-contract.md](/Users/kangmin/cowork/onto/processes/review/prompt-execution-runner-contract.md)
+10. [record-contract.md](/Users/kangmin/cowork/onto/processes/review/record-contract.md)
+11. [record-field-mapping.md](/Users/kangmin/cowork/onto/processes/review/record-field-mapping.md)
 
 ---
 
@@ -57,11 +57,11 @@
 
 이 레포의 최상위 목표와 철학은 아래 문서가 가진다.
 
-- [productization-charter.md](/Users/kangmin/cowork/onto/dev-docs/productization-charter.md)
-- [development-methodology.md](/Users/kangmin/cowork/onto/dev-docs/development-methodology.md)
-- [ontology-as-code-guideline.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-guideline.md)
-- [llm-runtime-interface-principles.md](/Users/kangmin/cowork/onto/dev-docs/llm-runtime-interface-principles.md)
-- [principles-criteria-decisions-inventory.md](/Users/kangmin/cowork/onto/dev-docs/principles-criteria-decisions-inventory.md)
+- [productization-charter.md](/Users/kangmin/cowork/onto/authority/productization-charter.md)
+- [development-methodology.md](/Users/kangmin/cowork/onto/authority/development-methodology.md)
+- [ontology-as-code-guideline.md](/Users/kangmin/cowork/onto/authority/ontology-as-code-guideline.md)
+- [llm-runtime-interface-principles.md](/Users/kangmin/cowork/onto/authority/llm-runtime-interface-principles.md)
+- [principles-criteria-decisions-inventory.md](/Users/kangmin/cowork/onto/authority/principles-criteria-decisions-inventory.md)
 
 핵심 요약:
 
@@ -111,7 +111,7 @@ runtime의 또 다른 핵심 역할:
 - 기준 미달 output을 `fail-close` 한다
 - 입력, 출력, artifact, gate를 결정론적으로 고정해서 drift를 통과시키지 않는다
 
-이 기준은 [productization-charter.md](/Users/kangmin/cowork/onto/dev-docs/productization-charter.md) 와 [development-methodology.md](/Users/kangmin/cowork/onto/dev-docs/development-methodology.md) 에서 authoritative하다.
+이 기준은 [productization-charter.md](/Users/kangmin/cowork/onto/authority/productization-charter.md) 와 [development-methodology.md](/Users/kangmin/cowork/onto/authority/development-methodology.md) 에서 authoritative하다.
 
 ---
 
@@ -131,9 +131,9 @@ runtime의 또 다른 핵심 역할:
 - `구현 치환 단계 (ImplementationReplacementStep)`
 - `맥락 격리 추론 단위 (ContextIsolatedReasoningUnit)`
 
-한글 대응어 기준은 [ontology-as-code-korean-terminology-guide.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-korean-terminology-guide.md) 를 따른다.
+한글 대응어 기준은 [ontology-as-code-korean-terminology-guide.md](/Users/kangmin/cowork/onto/authority/ontology-as-code-korean-terminology-guide.md) 를 따른다.
 
-이름 규칙은 [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/dev-docs/ontology-as-code-naming-charter.md) 를 따른다.
+이름 규칙은 [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/authority/ontology-as-code-naming-charter.md) 를 따른다.
 
 ---
 
@@ -143,8 +143,8 @@ runtime의 또 다른 핵심 역할:
 
 기준 문서:
 
-- [review-productized-live-path.md](/Users/kangmin/cowork/onto/dev-docs/review-productized-live-path.md)
-- [review-lens-registry.md](/Users/kangmin/cowork/onto/dev-docs/review-lens-registry.md)
+- [productized-live-path.md](/Users/kangmin/cowork/onto/processes/review/productized-live-path.md)
+- [lens-registry.md](/Users/kangmin/cowork/onto/processes/review/lens-registry.md)
 
 canonical review 구조:
 
@@ -203,9 +203,9 @@ canonical review 구조:
 
 기준 문서:
 
-- [review-lens-registry.md](/Users/kangmin/cowork/onto/dev-docs/review-lens-registry.md)
-- [review-lens-prompt-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-lens-prompt-contract.md)
-- [review-synthesize-prompt-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-synthesize-prompt-contract.md)
+- [lens-registry.md](/Users/kangmin/cowork/onto/processes/review/lens-registry.md)
+- [lens-prompt-contract.md](/Users/kangmin/cowork/onto/processes/review/lens-prompt-contract.md)
+- [synthesize-prompt-contract.md](/Users/kangmin/cowork/onto/processes/review/synthesize-prompt-contract.md)
 
 ---
 
@@ -225,9 +225,9 @@ canonical review 구조:
 
 관련 문서:
 
-- [review-execution-preparation-artifacts.md](/Users/kangmin/cowork/onto/dev-docs/review-execution-preparation-artifacts.md)
-- [review-record-contract.md](/Users/kangmin/cowork/onto/dev-docs/review-record-contract.md)
-- [review-record-field-mapping.md](/Users/kangmin/cowork/onto/dev-docs/review-record-field-mapping.md)
+- [execution-preparation-artifacts.md](/Users/kangmin/cowork/onto/processes/review/execution-preparation-artifacts.md)
+- [record-contract.md](/Users/kangmin/cowork/onto/processes/review/record-contract.md)
+- [record-field-mapping.md](/Users/kangmin/cowork/onto/processes/review/record-field-mapping.md)
 
 ---
 
@@ -274,9 +274,9 @@ canonical review 구조:
 문서가 충돌하면 아래 우선순위를 따른다.
 
 1. [core-lexicon.yaml](/Users/kangmin/cowork/onto/authority/core-lexicon.yaml)
-2. [productization-charter.md](/Users/kangmin/cowork/onto/dev-docs/productization-charter.md)
-3. [development-methodology.md](/Users/kangmin/cowork/onto/dev-docs/development-methodology.md)
-4. [review-productized-live-path.md](/Users/kangmin/cowork/onto/dev-docs/review-productized-live-path.md)
+2. [productization-charter.md](/Users/kangmin/cowork/onto/authority/productization-charter.md)
+3. [development-methodology.md](/Users/kangmin/cowork/onto/authority/development-methodology.md)
+4. [productized-live-path.md](/Users/kangmin/cowork/onto/processes/review/productized-live-path.md)
 5. 개별 contract 문서
 6. TS core type / artifact writer
 7. legacy process / command / role 문서
@@ -284,7 +284,7 @@ canonical review 구조:
 즉 아래는 source material일 수는 있어도 최상위 authority가 아니다.
 
 - [process.md](/Users/kangmin/cowork/onto/process.md)
-- [processes/review.md](/Users/kangmin/cowork/onto/processes/review.md)
+- [processes/review/review.md](/Users/kangmin/cowork/onto/processes/review/review.md)
 - `roles/*.md`
 
 ---

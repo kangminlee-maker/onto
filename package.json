@@ -28,6 +28,9 @@
     "review:finalize-session": "tsx src/core-runtime/cli/assemble-review-record.ts",
     "review:complete-session": "tsx src/core-runtime/cli/complete-review-session.ts",
     "review:assemble-record": "tsx src/core-runtime/cli/assemble-review-record.ts",
+    "coordinator:start": "tsx src/core-runtime/cli/coordinator-state-machine.ts start",
+    "coordinator:next": "tsx src/core-runtime/cli/coordinator-state-machine.ts next",
+    "coordinator:status": "tsx src/core-runtime/cli/coordinator-state-machine.ts status",
     "review:coordinator-init-log": "tsx src/core-runtime/cli/coordinator-helpers.ts init-log",
     "review:coordinator-build-synthesize-packet": "tsx src/core-runtime/cli/coordinator-helpers.ts build-synthesize-packet",
     "review:coordinator-write-execution-result": "tsx src/core-runtime/cli/coordinator-helpers.ts write-execution-result"

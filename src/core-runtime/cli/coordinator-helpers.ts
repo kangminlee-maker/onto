@@ -25,24 +25,12 @@ import type {
 import {
   appendMarkdownLogEntry,
   fileExists,
+  isoNow,
   readYamlDocument,
+  requireString,
   writeYamlDocument,
   parseMarkdownFrontmatter,
 } from "../review/review-artifact-utils.js";
-
-function requireString(
-  value: string | boolean | undefined,
-  optionName: string,
-): string {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`Missing required option --${optionName}`);
-  }
-  return value;
-}
-
-function isoNow(): string {
-  return new Date().toISOString();
-}
 
 function toRelativePath(absolutePath: string, projectRoot: string): string {
   return path.relative(projectRoot, absolutePath);
@@ -85,7 +73,13 @@ function renderBoundaryStateLog(
 // Subcommand: init-coordinator-log
 // ─────────────────────────────────────────────
 
-export async function runInitCoordinatorLog(argv: string[]): Promise<number> {
+export interface InitCoordinatorLogResult {
+  error_log_path: string;
+  max_concurrent_lenses: number;
+  lens_count: number;
+}
+
+export async function initCoordinatorLog(argv: string[]): Promise<InitCoordinatorLogResult> {
   const { values } = parseArgs({
     options: {
       "session-root": { type: "string" },
@@ -115,11 +109,16 @@ export async function runInitCoordinatorLog(argv: string[]): Promise<number> {
     `max_concurrent_lenses: ${maxConcurrentLenses}`,
   );
 
-  console.log(JSON.stringify({
+  return {
     error_log_path: errorLogPath,
     max_concurrent_lenses: maxConcurrentLenses,
     lens_count: executionPlan.lens_prompt_packet_seats.length,
-  }, null, 2));
+  };
+}
+
+export async function runInitCoordinatorLog(argv: string[]): Promise<number> {
+  const result = await initCoordinatorLog(argv);
+  console.log(JSON.stringify(result, null, 2));
   return 0;
 }
 
@@ -127,7 +126,15 @@ export async function runInitCoordinatorLog(argv: string[]): Promise<number> {
 // Subcommand: build-synthesize-runtime-packet
 // ─────────────────────────────────────────────
 
-export async function runBuildSynthesizeRuntimePacket(argv: string[]): Promise<number> {
+export interface BuildSynthesizePacketResult {
+  halt: boolean;
+  halt_reason: string | undefined;
+  participating_lens_ids: string[];
+  degraded_lens_ids: string[];
+  runtime_packet_path: string | undefined;
+}
+
+export async function buildSynthesizeRuntimePacket(argv: string[]): Promise<BuildSynthesizePacketResult> {
   const { values } = parseArgs({
     options: {
       "session-root": { type: "string" },
@@ -174,13 +181,13 @@ export async function runBuildSynthesizeRuntimePacket(argv: string[]): Promise<n
       ? "No participating lens outputs were produced."
       : `Fewer than ${minimumParticipating} participating lens outputs remain after degraded execution.`;
     await appendMarkdownLogEntry(errorLogPath, "runner halted before synthesize", haltReason);
-    console.log(JSON.stringify({
+    return {
       halt: true,
       halt_reason: haltReason,
       participating_lens_ids: participating,
       degraded_lens_ids: degraded.map((d) => d.lens_id),
-    }, null, 2));
-    return 0;
+      runtime_packet_path: undefined,
+    };
   }
 
   // Build enriched synthesize packet
@@ -205,12 +212,18 @@ export async function runBuildSynthesizeRuntimePacket(argv: string[]): Promise<n
   const enrichedText = `${synthesizePacketText.trimEnd()}\n\n## Runtime Participating Lens Outputs\n${lensRefsSection}\n${degradedSection}`;
   await fs.writeFile(runtimePacketPath, enrichedText.trimEnd() + "\n", "utf8");
 
-  console.log(JSON.stringify({
+  return {
     halt: false,
+    halt_reason: undefined,
     participating_lens_ids: participating,
     degraded_lens_ids: degraded.map((d) => d.lens_id),
     runtime_packet_path: runtimePacketPath,
-  }, null, 2));
+  };
+}
+
+export async function runBuildSynthesizeRuntimePacket(argv: string[]): Promise<number> {
+  const result = await buildSynthesizeRuntimePacket(argv);
+  console.log(JSON.stringify(result, null, 2));
   return 0;
 }
 
@@ -227,7 +240,14 @@ function deriveExecutionStatus(
   return "completed";
 }
 
-export async function runWriteExecutionResult(argv: string[]): Promise<number> {
+export interface WriteExecutionResultOutput {
+  execution_result_path: string;
+  execution_status: string;
+  participating_lens_count: number;
+  degraded_lens_count: number;
+}
+
+export async function writeExecutionResult(argv: string[]): Promise<WriteExecutionResultOutput> {
   const { values } = parseArgs({
     options: {
       "session-root": { type: "string" },
@@ -346,12 +366,17 @@ export async function runWriteExecutionResult(argv: string[]): Promise<number> {
   const resultPath = executionPlan.execution_result_path ?? path.join(sessionRoot, "execution-result.yaml");
   await writeYamlDocument(resultPath, artifact);
 
-  console.log(JSON.stringify({
+  return {
     execution_result_path: resultPath,
     execution_status: artifact.execution_status,
     participating_lens_count: participating.length,
     degraded_lens_count: degraded.length,
-  }, null, 2));
+  };
+}
+
+export async function runWriteExecutionResult(argv: string[]): Promise<number> {
+  const result = await writeExecutionResult(argv);
+  console.log(JSON.stringify(result, null, 2));
   return 0;
 }
 

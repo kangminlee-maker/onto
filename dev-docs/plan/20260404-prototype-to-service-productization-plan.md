@@ -103,8 +103,8 @@
 
 현재 이 단계의 baseline 문서는 아래다.
 
-- `dev-docs/prototype-runtime-llm-boundary-audit.md`
-- `dev-docs/review-prototype-to-product-mapping.md`
+- `dev-docs/audit/20260404-prototype-runtime-llm-boundary-audit.md`
+- `dev-docs/plan/20260404-review-prototype-to-product-mapping.md`
 - `dev-docs/review-lens-registry.md`
 - `dev-docs/review-interpretation-contract.md`
 - `dev-docs/review-binding-contract.md`

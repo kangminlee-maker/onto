@@ -596,6 +596,161 @@ rm -rf "$E44_TMPDIR"
 echo ""
 
 # ─────────────────────────────────────────────
+# 12. COORDINATOR STATE MACHINE
+# ─────────────────────────────────────────────
+
+echo "── Coordinator State Machine ──"
+
+# E45: coordinator start (mock, light)
+echo "=== E45: coordinator-start ==="
+E45_OUT=$(onto coordinator start \
+  src/ "coordinator test" \
+  --executor-realization mock --review-mode light \
+  --project-root "$PROJECT_ROOT" 2>&1)
+E45_EXIT=$?
+E45_STATE=$(echo "$E45_OUT" | grep '"state"' | head -1 | sed 's/.*: "//;s/".*//')
+E45_SESSION_ROOT=$(echo "$E45_OUT" | grep '"session_root"' | head -1 | sed 's/.*: "//;s/".*//')
+E45_AGENTS=$(echo "$E45_OUT" | grep '"lens_id"' | wc -l | tr -d ' ')
+
+if [ $E45_EXIT -eq 0 ] && [ "$E45_STATE" = "awaiting_lens_dispatch" ] && [ -n "$E45_SESSION_ROOT" ] && [ "$E45_AGENTS" -gt 0 ]; then
+  echo "  PASS  E45: coordinator-start (state=$E45_STATE, agents=$E45_AGENTS)"
+  PASS_COUNT=$((PASS_COUNT + 1))
+else
+  echo "  FAIL! E45: coordinator-start (exit=$E45_EXIT, state=$E45_STATE, agents=$E45_AGENTS)"
+  UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+fi
+
+# E46: coordinator status
+echo "=== E46: coordinator-status ==="
+if [ -n "$E45_SESSION_ROOT" ] && [ -d "$E45_SESSION_ROOT" ]; then
+  E46_OUT=$(onto coordinator status --session-root "$E45_SESSION_ROOT" 2>&1)
+  E46_EXIT=$?
+  E46_STATE=$(echo "$E46_OUT" | grep '"current_state"' | head -1 | sed 's/.*: "//;s/".*//')
+
+  if [ $E46_EXIT -eq 0 ] && [ "$E46_STATE" = "awaiting_lens_dispatch" ]; then
+    echo "  PASS  E46: coordinator-status (current_state=$E46_STATE)"
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "  FAIL! E46: coordinator-status (exit=$E46_EXIT, state=$E46_STATE)"
+    UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+  fi
+else
+  echo "  SKIP  E46: no session from E45"
+fi
+
+# E47: coordinator next (lens validation → halted_partial since mock executor didn't write lens outputs)
+echo "=== E47: coordinator-next-halt ==="
+if [ -n "$E45_SESSION_ROOT" ] && [ -d "$E45_SESSION_ROOT" ]; then
+  E47_OUT=$(onto coordinator next \
+    --session-root "$E45_SESSION_ROOT" \
+    --project-root "$PROJECT_ROOT" 2>&1)
+  E47_EXIT=$?
+  E47_STATE=$(echo "$E47_OUT" | grep '"state"' | head -1 | sed 's/.*: "//;s/".*//')
+
+  if [ $E47_EXIT -eq 0 ] && [ "$E47_STATE" = "halted_partial" ]; then
+    echo "  PASS  E47: coordinator-next-halt (state=$E47_STATE — no lens outputs)"
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "  FAIL! E47: coordinator-next-halt (exit=$E47_EXIT, state=$E47_STATE)"
+    UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+  fi
+else
+  echo "  SKIP  E47: no session from E45"
+fi
+
+# E48: coordinator next on terminal state → error
+echo "=== E48: coordinator-next-terminal ==="
+if [ -n "$E45_SESSION_ROOT" ] && [ -d "$E45_SESSION_ROOT" ]; then
+  E48_OUT=$(onto coordinator next \
+    --session-root "$E45_SESSION_ROOT" \
+    --project-root "$PROJECT_ROOT" 2>&1)
+  E48_EXIT=$?
+
+  if [ $E48_EXIT -ne 0 ]; then
+    echo "  PASS  E48: coordinator-next-terminal (expected fail on terminal state)"
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "  FAIL! E48: coordinator-next-terminal (should fail on terminal state)"
+    UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+  fi
+else
+  echo "  SKIP  E48: no session from E45"
+fi
+
+# E49: coordinator full cycle with mock lens outputs
+echo "=== E49: coordinator-full-cycle ==="
+E49_START_OUT=$(onto coordinator start \
+  src/core-runtime/cli/review-invoke.ts "full cycle test" \
+  --executor-realization mock --review-mode light \
+  --project-root "$PROJECT_ROOT" 2>&1)
+E49_START_EXIT=$?
+E49_SESSION_ROOT=$(echo "$E49_START_OUT" | grep '"session_root"' | head -1 | sed 's/.*: "//;s/".*//')
+
+if [ $E49_START_EXIT -eq 0 ] && [ -n "$E49_SESSION_ROOT" ] && [ -d "$E49_SESSION_ROOT" ]; then
+  # Write mock lens outputs to satisfy validation
+  if [ -d "$E49_SESSION_ROOT/round1" ]; then
+    for f in "$E49_SESSION_ROOT/round1"/*.md; do
+      if [ ! -s "$f" ]; then
+        echo "# Mock lens output" > "$f"
+      fi
+    done
+  fi
+  # Also create outputs for all lens seats from execution plan
+  E49_OUTPUT_PATHS=$(grep 'output_path:' "$E49_SESSION_ROOT/execution-plan.yaml" | sed 's/.*output_path: //' | tr -d '"' | tr -d "'")
+  for op in $E49_OUTPUT_PATHS; do
+    if [ ! -s "$op" ]; then
+      mkdir -p "$(dirname "$op")"
+      echo "# Mock output for $(basename "$op")" > "$op"
+    fi
+  done
+
+  # Step 2: next → awaiting_synthesize_dispatch
+  E49_NEXT1_OUT=$(onto coordinator next \
+    --session-root "$E49_SESSION_ROOT" \
+    --project-root "$PROJECT_ROOT" 2>&1)
+  E49_NEXT1_EXIT=$?
+  E49_NEXT1_STATE=$(echo "$E49_NEXT1_OUT" | grep '"state"' | head -1 | sed 's/.*: "//;s/".*//')
+
+  if [ $E49_NEXT1_EXIT -eq 0 ] && [ "$E49_NEXT1_STATE" = "awaiting_synthesize_dispatch" ]; then
+    # Write mock synthesis output
+    E49_SYNTH_OUTPUT=$(echo "$E49_NEXT1_OUT" | grep '"output_path"' | head -1 | sed 's/.*: "//;s/".*//')
+    if [ -n "$E49_SYNTH_OUTPUT" ]; then
+      mkdir -p "$(dirname "$E49_SYNTH_OUTPUT")"
+      echo "# Mock synthesis output" > "$E49_SYNTH_OUTPUT"
+    fi
+
+    # Step 3: next → completed
+    E49_NEXT2_OUT=$(onto coordinator next \
+      --session-root "$E49_SESSION_ROOT" \
+      --project-root "$PROJECT_ROOT" 2>&1)
+    E49_NEXT2_EXIT=$?
+    E49_NEXT2_STATE=$(echo "$E49_NEXT2_OUT" | grep '"state"' | head -1 | sed 's/.*: "//;s/".*//')
+
+    if [ $E49_NEXT2_EXIT -eq 0 ] && [ "$E49_NEXT2_STATE" = "completed" ]; then
+      E49_FINAL=$(echo "$E49_NEXT2_OUT" | grep '"final_output_path"' | head -1 | sed 's/.*: "//;s/".*//')
+      if [ -n "$E49_FINAL" ] && [ -f "$E49_FINAL" ]; then
+        echo "  PASS  E49: coordinator-full-cycle (start→lens→synthesize→completed)"
+        PASS_COUNT=$((PASS_COUNT + 1))
+      else
+        echo "  FAIL! E49: coordinator-full-cycle (final_output missing: $E49_FINAL)"
+        UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+      fi
+    else
+      echo "  FAIL! E49: coordinator-full-cycle step3 (exit=$E49_NEXT2_EXIT, state=$E49_NEXT2_STATE)"
+      UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+    fi
+  else
+    echo "  FAIL! E49: coordinator-full-cycle step2 (exit=$E49_NEXT1_EXIT, state=$E49_NEXT1_STATE)"
+    UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+  fi
+else
+  echo "  FAIL! E49: coordinator-full-cycle step1 (exit=$E49_START_EXIT)"
+  UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
+fi
+
+echo ""
+
+# ─────────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────────
 

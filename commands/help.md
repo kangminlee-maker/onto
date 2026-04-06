@@ -116,5 +116,6 @@ review {target} @{domain}          Use as verification standard
 ### More Info
 
 - README: `~/.claude/plugins/onto/README.md`
-- Design docs: `~/.claude/plugins/onto/dev-docs/`
+- Authority docs: `~/.claude/plugins/onto/authority/`
+- Review contracts: `~/.claude/plugins/onto/processes/review/`
 - Domain documents: `~/.onto/domains/`

@@ -3,10 +3,10 @@
 > 상태: Active
 > 목적: `execution-plan.yaml`과 `prompt-packets/*.prompt.md`를 읽고, 각 `맥락 격리 추론 단위 (ContextIsolatedReasoningUnit)`를 deterministic하게 dispatch하는 bounded runtime contract를 고정한다.
 > 기준 문서:
-> - `dev-docs/review-productized-live-path.md`
-> - `dev-docs/review-lens-prompt-contract.md`
-> - `dev-docs/review-synthesize-prompt-contract.md`
-> - `dev-docs/review-record-contract.md`
+> - `processes/review/productized-live-path.md`
+> - `processes/review/lens-prompt-contract.md`
+> - `processes/review/synthesize-prompt-contract.md`
+> - `processes/review/record-contract.md`
 > - `authority/core-lexicon.yaml`
 
 ---

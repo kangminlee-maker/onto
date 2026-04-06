@@ -4,12 +4,11 @@
 > 목적: `onto` 메인 레포의 제품화 목표, 개발 원칙, 개발 방향, 현재 우선순위를 하나의 상위 문서로 고정한다.
 > 기준 문서:
 > - `authority/core-lexicon.yaml`
-> - `dev-docs/development-methodology.md`
-> - `dev-docs/llm-runtime-interface-principles.md`
-> - `dev-docs/ontology-as-code-naming-charter.md`
-> - `dev-docs/ontology-as-code-korean-terminology-guide.md`
-> - `dev-docs/prototype-to-service-productization-plan.md`
-> - `dev-docs/review-productized-live-path.md`
+> - `authority/development-methodology.md`
+> - `authority/llm-runtime-interface-principles.md`
+> - `authority/ontology-as-code-naming-charter.md`
+> - `authority/ontology-as-code-korean-terminology-guide.md`
+> - `processes/review/productized-live-path.md`
 
 ---
 

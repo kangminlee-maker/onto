@@ -3,7 +3,7 @@
 > 상태: Active
 > 목적: 현재 `onto` 프로토타입의 `검토 (review)` 흐름을 서비스형 구조로 다시 매핑하고, 어떤 부분을 `프롬프트 기반 기준 경로 (PromptBackedReferencePath)`로 먼저 살릴지, 어떤 부분을 이후 `구현 치환 단계 (ImplementationReplacementStep)`로 옮길지 고정한다.
 > 기준 문서:
-> - `dev-docs/prototype-runtime-llm-boundary-audit.md`
+> - `dev-docs/audit/20260404-prototype-runtime-llm-boundary-audit.md`
 > - `dev-docs/development-methodology.md`
 > - `authority/core-lexicon.yaml`
 > - `dev-docs/review-lens-registry.md`

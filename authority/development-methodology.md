@@ -3,9 +3,9 @@
 > 상태: Active
 > 목적: `onto` 메인 레포를 프로토타입에서 서비스로 전환할 때 따를 공통 개발 방법을 고정한다.
 > 기준 문서:
-> - `dev-docs/ontology-as-code-naming-charter.md`
-> - `dev-docs/ontology-as-code-korean-terminology-guide.md`
-> - `dev-docs/llm-runtime-interface-principles.md`
+> - `authority/ontology-as-code-naming-charter.md`
+> - `authority/ontology-as-code-korean-terminology-guide.md`
+> - `authority/llm-runtime-interface-principles.md`
 > - `authority/core-lexicon.yaml`
 
 ---

@@ -1,19 +1,11 @@
 # Principles Criteria Decisions Inventory
 
 > 상태: Active
-> 목적: `onto-llm-independent/dev-docs`와 `onto/dev-docs`에서 선언된 최신 개발 원칙, 판정 기준, 결정 사항을 추출해 inventory로 남기고, 상위 charter 누락 여부를 점검한다.
+> 목적: 이 레포의 개발 원칙, 판정 기준, 결정 사항을 하나의 inventory로 고정하고, 상위 charter 누락 여부를 점검한다.
 > 기준 문서:
-> - `dev-docs/productization-charter.md`
-> - `/Users/kangmin/cowork/onto-llm-independent/dev-docs/model-independent-llm-harness-doctrine.md`
-> - `/Users/kangmin/cowork/onto-llm-independent/dev-docs/llm-runtime-boundary-criteria.md`
-> - `/Users/kangmin/cowork/onto-llm-independent/dev-docs/prompt-first-implementation-loop.md`
-> - `/Users/kangmin/cowork/onto-llm-independent/dev-docs/runtime-language-decision.md`
-> - `/Users/kangmin/cowork/onto-llm-independent/dev-docs/reference-harness-governance.md`
-> - `/Users/kangmin/cowork/onto-llm-independent/dev-docs/review-semantic-acceptance-suite.md`
-> - `/Users/kangmin/cowork/onto-llm-independent/dev-docs/review-semantic-unlock-policy.md`
-> - `dev-docs/development-methodology.md`
-> - `dev-docs/review-productized-live-path.md`
-> - `dev-docs/llm-runtime-interface-principles.md`
+> - `authority/productization-charter.md`
+> - `authority/development-methodology.md`
+> - `authority/llm-runtime-interface-principles.md`
 
 ---
 
@@ -240,7 +232,7 @@ unlock 최소 기준:
 
 ## 5. Charter Coverage Check
 
-현재 [`productization-charter.md`](/Users/kangmin/cowork/onto/dev-docs/productization-charter.md)는 아래를 포함해야 한다.
+현재 [`productization-charter.md`](/Users/kangmin/cowork/onto/authority/productization-charter.md)는 아래를 포함해야 한다.
 
 1. 최상위 원칙
 2. 책임 분리 원칙

@@ -1371,8 +1371,19 @@ function appendDirectoryListingConfigArgs(
   return result;
 }
 
-export async function runReviewInvokeCli(argv: string[]): Promise<number> {
-  const prepareOnly = hasOptionFlag(argv, "prepare-only");
+interface ReviewInvokeSetup {
+  ontoHome: string | undefined;
+  projectRoot: string;
+  ontoConfig: OntoConfig;
+  resolvedInvokeInputs: ResolvedReviewInvokeInputs;
+  hostRuntime: HostRuntime;
+  executionRealization: ExecutionRealization;
+  maxConcurrentLenses: number;
+  startArgv: string[];
+  resolvedExecutorRealization: string | undefined;
+}
+
+async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSetup> {
   const ontoHomeFlag = readSingleOptionValueFromArgv(argv, "onto-home");
   let ontoHome: string | undefined;
   try {
@@ -1435,11 +1446,48 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   const resolvedExecutorRealization =
     readSingleOptionValueFromArgv(argv, "executor-realization") ??
     ontoConfig.executor_realization;
+
+  return {
+    ontoHome,
+    projectRoot,
+    ontoConfig,
+    resolvedInvokeInputs,
+    hostRuntime,
+    executionRealization,
+    maxConcurrentLenses,
+    startArgv,
+    resolvedExecutorRealization,
+  };
+}
+
+/**
+ * Runs review preparation and returns the result directly (no console output).
+ * Used by the coordinator state machine to avoid console.log capture.
+ */
+export async function reviewPrepareOnly(argv: string[]): Promise<PrepareOnlyResult> {
+  const setup = await resolveReviewInvokeSetup(argv);
+  const startResult = await startReviewSession(setup.startArgv);
+  const sessionRoot = path.resolve(startResult.session_root);
+  return {
+    prepare_only: true,
+    session_root: sessionRoot,
+    request_text: setup.resolvedInvokeInputs.requestText,
+    execution_realization: setup.executionRealization,
+    host_runtime: setup.hostRuntime,
+    review_mode: setup.resolvedInvokeInputs.reviewMode,
+  };
+}
+
+export async function runReviewInvokeCli(argv: string[]): Promise<number> {
+  const prepareOnly = hasOptionFlag(argv, "prepare-only");
+
+  const setup = await resolveReviewInvokeSetup(argv);
+
   // Skip API key validation when --prepare-only: no executor runs in that mode.
   // Precondition: startReviewSession() does not call any external API.
-  if (!prepareOnly && resolvedExecutorRealization === "api") {
+  if (!prepareOnly && setup.resolvedExecutorRealization === "api") {
     const apiProvider = readSingleOptionValueFromArgv(argv, "api-provider") ??
-      ontoConfig.api_provider ?? "anthropic";
+      setup.ontoConfig.api_provider ?? "anthropic";
     if (apiProvider === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
       throw new Error(
         "ANTHROPIC_API_KEY environment variable is required for --executor-realization api with anthropic provider.",
@@ -1452,49 +1500,49 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     }
   }
 
-  const startResult = await startReviewSession(startArgv);
+  const startResult = await startReviewSession(setup.startArgv);
 
   if (prepareOnly) {
     const sessionRoot = path.resolve(startResult.session_root);
     const result: PrepareOnlyResult = {
       prepare_only: true,
       session_root: sessionRoot,
-      request_text: resolvedInvokeInputs.requestText,
-      execution_realization: executionRealization,
-      host_runtime: hostRuntime,
-      review_mode: resolvedInvokeInputs.reviewMode,
+      request_text: setup.resolvedInvokeInputs.requestText,
+      execution_realization: setup.executionRealization,
+      host_runtime: setup.hostRuntime,
+      review_mode: setup.resolvedInvokeInputs.reviewMode,
     };
     console.log(JSON.stringify(result, null, 2));
     return 0;
   }
 
   const resolvedProjectRoot = path.resolve(
-    readSingleOptionValueFromArgv(startArgv, "project-root") ?? ".",
+    readSingleOptionValueFromArgv(setup.startArgv, "project-root") ?? ".",
   );
   const sessionRoot = path.resolve(startResult.session_root);
-  const resolvedRequestText = resolvedInvokeInputs.requestText;
+  const resolvedRequestText = setup.resolvedInvokeInputs.requestText;
   const defaultExecutorConfig = resolveExecutorConfig(
     argv,
-    executionRealization,
-    hostRuntime,
+    setup.executionRealization,
+    setup.hostRuntime,
     "",
-    ontoConfig,
-    ontoHome,
+    setup.ontoConfig,
+    setup.ontoHome,
   );
   const synthesizeExecutorConfig = resolveExecutorConfig(
     argv,
-    executionRealization,
-    hostRuntime,
+    setup.executionRealization,
+    setup.hostRuntime,
     "synthesize-",
-    ontoConfig,
-    ontoHome,
+    setup.ontoConfig,
+    setup.ontoHome,
   );
 
   const promptExecutionResult = await executeReviewPromptExecution({
     projectRoot: resolvedProjectRoot,
     sessionRoot,
     defaultExecutorConfig,
-    maxConcurrentLenses,
+    maxConcurrentLenses: setup.maxConcurrentLenses,
     ...(synthesizeExecutorConfig.bin === defaultExecutorConfig.bin &&
     JSON.stringify(synthesizeExecutorConfig.args) ===
       JSON.stringify(defaultExecutorConfig.args)
@@ -1519,10 +1567,10 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   const routeSummary: ReviewInvokeRouteSummary = {
     combined_entrypoint: "review:invoke",
     bounded_invoke_steps: [...boundedInvokeSteps],
-    execution_realization: executionRealization,
-    host_runtime: hostRuntime,
-    review_mode: resolvedInvokeInputs.reviewMode,
-    max_concurrent_lenses: maxConcurrentLenses,
+    execution_realization: setup.executionRealization,
+    host_runtime: setup.hostRuntime,
+    review_mode: setup.resolvedInvokeInputs.reviewMode,
+    max_concurrent_lenses: setup.maxConcurrentLenses,
     concurrency_strategy: "bounded_parallel",
     synthesize_waits_for_all_lenses: true,
   };
@@ -1538,18 +1586,18 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
       {
         entrypoint_plan: {
           entrypoint: "review",
-          target: resolvedInvokeInputs.requestedTarget,
-          target_scope_kind: resolvedInvokeInputs.targetScopeKind,
-          resolved_target_refs: resolvedInvokeInputs.resolvedTargetRefs,
+          target: setup.resolvedInvokeInputs.requestedTarget,
+          target_scope_kind: setup.resolvedInvokeInputs.targetScopeKind,
+          resolved_target_refs: setup.resolvedInvokeInputs.resolvedTargetRefs,
           request_text: resolvedRequestText,
           requested_domain_token:
-            resolvedInvokeInputs.requestedDomainToken.length > 0
-              ? resolvedInvokeInputs.requestedDomainToken
+            setup.resolvedInvokeInputs.requestedDomainToken.length > 0
+              ? setup.resolvedInvokeInputs.requestedDomainToken
               : null,
-          domain_selection_required: resolvedInvokeInputs.domainSelectionRequired,
-          domain_selection_mode: resolvedInvokeInputs.domainSelectionMode,
-          domain_final_value: resolvedInvokeInputs.domainFinalValue,
-          review_mode: resolvedInvokeInputs.reviewMode,
+          domain_selection_required: setup.resolvedInvokeInputs.domainSelectionRequired,
+          domain_selection_mode: setup.resolvedInvokeInputs.domainSelectionMode,
+          domain_final_value: setup.resolvedInvokeInputs.domainFinalValue,
+          review_mode: setup.resolvedInvokeInputs.reviewMode,
         },
         route_summary: routeSummary,
         review_result: {
@@ -1571,7 +1619,7 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
         bounded_invoke_steps: [...boundedInvokeSteps],
         prompt_execution_result: promptExecutionResult,
         complete_session_result: completeSessionResult,
-        max_concurrent_lenses: maxConcurrentLenses,
+        max_concurrent_lenses: setup.maxConcurrentLenses,
         executor_realization:
           defaultExecutorConfig.bin === packageManagerBin()
             ? defaultExecutorConfig.args[1] === "review:subagent-unit-executor"

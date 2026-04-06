@@ -46,8 +46,8 @@
 
 ### 먼저 읽을 문서 3개
 
-1. [UI_DESIGN_UPGRADE_HANDOFF.md](/Users/kangmin/cowork/onto/UI_DESIGN_UPGRADE_HANDOFF.md)
-2. [SESSION-20260331-ui-design-upgrade.md](/Users/kangmin/cowork/onto/SESSION-20260331-ui-design-upgrade.md)
+1. [dev-docs/handoff/20260331-ui-design-upgrade.md](/Users/kangmin/cowork/onto/dev-docs/handoff/20260331-ui-design-upgrade.md)
+2. [dev-docs/handoff/20260331-session-ui-design-upgrade.md](/Users/kangmin/cowork/onto/dev-docs/handoff/20260331-session-ui-design-upgrade.md)
 3. [reflective-toasting-valley.md](/Users/kangmin/.claude-1/plans/reflective-toasting-valley.md)
 
 ### 파일럿 관련 원문
@@ -72,7 +72,7 @@
 
 ### 파일럿 선정 기준 SSOT
 
-위치: [SESSION-20260331-ui-design-upgrade.md](/Users/kangmin/cowork/onto/SESSION-20260331-ui-design-upgrade.md#L94)
+위치: [dev-docs/handoff/20260331-session-ui-design-upgrade.md](/Users/kangmin/cowork/onto/dev-docs/handoff/20260331-session-ui-design-upgrade.md#L94)
 
 요약:
 - markdown 기반 review target
@@ -104,7 +104,7 @@
 
 1. 계획 원문은 `.claude-1`이 원본이다
    - `.claude-2/plans`는 심볼릭 링크
-2. `SESSION-20260331-ui-design-upgrade.md`는 현재 세션 상태 SSOT로 유지
+2. `dev-docs/handoff/20260331-session-ui-design-upgrade.md`는 현재 세션 상태 SSOT로 유지
 3. 기존 ui-design 문서들은 이미 사용자 수정과 세션 수정이 섞여 있으므로 되돌리기 금지
 4. 다음 세션에서 바로 문서 추가 수정부터 하지 말고, 먼저 **2차 파일럿 결과만으로 학습 승격할지 / capture-backed rerun을 할지**를 정해야 한다
 
@@ -116,6 +116,6 @@
 
 ```text
 UI design handoff 기준으로 이어가자.
-먼저 UI_DESIGN_UPGRADE_HANDOFF.md, SESSION-20260331-ui-design-upgrade.md, 20260331-d83bcc35 philosopher_synthesis를 읽고,
+먼저 dev-docs/handoff/20260331-ui-design-upgrade.md, dev-docs/handoff/20260331-session-ui-design-upgrade.md, 20260331-d83bcc35 philosopher_synthesis를 읽고,
 2차 파일럿 결과 기준으로 learning 승격 여부부터 판단하자.
 ```

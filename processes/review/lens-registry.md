@@ -3,8 +3,6 @@
 > 상태: Active
 > 목적: 현재 `onto` 메인 레포의 `검토 (review)`에서 사용하는 canonical review 구조를 고정한다.
 > 기준 문서:
-> - `dev-docs/review-prototype-to-product-mapping.md`
-> - `dev-docs/prototype-runtime-llm-boundary-audit.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -118,14 +116,14 @@ host-specific naming이나 realization일 수 있어도,
 현재 `review`의 prompt-backed reference path에서
 각 lens와 synthesize 단계의 source material은 아래다.
 
-- 공통 lens wrapper: `process.md`, `processes/review.md`
+- 공통 lens wrapper: `process.md`, `processes/review/review.md`
 - 개별 lens specialization: `roles/{lens-id}.md`
 - synthesize specialization: `roles/onto_synthesize.md`
 
 관련 계약 문서:
 
-- `dev-docs/review-lens-prompt-contract.md`
-- `dev-docs/review-synthesize-prompt-contract.md`
+- `processes/review/lens-prompt-contract.md`
+- `processes/review/synthesize-prompt-contract.md`
 
 ---
 

@@ -37,7 +37,7 @@ When this skill is invoked in a Claude Code session, choose the execution path:
 | 위 플래그 없음 (기본) | **Nested Spawn Coordinator** | Agent tool (현재 세션 내) | 구독 내 |
 
 - **CLI executor path**: 모든 원본 인자를 `npm run review:invoke -- ...`에 전달하고 종료.
-- **Nested Spawn Coordinator (default)**: `dev-docs/review-nested-spawn-coordinator-contract.md`의 7-phase 실행 계약을 따른다. 전처리와 세션 준비는 `onto review {$ARGUMENTS} --prepare-only` (또는 `npm run review:invoke -- {$ARGUMENTS} --prepare-only`)로 수행하고, lens dispatch는 Agent tool로 실행한다.
+- **Nested Spawn Coordinator (default)**: `processes/review/nested-spawn-coordinator-contract.md`의 state machine 실행 계약을 따른다. `onto coordinator start` → lens dispatch → `onto coordinator next` → synthesize dispatch → `onto coordinator next` → presentation. 상세는 coordinator contract 참조.
 
 ### Agent Teams 필수 규칙
 
@@ -139,17 +139,17 @@ Examples:
 
 Read the current repo copies of:
 - `AGENTS.md`
-- `dev-docs/review-productized-live-path.md`
-- `dev-docs/review-nested-spawn-coordinator-contract.md`
-- `dev-docs/review-interpretation-contract.md`
-- `dev-docs/review-binding-contract.md`
-- `dev-docs/review-execution-preparation-artifacts.md`
-- `dev-docs/review-lens-prompt-contract.md`
-- `dev-docs/review-synthesize-prompt-contract.md`
-- `dev-docs/review-prompt-execution-runner-contract.md`
-- `dev-docs/review-record-contract.md`
-- `dev-docs/review-record-field-mapping.md`
-- `processes/review.md`
+- `processes/review/productized-live-path.md`
+- `processes/review/nested-spawn-coordinator-contract.md`
+- `processes/review/interpretation-contract.md`
+- `processes/review/binding-contract.md`
+- `processes/review/execution-preparation-artifacts.md`
+- `processes/review/lens-prompt-contract.md`
+- `processes/review/synthesize-prompt-contract.md`
+- `processes/review/prompt-execution-runner-contract.md`
+- `processes/review/record-contract.md`
+- `processes/review/record-field-mapping.md`
+- `processes/review/review.md`
 
 **Execution profile resolution** (before starting the process):
 1. Parse canonical options from $ARGUMENTS:

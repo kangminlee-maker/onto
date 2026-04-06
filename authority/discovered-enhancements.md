@@ -73,7 +73,6 @@
 - **발견일**: 2026-04-06
 - **출처**: 이번 세션 full 9-lens review (session `20260406-6ca3a965`). CC-4, CV-7.
 - **개념**: Role 해석은 core/custom/fallback 정책이 구현되었으나, domain 해석은 기존 로직 그대로(`projectRoot/domains/`에서만 탐색). 외부 프로젝트를 리뷰하면서 도메인을 지정하면(`@ontology`), 해당 프로젝트에 `domains/ontology/` 디렉토리가 없어 domain context가 빈 문자열이 됨.
-- **현재 상태**: 기록만. onto 레포 내부 리뷰에서는 문제 없음.
-- **판단**: blocker (cross-project + domain 지정 리뷰 시)
-- **설계 필요**: Role 정책과 동일 패턴 적용 — onto 제공 도메인은 `ontoHome/domains/` only, 프로젝트 정의 도메인은 `projectRoot/domains/` → `ontoHome/domains/` fallback, 디렉토리 단위 all-or-nothing.
-- **영향 파일**: `materializers.ts` (domain context path 해석), `materialize-review-prompt-packets.ts` (domain context ref), `prepare-review-session.ts` (context candidate assembly)
+- **현재 상태**: **해결됨** (2026-04-06). `resolveDomainDirectory()`가 `ontoHome/domains/` → `projectRoot/domains/` 순서로 탐색. `--onto-home`이 전체 CLI 체인을 통해 전달됨. E2E 검증: 외부 프로젝트에서 `@llm-native-development` 도메인 지정 시 ontoHome의 9개 도메인 파일이 prompt packet에 정상 포함.
+- **판단**: ~~blocker~~ → 해결됨
+- **비고**: 기록 시점에는 domain 해석에 ontoHome fallback이 없었으나, role 해석 정책 구현 시 `resolveDomainDirectory`에도 동일 패턴이 적용됨. 디렉토리 단위 all-or-nothing 정책 유지.

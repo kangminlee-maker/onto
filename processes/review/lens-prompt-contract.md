@@ -3,11 +3,11 @@
 > 상태: Active
 > 목적: 현재 `onto` 프로토타입의 `review lens`들이 공통으로 따라야 하는 `lens 프롬프트 계약 (LensPromptContract)`을 고정한다.
 > 기준 문서:
-> - `dev-docs/review-lens-registry.md`
-> - `dev-docs/review-interpretation-contract.md`
-> - `dev-docs/review-binding-contract.md`
+> - `processes/review/lens-registry.md`
+> - `processes/review/interpretation-contract.md`
+> - `processes/review/binding-contract.md`
 > - `process.md`
-> - `processes/review.md`
+> - `processes/review/review.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -30,7 +30,7 @@
 - `roles/onto_axiology.md`
 - `process.md`의 `Teammate Initial Prompt Template`
 - `process.md`의 `Codex Reviewer Prompt Template`
-- `processes/review.md`의 Round 1 task directives
+- `processes/review/review.md`의 Round 1 task directives
 
 ---
 
@@ -200,7 +200,7 @@ later productization에서는 이 markdown이
 structured lens artifact의 source가 된다.
 
 현재 기준의 aggregate primary artifact는
-`dev-docs/review-record-contract.md`에서 정의하는 `ReviewRecord`다.
+`processes/review/record-contract.md`에서 정의하는 `ReviewRecord`다.
 
 ---
 
@@ -221,7 +221,7 @@ structured lens artifact의 source가 된다.
 | `onto_axiology` | `roles/onto_axiology.md` |
 
 공통 wrapper rule은 role file이 아니라
-`process.md`와 `processes/review.md`에서 온다.
+`process.md`와 `processes/review/review.md`에서 온다.
 
 ---
 

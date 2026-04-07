@@ -8,7 +8,7 @@ status: established
 # LLM-Native Development Domain — Competency Questions
 
 A list of core questions that this domain's system must be able to answer.
-The onto_pragmatics agent verifies the actual reasoning path for each question.
+The pragmatics agent verifies the actual reasoning path for each question.
 
 Classification axis: **system construction concern** — classified by the sub-area of the LLM-powered system each question addresses, matching the 8 sub-areas defined in domain_scope.md.
 

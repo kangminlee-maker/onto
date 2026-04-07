@@ -2,7 +2,7 @@
 
 Asks $ARGUMENTS to the structural completeness verification agent.
 
-Agent ID: `onto_structure`
+Agent ID: `structure`
 
 **Domain selection**: Append `@{domain}` to specify a domain, or `@-` for no-domain mode. If omitted, the Domain Selection Flow runs interactively.
 

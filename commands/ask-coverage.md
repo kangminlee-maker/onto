@@ -2,7 +2,7 @@
 
 Asks $ARGUMENTS to the domain coverage verification agent.
 
-Agent ID: `onto_coverage`
+Agent ID: `coverage`
 
 **Domain selection**: Append `@{domain}` to specify a domain, or `@-` for no-domain mode. If omitted, the Domain Selection Flow runs interactively.
 

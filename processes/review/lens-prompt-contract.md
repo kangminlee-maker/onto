@@ -19,15 +19,15 @@
 
 이 계약은 현재 프로토타입의 아래 source material을 묶어 추출한 것이다.
 
-- `roles/onto_logic.md`
-- `roles/onto_structure.md`
-- `roles/onto_dependency.md`
-- `roles/onto_semantics.md`
-- `roles/onto_pragmatics.md`
-- `roles/onto_evolution.md`
-- `roles/onto_coverage.md`
-- `roles/onto_conciseness.md`
-- `roles/onto_axiology.md`
+- `roles/logic.md`
+- `roles/structure.md`
+- `roles/dependency.md`
+- `roles/semantics.md`
+- `roles/pragmatics.md`
+- `roles/evolution.md`
+- `roles/coverage.md`
+- `roles/conciseness.md`
+- `roles/axiology.md`
 - `process.md`의 `Teammate Initial Prompt Template`
 - `process.md`의 `Codex Reviewer Prompt Template`
 - `processes/review/review.md`의 Round 1 task directives
@@ -38,15 +38,15 @@
 
 이 계약은 아래 9개 lens에 공통 적용된다.
 
-- `onto_logic`
-- `onto_structure`
-- `onto_dependency`
-- `onto_semantics`
-- `onto_pragmatics`
-- `onto_evolution`
-- `onto_coverage`
-- `onto_conciseness`
-- `onto_axiology`
+- `logic`
+- `structure`
+- `dependency`
+- `semantics`
+- `pragmatics`
+- `evolution`
+- `coverage`
+- `conciseness`
+- `axiology`
 
 각 lens의 세부 specialization과 boundary는
 개별 `roles/{lens-id}.md`가 source material로 제공한다.
@@ -126,15 +126,15 @@ review_target_materialized_input:
 
 | Lens ID | Corresponding domain document |
 |---|---|
-| `onto_logic` | `logic_rules.md` |
-| `onto_structure` | `structure_spec.md` |
-| `onto_dependency` | `dependency_rules.md` |
-| `onto_semantics` | `concepts.md` |
-| `onto_pragmatics` | `competency_qs.md` |
-| `onto_evolution` | `extension_cases.md` |
-| `onto_coverage` | `domain_scope.md` |
-| `onto_conciseness` | `conciseness_rules.md` |
-| `onto_axiology` | none. system purpose/principles + selected domain context only |
+| `logic` | `logic_rules.md` |
+| `structure` | `structure_spec.md` |
+| `dependency` | `dependency_rules.md` |
+| `semantics` | `concepts.md` |
+| `pragmatics` | `competency_qs.md` |
+| `evolution` | `extension_cases.md` |
+| `coverage` | `domain_scope.md` |
+| `conciseness` | `conciseness_rules.md` |
+| `axiology` | none. system purpose/principles + selected domain context only |
 
 ---
 
@@ -210,15 +210,15 @@ structured lens artifact의 source가 된다.
 
 | Lens ID | Source material |
 |---|---|
-| `onto_logic` | `roles/onto_logic.md` |
-| `onto_structure` | `roles/onto_structure.md` |
-| `onto_dependency` | `roles/onto_dependency.md` |
-| `onto_semantics` | `roles/onto_semantics.md` |
-| `onto_pragmatics` | `roles/onto_pragmatics.md` |
-| `onto_evolution` | `roles/onto_evolution.md` |
-| `onto_coverage` | `roles/onto_coverage.md` |
-| `onto_conciseness` | `roles/onto_conciseness.md` |
-| `onto_axiology` | `roles/onto_axiology.md` |
+| `logic` | `roles/logic.md` |
+| `structure` | `roles/structure.md` |
+| `dependency` | `roles/dependency.md` |
+| `semantics` | `roles/semantics.md` |
+| `pragmatics` | `roles/pragmatics.md` |
+| `evolution` | `roles/evolution.md` |
+| `coverage` | `roles/coverage.md` |
+| `conciseness` | `roles/conciseness.md` |
+| `axiology` | `roles/axiology.md` |
 
 공통 wrapper rule은 role file이 아니라
 `process.md`와 `processes/review/review.md`에서 온다.

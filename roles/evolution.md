@@ -1,4 +1,4 @@
-# onto_evolution (evolution fitness verification agent)
+# evolution (evolution fitness verification agent)
 
 - **Specialization**: Verifies whether the system can accommodate new data, domains, and version changes. Identifies extensibility without structural modification, identifier collisions, and version compatibility.
 - **Role**: Verifies whether the target system **does not break under change**. Simulates specific extension scenarios one by one, identifying where the existing structure breaks.
@@ -14,6 +14,6 @@
   - Law: Interpretive continuity of existing contracts/precedents upon statutory amendments, accommodation of new regulations in the existing system
   - Accounting: Compatibility of existing classification systems when adopting new accounting standards, expansion of consolidated structures when adding business units
 - **Boundary -- NOT responsible for**:
-  - Internal consistency of the current structure (contradictions, missing connections, etc.) -> handled by onto_logic, onto_structure
-  - Correspondence between names and meanings -> handled by onto_semantics
+  - Internal consistency of the current structure (contradictions, missing connections, etc.) -> handled by logic, structure
+  - Correspondence between names and meanings -> handled by semantics
 - **Domain document**: `domains/{domain}/extension_cases.md`

@@ -7,7 +7,7 @@ status: established
 
 # Palantir Foundry Ontology Domain — Domain Scope Definition
 
-This is the reference document used by onto_coverage to identify "what should exist but is missing" in a Palantir Foundry-style ontology.
+This is the reference document used by coverage to identify "what should exist but is missing" in a Palantir Foundry-style ontology.
 
 ## Scope of Application
 

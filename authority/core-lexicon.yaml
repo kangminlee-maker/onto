@@ -9,14 +9,15 @@ legacy_alias_governance:
   owner: "core-lexicon.yaml (this file)"
   precedence: "canonical_label always wins. legacy_aliases exist for comprehension bridging only."
   lifecycle: "A legacy alias is retired when zero prototype files reference it."
+  retire_gate: "Dual-read fallback code (lens-registry.ts canonicalizeLensId, paths.ts resolveWithFallback) may be removed when: (1) zero onto_* learning files exist in any active seat, AND (2) at least one successful full review session has run with bare IDs."
   relation_to_translation_reference: "translation-reference.yaml is a NON-AUTHORITATIVE onboarding aid. This governance block is the canonical bridge."
 review_taxonomy_migration:
   note: "Informative record of review structure rename. Not a normative rule."
   mappings:
     - legacy: "agent panel"
-      canonical: "9 review lenses (onto_logic … onto_axiology)"
+      canonical: "9 review lenses (logic … axiology)"
     - legacy: "philosopher"
-      canonical: "onto_axiology (value/purpose alignment) + onto_synthesize (synthesis stage)"
+      canonical: "axiology (value/purpose alignment) + synthesize (synthesis stage)"
     - legacy: "agent"
       canonical: "review_lens (independent review perspective)"
 terms:
@@ -122,6 +123,8 @@ terms:
     legacy_aliases:
       - alias: "agent"
         context: "Legacy 'agent panel' referred to what is now the 9 review lenses."
+      - alias: "onto_{id}"
+        context: "Pre-migration lens/role IDs used 'onto_' prefix (e.g., onto_logic, onto_synthesize). Bare IDs are canonical since 2026-04-08."
   - term_id: "context_isolated_reasoning_unit"
     canonical_label: "ContextIsolatedReasoningUnit"
     korean_label: "맥락 격리 추론 단위"
@@ -210,9 +213,11 @@ terms:
     axis: "review_structure"
     term_status: "active"
     definition: "A non-lens review stage that integrates lens findings into a final review result."
+    notes:
+      - "Homonym: 'synthesize' appears as both this concept term (axis: review_structure) and a role ID in core-lens-registry.yaml. Different axis — OaC §5 permits same token across disjoint namespaces."
     legacy_aliases:
       - alias: "philosopher"
-        context: "Legacy prototype coordinator role. Now split into onto_axiology (value judgment) + onto_synthesize (synthesis)."
+        context: "Legacy prototype coordinator role. Now split into axiology (value judgment) + synthesize (synthesis)."
   - term_id: "prompt_backed_reference_path"
     canonical_label: "PromptBackedReferencePath"
     korean_label: "프롬프트 기반 기준 경로"

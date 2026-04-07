@@ -7,7 +7,7 @@ status: established
 
 # Conciseness Rules (visual-design)
 
-This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+This document contains the domain-specific rules that conciseness references during conciseness verification.
 It is organized in the order of **type (allow/remove) → verification criteria → role boundaries → measurement method**.
 
 ---
@@ -88,31 +88,31 @@ Examples:
 
 ## 4. Boundaries — Domain-Specific Application Cases
 
-The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the visual-design domain.
+The authoritative source for boundary definitions is `roles/conciseness.md`. This section describes only the specific application cases in the visual-design domain.
 
-### onto_pragmatics Boundary
+### pragmatics Boundary
 
-- onto_conciseness: Does an unnecessary element **exist**? (structural level)
-- onto_pragmatics: Does unnecessary information **impede** query execution? (execution level)
-- Example: An unused variant is included in a component specification → onto_conciseness. Too many variants make it difficult for designers to select the correct one → onto_pragmatics.
+- conciseness: Does an unnecessary element **exist**? (structural level)
+- pragmatics: Does unnecessary information **impede** query execution? (execution level)
+- Example: An unused variant is included in a component specification → conciseness. Too many variants make it difficult for designers to select the correct one → pragmatics.
 
-### onto_coverage Boundary
+### coverage Boundary
 
-- onto_conciseness: Is there something that should not be there? (reduction direction)
-- onto_coverage: Is there something missing that should be there? (expansion direction)
-- Example: A color system and typography exist but a spacing system is not defined → onto_coverage. The spacing system has the same value duplicately defined under different names → onto_conciseness.
+- conciseness: Is there something that should not be there? (reduction direction)
+- coverage: Is there something missing that should be there? (expansion direction)
+- Example: A color system and typography exist but a spacing system is not defined → coverage. The spacing system has the same value duplicately defined under different names → conciseness.
 
-### onto_logic Boundary (preceding/following relationship)
+### logic Boundary (preceding/following relationship)
 
-- onto_logic precedes: Determines logical equivalence (implication)
-- onto_conciseness follows: Decides whether to remove after equivalence is confirmed
-- Example: A parent component's `border-radius` implies a child element's `border-radius` → onto_logic determines equivalence → onto_conciseness determines "child re-declaration unnecessary."
+- logic precedes: Determines logical equivalence (implication)
+- conciseness follows: Decides whether to remove after equivalence is confirmed
+- Example: A parent component's `border-radius` implies a child element's `border-radius` → logic determines equivalence → conciseness determines "child re-declaration unnecessary."
 
-### onto_semantics Boundary (preceding/following relationship)
+### semantics Boundary (preceding/following relationship)
 
-- onto_semantics precedes: Determines semantic identity (synonym status)
-- onto_conciseness follows: Decides whether merging is needed after synonym is confirmed
-- Example: `elevation-1` and `card-shadow` are the same visual effect → onto_semantics determines synonym → onto_conciseness determines "consolidate into one canonical token."
+- semantics precedes: Determines semantic identity (synonym status)
+- conciseness follows: Decides whether merging is needed after synonym is confirmed
+- Example: `elevation-1` and `card-shadow` are the same visual effect → semantics determines synonym → conciseness determines "consolidate into one canonical token."
 
 ---
 

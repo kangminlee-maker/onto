@@ -39,15 +39,15 @@ These agents are not a MECE classification but a set of empirically validated in
 ### Review Lenses
 | ID | Role | Verification Dimension | Standard Framework Mapping |
 |---|---|---|---|
-| `onto_logic` | Logical consistency verifier | Contradictions, type conflicts, constraint conflicts | Gomez-Perez: Consistency, Obrst: L4 |
-| `onto_structure` | Structural completeness verifier | Isolated elements, broken paths, missing relations | Obrst: L2-L3, Gomez-Perez: Completeness (internal) |
-| `onto_dependency` | Dependency integrity verifier | Cycles, reverse direction, diamond dependencies | Gomez-Perez: Consistency, Obrst: L4 |
-| `onto_semantics` | Semantic accuracy verifier | Name-meaning alignment, synonyms/homonyms | Obrst: L1, OntoClean: Rigidity/Identity |
-| `onto_pragmatics` | Pragmatic fitness verifier | Queryability, competency question testing | Brank: Application-based |
-| `onto_evolution` | Evolution fitness verifier | Breakage when adding new data/domains | — |
-| `onto_coverage` | Domain coverage verifier | Missing sub-areas, concept bias, gaps against standards | Gomez-Perez: Completeness (external) |
-| `onto_conciseness` | Conciseness verifier | Duplicate definitions, over-specification, unnecessary distinctions | Gomez-Perez: Conciseness |
-| `onto_axiology` | Purpose and value alignment verifier | Purpose drift, value conflict, mission misalignment | — |
+| `logic` | Logical consistency verifier | Contradictions, type conflicts, constraint conflicts | Gomez-Perez: Consistency, Obrst: L4 |
+| `structure` | Structural completeness verifier | Isolated elements, broken paths, missing relations | Obrst: L2-L3, Gomez-Perez: Completeness (internal) |
+| `dependency` | Dependency integrity verifier | Cycles, reverse direction, diamond dependencies | Gomez-Perez: Consistency, Obrst: L4 |
+| `semantics` | Semantic accuracy verifier | Name-meaning alignment, synonyms/homonyms | Obrst: L1, OntoClean: Rigidity/Identity |
+| `pragmatics` | Pragmatic fitness verifier | Queryability, competency question testing | Brank: Application-based |
+| `evolution` | Evolution fitness verifier | Breakage when adding new data/domains | — |
+| `coverage` | Domain coverage verifier | Missing sub-areas, concept bias, gaps against standards | Gomez-Perez: Completeness (external) |
+| `conciseness` | Conciseness verifier | Duplicate definitions, over-specification, unnecessary distinctions | Gomez-Perez: Conciseness |
+| `axiology` | Purpose and value alignment verifier | Purpose drift, value conflict, mission misalignment | — |
 
 > Verification dimensions and agents have a many-to-many (N:M) relationship. Since agents are a "set of independent perspectives," a single agent may cover multiple dimensions, and a single dimension may span multiple agents.
 
@@ -85,27 +85,27 @@ When adding or removing a process, all of the following files must be updated:
 ### Review Synthesis Stage
 | ID | Role |
 |---|---|
-| `onto_synthesize` | Synthesizes review lens findings into consensus, disagreement, overlooked premises, and final review output |
+| `synthesize` | Synthesizes review lens findings into consensus, disagreement, overlooked premises, and final review output |
 
-> `philosopher` remains a legacy coordinator term in non-review prototype flows such as the current build prototype. New review productization work uses `onto_axiology` + `onto_synthesize` instead of `philosopher`.
+> `philosopher` remains a legacy coordinator term in non-review prototype flows such as the current build prototype. New review productization work uses `axiology` + `synthesize` instead of `philosopher`.
 
 ### Domain Documents
 Each agent reads the corresponding domain documents at execution time (verified using general principles if no file exists):
 
 | Type | Document | Agent | Impact When Absent | Update Method |
 |---|---|---|---|---|
-| **Scope-defining** | `domain_scope.md` | onto_coverage | Role rendered ineffective | Promote proposal -> user approval |
-| **Accumulable** | `concepts.md` | onto_semantics | Performance degradation (compensated by learnings) | Promote proposal -> user approval |
-| **Accumulable** | `competency_qs.md` | onto_pragmatics | Performance degradation (compensated by learnings) | Promote proposal -> user approval |
-| **Rule-defining** | `logic_rules.md` | onto_logic | Performance degradation (LLM can substitute) | User directly writes/edits |
-| **Rule-defining** | `structure_spec.md` | onto_structure | Performance degradation (LLM can substitute) | User directly writes/edits |
-| **Rule-defining** | `dependency_rules.md` | onto_dependency | Performance degradation (LLM can substitute) | User directly writes/edits |
-| **Rule-defining** | `extension_cases.md` | onto_evolution | Performance degradation (LLM can substitute) | User directly writes/edits |
-| **Rule-defining** | `conciseness_rules.md` | onto_conciseness | Performance degradation (LLM can substitute) | User directly writes/edits |
+| **Scope-defining** | `domain_scope.md` | coverage | Role rendered ineffective | Promote proposal -> user approval |
+| **Accumulable** | `concepts.md` | semantics | Performance degradation (compensated by learnings) | Promote proposal -> user approval |
+| **Accumulable** | `competency_qs.md` | pragmatics | Performance degradation (compensated by learnings) | Promote proposal -> user approval |
+| **Rule-defining** | `logic_rules.md` | logic | Performance degradation (LLM can substitute) | User directly writes/edits |
+| **Rule-defining** | `structure_spec.md` | structure | Performance degradation (LLM can substitute) | User directly writes/edits |
+| **Rule-defining** | `dependency_rules.md` | dependency | Performance degradation (LLM can substitute) | User directly writes/edits |
+| **Rule-defining** | `extension_cases.md` | evolution | Performance degradation (LLM can substitute) | User directly writes/edits |
+| **Rule-defining** | `conciseness_rules.md` | conciseness | Performance degradation (LLM can substitute) | User directly writes/edits |
 
 Path: `~/.onto/domains/{domain}/`
 
-`onto_axiology` has no dedicated domain document. It primarily uses system purpose/principles and any selected domain context as supporting input.
+`axiology` has no dedicated domain document. It primarily uses system purpose/principles and any selected domain context as supporting input.
 
 #### Domain Document Frontmatter
 
@@ -285,8 +285,8 @@ When entering a domain that meets the conditions below, agent configuration re-e
 
 | Condition | Reason | Re-evaluation Target |
 |------|------|------------|
-| Domains that classify humans/groups (medical, education, legal, HR) | Ethics/axiology verification required — "Does this classification disadvantage a specific group?" | Ensure `onto_axiology` remains included and sufficiently informed |
-| Financial/administrative domains | Increased weight of social ontology — the mode of existence of institutional constructs is central | Adjust onto_semantics' existence-type verification weight |
+| Domains that classify humans/groups (medical, education, legal, HR) | Ethics/axiology verification required — "Does this classification disadvantage a specific group?" | Ensure `axiology` remains included and sufficiently informed |
+| Financial/administrative domains | Increased weight of social ontology — the mode of existence of institutional constructs is central | Adjust semantics' existence-type verification weight |
 
 ---
 
@@ -299,7 +299,7 @@ Processes requiring parallel agent execution (team review, ontology build, learn
 When TeamCreate fails, fall back to the Agent tool (subagent) approach. The **purpose and output format** of the process remain identical, but the execution method differs:
 - Agent tool is used instead of TeamCreate/SendMessage.
 - Each Agent tool call includes the agent definition + context + task directives combined. (Since the teammate cannot self-load, the team lead includes the content directly.)
-- **File-based delivery applies identically**: Subagents also save results to files using the Write tool, and only return the path to the team lead. In review mode, `onto_synthesize` also reads result files directly using the Read tool.
+- **File-based delivery applies identically**: Subagents also save results to files using the Write tool, and only return the path to the team lead. In review mode, `synthesize` also reads result files directly using the Read tool.
 - Deliberation (direct SendMessage) is skipped. Even if the final synthesis stage determines "deliberation needed," disagreement items are included as-is in the final report.
 - Content the team lead must include in each Agent tool call during fallback: agent definition + learning file (with axis tag filtering) + domain document + communication learning + task directives + **session path**. (All context must be included directly since self-loading is not possible.)
 
@@ -337,7 +337,7 @@ Codex mode delegates review passes to an external runtime (OpenAI Codex) to redu
 **Parallel execution**:
 - All reviewer Agents are launched simultaneously via Agent tool with `subagent_type: "codex:codex-rescue"` and `run_in_background: true`.
 - The team lead waits for all background tasks to complete before proceeding to the review synthesize stage.
-- `onto_synthesize` is executed as a Codex task in foreground (depends on all review lens results).
+- `synthesize` is executed as a Codex task in foreground (depends on all review lens results).
 
 **Model and effort**:
 - The team lead reads config.yml `codex.model` and `codex.effort` during Context Gathering.
@@ -533,23 +533,23 @@ If project-level learnings exist:
 Used when execution_mode is `codex` for the review synthesize step. The team lead resolves variables and passes this as the Agent tool's `prompt` parameter with `subagent_type: "codex:codex-rescue"` in **foreground** (not background).
 
 Differences from Codex Reviewer Prompt Template:
-- Role is `onto_synthesize` (synthesis + adjudication), not a review lens.
+- Role is `synthesize` (synthesis + adjudication), not a review lens.
 - Output path is `{session path}/synthesis.md`, not `round1/{agent-id}.md`.
 - Includes deliberation-not-possible directive.
-- No domain document self-loading (`onto_synthesize` has no dedicated domain document).
+- No domain document self-loading (`synthesize` has no dedicated domain document).
 
 ```
-You are onto_synthesize (review synthesis stage).
+You are synthesize (review synthesis stage).
 
 [Your Definition]
-{Content of roles/onto_synthesize.md}
+{Content of roles/synthesize.md}
 
 [Context Self-Loading]
 Read the files below using `cat`. Skip if file does not exist:
-1. Learnings: ~/.onto/learnings/onto_synthesize.md
+1. Learnings: ~/.onto/learnings/synthesize.md
 2. Communication learning: ~/.onto/communication/common.md
 If project-level learnings exist:
-3. Project-level learnings: {project}/.onto/learnings/onto_synthesize.md
+3. Project-level learnings: {project}/.onto/learnings/synthesize.md
 
 [Codex Configuration]
 {If codex.model is set: --model {value}}

@@ -7,7 +7,7 @@ status: established
 
 # Conciseness Rules (market-intelligence)
 
-This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+This document contains the domain-specific rules that conciseness references during conciseness verification.
 It is organized in the order of **type (allow/remove) → verification criteria → role boundaries → measurement method**.
 
 ---
@@ -86,31 +86,31 @@ Examples:
 
 ## 4. Boundaries — Domain-Specific Application Cases
 
-The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the market-intelligence domain.
+The authoritative source for boundary definitions is `roles/conciseness.md`. This section describes only the specific application cases in the market-intelligence domain.
 
-### onto_pragmatics Boundary
+### pragmatics Boundary
 
-- onto_conciseness: Does an unnecessary element **exist**? (structural level)
-- onto_pragmatics: Does unnecessary information **impede** query execution? (execution level)
-- Example: An analysis report includes unused segment data → onto_pragmatics. An unused segment is defined in structure_spec.md → onto_conciseness.
+- conciseness: Does an unnecessary element **exist**? (structural level)
+- pragmatics: Does unnecessary information **impede** query execution? (execution level)
+- Example: An analysis report includes unused segment data → pragmatics. An unused segment is defined in structure_spec.md → conciseness.
 
-### onto_coverage Boundary
+### coverage Boundary
 
-- onto_conciseness: Is there something that should not be there? (reduction direction)
-- onto_coverage: Is there something missing that should be there? (expansion direction)
-- Example: The risk assessment area exists but risk response types are not defined → onto_coverage. The same risk factor is duplicately defined in both the risk assessment and strategy derivation areas → onto_conciseness.
+- conciseness: Is there something that should not be there? (reduction direction)
+- coverage: Is there something missing that should be there? (expansion direction)
+- Example: The risk assessment area exists but risk response types are not defined → coverage. The same risk factor is duplicately defined in both the risk assessment and strategy derivation areas → conciseness.
 
-### onto_logic Boundary (preceding/following relationship)
+### logic Boundary (preceding/following relationship)
 
-- onto_logic precedes: Determines logical equivalence (implication)
-- onto_conciseness follows: Decides whether to remove after equivalence is confirmed
-- Example: The credibility propagation rule (TP01) already guarantees a constraint that is re-declared at a lower-level analysis item → onto_logic determines equivalence → onto_conciseness determines "lower-level re-declaration unnecessary."
+- logic precedes: Determines logical equivalence (implication)
+- conciseness follows: Decides whether to remove after equivalence is confirmed
+- Example: The credibility propagation rule (TP01) already guarantees a constraint that is re-declared at a lower-level analysis item → logic determines equivalence → conciseness determines "lower-level re-declaration unnecessary."
 
-### onto_semantics Boundary (preceding/following relationship)
+### semantics Boundary (preceding/following relationship)
 
-- onto_semantics precedes: Determines semantic identity (synonym status)
-- onto_conciseness follows: Decides whether merging is needed after synonym is confirmed
-- Example: "market share" and "market share" (different language terms) are the same concept → onto_semantics determines synonym → onto_conciseness determines "consolidate into one canonical term."
+- semantics precedes: Determines semantic identity (synonym status)
+- conciseness follows: Decides whether merging is needed after synonym is confirmed
+- Example: "market share" and "market share" (different language terms) are the same concept → semantics determines synonym → conciseness determines "consolidate into one canonical term."
 
 ---
 

@@ -1,4 +1,4 @@
-# onto_semantics (semantic accuracy verification agent)
+# semantics (semantic accuracy verification agent)
 
 - **Specialization**: Verifies whether the names and relationships of concepts accurately reflect their actual meaning. Identifies synonym/homonym handling issues and mapping accuracy against external standards.
 - **Role**: Verifies whether the target system's **names and relationships match their actual meaning**. This is the verification dimension most dependent on domain expertise, and relies heavily on domain documents.
@@ -11,8 +11,8 @@
   - Is the concept essential to its instances? (OntoClean Rigidity verification)
   - If your verification relied on a domain-specific concept definition, record it — regardless of whether it is already in concepts.md.
 - **Boundary -- NOT responsible for**:
-  - Structural connection completeness (not naming) -> handled by onto_structure
-  - Detection of duplicate/over-specification -> handled by onto_conciseness (onto_semantics only determines semantic identity as a preceding step; once synonymy is confirmed, onto_conciseness makes the subsequent merge decision)
+  - Structural connection completeness (not naming) -> handled by structure
+  - Detection of duplicate/over-specification -> handled by conciseness (semantics only determines semantic identity as a preceding step; once synonymy is confirmed, conciseness makes the subsequent merge decision)
 - **Domain examples**:
   - Software: Method names inconsistent with actual behavior, different naming for the same concept (user/account/member)
   - Law: Conflation of everyday meaning and legal meaning of terms, same term defined differently across statutes

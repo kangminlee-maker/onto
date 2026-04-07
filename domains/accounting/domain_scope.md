@@ -7,7 +7,7 @@ status: established
 
 # Accounting Domain — Domain Scope Definition
 
-This is the reference document used by onto_coverage to identify "what should exist but is missing" in accounting systems.
+This is the reference document used by coverage to identify "what should exist but is missing" in accounting systems.
 This domain applies when **reviewing** accounting systems and financial reporting frameworks.
 
 ## Major Sub-areas

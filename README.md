@@ -177,16 +177,16 @@ This is a current implementation-status difference, not a canonical hierarchy or
 
 | ID | Role | Verification Dimension |
 |---|---|---|
-| `onto_logic` | Logical consistency verifier | Contradictions, type conflicts, constraint clashes |
-| `onto_structure` | Structural completeness verifier | Isolated elements, broken paths, missing relations |
-| `onto_dependency` | Dependency integrity verifier | Circular, reverse, diamond dependencies |
-| `onto_semantics` | Semantic accuracy verifier | Name-meaning alignment, synonyms/homonyms |
-| `onto_pragmatics` | Pragmatic fitness verifier | Queryability, competency question testing |
-| `onto_evolution` | Evolution fitness verifier | Breakage on new data/domain addition |
-| `onto_coverage` | Domain coverage verifier | Missing subdomains, concept bias, gaps vs. standards |
-| `onto_conciseness` | Conciseness verifier | Duplicate definitions, over-specification, unnecessary distinctions |
-| `onto_axiology` | Purpose and value alignment verifier | Preventing purpose drift, surfacing value conflicts, checking mission alignment |
-| `onto_synthesize` | Review synthesis stage | Organizing consensus, disagreement, and final review output from the lens set |
+| `logic` | Logical consistency verifier | Contradictions, type conflicts, constraint clashes |
+| `structure` | Structural completeness verifier | Isolated elements, broken paths, missing relations |
+| `dependency` | Dependency integrity verifier | Circular, reverse, diamond dependencies |
+| `semantics` | Semantic accuracy verifier | Name-meaning alignment, synonyms/homonyms |
+| `pragmatics` | Pragmatic fitness verifier | Queryability, competency question testing |
+| `evolution` | Evolution fitness verifier | Breakage on new data/domain addition |
+| `coverage` | Domain coverage verifier | Missing subdomains, concept bias, gaps vs. standards |
+| `conciseness` | Conciseness verifier | Duplicate definitions, over-specification, unnecessary distinctions |
+| `axiology` | Purpose and value alignment verifier | Preventing purpose drift, surfacing value conflicts, checking mission alignment |
+| `synthesize` | Review synthesis stage | Organizing consensus, disagreement, and final review output from the lens set |
 
 > Legacy note: `philosopher` remains in some non-review prototype flows such as the current build prototype. The canonical review structure is now `9 lenses + synthesize`.
 
@@ -254,7 +254,7 @@ user request
 -> 호출 고정 (InvocationBinding)
 -> execution preparation artifacts
 -> 9개 lens 독립 실행
--> 종합 단계 (onto_synthesize)
+-> 종합 단계 (synthesize)
 -> 리뷰 기록 (ReviewRecord)
 -> human-readable final output
 ```
@@ -369,16 +369,16 @@ onto/
 |   +-- restore.md           # Data restore
 |   +-- health.md            # Learning health dashboard
 +-- roles/
-|   +-- onto_logic.md        # Logical consistency
-|   +-- onto_structure.md    # Structural completeness
-|   +-- onto_dependency.md   # Dependency integrity
-|   +-- onto_semantics.md    # Semantic accuracy
-|   +-- onto_pragmatics.md   # Pragmatic fitness
-|   +-- onto_evolution.md    # Evolution fitness
-|   +-- onto_coverage.md     # Domain coverage
-|   +-- onto_conciseness.md  # Conciseness
-|   +-- onto_axiology.md     # Purpose and value alignment
-|   +-- onto_synthesize.md   # Review synthesis
+|   +-- logic.md        # Logical consistency
+|   +-- structure.md    # Structural completeness
+|   +-- dependency.md   # Dependency integrity
+|   +-- semantics.md    # Semantic accuracy
+|   +-- pragmatics.md   # Pragmatic fitness
+|   +-- evolution.md    # Evolution fitness
+|   +-- coverage.md     # Domain coverage
+|   +-- conciseness.md  # Conciseness
+|   +-- axiology.md     # Purpose and value alignment
+|   +-- synthesize.md   # Review synthesis
 |   +-- philosopher.md       # Legacy build coordinator
 +-- explorers/               # Explorer profiles for build process
 +-- domains/                 # Domain base documents (8 per domain)

@@ -7,7 +7,7 @@ status: established
 
 # Conciseness Rules (finance)
 
-This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+This document contains the domain-specific rules that conciseness references during conciseness verification.
 It is organized in the order: **type (allow/remove) -> verification criteria -> role boundaries -> measurement methods**.
 
 ---
@@ -84,31 +84,31 @@ Examples:
 
 ## 4. Boundaries — Domain-Specific Application Cases
 
-The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the finance domain.
+The authoritative source for boundary definitions is `roles/conciseness.md`. This section describes only the specific application cases in the finance domain.
 
-### onto_pragmatics boundary
+### pragmatics boundary
 
-- onto_conciseness: Does an unnecessary element **exist**? (structural level)
-- onto_pragmatics: Does unnecessary information **hinder** query execution? (execution level)
-- Example: Unused note items are included in financial statement query responses -> onto_pragmatics. Unused accounts are defined in the taxonomy structure -> onto_conciseness.
+- conciseness: Does an unnecessary element **exist**? (structural level)
+- pragmatics: Does unnecessary information **hinder** query execution? (execution level)
+- Example: Unused note items are included in financial statement query responses -> pragmatics. Unused accounts are defined in the taxonomy structure -> conciseness.
 
-### onto_coverage boundary
+### coverage boundary
 
-- onto_conciseness: Does something exist that should not? (reduction direction)
-- onto_coverage: Is something missing that should exist? (expansion direction)
-- Example: Notes system is missing, making accounting policy disclosure impossible -> onto_coverage. The same accounting policy is duplicated across multiple notes -> onto_conciseness.
+- conciseness: Does something exist that should not? (reduction direction)
+- coverage: Is something missing that should exist? (expansion direction)
+- Example: Notes system is missing, making accounting policy disclosure impossible -> coverage. The same accounting policy is duplicated across multiple notes -> conciseness.
 
-### onto_logic boundary (predecessor/successor relationship)
+### logic boundary (predecessor/successor relationship)
 
-- onto_logic predecessor: determines logical equivalence (entailment)
-- onto_conciseness successor: decides whether to remove after equivalence is confirmed
-- Example: The accounting identity (Assets = Liabilities + Equity) already entails the definition of equity -> onto_logic determines equivalence -> onto_conciseness determines "separate calculation relationship redeclaration for equity is unnecessary."
+- logic predecessor: determines logical equivalence (entailment)
+- conciseness successor: decides whether to remove after equivalence is confirmed
+- Example: The accounting identity (Assets = Liabilities + Equity) already entails the definition of equity -> logic determines equivalence -> conciseness determines "separate calculation relationship redeclaration for equity is unnecessary."
 
-### onto_semantics boundary (predecessor/successor relationship)
+### semantics boundary (predecessor/successor relationship)
 
-- onto_semantics predecessor: determines semantic identity (synonym status)
-- onto_conciseness successor: decides whether merging is needed after synonym confirmation
-- Example: "Revenue"/"Sales"/"Operating revenue" are the same taxonomy element -> onto_semantics determines they are synonyms -> onto_conciseness determines "consolidate to a single canonical name."
+- semantics predecessor: determines semantic identity (synonym status)
+- conciseness successor: decides whether merging is needed after synonym confirmation
+- Example: "Revenue"/"Sales"/"Operating revenue" are the same taxonomy element -> semantics determines they are synonyms -> conciseness determines "consolidate to a single canonical name."
 
 ---
 

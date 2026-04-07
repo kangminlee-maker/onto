@@ -7,7 +7,7 @@ status: established
 
 # Accounting Domain — Extension Scenarios
 
-The onto_evolution agent simulates each scenario to verify whether the existing accounting system breaks.
+The evolution agent simulates each scenario to verify whether the existing accounting system breaks.
 
 ## Case 1: Adding a New Revenue Source
 

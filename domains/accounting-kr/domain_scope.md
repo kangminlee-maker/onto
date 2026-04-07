@@ -7,7 +7,7 @@ status: reviewed
 
 # accounting-korea Domain — Domain Scope Definition
 
-이 문서는 onto_coverage가 대한민국 회계 시스템에서 "존재해야 하는데 빠진 것"을 식별하는 기준 문서이다.
+이 문서는 coverage가 대한민국 회계 시스템에서 "존재해야 하는데 빠진 것"을 식별하는 기준 문서이다.
 K-IFRS(한국채택국제회계기준)와 K-GAAP(일반기업회계기준) 등 국내 회계기준, 세법, 규제 체계에 초점을 둔다.
 
 **도메인 범위**: 한국 회계 시스템의 포괄적 참조 도메인 문서.

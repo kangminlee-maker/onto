@@ -182,15 +182,15 @@ resolved_review_mode: full
 resolved_execution_realization: subagent
 resolved_host_runtime: codex
 resolved_lens_ids:
-  - onto_logic
-  - onto_structure
-  - onto_dependency
-  - onto_semantics
-  - onto_pragmatics
-  - onto_evolution
-  - onto_coverage
-  - onto_conciseness
-  - onto_axiology
+  - logic
+  - structure
+  - dependency
+  - semantics
+  - pragmatics
+  - evolution
+  - coverage
+  - conciseness
+  - axiology
 
 session_metadata_ref: .onto/review/20260404-a1b2c3d4/session-metadata.yaml
 target_snapshot_ref: .onto/review/20260404-a1b2c3d4/execution-preparation/target-snapshot.md
@@ -198,25 +198,25 @@ materialized_input_ref: .onto/review/20260404-a1b2c3d4/execution-preparation/mat
 context_candidate_assembly_ref: .onto/review/20260404-a1b2c3d4/execution-preparation/context-candidate-assembly.yaml
 
 lens_result_refs:
-  onto_logic: .onto/review/20260404-a1b2c3d4/round1/onto_logic.md
-  onto_structure: .onto/review/20260404-a1b2c3d4/round1/onto_structure.md
-  onto_dependency: .onto/review/20260404-a1b2c3d4/round1/onto_dependency.md
-  onto_semantics: .onto/review/20260404-a1b2c3d4/round1/onto_semantics.md
-  onto_pragmatics: .onto/review/20260404-a1b2c3d4/round1/onto_pragmatics.md
-  onto_evolution: .onto/review/20260404-a1b2c3d4/round1/onto_evolution.md
-  onto_coverage: .onto/review/20260404-a1b2c3d4/round1/onto_coverage.md
-  onto_conciseness: .onto/review/20260404-a1b2c3d4/round1/onto_conciseness.md
-  onto_axiology: .onto/review/20260404-a1b2c3d4/round1/onto_axiology.md
+  logic: .onto/review/20260404-a1b2c3d4/round1/logic.md
+  structure: .onto/review/20260404-a1b2c3d4/round1/structure.md
+  dependency: .onto/review/20260404-a1b2c3d4/round1/dependency.md
+  semantics: .onto/review/20260404-a1b2c3d4/round1/semantics.md
+  pragmatics: .onto/review/20260404-a1b2c3d4/round1/pragmatics.md
+  evolution: .onto/review/20260404-a1b2c3d4/round1/evolution.md
+  coverage: .onto/review/20260404-a1b2c3d4/round1/coverage.md
+  conciseness: .onto/review/20260404-a1b2c3d4/round1/conciseness.md
+  axiology: .onto/review/20260404-a1b2c3d4/round1/axiology.md
 participating_lens_ids:
-  - onto_logic
-  - onto_structure
-  - onto_dependency
-  - onto_semantics
-  - onto_pragmatics
-  - onto_evolution
-  - onto_coverage
-  - onto_conciseness
-  - onto_axiology
+  - logic
+  - structure
+  - dependency
+  - semantics
+  - pragmatics
+  - evolution
+  - coverage
+  - conciseness
+  - axiology
 excluded_lens_ids: []
 degraded_lens_ids: []
 degradation_notes_ref: null

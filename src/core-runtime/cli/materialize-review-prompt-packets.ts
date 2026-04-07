@@ -109,17 +109,17 @@ const CORE_ROLE_IDS = new Set(loadCoreLensRegistry().core_role_ids);
 
 /**
  * Lens-to-domain file mapping. Each core lens reads one specific domain file.
- * onto_axiology and onto_synthesize have no domain document (by design).
+ * axiology and synthesize have no domain document (by design).
  */
 const LENS_DOMAIN_FILE_MAP: Record<string, string> = {
-  onto_logic: "logic_rules.md",
-  onto_structure: "structure_spec.md",
-  onto_dependency: "dependency_rules.md",
-  onto_semantics: "concepts.md",
-  onto_pragmatics: "competency_qs.md",
-  onto_evolution: "extension_cases.md",
-  onto_coverage: "domain_scope.md",
-  onto_conciseness: "conciseness_rules.md",
+  logic: "logic_rules.md",
+  structure: "structure_spec.md",
+  dependency: "dependency_rules.md",
+  semantics: "concepts.md",
+  pragmatics: "competency_qs.md",
+  evolution: "extension_cases.md",
+  coverage: "domain_scope.md",
+  conciseness: "conciseness_rules.md",
 };
 
 /**
@@ -211,10 +211,22 @@ function scanDomainFiles(domainDir: string): string[] {
 }
 
 /**
+ * Resolve a role file with dual-read: try canonical (bare) name first, then onto_ legacy.
+ */
+function resolveRoleFileWithFallback(baseDir: string, lensId: string): string {
+  const barePath = path.resolve(baseDir, "roles", `${lensId}.md`);
+  if (fsSync.existsSync(barePath)) return barePath;
+  const legacyPath = path.resolve(baseDir, "roles", `onto_${lensId}.md`);
+  if (fsSync.existsSync(legacyPath)) return legacyPath;
+  return barePath; // canonical preferred even when neither exists
+}
+
+/**
  * Resolve role definition path per the Role/Domain policy:
  * - Core roles: ontoHome/roles/ only. Project override forbidden.
  * - Custom roles: projectRoot/roles/ → ontoHome/roles/ fallback.
  * - Terminal failure: throw (no silent degradation).
+ * Phase 0: dual-read — bare name first, then onto_ fallback.
  */
 function resolveRoleDefinitionPath(
   lensId: string,
@@ -222,28 +234,21 @@ function resolveRoleDefinitionPath(
   ontoHome: string | undefined,
 ): string {
   if (CORE_ROLE_IDS.has(lensId)) {
-    // Core roles: ontoHome only. Project override forbidden.
-    // When ontoHome is undefined (legacy npm run path), projectRoot is used.
-    // Precondition: in legacy path, projectRoot === ontoHome (both are the onto repo).
-    // This fallback does NOT violate the policy because the two paths are identical.
-    const homePath = typeof ontoHome === "string" && ontoHome.length > 0
-      ? path.resolve(ontoHome, "roles", `${lensId}.md`)
-      : path.resolve(projectRoot, "roles", `${lensId}.md`);
-    return homePath;
+    const baseDir = typeof ontoHome === "string" && ontoHome.length > 0
+      ? ontoHome
+      : projectRoot;
+    return resolveRoleFileWithFallback(baseDir, lensId);
   }
 
   // Custom roles: projectRoot first, then ontoHome fallback
-  const projectPath = path.resolve(projectRoot, "roles", `${lensId}.md`);
-  if (fsSync.existsSync(projectPath)) {
-    return projectPath;
-  }
+  const projectBarePath = path.resolve(projectRoot, "roles", `${lensId}.md`);
+  if (fsSync.existsSync(projectBarePath)) return projectBarePath;
+  const projectLegacyPath = path.resolve(projectRoot, "roles", `onto_${lensId}.md`);
+  if (fsSync.existsSync(projectLegacyPath)) return projectLegacyPath;
   if (typeof ontoHome === "string" && ontoHome.length > 0) {
-    const homePath = path.resolve(ontoHome, "roles", `${lensId}.md`);
-    if (fsSync.existsSync(homePath)) {
-      return homePath;
-    }
+    return resolveRoleFileWithFallback(ontoHome, lensId);
   }
-  return projectPath; // will produce warning downstream
+  return projectBarePath; // will produce warning downstream
 }
 
 export async function runMaterializeReviewPromptPacketsCli(
@@ -305,7 +310,7 @@ export async function runMaterializeReviewPromptPacketsCli(
     }));
   const synthesizePromptPacketPath =
     executionPlan.synthesize_prompt_packet_path ??
-    path.join(promptPacketsRoot, "onto_synthesize.prompt.md");
+    path.join(promptPacketsRoot, "synthesize.prompt.md");
 
   await fs.mkdir(promptPacketsRoot, { recursive: true });
 
@@ -475,7 +480,7 @@ output_path: ${toRelativePath(executionPlan.synthesis_output_path, projectRoot)}
 request_summary: ${interpretation.intent_summary}
 
 ## Canonical Role
-You are onto_synthesize.
+You are synthesize.
 You are not an independent review lens.
 You must preserve lens evidence and must not invent new independent perspectives.
 

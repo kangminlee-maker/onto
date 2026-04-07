@@ -8,7 +8,7 @@ status: established
 # UI Design Domain — Competency Questions
 
 A list of core questions that this domain's system must be able to answer.
-The onto_pragmatics agent verifies the actual reasoning path for each question.
+The pragmatics agent verifies the actual reasoning path for each question.
 
 Classification axis: **UI design concern** — classified by the design concern that questions must address when reviewing a user interface. This axis aligns with domain_scope.md Key Sub-Areas + Cross-Cutting Concerns.
 

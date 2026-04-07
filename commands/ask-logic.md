@@ -2,7 +2,7 @@
 
 Asks $ARGUMENTS to the logical consistency verification agent.
 
-Agent ID: `onto_logic`
+Agent ID: `logic`
 
 **Domain selection**: Append `@{domain}` to specify a domain, or `@-` for no-domain mode. If omitted, the Domain Selection Flow runs interactively.
 

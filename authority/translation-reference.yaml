@@ -483,7 +483,7 @@ concepts:
     definition: >
       A set of domain-specific rule and reference files stored at
       ~/.onto/domains/{domain}/. Each verification agent has a corresponding
-      domain document (e.g., logic_rules.md for onto_logic). Protected by
+      domain document (e.g., logic_rules.md for logic). Protected by
       the domain document protection principle: never auto-modified without
       explicit user approval.
     relations:
@@ -514,11 +514,11 @@ concepts:
     en: "competency question"
     definition: >
       A question that the ontology should be able to answer. Standard
-      ontology engineering term. Used by onto_pragmatics as the primary
+      ontology engineering term. Used by pragmatics as the primary
       verification criterion: can the ontology answer this question by
       tracing a path through its structure?
     relations:
-      - used_by: "onto_pragmatics"
+      - used_by: "pragmatics"
       - stored_at: "domains/{domain}/competency_qs.md"
       - standard_term_in: "ontology engineering"
     disambiguation: >
@@ -802,7 +802,7 @@ concepts:
     disambiguation: >
       NOT 'validation' (validation checks fitness for purpose against
       external needs; verification checks internal correctness against
-      specification). In this system, onto_pragmatics comes closest to
+      specification). In this system, pragmatics comes closest to
       validation, but the umbrella term is verification.
 
   - ko: "범용 원칙"

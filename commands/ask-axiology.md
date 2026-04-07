@@ -2,7 +2,7 @@
 
 Asks $ARGUMENTS to the axiological alignment verification lens.
 
-Agent ID: `onto_axiology`
+Agent ID: `axiology`
 
 **Domain selection**: Append `@{domain}` to specify a domain, or `@-` for no-domain mode. If omitted, the Domain Selection Flow runs interactively.
 

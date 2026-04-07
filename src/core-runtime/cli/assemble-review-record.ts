@@ -90,7 +90,7 @@ async function summarizeErrorLog(errorLogPath: string): Promise<ErrorLogSummary>
 
   const errorLogText = await fs.readFile(errorLogPath, "utf8");
   const lensFailureMatches = Array.from(
-    errorLogText.matchAll(/\|\s+lens failure:\s+(onto_[a-z_]+)/g),
+    errorLogText.matchAll(/\|\s+lens failure:\s+(?:onto_)?([a-z_]+)/g),
   );
   const uniqueLensIds: string[] = [];
   for (const match of lensFailureMatches) {

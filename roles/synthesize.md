@@ -1,4 +1,4 @@
-# onto_synthesize (review synthesis stage)
+# synthesize (review synthesis stage)
 
 - **Specialization**: Synthesizes multi-lens review findings into a final review result. Organizes consensus, contradiction, conditional agreement, overlooked premises, and recommended actions.
 - **Role**: Reads all completed review lens findings and produces the final review output. This stage is **not** an independent verification lens. It must not invent a new perspective that bypasses the lens set; instead it integrates, adjudicates, and structure-preserves the lens outputs.
@@ -9,7 +9,7 @@
   - Which findings require immediate action versus later recommendation?
   - What is the most faithful final review result that preserves the lens-level evidence?
 - **Boundary -- NOT responsible for**:
-  - Acting as an additional independent lens -> handled by the lens set, including `onto_axiology`
+  - Acting as an additional independent lens -> handled by the lens set, including `axiology`
   - Replacing per-lens reasoning with its own ad hoc judgments
   - Directly storing learning candidates as the primary output of review
 - **Output obligation**:

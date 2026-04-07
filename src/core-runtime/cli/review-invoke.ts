@@ -338,6 +338,11 @@ function appendExecutorModelArgs(
   argv: string[],
   ontoConfig?: OntoConfig,
 ): ReviewUnitExecutorConfig {
+  // Mock executor does not accept --model/--reasoning-effort flags.
+  // Skip model/effort args when the executor bin ends with mock executor.
+  const isMock = config.bin.includes("mock-review-unit-executor");
+  if (isMock) return config;
+
   const args = [...config.args];
   const model = readSingleOptionValueFromArgv(argv, "model") ?? ontoConfig?.model;
   if (typeof model === "string" && model.length > 0) {
@@ -784,7 +789,7 @@ function resolveLensDefaultsForReviewMode(reviewMode: ReviewMode): {
     return {
       resolvedLensIds: [...LIGHT_REVIEW_LENS_IDS],
       alwaysIncludeLensIds: [..._registry.always_include_lens_ids],
-      recommendedLensIds: ["onto_logic", "onto_pragmatics", "onto_evolution"],
+      recommendedLensIds: ["logic", "pragmatics", "evolution"],
       rationale: [
         "host-facing positional invoke currently defaults light review to logic, pragmatics, evolution, and axiology.",
       ],
@@ -793,7 +798,7 @@ function resolveLensDefaultsForReviewMode(reviewMode: ReviewMode): {
 
   return {
     resolvedLensIds: [...FULL_REVIEW_LENS_IDS],
-    alwaysIncludeLensIds: ["onto_axiology"],
+    alwaysIncludeLensIds: ["axiology"],
     recommendedLensIds: [...FULL_REVIEW_LENS_IDS],
     rationale: [
       "host-facing positional invoke currently defaults to full 9-lens review until interactive interpretation is productized.",

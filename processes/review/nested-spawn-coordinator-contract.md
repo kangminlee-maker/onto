@@ -302,6 +302,6 @@ import { runCompleteReviewSessionCli } from "./complete-review-session.js";
 |---|---|---|
 | `preparing` | — | session artifacts, error-log.md, coordinator-state.yaml |
 | `awaiting_lens_dispatch` | prompt-packets/*.prompt.md | round1/*.md |
-| `validating_lenses` | round1/*.md, execution-plan.yaml | onto_synthesize.runtime.prompt.md, error-log.md |
-| `awaiting_synthesize_dispatch` | onto_synthesize.runtime.prompt.md | synthesis.md |
+| `validating_lenses` | round1/*.md, execution-plan.yaml | synthesize.runtime.prompt.md, error-log.md |
+| `awaiting_synthesize_dispatch` | synthesize.runtime.prompt.md | synthesis.md |
 | `completing` | execution-plan.yaml, synthesis.md | execution-result.yaml, final-output.md, review-record.yaml |

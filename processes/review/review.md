@@ -26,7 +26,7 @@ it matches the productized live path and produces the same artifact truth.
 **Reference execution composition**:
 - **Main context coordinator**: temporary prompt-path coordinator only
 - **Review lenses**: 9 independent review lenses
-- **Synthesize stage**: `onto_synthesize`
+- **Synthesize stage**: `synthesize`
 
 **Productization mapping note**:
 - The canonical live execution truth is defined in `processes/review/productized-live-path.md`.
@@ -137,7 +137,7 @@ Step 1에서 수집한 리뷰 대상을 분석하여 복잡도를 평가한다.
   [a] {agent-id} — {이 대상에서 필요한 이유}
   [b] {agent-id} — {이유}
   [c] {agent-id} — {이유}
-  [d] onto_axiology — 목적 및 가치 정합 검증 (항상 포함)
+  [d] axiology — 목적 및 가치 정합 검증 (항상 포함)
 
 **전원 리뷰와의 차이**:
   제외되는 관점: {제외 에이전트 목록}
@@ -155,7 +155,7 @@ Select [a]:
 
 **에이전트 선택 규칙:**
 
-1. **onto_axiology**: 항상 포함
+1. **axiology**: 항상 포함
 2. **나머지 2-3명**: 리뷰 대상의 성격에 따라 팀 리드가 선택
 
 참고 테이블 (팀 리드 판단 보조):
@@ -358,10 +358,10 @@ npm run review:materialize-execution-preparation -- \
 - team_name: `onto-{session ID}`
 - description: `Agent Panel Review: {review target summary}`
 
-**Step 4 — Create all teammates**: After TeamCreate, create all teammates **simultaneously in a single message** via Agent tool. The initial prompt combines identity + self-loading + task directives. Each review lens is realized as a `ContextIsolatedReasoningUnit`. Review lenses begin Round 1 immediately; `onto_synthesize` waits until Step 3.
-- **경량 모드 (light)**: Step 1.5에서 선택된 2-3명의 검증 lens + `onto_axiology` + `onto_synthesize`를 생성한다.
-- **전원 모드 (full) 또는 Complexity Assessment 미수행**: 8명 기존 검증 lens + `onto_axiology` + `onto_synthesize`를 생성한다.
-- Each teammate's `name`: agent-id (e.g., `onto_logic`, `onto_synthesize`)
+**Step 4 — Create all teammates**: After TeamCreate, create all teammates **simultaneously in a single message** via Agent tool. The initial prompt combines identity + self-loading + task directives. Each review lens is realized as a `ContextIsolatedReasoningUnit`. Review lenses begin Round 1 immediately; `synthesize` waits until Step 3.
+- **경량 모드 (light)**: Step 1.5에서 선택된 2-3명의 검증 lens + `axiology` + `synthesize`를 생성한다.
+- **전원 모드 (full) 또는 Complexity Assessment 미수행**: 8명 기존 검증 lens + `axiology` + `synthesize`를 생성한다.
+- Each teammate's `name`: agent-id (e.g., `logic`, `synthesize`)
 - Each teammate's `team_name`: team_name created in Step 3
 - Initial prompt: use the **Teammate Initial Prompt Template** from `process.md` (including session path)
 - 세션 메타데이터에 `review_mode: light | full` 기록
@@ -448,13 +448,13 @@ Codex 모드에서는 TeamCreate를 생략한다. 대신 각 review lens를 `cod
 **Sub-step 2.4 — Create all reviewer Agents**: 모든 review lens Agent를 **단일 메시지에서 동시에** 호출하되, 각각 `run_in_background: true`로 설정한다.
 - 각 Agent의 `subagent_type`: `"codex:codex-rescue"`
 - 각 Agent의 프롬프트: `process.md`의 **Codex Reviewer Prompt Template** 사용
-- 경량 모드(light): 선택된 2-3명의 review lens + `onto_axiology`만 Codex task로 생성
+- 경량 모드(light): 선택된 2-3명의 review lens + `axiology`만 Codex task로 생성
 - 전원 모드(full): 8명 전원 Codex task로 생성
-- `onto_synthesize`는 이 단계에서 생성하지 않는다 (메인 프로세스 Step 3에서 별도 실행)
+- `synthesize`는 이 단계에서 생성하지 않는다 (메인 프로세스 Step 3에서 별도 실행)
 - `codex.model`/`codex.effort` 전달: process.md "Model and effort" 섹션 참조
 - 세션 메타데이터에 `execution_realization: subagent`, `host_runtime: codex` 기록
 
-`onto_synthesize`의 초기 prompt 대신: 팀 리드가 모든 백그라운드 task 완료를 대기한다.
+`synthesize`의 초기 prompt 대신: 팀 리드가 모든 백그라운드 task 완료를 대기한다.
 
 Task Directives는 Agent Teams 모드와 **동일한 내용**을 사용한다. 차이점은 프롬프트 래핑(Codex Reviewer Prompt Template)과 실행 런타임뿐이다.
 
@@ -485,7 +485,7 @@ Round 1에서 에이전트 에러 발생 시:
 
 ### 3. Reference Execution — Synthesize
 
-The team lead delivers the review lenses' review finding file paths to the `onto_synthesize` teammate via SendMessage. **Since the original text is preserved in the files, the team lead does not include the original text in the message.**
+The team lead delivers the review lenses' review finding file paths to the `synthesize` teammate via SendMessage. **Since the original text is preserved in the files, the team lead does not include the original text in the message.**
 
 SendMessage content to deliver to the synthesize stage:
 
@@ -528,7 +528,7 @@ Step 1 — Synthesis:
 - Refer to the "Verification Dimension Coverage Checklist" in process.md to confirm that no review lens dimension has gone uncovered.
 
 ### Axiology-Proposed Additional Perspectives
-- (Include only perspectives explicitly proposed by `onto_axiology`)
+- (Include only perspectives explicitly proposed by `axiology`)
 - Do not invent a new independent perspective here.
 
 Step 3 — Unique Finding Tagging:
@@ -542,7 +542,7 @@ Judgment conflicts between review lenses are resolved by the following rules:
 
 **General rule**: Judgment conflicts are used as error detection signals. If multiple lenses render opposing judgments on the same target, mark it as a "high-probability error point" and the synthesize stage adjudicates while preserving system purpose.
 
-**Special rule — removal vs. retention conflict**: If onto_conciseness judges "removal needed" and another lens judges "retention needed":
+**Special rule — removal vs. retention conflict**: If conciseness judges "removal needed" and another lens judges "retention needed":
 1. The synthesize stage compares both sides' rationale.
 2. Adjudicates in light of the system's purpose (improving the quality of the review target).
 3. Does not decide by simple majority — since the conciseness "removal" perspective is structurally in the minority, majority rule would always result in "retention," neutralizing the function of conciseness.
@@ -591,10 +591,10 @@ Tag each disagreement item with a type:
 (When deliberation was performed, this section appears in the deliberation output format instead.)
 
 ### Axiology-Proposed Additional Perspectives
-- (Only if explicitly proposed by `onto_axiology`)
+- (Only if explicitly proposed by `axiology`)
 
 ### Purpose Alignment Verification
-- (Preserve and summarize the purpose/value alignment judgment provided by `onto_axiology`)
+- (Preserve and summarize the purpose/value alignment judgment provided by `axiology`)
 
 ### Immediate Actions Required
 - (Among consensus items, those that should be applied immediately)
@@ -619,25 +619,25 @@ Classify each lens's findings into the 3 categories below. A "unique finding" is
 
 #### Step 3 — Example realization: Codex Mode Variation
 
-Codex 모드에서는 `onto_synthesize`도 `codex:codex-rescue` Agent로 실행한다.
+Codex 모드에서는 `synthesize`도 `codex:codex-rescue` Agent로 실행한다.
 
-- 팀 리드가 `onto_synthesize`를 foreground `codex:codex-rescue` Agent로 생성한다 (백그라운드 아님 — 결과를 즉시 사용해야 하므로).
+- 팀 리드가 `synthesize`를 foreground `codex:codex-rescue` Agent로 생성한다 (백그라운드 아님 — 결과를 즉시 사용해야 하므로).
 - 프롬프트: `process.md`의 **Codex Review Synthesize Prompt Template** 사용.
 - 프롬프트에 review lens의 결과 파일 경로를 포함한다. Codex가 파일을 직접 읽고 종합한다.
 - 결과를 `{session path}/synthesis.md`에 저장하도록 지시한다.
 - **숙의 불가 지시**: Codex 모드에서는 synthesize 프롬프트에 다음 지시를 추가한다:
   "Codex 모드에서는 숙의(deliberation)를 수행할 수 없습니다. 재검토 필요 여부 판정은 항상 '불필요'로 처리하고, 모순 항목은 '미합의' 섹션에 포함하여 최종 출력을 직접 작성하세요."
-- `onto_synthesize` 실패 시: 1회 재시도 후에도 실패하면 `process-halting-with-partial-result`를 적용한다 (process.md Error Handling Rules 참조).
+- `synthesize` 실패 시: 1회 재시도 후에도 실패하면 `process-halting-with-partial-result`를 적용한다 (process.md Error Handling Rules 참조).
 
 ---
 
 ### 4. Reference Execution — Deliberation (Conditional)
 
 Executed only if the synthesize stage judges "deliberation needed."
-경량 모드에서는 `onto_synthesize`에게 'deliberation not needed' 지시를 포함한다.
+경량 모드에서는 `synthesize`에게 'deliberation not needed' 지시를 포함한다.
 
 In this step, **direct SendMessage between teammates is permitted**.
-The team lead notifies the relevant lenses (including `onto_synthesize`) of deliberation commencement:
+The team lead notifies the relevant lenses (including `synthesize`) of deliberation commencement:
 
 ```
 Deliberation begins.
@@ -668,7 +668,7 @@ Items classified by type by the synthesize stage:
 - If consensus is not reached after 3 round-trips, each party reports their final position to the team lead.
 ```
 
-After deliberation concludes, the team lead delivers the results to `onto_synthesize` to **write the final output**:
+After deliberation concludes, the team lead delivers the results to `synthesize` to **write the final output**:
 
 ```
 Write the final output reflecting the deliberation results.
@@ -699,10 +699,10 @@ Tag each disagreement item with a type:
 ### Unverified
 Items classified as outside the verification scope (e.g., cases where adding a specialist agent for derived contested points was not possible). PO action: request separate verification from a domain expert, or accept as tolerable risk.
 ### Axiology-Proposed Additional Perspectives
-- (Only if explicitly proposed by `onto_axiology`)
+- (Only if explicitly proposed by `axiology`)
 
 ### Purpose Alignment Verification
-- (Preserve and summarize the purpose/value alignment judgment provided by `onto_axiology`)
+- (Preserve and summarize the purpose/value alignment judgment provided by `axiology`)
 ### Immediate Actions Required
 ### Recommendations
 ```

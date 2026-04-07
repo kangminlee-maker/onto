@@ -207,7 +207,7 @@ export async function buildSynthesizeRuntimePacket(argv: string[]): Promise<Buil
 
   const runtimePacketPath = path.join(
     executionPlan.prompt_packets_root ?? path.join(sessionRoot, "prompt-packets"),
-    "onto_synthesize.runtime.prompt.md",
+    "synthesize.runtime.prompt.md",
   );
   const enrichedText = `${synthesizePacketText.trimEnd()}\n\n## Runtime Participating Lens Outputs\n${lensRefsSection}\n${degradedSection}`;
   await fs.writeFile(runtimePacketPath, enrichedText.trimEnd() + "\n", "utf8");
@@ -323,12 +323,12 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
 
   const runtimePacketPath = path.join(
     executionPlan.prompt_packets_root ?? path.join(sessionRoot, "prompt-packets"),
-    "onto_synthesize.runtime.prompt.md",
+    "synthesize.runtime.prompt.md",
   );
 
   const synthesizeResult: ReviewUnitExecutionResult | null = synthesisExecuted
     ? {
-        unit_id: "onto_synthesize",
+        unit_id: "synthesize",
         unit_kind: "synthesize",
         packet_path: runtimePacketPath,
         output_path: synthesisPath,

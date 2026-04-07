@@ -178,9 +178,9 @@ system_purpose_refs:
 domain_context_refs:
   - /Users/kangmin/.onto/domains/ontology/domain_scope.md
 learning_context_refs:
-  - /Users/kangmin/.onto/projects/onto/learnings/onto_logic.md
+  - /Users/kangmin/.onto/projects/onto/learnings/logic.md
 role_definition_refs:
-  - /Users/kangmin/cowork/onto/roles/onto_logic.md
+  - /Users/kangmin/cowork/onto/roles/logic.md
 execution_rule_refs:
   - /Users/kangmin/cowork/onto/process.md
   - /Users/kangmin/cowork/onto/processes/review/review.md

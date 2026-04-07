@@ -134,11 +134,11 @@ domain_selection_required: true
 review_mode_recommendation: full
 lens_selection_plan:
   always_include:
-    - onto_axiology
+    - axiology
   recommended_lenses:
-    - onto_logic
-    - onto_pragmatics
-    - onto_evolution
+    - logic
+    - pragmatics
+    - evolution
 ambiguity_notes: []
 ```
 
@@ -158,15 +158,15 @@ resolved_execution_realization: agent-teams
 resolved_host_runtime: claude
 resolved_review_mode: full
 resolved_lens_set:
-  - onto_logic
-  - onto_structure
-  - onto_dependency
-  - onto_semantics
-  - onto_pragmatics
-  - onto_evolution
-  - onto_coverage
-  - onto_conciseness
-  - onto_axiology
+  - logic
+  - structure
+  - dependency
+  - semantics
+  - pragmatics
+  - evolution
+  - coverage
+  - conciseness
+  - axiology
 session_id: 20260404-a1b2c3d4
 session_root: /Users/kangmin/cowork/onto/.onto/review/20260404-a1b2c3d4
 round1_root: /Users/kangmin/cowork/onto/.onto/review/20260404-a1b2c3d4/round1

@@ -7,7 +7,7 @@ status: established
 
 # Conciseness Rules (business)
 
-This document defines the business-domain rules used by onto_conciseness.
+This document defines the business-domain rules used by conciseness.
 It controls where repetition is necessary, where it becomes harmful, and which thresholds should trigger consolidation review.
 
 ## 1. Allowed Redundancy
@@ -85,30 +85,30 @@ Examples:
 
 ## 4. Boundaries — Domain-Specific Application Cases
 
-The authoritative source for general boundary definitions is `roles/onto_conciseness.md`. This section only states the business-domain-specific edge cases.
+The authoritative source for general boundary definitions is `roles/conciseness.md`. This section only states the business-domain-specific edge cases.
 
-### onto_pragmatics boundary
+### pragmatics boundary
 
-- onto_conciseness asks whether an element should exist at all.
-- onto_pragmatics asks whether the current amount or placement of information prevents effective use.
+- conciseness asks whether an element should exist at all.
+- pragmatics asks whether the current amount or placement of information prevents effective use.
 - Example: a dashboard with too many KPIs but still structurally legitimate is a pragmatics issue. Three different definitions of CAC is a conciseness issue.
 
-### onto_coverage boundary
+### coverage boundary
 
-- onto_conciseness removes unjustified duplication.
-- onto_coverage adds missing concerns, rules, or CQ anchors.
+- conciseness removes unjustified duplication.
+- coverage adds missing concerns, rules, or CQ anchors.
 - Example: missing supply-chain risk logic is coverage. Repeating the same supply-chain rule across three files is conciseness.
 
-### onto_logic boundary
+### logic boundary
 
-- onto_logic determines whether two statements are functionally equivalent or whether one entails the other.
-- onto_conciseness decides whether one of the equivalent statements should be removed after that equivalence is established.
+- logic determines whether two statements are functionally equivalent or whether one entails the other.
+- conciseness decides whether one of the equivalent statements should be removed after that equivalence is established.
 - Example: if a premium position already entails premium pricing, a separate "use premium pricing" tactic may be removable.
 
-### onto_semantics boundary
+### semantics boundary
 
-- onto_semantics determines whether two terms refer to the same concept.
-- onto_conciseness decides whether multiple names for that concept should be consolidated.
+- semantics determines whether two terms refer to the same concept.
+- conciseness decides whether multiple names for that concept should be consolidated.
 - Example: "recurring revenue retention" and "NRR" may be the same concept. "financial risk" and "model risk" are not.
 
 ## 5. Quantitative Criteria

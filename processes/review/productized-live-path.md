@@ -41,7 +41,7 @@ user request
 -> 호출 고정 (InvocationBinding)
 -> execution preparation artifacts
 -> 9개 lens 독립 실행
--> 종합 단계 (onto_synthesize)
+-> 종합 단계 (synthesize)
 -> human-readable final output
 -> 리뷰 기록 (ReviewRecord)
 ```
@@ -162,7 +162,7 @@ prompt-backed path에서도 실제 파일이 만들어져야 한다.
 `prompt packets`는 아래를 deterministic하게 고정한다.
 
 - lens별 prompt handoff text
-- `onto_synthesize` prompt handoff text
+- `synthesize` prompt handoff text
 - 각 packet이 읽어야 할 artifact path
 - 각 packet이 써야 할 output path
 - packet은 가급적 lightweight handoff여야 하며, authoritative artifact의 전체 본문을 과도하게 embedded하지 않는다
@@ -228,9 +228,9 @@ packet materialization만 단독으로 디버깅해야 할 때는 아래 내부 
 
 필요하면 `--max-concurrent-lenses`로 override할 수 있다.
 
-### 3.7 종합 단계 (onto_synthesize)
+### 3.7 종합 단계 (synthesize)
 
-`onto_synthesize`는 lens finding을 읽고 아래를 정리한다.
+`synthesize`는 lens finding을 읽고 아래를 정리한다.
 
 - consensus
 - conditional consensus
@@ -242,9 +242,9 @@ packet materialization만 단독으로 디버깅해야 할 때는 아래 내부 
 
 중요:
 
-- `onto_synthesize`는 새 독립 관점을 만들지 않는다
-- `New Perspectives`는 `onto_axiology`가 제시하는 영역이다
-- synthesize는 `onto_axiology`가 제시한 추가 관점이 있으면 그것을 보존/배치할 수는 있지만, 스스로 invent하면 안 된다
+- `synthesize`는 새 독립 관점을 만들지 않는다
+- `New Perspectives`는 `axiology`가 제시하는 영역이다
+- synthesize는 `axiology`가 제시한 추가 관점이 있으면 그것을 보존/배치할 수는 있지만, 스스로 invent하면 안 된다
 
 ### 3.8 리뷰 기록 (ReviewRecord)
 

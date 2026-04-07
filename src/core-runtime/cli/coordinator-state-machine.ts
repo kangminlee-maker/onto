@@ -168,10 +168,10 @@ function buildSynthesizeAgentInstruction(
   runtimePacketPath: string,
 ): CoordinatorAgentInstruction {
   return {
-    lens_id: "onto_synthesize",
+    lens_id: "synthesize",
     description: "Synthesize lens findings",
     prompt: buildAgentPrompt(
-      "onto_synthesize",
+      "synthesize",
       "synthesize",
       runtimePacketPath,
       executionPlan.synthesis_output_path,
@@ -320,7 +320,7 @@ export async function coordinatorNext(
           path.join(
             executionPlan.prompt_packets_root ??
               path.join(sessionRoot, "prompt-packets"),
-            "onto_synthesize.runtime.prompt.md",
+            "synthesize.runtime.prompt.md",
           );
 
         applyTransition(

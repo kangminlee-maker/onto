@@ -7,7 +7,7 @@ status: verified
 
 # accounting-korea Domain — 간결성 규칙
 
-이 문서는 onto_conciseness가 간결성 검증 시 참조하는 한국 회계 도메인 특화 규칙이다.
+이 문서는 conciseness가 간결성 검증 시 참조하는 한국 회계 도메인 특화 규칙이다.
 순서: **유형(허용/제거) → 검증 기준 → 역할 경계 → 측정 방법**.
 
 ---
@@ -78,31 +78,31 @@ status: verified
 
 ## 4. 경계 — 도메인 특화 적용 사례
 
-경계 정의의 정본은 `roles/onto_conciseness.md`. 이 섹션은 한국 회계 도메인 특화 적용 사례만 기술.
+경계 정의의 정본은 `roles/conciseness.md`. 이 섹션은 한국 회계 도메인 특화 적용 사례만 기술.
 
-### onto_pragmatics 경계
+### pragmatics 경계
 
-- onto_conciseness: 불필요한 요소가 **존재하는가?** (구조 수준)
-- onto_pragmatics: 불필요한 정보가 질의 실행을 **방해하는가?** (실행 수준)
-- 예: 미사용 세무조정 항목 존재 → onto_conciseness. 과다한 조정명세서가 핵심 조정 식별 방해 → onto_pragmatics
+- conciseness: 불필요한 요소가 **존재하는가?** (구조 수준)
+- pragmatics: 불필요한 정보가 질의 실행을 **방해하는가?** (실행 수준)
+- 예: 미사용 세무조정 항목 존재 → conciseness. 과다한 조정명세서가 핵심 조정 식별 방해 → pragmatics
 
-### onto_coverage 경계
+### coverage 경계
 
-- onto_conciseness: 없어야 할 것이 존재하는가? (축소 방향)
-- onto_coverage: 있어야 할 것이 빠져 있는가? (확장 방향)
-- 예: 원천징수 관련 처리 누락 → onto_coverage. 동일 원천징수를 여러 경로로 중복 처리 → onto_conciseness
+- conciseness: 없어야 할 것이 존재하는가? (축소 방향)
+- coverage: 있어야 할 것이 빠져 있는가? (확장 방향)
+- 예: 원천징수 관련 처리 누락 → coverage. 동일 원천징수를 여러 경로로 중복 처리 → conciseness
 
-### onto_logic 경계 (선후 관계)
+### logic 경계 (선후 관계)
 
-- onto_logic 선행: 논리적 동치 판단 (함의 관계)
-- onto_conciseness 후행: 동치 확인 후 제거 여부 결정
-- 예: K-IFRS 개념체계의 발생기준 원칙이 개별 회계정책의 기간 귀속 규칙을 함의 → onto_logic가 동치 판단 → onto_conciseness가 "개별 정책 재선언 불필요" 판단
+- logic 선행: 논리적 동치 판단 (함의 관계)
+- conciseness 후행: 동치 확인 후 제거 여부 결정
+- 예: K-IFRS 개념체계의 발생기준 원칙이 개별 회계정책의 기간 귀속 규칙을 함의 → logic가 동치 판단 → conciseness가 "개별 정책 재선언 불필요" 판단
 
-### onto_semantics 경계 (선후 관계)
+### semantics 경계 (선후 관계)
 
-- onto_semantics 선행: 의미적 관계 판단 (동의어·포함관계 여부)
-- onto_conciseness 후행: 관계 유형에 따라 통합 또는 관계 명시 결정
-- 예: 손익계산서/포괄손익계산서는 포함관계(⊃)이지 동의어가 아니다 → onto_semantics가 관계 유형 판단 → onto_conciseness가 '통일이 아닌 관계 명시' 판단
+- semantics 선행: 의미적 관계 판단 (동의어·포함관계 여부)
+- conciseness 후행: 관계 유형에 따라 통합 또는 관계 명시 결정
+- 예: 손익계산서/포괄손익계산서는 포함관계(⊃)이지 동의어가 아니다 → semantics가 관계 유형 판단 → conciseness가 '통일이 아닌 관계 명시' 판단
 
 ---
 

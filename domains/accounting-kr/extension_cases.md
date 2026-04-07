@@ -7,7 +7,7 @@ status: reviewed
 
 # accounting-korea Domain -- 확장 시나리오
 
-onto_evolution 에이전트가 각 시나리오를 시뮬레이션하여 기존 시스템의 깨짐 여부를 검증한다.
+evolution 에이전트가 각 시나리오를 시뮬레이션하여 기존 시스템의 깨짐 여부를 검증한다.
 
 ---
 

@@ -7,7 +7,7 @@ status: established
 
 # UI Design Domain — Domain Scope Definition
 
-This is the reference document used by onto_coverage to identify "what should exist but is missing."
+This is the reference document used by coverage to identify "what should exist but is missing."
 This domain applies when **reviewing** the structure, patterns, and interaction design of user interfaces (UI).
 
 > **Boundary with visual-design domain**: visual-design covers the "visual expression system" including color, typography, composition, and branding. This domain covers "the structure through which the interface accommodates user intent and communicates results." Button color and typeface are under visual-design's jurisdiction; where a button is placed, what feedback it provides, and when it is disabled are under this domain's jurisdiction.

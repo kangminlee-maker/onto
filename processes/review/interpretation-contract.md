@@ -145,11 +145,11 @@ domain_selection_required: true
 review_mode_recommendation: full
 lens_selection_plan:
   always_include:
-    - onto_axiology
+    - axiology
   recommended_lenses:
-    - onto_logic
-    - onto_pragmatics
-    - onto_evolution
+    - logic
+    - pragmatics
+    - evolution
   rationale:
     - "quality bar completeness는 논리/실용성/진화 관점이 핵심이다"
 ambiguity_notes:
@@ -230,7 +230,7 @@ prompt-backed path에서는 이 중 interpretation 결과를
 
 1. 각 lens는 자기 전용 context를 가진다
 2. Round 1에서는 다른 lens output을 보지 않는다
-3. `onto_synthesize`는 독립 lens가 아니라 후행 종합 단계다
+3. `synthesize`는 독립 lens가 아니라 후행 종합 단계다
 4. 메인 콘텍스트의 의미 drift를 무비판적으로 따라가지 않는 독립 판단을 유지한다
 
 ---

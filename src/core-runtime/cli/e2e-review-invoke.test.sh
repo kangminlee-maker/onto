@@ -163,7 +163,7 @@ run_expect_pass "T5: diff-range" \
 run_expect_pass "T6: custom-lenses" \
   src/core-runtime/cli/ "logic only" \
   --executor-realization mock \
-  --lens-id onto_logic --lens-id onto_pragmatics
+  --lens-id logic --lens-id pragmatics
 
 run_expect_pass "T9: bundle" \
   --primary-ref src/core-runtime/cli/review-invoke.ts \
@@ -349,14 +349,14 @@ run_expect_pass "E24: diff+bundle-priority" \
 run_expect_pass "E25: light+9lenses-override" \
   src/ "override test" \
   --executor-realization mock --review-mode light \
-  --lens-id onto_logic --lens-id onto_structure --lens-id onto_dependency \
-  --lens-id onto_semantics --lens-id onto_pragmatics --lens-id onto_evolution \
-  --lens-id onto_coverage --lens-id onto_conciseness --lens-id onto_axiology
+  --lens-id logic --lens-id structure --lens-id dependency \
+  --lens-id semantics --lens-id pragmatics --lens-id evolution \
+  --lens-id coverage --lens-id conciseness --lens-id axiology
 
 run_expect_status "E26: single-lens-halts" "halted_partial" \
   src/ "single lens" \
   --executor-realization mock \
-  --lens-id onto_logic
+  --lens-id logic
 
 echo ""
 
@@ -381,7 +381,7 @@ if [ -d "$EXISTING_SESSION" ]; then
   cp "$EXISTING_SESSION/session-metadata.yaml" "$PARTIAL/"
   cp "$EXISTING_SESSION/execution-plan.yaml" "$PARTIAL/"
   # Copy only 3/9 lens outputs
-  for f in onto_logic.md onto_structure.md onto_axiology.md; do
+  for f in logic.md structure.md axiology.md; do
     cp "$EXISTING_SESSION/round1/$f" "$PARTIAL/round1/" 2>/dev/null
   done
   E14_OUT=$(npm run review:complete-session -- \

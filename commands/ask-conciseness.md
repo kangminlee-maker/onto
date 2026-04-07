@@ -2,7 +2,7 @@
 
 Asks $ARGUMENTS to the conciseness verification agent.
 
-Agent ID: `onto_conciseness`
+Agent ID: `conciseness`
 
 **Domain selection**: Append `@{domain}` to specify a domain, or `@-` for no-domain mode. If omitted, the Domain Selection Flow runs interactively.
 

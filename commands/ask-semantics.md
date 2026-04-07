@@ -2,7 +2,7 @@
 
 Asks $ARGUMENTS to the semantic accuracy verification agent.
 
-Agent ID: `onto_semantics`
+Agent ID: `semantics`
 
 **Domain selection**: Append `@{domain}` to specify a domain, or `@-` for no-domain mode. If omitted, the Domain Selection Flow runs interactively.
 

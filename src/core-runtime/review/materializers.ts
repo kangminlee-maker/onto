@@ -381,7 +381,7 @@ export async function bootstrapInvocationBindingArtifacts(
       packet_path: path.join(promptPacketsRoot, `${lensId}.prompt.md`),
       output_path: path.join(round1Root, `${lensId}.md`),
     })),
-    synthesize_prompt_packet_path: path.join(promptPacketsRoot, "onto_synthesize.prompt.md"),
+    synthesize_prompt_packet_path: path.join(promptPacketsRoot, "synthesize.prompt.md"),
     synthesis_output_path: synthesisOutputPath,
     deliberation_output_path: deliberationOutputPath,
     execution_result_path: executionResultPath,

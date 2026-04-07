@@ -92,11 +92,11 @@ canonical review 구조:
 
 DO:
 - `9개 lens + synthesize` 구조를 따른다
-- `New Perspectives`는 `onto_axiology`에서 제안한다
-- `onto_synthesize`는 기존 lens 결과를 보존적으로 종합한다
+- `New Perspectives`는 `axiology`에서 제안한다
+- `synthesize`는 기존 lens 결과를 보존적으로 종합한다
 
 DO NOT:
-- `onto_synthesize`에서 새 독립 관점을 invent하지 않는다
+- `synthesize`에서 새 독립 관점을 invent하지 않는다
 - legacy `agent panel + philosopher` 구조를 canonical로 취급하지 않는다
 
 ---

@@ -7,7 +7,7 @@ status: established
 
 # Conciseness Rules (ontology)
 
-This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+This document contains the domain-specific rules that conciseness references during conciseness verification.
 It is organized in the order: **type (allow/remove) -> verification criteria -> role boundaries -> measurement methods**.
 
 ---
@@ -88,31 +88,31 @@ Examples:
 
 ## 4. Boundaries — Domain-Specific Application Cases
 
-The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the ontology domain.
+The authoritative source for boundary definitions is `roles/conciseness.md`. This section describes only the specific application cases in the ontology domain.
 
-### onto_pragmatics boundary
+### pragmatics boundary
 
-- onto_conciseness: Does an unnecessary element **exist**? (structural level)
-- onto_pragmatics: Does unnecessary information **hinder** query execution? (execution level)
-- Example: A property unused in SPARQL queries slows down results -> onto_pragmatics. An unused class is defined in the TBox -> onto_conciseness.
+- conciseness: Does an unnecessary element **exist**? (structural level)
+- pragmatics: Does unnecessary information **hinder** query execution? (execution level)
+- Example: A property unused in SPARQL queries slows down results -> pragmatics. An unused class is defined in the TBox -> conciseness.
 
-### onto_coverage boundary
+### coverage boundary
 
-- onto_conciseness: Does something exist that should not? (reduction direction)
-- onto_coverage: Is something missing that should exist? (expansion direction)
-- Example: Relation types (part-of, depends-on, etc.) are not defined -> onto_coverage. The same relation is duplicated under two different property names -> onto_conciseness.
+- conciseness: Does something exist that should not? (reduction direction)
+- coverage: Is something missing that should exist? (expansion direction)
+- Example: Relation types (part-of, depends-on, etc.) are not defined -> coverage. The same relation is duplicated under two different property names -> conciseness.
 
-### onto_logic boundary (predecessor/successor relationship)
+### logic boundary (predecessor/successor relationship)
 
-- onto_logic predecessor: determines logical equivalence (entailment)
-- onto_conciseness successor: decides whether to remove after equivalence is confirmed
-- Example: A superclass axiom entails a subclass axiom -> onto_logic determines equivalence -> onto_conciseness determines "subclass axiom redeclaration is unnecessary."
+- logic predecessor: determines logical equivalence (entailment)
+- conciseness successor: decides whether to remove after equivalence is confirmed
+- Example: A superclass axiom entails a subclass axiom -> logic determines equivalence -> conciseness determines "subclass axiom redeclaration is unnecessary."
 
-### onto_semantics boundary (predecessor/successor relationship)
+### semantics boundary (predecessor/successor relationship)
 
-- onto_semantics predecessor: determines semantic identity (synonym status, owl:equivalentClass status)
-- onto_conciseness successor: decides whether merging is needed after synonym confirmation
-- Example: `Person` and `Human` are the same concept -> onto_semantics determines they are synonyms -> onto_conciseness determines "consolidate to a single canonical IRI."
+- semantics predecessor: determines semantic identity (synonym status, owl:equivalentClass status)
+- conciseness successor: decides whether merging is needed after synonym confirmation
+- Example: `Person` and `Human` are the same concept -> semantics determines they are synonyms -> conciseness determines "consolidate to a single canonical IRI."
 
 ---
 

@@ -17,8 +17,8 @@
 즉:
 
 - `8개의 기존 검증 관점`
-- `가치/목적 정합 lens (onto_axiology)`
-- `종합 단계 (onto_synthesize)`
+- `가치/목적 정합 lens (axiology)`
+- `종합 단계 (synthesize)`
 
 로 구성된다.
 
@@ -28,15 +28,15 @@
 
 | Lens ID | 한글 설명 | 책임 |
 |---|---|---|
-| `onto_logic` | 논리 lens | 모순, 타입 충돌, 제약 충돌 |
-| `onto_structure` | 구조 lens | 고립 요소, 끊긴 경로, 누락 관계 |
-| `onto_dependency` | 의존성 lens | 순환, 역방향, 다이아몬드 의존 |
-| `onto_semantics` | 의미 lens | 이름-의미 불일치, 동의어/동음이의 |
-| `onto_pragmatics` | 실용성 lens | 질의 가능성, competency question 적합성 |
-| `onto_evolution` | 진화 lens | 신규 데이터/도메인 추가 시 파손 위험 |
-| `onto_coverage` | 커버리지 lens | 누락 하위영역, 개념 편향, 표준 대비 갭 |
-| `onto_conciseness` | 간결성 lens | 중복 정의, 과잉 구체화, 불필요한 구분 |
-| `onto_axiology` | 가치/목적 정합 lens | 목적 이탈, 가치 충돌, mission misalignment |
+| `logic` | 논리 lens | 모순, 타입 충돌, 제약 충돌 |
+| `structure` | 구조 lens | 고립 요소, 끊긴 경로, 누락 관계 |
+| `dependency` | 의존성 lens | 순환, 역방향, 다이아몬드 의존 |
+| `semantics` | 의미 lens | 이름-의미 불일치, 동의어/동음이의 |
+| `pragmatics` | 실용성 lens | 질의 가능성, competency question 적합성 |
+| `evolution` | 진화 lens | 신규 데이터/도메인 추가 시 파손 위험 |
+| `coverage` | 커버리지 lens | 누락 하위영역, 개념 편향, 표준 대비 갭 |
+| `conciseness` | 간결성 lens | 중복 정의, 과잉 구체화, 불필요한 구분 |
+| `axiology` | 가치/목적 정합 lens | 목적 이탈, 가치 충돌, mission misalignment |
 
 ---
 
@@ -44,27 +44,27 @@
 
 | Stage ID | 한글 설명 | 책임 |
 |---|---|---|
-| `onto_synthesize` | 종합 단계 | lens 결과를 읽고 consensus, disagreement, overlooked premises, final review output을 구성 |
+| `synthesize` | 종합 단계 | lens 결과를 읽고 consensus, disagreement, overlooked premises, final review output을 구성 |
 
 중요한 구분:
 
-- `onto_axiology`는 **독립 lens**다.
-- `onto_synthesize`는 **종합 단계**다.
+- `axiology`는 **독립 lens**다.
+- `synthesize`는 **종합 단계**다.
 
-즉 `onto_axiology`는 다른 lens들과 동등한 한 관점이고,
-`onto_synthesize`는 그 관점들을 모아 최종 결과를 작성한다.
+즉 `axiology`는 다른 lens들과 동등한 한 관점이고,
+`synthesize`는 그 관점들을 모아 최종 결과를 작성한다.
 
 ---
 
 ## 4. Boundary Rule
 
-### 4.1 `onto_axiology`
+### 4.1 `axiology`
 
 - 목적/가치 정합을 보는 독립 lens
 - 자체 finding을 만든다
 - 다른 lens 전체를 요약하지 않는다
 
-### 4.2 `onto_synthesize`
+### 4.2 `synthesize`
 
 - lens set 전체를 읽어 final review output을 만든다
 - 새로운 독립 관점 행세를 하면 안 된다
@@ -91,7 +91,7 @@
 
 1. 각 lens는 자기 전용 맥락에서 실행된다
 2. Round 1에서는 다른 lens의 결과를 보지 않는다
-3. `onto_synthesize`는 lens finding이 나온 뒤에만 실행된다
+3. `synthesize`는 lens finding이 나온 뒤에만 실행된다
 4. 메인 `LLM` 콘텍스트는 lens별 세부 reasoning을 직접 모두 담지 않는다
 
 즉 host-specific detail은 달라도,
@@ -118,7 +118,7 @@ host-specific naming이나 realization일 수 있어도,
 
 - 공통 lens wrapper: `process.md`, `processes/review/review.md`
 - 개별 lens specialization: `roles/{lens-id}.md`
-- synthesize specialization: `roles/onto_synthesize.md`
+- synthesize specialization: `roles/synthesize.md`
 
 관련 계약 문서:
 
@@ -134,6 +134,6 @@ host-specific naming이나 realization일 수 있어도,
 하지만 `review`의 canonical 구조는 이제 아래다.
 
 - `philosopher` 중심 아님
-- `onto_axiology` + `onto_synthesize`
+- `axiology` + `synthesize`
 
 즉 review productization에서 `philosopher`는 canonical role이 아니다.

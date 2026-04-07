@@ -7,7 +7,7 @@ status: established
 
 # Conciseness Rules (llm-native-development)
 
-This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+This document contains the domain-specific rules that conciseness references during conciseness verification.
 It is organized in the order of **type (allow/remove) → verification criteria → role boundaries → measurement method**.
 
 ---
@@ -107,39 +107,39 @@ Examples:
 
 ## 4. Boundaries — Domain-Specific Application Cases
 
-The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the llm-native-development domain.
+The authoritative source for boundary definitions is `roles/conciseness.md`. This section describes only the specific application cases in the llm-native-development domain.
 
-### onto_pragmatics Boundary
+### pragmatics Boundary
 
-- onto_conciseness: Does an unnecessary element **exist**? (structural level)
-- onto_pragmatics: Does unnecessary information **waste** the LLM's context window? (execution level)
-- In the 8-area structure: onto_conciseness asks "does this element need to exist in this area?" while onto_pragmatics asks "does including this element in the current execution context consume tokens without contributing to the task?"
-- Example: A deprecated concept file remains in the directory → onto_conciseness. A valid but currently unnecessary file is included in the reference chain → onto_pragmatics.
-- Example (8-area): Agent config (→Area 4) embeds a full prompt template copy → onto_conciseness. Agent loads unused MCP tool schemas → onto_pragmatics.
+- conciseness: Does an unnecessary element **exist**? (structural level)
+- pragmatics: Does unnecessary information **waste** the LLM's context window? (execution level)
+- In the 8-area structure: conciseness asks "does this element need to exist in this area?" while pragmatics asks "does including this element in the current execution context consume tokens without contributing to the task?"
+- Example: A deprecated concept file remains in the directory → conciseness. A valid but currently unnecessary file is included in the reference chain → pragmatics.
+- Example (8-area): Agent config (→Area 4) embeds a full prompt template copy → conciseness. Agent loads unused MCP tool schemas → pragmatics.
 
-### onto_coverage Boundary
+### coverage Boundary
 
-- onto_conciseness: Is there something that should not be there? (reduction direction)
-- onto_coverage: Is there something missing that should be there? (expansion direction)
-- In the 8-area structure: onto_coverage checks whether all 8 areas are represented (missing area = gap), while onto_conciseness checks whether any area contains duplicated or misplaced elements.
-- Example: An agent role is defined but has no assigned domain document → onto_coverage. Two agents with identical judgment criteria are defined → onto_conciseness.
-- Example (8-area): Area 5 has no evaluation methodology → onto_coverage. Same metric defined in Area 5 and Area 7 with identical formulas → onto_conciseness.
+- conciseness: Is there something that should not be there? (reduction direction)
+- coverage: Is there something missing that should be there? (expansion direction)
+- In the 8-area structure: coverage checks whether all 8 areas are represented (missing area = gap), while conciseness checks whether any area contains duplicated or misplaced elements.
+- Example: An agent role is defined but has no assigned domain document → coverage. Two agents with identical judgment criteria are defined → conciseness.
+- Example (8-area): Area 5 has no evaluation methodology → coverage. Same metric defined in Area 5 and Area 7 with identical formulas → conciseness.
 
-### onto_logic Boundary (preceding/following relationship)
+### logic Boundary (preceding/following relationship)
 
-- onto_logic precedes: Determines logical equivalence (implication)
-- onto_conciseness follows: Decides whether to remove after equivalence is confirmed
-- In the 8-area structure: onto_logic determines whether two rules across areas are logically equivalent; onto_conciseness then decides whether one should be removed. Particularly relevant for cross-area constraints (e.g., Area 6 safety rule implied by Area 2 prompt instruction).
-- Example: A rule in structure_spec.md implies a constraint in an individual file body → onto_logic determines equivalence → onto_conciseness determines "re-description in individual file is unnecessary."
-- Example (8-area): Area 1 fallback rule "if X fails, use Y" and Area 4 agent config "try X first, then Y" → onto_logic determines equivalence → onto_conciseness removes the non-authoritative copy.
+- logic precedes: Determines logical equivalence (implication)
+- conciseness follows: Decides whether to remove after equivalence is confirmed
+- In the 8-area structure: logic determines whether two rules across areas are logically equivalent; conciseness then decides whether one should be removed. Particularly relevant for cross-area constraints (e.g., Area 6 safety rule implied by Area 2 prompt instruction).
+- Example: A rule in structure_spec.md implies a constraint in an individual file body → logic determines equivalence → conciseness determines "re-description in individual file is unnecessary."
+- Example (8-area): Area 1 fallback rule "if X fails, use Y" and Area 4 agent config "try X first, then Y" → logic determines equivalence → conciseness removes the non-authoritative copy.
 
-### onto_semantics Boundary (preceding/following relationship)
+### semantics Boundary (preceding/following relationship)
 
-- onto_semantics precedes: Determines semantic identity (synonym status)
-- onto_conciseness follows: Decides whether merging is needed after synonym is confirmed
-- In the 8-area structure: onto_semantics identifies when two terms across different areas refer to the same concept; onto_conciseness then decides whether to merge into a single canonical definition with cross-area references.
-- Example: system map / architecture overview / structure guide are the same concept → onto_semantics determines synonym → onto_conciseness determines "consolidate into one canonical term."
-- Example (8-area): "response quality score" (→Area 5) and "output quality metric" (→Area 7) are the same measurement → onto_semantics determines synonym → onto_conciseness consolidates the definition.
+- semantics precedes: Determines semantic identity (synonym status)
+- conciseness follows: Decides whether merging is needed after synonym is confirmed
+- In the 8-area structure: semantics identifies when two terms across different areas refer to the same concept; conciseness then decides whether to merge into a single canonical definition with cross-area references.
+- Example: system map / architecture overview / structure guide are the same concept → semantics determines synonym → conciseness determines "consolidate into one canonical term."
+- Example (8-area): "response quality score" (→Area 5) and "output quality metric" (→Area 7) are the same measurement → semantics determines synonym → conciseness consolidates the definition.
 
 ---
 

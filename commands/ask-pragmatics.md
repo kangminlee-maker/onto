@@ -2,7 +2,7 @@
 
 Asks $ARGUMENTS to the pragmatic fitness verification agent.
 
-Agent ID: `onto_pragmatics`
+Agent ID: `pragmatics`
 
 **Domain selection**: Append `@{domain}` to specify a domain, or `@-` for no-domain mode. If omitted, the Domain Selection Flow runs interactively.
 

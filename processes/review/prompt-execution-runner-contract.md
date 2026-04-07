@@ -46,7 +46,7 @@ participating lens output의 seat/ref를 synthesize runtime packet에 반영할 
 2. `session_root`
 3. `execution-plan.yaml`
 4. `prompt-packets/{lens}.prompt.md`
-5. `prompt-packets/onto_synthesize.prompt.md`
+5. `prompt-packets/synthesize.prompt.md`
 6. executor realization
    - `subagent`
    - `agent-teams`

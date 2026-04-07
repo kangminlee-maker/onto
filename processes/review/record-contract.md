@@ -142,7 +142,7 @@ later hardened implementation에서 identity policy가 바뀌더라도,
 
 - `lens_result_refs`는 lens id를 key로 가지는 mapping이어야 한다
 - `light` 모드와 degraded case를 구분할 수 있어야 한다
-- `onto_axiology`는 canonical lens set에 항상 포함되어야 한다
+- `axiology`는 canonical lens set에 항상 포함되어야 한다
 - degraded case가 발생하면 later audit가 그 원인을 다시 읽을 수 있어야 한다
 - `error-log.md`가 boundary/conformance state만 담는 경우에는 `degradation_notes_ref`로 간주하지 않는다
 
@@ -150,15 +150,15 @@ later hardened implementation에서 identity policy가 바뀌더라도,
 
 ```yaml
 lens_result_refs:
-  onto_logic: .onto/review/20260404-a1b2c3d4/round1/onto_logic.md
-  onto_structure: .onto/review/20260404-a1b2c3d4/round1/onto_structure.md
-  onto_axiology: .onto/review/20260404-a1b2c3d4/round1/onto_axiology.md
+  logic: .onto/review/20260404-a1b2c3d4/round1/logic.md
+  structure: .onto/review/20260404-a1b2c3d4/round1/structure.md
+  axiology: .onto/review/20260404-a1b2c3d4/round1/axiology.md
 participating_lens_ids:
-  - onto_logic
-  - onto_structure
-  - onto_axiology
+  - logic
+  - structure
+  - axiology
 excluded_lens_ids:
-  - onto_dependency
+  - dependency
 degraded_lens_ids: []
 ```
 
@@ -206,15 +206,15 @@ resolved_review_mode: full
 resolved_execution_realization: subagent
 resolved_host_runtime: codex
 resolved_lens_ids:
-  - onto_logic
-  - onto_structure
-  - onto_dependency
-  - onto_semantics
-  - onto_pragmatics
-  - onto_evolution
-  - onto_coverage
-  - onto_conciseness
-  - onto_axiology
+  - logic
+  - structure
+  - dependency
+  - semantics
+  - pragmatics
+  - evolution
+  - coverage
+  - conciseness
+  - axiology
 execution_result_ref: .onto/review/20260404-a1b2c3d4/execution-result.yaml
 
 session_metadata_ref: .onto/review/20260404-a1b2c3d4/session-metadata.yaml
@@ -223,25 +223,25 @@ materialized_input_ref: .onto/review/20260404-a1b2c3d4/execution-preparation/mat
 context_candidate_assembly_ref: .onto/review/20260404-a1b2c3d4/execution-preparation/context-candidate-assembly.yaml
 
 lens_result_refs:
-  onto_logic: .onto/review/20260404-a1b2c3d4/round1/onto_logic.md
-  onto_structure: .onto/review/20260404-a1b2c3d4/round1/onto_structure.md
-  onto_dependency: .onto/review/20260404-a1b2c3d4/round1/onto_dependency.md
-  onto_semantics: .onto/review/20260404-a1b2c3d4/round1/onto_semantics.md
-  onto_pragmatics: .onto/review/20260404-a1b2c3d4/round1/onto_pragmatics.md
-  onto_evolution: .onto/review/20260404-a1b2c3d4/round1/onto_evolution.md
-  onto_coverage: .onto/review/20260404-a1b2c3d4/round1/onto_coverage.md
-  onto_conciseness: .onto/review/20260404-a1b2c3d4/round1/onto_conciseness.md
-  onto_axiology: .onto/review/20260404-a1b2c3d4/round1/onto_axiology.md
+  logic: .onto/review/20260404-a1b2c3d4/round1/logic.md
+  structure: .onto/review/20260404-a1b2c3d4/round1/structure.md
+  dependency: .onto/review/20260404-a1b2c3d4/round1/dependency.md
+  semantics: .onto/review/20260404-a1b2c3d4/round1/semantics.md
+  pragmatics: .onto/review/20260404-a1b2c3d4/round1/pragmatics.md
+  evolution: .onto/review/20260404-a1b2c3d4/round1/evolution.md
+  coverage: .onto/review/20260404-a1b2c3d4/round1/coverage.md
+  conciseness: .onto/review/20260404-a1b2c3d4/round1/conciseness.md
+  axiology: .onto/review/20260404-a1b2c3d4/round1/axiology.md
 participating_lens_ids:
-  - onto_logic
-  - onto_structure
-  - onto_dependency
-  - onto_semantics
-  - onto_pragmatics
-  - onto_evolution
-  - onto_coverage
-  - onto_conciseness
-  - onto_axiology
+  - logic
+  - structure
+  - dependency
+  - semantics
+  - pragmatics
+  - evolution
+  - coverage
+  - conciseness
+  - axiology
 excluded_lens_ids: []
 degraded_lens_ids: []
 degradation_notes_ref: null
@@ -263,7 +263,7 @@ final_output_ref: .onto/review/20260404-a1b2c3d4/final-output.md
 2. `검토 고정 (InvocationBinding)` 산출물 작성
 3. execution preparation artifact 작성
 4. 각 lens가 자기 markdown output 작성
-5. `onto_synthesize`가 `synthesis.md` 작성
+5. `synthesize`가 `synthesis.md` 작성
 6. 마지막에 main context/team lead가 `review-record.yaml`을 assemble
 
 현재 bounded runtime replacement는 아래 TS core path를 따른다.

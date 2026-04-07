@@ -7,7 +7,7 @@ status: established
 
 # Ontology Domain — Extension Scenarios
 
-The onto_evolution agent simulates each scenario to verify whether the existing ontology structure breaks.
+The evolution agent simulates each scenario to verify whether the existing ontology structure breaks.
 
 ---
 

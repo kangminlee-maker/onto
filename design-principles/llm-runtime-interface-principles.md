@@ -132,11 +132,11 @@ artifact seat를 중심으로 구성한다.
 
 - input:
   - `materialized-input.md`
-  - `roles/onto_logic.md`
+  - `roles/logic.md`
   - `interpretation.yaml`
   - `binding.yaml`
 - output:
-  - `round1/onto_logic.md`
+  - `round1/logic.md`
 
 ### 3.4 declared boundary elements
 
@@ -160,8 +160,8 @@ artifact seat를 중심으로 구성한다.
 
 예:
 
-- `roles/onto_logic.md`
-- `prompt-packets/onto_logic.prompt.md`
+- `roles/logic.md`
+- `prompt-packets/logic.prompt.md`
 
 #### target boundary
 
@@ -188,7 +188,7 @@ artifact seat를 중심으로 구성한다.
 
 예:
 
-- `round1/onto_logic.md`
+- `round1/logic.md`
 - `synthesis.md`
 
 #### exploration boundary
@@ -258,7 +258,7 @@ boundary_policy:
       - /repo-a
   write_policy:
     allowed_outputs:
-      - round1/onto_logic.md
+      - round1/logic.md
 ```
 
 #### `BoundaryPresentation`
@@ -373,7 +373,7 @@ declared boundary는 아래 방식으로 제시할 수 있다.
 
 - `materialized input` -> embed
 - `binding.yaml` -> ref
-- `round1/onto_logic.md` -> output seat
+- `round1/logic.md` -> output seat
 - `repo 내부 탐색 허용, web 금지` -> bounded policy statement
 
 ### 3.10 embed vs ref criteria
@@ -458,9 +458,9 @@ packet이 가리키는 파일 집합이 interface boundary다.
 
 예:
 
-- `onto_logic` -> `round1/onto_logic.md`
-- `onto_axiology` -> `round1/onto_axiology.md`
-- `onto_synthesize` -> `synthesis.md`
+- `logic` -> `round1/logic.md`
+- `axiology` -> `round1/axiology.md`
+- `synthesize` -> `synthesis.md`
 
 runtime은 이 output seat의 존재/비어있지 않음을 검사할 수는 있지만,
 그 의미를 다시 써서는 안 된다.

@@ -76,7 +76,7 @@ onto addresses this with **9 review lenses** that each evaluate independently fr
 | Principle | Meaning | Without This |
 |---|---|---|
 | **Multi-perspective independent verification** | 9 lenses judge independently without knowing each other's results | Anchoring bias from being influenced by prior opinions |
-| **Purpose alignment verification** | onto_axiology reinterprets findings from the perspective of purpose and values | Results that meet criteria but diverge from original purpose |
+| **Purpose alignment verification** | axiology reinterprets findings from the perspective of purpose and values | Results that meet criteria but diverge from original purpose |
 | **Context-isolated reasoning** | Each lens runs in its own isolated context (ContextIsolatedReasoningUnit) | Main context saturation; lenses copy each other's drift |
 | **Domain-independent design** | Verification dimensions (logic, structure, dependency...) apply regardless of domain | A separate system would be needed for each domain |
 | **Learning accumulation** | Lenses record learnings from each execution and use them in subsequent ones | Repeating the same mistakes or losing previous context |
@@ -90,7 +90,7 @@ Terms used throughout this document. All definitions follow `authority/core-lexi
 | Term | Definition |
 |---|---|
 | **review lens** | An independent review perspective that produces its own finding before synthesis. The canonical lens set is defined in `authority/core-lens-registry.yaml` |
-| **onto_synthesize** | The non-lens stage that integrates lens findings into a final review result. Not a lens itself |
+| **synthesize** | The non-lens stage that integrates lens findings into a final review result. Not a lens itself |
 | **InvocationInterpretation** | LLM-owned phase that interprets natural-language user input into entrypoint, target candidates, intent, and ambiguity |
 | **InvocationBinding** | Runtime-owned deterministic phase that binds interpreted input into canonical requests and concrete refs |
 | **ReviewRecord** | Canonical output of review; structured lineage record consumed by later learning/governance |
@@ -109,7 +109,7 @@ Legacy term mapping (for reference only — not used elsewhere in this document)
 
 | Legacy Term | Current Canonical |
 |---|---|
-| Philosopher | onto_axiology (value/purpose alignment) + onto_synthesize (synthesis stage) |
+| Philosopher | axiology (value/purpose alignment) + synthesize (synthesis stage) |
 | agent panel | 9 review lenses |
 | agent | review_lens |
 | execution_mode | execution_realization × host_runtime (2-axis model) |
@@ -122,7 +122,7 @@ Legacy term mapping (for reference only — not used elsewhere in this document)
 
 Each lens has a unique verification dimension and evaluates the same target independently.
 
-#### onto_logic — Logical Consistency Verifier
+#### logic — Logical Consistency Verifier
 
 **Verification target**: Contradictions between definitions, type conflicts, constraint clashes
 
@@ -136,7 +136,7 @@ Each lens has a unique verification dimension and evaluates the same target inde
 
 ---
 
-#### onto_structure — Structural Completeness Verifier
+#### structure — Structural Completeness Verifier
 
 **Verification target**: Isolated elements, broken paths, missing relations, unreachable nodes
 
@@ -150,7 +150,7 @@ Each lens has a unique verification dimension and evaluates the same target inde
 
 ---
 
-#### onto_dependency — Dependency Integrity Verifier
+#### dependency — Dependency Integrity Verifier
 
 **Verification target**: Circular dependencies, reverse dependencies, diamond dependencies
 
@@ -164,7 +164,7 @@ Each lens has a unique verification dimension and evaluates the same target inde
 
 ---
 
-#### onto_semantics — Semantic Accuracy Verifier
+#### semantics — Semantic Accuracy Verifier
 
 **Verification target**: Misalignment between names and actual meanings, synonyms, homonyms
 
@@ -178,7 +178,7 @@ Each lens has a unique verification dimension and evaluates the same target inde
 
 ---
 
-#### onto_pragmatics — Pragmatic Fitness Verifier
+#### pragmatics — Pragmatic Fitness Verifier
 
 **Verification target**: Whether queries are actually possible, whether competency questions can be answered
 
@@ -192,7 +192,7 @@ Each lens has a unique verification dimension and evaluates the same target inde
 
 ---
 
-#### onto_evolution — Evolution Fitness Verifier
+#### evolution — Evolution Fitness Verifier
 
 **Verification target**: Whether existing structure breaks when adding new data, domains, or requirements
 
@@ -206,7 +206,7 @@ Each lens has a unique verification dimension and evaluates the same target inde
 
 ---
 
-#### onto_coverage — Domain Coverage Verifier
+#### coverage — Domain Coverage Verifier
 
 **Verification target**: Missing subdomains, bias toward certain areas, gaps compared to standards
 
@@ -220,7 +220,7 @@ Each lens has a unique verification dimension and evaluates the same target inde
 
 ---
 
-#### onto_conciseness — Conciseness Verifier
+#### conciseness — Conciseness Verifier
 
 **Verification target**: Duplicate definitions, over-specification, unnecessary distinctions
 
@@ -234,7 +234,7 @@ Each lens has a unique verification dimension and evaluates the same target inde
 
 ---
 
-#### onto_axiology — Purpose and Value Alignment Verifier
+#### axiology — Purpose and Value Alignment Verifier
 
 **Verification target**: Purpose drift, value conflicts, mission misalignment
 
@@ -246,13 +246,13 @@ Each lens has a unique verification dimension and evaluates the same target inde
 
 **Domain document**: None. Maintains a meta-perspective independent of domain.
 
-**Special role**: onto_axiology is the only lens that may propose new perspectives. onto_synthesize must not invent new perspectives.
+**Special role**: axiology is the only lens that may propose new perspectives. synthesize must not invent new perspectives.
 
 ---
 
-### 3.2 Synthesize Stage (onto_synthesize)
+### 3.2 Synthesize Stage (synthesize)
 
-onto_synthesize has a fundamentally different role from the 9 lenses.
+synthesize has a fundamentally different role from the 9 lenses.
 
 **Responsibilities**:
 1. Classify lens findings into consensus / conditional consensus / disagreement / overlooked premises
@@ -261,22 +261,22 @@ onto_synthesize has a fundamentally different role from the 9 lenses.
 4. Produce the final review result
 
 **Key constraints**:
-- Does not invent new independent perspectives (that is onto_axiology's role)
-- Preserves and positions perspectives that onto_axiology proposed
+- Does not invent new independent perspectives (that is axiology's role)
+- Preserves and positions perspectives that axiology proposed
 - Is not a lens — it integrates, not verifies
 
 ### 3.3 Verification Dimension Coverage
 
 | Dimension | Question | Covering Lenses |
 |---|---|---|
-| Formal consistency | No contradictions between definitions? | onto_logic, onto_dependency |
-| Semantic accuracy | Each concept accurately represents its target? | onto_semantics |
-| Structural completeness | All internal connections exist without gaps? | onto_structure |
-| Domain coverage | All relevant concepts represented? | onto_coverage |
-| Minimality | No unnecessary elements? | onto_conciseness |
-| Pragmatic fitness | Serves the actual use purpose? | onto_pragmatics |
-| Evolution adaptability | Can adapt to changes? | onto_evolution |
-| Purpose alignment | Serves the higher purpose without drift? | onto_axiology |
+| Formal consistency | No contradictions between definitions? | logic, dependency |
+| Semantic accuracy | Each concept accurately represents its target? | semantics |
+| Structural completeness | All internal connections exist without gaps? | structure |
+| Domain coverage | All relevant concepts represented? | coverage |
+| Minimality | No unnecessary elements? | conciseness |
+| Pragmatic fitness | Serves the actual use purpose? | pragmatics |
+| Evolution adaptability | Can adapt to changes? | evolution |
+| Purpose alignment | Serves the higher purpose without drift? | axiology |
 
 ---
 
@@ -297,7 +297,7 @@ user request
 -> InvocationBinding (runtime binds to concrete refs)
 -> Execution preparation artifacts
 -> 9 lenses execute independently
--> onto_synthesize integrates findings
+-> synthesize integrates findings
 -> Human-readable final output
 -> ReviewRecord (primary artifact)
 ```
@@ -321,7 +321,7 @@ Output: `binding.yaml`
 
 **Step 5 — 9 lenses execute independently** ✅: Each lens runs as a ContextIsolatedReasoningUnit. In Round 1, no lens sees another's results. Each saves its finding as a file in the session directory.
 
-**Step 6 — onto_synthesize** ✅: Reads all lens result files. Classifies into consensus / conditional consensus / disagreement / overlooked premises. Produces `synthesis.md`. Producer: the synthesize execution unit (not a lens — dispatched by `review:run-prompt-execution` after all lenses complete).
+**Step 6 — synthesize** ✅: Reads all lens result files. Classifies into consensus / conditional consensus / disagreement / overlooked premises. Produces `synthesis.md`. Producer: the synthesize execution unit (not a lens — dispatched by `review:run-prompt-execution` after all lenses complete).
 
 **Step 7 — Final output** ✅: Human-readable `final-output.md` rendered from synthesis. Producer: `review:render-final-output`.
 
@@ -332,7 +332,7 @@ Output: `binding.yaml`
 - **File-based relay**: Lens results are saved as files and only the path is reported. The team lead's context does not carry per-lens detailed reasoning.
 - **Even unanimity is verified**: The logical basis for consensus is separately confirmed.
 - **Team lead does not intervene in content**: Relays results as-is without modification or summary.
-- **Deliberation is conditional**: Only triggered when onto_synthesize determines contested points exist. Available only in `agent-teams` + `claude` profile. In other profiles, contested points are reported as-is in the disagreement section. When deliberation occurs, its output is saved to `deliberation.md` in the session directory.
+- **Deliberation is conditional**: Only triggered when synthesize determines contested points exist. Available only in `agent-teams` + `claude` profile. In other profiles, contested points are reported as-is in the disagreement section. When deliberation occurs, its output is saved to `deliberation.md` in the session directory.
 
 #### Full vs Light Review
 
@@ -343,7 +343,7 @@ Review mode is determined during InvocationInterpretation (LensSelectionPlan) an
 | **full** | All lenses defined in `full_review_lens_ids` (canonical set in `authority/core-lens-registry.yaml`) | Default. Comprehensive multi-perspective verification |
 | **light** | Subset defined in `light_review_lens_ids` (same registry) | Quick-pass review when time or token budget is limited. Fewer lenses, same process |
 
-Both modes follow the same canonical live path. The only difference is which lenses execute in Step 5. onto_axiology is always included regardless of mode (`always_include_lens_ids` in the registry).
+Both modes follow the same canonical live path. The only difference is which lenses execute in Step 5. axiology is always included regardless of mode (`always_include_lens_ids` in the registry).
 
 ---
 
@@ -549,16 +549,16 @@ Each domain has up to 8 reference documents. Each lens references the document c
 
 | Document | Used by Lens | Type | Description |
 |---|---|---|---|
-| `domain_scope.md` | onto_coverage | Scope-defining | Domain area definition. Lens is ineffective without this |
-| `concepts.md` | onto_semantics | Accumulable | Core concept definitions |
-| `competency_qs.md` | onto_pragmatics | Accumulable | Competency question list |
-| `logic_rules.md` | onto_logic | Rule-defining | Domain-specific logic rules |
-| `structure_spec.md` | onto_structure | Rule-defining | Structural specifications |
-| `dependency_rules.md` | onto_dependency | Rule-defining | Dependency rules |
-| `extension_cases.md` | onto_evolution | Rule-defining | Extension scenarios |
-| `conciseness_rules.md` | onto_conciseness | Rule-defining | Conciseness criteria |
+| `domain_scope.md` | coverage | Scope-defining | Domain area definition. Lens is ineffective without this |
+| `concepts.md` | semantics | Accumulable | Core concept definitions |
+| `competency_qs.md` | pragmatics | Accumulable | Competency question list |
+| `logic_rules.md` | logic | Rule-defining | Domain-specific logic rules |
+| `structure_spec.md` | structure | Rule-defining | Structural specifications |
+| `dependency_rules.md` | dependency | Rule-defining | Dependency rules |
+| `extension_cases.md` | evolution | Rule-defining | Extension scenarios |
+| `conciseness_rules.md` | conciseness | Rule-defining | Conciseness criteria |
 
-onto_axiology has no dedicated domain document. It uses system purpose/principles and session context.
+axiology has no dedicated domain document. It uses system purpose/principles and session context.
 
 ### 5.3 Agent Re-evaluation on Domain Expansion
 
@@ -566,8 +566,8 @@ The 9 lenses are domain-independent by default. However, certain domain types re
 
 | Condition | Reason | Action |
 |---|---|---|
-| Domains that classify humans/groups (medical, education, law, HR) | Ethics/axiology verification weight increases | Ensure onto_axiology is sufficiently informed |
-| Financial/administrative domains | Social ontology weight increases — institutional constructs are central | Adjust onto_semantics existence-type verification weight |
+| Domains that classify humans/groups (medical, education, law, HR) | Ethics/axiology verification weight increases | Ensure axiology is sufficiently informed |
+| Financial/administrative domains | Social ontology weight increases — institutional constructs are central | Adjust semantics existence-type verification weight |
 
 ### 5.4 Cross-Domain Targets
 
@@ -768,7 +768,7 @@ npm run review:invoke -- --target {path} --domain {domain}
 | `prompt-packets/*.md` | Markdown | Per-lens handoff prompts | Always |
 | `round1/{lens-id}.md` | Markdown | Per-lens findings (human-readable) | Always |
 | `synthesis.md` | Markdown | Synthesize stage output | Always |
-| `deliberation.md` | Markdown | Deliberation exchange between contested lenses | Conditional — only when onto_synthesize determines contested points exist and profile supports deliberation (`agent-teams` + `claude` only) |
+| `deliberation.md` | Markdown | Deliberation exchange between contested lenses | Conditional — only when synthesize determines contested points exist and profile supports deliberation (`agent-teams` + `claude` only) |
 | `final-output.md` | Markdown | Human-readable final review | Always |
 | `execution-result.yaml` | YAML | Execution outcome metadata | Always |
 | `review-record.yaml` | YAML | **Primary artifact** — canonical review record | Always |
@@ -808,8 +808,8 @@ onto/
 ├── processes/               # Process definitions
 │   └── review/              #   Review contracts and live path
 ├── roles/                   # Lens role definitions (10)
-│   ├── onto_logic.md ... onto_axiology.md
-│   └── onto_synthesize.md
+│   ├── logic.md ... axiology.md
+│   └── synthesize.md
 ├── commands/                # Command definitions
 ├── domains/                 # Domain base documents (9 domains × 8 files)
 ├── explorers/               # Explorer profiles (build only)

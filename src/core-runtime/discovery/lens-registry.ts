@@ -9,6 +9,14 @@ interface CoreLensRegistry {
   always_include_lens_ids: string[];
 }
 
+/**
+ * Strip "onto_" prefix from a lens/role ID, yielding the canonical bare form.
+ * Idempotent: bare IDs pass through unchanged.
+ */
+export function canonicalizeLensId(id: string): string {
+  return id.startsWith("onto_") ? id.slice(5) : id;
+}
+
 let cached: CoreLensRegistry | null = null;
 
 function findRegistryPath(): string {
@@ -47,10 +55,10 @@ export function loadCoreLensRegistry(): CoreLensRegistry {
   const text = fs.readFileSync(registryPath, "utf8");
   const raw = parseYamlSimple(text);
   cached = {
-    full_review_lens_ids: raw.full_review_lens_ids ?? [],
-    light_review_lens_ids: raw.light_review_lens_ids ?? [],
-    core_role_ids: raw.core_role_ids ?? [],
-    always_include_lens_ids: raw.always_include_lens_ids ?? [],
+    full_review_lens_ids: (raw.full_review_lens_ids ?? []).map(canonicalizeLensId),
+    light_review_lens_ids: (raw.light_review_lens_ids ?? []).map(canonicalizeLensId),
+    core_role_ids: (raw.core_role_ids ?? []).map(canonicalizeLensId),
+    always_include_lens_ids: (raw.always_include_lens_ids ?? []).map(canonicalizeLensId),
   };
   return cached;
 }

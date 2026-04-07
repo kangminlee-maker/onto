@@ -111,7 +111,7 @@ Executes the following upon user approval:
 - If none exist, does not notify.
 
 **3.6 Domain scope document draft generation**
-- `domain_scope.md` is the core reference document for onto_coverage (scope-defining — role rendered ineffective if absent).
+- `domain_scope.md` is the core reference document for coverage (scope-defining — role rendered ineffective if absent).
 - If `~/.onto/domains/{domain}/domain_scope.md` does not exist, suggests draft generation to the user:
   "The scope document (domain_scope.md) for domain `{domain}` does not exist. This document serves as the basis for identifying 'what should exist but is missing.' Generate a draft?"
 - Upon user approval: generates a draft of domain sub-area lists, required concept categories, and reference standards/frameworks using project code/documents and LLM knowledge.

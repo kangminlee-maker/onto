@@ -315,25 +315,25 @@ canonical entrypoint path로 연결할 수 있어야 한다.
 
 canonical은:
 
-- `onto_logic`
-- `onto_structure`
-- `onto_dependency`
-- `onto_semantics`
-- `onto_pragmatics`
-- `onto_evolution`
-- `onto_coverage`
-- `onto_conciseness`
-- `onto_axiology`
-- `onto_synthesize`
+- `logic`
+- `structure`
+- `dependency`
+- `semantics`
+- `pragmatics`
+- `evolution`
+- `coverage`
+- `conciseness`
+- `axiology`
+- `synthesize`
 
 이다.
 
-### 10.2 `New Perspectives`는 `onto_axiology` 소유
+### 10.2 `New Perspectives`는 `axiology` 소유
 
 새 관점을 제안하는 일은 `종합 단계 (synthesize)`가 아니라
-`가치/목적 정합 lens (onto_axiology)`가 맡아야 한다.
+`가치/목적 정합 lens (axiology)`가 맡아야 한다.
 
-`onto_synthesize`는 새 lens가 아니며,
+`synthesize`는 새 lens가 아니며,
 기존 lens 결과를 보존적으로 종합해야 한다.
 
 ### 10.3 맥락 격리 추론 단위
@@ -538,3 +538,32 @@ canonical execution profile은 아래 두 축으로 표현한다.
 | `authority/` | canonical data | define (정의) | 포함 |
 | `design-principles/` | development governance | prescribe (규정) | 제외 |
 | `development-records/` | development history | record (기록) | 제외 |
+
+### Reshuffle 2026-04-08
+
+Agent ID onto_ prefix 제거. Canonical lens/role ID가 bare form으로 변경됨.
+
+**ID 치환 (10쌍)**
+
+| 이전 ID | 새 ID |
+|---|---|
+| `onto_logic` | `logic` |
+| `onto_structure` | `structure` |
+| `onto_dependency` | `dependency` |
+| `onto_semantics` | `semantics` |
+| `onto_pragmatics` | `pragmatics` |
+| `onto_evolution` | `evolution` |
+| `onto_coverage` | `coverage` |
+| `onto_conciseness` | `conciseness` |
+| `onto_axiology` | `axiology` |
+| `onto_synthesize` | `synthesize` |
+
+**파일 리네임 (roles/ ×10)**
+
+| 이전 | 새 |
+|---|---|
+| `roles/onto_{id}.md` | `roles/{id}.md` |
+
+**보존 대상 (legacy allowlist)**: `philosopher.md`, `ask-philosopher.md`, `development-records/`, `.onto/review-migrated/`
+
+**dual-read fallback**: `lens-registry.ts`의 `canonicalizeLensId()`, `paths.ts`의 `resolveWithFallback()`. retire gate 조건은 `core-lexicon.yaml` legacy_alias_governance에 명시.

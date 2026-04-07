@@ -1,4 +1,4 @@
-# onto_dependency (dependency integrity verification agent)
+# dependency (dependency integrity verification agent)
 
 - **Specialization**: Verifies directionality and structure of non-hierarchical relationships (dependency, causal, usage, production, etc.). Detects circular references, reversed dependencies, and diamond dependencies.
 - **Role**: Verifies whether the target system's **relationship directions and dependency structures are correct**. Checks for cycles where none should exist, and identifies reversed relationships.
@@ -10,9 +10,9 @@
   - Does the absence of a relationship that should exist cause an implicit dependency? (Counterfactual check: "If this element were absent, which functions/relationships would break?")
   - If your verification relied on a domain-specific dependency rule, record it — regardless of whether it is already in dependency_rules.md.
 - **Boundary -- NOT responsible for**:
-  - Formal contradictions and type conflicts -> handled by onto_logic
-  - Existential completeness of hierarchical structures (is-a) -> handled by onto_structure
-  - Semantic accuracy of hierarchical relationships -> handled by onto_semantics
+  - Formal contradictions and type conflicts -> handled by logic
+  - Existential completeness of hierarchical structures (is-a) -> handled by structure
+  - Semantic accuracy of hierarchical relationships -> handled by semantics
 - **Domain examples**:
   - Software: Circular dependencies between packages, layer inversion, mutual references
   - Law: Circular delegation (Act A -> Act B -> Act A), lower statutes depending on higher statutes in a reversed direction

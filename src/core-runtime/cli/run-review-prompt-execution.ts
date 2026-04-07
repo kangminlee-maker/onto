@@ -350,7 +350,7 @@ async function resetExecutionOutputs(
     executionPlan.final_output_path,
     path.join(
       executionPlan.prompt_packets_root,
-      "onto_synthesize.runtime.prompt.md",
+      "synthesize.runtime.prompt.md",
     ),
     ...executionPlan.lens_execution_seats.map((seat) => seat.output_path),
   ];
@@ -632,7 +632,7 @@ export async function executeReviewPromptExecution(
 
   const synthesizePacketRuntimePath = path.join(
     executionPlan.prompt_packets_root,
-    "onto_synthesize.runtime.prompt.md",
+    "synthesize.runtime.prompt.md",
   );
   const synthesizePacketText = await fs.readFile(
     executionPlan.synthesize_prompt_packet_path,
@@ -651,16 +651,16 @@ export async function executeReviewPromptExecution(
   );
 
   const synthesizeDispatch: ExecutionDispatchResult = {
-    unit_id: "onto_synthesize",
+    unit_id: "synthesize",
     unit_kind: "synthesize",
     packet_path: synthesizePacketRuntimePath,
     output_path: executionPlan.synthesis_output_path,
   };
 
-  console.log("[review runner] starting synthesize: onto_synthesize");
+  console.log("[review runner] starting synthesize: synthesize");
   await appendExecutionProgress(
     executionPlan.error_log_path,
-    "runner dispatch started: onto_synthesize",
+    "runner dispatch started: synthesize",
     [
       `unit_id: ${synthesizeDispatch.unit_id}`,
       `unit_kind: ${synthesizeDispatch.unit_kind}`,
@@ -758,10 +758,10 @@ export async function executeReviewPromptExecution(
     };
   }
 
-  console.log("[review runner] completed synthesize: onto_synthesize");
+  console.log("[review runner] completed synthesize: synthesize");
   await appendExecutionProgress(
     executionPlan.error_log_path,
-    "runner dispatch completed: onto_synthesize",
+    "runner dispatch completed: synthesize",
     [
       `unit_id: ${synthesizeDispatch.unit_id}`,
       `unit_kind: ${synthesizeDispatch.unit_kind}`,

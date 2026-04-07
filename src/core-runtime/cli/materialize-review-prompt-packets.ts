@@ -20,6 +20,11 @@ import {
   truncateForEmbedding,
 } from "../review/review-artifact-utils.js";
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
+import {
+  loadLearningsForSession,
+  renderLearningSection,
+  formatLoadingSummary,
+} from "../learning/loader.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -319,6 +324,24 @@ export async function runMaterializeReviewPromptPacketsCli(
     domainAllFiles = scanDomainFiles(resolvedDomainDir);
   }
 
+  // C-1~C-4, C-7: Load learnings for all lens agents
+  const lensIds = lensPromptPacketSeats.map((s) => s.lens_id);
+  const learningDomain = isNoDomain ? null : sessionDomain;
+  const { results: learningResults, manifest: learningManifest } =
+    loadLearningsForSession(lensIds, projectRoot, learningDomain);
+  const learningsByAgent = new Map(learningResults.map((r) => [r.agent_id, r]));
+
+  // C-7: Print loading summary
+  if (learningManifest.total_items_loaded > 0 || learningManifest.total_items_skipped > 0) {
+    console.error(formatLoadingSummary(learningManifest));
+  }
+  // Print warnings
+  for (const r of learningResults) {
+    for (const w of r.warnings) {
+      console.error(w);
+    }
+  }
+
   for (const seat of lensPromptPacketSeats) {
     const roleDefinitionPath = resolveRoleDefinitionPath(seat.lens_id, projectRoot, ontoHome);
     const roleDefinitionText = await readOptionalText(roleDefinitionPath);
@@ -392,6 +415,7 @@ ${binding.resolved_target_scope.resolved_refs
 - If you find no issue, state why it is correct.
 - Write your result to: ${toRelativePath(seat.output_path, projectRoot)}
 ${renderDomainDocumentRefsSection(seat.lens_id, resolvedDomainDir, domainAllFiles, projectRoot)}
+${renderLearningSection(learningsByAgent.get(seat.lens_id)?.items ?? [])}
 `;
 
     await fs.writeFile(seat.packet_path, lensPacketText.trimEnd() + "\n", "utf8");
@@ -406,6 +430,23 @@ ${renderDomainDocumentRefsSection(seat.lens_id, resolvedDomainDir, domainAllFile
       (assembly as Record<string, unknown>).domain_context_refs = mergedRefs;
       await writeYamlDocument(contextCandidateAssemblyPath, assembly);
     }
+  }
+
+  // C-6b: Auto-populate learning_context_refs in context-candidate-assembly.yaml
+  if (learningManifest.learning_file_paths.length > 0 && await fileExists(contextCandidateAssemblyPath)) {
+    const assembly = await readYamlDocument<Record<string, unknown>>(contextCandidateAssemblyPath);
+    const existingLearningRefs = Array.isArray(assembly?.learning_context_refs) ? assembly.learning_context_refs as string[] : [];
+    const mergedLearningRefs = [...new Set([...existingLearningRefs, ...learningManifest.learning_file_paths])];
+    if (mergedLearningRefs.length > existingLearningRefs.length) {
+      (assembly as Record<string, unknown>).learning_context_refs = mergedLearningRefs;
+      await writeYamlDocument(contextCandidateAssemblyPath, assembly);
+    }
+  }
+
+  // C-6b: Write learning loading manifest
+  if (learningManifest.total_items_loaded > 0) {
+    const manifestPath = path.join(sessionRoot, "execution-preparation", "learning-manifest.yaml");
+    await writeYamlDocument(manifestPath, learningManifest);
   }
 
   const synthesizePacketText = `# Review Synthesize Prompt Packet

@@ -21,8 +21,8 @@ export interface EventMarker {
   date: string;
 }
 
-/** learning_id comment pattern: <!-- learning_id: {hash} --> */
-const LEARNING_ID_RE = /<!--\s*learning_id:\s*(\w+)\s*-->/;
+/** learning_id comment pattern: <!-- learning_id: {hash} [taxonomy_version: ...] --> */
+const LEARNING_ID_RE = /<!--\s*learning_id:\s*(\w+)/;
 
 /**
  * Parse event markers from a lens output.
@@ -129,10 +129,13 @@ export function matchMarkersToLearnings(
       const line = lines[i]!;
       const idMatch = line.match(LEARNING_ID_RE);
       if (idMatch?.[1]) {
+        // Index the content line BEFORE the learning_id comment, not the comment itself.
+        // Learning files store: content line \n <!-- learning_id: {hash} -->
+        const contentLine = i > 0 ? lines[i - 1]! : line;
         learningIndex.set(idMatch[1], {
           learning_id: idMatch[1],
           file_path: filePath,
-          line,
+          line: contentLine,
         });
       }
     }

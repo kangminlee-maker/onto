@@ -8,15 +8,25 @@
 
 import { callLlm, hashPrompt, type LlmCallConfig } from "./llm-caller.js";
 
-export type SemanticDecision =
-  | "save"
-  | "duplicate_skip"
-  | "conflict_propose_replace"
-  | "conflict_propose_keep"
-  | "conflict_propose_coexist"
-  | "unclassified_pending";
+/** Canonical single definition — CONS-5: all consumers import from here. */
+export const SEMANTIC_DECISIONS = [
+  "save",
+  "duplicate_skip",
+  "conflict_propose_replace",
+  "conflict_propose_keep",
+  "conflict_propose_coexist",
+  "unclassified_pending",
+] as const;
 
-export type ConflictKind = "contradiction" | "supersession" | "disambiguation";
+export type SemanticDecision = (typeof SEMANTIC_DECISIONS)[number];
+
+export const CONFLICT_KINDS = [
+  "contradiction",
+  "supersession",
+  "disambiguation",
+] as const;
+
+export type ConflictKind = (typeof CONFLICT_KINDS)[number];
 
 export interface SemanticClassificationResult {
   decision: SemanticDecision;
@@ -80,15 +90,12 @@ ${existingLines.map((l, i) => `${i + 1}. ${l}`).join("\n")}`;
     const parsed = JSON.parse(result.text.trim());
     const decision = parsed.decision as string;
 
-    const validDecisions: SemanticDecision[] = [
-      "save",
-      "duplicate_skip",
-      "conflict_propose_replace",
-      "conflict_propose_keep",
-      "conflict_propose_coexist",
-    ];
+    // Exclude unclassified_pending — it's a fallback, not a valid LLM output
+    const validLlmDecisions: readonly string[] = SEMANTIC_DECISIONS.filter(
+      (d) => d !== "unclassified_pending",
+    );
 
-    if (!validDecisions.includes(decision as SemanticDecision)) {
+    if (!validLlmDecisions.includes(decision)) {
       return {
         decision: "unclassified_pending",
         reason: `Invalid decision from LLM: "${decision}"`,

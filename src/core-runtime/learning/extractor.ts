@@ -9,6 +9,11 @@
  * - Validation is fail-close (quarantine)
  * - Classification failure is fail-close (unclassified_pending — 저장 안 함)
  * - Live storage gate: save + active only
+ *
+ * Phase 2 scope: append-only extraction. A-12r (conflict replace) and
+ * A-12rej (conflict reject) are intentionally deferred to Phase 3 promote
+ * per R1-U1 design decision. Conflict items are recorded in manifest
+ * ConflictProposal[] but NOT executed against live storage.
  */
 
 import fs from "node:fs";
@@ -326,44 +331,34 @@ async function processClassifiedItem(
   const content = extractContent(assembled);
   if (content && isContentDuplicate(content, existingLines)) {
     return {
-      trace: buildClassifiedTrace(
-        assembled,
-        rawLine,
-        repairedLine,
-        repaired,
-        lensId,
-        "duplicate_skip",
-        "Exact content match with existing item.",
-        writePaths,
-        config.mode,
-        "skipped_duplicate",
-      ),
+      trace: buildClassifiedTrace({
+        assembled, rawLine, repaired, lensId,
+        decision: "duplicate_skip",
+        reason: "Exact content match with existing item.",
+        writePaths, mode: config.mode,
+        ...(repairedLine !== undefined ? { repairedLine } : {}),
+      }),
     };
   }
 
   // A-11: Semantic classification
-  // Filter existing lines to same applicability domain for efficiency
   const classification = await classifyLearningItem(assembled, existingLines);
 
   const decision = classification.decision;
 
   // Build trace base
-  const trace = buildClassifiedTrace(
-    assembled,
-    rawLine,
-    repairedLine,
-    repaired,
-    lensId,
+  const traceCtx: TraceContext = {
+    assembled, rawLine, repaired, lensId,
     decision,
-    classification.reason,
-    writePaths,
-    config.mode,
-    getPersistenceResult(decision, config.mode),
-    classification.model_id,
-    classification.prompt_hash,
-    classification.conflict_kind,
-    classification.matched_existing_line,
-  );
+    reason: classification.reason,
+    writePaths, mode: config.mode,
+    modelId: classification.model_id,
+    promptHash: classification.prompt_hash,
+  };
+  if (repairedLine !== undefined) traceCtx.repairedLine = repairedLine;
+  if (classification.conflict_kind) traceCtx.conflictKind = classification.conflict_kind;
+  if (classification.matched_existing_line) traceCtx.matchedExistingLine = classification.matched_existing_line;
+  const trace = buildClassifiedTrace(traceCtx);
 
   let conflictProposal: ConflictProposal | undefined;
 
@@ -385,7 +380,7 @@ async function processClassifiedItem(
   // A-13 + A-14: Write (save + active only)
   if (decision === "save" && config.mode === "active") {
     const learningId = generateLearningId(assembled);
-    const lineWithId = `${assembled}\n<!-- learning_id: ${learningId} -->`;
+    const lineWithId = `${assembled}\n<!-- learning_id: ${learningId} taxonomy_version: phase2-v1 -->`;
 
     try {
       // Ensure directory exists
@@ -398,11 +393,13 @@ async function processClassifiedItem(
       if (!fs.existsSync(writePaths.write_path)) {
         fs.writeFileSync(
           writePaths.write_path,
-          `<!-- format_version: 2 -->\n`,
+          `<!-- format_version: 1 -->\n`,
           "utf8",
         );
       }
 
+      // Concurrency contract: single session writes to each agent file at a time.
+      // Concurrent sessions writing to the same agent file are not supported.
       fs.appendFileSync(writePaths.write_path, `${lineWithId}\n`, "utf8");
 
       (trace as ClassifiedItemTrace).learning_id = learningId;
@@ -423,51 +420,62 @@ function getPersistenceResult(
   decision: ClassifiedItemTrace["decision"],
   mode: "shadow" | "active",
 ): ClassifiedItemTrace["persistence_result"] {
-  if (decision === "save") {
-    return mode === "active" ? "written" : "skipped_shadow";
+  switch (decision) {
+    case "save":
+      return mode === "active" ? "written" : "skipped_shadow";
+    case "duplicate_skip":
+      return "skipped_duplicate";
+    case "conflict_propose_replace":
+    case "conflict_propose_keep":
+    case "conflict_propose_coexist":
+      return "skipped_conflict";
+    case "unclassified_pending":
+      return "skipped_unclassified";
+    default: {
+      const _exhaustive: never = decision;
+      return "skipped_shadow";
+    }
   }
-  if (decision === "duplicate_skip") return "skipped_duplicate";
-  if (decision.startsWith("conflict_propose_")) return "skipped_conflict";
-  if (decision === "unclassified_pending") return "skipped_unclassified";
-  return "skipped_shadow";
 }
 
-function buildClassifiedTrace(
-  assembled: string,
-  rawLine: string,
-  repairedLine: string | undefined,
-  repaired: boolean,
-  lensId: string,
-  decision: ClassifiedItemTrace["decision"],
-  reason: string,
-  writePaths: ReturnType<typeof resolveWritePaths>,
-  mode: "shadow" | "active",
-  persistenceResult: ClassifiedItemTrace["persistence_result"],
-  modelId?: string,
-  promptHash?: string,
-  conflictKind?: ClassifiedItemTrace["conflict_kind"],
-  matchedExistingLine?: string,
-): ClassifiedItemTrace {
+/** Context object for trace construction — REC-9: reduce parameter count. */
+interface TraceContext {
+  assembled: string;
+  rawLine: string;
+  repairedLine?: string;
+  repaired: boolean;
+  lensId: string;
+  decision: ClassifiedItemTrace["decision"];
+  reason: string;
+  writePaths: ReturnType<typeof resolveWritePaths>;
+  mode: "shadow" | "active";
+  modelId?: string;
+  promptHash?: string;
+  conflictKind?: ClassifiedItemTrace["conflict_kind"];
+  matchedExistingLine?: string;
+}
+
+function buildClassifiedTrace(ctx: TraceContext): ClassifiedItemTrace {
   const trace: ClassifiedItemTrace = {
     kind: "classified",
-    lens_id: lensId,
-    raw_line: rawLine,
-    assembled_line: assembled,
-    repaired,
-    decision,
-    reason,
+    lens_id: ctx.lensId,
+    raw_line: ctx.rawLine,
+    assembled_line: ctx.assembled,
+    repaired: ctx.repaired,
+    decision: ctx.decision,
+    reason: ctx.reason,
     write_path:
-      decision === "save" && mode === "active" ? writePaths.write_path : null,
+      ctx.decision === "save" && ctx.mode === "active" ? ctx.writePaths.write_path : null,
     write_scope:
-      decision === "save" && mode === "active" ? writePaths.write_scope : null,
+      ctx.decision === "save" && ctx.mode === "active" ? ctx.writePaths.write_scope : null,
     learning_id: null,
-    persistence_result: persistenceResult,
-    model_id: modelId ?? "none",
-    prompt_hash: promptHash ?? "none",
+    persistence_result: getPersistenceResult(ctx.decision, ctx.mode),
+    model_id: ctx.modelId ?? "none",
+    prompt_hash: ctx.promptHash ?? "none",
   };
-  if (repairedLine !== undefined) trace.repaired_line = repairedLine;
-  if (conflictKind !== undefined) trace.conflict_kind = conflictKind;
-  if (matchedExistingLine !== undefined) trace.matched_existing_line = matchedExistingLine;
+  if (ctx.repairedLine !== undefined) trace.repaired_line = ctx.repairedLine;
+  if (ctx.conflictKind !== undefined) trace.conflict_kind = ctx.conflictKind;
+  if (ctx.matchedExistingLine !== undefined) trace.matched_existing_line = ctx.matchedExistingLine;
   return trace;
 }
 
@@ -649,11 +657,20 @@ export async function runLearningExtraction(
     }
   }
 
-  // Quarantine file (for quarantined items)
+  // Build classified traces early (needed by quarantine + manifest)
+  const classifiedTraces = itemTraces.filter(
+    (t): t is ClassifiedItemTrace => t.kind === "classified",
+  );
+
+  // Quarantine file (for quarantined items + unclassified_pending — REC-4)
   const quarantinedItems = itemTraces.filter(
     (t): t is QuarantinedItemTrace => t.kind === "quarantined",
   );
-  if (quarantinedItems.length > 0) {
+  const unclassifiedItems = classifiedTraces.filter(
+    (t) => t.decision === "unclassified_pending",
+  );
+  const allQuarantineItems = [...quarantinedItems, ...unclassifiedItems];
+  if (allQuarantineItems.length > 0) {
     try {
       const quarantinePath = path.join(
         config.sessionRoot,
@@ -666,7 +683,7 @@ export async function runLearningExtraction(
       }
       fs.writeFileSync(
         quarantinePath,
-        JSON.stringify(quarantinedItems, null, 2),
+        JSON.stringify(allQuarantineItems, null, 2),
         "utf8",
       );
     } catch (error) {
@@ -677,10 +694,6 @@ export async function runLearningExtraction(
   }
 
   // Build manifest
-  const classifiedTraces = itemTraces.filter(
-    (t): t is ClassifiedItemTrace => t.kind === "classified",
-  );
-
   const manifest: ExtractionManifest = {
     schema_version: "1",
     session_id: config.sessionId,
@@ -703,6 +716,9 @@ export async function runLearningExtraction(
     markers_found: allMarkerTraces.length,
     markers_attached: allMarkerTraces.filter(
       (t) => t.resolution === "attached",
+    ).length,
+    markers_skipped_shadow: allMarkerTraces.filter(
+      (t) => t.resolution === "skipped_shadow",
     ).length,
     markers_unresolved: allMarkerTraces.filter(
       (t) =>

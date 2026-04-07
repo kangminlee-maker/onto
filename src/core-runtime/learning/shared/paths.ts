@@ -2,11 +2,33 @@
  * Learning file path resolution — shared by loader (consumption) and extractor (accumulation).
  *
  * C3 해소: 단일 resolveWritePaths(). Dual-write 금지.
+ * CONS-4: resolveRawPaths() 내부 헬퍼로 경로 라우팅 단일화.
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+
+// ---------------------------------------------------------------------------
+// Internal: single path computation (CONS-4 dedup)
+// ---------------------------------------------------------------------------
+
+interface RawPaths {
+  userDir: string;
+  projectDir: string;
+  userPath: string;
+  projectPath: string;
+  projectDirExists: boolean;
+}
+
+function resolveRawPaths(agentId: string, projectRoot: string): RawPaths {
+  const userDir = path.join(os.homedir(), ".onto", "learnings");
+  const projectDir = path.join(projectRoot, ".onto", "learnings");
+  const userPath = path.join(userDir, `${agentId}.md`);
+  const projectPath = path.join(projectDir, `${agentId}.md`);
+  const projectDirExists = fs.existsSync(projectDir);
+  return { userDir, projectDir, userPath, projectPath, projectDirExists };
+}
 
 // ---------------------------------------------------------------------------
 // Read paths (consumption — loader.ts C-1)
@@ -25,11 +47,10 @@ export function resolveLearningFilePaths(
   agentId: string,
   projectRoot: string,
 ): LearningReadPaths {
-  const userPath = path.join(os.homedir(), ".onto", "learnings", `${agentId}.md`);
-  const projectPath = path.join(projectRoot, ".onto", "learnings", `${agentId}.md`);
+  const raw = resolveRawPaths(agentId, projectRoot);
   return {
-    user_path: fs.existsSync(userPath) ? userPath : null,
-    project_path: fs.existsSync(projectPath) ? projectPath : null,
+    user_path: fs.existsSync(raw.userPath) ? raw.userPath : null,
+    project_path: fs.existsSync(raw.projectPath) ? raw.projectPath : null,
   };
 }
 
@@ -53,20 +74,15 @@ export function resolveWritePaths(
   agentId: string,
   projectRoot: string,
 ): LearningWritePaths {
-  const userDir = path.join(os.homedir(), ".onto", "learnings");
-  const projectDir = path.join(projectRoot, ".onto", "learnings");
-  const userPath = path.join(userDir, `${agentId}.md`);
-  const projectPath = path.join(projectDir, `${agentId}.md`);
+  const raw = resolveRawPaths(agentId, projectRoot);
 
-  // Collect all existing paths for dedup reads
   const readPaths: string[] = [];
-  if (fs.existsSync(userPath)) readPaths.push(userPath);
-  if (fs.existsSync(projectPath)) readPaths.push(projectPath);
+  if (fs.existsSync(raw.userPath)) readPaths.push(raw.userPath);
+  if (fs.existsSync(raw.projectPath)) readPaths.push(raw.projectPath);
 
-  // Route to project if the project learnings directory exists
-  if (fs.existsSync(projectDir)) {
-    return { write_path: projectPath, write_scope: "project", read_paths: readPaths };
+  if (raw.projectDirExists) {
+    return { write_path: raw.projectPath, write_scope: "project", read_paths: readPaths };
   }
 
-  return { write_path: userPath, write_scope: "user", read_paths: readPaths };
+  return { write_path: raw.userPath, write_scope: "user", read_paths: readPaths };
 }

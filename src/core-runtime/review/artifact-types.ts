@@ -394,6 +394,12 @@ export interface PrepareOnlyResult {
 // Learning Extraction types (Phase 2)
 // ─────────────────────────────────────────────
 
+// Re-export canonical types from semantic-classifier (CONS-5: single definition)
+export type {
+  SemanticDecision,
+  ConflictKind,
+} from "../learning/shared/semantic-classifier.js";
+
 /** Classified item trace — A-8 pass → A-11 executed */
 export interface ClassifiedItemTrace {
   kind: "classified";
@@ -402,14 +408,8 @@ export interface ClassifiedItemTrace {
   assembled_line: string;
   repaired: boolean;
   repaired_line?: string;
-  decision:
-    | "save"
-    | "duplicate_skip"
-    | "conflict_propose_replace"
-    | "conflict_propose_keep"
-    | "conflict_propose_coexist"
-    | "unclassified_pending";
-  conflict_kind?: "contradiction" | "supersession" | "disambiguation";
+  decision: import("../learning/shared/semantic-classifier.js").SemanticDecision;
+  conflict_kind?: import("../learning/shared/semantic-classifier.js").ConflictKind;
   matched_existing_line?: string;
   reason: string;
   write_path: string | null;
@@ -445,11 +445,8 @@ export interface ConflictProposal {
   lens_id: string;
   new_item_line: string;
   matched_existing_line: string;
-  decision:
-    | "conflict_propose_replace"
-    | "conflict_propose_keep"
-    | "conflict_propose_coexist";
-  conflict_kind: "contradiction" | "supersession" | "disambiguation";
+  decision: "conflict_propose_replace" | "conflict_propose_keep" | "conflict_propose_coexist";
+  conflict_kind: import("../learning/shared/semantic-classifier.js").ConflictKind;
   reason: string;
 }
 
@@ -483,6 +480,7 @@ export interface ExtractionManifest {
   items_unclassified_pending: number;
   markers_found: number;
   markers_attached: number;
+  markers_skipped_shadow: number;
   markers_unresolved: number;
 
   item_traces: ExtractionItemTrace[];

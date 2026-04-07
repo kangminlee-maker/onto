@@ -21,9 +21,9 @@ export const SOURCE_PATTERN =
 export const GUARDRAIL_PATTERN =
   /\*\*Situation\*\*:.*\*\*Result\*\*:.*\*\*Corrective action\*\*:/s;
 
-/** Content extraction — A-10/P-3 exact match */
+/** Content extraction — A-10/P-3 exact match. Boundary aligned with TAG_PATTERN (CCNS-1). */
 export const CONTENT_CAPTURE =
-  /\[(?:fact|judgment)\](?:\s+\[[^\]]+\])+\s+(.+?)\s+\(source:/;
+  /\[(?:fact|judgment)\](?:\s+\[[^\]]+\])+\s+(.+?)\s+\(source:\s*[^,]+,\s*[^,]+,\s*\d{4}-\d{2}-\d{2}\)/;
 
 // ---------------------------------------------------------------------------
 // Consumption patterns (loader.ts — Phase 1/1.5 reader)

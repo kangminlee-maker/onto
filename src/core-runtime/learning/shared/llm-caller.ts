@@ -5,6 +5,8 @@
  * model_id fixed (no floating alias — U2).
  */
 
+import crypto from "node:crypto";
+
 export interface LlmCallConfig {
   provider: "anthropic";
   model_id: string;
@@ -66,6 +68,5 @@ export async function callLlm(
  * Compute a stable hash of a prompt string for audit trail.
  */
 export function hashPrompt(prompt: string): string {
-  const { createHash } = require("node:crypto") as typeof import("node:crypto");
-  return createHash("sha256").update(prompt).digest("hex").slice(0, 12);
+  return crypto.createHash("sha256").update(prompt).digest("hex").slice(0, 12);
 }

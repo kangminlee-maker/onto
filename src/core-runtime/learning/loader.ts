@@ -25,7 +25,7 @@ export interface ParsedLearningItem {
   raw_line: string;
   source_scope: "user" | "project";
   agent_id: string;
-  /** Higher = newer (user-scope items come first, then project-scope) */
+  /** Parse order index. Higher = newer. User-scope parsed first (lower index), project-scope after. */
   order_index: number;
   /** True if included by C-3c cross-domain rule. C-2 initializes to false. */
   cross_domain: boolean;
@@ -43,6 +43,10 @@ export interface LearningLoadResult {
   file_paths: string[];
   warnings: string[];
   degraded: boolean;
+  cross_domain_included: number;
+  cross_domain_excluded: number;
+  budget_truncated_count: number;
+  tokens_used: number;
 }
 
 export interface LearningLoadManifest {
@@ -196,16 +200,17 @@ interface CrossDomainStats {
 }
 
 function applyCrossDomainFilter(
-  existingItems: ParsedLearningItem[],
-  allParsedItems: ParsedLearningItem[],
+  existingItems: readonly ParsedLearningItem[],
+  allParsedItems: readonly ParsedLearningItem[],
   sessionDomain: string | null,
 ): { items: ParsedLearningItem[]; stats: CrossDomainStats } {
   const isNoDomain = !sessionDomain || sessionDomain === "none" || sessionDomain === "@-";
   if (isNoDomain) {
-    return { items: existingItems, stats: { included: 0, excluded: 0 } };
+    return { items: [...existingItems], stats: { included: 0, excluded: 0 } };
   }
 
-  // Identify cross-domain candidates: domain-only, no methodology, no current domain match
+  // Build new array — never mutate input (fail-close snapshot integrity)
+  const result = [...existingItems];
   const existingSet = new Set(existingItems);
   let included = 0;
   let excluded = 0;
@@ -215,20 +220,18 @@ function applyCrossDomainFilter(
     if (item.applicability.includes("methodology")) continue; // not domain-only
     const hasDomain = item.applicability.some((a) => a.startsWith("domain/"));
     if (!hasDomain) continue;
-    // Check if ANY domain tag matches session domain
     if (item.applicability.includes(`domain/${sessionDomain}`)) continue;
 
     // This is a cross-domain item
     if (item.role === "guardrail" || item.impact === "high") {
-      item.cross_domain = true;
-      existingItems.push(item);
+      result.push({ ...item, cross_domain: true });
       included++;
     } else {
       excluded++;
     }
   }
 
-  return { items: existingItems, stats: { included, excluded } };
+  return { items: result, stats: { included, excluded } };
 }
 
 // ---------------------------------------------------------------------------
@@ -382,25 +385,24 @@ export function loadLearningsForAgent(
   sessionDomain: string | null,
 ): LearningLoadResult {
   const paths = resolveLearningFilePaths(agentId, projectRoot);
-  let allParsedItems: ParsedLearningItem[] = [];
+  const allParsedItems: ParsedLearningItem[] = [];
   let totalSkipped = 0;
   const warnings: string[] = [];
   const filePaths: string[] = [];
 
-  // C-1/C-2: Load and parse
-  if (paths.user_path) {
-    filePaths.push(paths.user_path);
-    const r = parseLearningFile(paths.user_path, "user", agentId, 0);
-    allParsedItems.push(...r.items);
-    totalSkipped += r.skipped;
-    warnings.push(...r.warnings);
-  }
-  if (paths.project_path) {
-    filePaths.push(paths.project_path);
-    const r = parseLearningFile(paths.project_path, "project", agentId, allParsedItems.length);
-    allParsedItems.push(...r.items);
-    totalSkipped += r.skipped;
-    warnings.push(...r.warnings);
+  // C-1/C-2: Load and parse — per-file try-catch so one file failure doesn't block the other
+  for (const [scope, filePath] of [["user", paths.user_path], ["project", paths.project_path]] as const) {
+    if (!filePath) continue;
+    filePaths.push(filePath);
+    try {
+      const r = parseLearningFile(filePath, scope, agentId, allParsedItems.length);
+      allParsedItems.push(...r.items);
+      totalSkipped += r.skipped;
+      warnings.push(...r.warnings);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      warnings.push(`[learn-loader] warn: ${agentId} ${scope} file read failed: ${message}`);
+    }
   }
 
   const totalParsed = allParsedItems.length;
@@ -411,37 +413,41 @@ export function loadLearningsForAgent(
   // Phase 1.5 disabled by env var → use Phase 1 fallback
   if (process.env.ONTO_LEARNING_TIER_DISABLED === "1") {
     const fallback = prioritySortAndCap(items);
-    return { agent_id: agentId, items: fallback, total_parsed: totalParsed, skipped_count: totalSkipped, file_paths: filePaths, warnings, degraded: false };
+    const tokensUsed = fallback.reduce((s, i) => s + estimateTokens(i.raw_line), 0);
+    return { agent_id: agentId, items: fallback, total_parsed: totalParsed, skipped_count: totalSkipped, file_paths: filePaths, warnings, degraded: false, cross_domain_included: 0, cross_domain_excluded: 0, budget_truncated_count: 0, tokens_used: tokensUsed };
   }
 
   // IAR-1: Snapshot pre-C-3c items for fail-close fallback
   const phase1Items = [...items];
+  let crossStats: CrossDomainStats = { included: 0, excluded: 0 };
 
   try {
     // C-3c: cross-domain rule-based inclusion
     if (process.env.ONTO_LEARNING_CROSS_DOMAIN_DISABLED !== "1") {
-      const { items: withCross } = applyCrossDomainFilter(items, allParsedItems, sessionDomain);
-      items = withCross;
+      const result = applyCrossDomainFilter(items, allParsedItems, sessionDomain);
+      items = result.items;
+      crossStats = result.stats;
     }
 
     // C-5a: tier assignment + sort
     const tiered = assignTierAndSort(items);
 
     // C-5b: token budget
-    const { items: budgeted, t1_tokens } = applyTokenBudget(tiered);
+    const budgetResult = applyTokenBudget(tiered);
 
     // T1 token warning
-    if (t1_tokens > TOKEN_BUDGET_PER_AGENT * T1_TOKEN_WARN_RATIO) {
-      warnings.push(`[learn-loader] warn: ${agentId} T1 tokens (${t1_tokens}) exceed ${T1_TOKEN_WARN_RATIO * 100}% of budget (${TOKEN_BUDGET_PER_AGENT})`);
+    if (budgetResult.t1_tokens > TOKEN_BUDGET_PER_AGENT * T1_TOKEN_WARN_RATIO) {
+      warnings.push(`[learn-loader] warn: ${agentId} T1 tokens (${budgetResult.t1_tokens}) exceed ${T1_TOKEN_WARN_RATIO * 100}% of budget (${TOKEN_BUDGET_PER_AGENT})`);
     }
 
-    return { agent_id: agentId, items: budgeted, total_parsed: totalParsed, skipped_count: totalSkipped, file_paths: filePaths, warnings, degraded: false };
+    return { agent_id: agentId, items: budgetResult.items, total_parsed: totalParsed, skipped_count: totalSkipped, file_paths: filePaths, warnings, degraded: false, cross_domain_included: crossStats.included, cross_domain_excluded: crossStats.excluded, budget_truncated_count: budgetResult.budget_truncated_count, tokens_used: budgetResult.tokens_used };
   } catch (error) {
     // Fail-close: use pre-C-3c snapshot with Phase 1 fallback
     const message = error instanceof Error ? error.message : String(error);
     warnings.push(`[learn-loader] Phase 1.5 degraded: ${message}, falling back to Phase 1`);
     const fallback = prioritySortAndCap(phase1Items);
-    return { agent_id: agentId, items: fallback, total_parsed: totalParsed, skipped_count: totalSkipped, file_paths: filePaths, warnings, degraded: true };
+    const tokensUsed = fallback.reduce((s, i) => s + estimateTokens(i.raw_line), 0);
+    return { agent_id: agentId, items: fallback, total_parsed: totalParsed, skipped_count: totalSkipped, file_paths: filePaths, warnings, degraded: true, cross_domain_included: 0, cross_domain_excluded: 0, budget_truncated_count: 0, tokens_used: tokensUsed };
   }
 }
 
@@ -475,26 +481,20 @@ export function loadLearningsForSession(
     total_items_loaded: results.reduce((sum, r) => sum + r.items.length, 0),
     total_items_parsed: results.reduce((sum, r) => sum + r.total_parsed, 0),
     total_items_skipped: results.reduce((sum, r) => sum + r.skipped_count, 0),
-    per_agent: results.map((r) => {
-      const crossIncluded = r.items.filter((i) => i.cross_domain).length;
-      const tierDist = computeTierDistribution(r.items);
-      const tokensUsed = r.items.reduce((sum, i) => sum + estimateTokens(i.raw_line), 0);
-      const budgetTruncated = Math.max(0, r.total_parsed - r.items.length);
-      return {
-        agent_id: r.agent_id,
-        loaded: r.items.length,
-        parsed: r.total_parsed,
-        skipped: r.skipped_count,
-        truncated: budgetTruncated,
-        role_distribution: computeRoleDistribution(r.items),
-        tier_distribution: tierDist,
-        cross_domain_included: crossIncluded,
-        cross_domain_excluded: 0, // computed during filter, not available here; manifest is approximate
-        tokens_used: tokensUsed,
-        tokens_budget: TOKEN_BUDGET_PER_AGENT,
-        budget_truncated_count: budgetTruncated,
-      };
-    }),
+    per_agent: results.map((r) => ({
+      agent_id: r.agent_id,
+      loaded: r.items.length,
+      parsed: r.total_parsed,
+      skipped: r.skipped_count,
+      truncated: Math.max(0, r.total_parsed - r.items.length),
+      role_distribution: computeRoleDistribution(r.items),
+      tier_distribution: computeTierDistribution(r.items),
+      cross_domain_included: r.cross_domain_included,
+      cross_domain_excluded: r.cross_domain_excluded,
+      tokens_used: r.tokens_used,
+      tokens_budget: TOKEN_BUDGET_PER_AGENT,
+      budget_truncated_count: r.budget_truncated_count,
+    })),
     learning_file_paths: [...new Set(allPaths)],
     degraded: anyDegraded,
     degradation_reason: degradationReason,

@@ -24,6 +24,7 @@ import {
   loadLearningsForSession,
   renderLearningSection,
   formatLoadingSummary,
+  type LearningLoadManifest,
 } from "../learning/loader.js";
 
 function requireString(
@@ -325,10 +326,13 @@ export async function runMaterializeReviewPromptPacketsCli(
   }
 
   // C-1~C-4, C-7: Load learnings for all lens agents
+  // ONTO_LEARNING_LOAD_DISABLED=1: Phase 1 fallback — skip learning loading entirely
+  const learningDisabled = process.env.ONTO_LEARNING_LOAD_DISABLED === "1";
   const lensIds = lensPromptPacketSeats.map((s) => s.lens_id);
   const learningDomain = isNoDomain ? null : sessionDomain;
-  const { results: learningResults, manifest: learningManifest } =
-    loadLearningsForSession(lensIds, projectRoot, learningDomain);
+  const { results: learningResults, manifest: learningManifest } = learningDisabled
+    ? { results: [], manifest: { session_domain: learningDomain ?? "none", agents_loaded: 0, total_items_loaded: 0, total_items_parsed: 0, total_items_skipped: 0, per_agent: [] as LearningLoadManifest["per_agent"], learning_file_paths: [] as string[], degraded: false, degradation_reason: null } }
+    : loadLearningsForSession(lensIds, projectRoot, learningDomain);
   const learningsByAgent = new Map(learningResults.map((r) => [r.agent_id, r]));
 
   // C-7: Print loading summary

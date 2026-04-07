@@ -3,7 +3,6 @@
 > 상태: Active
 > 목적: 현재 `onto` 메인 레포를 기존 프로토타입 구조에서 서비스 구조로 전환하기 위한 첫 migration baseline을 고정한다.
 > 기준 문서:
-> - `dev-docs/development-methodology.md`
 > - `dev-docs/ontology-as-code-naming-charter.md`
 > - `authority/core-lexicon.yaml`
 
@@ -38,9 +37,7 @@
 
 1. `authority/core-lexicon.yaml`
 2. `dev-docs/ontology-as-code-naming-charter.md`
-3. `dev-docs/ontology-as-code-korean-terminology-guide.md`
-4. `dev-docs/development-methodology.md`
-5. 이 worklist 문서
+3. 이 worklist 문서
 
 즉 첫 배치는:
 

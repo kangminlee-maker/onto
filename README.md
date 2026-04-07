@@ -6,16 +6,14 @@ A Claude Code plugin that performs multi-perspective verification of logical sys
 > this repository is the current prototype/reference line.
 > The service-transition authority for this repository starts in:
 > - `AGENTS.md`
-> - `authority/productization-charter.md`
+> - `design-principles/productization-charter.md`
 > - `authority/core-lexicon.yaml`
-> - `authority/ontology-as-code-naming-charter.md`
-> - `authority/ontology-as-code-korean-terminology-guide.md`
-> - `authority/development-methodology.md`
-> - `authority/ontology-as-code-guideline.md`
-> - `authority/llm-runtime-interface-principles.md`
-> - `dev-docs/plan/20260404-prototype-to-service-productization-plan.md`
-> - `dev-docs/audit/20260404-prototype-runtime-llm-boundary-audit.md`
-> - `dev-docs/plan/20260404-review-prototype-to-product-mapping.md`
+> - `design-principles/ontology-as-code-naming-charter.md`
+> - `design-principles/ontology-as-code-guideline.md`
+> - `design-principles/llm-runtime-interface-principles.md`
+> - `development-records/plan/20260404-prototype-to-service-productization-plan.md`
+> - `development-records/audit/20260404-prototype-runtime-llm-boundary-audit.md`
+> - `development-records/plan/20260404-review-prototype-to-product-mapping.md`
 > - `processes/review/lens-registry.md`
 > - `processes/review/interpretation-contract.md`
 > - `processes/review/binding-contract.md`
@@ -344,8 +342,19 @@ The purpose of ontology build is to **precisely reproduce the analysis target**.
 
 ```
 onto/
-+-- process.md              # Common definitions (agent configuration, domain rules, Agent Teams)
++-- BLUEPRINT.md             # System overview for users
++-- process.md               # Common definitions (agent configuration, domain rules, Agent Teams)
 +-- learning-rules.md        # Learning storage rules, tags, consumption (teammate reference)
++-- authority/               # Canonical data (배포 포함)
+|   +-- core-lexicon.yaml             # Concept SSOT (rank 1)
+|   +-- core-lens-registry.yaml       # Lens config (runtime)
+|   +-- translation-reference.yaml    # Term translation (onboarding, NON-AUTHORITATIVE)
++-- design-principles/      # Development governance (배포 제외)
+|   +-- ontology-as-code-guideline.md       # OaC rules (rank 2)
+|   +-- llm-native-development-guideline.md # LLM-native principles (rank 2)
+|   +-- productization-charter.md           # Product direction (rank 3)
+|   +-- llm-runtime-interface-principles.md # Interface spec (rank 4)
+|   +-- ontology-as-code-naming-charter.md  # Naming rules (rank 4)
 +-- processes/
 |   +-- review.md           # Team review mode (6 steps)
 |   +-- question.md         # Individual query mode
@@ -374,17 +383,16 @@ onto/
 +-- explorers/               # Explorer profiles for build process
 +-- domains/                 # Domain base documents (8 per domain)
 +-- golden/                  # Golden examples per schema + schema templates
-+-- dev-docs/                # Design documents, issues, philosophical foundations
-|   +-- BLUEPRINT.md
++-- development-records/     # Development history (배포 제외)
 |   +-- tracking/20260330-known-issues.md
+|   +-- tracking/20260406-discovered-enhancements.md
+|   +-- reference/20260327-philosophical-foundations-of-ontology.md
 |   +-- design/20260327-build-generalization.md
 |   +-- bug/20260330-subagent-fallback-on-first-install.md
 |   +-- design/20260329-domain-document-creation.md
 |   +-- design/20260330-learning-lifecycle-management.md
 |   +-- design/20260330-optimization-4features.md
 |   +-- design/20260328-per-session-domain-selection.md
-|   +-- philosophical-foundations-of-ontology.md
-|   +-- translation-reference.yaml
 +-- commands/                # Command definitions
 +-- setup-domains.sh         # Domain base document installation
 +-- migrate-sessions.sh      # Previous version data migration

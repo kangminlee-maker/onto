@@ -3,10 +3,7 @@
 > 상태: Active
 > 목적: `LLM`과 runtime 사이의 interface를 어떤 원칙과 기준으로 구성할지 고정한다.
 > 기준 문서:
-> - `authority/productization-charter.md`
-> - `authority/development-methodology.md`
-> - `processes/review/productized-live-path.md`
-> - `processes/review/prompt-execution-runner-contract.md`
+> - `design-principles/productization-charter.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -32,38 +29,10 @@
 
 ## 2. Core Principle
 
-### 2.1 runtime은 interface의 구조만 고정한다
+runtime은 interface의 `meaning`이 아니라 `shape`를 고정한다.
+`LLM`은 그 shape 안에서 의미 판단을 수행한다.
 
-runtime은 아래만 고정한다.
-
-1. 어떤 artifact가 authoritative input인지
-2. 어떤 output seat에 결과가 써져야 하는지
-3. 어떤 bounded execution order를 따라야 하는지
-4. 어떤 구조적 contract를 만족해야 하는지
-
-runtime은 아래를 하면 안 된다.
-
-1. packet 내용을 semantic하게 보정
-2. relevance를 새로 판단
-3. 부족한 reasoning을 추론으로 보완
-4. `LLM` output을 해석해서 살리기
-
-즉 runtime은 interface의 `meaning`이 아니라
-interface의 `shape`를 고정한다.
-
-### 2.2 `LLM`은 interface 안에서 의미 판단을 수행한다
-
-`LLM`은 아래를 맡는다.
-
-1. `호출 해석 (InvocationInterpretation)`
-2. lens별 semantic judgment
-3. synthesize judgment
-4. evidence sufficiency 판단
-5. disagreement / uncertainty 보존
-
-즉 interface는 `LLM`을 묶어서 약하게 만드는 것이 아니라,
-`LLM`이 어디서 무엇을 읽고 어떤 output을 내야 하는지를
-명확하게 한정하는 방식이어야 한다.
+LLM/runtime 소유 분리의 상세 원칙은 `design-principles/llm-native-development-guideline.md`가 canonical이다.
 
 ---
 
@@ -538,6 +507,23 @@ host_runtime: claude
 
 interface contract는 이 두 축을 분리해서 유지해야 한다.
 
+### 3.16 process identity preservation
+
+prompt path와 implementation path는
+interface의 identity가 같아야 한다.
+
+즉 아래가 동일해야 한다.
+
+- `declared handoff inputs`
+- `presentation mode`
+- `control policy`
+
+허용되지 않는 것:
+
+1. target마다 ad hoc prompt로 절차를 바꾸는 것
+2. 설계 문서에 없는 reasoning step을 adapter 내부에서 암묵적으로 추가하는 것
+3. contract에 없는 output field를 사실상 required처럼 쓰는 것
+
 ---
 
 ## 4. Interface Gate Principles
@@ -565,20 +551,7 @@ runtime이 검사하는 것은 아래다.
 2. lens-specific 관점에서 독립 판단을 한다
 3. disagreement와 uncertainty를 독립적으로 남긴다
 
-### 4.3 fail-close
-
-interface가 contract를 만족하지 못하면 runtime은 `fail-close` 해야 한다.
-
-예:
-
-1. output seat 없음
-2. empty file
-3. required section 부재
-4. `ReviewRecord` 조립 불가
-
-하지만 runtime은 그 output을 semantic하게 고치면 안 된다.
-
-### 4.4 boundary-constrained degradation
+### 4.3 boundary-constrained degradation
 
 경계 때문에 필요한 탐색이나 근거 확보가 불가능해진 경우,
 `LLM`은 억지 결론으로 타협하면 안 된다.
@@ -663,14 +636,19 @@ output:
 
 ---
 
-## 6. Current Implementation Guidance
+## 6. Interface Design Priority Ordering
 
-현재 productization 단계에서 interface를 고칠 때는 아래 우선순위를 따른다.
+productization 중간 단계에서는
+runtime deterministicization을 늘리는 것보다
+`LLM`/runtime interface를 더 잘 자르는 것이 우선일 수 있다.
+
+interface를 손볼 때의 우선순위는 아래다.
 
 1. `LLM`이 실제로 더 잘 작동하도록 bundle을 줄인다
-2. seat와 artifact truth는 유지한다
-3. runtime deterministicization은 output quality를 해치지 않는 범위까지만 한다
-4. 지금 당장 필요하지 않은 hardened gate는 나중으로 미룬다
+2. primary target과 output seat를 더 선명하게 한다
+3. supporting context는 ref로 내린다
+4. seat와 artifact truth는 유지한다
+5. 그 다음에만 hardened runtime gate를 더한다
 
 즉:
 

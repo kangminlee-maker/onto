@@ -108,7 +108,7 @@ ToolSearch("select:TeamCreate,SendMessage,TeamDelete")
 | `processes/build.md` | Option B 선택 시 수정 |
 | `processes/promote.md` | Option B 선택 시 수정 |
 | `README.md` | 설치 후 주의사항에 deferred tool 언급 추가 권장 |
-| `dev-docs/BLUEPRINT.md` | Section 7.1에 deferred tool 전제조건 추가 권장 |
+| `BLUEPRINT.md` | Section 7.1에 deferred tool 전제조건 추가 권장 |
 
 ## 발견 일자
 

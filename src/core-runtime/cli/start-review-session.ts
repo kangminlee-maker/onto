@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { runPrepareReviewSessionCli } from "./prepare-review-session.js";
@@ -59,6 +60,22 @@ export async function startReviewSession(
   }
 
   await runMaterializeReviewPromptPacketsCli(promptPacketsArgs);
+
+  // Write `.latest-session` pointer so the watcher script and other tools can
+  // auto-discover the current session without parsing buffered npm stdout.
+  // This is a deterministic side-effect: a single line containing the absolute
+  // session-root path. Best-effort — failure here must not block session start.
+  try {
+    const latestSessionPath = path.join(
+      projectRoot,
+      ".onto",
+      "review",
+      ".latest-session",
+    );
+    await fs.writeFile(latestSessionPath, sessionRoot, "utf8");
+  } catch {
+    // best-effort, ignore
+  }
 
   return {
     session_root: sessionRoot,

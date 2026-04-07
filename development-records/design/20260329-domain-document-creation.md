@@ -337,7 +337,7 @@ Seed Generation + Feedback Loop 구현 시 수정이 필요한 파일 목록:
 | 12 | `processes/review.md` | Step 0에 seed 리뷰 시 @- 기본 추천, Step 1에 seed 리뷰 분기 |
 | 13 | `commands/review.md` | seed review 구문 예시 추가 |
 | 14 | `README.md` | 커맨드 목록, 디렉토리 구조에 drafts/ 추가 |
-| 15 | `dev-docs/BLUEPRINT.md` | Terminology, Processes, Seed Documents 섹션 추가 |
+| 15 | `BLUEPRINT.md` | Terminology, Processes, Seed Documents 섹션 추가 |
 | 16 | `setup-domains.sh` | drafts/ 경로 인식 추가 (설치 시 drafts/ 건드리지 않음) |
 
 ---

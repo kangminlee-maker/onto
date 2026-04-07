@@ -39,6 +39,25 @@ When this skill is invoked in a Claude Code session, choose the execution path:
 - **CLI executor path**: 모든 원본 인자를 `npm run review:invoke -- ...`에 전달하고 종료.
 - **Nested Spawn Coordinator (default)**: `processes/review/nested-spawn-coordinator-contract.md`의 state machine 실행 계약을 따른다. `onto coordinator start` → lens dispatch → `onto coordinator next` → synthesize dispatch → `onto coordinator next` → presentation. 상세는 coordinator contract 참조.
 
+### CLI executor 경로의 자동 가시성 (live watcher)
+
+CLI executor 경로(`--codex`, `--claude` 등)는 lens 진행을 LLM 토큰 없이 사용자에게 보여주기 위해 **runtime이 자동으로 watcher pane을 띄운다**:
+
+| 환경 감지 | 자동 동작 |
+|---|---|
+| `$TMUX` set (any OS) | `tmux split-window -v`로 새 pane을 분할하고 watcher 실행 |
+| iTerm2 on macOS (`$TERM_PROGRAM === iTerm.app`) | osascript로 현재 window를 horizontally split, watcher 실행 |
+| Apple Terminal on macOS (`$TERM_PROGRAM === Apple_Terminal`) | osascript로 새 tab 생성, watcher 실행 |
+| 그 외 | fallback 메시지: "open another terminal and run `npm run review:watch`" |
+
+watcher는 `error-log.md`를 polling하여 lens dispatch start/complete 이벤트를 ANSI 색상으로 렌더링한다. final-output.md가 생성되면 자동으로 "Press Enter to close" 안내 후 종료. **사용자는 별도 명령어를 입력할 필요가 없다** — `--codex` 플래그만 붙이면 자동으로 진행상황 pane이 열린다.
+
+opt-out: `--no-watch` 플래그를 추가하면 watcher 자동 spawn을 비활성화한다.
+
+수동 실행: `npm run review:watch` (zero-arg, `.onto/review/.latest-session`을 자동 발견) 또는 `npm run review:watch -- {session-root}` (명시적 path).
+
+설계 근거: 진행상황은 결정론적 변환(파일 read + 포맷팅)이므로 `llm-native-development-guideline.md` §5 Script-First Automation에 따라 LLM이 아니라 runtime/script가 처리해야 한다. LLM polling 비용은 0이다.
+
 ### Agent Teams 필수 규칙
 
 Claude Code에서 Nested Spawn Coordinator를 실행할 때, lens dispatch는 반드시 **Agent Teams를 통해** 수행한다:

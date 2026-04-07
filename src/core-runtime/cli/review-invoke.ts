@@ -13,6 +13,7 @@ import {
 } from "./run-review-prompt-execution.js";
 import type { PrepareOnlyResult } from "../review/artifact-types.js";
 import { startReviewSession } from "./start-review-session.js";
+import { spawnWatcherPane } from "./spawn-watcher.js";
 import { generateReviewSessionId } from "../review/materializers.js";
 import {
   fileExists,
@@ -1280,7 +1281,10 @@ function defaultExecutionRealizationForHostRuntime(
 function defaultMaxConcurrentLensesForExecutionRealization(
   executionRealization: ExecutionRealization,
 ): number {
-  return executionRealization === "subagent" ? 3 : 9;
+  // Both subagent and agent-teams default to 9 (all lenses concurrent).
+  // Subagent uses stagger delay (1.5s between dispatches) + retry (10 attempts)
+  // to absorb thundering-herd and transient API failures at this concurrency.
+  return 9;
 }
 
 function resolveMaxConcurrentLenses(
@@ -1546,6 +1550,30 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     }
   }
 
+  // Resolve project-root early — needed for watcher spawn before session creation.
+  const resolvedProjectRoot = path.resolve(
+    readSingleOptionValueFromArgv(setup.startArgv, "project-root") ?? ".",
+  );
+
+  // Auto-attach the live watcher pane BEFORE session creation.
+  // Spawning early ensures the split targets the correct iTerm2 tab even if
+  // the user switches tabs while startReviewSession runs. The watcher script
+  // will wait for `.onto/review/.latest-session` to appear before rendering.
+  const noWatch = hasOptionFlag(argv, "no-watch");
+  if (!noWatch && !prepareOnly) {
+    const watcherResult = spawnWatcherPane(resolvedProjectRoot);
+    if (watcherResult.spawned) {
+      console.log(
+        `[review runner] live watcher attached via ${watcherResult.mechanism}`,
+      );
+    } else {
+      console.log(
+        `[review runner] live progress: open another terminal and run \`npm run review:watch\`` +
+          (watcherResult.reason ? ` (${watcherResult.reason})` : ""),
+      );
+    }
+  }
+
   const startResult = await startReviewSession(setup.startArgv);
 
   if (prepareOnly) {
@@ -1562,9 +1590,6 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     return 0;
   }
 
-  const resolvedProjectRoot = path.resolve(
-    readSingleOptionValueFromArgv(setup.startArgv, "project-root") ?? ".",
-  );
   const sessionRoot = path.resolve(startResult.session_root);
   const resolvedRequestText = setup.resolvedInvokeInputs.requestText;
   const defaultExecutorConfig = resolveExecutorConfig(

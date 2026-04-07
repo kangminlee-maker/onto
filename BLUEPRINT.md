@@ -1,8 +1,56 @@
-# Onto Review -- Blueprint
+# Onto — System Blueprint
 
-> This document describes the structure, principles, and usage of the onto system.
-> Target audience: Non-developer product experts.
-> Purpose: It should be possible to rebuild the system from scratch using only this document and an LLM.
+> **Authoring Standards**
+>
+> 1. **Audience**: Non-specialists (not developers or product developers).
+>    With this document and an LLM alone, it must be possible to rebuild the **review** process
+>    and produce the same verification results as onto.
+>    Non-review processes (build, promote, etc.) are described at surface level only.
+>
+> 2. **Tense**: Describes only the current state. No past history (migrations, renames, deprecated models).
+>
+> 3. **Implementation status markers** — required on every feature and artifact:
+>    - ✅ Implemented — code exists and is executable
+>    - 📐 Design complete — design document finalized, no code yet
+>    - 🔲 Not yet implemented — direction decided only
+>
+> 4. **Future direction**: Only decided items. No "under consideration" or "exploring."
+>    Items with a decided direction but no implementation use 🔲 with a reference document.
+>
+> 5. **Terminology**: Uses canonical labels from `authority/core-lexicon.yaml`.
+>    Legacy terms are mapped once at first mention and not used thereafter.
+>
+> 6. **Authority relationship**: This document is a derived re-description of primary sources.
+>    When conflicts arise, the primary sources take precedence:
+>    - Concepts: `authority/core-lexicon.yaml`
+>    - Principles: `design-principles/*.md`
+>    - Contracts: `processes/{feature}/*.md`
+>    - Operations: `process.md`
+>
+> 7. **Update rule**: When a primary source changes, this document must be updated accordingly.
+>    All updates must follow these authoring standards.
+>
+> 8. **Scope and self-sufficiency**: This document's reconstruction depth is centered on **review**.
+>    The review process (§4.1, §7, §8) is described at reconstruction depth — enough to rebuild with an LLM.
+>    Build and other processes are described at **surface level** (command, input, output, flow summary) — enough to understand what they do, not enough to rebuild from scratch.
+>    For full reconstruction of non-review processes, consult the primary sources listed in standard 6.
+
+> **Status and Reliance**
+>
+> This document is a **derived overview**, not a canonical authority.
+> It re-describes primary sources for a non-specialist audience.
+> When this document and a primary source disagree, the primary source wins — always.
+>
+> | Section | Reliance level | Primary source |
+> |---|---|---|
+> | §3 Review Lenses | Derived | `authority/core-lens-registry.yaml`, `roles/*.md` |
+> | §4.1 Review flow | Derived | `processes/review/productized-live-path.md` |
+> | §4.3 Build flow | Surface summary | `processes/build.md` |
+> | §5 Domain System | Derived | `process.md` Domain Documents section |
+> | §6 Learning System | Derived | `learning-rules.md` |
+> | §7 Execution Profile | Derived | `process.md` Agent Teams Execution section |
+> | §8 Review Runtime | Derived | `package.json`, `src/core-runtime/cli/*.ts` |
+> | §10 Implementation Status | Snapshot | May lag behind code changes |
 
 ---
 
@@ -10,1159 +58,867 @@
 
 ### What It Is
 
-onto is a **Claude Code plugin**. It runs inside Claude Code (an AI coding tool that operates in the terminal) via slash commands (`/onto:review`, `/onto:build`, etc.).
+onto is a **Claude Code plugin** that runs inside Claude Code (an AI coding tool operating in the terminal) via slash commands (`/onto:review`, `/onto:build`, etc.).
 
-This plugin provides two capabilities:
+Two core capabilities:
 
-1. **Verification (review)**: The agent panel performs multi-perspective verification on scope-defined targets such as documents, code, and design proposals
-2. **Build**: Automatically extracts ontologies (structured representations of domain knowledge) from analysis targets (code, spreadsheets, databases, documents)
+1. **Verification (review)** ✅: 9 independent review lenses inspect a scope-defined target, then a separate synthesize stage writes the final review result
+2. **Build** ✅: Incrementally constructs ontologies (structured domain knowledge representations) from analysis targets using integral exploration
 
 ### Why It Exists
 
-Verifying from a single perspective misses problems in certain dimensions. For example, something logically consistent may be unqueryable in practice, and something structurally complete may break when a new domain is added. onto has 7 agents with distinct verification dimensions that evaluate independently, and an 8th agent (Philosopher) that synthesizes their findings to determine "does this serve the purpose without getting fixated on details?"
+Verifying from a single perspective misses problems in certain dimensions. Something logically consistent may be unqueryable in practice; something structurally complete may break when a new domain is added; something technically correct may have drifted from its original purpose.
+
+onto addresses this with **9 review lenses** that each evaluate independently from a unique verification dimension, plus a **synthesize stage** that integrates their findings into a final result.
 
 ### Core Design Principles
 
 | Principle | Meaning | Without This |
 |---|---|---|
-| **Multi-perspective independent verification** | Verification agents judge independently without knowing each other's results | Anchoring bias from being influenced by prior opinions |
-| **Purpose alignment verification** | Philosopher reinterprets detailed results from the perspective of purpose | Results that meet detailed criteria but diverge from overall purpose |
-| **Convergence prevention** | Not "preventing opinion homogenization" but preventing loss of purpose through fixation on details | Getting trapped in technical perfectionism and losing sight of the original question |
-| **Domain-independent design** | Verification agent dimensions (logic, structure, dependency...) apply regardless of domain | A separate system would be needed for each domain |
-| **Learning accumulation** | Agents record learnings from each review/query and use them in subsequent executions | Repeating the same mistakes or losing previous context |
+| **Multi-perspective independent verification** | 9 lenses judge independently without knowing each other's results | Anchoring bias from being influenced by prior opinions |
+| **Purpose alignment verification** | onto_axiology reinterprets findings from the perspective of purpose and values | Results that meet criteria but diverge from original purpose |
+| **Context-isolated reasoning** | Each lens runs in its own isolated context (ContextIsolatedReasoningUnit) | Main context saturation; lenses copy each other's drift |
+| **Domain-independent design** | Verification dimensions (logic, structure, dependency...) apply regardless of domain | A separate system would be needed for each domain |
+| **Learning accumulation** | Lenses record learnings from each execution and use them in subsequent ones | Repeating the same mistakes or losing previous context |
 
 ---
 
-## 2. Terminology
+## 2. Canonical Concepts
 
-Terms used repeatedly in this document.
+Terms used throughout this document. All definitions follow `authority/core-lexicon.yaml`.
 
 | Term | Definition |
 |---|---|
-| **ontology** | A structured representation of domain knowledge. Defines "what entities exist, what relationships they have, and what constraints apply" |
-| **agent** | An AI instance assigned a specific role. Each has independent judgment criteria and a specialized domain |
-| **team lead** | The entity that creates and orchestrates the agent team. Claude Code's main process performs this role |
-| **teammate** | An individual agent instance created by the team lead |
-| **delta** | The domain fact unit that the Explorer reports after traversing the source (build process only) |
-| **epsilon** | The "next direction to explore" suggested by verification agents (build process only) |
-| **label** | The ontology type assigned by verification agents to a delta (e.g., "this is an Entity") |
-| **patch** | The unit of change where the Philosopher converts labels into ontology elements and applies them to wip.yml |
-| **certainty** | The certainty level of a fact. Ranges from observed (confirmed in source) to not-in-source (external information needed). Stage 1 (Explorer: observed/pending) -> Stage 2 (verification agent: rationale-absent/inferred/ambiguous/not-in-source) |
-| **wip.yml** | The ontology file in progress during build. Updated each round |
-| **raw.yml** | The completed ontology file. Converted from wip.yml |
-| **schema.yml** | The file defining the ontology framework (what types of elements to use) |
-| **domain document** | 7 types of documents defining verification criteria for a specific domain. Referenced by agents during judgment |
-| **learning** | Lessons agents discover during review/query processes. Classified into 3 types: communication/methodology/domain |
-| **promote** | The process of elevating project-level learnings to global-level (domain-wide) |
-| **Agent Teams** | Claude Code's multi-agent feature. Create teams with TeamCreate, communicate with SendMessage |
-| **subagent (fallback)** | The alternative execution method used when Agent Teams fails. Sequentially executes individual agents via the Agent tool |
-| **Codex mode** | Third execution mode. Delegates reviewer passes to OpenAI Codex via `codex:codex-rescue` subagent. Claude tokens reduced ~80% (team lead only). Deliberation structurally not possible (by design). Currently review-only |
-| **process-halting-with-partial-result** | Error subcategory. Irreplaceable role fails after retry, but intermediate results already exist in files. Delivers partial results with explicit limitation disclosure |
-| **fact_type** | The type of domain facts reported by the Explorer. 10 types: entity, enum, property, relation, state_transition, command, query, policy_constant, flow, code_mapping. Used as criteria for limiting exploration scope in Stage 1/2 |
-| **structured_data** | Structured supplementary data for facts within deltas. Contains fields specific to each fact_type (e.g., name, fields for entity). Optional but included whenever possible |
-| **Stage 1 / Stage 2** | The two-stage division of build Phase 1. Stage 1 (Structure) identifies Entity, Enum, Relation, Property, and Stage 2 (Behavior) identifies State Machine, Command, Query, Policy, Flow based on Stage 1 results. Each Stage independently performs an integral exploration loop |
-| **canonical.yaml** | The schema-neutral source example in the golden directory. The common starting point for how each schema (B/C/D) represents the same domain facts |
-| **golden** | The directory containing golden examples (exemplary output samples) per schema. Referenced when determining raw.yml format during Phase 4 (storage) |
+| **review lens** | An independent review perspective that produces its own finding before synthesis. The canonical lens set is defined in `authority/core-lens-registry.yaml` |
+| **onto_synthesize** | The non-lens stage that integrates lens findings into a final review result. Not a lens itself |
+| **InvocationInterpretation** | LLM-owned phase that interprets natural-language user input into entrypoint, target candidates, intent, and ambiguity |
+| **InvocationBinding** | Runtime-owned deterministic phase that binds interpreted input into canonical requests and concrete refs |
+| **ReviewRecord** | Canonical output of review; structured lineage record consumed by later learning/governance |
+| **ContextIsolatedReasoningUnit** | A reasoning unit that does not share main-context state, consumes contract-bounded input, and produces contract-bounded output independently. Typical realizations: Agent Teams teammate, subagent, MCP-isolated LLM, external model worker |
+| **execution_realization** | Structural realization used to execute review units. Values: `subagent`, `agent-teams` |
+| **host_runtime** | Concrete host environment running a chosen execution realization. Values: `codex`, `claude` |
+| **LensSelectionPlan** | Interpretation-owned plan that recommends full/light review and the lens set to execute |
+| **DomainFinalSelection** | Final domain value after explicit token parsing and user confirmation |
+| **DeterministicStateEnforcer** | Runtime state machine that deterministically enforces review process state transitions. States and edges defined in `authority/core-lexicon.yaml` 📐 |
+| **domain document** | Documents defining verification criteria for a specific domain. Types defined in `process.md` Domain Documents table. Referenced by lenses during judgment |
+| **learning** | Lessons lenses discover during review/query. Tagged with axis (methodology/domain) and purpose type |
 | **seed** | LLM-generated draft domain documents in `~/.onto/drafts/`. Contains SEED markers. Not used as verification standards |
-| **established** | Domain documents in `~/.onto/domains/` with zero SEED markers. Used as verification standards by agents |
-| **SEED marker** | `<!-- SEED: low-confidence, needs evidence -->` HTML comment marking LLM-inferred content in seed documents |
-| **feedback loop** | Process of feeding accumulated learnings back into domain documents via `/onto:feedback` |
-| **promotion** | Moving a seed domain from `drafts/` to `domains/` after all SEED markers are removed via `/onto:promote-domain` |
-| **backup** | Timestamped snapshot of `~/.onto/` user data for rollback |
-| **restore** | Rollback to a previous backup state with pre-restore safety net |
+| **established** | Domain documents in `~/.onto/domains/` with zero SEED markers. Used as verification standards |
+
+Legacy term mapping (for reference only — not used elsewhere in this document):
+
+| Legacy Term | Current Canonical |
+|---|---|
+| Philosopher | onto_axiology (value/purpose alignment) + onto_synthesize (synthesis stage) |
+| agent panel | 9 review lenses |
+| agent | review_lens |
+| execution_mode | execution_realization × host_runtime (2-axis model) |
 
 ---
 
-## 3. Agent Configuration
+## 3. Review Lenses
 
-> **Design principle**: These agents are not a MECE classification but a set of empirically effective independent verification perspectives. A single classification axis is intentionally not used, and the justification for maintaining each perspective is verified by the existence of its unique detection domain.
+### 3.1 The 9 Lenses
 
-### 3.1 Verification Agents
+Each lens has a unique verification dimension and evaluates the same target independently.
 
-Each agent has a unique **verification dimension** and evaluates the same target from different perspectives.
-
-#### onto_logic -- Logical Consistency Verifier
+#### onto_logic — Logical Consistency Verifier
 
 **Verification target**: Contradictions between definitions, type conflicts, constraint clashes
 
-**Verification procedure**:
+**Procedure**:
 1. Extract all explicit and implicit axioms
 2. Verify logical compatibility between axiom pairs
-3. Confirm type hierarchy consistency (whether subtypes violate supertype constraints)
+3. Confirm type hierarchy consistency
 4. Check whether constraints conflict with each other
 
-**Referenced domain document**: `logic_rules.md` -- domain-specific logic rules (uses general logic principles if absent)
-
-**Report format**: When contradictions are found, presents the inference path in "Premise A + Premise B -> Contradiction" structure
+**Domain document**: `logic_rules.md`
 
 ---
 
-#### onto_structure -- Structural Completeness Verifier
+#### onto_structure — Structural Completeness Verifier
 
 **Verification target**: Isolated elements, broken paths, missing relations, unreachable nodes
 
-**Verification procedure**:
+**Procedure**:
 1. Construct all elements and relations as a graph
 2. Detect isolated nodes with no connections
-3. Confirm both ends of each relation are defined (broken references)
-4. Path completeness verification: whether a reachable path exists between any two nodes
+3. Confirm both ends of each relation are defined
+4. Path completeness verification
 
-**Referenced domain document**: `structure_spec.md` -- domain-specific structural specifications
+**Domain document**: `structure_spec.md`
 
 ---
 
-#### onto_dependency -- Dependency Integrity Verifier
+#### onto_dependency — Dependency Integrity Verifier
 
-**Verification target**: Circular dependencies, reverse dependencies, diamond dependencies, dependency direction violations
+**Verification target**: Circular dependencies, reverse dependencies, diamond dependencies
 
-**Verification procedure**:
+**Procedure**:
 1. Construct all dependency relations as a directed graph
-2. Detect circular references (A->B->C->A)
-3. Check for hierarchy direction violations (cases where lower should depend on upper but the direction is reversed)
-4. Diamond dependency: cases where different paths depend on the same target, creating potential conflicts
+2. Detect circular references
+3. Check for hierarchy direction violations
+4. Diamond dependency analysis
 
-**Referenced domain document**: `dependency_rules.md` -- domain-specific dependency rules
+**Domain document**: `dependency_rules.md`
 
 ---
 
-#### onto_semantics -- Semantic Accuracy Verifier
+#### onto_semantics — Semantic Accuracy Verifier
 
-**Verification target**: Misalignment between names and actual meanings, synonyms (different names for the same thing), homonyms (same name for different things)
+**Verification target**: Misalignment between names and actual meanings, synonyms, homonyms
 
-**Verification procedure**:
+**Procedure**:
 1. Compare all terms' names against their definitions
-2. Detect pairs with similar definitions but different names (synonym candidates)
-3. Detect pairs with the same name but different definitions (homonym candidates)
-4. Verify mapping against industry standard terminology
+2. Detect synonym candidates (similar definitions, different names)
+3. Detect homonym candidates (same name, different definitions)
+4. Verify mapping against standard terminology
 
-**Referenced domain document**: `concepts.md` -- domain core concept definitions (accumulable: supplemented through learnings)
+**Domain document**: `concepts.md` (accumulable)
 
 ---
 
-#### onto_pragmatics -- Pragmatic Fitness Verifier
+#### onto_pragmatics — Pragmatic Fitness Verifier
 
 **Verification target**: Whether queries are actually possible, whether competency questions can be answered
 
-**Verification procedure**:
+**Procedure**:
 1. Load the domain's competency question list
-2. Verify whether each question can be answered with the current ontology
-3. If unanswerable questions exist, specifically identify missing elements
-4. Verify whether query paths are practical (impractical if answering requires traversing 10+ relationships)
+2. Verify whether each question can be answered with the current structure
+3. Identify missing elements for unanswerable questions
+4. Verify whether query paths are practical
 
-**Referenced domain document**: `competency_qs.md` -- domain-specific competency question list (accumulable)
+**Domain document**: `competency_qs.md` (accumulable)
 
 ---
 
-#### onto_evolution -- Evolution Fitness Verifier
+#### onto_evolution — Evolution Fitness Verifier
 
 **Verification target**: Whether existing structure breaks when adding new data, domains, or requirements
 
-**Verification procedure**:
+**Procedure**:
 1. Load extension scenarios
-2. Simulate whether each scenario can be accommodated without modifying existing structure
-3. If modification is needed, estimate impact scope and ripple effects
-4. Classify as critical when "existing structure must be destroyed to accommodate extension"
+2. Simulate accommodation without modifying existing structure
+3. Estimate impact scope and ripple effects
+4. Classify critical cases where existing structure must be destroyed
 
-**Referenced domain document**: `extension_cases.md` -- domain-specific extension scenarios
+**Domain document**: `extension_cases.md`
 
 ---
 
-#### onto_coverage -- Domain Coverage Verifier
+#### onto_coverage — Domain Coverage Verifier
 
 **Verification target**: Missing subdomains, bias toward certain areas, gaps compared to standards
 
-**Verification procedure**:
+**Procedure**:
 1. Load domain scope definition
-2. Verify whether the current ontology covers all areas in the scope definition
+2. Verify coverage of all areas in scope
 3. Analyze bias in element counts by area
-4. Detect missing areas compared to domain standards (ISO, IFRS, etc.)
+4. Detect gaps compared to domain standards
 
-**Referenced domain document**: `domain_scope.md` -- domain scope definition (scope-defining: onto_coverage role becomes ineffective without this)
+**Domain document**: `domain_scope.md` (scope-defining — this lens is ineffective without it)
 
 ---
 
-#### onto_conciseness -- Conciseness Verifier
+#### onto_conciseness — Conciseness Verifier
 
-**Verification target**: Duplicate definitions, over-specification, distinctions that make no practical difference
+**Verification target**: Duplicate definitions, over-specification, unnecessary distinctions
 
-**Verification procedure**:
-1. Detect identical or similar concepts defined redundantly through different paths
-2. Detect re-declaration of constraints already guaranteed by parent concepts (over-specification)
+**Procedure**:
+1. Detect identical or similar concepts defined redundantly
+2. Detect re-declaration of constraints already guaranteed by parents
 3. Detect subclassifications that make no actual difference
-4. Detect unnecessary intermediate hierarchies with only one child
+4. Detect unnecessary intermediate hierarchies
 
-**Referenced domain document**: `conciseness_rules.md` -- domain-specific conciseness criteria
+**Domain document**: `conciseness_rules.md`
 
 ---
 
-### 3.2 Philosopher -- Purpose Alignment Verifier
+#### onto_axiology — Purpose and Value Alignment Verifier
 
-The Philosopher has a fundamentally different role from the verification agents.
+**Verification target**: Purpose drift, value conflicts, mission misalignment
 
-**Difference from verification agents**:
-- Verification agents: judge whether criteria are met along their own dimension
-- Philosopher: reinterprets verification agents' judgment results in light of the system's "higher purpose"
+**Procedure**:
+1. Independently assess whether the target serves its declared purpose
+2. Detect where detailed correctness has drifted from the original intent
+3. Surface value conflicts, ethical concerns, and stakeholder impact
+4. Present new perspectives that other lenses' dimensions do not cover
+
+**Domain document**: None. Maintains a meta-perspective independent of domain.
+
+**Special role**: onto_axiology is the only lens that may propose new perspectives. onto_synthesize must not invent new perspectives.
+
+---
+
+### 3.2 Synthesize Stage (onto_synthesize)
+
+onto_synthesize has a fundamentally different role from the 9 lenses.
 
 **Responsibilities**:
-1. Classify verification agents' results into consensus / contradictions / overlooked premises / new perspectives
-2. Separately verify the "logical basis for consensus" even for unanimous items (flags it if unanimous agreement has weak rationale)
-3. Detect cases where fixation on meeting detailed criteria has caused misalignment with the original purpose
-4. Present new perspectives that all verification agents missed
+1. Classify lens findings into consensus / conditional consensus / disagreement / overlooked premises
+2. Verify the logical rationale of consensus even for unanimous items
+3. Present immediate actions and recommendations
+4. Produce the final review result
 
-**Referenced domain document**: None. Maintains a meta-perspective independent of domain.
+**Key constraints**:
+- Does not invent new independent perspectives (that is onto_axiology's role)
+- Preserves and positions perspectives that onto_axiology proposed
+- Is not a lens — it integrates, not verifies
 
-**Additional role in build mode**:
-- Coordinates verification agents' epsilons (exploration directions) into integrated directives
-- Convergence judgment (determines whether to terminate)
-- Applies patches to wip.yml, updating the ontology each round
+### 3.3 Verification Dimension Coverage
 
----
-
-### 3.4 Verification Dimension Coverage Checklist
-
-A meta-tool for confirming the comprehensiveness of agent configuration. This checklist is not an agent classification axis but a reference frame for confirming that current agents cover all verification dimensions without gaps. These verification dimensions are cross-derived from standard frameworks (Gomez-Perez, Obrst, OntoClean).
-
-| Verification Dimension | Verification Question | Covering Agents | Standard Framework Mapping |
-|-----------|----------|-------------|-------------------|
-| Formal consistency | Are there no contradictions between definitions? | onto_logic, onto_dependency | Gomez-Perez: Consistency, Obrst: L4 |
-| Semantic accuracy | Does each concept accurately represent its target? | onto_semantics | Obrst: L1, OntoClean: Rigidity/Identity |
-| Structural completeness | Do all internal connections exist without gaps? | onto_structure | Obrst: L2-L3, Gomez-Perez: Completeness (internal) |
-| Domain coverage | Are all relevant concepts represented? | onto_coverage | Gomez-Perez: Completeness (external) |
-| Minimality | Are there no unnecessary elements? | onto_conciseness | Gomez-Perez: Conciseness |
-| Pragmatic fitness | Does it serve the actual use purpose? | onto_pragmatics | Brank: Application-based |
-| Evolution adaptability | Can it adapt to changes? | onto_evolution | -- |
-
-> The verification dimensions in this checklist have a many-to-many (N:M) relationship with agents. Since agents are a "set of independent perspectives," one agent may cover multiple dimensions and one dimension may span multiple agents.
-
----
-
-### 3.5 Agent Re-evaluation Conditions for Domain Expansion
-
-The current verification agents are designed to be domain-independent. However, re-evaluation of agent configuration is needed when entering the following domains:
-
-| Condition | Reason | Re-evaluation Target |
-|------|------|------------|
-| Entering domains that classify humans/groups (medical, education, law, HR) | Verification from ethics/axiology (2.5) becomes necessary -- "does this classification disadvantage certain groups" | Consider adding a normative judgment agent |
-| Entering finance/administration domains | The weight of social ontology (3.1) increases -- the mode of existence of institutional constructs becomes central | Adjust the weight of existence-type verification in onto_semantics |
-
----
-
-### 3.6 Explorer -- Source Traverser (Build Only)
-
-An agent that exists only in the build process. The traversal tools vary by source type (code, spreadsheet, DB, document), but the role is the same.
-
-**Responsibilities**: Directly traverses the source and describes domain facts (deltas) structured by fact_type. Performs structural recognition (formatting differences, reference relations, etc.) while stating the observation basis. Includes structured_data (structured data per fact_type) whenever possible.
-**Does NOT do**: Ontological interpretation (e.g., "this is an Aggregate," "this is a header"). That is done by verification agents.
-
-**Exploration scope by Stage**: Stage 1 focuses on structural facts (entity, enum, property, relation, code_mapping), and Stage 2 explores behavioral facts (state_transition, command, query, policy_constant, flow) based on Entities confirmed in Stage 1.
-
-**Example** (correct report -- code):
-> "The Payment class has status, amount, createdAt fields, and PaymentGateway branches on status using string comparison"
-
-**Example** (correct report -- spreadsheet):
-> "Cells A1:F1 are merged, background color #4472C4, font Bold, and formatting differs from rows below"
-
-**Example** (incorrect report):
-> "Payment is an Aggregate Root, and PaymentGateway is a Domain Service"
-
-The reason for this separation: If the Explorer also interprets, the verification agents' independent judgment gets anchored by the Explorer's interpretation.
+| Dimension | Question | Covering Lenses |
+|---|---|---|
+| Formal consistency | No contradictions between definitions? | onto_logic, onto_dependency |
+| Semantic accuracy | Each concept accurately represents its target? | onto_semantics |
+| Structural completeness | All internal connections exist without gaps? | onto_structure |
+| Domain coverage | All relevant concepts represented? | onto_coverage |
+| Minimality | No unnecessary elements? | onto_conciseness |
+| Pragmatic fitness | Serves the actual use purpose? | onto_pragmatics |
+| Evolution adaptability | Can adapt to changes? | onto_evolution |
+| Purpose alignment | Serves the higher purpose without drift? | onto_axiology |
 
 ---
 
 ## 4. Processes
 
-### 4.1 Team Review (review)
+### 4.1 Review ✅
 
 **Command**: `/onto:review {target}`
 **Input**: Scope-defined documents, code, design proposals
-**Output**: Agent panel report with consensus/contested points/recommendations
+**Output**: Final review report + ReviewRecord (structured artifact)
 
-#### Flow
+#### Canonical Live Path
 
 ```
-1. Context Gathering
-   Team lead reads the target, determines the domain, and identifies the system purpose
-
-2. Team Creation + Round 1 (verification agents perform independent review)
-   - Generate session ID (e.g., 20260325-a3f7b2c1)
-   - Create all teammates (verification agents + Philosopher)
-   - Verification agents verify independently. They do not know each other's results
-   - Each saves results as files in the session directory
-   - Reports only the file path to the team lead
-
-3. Philosopher Synthesis
-   - Reads verification agents' result files directly
-   - Classifies into consensus / contradictions / overlooked premises / new perspectives
-   - If contested points exist, directs deliberation between the relevant agents
-
-4. Deliberation (conditional)
-   - Only agents designated by the Philosopher participate
-   - If consensus is not reached even after deliberation, recorded as "disagreement"
-
-5. Final Output
-   Consensus items (N/8), conditional consensus, purpose alignment verification,
-   immediate actions required, recommendations
-
-6. Wrap-up
-   Learning storage, promotion guidance, Team shutdown
+user request
+-> InvocationInterpretation (LLM interprets intent, target, domain)
+-> User confirmation / selection
+-> InvocationBinding (runtime binds to concrete refs)
+-> Execution preparation artifacts
+-> 9 lenses execute independently
+-> onto_synthesize integrates findings
+-> Human-readable final output
+-> ReviewRecord (primary artifact)
 ```
+
+#### Step Details
+
+**Step 1 — InvocationInterpretation** ✅: LLM interprets the user's natural-language request to determine entrypoint, target scope candidates, intent, domain recommendation, LensSelectionPlan (full/light), and any ambiguity.
+Output: `interpretation.yaml`
+
+**Step 2 — User confirmation** ✅: If needed, the user confirms domain selection (DomainFinalSelection), full/light mode, and any overrides. This is the point where the user exercises final authority between semantic recommendation and deterministic binding.
+
+**Step 3 — InvocationBinding** ✅: Runtime deterministically binds the interpretation to concrete values: resolved target scope, final domain, execution realization, host runtime, review mode, lens set, session root, and all artifact paths.
+Output: `binding.yaml`
+
+**Step 4 — Execution preparation** ✅: The following artifacts are materialized:
+- `session-metadata.yaml` — deterministic execution metadata
+- `execution-preparation/materialized-input.md` — execution-friendly materialization of the review target (the single authoritative basis lenses read)
+- `execution-preparation/context-candidates/` — candidate context set for lenses
+- `execution-plan.yaml` — per-lens output seats, boundary policies
+- `prompt-packets/` — per-lens and synthesize handoff prompts (produced by `review:materialize-prompt-packets`)
+
+**Step 5 — 9 lenses execute independently** ✅: Each lens runs as a ContextIsolatedReasoningUnit. In Round 1, no lens sees another's results. Each saves its finding as a file in the session directory.
+
+**Step 6 — onto_synthesize** ✅: Reads all lens result files. Classifies into consensus / conditional consensus / disagreement / overlooked premises. Produces `synthesis.md`. Producer: the synthesize execution unit (not a lens — dispatched by `review:run-prompt-execution` after all lenses complete).
+
+**Step 7 — Final output** ✅: Human-readable `final-output.md` rendered from synthesis. Producer: `review:render-final-output`.
+
+**Step 8 — ReviewRecord** ✅: `review-record.yaml` assembled as the canonical primary artifact by `review:finalize-session`. This is what later learn/govern processes will consume. Assembled last because it aggregates all preceding artifacts including the final output.
 
 #### Core Rules
 
-- **Team lead does not intervene in content**: Does not modify or summarize results; relays them as-is
-- **File-based relay**: Review originals bypass the team lead's context and are relayed directly via files. Solution for Issue 1-A
-- **Even unanimity is verified**: Even when all agree, the logical basis for that consensus is separately confirmed
+- **File-based relay**: Lens results are saved as files and only the path is reported. The team lead's context does not carry per-lens detailed reasoning.
+- **Even unanimity is verified**: The logical basis for consensus is separately confirmed.
+- **Team lead does not intervene in content**: Relays results as-is without modification or summary.
+- **Deliberation is conditional**: Only triggered when onto_synthesize determines contested points exist. Available only in `agent-teams` + `claude` profile. In other profiles, contested points are reported as-is in the disagreement section. When deliberation occurs, its output is saved to `deliberation.md` in the session directory.
+
+#### Full vs Light Review
+
+Review mode is determined during InvocationInterpretation (LensSelectionPlan) and confirmed by the user.
+
+| Mode | Lens set | When to use |
+|---|---|---|
+| **full** | All lenses defined in `full_review_lens_ids` (canonical set in `authority/core-lens-registry.yaml`) | Default. Comprehensive multi-perspective verification |
+| **light** | Subset defined in `light_review_lens_ids` (same registry) | Quick-pass review when time or token budget is limited. Fewer lenses, same process |
+
+Both modes follow the same canonical live path. The only difference is which lenses execute in Step 5. onto_axiology is always included regardless of mode (`always_include_lens_ids` in the registry).
 
 ---
 
-### 4.2 Individual Query (question)
+### 4.2 Individual Query ✅
 
-**Command**: `/onto:ask-{dimension} {question}` (e.g., `/onto:ask-logic Is there a contradiction in this design?`)
-**Input**: A question you want answered from a specific perspective
-**Output**: Answer from that single agent + learning record
+**Command**: `/onto:ask-{dimension} {question}` (e.g., `/onto:ask-logic Is there a contradiction?`)
+**Input**: A question for a specific verification dimension
+**Output**: Answer from that single lens + learning record
 
-Directly asks a single-dimension specialist without mobilizing the full panel.
-The agent loads its role definition + methodology learnings + domain documents + domain learnings before answering.
+Directly asks a single-dimension specialist. The lens loads its role definition + learnings + domain documents before answering.
+
+Available dimensions: `logic`, `structure`, `dependency`, `semantics`, `pragmatics`, `evolution`, `coverage`, `conciseness`, `axiology`
 
 ---
 
-### 4.3 Ontology Build (build)
+### 4.3 Ontology Build ✅ (prompt-only — no TS bounded runtime)
 
 **Command**: `/onto:build {path|URL}`
-**Input**: Analysis target (entire project if no path specified. Supports code, spreadsheets, databases, documents)
-**Output**: `raw.yml` -- ontology extracted from the source
+**Input**: Analysis target (code, spreadsheets, databases, documents)
+**Output**: `raw.yml` — ontology extracted from the source
 
-Why this process is structurally different from review:
-- review: Scope is defined -> verification agents evaluate independently in parallel
-- build: Scope is undefined -> independent exploration leads to 7x duplication and gaps discovered only at the end
+Build is currently executed entirely via the prompt-backed reference path. TS runtime productization follows the review-first strategy and is 🔲 not yet implemented.
 
-Therefore, build uses an **integral exploration** structure.
+Build uses an **integral exploration** structure because, unlike review, the scope is undefined.
 
 #### Flow
 
 ```
-Phase 0: Schema Negotiation
-   Decide the ontology "framework" with the user
-   4 options: Action-Centric / Knowledge Graph / Domain-Driven / Custom
-   (Schema A -- Axiom-based is not supported in build. Usable only in review/transform)
-   -> Save schema.yml
+Phase 0: Schema Negotiation — decide the ontology framework with the user
+  4 options: Action-Centric / Knowledge Graph / Domain-Driven / Custom
+  → Save schema.yml
 
-Phase 0.5: Context Gathering
-   Project scan (directory listing, README, documents, tests, etc.)
-   Ask the user (core flows, legacy, related repos, glossary)
-   -> Save context_brief.yml
+Phase 0.5: Context Gathering — project scan + user questions
+  → Save context_brief.yml
 
-Phase 1: Integral Exploration Loop (2 Stages x max 5 rounds = max 10 rounds)
-   Stage 1 -- Structure (identify Entity, Enum, Relation, Property)
-     fact_type scope: entity, enum, property, relation, code_mapping
-     Round 0: Explorer surveys overall structure (module list = coverage denominator)
-     Round N (iterate):
-       1. Deliver Explorer's delta to verification agents
-       2. Verification agents: report label + epsilon + issues
-       2.5. Philosopher: convert labels to patches -> update wip.yml
-       3. Philosopher: integrate epsilons, judge convergence
-       4. Explorer: explore in the integrated directive direction -> report new delta
-       -> Repeat
-     Termination condition: (at least 1 fact reported from every module) AND (new facts = 0)
+Phase 1: Integral Exploration Loop (2 Stages × max 5 rounds each)
+  Stage 1 — Structure (see fact_type table below for Stage 1 types)
+    Round 0: Explorer surveys overall structure (module list = coverage denominator)
+    Round N:
+      1. Explorer reports deltas (domain facts with structured_data)
+      2. Lenses: attach labels (ontology types) + suggest epsilons (next directions)
+      3. Coordinator: convert labels to patches → update wip.yml
+      4. Coordinator: integrate epsilons, judge convergence
+      5. Explorer: explore in integrated direction → new deltas
+    Termination: (all modules explored ≥1) AND (new facts = 0)
 
-   Stage 2 -- Behavior (identify State Machine, Command, Query, Policy, Flow)
-     fact_type scope: state_transition, command, query, policy_constant, flow
-     References wip.yml (confirmed Entity list) from Stage 1 for behavior exploration
-     Re-runs the same integral loop with Stage 2 fact_type scope
-     If Schema A selected: Stage 2 skipped (Axiom-based does not include behavior specifications)
+  Stage 2 — Behavior (see fact_type table below for Stage 2 types)
+    References Stage 1 confirmed Entities. Same integral loop.
 
-Phase 2: Finalization
-   Philosopher performs final review of wip.yml
-   Judges unresolved conflicts, tidies terminology, cleans up external systems, verifies exploration bias
-   wip.yml -> raw.yml conversion
-
-Phase 3: User Confirmation
-   Presents certainty distribution, coverage, and items requiring user decisions
-
-Phase 4: Storage
-   Save raw.yml, delete wip.yml and deltas/
-
+Phase 2: Finalization — coordinator review, wip.yml → raw.yml
+Phase 3: User Confirmation — certainty distribution, coverage, decision items
+Phase 4: Storage — save raw.yml
 Phase 5: Learning Storage
 ```
 
-#### Certainty Classification (Fact Certainty)
+#### Key Concepts
 
-All facts discovered during build are assigned a certainty level.
+**Explorer**: An agent that directly traverses the source and reports domain facts (deltas) without ontological interpretation. "The Payment class has status, amount, createdAt fields" (correct) vs. "Payment is an Aggregate Root" (incorrect — that is a lens's job). The reason: if the Explorer also interprets, lenses' independent judgment gets anchored.
 
-**Stage 1 Judgment (Explorer)**:
+**Delta**: A domain fact unit the Explorer reports. Contains `fact_type` and optional `structured_data` (fields specific to each type, e.g., name and fields for entity).
 
-| Level | Meaning | Example |
-|---|---|---|
-| `observed` | Directly observed from source. Does not change unless source changes | "The Payment class has a status field" |
-| `pending` | Cannot be confirmed from source alone | "The rationale for this constant is not in the source" |
+**Epsilon**: A "next direction to explore" suggested by lenses based on gaps found in deltas.
 
-**Stage 2 Judgment (verification agents refine `pending`)**:
+**Label**: An ontology type assigned by lenses to a delta (e.g., "this is an Entity").
 
-| Level | Meaning | Example | Downstream Action |
-|---|---|---|---|
-| `rationale-absent` | Implementation exists in source but rationale does not | "500 hardcoded -- reason for 500 unknown" | Request rationale confirmation in Phase 3 |
-| `inferred` | Reasonable inference but not directly verifiable | "Presumed to use event-based communication" | Present with inference quality in Phase 3 |
-| `ambiguous` | Multiple equally valid interpretations exist | "Unclear whether authentication or authorization" | Present interpretation options in Phase 3 |
-| `not-in-source` | Cannot be determined from this source | "User scenarios" | Request user decision in Phase 3 |
+**Patch**: The unit of change where the coordinator converts labels into ontology elements and applies them to wip.yml.
 
-The reason this classification exists: For users to understand "what is confirmed and where decisions are needed." Each level triggers different actions in Phase 3. Certainty is assigned independently of fact_type (domain fact type) -- the same certainty judgment criteria apply whether it is an entity or a command.
+**fact_type** (10 types), partitioned by Stage:
+
+| Stage 1 — Structure | Stage 2 — Behavior |
+|---|---|
+| `entity` | `state_transition` |
+| `enum` | `command` |
+| `property` | `query` |
+| `relation` | `policy_constant` |
+| `code_mapping` | `flow` |
+
+**Certainty classification** (2-stage adjudication):
+
+Stage 1 — Explorer assigns:
+- `observed` — directly confirmed in source
+- `pending` — cannot be confirmed from source alone
+
+Stage 2 — Lenses refine `pending` into:
+- `rationale-absent` — implementation exists but rationale does not
+- `inferred` — reasonable inference, not directly verifiable
+- `ambiguous` — multiple equally valid interpretations
+- `not-in-source` — cannot be determined from this source
+
+Each certainty level triggers different actions in Phase 3 (user confirmation).
 
 ---
 
-### 4.4 Ontology Transform (transform)
+### 4.4 Transform ✅
 
 **Command**: `/onto:transform {file}`
-**Input**: `raw.yml` (output of build)
-**Output**: Ontology converted to the user's chosen format
-
-Supported formats:
-- Markdown (human-readable document)
-- Mermaid (diagram)
-- YAML / JSON-LD (data exchange)
-- OWL/RDF (academic/reasoning tools)
-- Hybrid (multiple format combination)
+**Input**: `raw.yml`
+**Output**: Ontology in chosen format (Markdown, Mermaid, YAML, JSON-LD, OWL/RDF, Hybrid)
 
 ---
 
-### 4.5 Onboarding (onboard)
+### 4.5 Onboard ✅
 
 **Command**: `/onto:onboard`
-**Output**: onto environment setup complete for the project
+**Output**: onto environment configured for the project
 
-Procedure:
-1. **Diagnosis**: Check learning directory existence, domain declaration in CLAUDE.md, global domain document existence, agent memory status
-2. **User confirmation**: Show diagnosis results and confirm items to configure
-3. **Environment setup**: Create `.onto/learnings/` directory, add domain declaration to CLAUDE.md, suggest domain document installation, generate scope document draft
+Sets up `.onto/` directories, domain declaration in `.onto/config.yml`, suggests domain document installation, optional Codex setup.
 
 ---
 
-### 4.6 Learning Promotion (promote)
+### 4.6 Learning Promotion ✅
 
 **Command**: `/onto:promote`
-**Input**: Project-level learnings (`{project}/.onto/learnings/`)
+**Input**: Project-level learnings
 **Output**: Learnings promoted to global-level after review
 
-Promotes "learnings valid across other projects" from those accumulated in the project to global-level (domain-wide).
-
-**3-agent review panel**: The relevant agent + Philosopher + 1 related agent
-- 3/3 consensus: Automatic promotion
-- 2/3 consensus: Recommended (minority opinion attached for user judgment)
-- 2/3+ deferred/rejected: Not promoted
-
-If domain document updates (`concepts.md`, `competency_qs.md`, `domain_scope.md`) are needed, they are suggested, but **never auto-modified without explicit user approval**.
+Promotes learnings valid across projects. Includes tag re-evaluation, cross-duplication removal, judgment re-verification, and event marker review. All changes require user approval.
 
 ---
 
-### 4.7 Domain Creation (create-domain)
+### 4.7 Domain Creation ✅
 
 **Command**: `/onto:create-domain {name} {description}`
-**Input**: Domain name and brief description
 **Output**: 8 seed domain documents in `~/.onto/drafts/{name}/`
-**Key behavior**: LLM generates all 8 document types from the provided description. Low-confidence content is marked with `<!-- SEED: low-confidence, needs evidence -->`. Seed documents are never loaded as verification standards.
+
+LLM generates all 8 document types. Low-confidence content is marked with SEED markers. Seeds are never loaded as verification standards.
 
 ---
 
-### 4.8 Domain Feedback (feedback)
+### 4.8 Domain Feedback ✅
 
 **Command**: `/onto:feedback {domain}`
-**Input**: A seed domain in `~/.onto/drafts/{domain}/` with accumulated learnings
-**Output**: Updated seed documents with learnings incorporated, SEED markers adjusted
-**Key behavior**: Feeds `[domain/{domain}]` learnings back into the seed documents. May remove SEED markers where learnings provide sufficient evidence. Only the user can make final decisions on SEED marker removal.
+**Output**: Updated seed documents with learnings incorporated
+
+Feeds `[domain/{domain}]` learnings back into seed documents. User approval required for all changes.
 
 ---
 
-### 4.9 Domain Promotion (promote-domain)
+### 4.9 Domain Promotion ✅
 
 **Command**: `/onto:promote-domain {domain}`
-**Input**: A seed domain in `~/.onto/drafts/{domain}/` with zero SEED markers
-**Output**: Domain documents moved to `~/.onto/domains/{domain}/`
-**Key behavior**: Pre-checks that zero SEED markers remain. If any SEED markers exist, promotion is blocked with a list of remaining markers. After promotion, the domain becomes an established verification standard.
+**Output**: Domain moved from `~/.onto/drafts/` to `~/.onto/domains/`
+
+Pre-checks zero SEED markers. After promotion, the domain becomes an established verification standard.
 
 ---
 
-### 4.10 Data Backup (backup)
+### 4.10 Backup ✅
 
 **Command**: `/onto:backup` or `/onto:backup "reason"`
-**Input**: Optional reason string
 **Output**: Timestamped snapshot at `~/.onto/_backups/{backup-id}/`
-
-Snapshots learnings, domains, drafts, and communication data. Includes a manifest with file counts and domain lists.
 
 ---
 
-### 4.11 Data Restore (restore)
+### 4.11 Restore ✅
 
 **Command**: `/onto:restore` (list) or `/onto:restore {backup-id}`
-**Input**: Backup ID or none (list mode)
 **Output**: Restored data + safety backup of pre-restore state
 
-Automatically creates a safety backup before restoring. Supports rollback of the rollback.
+---
+
+### 4.12 Health Dashboard ✅
+
+**Command**: `/onto:health`
+**Output**: Learning pool health metrics (axis distribution, purpose type distribution, judgment ratio, duplicate candidates)
 
 ---
 
 ## 5. Domain System
 
-### 5.1 Domain Determination Rules
+### 5.1 Domain Selection
 
-Domains use a **per-session selection** model. Each process execution selects a single `{session_domain}`.
+Domains use a **per-session selection** model. Each process execution selects a single session domain.
 
-**Project domains** (`config.yml`):
+**Project domains** and execution profile are declared in `.onto/config.yml`:
 ```yaml
 domains:
   - software-engineering
   - ontology
+output_language: ko            # en (default) | ko | etc.
+execution_realization: subagent # subagent | agent-teams
+host_runtime: codex             # codex | claude
+codex:
+  model: gpt-5.4               # omit → ~/.codex/config.toml
+  effort: xhigh                 # omit → ~/.codex/config.toml
 ```
-`domains:` is an unordered set. No domain has priority over another. Old format (`domain:` + `secondary_domains:`) is auto-converted.
 
-**Session domain resolution**:
-1. `@{domain}` specified → non-interactive, use that domain
-2. `@-` specified → no-domain mode (agent default methodology only)
-3. Not specified → Domain Selection Flow (analyze target → suggest domain → user confirms)
+**Output language priority**: config.yml `output_language` > CLAUDE.md language directives. If absent, defaults to `en`.
 
-**No-domain mode**: Verifies using agent default methodology without domain rule documents. `[methodology]` tags only for learnings.
+**Selection methods**:
 
-**Command syntax**: `/onto:{process} {target} @{domain}` or `/onto:{process} {target} @-`
+| Method | Syntax | Behavior |
+|---|---|---|
+| Explicit | `@{domain}` | Non-interactive, uses specified domain |
+| No-domain | `@-` | Non-interactive, no domain rules applied |
+| Interactive | (omit) | Analyze target → suggest domain → user confirms |
 
-### 5.2 Domain Documents (7 Types)
+**No-domain mode**: Verifies using lens default methodology only. Learning tags: `[methodology]` only.
 
-Each domain has up to 7 reference documents. Each agent references the document corresponding to its dimension.
+### 5.2 Domain Documents (8 Types)
 
-| Document | Used by Agent | Type | Description |
+Each domain has up to 8 reference documents. Each lens references the document corresponding to its dimension.
+
+| Document | Used by Lens | Type | Description |
 |---|---|---|---|
-| `domain_scope.md` | onto_coverage | Scope-defining | Definition of the areas this domain covers. onto_coverage role becomes ineffective without this |
-| `concepts.md` | onto_semantics | Accumulable | Core concept and term definitions. Incrementally supplemented through learnings |
-| `competency_qs.md` | onto_pragmatics | Accumulable | Competency question list. "The ontology should be able to answer this question" |
-| `logic_rules.md` | onto_logic | Rule-defining | Domain-specific logic rules. Written/modified directly by users |
-| `structure_spec.md` | onto_structure | Rule-defining | Domain-specific structural specifications |
-| `dependency_rules.md` | onto_dependency | Rule-defining | Domain-specific dependency rules |
+| `domain_scope.md` | onto_coverage | Scope-defining | Domain area definition. Lens is ineffective without this |
+| `concepts.md` | onto_semantics | Accumulable | Core concept definitions |
+| `competency_qs.md` | onto_pragmatics | Accumulable | Competency question list |
+| `logic_rules.md` | onto_logic | Rule-defining | Domain-specific logic rules |
+| `structure_spec.md` | onto_structure | Rule-defining | Structural specifications |
+| `dependency_rules.md` | onto_dependency | Rule-defining | Dependency rules |
 | `extension_cases.md` | onto_evolution | Rule-defining | Extension scenarios |
+| `conciseness_rules.md` | onto_conciseness | Rule-defining | Conciseness criteria |
 
-**Domain document protection principle**: Domain documents cannot be automatically modified by agents. Both update suggestions from promote and draft generation from onboard go through user confirmation. Domain documents are "agreed-upon standards for the entire domain," not "learnings from a specific project," so automatic changes are dangerous.
+onto_axiology has no dedicated domain document. It uses system purpose/principles and session context.
 
-**Storage path**: `~/.onto/domains/{domain-name}/`
+### 5.3 Agent Re-evaluation on Domain Expansion
 
-### 5.3 Available Domains
+The 9 lenses are domain-independent by default. However, certain domain types require re-evaluation:
+
+| Condition | Reason | Action |
+|---|---|---|
+| Domains that classify humans/groups (medical, education, law, HR) | Ethics/axiology verification weight increases | Ensure onto_axiology is sufficiently informed |
+| Financial/administrative domains | Social ontology weight increases — institutional constructs are central | Adjust onto_semantics existence-type verification weight |
+
+### 5.4 Cross-Domain Targets
+
+When a target spans multiple domains, run a **separate review for each relevant domain**. Each execution is an independent session: results are not cross-referenced, and learnings are stored separately.
+
+**Storage path**: `~/.onto/domains/{domain}/` (established) or `~/.onto/drafts/{domain}/` (seed)
+
+**Protection principle**: Domain documents are never auto-modified by lenses. All changes require explicit user approval.
+
+### 5.5 Seed Lifecycle
+
+```
+create-domain → seed in drafts/
+→ review (seeds can be review targets)
+→ feedback (learnings incorporated)
+→ (repeat review + feedback)
+→ promote-domain (all SEED markers removed → moves to domains/)
+→ established (used as verification standards)
+```
+
+### 5.6 Available Domains
 
 | Domain | Description |
 |---|---|
 | `software-engineering` | Code quality, architecture, type safety, testing strategy |
-| `llm-native-development` | LLM-friendly file structure, ontology-as-code. Inherits from software-engineering and redefines concepts |
+| `llm-native-development` | LLM-friendly structure, ontology-as-code |
 | `accounting` | Double-entry bookkeeping, K-IFRS, tax adjustments, auditing |
-| `finance` | Financial statements, XBRL, revenue recognition (IFRS 15), financial instruments (IFRS 9), leases (IFRS 16) |
-| `business` | Business strategy, marketing, financial management, organization/HR, innovation management |
-| `market-intelligence` | Market analysis, competitive intelligence, risk assessment, data reliability |
-| `ontology` | Ontology design itself. OWL/RDFS/SKOS, classification consistency |
-| `visual-design` | Typography, color, layout, motion, branding, accessibility (WCAG) |
-| `ui-design` | Navigation, forms, feedback, responsive design, WAI-ARIA accessibility |
-
-**Installation method**: Run `./setup-domains.sh` (interactive selection or `--all` for full installation)
-
-### Seed Documents and the Feedback Loop
-
-Seed documents (`~/.onto/drafts/`) are LLM-generated domain document drafts sharing the same 8-file structure as established documents but containing SEED markers on low-confidence content.
-
-**Lifecycle**: create → review → feedback → (repeat) → promote
-
-**Key invariants**: (1) Seeds are never loaded as verification standards. (2) Seeds may be review targets. (3) Promotion requires zero SEED markers. (4) Only the user can remove SEED markers.
+| `finance` | Financial statements, XBRL, revenue recognition, financial instruments |
+| `business` | Business strategy, marketing, financial management, innovation |
+| `market-intelligence` | Market analysis, competitive intelligence, risk assessment |
+| `ontology` | Ontology design, OWL/RDFS/SKOS, classification consistency |
+| `visual-design` | Typography, color, layout, motion, branding, accessibility |
+| `ui-design` | Navigation, forms, feedback, responsive design, WAI-ARIA |
 
 ---
 
 ## 6. Learning System
 
-### 6.1 Learning Classification (2-Path + Axis Tag + Purpose Type)
+### 6.1 Storage Model (2-Path + Axis Tags)
 
-Agents store lessons via 2 paths with multi-dimensional tagging.
-
-| Learning Type | Storage Path | Scope |
+| Path | Scope | Contents |
 |---|---|---|
-| **Communication learning** | `~/.onto/communication/common.md` | User's communication preferences |
-| **Verification learning** | `{project}/.onto/learnings/{agent-id}.md` (project) or `~/.onto/learnings/{agent-id}.md` (global) | Methodology + domain learnings combined via axis tags |
+| `~/.onto/learnings/{lens-id}.md` | Global | Methodology + domain learnings (axis-tagged) |
+| `{project}/.onto/learnings/{lens-id}.md` | Project | Same format, project-specific |
+| `~/.onto/communication/common.md` | Global | User communication preferences |
 
 **Entry format**: `- [type] [axis tag] [purpose type] content (source: ...) [impact:severity]`
 
-### 6.2 Type Tagging
+### 6.2 Tag System
 
-Each learning item is tagged with `[fact]` or `[judgment]`.
+**Type tags**: `[fact]` (objective) or `[judgment]` (value judgment, subject to re-verification)
 
-- **[fact]**: Objective descriptions of definitions, structures, relations. Accumulation does not introduce bias
-- **[judgment]**: Value judgments like "this pattern is problematic." Validity may change when context changes, so items with 10+ accumulations become re-verification targets
+**Axis tags** (multiple allowed):
+- `[methodology]` — domain-independent verification technique
+- `[domain/{name}]` — valid in context of a specific domain
 
-### 6.3 Axis Tag Determination (2+1 Stage Test)
+Axis tags are determined by a mandatory 2+1 stage test before storage:
+1. **Sanity check**: Does the principle hold after removing domain-specific terms? No → domain-only
+2. **Applicability**: Does applying this presuppose domain-specific conditions? Yes → dual-tag
+3. **Counterexample**: Can you identify a domain where this produces incorrect results? Yes → dual-tag
 
-Each learning gets axis tags via a 2+1 stage test:
-- Sanity check (A): "Holds without domain terms?" → No → domain-only
-- Stage B: "Requires domain-specific preconditions (presence or absence)?" → Yes → dual-tag
-- Stage C: "Counterexample domain exists?" → Yes → dual-tag
-- All pass → methodology-only. Uncertainty → dual-tag + flag.
+All stages pass → `[methodology]` only.
 
-Dual-tag consumption: always load and apply. Domain tag is provenance.
+**Purpose type tags** (exactly one per learning):
+- `[guardrail]` — failure-derived prohibition (3 required elements: situation, result, corrective action)
+- `[foundation]` — prerequisite knowledge for other learnings
+- `[convention]` — terminology/procedure agreement
+- `[insight]` — operational default for learnings that do not qualify as the above 3. Note: `insight` was removed from the canonical `learning_role` enum in `core-lexicon.yaml` to resolve a rigidity violation; it is retained as an operational tag in `learning-rules.md`
 
-### 6.4 Purpose-Based Type Tags (Phase 0.5)
+**Impact**: `[impact:high]` or `[impact:normal]` — set once at creation, immutable.
 
-Orthogonal to type × axis tags. Determined at creation time:
-
-| Purpose Type | Definition | Tier (Phase 1) |
-|---|---|---|
-| `[guardrail]` | Failure-derived prohibition. 3 required elements: failure situation + observed result + corrective action | Tier-2 |
-| `[foundation]` | Prerequisite knowledge for other learnings | Tier-1 |
-| `[convention]` | Terminology/notation/procedure agreement | Tier-1 |
-| `[insight]` | Default — all other learnings | Tier-3 |
-
-### 6.5 Impact Severity + Failure Experience (Phase 0.5)
-
-- `impact_severity` (high/normal): Set once at creation, immutable. High if ignoring causes data loss/system failure, or reaching the same conclusion requires significant investigation
-- Failure experience: The `[guardrail]` tag is the sole indicator of failure experience. Separate boolean field (`is_failure_experience`) deprecated — presence of `[guardrail]` tag implies failure experience
-
-### 6.6 Consumption Rules
+### 6.3 Consumption Rules
 
 1. `[methodology]` → always apply
 2. `[domain/{session_domain}]` → always apply
-3. `[domain/{other}]` only → review then judge (does principle hold without domain terms?)
+3. `[domain/{other}]` only → review then judge
 4. No tags (legacy) → treat as `[methodology]`
-5. `[methodology]` + `[domain/X]` dual-tag → always load and apply. Domain tag is provenance
+5. Dual-tag `[methodology]` + `[domain/X]` → always apply (domain tag is provenance)
+6. Purpose type tags do not affect consumption filtering
 
-### 6.7 Learning Lifecycle Phases
+### 6.4 Creation-Time Verification Gate
 
-| Phase | Condition | Behavior |
-|---|---|---|
-| Phase 0 | <100 lines per agent | Full loading (current) |
-| Phase 0.5 | Now | Tag new learnings with purpose type + impact_severity |
-| Phase 1 | >100 lines per agent | 3-Tier loading priority (Tier-1 unconditional → Tier-2 purpose-based → Tier-3 recency) |
-| Phase 2 | Phase 1 + overload | Additional rules (quota, generation path weighting) |
+Before saving any learning, a mandatory tag check runs:
+
+**Required**: at least one axis tag + exactly one purpose type + exactly one impact tag. For `[guardrail]`: presence of situation/result/corrective action keywords.
+
+**On failure**: 1 retry (re-apply determination flow). If still failing, save with warning marker `<!-- tag-incomplete -->` — corrected at next promote.
+
+### 6.5 Consumption Feedback
+
+After applying learnings during execution, lenses record:
+- Which learnings were applied and whether they revealed findings that would have been missed otherwise
+- If a learning is found invalid/harmful, an event marker is attached
+- Event markers accumulate; 2+ markers surface the learning as a retirement candidate during promote
+
+### 6.6 User Approval Tiers
+
+All learning modifications follow a tiered approval model:
+
+| Activity | User Involvement |
+|---|---|
+| Information addition (metadata, markers) | Automatic + post-report |
+| Information change (tag modification, consolidation) | Summary report + batch approval |
+| Information deletion (dedup, retirement) | Per-item approval |
+| Observation (diagnostics, ratios) | Report viewing only |
 
 ---
 
-## 7. Execution Infrastructure
+## 7. Execution Profile
 
-### 7.1 Agent Teams (Preferred Execution Method)
+Lens execution is configured by two independent axes. These are not "modes" — they are orthogonal properties that combine into a profile.
 
-Claude Code's multi-agent feature.
+### 7.1 The Two Axes
 
-- **TeamCreate**: Creates a team. team_name follows the format `{process}-{session-id}` (e.g., `onto-20260325-a3f7b2c1`)
-- **SendMessage**: Sends messages between teammates
-- **TeamDelete**: Deletes a team
+| Axis | What it decides | Values |
+|---|---|---|
+| **execution_realization** | How lenses are structurally dispatched | `subagent` — each lens is an independent Agent tool call<br>`agent-teams` — lenses are teammates in a Claude Code team |
+| **host_runtime** | Which host environment runs the dispatched lenses | `codex` — OpenAI Codex executes lens passes<br>`claude` — Claude executes lens passes |
 
-**Session ID**: Format `{YYYYMMDD}-{hash8}`. The date provides chronological ordering, and the 8-character random hash prevents collisions.
+### 7.2 Supported Profiles
 
-**Session directory**: `{project}/.onto/{process}/{session-id}/` -- where review result files are stored
+Not all combinations are supported. The supported profiles and their properties:
 
-### 7.2 Subagent Fallback
+| Profile | Lens self-loading | Deliberation | Claude token usage | Selection |
+|---|---|---|---|---|
+| `subagent` + `codex` ✅ | Hybrid (lens self-loads; learning-rules.md inlined) | Not available (by design) | Team lead only (~20%) | User-selectable via `--codex` |
+| `subagent` + `claude` ✅ | Team lead inlines all context | Not available (technical) | Full | Auto fallback when TeamCreate fails |
+| `agent-teams` + `claude` ✅ | Lens performs own self-loading | Available when contested points exist | Full | Default on claude host |
+| `agent-teams` + `codex` | — | — | — | **Not supported** |
 
-If TeamCreate fails, switches to Agent tool (subagent) mode.
+### 7.3 Resolution Order
 
-Differences:
-- Teammates cannot self-load (read their own necessary files), so the team lead must include all context directly when delivering
-- Direct deliberation via SendMessage is not possible -> deliberation is skipped (disagreement items are included as-is in the final report)
-- File-based relay still applies
+1. Command flag (`--codex` / `--claude`) → sets host_runtime, overrides config
+2. config.yml `host_runtime` + `execution_realization` → applies if no flag
+3. Neither specified → `host_runtime: claude`, `execution_realization: agent-teams`
 
-### 7.3 Codex Execution Mode
+When `execution_realization` is not explicitly set, it defaults based on resolved host_runtime:
+- `codex` → `subagent`
+- `claude` → `agent-teams`
 
-When `execution_mode: codex` is set or `--codex` flag is used, reviewer passes are delegated to OpenAI Codex via `codex:codex-rescue` subagent.
+When `agent-teams` + `claude` is selected but TeamCreate fails → automatic fallback to `subagent` + `claude`.
 
-**Purpose**: Reduce Claude token consumption by ~80%. Team lead coordination is the only Claude cost; all reviewer and philosopher passes run on Codex.
+### 7.4 Parallel Execution
 
-**Tradeoff**: Deliberation (Step 4) is structurally not possible — this is a design choice, not a technical limitation. Contested points are reported as-is in the final output's "Disagreement" section.
+All profiles dispatch lenses in parallel with bounded concurrency:
 
-**Scope**: Currently supported for review only. Other processes always use Agent Teams.
+| execution_realization | Default max_concurrent_lenses |
+|---|---|
+| `subagent` | 3 |
+| `agent-teams` | 9 |
 
-Differences from Agent Teams:
-- Self-loading is supported (Codex reads files via Bash)
-- File I/O uses Bash (cat/shell redirect) instead of Read/Write tools
-- learning-rules.md is inlined by team lead (not self-loaded)
-- No team lifecycle (TeamCreate/TeamDelete not used)
-- Prompt templates: Codex Reviewer Prompt Template + Codex Philosopher Prompt Template (defined in process.md)
-- Model/effort configurable via `codex.model`/`codex.effort` in config.yml (fallback: `~/.codex/config.toml`)
+Override: `--max-concurrent-lenses` flag.
 
-**Prerequisites**: Codex CLI installed and authenticated (`/codex:setup`). Onboarding includes optional Codex setup (Step 3.7).
-
-| Aspect | Agent Teams | Subagent Fallback | Codex Mode |
-|--------|------------|-------------------|------------|
-| Selection type | User-selectable (default) | Automatic (on TeamCreate failure) | User-selectable |
-| Runtime | Claude (TeamCreate) | Claude (Agent tool) | Codex (codex-rescue) |
-| Self-loading | Agent performs | Team lead inlines | Hybrid (agent + learning-rules inlined) |
-| Deliberation | Supported | Skipped (technical limitation) | Skipped (by design) |
-| Claude token usage | Full | Full | Team lead only |
-
-### 7.4 Error Handling
-
-Errors are classified into 4 categories:
+### 7.6 Error Handling
 
 | Category | Condition | Response |
 |---|---|---|
-| **Process-halting** | Review target read failure, agent definition file read failure, Explorer failure (build), Philosopher failure (build) | Halt the process and inform the user |
-| **Process-halting-with-partial-result** | Irreplaceable role fails after retry, but intermediate results already exist in files | Halt the process, deliver collected results with limitation disclosure |
-| **Transient error → retry** | API error, agent crash during execution | Retry up to 2 times, then graceful degradation |
-| **Graceful degradation** | Partial verification agent failure, learning file absence, domain document absence | Exclude the affected agent and proceed with the rest. Adjust the consensus denominator |
-
-### 7.5 Team Lifecycle Management
-
-#### Pre-creation Check
-- Check for existing teams matching `~/.claude/teams/{process}-*` pattern
-- If orphan teams/files (directories with only inbox and no config.json) exist, guide the user to clean up
-
-#### Shutdown Procedure
-1. Send shutdown_request to all teammates
-2. Confirm each teammate's shutdown_approved
-3. If no response, resend after 30 seconds (max 3 attempts)
-4. Execute TeamDelete after confirming all members shut down
-
-#### Prohibited Actions
-- Manual deletion of team directories such as `rm -rf ~/.claude/teams/{team}/` is prohibited. Agent processes may survive and contaminate other sessions' work
-- If TeamDelete fails with "active member" error, resend shutdown_request to unfinished agents. If still failing, guide the user to manual cleanup
-
-### 7.5 Scope of Team Lead's Role
-
-The team lead is a **structure coordinator**.
-
-**Permitted** (Context Gathering stage):
-- Identifying the review target, determining the domain, deciding the process flow
-
-**Prohibited** (Relay stage):
-- Modifying or summarizing collected results
-- Injecting its own judgment into the review
-- Cross-sharing results between teammates (to guarantee independence)
-
-**Build mode exception**: Share the confirmed element list from the previous round in anonymized form (labeled_by field removed). "What has already been identified" is communicated, but "who judged it" is hidden, maintaining the balance between independence and coverage.
+| **Process-halting** | Target/definition read failure | Halt + inform user |
+| **Process-halting-with-partial-result** | Irreplaceable role fails but intermediate results exist | Halt + deliver partial results with limitation disclosure |
+| **Transient → retry** | API error, crash | Retry up to 2 times, then graceful degradation |
+| **Graceful degradation** | Partial lens failure, missing files | Exclude affected lens, adjust consensus denominator |
 
 ---
 
-## 8. File Structure
+## 8. Review Runtime (TypeScript Bounded Path) ✅
 
-### 8.1 Plugin Code (Distributed Files)
+The review process has a TypeScript core runtime that deterministically manages artifacts and state transitions.
+
+### 8.1 CLI Commands
+
+**Combined entrypoint** (preferred):
+```bash
+npm run review:invoke -- --target {path} --domain {domain}
+```
+
+**Decomposed steps** (for debugging or integration):
+
+| Step | Command | Produces |
+|---|---|---|
+| Start session | `npm run review:start-session -- ...` | Session directory + metadata |
+| Write interpretation | `npm run review:write-interpretation -- ...` | `interpretation.yaml` |
+| Bootstrap binding | `npm run review:bootstrap-binding -- ...` | `binding.yaml` |
+| Materialize preparation | `npm run review:materialize-execution-preparation -- ...` | Execution preparation artifacts |
+| Materialize prompts | `npm run review:materialize-prompt-packets -- ...` | `prompt-packets/` |
+| Run prompt execution | `npm run review:run-prompt-execution -- ...` | Lens results + `synthesis.md` + `execution-result.yaml` |
+| Render final output | `npm run review:render-final-output -- ...` | `final-output.md` |
+| Assemble record | `npm run review:finalize-session -- ...` | `review-record.yaml` |
+| **Complete session** (wrapper) | `npm run review:complete-session -- ...` | Calls render-final-output + finalize-session in sequence |
+
+### 8.2 Canonical Artifacts
+
+| Artifact | Format | Role | Presence |
+|---|---|---|---|
+| `interpretation.yaml` | YAML | LLM interpretation output | Always |
+| `binding.yaml` | YAML | Runtime-bound concrete values | Always |
+| `session-metadata.yaml` | YAML | Deterministic execution metadata | Always |
+| `execution-plan.yaml` | YAML | Per-lens output seats, boundaries | Always |
+| `prompt-packets/*.md` | Markdown | Per-lens handoff prompts | Always |
+| `round1/{lens-id}.md` | Markdown | Per-lens findings (human-readable) | Always |
+| `synthesis.md` | Markdown | Synthesize stage output | Always |
+| `deliberation.md` | Markdown | Deliberation exchange between contested lenses | Conditional — only when onto_synthesize determines contested points exist and profile supports deliberation (`agent-teams` + `claude` only) |
+| `final-output.md` | Markdown | Human-readable final review | Always |
+| `execution-result.yaml` | YAML | Execution outcome metadata | Always |
+| `review-record.yaml` | YAML | **Primary artifact** — canonical review record | Always |
+
+### 8.3 DeterministicStateEnforcer 📐
+
+A state machine design for the review process with 9 states and 12 edges:
+
+- **Auto states** (3): Runtime executes deterministic steps automatically
+- **Await states** (3): Runtime outputs dispatch instructions and waits for caller
+- **Terminal states** (3): No outgoing transitions — session complete, failed, or cancelled
+
+Design reference: `authority/core-lexicon.yaml` (state machine terms)
+
+---
+
+## 9. Data Layout
+
+### 9.1 Plugin Code
 
 ```
 onto/
-+-- .claude-plugin/
-|   +-- plugin.json           # Plugin metadata (name, description, version)
-|   +-- marketplace.json      # Marketplace distribution information
-|
-+-- process.md                # Common definitions -- top-level rules referenced by all processes
-|                             #   Agent configuration, domain documents, Agent Teams execution,
-|                             #   learning storage rules, team lifecycle, team lead role
-|
-+-- processes/                # Process definitions (11)
-|   +-- review.md             #   Team review (agent panel)
-|   +-- question.md           #   Individual query (1 agent)
-|   +-- build.md              #   Ontology build (integral exploration)
-|   +-- transform.md          #   Ontology transform
-|   +-- onboard.md            #   Project onboarding
-|   +-- promote.md            #   Learning promotion
-|   +-- create-domain.md      #   Seed domain generation
-|   +-- feedback.md           #   Domain document feedback loop
-|   +-- promote-domain.md     #   Seed to established promotion
-|   +-- backup.md             #   Data backup
-|   +-- restore.md            #   Data restore
-|
-+-- roles/                    # Agent role definitions (8)
-|   +-- onto_logic.md         #   Logical consistency
-|   +-- onto_structure.md     #   Structural completeness
-|   +-- onto_dependency.md    #   Dependency integrity
-|   +-- onto_semantics.md     #   Semantic accuracy
-|   +-- onto_pragmatics.md    #   Pragmatic fitness
-|   +-- onto_evolution.md     #   Evolution fitness
-|   +-- onto_coverage.md      #   Domain coverage
-|   +-- philosopher.md        #   Purpose alignment
-|
-+-- commands/                 # Command definitions (20)
-|   +-- review.md
-|   +-- build.md
-|   +-- transform.md
-|   +-- onboard.md
-|   +-- promote.md
-|   +-- create-domain.md
-|   +-- feedback.md
-|   +-- promote-domain.md
-|   +-- backup.md
-|   +-- restore.md
-|   +-- help.md
-|   +-- ask-logic.md
-|   +-- ask-structure.md
-|   +-- ask-dependency.md
-|   +-- ask-semantics.md
-|   +-- ask-pragmatics.md
-|   +-- ask-evolution.md
-|   +-- ask-coverage.md
-|   +-- ask-conciseness.md
-|   +-- ask-philosopher.md
-|
-+-- domains/                  # Domain reference documents (9 domains)
-|   +-- software-engineering/   # 7 documents
-|   +-- llm-native-development/ # 8 documents (prompt_interface.md added)
-|   +-- accounting/             # 7 documents
-|   +-- finance/                # 7 documents
-|   +-- business/               # 7 documents
-|   +-- market-intelligence/    # 7 documents
-|   +-- ontology/               # 7 documents
-|   +-- visual-design/          # 7 documents
-|   +-- ui-design/              # 7 documents
-|
-+-- golden/                  # Golden examples per schema (B/C/D)
-|   +-- canonical.yaml       #   Schema-neutral source
-|   +-- b-action-centric.yaml
-|   +-- c-knowledge-graph.yaml
-|   +-- d-domain-driven.yaml
-|   +-- schema-*.yml         #   Schema templates
-|
-+-- setup-domains.sh          # Domain document installation script
-+-- CLAUDE.md                 # Project domain declaration
-+-- README.md                 # User guide
-+-- dev-docs/                 # Deprecated/historical documents
+├── authority/               # Canonical data (deployed)
+│   ├── core-lexicon.yaml           # Concept SSOT (rank 1)
+│   ├── core-lens-registry.yaml     # Lens config (runtime)
+│   └── translation-reference.yaml  # Term translation (onboarding)
+│
+├── design-principles/       # Development governance (not deployed)
+│   ├── ontology-as-code-guideline.md
+│   ├── llm-native-development-guideline.md
+│   ├── productization-charter.md
+│   ├── llm-runtime-interface-principles.md
+│   └── ontology-as-code-naming-charter.md
+│
+├── development-records/     # Development history (not deployed)
+│
+├── processes/               # Process definitions
+│   └── review/              #   Review contracts and live path
+├── roles/                   # Lens role definitions (10)
+│   ├── onto_logic.md ... onto_axiology.md
+│   └── onto_synthesize.md
+├── commands/                # Command definitions
+├── domains/                 # Domain base documents (9 domains × 8 files)
+├── explorers/               # Explorer profiles (build only)
+├── golden/                  # Golden examples per schema
+├── src/core-runtime/        # TypeScript runtime
+├── scripts/                 # Shell utilities (review watcher, etc.)
+├── process.md               # Operational procedures + mutable paths
+├── learning-rules.md        # Learning storage rules (teammate reference)
+├── package.json             # npm scripts + dependencies
+├── tsconfig.json            # TypeScript configuration
+├── CLAUDE.md                # Authority hierarchy table
+├── AGENTS.md                # Agent quick-reference
+├── BLUEPRINT.md             # This document
+└── README.md                # User guide + installation
 ```
 
-### 8.2 Runtime-Generated Directories (Created During Execution)
-
-**Classification axes**:
-
-| Axis | Role | Example |
-|---|---|---|
-| 1st: Process type | Distinguishes the kind of data | `review/`, `builds/`, `learnings/` |
-| 2nd: Session ID | Isolates execution instances of the same process | `20260326-3be34f0f/` |
-| 3rd: Round number | Distinguishes agent execution stages | `round1/` |
-
-**Directory role definitions**:
-
-| Directory | Role | Contents | Lifecycle |
-|---|---|---|---|
-| `review/{session-id}/` | All data belonging to a single review session | Round results + Philosopher synthesis | Permanently preserved after session ends |
-| `builds/{session-id}/` | All data belonging to a single build session | Round results + ontology artifacts | Permanently preserved after session ends (wip, deltas deleted on completion) |
-| `learnings/` | Project-level learning accumulation | Per-agent learning files | Cross-session, same lifetime as project |
-
-**Round numbering**: review uses `round1` (1-indexed), build uses `round0` (0-indexed). review's round1 means "the first independent verification round," and build's round0 means "the initial exploration round (starting from Phase 0)."
-
-**Session metadata**: Each process's final artifact includes metadata in YAML format.
-- review: YAML frontmatter (`---` block) in `philosopher_synthesis.md`
-- build: `meta:` key in `raw.yml` (existing format retained)
-
-review frontmatter format:
-```yaml
----
-session_id: "{session ID}"
-process: review
-target: "{review target summary}"
-domain: "{session_domain / none}"
-date: "{YYYY-MM-DD}"
----
-```
+### 9.2 Runtime-Generated (per project)
 
 ```
-{project}/
-+-- .onto/                 # Runtime data (gitignored)
-|   +-- review/{session-id}/      #   review session (round results + artifacts unified)
-|   |   +-- round1/               #     Verification agent results ({agent-id}.md)
-|   |   +-- philosopher_synthesis.md  # Philosopher synthesis judgment
-|   +-- builds/{session-id}/      #   build session (round results + artifacts unified)
-|   |   +-- round0~N/             #     Per-round agent results ({agent-id}.yml)
-|   |   +-- schema.yml            #     Ontology structure definition
-|   |   +-- context_brief.yml     #     Build context summary
-|   |   +-- wip.yml               #     In-progress ontology (deleted on completion)
-|   |   +-- deltas/               #     Explorer's delta originals (deleted on completion)
-|   |   +-- _repos/               #     Analysis target repo clones (for external URLs)
-|   |   +-- raw.yml               #     Completed ontology
-|   +-- learnings/                #   Project-level learnings ({agent-id}.md)
+{project}/.onto/
+├── config.yml                      # Project domains + execution profile
+├── review/{session-id}/            # Review session
+│   ├── interpretation.yaml
+│   ├── binding.yaml
+│   ├── session-metadata.yaml
+│   ├── execution-preparation/
+│   ├── prompt-packets/
+│   ├── round1/{lens-id}.md
+│   ├── synthesis.md
+│   ├── deliberation.md          # Conditional — only when deliberation occurs
+│   ├── final-output.md
+│   ├── execution-result.yaml
+│   └── review-record.yaml
+├── builds/{session-id}/            # Build session
+│   ├── schema.yml, context_brief.yml
+│   ├── round0~N/
+│   └── raw.yml
+└── learnings/{lens-id}.md          # Project-level learnings
 ```
 
-### 8.3 Global Storage (User Home Directory)
+### 9.3 Global Storage
 
 ```
 ~/.onto/
-+-- communication/            # Communication learnings
-|   +-- common.md             #   Shared across all agents
-|   +-- {agent-id}.md         #   Per-agent individual
-+-- methodology/              # Methodology learnings
-|   +-- {agent-id}.md         #   Per-agent (domain-independent)
-+-- domains/{domain}/         # Per-domain storage
-    +-- domain_scope.md       #   Scope definition
-    +-- concepts.md           #   Core concepts
-    +-- competency_qs.md      #   Competency questions
-    +-- logic_rules.md        #   Logic rules
-    +-- structure_spec.md     #   Structural specifications
-    +-- dependency_rules.md   #   Dependency rules
-    +-- extension_cases.md    #   Extension scenarios
-    +-- learnings/            #   Global domain learnings
-        +-- {agent-id}.md
+├── learnings/{lens-id}.md          # Global learnings (2-path model)
+├── communication/common.md         # Communication learnings
+├── domains/{domain}/               # Established domain documents (8 files)
+├── drafts/{domain}/                # Seed domain documents
+└── _backups/{backup-id}/           # Backup snapshots
 ```
 
 ---
 
-## 9. Known Constraints and Resolutions
+## 10. Implementation Status
 
-### Issue 1-A: Team Lead Context Saturation
-
-**Problem**: When all agents' review originals (~64,500 characters) flood the team lead's context at once, the LLM recognizes only some messages. In an actual case, results from only 3 out of 7 verification agents were recognized.
-
-**Cause**: Agent Teams' message delivery (transport) succeeded, but the team lead LLM could not process all messages due to context limits.
-
-**Resolution**: File-based relay. Verification agents save results as files, and only file paths (~500 characters) are reported to the team lead. The Philosopher reads files directly to process the originals. This way, originals are not loaded into the team lead's context, and the "relay original text as-is" rule is structurally guaranteed.
-
-### Issue 1-B: Inter-Session Agent Leakage
-
-**Problem**: When team_name was fixed (`onto`), agents created in other sessions sent messages to the current session's team lead. Review content from other projects was injected into the current session.
-
-**Cause**: The `~/.claude/teams/onto/` directory was shared on the filesystem, allowing teams with the same team_name to coexist across multiple sessions.
-
-**Resolution**: Session ID-based team_name (`onto-20260325-a3f7b2c1`). Uses a unique name per session for isolation.
-
----
-
-## 10. Usage
-
-### Installation
-
-```
-/plugin marketplace add kangminlee-maker/onto
-/plugin install onto@kangminlee-maker/onto
-```
-
-### Domain Document Installation (Optional)
-
-```bash
-./setup-domains.sh              # Interactive selection
-./setup-domains.sh --all        # Install all
-./setup-domains.sh software-engineering finance  # Specific domains only
-```
-
-### Project Environment Setup
-
-```
-/onto:onboard
-```
-
-### Agent Panel Review
-
-```
-/onto:review {review target file or path}
-```
-
-### Ask from a Specific Perspective
-
-```
-/onto:ask-logic {question}
-/onto:ask-structure {question}
-/onto:ask-dependency {question}
-/onto:ask-semantics {question}
-/onto:ask-pragmatics {question}
-/onto:ask-evolution {question}
-/onto:ask-coverage {question}
-/onto:ask-philosopher {question}
-```
-
-### Ontology Build
-
-```
-/onto:build              # Entire project
-/onto:build src/         # Specific directory
-/onto:build {GitHub URL} # External repo
-```
-
-### Ontology Transform
-
-```
-/onto:transform .onto/builds/{session ID}/raw.yml
-```
-
-### Learning Promotion
-
-```
-/onto:promote
-```
-
----
-
-## 11. Reconstruction Guide
-
-The key decision sequence when rebuilding this system from scratch:
-
-### 11.1 Structural Decisions
-
-1. **Agent configuration decision**: Verification dimensions (logic, structure, dependency, semantics, pragmatics, evolution, coverage, etc.) + meta-verification (Philosopher). This configuration is derived from ontology verification theory; dimensions can be added or removed, but each must be independent of the others.
-
-2. **Process separation decision**: review (verification) and build share the same agents but have different execution structures. review is a single parallel pass, build is an iterative loop. This difference stems from "whether the input scope is defined."
-
-3. **Learning three-way classification decision**: Communication/methodology/domain. This classification is determined by "where can this learning be reused." Communication is valid across all domains, methodology is a domain-independent principle, domain is valid only in a specific domain/project.
-
-4. **Domain document protection decision**: The reason agents cannot auto-modify domain documents is that domain documents are "agreed-upon standards for the entire domain," not "learnings from a specific project." If erroneous learnings contaminate the standards, all subsequent verifications are contaminated.
-
-### 11.2 Infrastructure Decisions
-
-5. **File-based relay**: Uses files rather than messages for relaying results between agents. Prevents team lead context saturation and structurally guarantees original text preservation.
-
-6. **Session ID isolation**: Generates a unique session ID for each execution, preventing agents from other sessions from contaminating the current session.
-
-7. **Three execution modes**: Agent Teams (default) -> Subagent fallback (automatic) -> Codex mode (user-selectable). Execution methods differ but purpose and output format are identical. Deliberation is supported in Agent Teams only; skipped in Subagent (technical limitation) and Codex (design choice for cost efficiency).
-
-### 11.3 File Creation Order
-
-1. `.claude-plugin/plugin.json` -- Plugin metadata
-2. `process.md` -- Common definitions (top-level rules for all processes)
-3. `roles/` -- Agent role definitions
-4. `processes/` -- 11 process definitions
-5. `commands/` -- 20 command definitions (each specifying which process file to read and execute)
-6. `domains/` -- Domain reference documents
-7. `setup-domains.sh` -- Domain document installation script
-
-### 11.4 Dependency Graph
-
-```
-process.md <- processes/*.md <- commands/*.md
-                ^
-             roles/*.md (agent definitions)
-                ^
-          domains/*/*.md (domain documents, referenced at runtime)
-```
-
-- `commands/*.md` contain instructions to read the corresponding process file (`processes/*.md`) and common definitions (`process.md`)
-- `processes/*.md` reference the common rules in `process.md`
-- `roles/*.md` are independent but must be registered in the agent configuration table in `process.md`
-- `domains/*/*.md` are read by agents via self-loading at runtime
-
----
-
-## 12. System Stage
-
-**Current: Accumulation Phase**
-
-Learning accumulation is the priority, and process refinement (e.g., promote separation) will be considered at the maturity phase once sufficient execution experience has accumulated. After running promote at least once, structural changes are judged based on actual friction.
-
----
-
-## 13. MCP Server Externalization Design (Not Implemented)
-
-> **Status**: Design document. Pre-implementation.
-> **Motivation**: Enable onto to be used on MCP-compatible hosts beyond Claude Code, such as Codex and Cursor.
-> **Reference model**: Ouroboros plugin's MCP server architecture.
-
-### 13.1 Platform Dependencies of Current Architecture
-
-Currently, onto depends on the **host (Claude Code)** for orchestration (agent creation, parallel execution, message routing):
-
-| Capability | Host Feature Used |
-|---|---|
-| Agent parallel execution | Agent Teams (TeamCreate) or Agent tool |
-| Inter-agent communication | SendMessage |
-| Agent self-loading | Teammate reads files directly with Read tool |
-| Learning storage | Teammate writes files directly with Write tool |
-
-These features are Claude Code-specific and do not work on other platforms (Codex, Cursor, etc.).
-
-### 13.2 Design Principle: Orchestration Ownership Transfer
-
-**Core change**: Transfer orchestration from host to MCP server.
-
-```
-[Current]
-Host (Claude Code) owns orchestration
-  -> Manages agents via TeamCreate, Agent tool, SendMessage
-  -> Cannot function without host
-
-[After change]
-MCP server owns orchestration
-  -> Server directly calls LLM API to execute agents
-  -> Parallel execution, message routing, learning storage within the server
-  -> Host is a stateless client (calls MCP tools only)
-```
-
-### 13.3 Architecture
-
-```
-[Host: Claude Code / Codex / Cursor]     <- stateless
-         | JSON-RPC over stdio (MCP protocol)
-[onto MCP server]                     <- stateful
-  +-- Agent execution engine
-  |   +-- Agent parallel execution (async)
-  |   +-- Inter-agent message routing
-  |   +-- Direct LLM API calls (Claude API / OpenAI API)
-  +-- Session management
-  |   +-- {project}/.onto/{process}/{session ID}/
-  +-- Learning storage system
-  |   +-- ~/.onto/ (existing structure retained)
-  +-- Domain document management
-      +-- ~/.onto/domains/{domain}/
-```
-
-### 13.4 MCP Tool Design
-
-Tools exposed to the host:
-
-| Tool | Input | Output | Description |
-|---|---|---|---|
-| `onto_review_start` | target, domain, purpose | session_id | Start agent panel review (non-blocking) |
-| `onto_review_status` | session_id | Progress (stage, completed agent count) | For polling |
-| `onto_review_result` | session_id | Full final review result | Receive result after completion |
-| `onto_question` | dimension, question, domain | answer | Individual agent query (blocking) |
-| `onto_build_start` | path_or_url, schema | session_id | Start ontology build |
-| `onto_build_status` | session_id | Progress (round, coverage) | For polling |
-| `onto_build_result` | session_id | Ontology result | Receive result after completion |
-| `onto_session_list` | -- | Session list | Query active/completed sessions |
-
-**Non-blocking pattern** (same as Ouroboros):
-```
-Host: onto_review_start(target="process.md") -> session_id
-Host: onto_review_status(session_id) -> "Round 1: 5/7 complete"
-Host: onto_review_status(session_id) -> "Philosopher synthesis in progress"
-Host: onto_review_result(session_id) -> final result
-```
-
-### 13.5 Server Directly Calls LLM
-
-What the host's Agent tool currently does in onto, the MCP server performs directly:
-
-```
-[Current]
-Host -> Agent tool(prompt="You are onto_logic...") -> Claude Code internal LLM call
-
-[MCP server]
-Server -> Claude API / OpenAI API (direct call)
-     -> Combines agent role prompt + review target + domain documents
-     -> Async parallel calls to verification agents
-     -> Saves results to session directory
-     -> Delivers verification agent results to Philosopher (within server)
-```
-
-This means:
-- **With Claude API**: Same quality as current
-- **With OpenAI API**: Freedom to choose models
-- **Regardless of host**: Only MCP support is needed
-
-### 13.6 Side Effect: Structural Resolution of Existing Issues
-
-| Existing Issue | Status in MCP Server |
-|---|---|
-| **Issue 1-A** (team-lead context saturation) | Resolved. Server manages agent results directly, so they are not loaded into host context |
-| **Issue 1-B** (inter-session agent leakage) | Resolved. Server manages sessions in isolation. ~/.claude/teams/ not used |
-| File-based relay complexity | Resolved. Relayed in server internal memory. Files used only for result preservation |
-| Fallback branching (Teams -> Agent tool) | Resolved. Server owns a single execution path |
-
-### 13.7 Trade-offs
-
-**Gains:**
-- Platform independence (all MCP-supporting hosts)
-- Fundamental resolution of host context saturation
-- Execution path simplification (Teams/Agent tool/Fallback branching removed)
-- Freedom to choose models (Claude, OpenAI, others)
-
-**Costs:**
-- MCP server implementation required (Python or TypeScript)
-- Users must separately configure LLM API keys
-- Process logic in process.md/review.md must be translated into executable code
-- Increased deployment complexity (plugin + MCP server)
-- Increased debugging difficulty (server logs must be checked)
-
-### 13.8 Coexistence with Current Plugin
-
-After MCP server transition, the current plugin structure (commands/, roles/, processes/) is retained:
-
-- **commands/*.md**: Retained as fallback for environments without the MCP server (existing Claude Code-only mode)
-- **roles/*.md**: Referenced by MCP server when assembling agent prompts
-- **processes/*.md**: Source definitions for the MCP server's orchestration logic (dual maintenance of code and documents)
-- **domains/**: Existing domain document installation script retained
-
-### 13.9 Implementation Stages (Plan)
-
-| Stage | Scope | Description |
+| Feature | Status | Notes |
 |---|---|---|
-| **Stage 1** | Individual query | Implement `onto_question` tool. Simplest as it involves only a single agent call |
-| **Stage 2** | Agent panel review | Implement `onto_review_start/status/result`. Core value |
-| **Stage 3** | Learning system | Server manages learning storage/loading |
-| **Stage 4** | Build process | Server manages the integral exploration loop |
+| **Review** — 9-lens + synthesize | ✅ | Full canonical live path |
+| **Review** — TS bounded runtime | ✅ | `npm run review:invoke` and all decomposed steps |
+| **Review** — Agent Teams mode | ✅ | Default on claude host |
+| **Review** — Subagent fallback | ✅ | Auto on TeamCreate failure |
+| **Review** — Codex mode | ✅ | `--codex` flag or config.yml |
+| **Review** — DeterministicStateEnforcer | 📐 | 9 states, 12 edges designed. `authority/core-lexicon.yaml` |
+| **Review** — ReviewRecord assembly | ✅ | `review:complete-session` |
+| **Build** — integral exploration | ✅ | 2-stage structure |
+| **Build** — TS bounded runtime | 🔲 | Prompt-only. Review-first strategy |
+| **Individual Query** | ✅ | `/onto:ask-{dimension}` |
+| **Domain system** — 8 doc types | ✅ | Established + seed lifecycle |
+| **Domain system** — per-session selection | ✅ | config.yml + interactive flow |
+| **Learning** — 2-path + axis tags | ✅ | Global + project paths |
+| **Learning** — consumption feedback | ✅ | Event markers + retirement candidates |
+| **Learning** — Phase 1 tiered loading | 🔲 | Triggers at >100 lines per lens |
+| **Learn entrypoint** | 📐 | Reads ReviewRecord. Design: `design-principles/productization-charter.md` §12 |
+| **Govern entrypoint** | 📐 | Reads learnings + ReviewRecords. Design: `design-principles/productization-charter.md` §12 |
+| **Onboard / Promote / Health** | ✅ | |
+| **Domain creation / feedback / promotion** | ✅ | |
+| **Backup / Restore** | ✅ | |
 
-Each stage can operate in parallel with the existing plugin mode. If an MCP server is configured, it uses server mode; if not, it uses the existing plugin mode.
+---
+
+## 11. Future Direction
+
+Decided items only. All below are confirmed in design-principles/ documents.
+
+### 11.1 Learn and Govern Entrypoints 📐
+
+`learn` reads ReviewRecord artifacts to extract, curate, and promote learnings systematically. `govern` reads accumulated learnings and ReviewRecords to propose structural governance actions. Both are downstream consumers of the review output.
+
+Current state: review writes ReviewRecords; learn/govern will read them. Review must close its boundary before learn/govern productization begins.
+
+Reference: `design-principles/productization-charter.md` §12 Current Priority Order
+
+### 11.2 Review State Machine Completion 📐
+
+The DeterministicStateEnforcer will replace the current coordinator pattern with a formal state machine. 9 states (3 auto, 3 await, 3 terminal), 12 edges. The state machine enforces transitions deterministically without semantic judgment.
+
+Reference: `authority/core-lexicon.yaml` (auto_state, await_state, terminal_state terms)
+
+### 11.3 Build Productization 🔲
+
+Build will follow the same methodology as review: ontology-as-code authority → prompt-backed reference path → observation → bounded TS runtime replacement, one boundary at a time.
+
+Reference: `design-principles/productization-charter.md` §7, §12
+
+### 11.4 Learning Phase 1 Tiered Loading 🔲
+
+When any lens exceeds 100 accumulated learnings, a 3-tier priority system activates:
+- Tier 1 (unconditional): `[foundation]`, `[convention]`
+- Tier 2 (purpose-based): `[guardrail]`
+- Tier 3 (recency): `[insight]`
+
+Reference: `learning-rules.md` §Learning Lifecycle Phases

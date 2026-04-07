@@ -3,7 +3,6 @@
 > 상태: Active
 > 목적: 현재 `onto` 프로토타입의 `/onto:review`가 `검토 해석 (InvocationInterpretation)` 다음에 수행해야 하는 `검토 고정 (InvocationBinding)` 책임을 고정한다.
 > 기준 문서:
-> - `authority/development-methodology.md`
 > - `processes/review/interpretation-contract.md`
 > - `authority/core-lexicon.yaml`
 
@@ -128,7 +127,7 @@ resolved_target_scope:
 entrypoint: review
 target_scope_candidate:
   kind: file
-  primary_ref: authority/ontology-as-code-guideline.md
+  primary_ref: design-principles/ontology-as-code-guideline.md
 intent_summary: production semantic quality bar planning의 완결성과 실용성을 검토한다.
 domain_recommendation: "@ontology"
 domain_selection_required: true
@@ -149,7 +148,7 @@ ambiguity_notes: []
 resolved_target_scope:
   kind: file
   resolved_refs:
-    - /Users/kangmin/cowork/onto/authority/ontology-as-code-guideline.md
+    - /Users/kangmin/cowork/onto/design-principles/ontology-as-code-guideline.md
 domain_final_selection:
   recommendation: "@ontology"
   final_value: ontology

@@ -96,10 +96,56 @@
 
 실행 패턴: `onto coordinator start <target> <intent>` → lens Agent dispatch → `onto coordinator next` → synthesize Agent dispatch → `onto coordinator next` → presentation
 
-### 3.2 진화 항목
+### 3.2 완료: Learn Phase 1 + 1.5 구현
+
+커밋: `56e52b5` (구현), `f814d05` (Eval 버그 수정 5건)
+
+**Phase 1 (C-1~C-4, C-6, C-6b, C-7)**: 기존 학습을 prompt packet에 자동 삽입
+**Phase 1.5 (C-3c, C-5a, C-5b)**: 타도메인 규칙 포함 + tier 정렬 + 토큰 예산
+
+| 파일 | 역할 |
+|---|---|
+| `src/core-runtime/learning/loader.ts` | 학습 로딩 파이프라인 전체 |
+| `src/core-runtime/cli/materialize-review-prompt-packets.ts` | prompt packet 삽입 + manifest 기록 |
+| `authority/core-lexicon.yaml` | 4개 용어 등록 |
+| `.onto/temp/phase-1.5-design-draft.md` | Phase 1.5 설계 (2회 9-lens 리뷰) |
+| `.onto/temp/learn-implementation-design-v4.md` | 전체 설계 v4 (5회 9-lens 리뷰) |
+
+**Eval 결과**: CTRL vs EXP 비교 3/3 PASS (발견 수 +43%, Applied Learnings 명시 보고, 타도메인 기여 확인)
+
+**환경변수**: `ONTO_LEARNING_LOAD_DISABLED=1` (전체 비활성), `ONTO_LEARNING_TIER_DISABLED=1` (Phase 1 fallback), `ONTO_LEARNING_CROSS_DOMAIN_DISABLED=1` (C-3c 비활성)
+
+**주의**: `./bin/onto`는 `dist/` 우선 사용. 코드 변경 후 `npx tsc --outDir dist` 필수.
+
+### 3.3 즉시 진행: Learn Phase 2 설계
+
+**Phase 2 범위** (설계 v4 §5):
+- 추출·저장 파이프라인: A-7~A-14 (A-8f/A-8f2/A-9f/A-9f2 포함), A-11, A-12r, A-12rej
+- 피드백 파이프라인: C-11 (event marker 파싱 + append)
+- 프롬프트 주입: §1.6 (Newly Learned), §1.7 (Event Markers)
+- LLM 작업: A-8f (태그 보완 재시도), A-9f (guardrail 3요소 보완), A-11 (의미 분류)
+
+**Phase 2 배포 전제** (설계 v4 §5):
+1. 진행 중 세션 없음
+2. `ONTO_LEARNING_EXTRACT_ENABLED=1` 환경변수
+3. 10건 shadow mode 통과
+
+**설계 시 읽을 파일**:
+1. `.onto/temp/learn-implementation-design-v4.md` — §2 축적(Accumulate) 원자 작업 15개 + §1 인터페이스 계약
+2. `src/core-runtime/learning/loader.ts` — Phase 1.5 구현 (공유 모듈 배치 기준)
+3. `src/core-runtime/cli/coordinator-state-machine.ts` — completing 상태에 추출 단계 삽입 대상
+4. `authority/llm-native-development-guideline.md` — 3-질문 프레임 (LLM/Runtime/Script 분류)
+
+**변경 예상 파일**:
+- `src/core-runtime/learning/extractor.ts` — 신규 (추출 파이프라인)
+- `src/core-runtime/cli/coordinator-state-machine.ts` — completing에 추출 단계 추가
+- lens prompt packet에 §1.6/§1.7 프롬프트 섹션 주입
+
+### 3.4 진화 항목
 
 1. directory target 패턴 기반 최소 파일 세트 포함 (enhancement)
 2. git diff target의 kind/scope 분리 (enhancement, 영향 범위 큼)
+3. lens rename (onto_ 접두사 제거 + CLI `lens` + `.lens/` + `LENS_HOME`) — 보류
 
 ---
 
@@ -123,7 +169,7 @@
 | 역할 | 파일 |
 |---|---|
 | 개발 원칙 | `CLAUDE.md`, `authority/ontology-as-code-guideline.md`, `authority/llm-native-development-guideline.md` |
-| 진화 기록 | `authority/discovered-enhancements.md` |
+| 진화 기록 | `dev-docs/tracking/20260406-discovered-enhancements.md` |
 | E2E 테스트 | `src/core-runtime/cli/e2e-review-invoke.test.sh` (`npm run test:e2e`) |
 | 실행 entrypoint | `src/core-runtime/cli/review-invoke.ts` |
 | executor | `src/core-runtime/cli/subagent-review-unit-executor.ts`, `api-review-unit-executor.ts`, `agent-teams-review-unit-executor.ts` |

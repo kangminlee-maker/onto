@@ -2,6 +2,7 @@
 
 > 상태: Active
 > 목적: `onto` 메인 레포를 서비스로 전환하는 동안, 같은 개념 축을 같은 단어로만 표현하도록 canonical naming rule을 고정한다.
+> 소유 범위: naming RULE을 소유한다. concept INVENTORY는 `authority/core-lexicon.yaml`이 소유한다.
 > machine-readable SSOT:
 > - `authority/core-lexicon.yaml`
 
@@ -98,164 +99,11 @@ authoring 단계에서 생성되는 candidate의 형상이다.
 
 ---
 
-## 3. Review/Productization Terms
+## 3. Canonical Term Definitions
 
-### 3.1 `ReviewRecord` (리뷰 기록)
+모든 canonical term의 정의와 한글 대응어는 `authority/core-lexicon.yaml`에서 관리한다.
 
-`review`의 canonical output이다.
-
-즉:
-
-- current prototype review result는 later product path에서 `ReviewRecord`로 수렴해야 한다.
-- `ReviewRecord`는 단순 요약이 아니라 later `learn`가 읽을 수 있는 structured lineage다.
-
-### 3.2 `review_target_scope` (검토 대상 범위)
-
-`review`가 실제로 검토하는 대상의 범위 또는 묶음이다.
-
-즉:
-
-- 단일 파일일 수도 있고
-- 디렉터리일 수도 있고
-- `drafts/{domain}` 같은 다문서 bundle일 수도 있다.
-
-### 3.3 `InvocationInterpretation` (호출 해석)
-
-자연어 요청에서 entrypoint, target 후보, intent를 해석하는 단계다.
-
-이 단계는 semantic interpretation이므로 `LLM` 책임이다.
-
-### 3.4 `LensSelectionPlan` (lens 선택 계획)
-
-`검토 해석 (InvocationInterpretation)`이 산출하는 semantic plan이다.
-
-예:
-
-- `full` vs `light`
-- always include lens
-- recommended lens set
-
-### 3.5 `LensPromptContract` (lens 프롬프트 계약)
-
-각 `review lens`가 독립 에이전트 맥락에서 실행될 때 따라야 하는 공통 프롬프트 계약이다.
-
-### 3.6 `ContextIsolatedReasoningUnit` (맥락 격리 추론 단위)
-
-메인 콘텍스트와 상태를 공유하지 않고,
-계약된 입력/출력 경계 안에서 독립적으로 추론하는 실행 단위다.
-
-예:
-
-- `Agent Teams teammate`
-- `subagent`
-- `MCP`로 분리된 `LLM`
-- `external model worker`
-
-중요한 것은 구현 방식이 아니라
-`맥락 비공유 + 계약 입력 + 계약 출력 + 독립 판단`이라는 속성이다.
-
-### 3.7 `SynthesizePromptContract` (종합 프롬프트 계약)
-
-`onto_synthesize`가 lens finding을 읽고 최종 review output을 만드는 단계의 프롬프트 계약이다.
-
-### 3.8 `DomainFinalSelection` (도메인 최종 선택)
-
-domain recommendation 이후,
-explicit token parsing과 사용자 확인을 거쳐 확정된 최종 domain 값이다.
-
-### 3.9 `InvocationBinding` (호출 고정)
-
-해석 결과를 workspace/path/ref와 canonical request로 고정하는 단계다.
-
-이 단계는 deterministic binding이므로 runtime 책임이다.
-
-### 3.10 `PromptBackedReferencePath` (프롬프트 기반 기준 경로)
-
-프로토타입이 수행하던 책임을 설계된 contract 위에서 prompt로 다시 실행하는 reference path다.
-
-### 3.11 `ImplementationReplacementStep` (구현 치환 단계)
-
-프롬프트 기반 기준 경로의 한 책임을 서비스 구현으로 치환하는 한 단계다.
-
-### 3.12 `review_session_metadata` (검토 세션 메타데이터)
-
-하나의 review session에 대한 deterministic execution metadata다.
-
-### 3.13 `target_snapshot` (대상 스냅샷)
-
-review 당시 실제로 읽은 target basis를 보존하는 artifact다.
-
-### 3.14 `review_target_materialized_input` (검토 대상 구체화 입력)
-
-`review_target_scope`를 lens 실행에 바로 투입할 수 있게 정리한 입력 artifact다.
-
-### 3.15 `context_candidate_assembly` (맥락 후보 조립물)
-
-review lens가 실제 relevance judgment를 하기 전에 접근 가능한 candidate context set이다.
-
-### 3.16 `DeclaredHandoffInputs` (선언형 handoff 입력)
-
-runtime이 한 번의 `LLM` 호출을 위해 미리 선언하고 고정하는 입력 집합이다.
-
-이 집합은 최소 아래를 포함할 수 있다.
-
-- role / task instruction
-- primary target
-- required context
-- output seat
-- control policy
-
-### 3.17 `SelfDirectedExplorationInputs` (자율 탐색 입력)
-
-`LLM`이 문제 해결 중 스스로 획득하는 추가 입력이다.
-
-예:
-
-- 추가 파일 탐색
-- repo 내부 탐색
-- 필요 시 웹 리서치
-- 추가 evidence 확보
-
-중요한 점은,
-이 입력은 `LLM`이 판단해서 획득하는 것이지 runtime이 semantic하게 대신 선택하는 것이 아니라는 점이다.
-
-### 3.18 `BoundaryPolicy` (경계 정책)
-
-하나의 `LLM` 실행에서 무엇이 허용되고 금지되는지 선언하는 정책이다.
-
-예:
-
-- web research 금지
-- 특정 repo root만 read 허용
-- output seat 외 write 금지
-
-### 3.19 `BoundaryPresentation` (경계 제시)
-
-`BoundaryPolicy`를 `LLM`에게 어떤 방식으로 드러내는지에 대한 개념이다.
-
-예:
-
-- prompt packet에 embed
-- artifact ref로 제시
-- capability notice로 제시
-
-### 3.20 `BoundaryEnforcementProfile` (경계 강제 프로필)
-
-선언된 경계가 실제 실행 환경에서 어떻게 강제되는지 설명하는 프로필이다.
-
-예:
-
-- prompt-declared only
-- host-enforced
-- MCP-scoped
-- environment-enforced
-
-### 3.21 `EffectiveBoundaryState` (실효 경계 상태)
-
-정책 선언과 실제 강제 결과를 종합한 최종 적용 경계 상태다.
-
-중요한 점은,
-선언된 정책과 실제 적용 상태가 항상 같다고 가정하면 안 된다는 것이다.
+이 파일이 machine-readable SSOT이며, 이 문서는 정의를 재서술하지 않는다.
 
 ---
 

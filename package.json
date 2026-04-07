@@ -38,6 +38,7 @@
     "review:codex-unit-executor": "tsx src/core-runtime/cli/codex-review-unit-executor.ts",
     "review:api-unit-executor": "tsx src/core-runtime/cli/api-review-unit-executor.ts",
     "review:invoke": "tsx src/core-runtime/cli/review-invoke.ts",
+    "review:watch": "bash scripts/onto-review-watch.sh",
     "review:render-final-output": "tsx src/core-runtime/cli/render-review-final-output.ts",
     "review:finalize-session": "tsx src/core-runtime/cli/assemble-review-record.ts",
     "review:complete-session": "tsx src/core-runtime/cli/complete-review-session.ts",

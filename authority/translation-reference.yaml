@@ -1,6 +1,13 @@
-# Translation Reference — onto plugin concept ontology
-# SSOT for all English terminology. Consult before translating any file.
-# Maintained permanently: update when adding agents, domains, or processes.
+# Translation Reference — legacy/prototype terminology aid (NON-AUTHORITATIVE)
+#
+# Authority status: NOT a SSOT. Productization terminology authority is owned by
+# `authority/core-lexicon.yaml`. This file is a legacy translation aid that
+# documents the prototype-era English terms still used in legacy commands,
+# processes, and roles. Terms here that conflict with `core-lexicon.yaml`
+# (e.g. `agent panel`, `Philosopher`, `team review`) are LEGACY and must not
+# be treated as canonical productization vocabulary.
+#
+# When in doubt, consult `authority/core-lexicon.yaml` first.
 
 metadata:
   created: "2026-03-27"

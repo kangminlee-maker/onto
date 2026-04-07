@@ -163,10 +163,42 @@ function defaultMaxConcurrentLensesForExecutorConfig(
       executorConfig.args.includes("review:subagent-unit-executor") ||
       executorConfig.args.includes("review:codex-unit-executor")
     ) {
-      return 3;
+      // 9 lenses can run concurrently with stagger + retry to mitigate
+      // thundering herd and transient API rate-limit failures.
+      return 9;
     }
   }
   return 1;
+}
+
+/** Default stagger delay between successive lens dispatches (ms).
+ *  Spreads initial burst to avoid thundering-herd on the external API. */
+function defaultStaggerDelayMsForExecutorConfig(
+  executorConfig: ReviewUnitExecutorConfig,
+): number {
+  if (executorConfig.bin === "npm" || executorConfig.bin.endsWith("npm.cmd")) {
+    if (executorConfig.args.includes("review:agent-teams-unit-executor")) {
+      return 0; // Agent tool is in-process, no external API burst concern
+    }
+    // subagent / codex executor: each spawns an external process → API request
+    return 1500;
+  }
+  return 0;
+}
+
+/** Default retry count for individual lens execution failures.
+ *  Set high (10) to absorb transient network timeouts and CLI crashes
+ *  without losing a lens to degraded status. Each retry uses exponential
+ *  backoff (8s, 16s, 24s, ...) so the worst-case total wait before
+ *  final failure is ~7 minutes — acceptable for a lens that normally
+ *  takes 3-5 minutes. */
+const DEFAULT_LENS_MAX_RETRIES = 10;
+
+/** Delay before first retry (ms). Doubles on each subsequent retry. */
+const DEFAULT_LENS_RETRY_INITIAL_DELAY_MS = 8000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function ensureNonEmptyOutputFile(outputPath: string): Promise<void> {
@@ -400,12 +432,30 @@ export async function executeReviewPromptExecution(
     [`max_concurrent_lenses: ${maxConcurrentLenses}`],
   );
 
+  const staggerDelayMs = defaultStaggerDelayMsForExecutorConfig(defaultExecutorConfig);
+  const maxRetries = DEFAULT_LENS_MAX_RETRIES;
+  const retryInitialDelayMs = DEFAULT_LENS_RETRY_INITIAL_DELAY_MS;
+
+  if (staggerDelayMs > 0) {
+    console.log(
+      `[review runner] stagger delay: ${staggerDelayMs}ms between successive lens dispatches`,
+    );
+  }
+
   const executionOutcomes: Array<ExecutionOutcome | undefined> = new Array(
     lensDispatches.length,
   );
   let nextLensIndex = 0;
 
-  async function runLensWorker(): Promise<void> {
+  async function runLensWorker(workerIndex: number): Promise<void> {
+    // Stagger initial dispatch to avoid thundering-herd on external APIs.
+    // Only the very first dispatch of each worker is staggered; subsequent
+    // picks (after a lens completes) are not staggered since the burst has
+    // already been spread out by then.
+    if (staggerDelayMs > 0 && workerIndex > 0) {
+      await sleep(workerIndex * staggerDelayMs);
+    }
+
     while (true) {
       const currentIndex = nextLensIndex;
       nextLensIndex += 1;
@@ -430,8 +480,36 @@ export async function executeReviewPromptExecution(
       );
 
       const startedAtMs = Date.now();
-      try {
-        await invokeExecutor(defaultExecutorConfig, projectRoot, sessionRoot, dispatch);
+      let lastError: unknown = undefined;
+      let succeeded = false;
+
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          await invokeExecutor(defaultExecutorConfig, projectRoot, sessionRoot, dispatch);
+          succeeded = true;
+          break;
+        } catch (error: unknown) {
+          lastError = error;
+          if (attempt < maxRetries) {
+            const retryDelay = retryInitialDelayMs * (attempt + 1);
+            console.log(
+              `[review runner] ${dispatch.unit_id} attempt ${attempt + 1} failed, retrying in ${retryDelay}ms...`,
+            );
+            await appendExecutionProgress(
+              executionPlan.error_log_path,
+              `runner dispatch retry: ${dispatch.unit_id}`,
+              [
+                `attempt: ${attempt + 1}/${maxRetries}`,
+                `retry_delay_ms: ${retryDelay}`,
+                `error: ${error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200)}`,
+              ],
+            );
+            await sleep(retryDelay);
+          }
+        }
+      }
+
+      if (succeeded) {
         const completedAtMs = Date.now();
         console.log(`[review runner] completed ${dispatch.unit_kind}: ${dispatch.unit_id}`);
         await appendExecutionProgress(
@@ -449,14 +527,14 @@ export async function executeReviewPromptExecution(
           startedAtMs,
           completedAtMs,
         };
-      } catch (error: unknown) {
+      } else {
         const completedAtMs = Date.now();
         const failure: ExecutionFailure = {
           unit_id: dispatch.unit_id,
           unit_kind: dispatch.unit_kind,
           packet_path: dispatch.packet_path,
           output_path: dispatch.output_path,
-          message: error instanceof Error ? error.message : String(error),
+          message: lastError instanceof Error ? lastError.message : String(lastError),
         };
         await removeFileIfExists(dispatch.output_path);
         await appendExecutionFailure(
@@ -478,7 +556,7 @@ export async function executeReviewPromptExecution(
   await Promise.all(
     Array.from(
       { length: Math.min(maxConcurrentLenses, lensDispatches.length) },
-      async () => runLensWorker(),
+      async (_, workerIndex) => runLensWorker(workerIndex),
     ),
   );
 

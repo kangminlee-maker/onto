@@ -3,7 +3,6 @@
 > 상태: Active
 > 목적: 현재 `onto` 프로토타입의 `/onto:review`가 먼저 수행해야 하는 `검토 해석 (InvocationInterpretation)` 책임을 고정한다.
 > 기준 문서:
-> - `authority/development-methodology.md`
 > - `processes/review/lens-registry.md`
 > - `authority/core-lexicon.yaml`
 
@@ -129,7 +128,7 @@ target_scope_candidate:
 사용자 요청:
 
 ```text
-/onto:review authority/ontology-as-code-guideline.md
+/onto:review design-principles/ontology-as-code-guideline.md
 production semantic quality bar 기획이 완결적인지 검토해줘
 ```
 
@@ -139,7 +138,7 @@ production semantic quality bar 기획이 완결적인지 검토해줘
 entrypoint: review
 target_scope_candidate:
   kind: file
-  primary_ref: authority/ontology-as-code-guideline.md
+  primary_ref: design-principles/ontology-as-code-guideline.md
 intent_summary: production semantic quality bar planning의 완결성과 실용성을 검토한다.
 domain_recommendation: "@ontology"
 domain_selection_required: true

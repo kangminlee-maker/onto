@@ -224,7 +224,7 @@ Order does not matter. If unsure, you can skip and select domains per review."
 | `commands/build.md` | `@{domain}`, `@-` 옵션 설명 | Minor |
 | `commands/ask-*.md` | `@{domain}`, `@-` 옵션 설명 | Minor |
 | `README.md` | domain config 섹션 업데이트 | Medium |
-| `dev-docs/BLUEPRINT.md` | domain model + command 구조 | Medium |
+| `BLUEPRINT.md` | domain model + command 구조 | Medium |
 | `dev-docs/translation-reference.yaml` | session_domain, project_domains, global_domains 추가 | Minor |
 | `migrate-sessions.sh` | `domain:` → `domains:` 변환 | Minor |
 

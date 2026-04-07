@@ -1,9 +1,13 @@
 # Agent Process — Common Definitions
 
+> 이 문서는 운영 절차와 가변 경로를 소유한다. 원칙은 소유하지 않는다. shadow authority 금지.
+
 Common definitions referenced by each process file (`processes/`).
 
 > Learning storage rules, consumption rules, and tag definitions are in `learning-rules.md`.
 > Teammates self-load `learning-rules.md` during context loading. Team lead references it when needed.
+
+**현재 active enhancement seat**: `development-records/tracking/20260406-discovered-enhancements.md`
 
 **Adaptive axis-based learning system** — Learnings are tagged with 3 adaptive axes (communication, methodology, domain), and a single learning can belong to multiple axes. Process improvement is performed continuously based on empirical data and friction.
 
@@ -60,7 +64,7 @@ When adding or removing an agent, all of the following files must be updated:
 | 5 | `process.md` teammate initial prompt mapping | Add/delete row |
 | 6 | `processes/review.md` review lens + synthesize file list | Add/delete path |
 | 7 | `domains/*/` | Add/delete domain document template for the agent |
-| 8 | `authority/BLUEPRINT.md` agent section | Add/delete description |
+| 8 | `BLUEPRINT.md` agent section | Add/delete description |
 | 9 | `README.md` directory tree | Add/delete filename |
 | 10 | learning-rules.md | Update if learning storage rules change |
 
@@ -74,7 +78,7 @@ When adding or removing a process, all of the following files must be updated:
 | 2 | `commands/{command-name}.md` | Create/delete command file |
 | 3 | `process.md` Process Map table | Add/delete row |
 | 4 | `process.md` Per-process domain resolution table | Add/delete row |
-| 5 | `authority/BLUEPRINT.md` Processes section | Add/delete description |
+| 5 | `BLUEPRINT.md` Processes section | Add/delete description |
 | 6 | `README.md` Commands section + directory tree | Add/delete entries |
 | 7 | learning-rules.md | Update if process affects learning storage |
 
@@ -135,7 +139,7 @@ Seed documents have the same 8-file structure as established domain documents bu
 2. `drafts/` 내 문서는 에이전트의 검증 기준(standard)으로 참조되지 않는다
 3. `drafts/` 내 문서는 리뷰 대상(target)으로 참조 가능하다
 
-Design reference: `dev-docs/design/20260329-domain-document-creation.md`
+Design reference: `development-records/design/20260329-domain-document-creation.md`
 
 #### Feedback Log
 
@@ -269,7 +273,7 @@ When a target spans multiple domains, **run a separate review for each relevant 
 
 #### Edge cases
 
-For the complete edge case table, refer to Section 4 of `dev-docs/design/20260328-per-session-domain-selection.md`. Key behaviors:
+For the complete edge case table, refer to Section 4 of `development-records/design/20260328-per-session-domain-selection.md`. Key behaviors:
 - Non-existent `@{domain}` → warn + re-ask (no auto-fallback)
 - No config.yml + no global domains → skip selection, no-domain mode
 - Domain directory exists but 0 files → listed with "(empty — no rules)" marker

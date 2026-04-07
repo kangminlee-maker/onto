@@ -6,7 +6,6 @@
 > - `processes/review/nested-spawn-coordinator-contract.md` — Claude Code 세션에서 Agent tool 기반 lens dispatch coordinator
 >
 > 기준 문서:
-> - `authority/development-methodology.md`
 > - `processes/review/interpretation-contract.md`
 > - `processes/review/binding-contract.md`
 > - `processes/review/lens-prompt-contract.md`

@@ -3,7 +3,6 @@
 > 상태: Active
 > 목적: 현재 `onto` 메인 레포의 프로토타입 구성요소를 `LLM 소유 (LLM-owned)`, `runtime 소유 (runtime-owned)`, `혼합 (mixed)`으로 분류하여 서비스 치환의 기준선을 고정한다.
 > 기준 문서:
-> - `dev-docs/development-methodology.md`
 > - `dev-docs/ontology-as-code-naming-charter.md`
 > - `authority/core-lexicon.yaml`
 

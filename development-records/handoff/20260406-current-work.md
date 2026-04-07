@@ -130,36 +130,62 @@
 
 **최종 판정**: shadow-first 조건부 GO. blocker 0건 (구현 시 자연 해소).
 
-### 3.4 즉시 진행: Learn Phase 2 구현
+### 3.4 완료: Learn Phase 2 구현 + 9-lens 리뷰 + Shadow Eval + Active 전환
 
-**읽을 파일** (구현 시작 전):
-1. `/Users/kangmin/.claude-1/plans/logical-snuggling-parrot.md` — Phase 2 설계 v4 (정규 설계 문서)
-2. `.onto/temp/learn-implementation-design-v4.md` — 상위 설계 (§2 축적 원자 작업 + §1 인터페이스 계약)
-3. `src/core-runtime/learning/loader.ts` — Phase 1.5 구현 (공유 모듈 기준)
-4. `src/core-runtime/cli/coordinator-state-machine.ts` — completing 상태 (Step 2.5 삽입 대상)
+커밋: `5bc854e` (구현 14파일), `5381531` (9-lens 리뷰 반영 13건), `c29b4c7` (onto_ rename), `be673b6` (multi-provider LLM)
 
-**구현 순서** (14개 파일):
-```
-F0(shared/mode.ts) → F1(shared/patterns.ts) → F2(shared/paths.ts) → F9(loader.ts import 변경)
-→ F3(shared/llm-caller.ts) → F4(shared/duplicate-check.ts) → F5(shared/semantic-classifier.ts)
-→ F8(prompt-sections.ts) → F12(artifact-types.ts 타입) → F11(materialize 프롬프트 주입)
-→ F7(feedback.ts) → F6(extractor.ts) → F13(start-review-session.ts 모드 영속)
-→ F10(coordinator-state-machine.ts Step 2.5 통합)
-```
+**구현 범위**: A-7~A-14 DAG 오케스트레이터, C-11 피드백 마커, §1.6/§1.7 프롬프트 주입, coordinator Step 2.5 통합
 
-**구현 시 반영할 R5 잔여 3건**:
-1. read path에서 `readExtractMode()` 사용 (raw cast 금지) — F10, F11에서 적용
-2. manifest 필드명 `items_unclassified_pending` 사용 — F12에서 적용
-3. `schema_version: "1"` 유지 (Phase 2 첫 배포)
+| 파일 | 역할 |
+|---|---|
+| `src/core-runtime/learning/shared/mode.ts` | ExtractMode enum + validator |
+| `src/core-runtime/learning/shared/patterns.ts` | regex 상수 (검증 + 소비 + LLM 출력) |
+| `src/core-runtime/learning/shared/paths.ts` | 경로 리졸버 (읽기 + 쓰기 + dual-read) |
+| `src/core-runtime/learning/shared/llm-caller.ts` | Multi-provider LLM 호출 (Anthropic/OpenAI/Codex) |
+| `src/core-runtime/learning/shared/duplicate-check.ts` | A-10 content-level dedup |
+| `src/core-runtime/learning/shared/semantic-classifier.ts` | A-11 의미 분류 (SEMANTIC_DECISIONS SSOT) |
+| `src/core-runtime/learning/extractor.ts` | A-7~A-14 오케스트레이터 (~430줄) |
+| `src/core-runtime/learning/feedback.ts` | C-11 이벤트 마커 파싱/매칭/부착 |
+| `src/core-runtime/learning/prompt-sections.ts` | §1.6 Newly Learned + §1.7 Event Markers |
+| `src/core-runtime/review/artifact-types.ts` | ExtractionManifest + discriminated union traces |
 
-**환경변수**: `ONTO_LEARNING_EXTRACT_MODE=disabled|shadow|active` (단일 enum)
+**9-lens 리뷰**: 세션 `20260407-e1ccffa5` (Codex, 9/9, 0 degraded). IAR 3건 + CONS 5건 + REC 10건 반영.
 
-**빌드**: 코드 변경 후 `npx tsc --outDir dist` 필수 (`./bin/onto`는 dist/ 우선)
+**E2E**: 48/49 PASS (E2 session-id-collision은 기존 이슈).
 
-**Phase 2 배포 전제** (설계 v4 §5):
-1. 진행 중 세션 없음
-2. `ONTO_LEARNING_EXTRACT_MODE=shadow` 환경변수
-3. 10건 shadow mode 통과 후 `active` 전환
+**Shadow Eval**: 10/10 세션, real lens 분류 성공률 91%, quarantine 0, error 0.
+
+**Active 전환 검증**: 세션 `20260408-c1d8837b`, 2건 저장, learning_id + taxonomy_version 부착 확인.
+
+**환경변수**:
+- `ONTO_LEARNING_EXTRACT_MODE=active` — 학습 자동 추출 활성화
+- `ANTHROPIC_API_KEY` — A-11 의미 분류 LLM 호출 (또는 `OPENAI_API_KEY`, Codex auth fallback)
+
+**A-12r/A-12rej**: R1-U1에 의해 Phase 3으로 의도적 이연. 현재는 manifest ConflictProposal에만 기록.
+
+### 3.5 즉시 진행: Learn Phase 3 상세 설계
+
+**읽을 파일** (설계 시작 전):
+1. `.onto/temp/learn-implementation-design-v4.md` — 상위 설계 (§3 승격 원자 작업 16개 + §3.2 퇴역 2개 + §3.3 DAG)
+2. `src/core-runtime/learning/extractor.ts` — Phase 2 구현 (shared 모듈 기준)
+3. `src/core-runtime/learning/shared/semantic-classifier.ts` — A-11 공유 모듈 (Phase 3 P-4에서 재사용)
+4. `src/core-runtime/learning/shared/duplicate-check.ts` — A-10 공유 모듈 (Phase 3 P-3에서 재사용)
+5. `processes/promote.md` — promote 프로세스 정의 (기존)
+6. `learning-rules.md` — 학습 저장/소비/승인 규칙
+
+**Phase 3 범위** (상위 설계 §5):
+- **승격**: P-1~P-3, P-5, P-9~P-12, P-15
+- **LLM 작업**: P-4 (의미 분류, cross-agent scope), P-6 (기준 1~3), P-7 (applicability 재평가), P-8 (교차 중복 제거), P-13 (도메인 문서 갱신 제안), P-14 (judgment 재검증)
+- **퇴역**: P-10, P-10b, R-2, R-3
+- **Eval**: promote 판정 일치율 ≥90%
+
+**설계 시 고려 사항**:
+- Phase 2의 `ConflictProposal`이 Phase 3 promote의 입력으로 합류
+- A-12r/A-12rej 실행은 Phase 3 promote에서 사용자 승인 후 수행
+- `unclassified_pending` 항목(quarantine 파일)의 재분류 경로
+- 기존 755항목의 정규화 (learning_id 부여, format_version, [insight] 재분류)
+- 3-agent 패널 구성 (P-5): philosopher 미구현 시 축소 규칙
+- Event marker 기반 퇴역 (P-10, P-10b): count≥2 + retention-confirmed 제외
 
 ### 3.4 진화 항목
 

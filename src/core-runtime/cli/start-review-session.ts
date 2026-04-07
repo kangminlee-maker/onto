@@ -7,8 +7,12 @@ import { runPrepareReviewSessionCli } from "./prepare-review-session.js";
 import { runMaterializeReviewPromptPacketsCli } from "./materialize-review-prompt-packets.js";
 import {
   readSingleOptionValueFromArgv,
+  readYamlDocument,
+  writeYamlDocument,
 } from "../review/review-artifact-utils.js";
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
+import type { ReviewSessionMetadata } from "../review/artifact-types.js";
+import { validateExtractMode } from "../learning/shared/mode.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -43,6 +47,15 @@ export async function startReviewSession(
     "session-id",
   );
   const sessionRoot = path.join(projectRoot, ".onto", "review", sessionId);
+
+  // Phase 2: Validate + persist extract mode (R4-IA2, single validator, fail-fast)
+  const extractMode = validateExtractMode(process.env.ONTO_LEARNING_EXTRACT_MODE);
+  const sessionMetadataPath = path.join(sessionRoot, "session-metadata.yaml");
+  const sessionMetadata = await readYamlDocument<ReviewSessionMetadata>(
+    sessionMetadataPath,
+  );
+  sessionMetadata.learning_extract_mode = extractMode;
+  await writeYamlDocument(sessionMetadataPath, sessionMetadata);
 
   const maxEmbedLines = readSingleOptionValueFromArgv(argv, "max-embed-lines");
   const ontoHomePassthrough = readSingleOptionValueFromArgv(argv, "onto-home");

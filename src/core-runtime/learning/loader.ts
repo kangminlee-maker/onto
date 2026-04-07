@@ -11,7 +11,13 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
+import {
+  ITEM_LINE_RE,
+  APPLICABILITY_RE,
+  ROLE_RE,
+  IMPACT_RE,
+} from "./shared/patterns.js";
+import { resolveLearningFilePaths } from "./shared/paths.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,29 +89,8 @@ const TOKEN_BUDGET_PER_AGENT = 4000; // Phase 1.5 token budget (T2+ only)
 const T1_TOKEN_WARN_RATIO = 0.5; // Warn if T1 tokens exceed 50% of budget
 
 // ---------------------------------------------------------------------------
-// C-1: Path resolution
+// C-2: Best-effort line parser (patterns from shared/patterns.ts)
 // ---------------------------------------------------------------------------
-
-function resolveLearningFilePaths(
-  agentId: string,
-  projectRoot: string,
-): { user_path: string | null; project_path: string | null } {
-  const userPath = path.join(os.homedir(), ".onto", "learnings", `${agentId}.md`);
-  const projectPath = path.join(projectRoot, ".onto", "learnings", `${agentId}.md`);
-  return {
-    user_path: fs.existsSync(userPath) ? userPath : null,
-    project_path: fs.existsSync(projectPath) ? projectPath : null,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// C-2: Best-effort line parser
-// ---------------------------------------------------------------------------
-
-const ITEM_LINE_RE = /^[-*+]\s+\[(fact|judgment)\]\s+/;
-const APPLICABILITY_RE = /\[(methodology|domain\/[^\]]+)\]/g;
-const ROLE_RE = /\[(guardrail|foundation|convention|insight)\]/;
-const IMPACT_RE = /\[impact:(high|normal)\]/;
 
 function parseLearningLine(
   line: string,

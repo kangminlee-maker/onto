@@ -26,6 +26,11 @@ import {
   formatLoadingSummary,
   type LearningLoadManifest,
 } from "../learning/loader.js";
+import { readExtractMode } from "../learning/shared/mode.js";
+import {
+  renderNewlyLearnedInstructions,
+  renderEventMarkerInstructions,
+} from "../learning/prompt-sections.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -325,6 +330,10 @@ export async function runMaterializeReviewPromptPacketsCli(
     domainAllFiles = scanDomainFiles(resolvedDomainDir);
   }
 
+  // Phase 2: Read extract mode from session metadata (R5-IA-R5-1: readExtractMode, no raw cast)
+  const extractMode = readExtractMode(sessionMetadata);
+  const extractEnabled = extractMode === "shadow" || extractMode === "active";
+
   // C-1~C-4, C-7: Load learnings for all lens agents
   // ONTO_LEARNING_LOAD_DISABLED=1: Phase 1 fallback — skip learning loading entirely
   const learningDisabled = process.env.ONTO_LEARNING_LOAD_DISABLED === "1";
@@ -420,6 +429,8 @@ ${binding.resolved_target_scope.resolved_refs
 - Write your result to: ${toRelativePath(seat.output_path, projectRoot)}
 ${renderDomainDocumentRefsSection(seat.lens_id, resolvedDomainDir, domainAllFiles, projectRoot)}
 ${renderLearningSection(learningsByAgent.get(seat.lens_id)?.items ?? [])}
+${extractEnabled ? renderNewlyLearnedInstructions(learningDomain) : ""}
+${extractEnabled ? renderEventMarkerInstructions() : ""}
 `;
 
     await fs.writeFile(seat.packet_path, lensPacketText.trimEnd() + "\n", "utf8");

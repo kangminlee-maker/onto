@@ -117,29 +117,49 @@
 
 **주의**: `./bin/onto`는 `dist/` 우선 사용. 코드 변경 후 `npx tsc --outDir dist` 필수.
 
-### 3.3 즉시 진행: Learn Phase 2 설계
+### 3.3 완료: Learn Phase 2 설계 (5회 9-lens 리뷰)
 
-**Phase 2 범위** (설계 v4 §5):
-- 추출·저장 파이프라인: A-7~A-14 (A-8f/A-8f2/A-9f/A-9f2 포함), A-11, A-12r, A-12rej
-- 피드백 파이프라인: C-11 (event marker 파싱 + append)
-- 프롬프트 주입: §1.6 (Newly Learned), §1.7 (Event Markers)
-- LLM 작업: A-8f (태그 보완 재시도), A-9f (guardrail 3요소 보완), A-11 (의미 분류)
+설계 문서: `/Users/kangmin/.claude-1/plans/logical-snuggling-parrot.md` (v4, R5 반영)
+
+**리뷰 이력**:
+- R1 (v1, 20260407-d724d7da): 13건 지적 → 전면 재설계
+- R2 (v2, 20260407-acce5778): 6건 잔여
+- R3 (v3, 20260407-3e8c4f9f): consensus 해소
+- R4 (v3, 20260407-a7fb71c8): blocker 2건 + enhancement 5건
+- R5 (v4, 20260407-be89dd41): IA-1 해소, IA-2 구현 시 해소
+
+**최종 판정**: shadow-first 조건부 GO. blocker 0건 (구현 시 자연 해소).
+
+### 3.4 즉시 진행: Learn Phase 2 구현
+
+**읽을 파일** (구현 시작 전):
+1. `/Users/kangmin/.claude-1/plans/logical-snuggling-parrot.md` — Phase 2 설계 v4 (정규 설계 문서)
+2. `.onto/temp/learn-implementation-design-v4.md` — 상위 설계 (§2 축적 원자 작업 + §1 인터페이스 계약)
+3. `src/core-runtime/learning/loader.ts` — Phase 1.5 구현 (공유 모듈 기준)
+4. `src/core-runtime/cli/coordinator-state-machine.ts` — completing 상태 (Step 2.5 삽입 대상)
+
+**구현 순서** (14개 파일):
+```
+F0(shared/mode.ts) → F1(shared/patterns.ts) → F2(shared/paths.ts) → F9(loader.ts import 변경)
+→ F3(shared/llm-caller.ts) → F4(shared/duplicate-check.ts) → F5(shared/semantic-classifier.ts)
+→ F8(prompt-sections.ts) → F12(artifact-types.ts 타입) → F11(materialize 프롬프트 주입)
+→ F7(feedback.ts) → F6(extractor.ts) → F13(start-review-session.ts 모드 영속)
+→ F10(coordinator-state-machine.ts Step 2.5 통합)
+```
+
+**구현 시 반영할 R5 잔여 3건**:
+1. read path에서 `readExtractMode()` 사용 (raw cast 금지) — F10, F11에서 적용
+2. manifest 필드명 `items_unclassified_pending` 사용 — F12에서 적용
+3. `schema_version: "1"` 유지 (Phase 2 첫 배포)
+
+**환경변수**: `ONTO_LEARNING_EXTRACT_MODE=disabled|shadow|active` (단일 enum)
+
+**빌드**: 코드 변경 후 `npx tsc --outDir dist` 필수 (`./bin/onto`는 dist/ 우선)
 
 **Phase 2 배포 전제** (설계 v4 §5):
 1. 진행 중 세션 없음
-2. `ONTO_LEARNING_EXTRACT_ENABLED=1` 환경변수
-3. 10건 shadow mode 통과
-
-**설계 시 읽을 파일**:
-1. `.onto/temp/learn-implementation-design-v4.md` — §2 축적(Accumulate) 원자 작업 15개 + §1 인터페이스 계약
-2. `src/core-runtime/learning/loader.ts` — Phase 1.5 구현 (공유 모듈 배치 기준)
-3. `src/core-runtime/cli/coordinator-state-machine.ts` — completing 상태에 추출 단계 삽입 대상
-4. `authority/llm-native-development-guideline.md` — 3-질문 프레임 (LLM/Runtime/Script 분류)
-
-**변경 예상 파일**:
-- `src/core-runtime/learning/extractor.ts` — 신규 (추출 파이프라인)
-- `src/core-runtime/cli/coordinator-state-machine.ts` — completing에 추출 단계 추가
-- lens prompt packet에 §1.6/§1.7 프롬프트 섹션 주입
+2. `ONTO_LEARNING_EXTRACT_MODE=shadow` 환경변수
+3. 10건 shadow mode 통과 후 `active` 전환
 
 ### 3.4 진화 항목
 

@@ -201,6 +201,8 @@ export interface ReviewSessionMetadata {
   requested_target: string;
   requested_domain_token: string;
   plugin_root: string;
+  /** Phase 2: persisted extract mode (validated at session start). */
+  learning_extract_mode?: string;
 }
 
 export interface TargetSnapshotManifest {
@@ -386,4 +388,105 @@ export interface PrepareOnlyResult {
   execution_realization: ReviewExecutionRealization;
   host_runtime: ReviewHostRuntime;
   review_mode: ReviewMode;
+}
+
+// ─────────────────────────────────────────────
+// Learning Extraction types (Phase 2)
+// ─────────────────────────────────────────────
+
+/** Classified item trace — A-8 pass → A-11 executed */
+export interface ClassifiedItemTrace {
+  kind: "classified";
+  lens_id: string;
+  raw_line: string;
+  assembled_line: string;
+  repaired: boolean;
+  repaired_line?: string;
+  decision:
+    | "save"
+    | "duplicate_skip"
+    | "conflict_propose_replace"
+    | "conflict_propose_keep"
+    | "conflict_propose_coexist"
+    | "unclassified_pending";
+  conflict_kind?: "contradiction" | "supersession" | "disambiguation";
+  matched_existing_line?: string;
+  reason: string;
+  write_path: string | null;
+  write_scope: "user" | "project" | null;
+  learning_id: string | null;
+  persistence_result:
+    | "written"
+    | "skipped_shadow"
+    | "skipped_conflict"
+    | "skipped_duplicate"
+    | "skipped_unclassified"
+    | "write_error";
+  write_error?: string;
+  model_id: string;
+  prompt_hash: string;
+}
+
+/** Quarantined item trace — validation failed (CC-2: no semantic decision) */
+export interface QuarantinedItemTrace {
+  kind: "quarantined";
+  lens_id: string;
+  raw_line: string;
+  assembled_line: string | null;
+  failure_stage: "A-8" | "A-8f" | "A-9" | "A-9f";
+  failure_reason: string;
+  repaired_line?: string;
+}
+
+export type ExtractionItemTrace = ClassifiedItemTrace | QuarantinedItemTrace;
+
+/** Conflict proposal (D-1: 저장 안 함 — manifest에만 기록) */
+export interface ConflictProposal {
+  lens_id: string;
+  new_item_line: string;
+  matched_existing_line: string;
+  decision:
+    | "conflict_propose_replace"
+    | "conflict_propose_keep"
+    | "conflict_propose_coexist";
+  conflict_kind: "contradiction" | "supersession" | "disambiguation";
+  reason: string;
+}
+
+/** Event marker trace — C-11 */
+export interface MarkerTrace {
+  lens_id: string;
+  marker_type: "applied-then-found-invalid";
+  learning_excerpt: string;
+  target_learning_id: string | null;
+  resolution:
+    | "attached"
+    | "skipped_shadow"
+    | "unresolved_no_id"
+    | "unresolved_not_found";
+  target_file?: string;
+}
+
+/** Extraction manifest — single owner (R1-U5). R5-IA-R5-2: items_unclassified_pending */
+export interface ExtractionManifest {
+  schema_version: "1";
+  session_id: string;
+  extract_mode: "shadow" | "active";
+  taxonomy_version: "phase2-v1";
+  timestamp: string;
+
+  items_parsed: number;
+  items_saved: number;
+  items_quarantined: number;
+  items_duplicate_skipped: number;
+  items_conflict_proposed: number;
+  items_unclassified_pending: number;
+  markers_found: number;
+  markers_attached: number;
+  markers_unresolved: number;
+
+  item_traces: ExtractionItemTrace[];
+  marker_traces: MarkerTrace[];
+  conflict_proposals: ConflictProposal[];
+  errors: string[];
 }

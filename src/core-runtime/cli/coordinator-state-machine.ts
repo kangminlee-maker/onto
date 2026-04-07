@@ -30,7 +30,10 @@ import {
   requireString,
   writeYamlDocument,
   fileExists,
+  appendMarkdownLogEntry,
 } from "../review/review-artifact-utils.js";
+import type { ReviewSessionMetadata } from "../review/artifact-types.js";
+import { readExtractMode } from "../learning/shared/mode.js";
 import {
   initCoordinatorLog,
   buildSynthesizeRuntimePacket,
@@ -387,6 +390,45 @@ export async function coordinatorNext(
         }
 
         // Step 2: (deliberation check — not implemented, see extension point above)
+
+        // Step 2.5: Learning extraction (Phase 2)
+        const sessionMetadata = await readYamlDocument<ReviewSessionMetadata>(
+          path.join(sessionRoot, "session-metadata.yaml"),
+        );
+        const extractMode = readExtractMode(sessionMetadata);
+
+        if (extractMode !== "disabled") {
+          try {
+            const { runLearningExtraction } = await import(
+              "../learning/extractor.js"
+            );
+            const extractionManifest = await runLearningExtraction({
+              sessionRoot,
+              projectRoot,
+              executionPlan,
+              mode: extractMode as "shadow" | "active",
+              sessionId: executionPlan.session_id,
+              sessionDomain:
+                sessionMetadata.requested_domain_token || null,
+            });
+            // Persist manifest (shadow and production both)
+            await writeYamlDocument(
+              path.join(
+                sessionRoot,
+                "execution-preparation",
+                "learning-extraction-manifest.yaml",
+              ),
+              extractionManifest,
+            );
+          } catch (error) {
+            // Non-blocking: extraction failure must not prevent review completion
+            await appendMarkdownLogEntry(
+              path.join(sessionRoot, "error-log.md"),
+              "learning extraction failed (non-blocking)",
+              error instanceof Error ? error.message : String(error),
+            );
+          }
+        }
 
         // Step 3: write-execution-result
         const startedAt =

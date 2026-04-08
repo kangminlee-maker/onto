@@ -3892,6 +3892,275 @@ async function main(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // Batch 7 — Collector contract hardening (DD-18 §SST + parser)
+  //
+  // These tests exercise the boundaries that E-P1/E-P2/E-P3/E-P4/E-P38 leave
+  // open: disjoint invariant against real global scope, event marker + tag
+  // comment capture, learning_id capture, parser tolerance, and per-file
+  // baseline hash structure. Uses process.env.HOME override so global
+  // learnings are read from a tmpdir instead of the real ~/.onto/learnings.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Temporarily override HOME so collector's getGlobalLearningsDir() reads
+   * from a controlled tmpdir. Returns a cleanup function to restore HOME.
+   * Must be called BEFORE invoking collect().
+   */
+  function overrideHome(fakeHome: string): () => void {
+    const previousHome = process.env.HOME;
+    process.env.HOME = fakeHome;
+    return () => {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+    };
+  }
+
+  // E-P98 — DD-18 §SST disjoint invariant: in promote mode, candidate_items
+  //          come from project scope only. Items declared in the global
+  //          scope MUST NOT leak into candidate_items even if they share
+  //          content with project items.
+  await test("E-P98 collector promote mode: candidate_items disjoint from global_items", () => {
+    const fakeHome = makeTmpDir("e-p98-home");
+    const projectRoot = makeTmpDir("e-p98-proj");
+    // Global scope: one [fact] learning under the fake HOME
+    writeLearningFile(
+      path.join(fakeHome, ".onto", "learnings"),
+      "structure",
+      "- [fact] [methodology] [foundation] global-only-entry (source: p, d, 2026-01-01) [impact:normal]",
+    );
+    // Project scope: a DIFFERENT learning
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      "- [fact] [methodology] [foundation] project-only-entry (source: p, d, 2026-01-02) [impact:normal]",
+    );
+
+    const restore = overrideHome(fakeHome);
+    try {
+      const result = collect({ mode: "promote", projectRoot });
+      // Both scopes populated
+      assertEqual(result.global_items.length, 1, "one global item");
+      assertEqual(result.project_items.length, 1, "one project item");
+      // candidate_items must contain only the project entry
+      assertEqual(result.candidate_items.length, 1, "one candidate");
+      assertEqual(
+        result.candidate_items[0]!.scope,
+        "project",
+        "candidate scope=project",
+      );
+      assertEqual(
+        result.candidate_items[0]!.content,
+        "project-only-entry",
+        "candidate content",
+      );
+      // Disjoint invariant: no candidate has scope=global
+      const candidateContents = result.candidate_items.map((i) => i.content);
+      const globalContents = result.global_items.map((i) => i.content);
+      for (const content of candidateContents) {
+        assert(
+          !globalContents.includes(content) ||
+            result.candidate_items.find((c) => c.content === content)?.scope !==
+              "global",
+          `candidate "${content}" must not share (scope=global, content) with global_items`,
+        );
+      }
+    } finally {
+      restore();
+    }
+  });
+
+  // E-P99 — Event marker capture: 2 markers attached to one learning are
+  //          both stored in event_markers as full comment text. retirement.ts
+  //          needs the full `<!-- ... -->` string to parse dates.
+  await test("E-P99 collector captures all event markers on a learning", () => {
+    const fakeHome = makeTmpDir("e-p99-home");
+    const projectRoot = makeTmpDir("e-p99-proj");
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      [
+        "- [fact] [methodology] [foundation] candidate (source: p, d, 2026-01-01) [impact:normal]",
+        "<!-- applied-then-found-invalid: 2026-02-15 rewritten -->",
+        "<!-- observed-obsolete: 2026-03-20 superseded -->",
+      ].join("\n"),
+    );
+    const restore = overrideHome(fakeHome);
+    try {
+      const result = collect({ mode: "promote", projectRoot });
+      assertEqual(result.project_items.length, 1, "one project item");
+      const item = result.project_items[0]!;
+      assertEqual(item.event_markers.length, 2, "two event markers captured");
+      // First marker should include the applied-then-found-invalid label + date
+      assert(
+        item.event_markers[0]!.includes("applied-then-found-invalid"),
+        "first marker kind preserved",
+      );
+      assert(
+        item.event_markers[0]!.includes("2026-02-15"),
+        "first marker date preserved",
+      );
+      // Second marker
+      assert(
+        item.event_markers[1]!.includes("observed-obsolete"),
+        "second marker kind preserved",
+      );
+      assert(
+        item.event_markers[1]!.includes("2026-03-20"),
+        "second marker date preserved",
+      );
+      // retention_confirmed_at is independent — absent in this test
+      assertEqual(item.retention_confirmed_at, null, "no retention marker");
+    } finally {
+      restore();
+    }
+  });
+
+  // E-P100 — retention_confirmed_at capture: dedicated `<!-- retention-confirmed: YYYY-MM-DD -->`
+  //          is stored on the item separately from event_markers.
+  //          retirement.ts uses this as the cutoff for counting event markers.
+  await test("E-P100 collector captures retention_confirmed_at without mixing into event_markers", () => {
+    const fakeHome = makeTmpDir("e-p100-home");
+    const projectRoot = makeTmpDir("e-p100-proj");
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      [
+        "- [fact] [methodology] [foundation] candidate (source: p, d, 2026-01-01) [impact:normal]",
+        "<!-- retention-confirmed: 2026-02-01 -->",
+        "<!-- applied-then-found-invalid: 2026-03-15 -->",
+      ].join("\n"),
+    );
+    const restore = overrideHome(fakeHome);
+    try {
+      const result = collect({ mode: "promote", projectRoot });
+      assertEqual(result.project_items.length, 1, "one item");
+      const item = result.project_items[0]!;
+      assertEqual(
+        item.retention_confirmed_at,
+        "2026-02-01",
+        "retention_confirmed_at isolated",
+      );
+      assertEqual(item.event_markers.length, 1, "only event marker captured");
+      assert(
+        item.event_markers[0]!.includes("applied-then-found-invalid"),
+        "event marker preserved",
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  // E-P101 — learning_id capture from comment annotation.
+  //          `<!-- learning_id: abc123 -->` following a learning line sets
+  //          item.learning_id. Used for cross-agent dedup member matching.
+  await test("E-P101 collector captures learning_id from comment annotation", () => {
+    const fakeHome = makeTmpDir("e-p101-home");
+    const projectRoot = makeTmpDir("e-p101-proj");
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      [
+        "- [fact] [methodology] [foundation] item-a (source: p, d, 2026-01-01) [impact:normal]",
+        "<!-- learning_id: abcdef123456 -->",
+        "",
+        "- [fact] [methodology] [foundation] item-b (source: p, d, 2026-01-02) [impact:normal]",
+        // No learning_id for item-b — field should be null
+      ].join("\n"),
+    );
+    const restore = overrideHome(fakeHome);
+    try {
+      const result = collect({ mode: "promote", projectRoot });
+      assertEqual(result.project_items.length, 2, "two items");
+      const [a, b] = result.project_items;
+      assertEqual(a!.learning_id, "abcdef123456", "learning_id captured");
+      assertEqual(b!.learning_id, null, "no id → null");
+    } finally {
+      restore();
+    }
+  });
+
+  // E-P102 — Lenient parser: malformed lines are recorded in parse_errors,
+  //          valid lines in the same file are still parsed. Supplements
+  //          E-P38 which checks the promoter runs through parse errors.
+  await test("E-P102 collector records parse errors without skipping surrounding valid lines", () => {
+    const fakeHome = makeTmpDir("e-p102-home");
+    const projectRoot = makeTmpDir("e-p102-proj");
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      [
+        "- [fact] [methodology] [foundation] valid-before (source: p, d, 2026-01-01) [impact:normal]",
+        // Missing applicability tags — parser rejects
+        "- [fact] missing-tags (source: p, d, 2026-01-02) [impact:normal]",
+        // Empty content body — parser rejects
+        "- [fact] [methodology] [foundation] (source: p, d, 2026-01-03) [impact:normal]",
+        "- [fact] [methodology] [foundation] valid-after (source: p, d, 2026-01-04) [impact:normal]",
+      ].join("\n"),
+    );
+    const restore = overrideHome(fakeHome);
+    try {
+      const result = collect({ mode: "promote", projectRoot });
+      // Two valid items parsed, two errors recorded
+      assertEqual(result.project_items.length, 2, "two valid items parsed");
+      assertEqual(result.parse_errors.length, 2, "two parse errors recorded");
+      // Valid items are in file order
+      assertEqual(
+        result.project_items[0]!.content,
+        "valid-before",
+        "first valid",
+      );
+      assertEqual(
+        result.project_items[1]!.content,
+        "valid-after",
+        "second valid — surrounds errors",
+      );
+      // Parse errors carry file path and line number
+      for (const err of result.parse_errors) {
+        assert(err.source_path.length > 0, "source_path set");
+        assert(err.line_number > 0, "line_number set");
+        assert(err.error.length > 0, "error message set");
+      }
+    } finally {
+      restore();
+    }
+  });
+
+  // E-P103 — Baseline hash per-file structure (DD-10): for each project/global
+  //          file discovered, baseline_files contains (path, scope, agent_id,
+  //          size_bytes, content_sha256, line_count). Critical for
+  //          verifyBaselineHash drift detection.
+  await test("E-P103 collector baseline hash captures per-file metadata", () => {
+    const fakeHome = makeTmpDir("e-p103-home");
+    const projectRoot = makeTmpDir("e-p103-proj");
+    const fileContents =
+      "- [fact] [methodology] [foundation] item (source: p, d, 2026-01-01) [impact:normal]\n";
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      fileContents,
+    );
+    const restore = overrideHome(fakeHome);
+    try {
+      const result = collect({ mode: "promote", projectRoot });
+      assertEqual(result.baseline_hash.schema_version, "1", "schema_version");
+      assertEqual(result.baseline_hash.source_scope, "promote", "scope label");
+      assert(result.baseline_hash.captured_at.length > 0, "captured_at set");
+      const projectBaselines = result.baseline_hash.files.filter(
+        (f) => f.scope === "project",
+      );
+      assertEqual(projectBaselines.length, 1, "one project file in baseline");
+      const file = projectBaselines[0]!;
+      assertEqual(file.agent_id, "structure", "agent_id derived from filename");
+      assertEqual(file.size_bytes, Buffer.byteLength(fileContents), "size matches");
+      assertEqual(file.line_count, 2, "line count includes trailing newline row");
+      assertEqual(file.content_sha256.length, 64, "sha256 hex length");
+      assert(file.path.endsWith("structure.md"), "path ends with filename");
+    } finally {
+      restore();
+    }
+  });
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   process.stdout.write("\n");

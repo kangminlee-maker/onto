@@ -62,6 +62,14 @@ import {
   gatherRecoveryContext,
 } from "../shared/recovery-context.js";
 import {
+  REGISTRY,
+  RegistryInitError,
+  UnregisteredArtifactKindError,
+  IncompatibleVersionError,
+  InvalidArtifactError,
+} from "../shared/artifact-registry.js";
+import type { AuditStateJSON } from "./types.js";
+import {
   inspectMigrationStatus,
   ensureSessionRootsMigrated,
   MigrationRequiredError,
@@ -2156,6 +2164,200 @@ async function main(): Promise<void> {
       if (previousMock === undefined) delete process.env.ONTO_LLM_MOCK;
       else process.env.ONTO_LLM_MOCK = previousMock;
     }
+  });
+
+  // -------------------------------------------------------------------------
+  // Batch 1 — Artifact Registry error paths (DD-20)
+  // -------------------------------------------------------------------------
+
+  // E-P51 — UnregisteredArtifactKindError surfaces the known set in the message
+  await test("E-P51 REGISTRY.get(unknown kind) → UnregisteredArtifactKindError", () => {
+    let caught: unknown = null;
+    try {
+      REGISTRY.get("totally_made_up_kind_xyz");
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof UnregisteredArtifactKindError, "expected UnregisteredArtifactKindError");
+    const err = caught as UnregisteredArtifactKindError;
+    assert(err.message.includes("totally_made_up_kind_xyz"), "message names the requested kind");
+    assert(err.message.includes("audit_state"), "message lists available kinds");
+  });
+
+  // E-P52 — Lazy init: fresh singleton with no explicit init call populates specs
+  //        on first use (no need to call ensureRegistryReady()).
+  await test("E-P52 REGISTRY lazy init on first use populates builtin specs", () => {
+    // Preserve the wired registrar across __resetForTest since that helper
+    // only clears specs/initialized/cachedInitError. The registrar closure
+    // wired by artifact-registry-init.ts module-load must still be present.
+    REGISTRY.__resetForTest();
+    // Before any call, nothing is in the map
+    let initializedBefore = false;
+    try {
+      // Direct listRegistered() triggers ensureInitialized() — if the
+      // registrar is still wired the list becomes non-empty.
+      const list = REGISTRY.listRegistered();
+      initializedBefore = list.length > 0;
+    } catch (e) {
+      assert(false, `lazy init failed unexpectedly: ${(e as Error).message}`);
+    }
+    assert(initializedBefore, "lazy init produced registered specs on first call");
+    assert(
+      REGISTRY.listRegistered().includes("audit_state"),
+      "builtin audit_state spec is registered after lazy init",
+    );
+  });
+
+  // E-P53 — NQ-19: after a failed init, every subsequent call throws the SAME
+  //        cached RegistryInitError instance (process-scoped, no retry).
+  await test("E-P53 Registry init failure is cached: same error on retries (NQ-19)", () => {
+    const internal = REGISTRY as unknown as {
+      builtinRegistrar: (() => void) | null;
+    };
+    const originalRegistrar = internal.builtinRegistrar;
+    try {
+      REGISTRY.__resetForTest();
+      REGISTRY.setBuiltinRegistrar(() => {
+        throw new Error("simulated boot failure");
+      });
+
+      let first: unknown = null;
+      try {
+        REGISTRY.listRegistered();
+      } catch (e) {
+        first = e;
+      }
+      let second: unknown = null;
+      try {
+        REGISTRY.listRegistered();
+      } catch (e) {
+        second = e;
+      }
+
+      assert(first instanceof RegistryInitError, "first call throws RegistryInitError");
+      assert(second instanceof RegistryInitError, "second call also throws RegistryInitError");
+      assert(first === second, "NQ-19: same instance returned on retry (cached)");
+      assert(
+        (first as Error).message.includes("simulated boot failure"),
+        "RegistryInitError wraps original cause message",
+      );
+    } finally {
+      // Restore pristine registry: clear cached error, re-wire the original
+      // registrar, then trigger lazy re-init so downstream tests see a
+      // populated registry again.
+      REGISTRY.__resetForTest();
+      if (originalRegistrar) {
+        REGISTRY.setBuiltinRegistrar(originalRegistrar);
+        REGISTRY.listRegistered(); // force re-init
+      }
+    }
+  });
+
+  // E-P54 — saveToFile runs validate() first and surfaces InvalidArtifactError
+  //        when required fields are missing.
+  await test("E-P54 saveToFile InvalidArtifactError when validate() fails (SYN-CC1)", () => {
+    const dir = makeTmpDir("e-p54");
+    const target = path.join(dir, "audit-state.yaml");
+    // audit_state spec requires `obligations: [...]` — missing it triggers
+    // validate() failure *before* schema_version check.
+    const bad = { schema_version: "1" } as unknown as AuditStateJSON;
+    let caught: unknown = null;
+    try {
+      REGISTRY.saveToFile("audit_state", target, bad);
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof InvalidArtifactError, "expected InvalidArtifactError");
+    assert((caught as Error).message.includes("obligations"), "error names the missing field");
+    assert(!fs.existsSync(target), "file is NOT written when validation fails");
+  });
+
+  // E-P55 — SYN-CONS-03: undefined schema_version on save → InvalidArtifactError.
+  await test("E-P55 saveToFile rejects undefined schema_version (SYN-CONS-03)", () => {
+    const dir = makeTmpDir("e-p55");
+    const target = path.join(dir, "audit-state.yaml");
+    // Structurally valid obligations, but NO schema_version at all.
+    const bad = { obligations: [] } as unknown as AuditStateJSON;
+    let caught: unknown = null;
+    try {
+      REGISTRY.saveToFile("audit_state", target, bad);
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof InvalidArtifactError, "expected InvalidArtifactError");
+    // Could come from either the validate step (schema_version must be "1")
+    // OR the explicit undefined-check. Both are the same error type.
+    assert(
+      (caught as Error).message.toLowerCase().includes("schema_version"),
+      "error mentions schema_version",
+    );
+    assert(!fs.existsSync(target), "file not written");
+  });
+
+  // E-P56 — SYN-CC1: schema_version present but != spec.current → rejected.
+  await test("E-P56 saveToFile rejects schema_version mismatch", () => {
+    const dir = makeTmpDir("e-p56");
+    const target = path.join(dir, "audit-state.yaml");
+    // Validator checks schema_version === "1". A different string fails.
+    const bad = { schema_version: "999", obligations: [] } as unknown as AuditStateJSON;
+    let caught: unknown = null;
+    try {
+      REGISTRY.saveToFile("audit_state", target, bad);
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof InvalidArtifactError, "expected InvalidArtifactError");
+    assert(
+      (caught as Error).message.includes("999") || (caught as Error).message.includes("schema_version"),
+      "error references the bad version",
+    );
+    assert(!fs.existsSync(target), "file not written");
+  });
+
+  // E-P57 — Format binding from extension: unsupported .txt → Error before write.
+  await test("E-P57 saveToFile rejects unsupported extension", () => {
+    const dir = makeTmpDir("e-p57");
+    const target = path.join(dir, "audit-state.txt"); // not yaml/json
+    const data: AuditStateJSON = {
+      schema_version: "1",
+      obligations: [],
+    };
+    let caught: unknown = null;
+    try {
+      REGISTRY.saveToFile("audit_state", target, data);
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof Error, "expected Error for extension mismatch");
+    const msg = (caught as Error).message;
+    assert(
+      msg.includes(".txt") || msg.toLowerCase().includes("extension") || msg.toLowerCase().includes("format"),
+      `error references the bad extension (got: ${msg})`,
+    );
+    assert(!fs.existsSync(target), "file not written");
+  });
+
+  // E-P58 — UF-COV-01: pre-v7 artifact (no schema_version) → IncompatibleVersionError on load.
+  await test("E-P58 loadFromFile rejects pre-v7 artifact with clear guidance", () => {
+    const dir = makeTmpDir("e-p58");
+    const target = path.join(dir, "audit-state.yaml");
+    // Legacy shape: obligations array but NO schema_version field.
+    const legacyYaml = "obligations: []\n";
+    fs.writeFileSync(target, legacyYaml, "utf8");
+
+    let caught: unknown = null;
+    try {
+      REGISTRY.loadFromFile("audit_state", target);
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof IncompatibleVersionError, "expected IncompatibleVersionError");
+    const msg = (caught as Error).message;
+    assert(msg.toLowerCase().includes("pre-v7"), "message identifies pre-v7 detection");
+    assert(
+      msg.toLowerCase().includes("discard") || msg.toLowerCase().includes("regenerate"),
+      "message gives actionable guidance",
+    );
   });
 
   // -------------------------------------------------------------------------

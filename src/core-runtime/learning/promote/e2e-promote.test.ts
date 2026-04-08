@@ -60,6 +60,11 @@ import {
   loadRecoveryResolution,
   resolveRecoveryTruth,
   gatherRecoveryContext,
+  buildEscalationMessage,
+  DEFAULT_RECOVERY_POLICY,
+  type RecoveryContext,
+  type ApplyStateRecoverySource,
+  type ManualEscalationRequired,
 } from "../shared/recovery-context.js";
 import {
   REGISTRY,
@@ -76,6 +81,8 @@ import {
 } from "../../cli/session-root-guard.js";
 import { migrateSessionRoots } from "../../cli/migrate-session-roots.js";
 import type {
+  AppliedDecision,
+  ApplyExecutionState,
   DegradedStateEntry,
   PanelMemberReview,
   PanelVerdict,
@@ -2358,6 +2365,612 @@ async function main(): Promise<void> {
       msg.toLowerCase().includes("discard") || msg.toLowerCase().includes("regenerate"),
       "message gives actionable guidance",
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // Batch 2 — RecoveryContext + RecoveryResolution real logic (DD-22, DD-23)
+  //
+  // These tests mostly exercise resolveRecoveryTruth with synthetic
+  // in-memory RecoveryContext objects so we avoid the module-level HOME
+  // frozen constant (EMERGENCY_LOG_PATH, BACKUP_ROOT). The gather-path
+  // tests focus on the apply_state branch which is project-scoped.
+  // -------------------------------------------------------------------------
+
+  function synthApplyState(
+    sessionId: string,
+    attemptId: string,
+    generation: number,
+    recordedAt: string,
+  ): ApplyExecutionState {
+    return {
+      schema_version: "1",
+      session_id: sessionId,
+      attempt_id: attemptId,
+      attempt_started_at: recordedAt,
+      generation,
+      last_updated_at: recordedAt,
+      status: "in_progress",
+      applied_decisions: [],
+      failed_decisions: [],
+      pending_decisions: [],
+      recoverability_checkpoint_path: null,
+    };
+  }
+
+  function synthApplyStateSource(
+    sessionId: string,
+    attemptId: string,
+    generation: number,
+    recordedAt: string,
+  ): ApplyStateRecoverySource {
+    return {
+      kind: "apply_state",
+      state: synthApplyState(sessionId, attemptId, generation, recordedAt),
+      freshness: {
+        attempt_id: attemptId,
+        generation,
+        source_recorded_at: recordedAt,
+        source_kind: "apply_state",
+      },
+      artifact_path: `/tmp/fake/${sessionId}/apply.json`,
+    };
+  }
+
+  function synthContext(
+    sessionId: string,
+    apply: ApplyStateRecoverySource | null,
+  ): RecoveryContext {
+    return {
+      session_id: sessionId,
+      gathered_at: "2026-04-09T00:00:00.000Z",
+      apply_state: apply,
+      emergency_log: null,
+      checkpoint_manifest: null,
+    };
+  }
+
+  // E-P59 — gatherRecoveryContext reads apply_state written via REGISTRY
+  await test("E-P59 gatherRecoveryContext reads a valid apply_state file", async () => {
+    const projectRoot = makeTmpDir("e-p59");
+    const sessionId = "sess-59";
+    const sessionRoot = path.join(
+      projectRoot,
+      ".onto",
+      "sessions",
+      "promote",
+      sessionId,
+    );
+    fs.mkdirSync(sessionRoot, { recursive: true });
+    const state = synthApplyState(
+      sessionId,
+      "01ARAFG00000000000000000AA",
+      7,
+      "2026-04-08T10:00:00Z",
+    );
+    REGISTRY.saveToFile(
+      "apply_execution_state",
+      path.join(sessionRoot, "promote-execution-result.json"),
+      state,
+    );
+
+    const context = await gatherRecoveryContext(sessionId, projectRoot);
+    assert(context.apply_state !== null, "apply_state populated");
+    assertEqual(
+      context.apply_state!.freshness.attempt_id,
+      "01ARAFG00000000000000000AA",
+      "attempt_id carried through",
+    );
+    assertEqual(context.apply_state!.freshness.generation, 7, "generation carried");
+    assertEqual(
+      context.apply_state!.freshness.source_kind,
+      "apply_state",
+      "source_kind labelled",
+    );
+    // Emergency log / checkpoint absence — gather returned null for both
+    assert(context.emergency_log === null, "no emergency log");
+    assert(context.checkpoint_manifest === null, "no checkpoint");
+  });
+
+  // E-P60 — gatherRecoveryContext with nothing → all-null context (not thrown)
+  await test("E-P60 gatherRecoveryContext with no sources returns all-null context", async () => {
+    const projectRoot = makeTmpDir("e-p60");
+    const context = await gatherRecoveryContext("sess-60", projectRoot);
+    assert(context.apply_state === null, "apply_state null");
+    assert(context.emergency_log === null, "emergency log null");
+    assert(context.checkpoint_manifest === null, "checkpoint null");
+    assertEqual(context.session_id, "sess-60", "session_id preserved");
+  });
+
+  // E-P61 — corrupt apply_state file → helper is best-effort, null
+  await test("E-P61 gatherRecoveryContext treats corrupt apply_state as absent", async () => {
+    const projectRoot = makeTmpDir("e-p61");
+    const sessionId = "sess-61";
+    const sessionRoot = path.join(
+      projectRoot,
+      ".onto",
+      "sessions",
+      "promote",
+      sessionId,
+    );
+    fs.mkdirSync(sessionRoot, { recursive: true });
+    // Write a syntactically-valid JSON file that has NO schema_version —
+    // parse will reject via rejectPreV7, gather catches and returns null.
+    fs.writeFileSync(
+      path.join(sessionRoot, "promote-execution-result.json"),
+      JSON.stringify({ session_id: sessionId, obligations: [] }),
+      "utf8",
+    );
+    const context = await gatherRecoveryContext(sessionId, projectRoot);
+    assert(context.apply_state === null, "corrupt apply_state silently null");
+  });
+
+  // E-P62 — resolveRecoveryTruth with no sources → no_recovery_data
+  await test("E-P62 resolveRecoveryTruth empty context → no_recovery_data", () => {
+    const context = synthContext("sess-62", null);
+    const truth = resolveRecoveryTruth(context, "/tmp/unused");
+    assertEqual(truth.kind, "no_recovery_data", "no sources handled");
+  });
+
+  // E-P63 — resolveRecoveryTruth single attempt, multiple sources at different
+  //          generations → latest generation wins (within-attempt ordering)
+  await test("E-P63 resolveRecoveryTruth single attempt picks latest generation", () => {
+    const attemptId = "01SINGLEATTEMPTTEST0000000";
+    const low = synthApplyStateSource("sess-63", attemptId, 2, "2026-04-08T09:00:00Z");
+    // Use another apply_state entry for the "latest" source. We only need
+    // resolveWithinAttempt to pick by generation.
+    const high = synthApplyStateSource("sess-63", attemptId, 9, "2026-04-08T11:00:00Z");
+    const context: RecoveryContext = {
+      session_id: "sess-63",
+      gathered_at: "2026-04-09T00:00:00.000Z",
+      apply_state: low, // older
+      emergency_log: null,
+      checkpoint_manifest: null,
+    };
+    // Only one source is placed in context; add a second via direct field
+    // assignment is not possible because emergency_log type differs. Instead
+    // we feed the resolver the higher-generation source as the apply_state
+    // and verify single_attempt pathway.
+    context.apply_state = high;
+    const truth = resolveRecoveryTruth(context, "/tmp/unused");
+    assertEqual(truth.kind, "resolved", "resolved outcome");
+    if (truth.kind !== "resolved") return;
+    assertEqual(truth.source_of_truth, "single_attempt", "single attempt path");
+    assertEqual(truth.has_conflict, false, "no conflict flag");
+    assertEqual(truth.latest_source.freshness.generation, 9, "latest gen wins");
+  });
+
+  // E-P64 — two different attempt_ids + default policy → manual_escalation_required
+  //          We exercise this via checkpoint_manifest + apply_state to get
+  //          two different sources with different attempt_ids.
+  await test("E-P64 resolveRecoveryTruth 2 attempt_ids default policy → manual escalation", () => {
+    const apply = synthApplyStateSource(
+      "sess-64",
+      "01AAAAA_attempt_a_00000000",
+      5,
+      "2026-04-08T12:00:00Z",
+    );
+    // Build a checkpoint_manifest source in-memory with a DIFFERENT attempt_id
+    const ckpt: RecoveryContext["checkpoint_manifest"] = {
+      kind: "checkpoint_manifest",
+      manifest: {
+        schema_version: "1",
+        session_id: "sess-64",
+        attempt_id: "01BBBBB_attempt_b_00000000",
+        generation: 3,
+        created_at: "2026-04-08T10:00:00Z",
+        backups: [],
+        restore_order: [],
+        verification_after_restore: [],
+      },
+      checkpoint: {
+        schema_version: "1",
+        session_id: "sess-64",
+        created_at: "2026-04-08T10:00:00Z",
+        manifest_path: "/tmp/fake/ckpt/restore-manifest.yaml",
+        backups: [],
+        total_bytes: 0,
+        protected: false,
+        protection_reason: null,
+        attempt_id: "01BBBBB_attempt_b_00000000",
+        generation: 3,
+      },
+      freshness: {
+        attempt_id: "01BBBBB_attempt_b_00000000",
+        generation: 3,
+        source_recorded_at: "2026-04-08T10:00:00Z",
+        source_kind: "checkpoint_manifest",
+      },
+    };
+    const context: RecoveryContext = {
+      session_id: "sess-64",
+      gathered_at: "2026-04-09T00:00:00Z",
+      apply_state: apply,
+      emergency_log: null,
+      checkpoint_manifest: ckpt,
+    };
+
+    const projectRoot = makeTmpDir("e-p64");
+    const truth = resolveRecoveryTruth(context, projectRoot, DEFAULT_RECOVERY_POLICY);
+    assertEqual(truth.kind, "manual_escalation_required", "escalation required");
+    if (truth.kind !== "manual_escalation_required") return;
+    assertEqual(truth.conflicting_attempts.length, 2, "both attempts in list");
+    const ids = truth.conflicting_attempts.map((a) => a.attempt_id).sort();
+    assertEqual(ids[0], "01AAAAA_attempt_a_00000000", "attempt a present");
+    assertEqual(ids[1], "01BBBBB_attempt_b_00000000", "attempt b present");
+    assert(
+      truth.escalation_reason.includes("resolve-conflict"),
+      "reason mentions cli resolution path",
+    );
+  });
+
+  // E-P65 — two different attempt_ids + auto_resolve → canonical ULID wins
+  //          ULID lexicographic == chronological. "01B..." > "01A..." so
+  //          attempt B should become canonical.
+  await test("E-P65 resolveRecoveryTruth auto_resolve picks lexicographically latest attempt", () => {
+    const apply = synthApplyStateSource(
+      "sess-65",
+      "01AAAAA_attempt_a_00000000",
+      5,
+      "2026-04-08T12:00:00Z",
+    );
+    const ckpt: RecoveryContext["checkpoint_manifest"] = {
+      kind: "checkpoint_manifest",
+      manifest: {
+        schema_version: "1",
+        session_id: "sess-65",
+        attempt_id: "01BBBBB_attempt_b_00000000",
+        generation: 3,
+        created_at: "2026-04-08T10:00:00Z",
+        backups: [],
+        restore_order: [],
+        verification_after_restore: [],
+      },
+      checkpoint: {
+        schema_version: "1",
+        session_id: "sess-65",
+        created_at: "2026-04-08T10:00:00Z",
+        manifest_path: "/tmp/fake/ckpt/restore-manifest.yaml",
+        backups: [],
+        total_bytes: 0,
+        protected: false,
+        protection_reason: null,
+        attempt_id: "01BBBBB_attempt_b_00000000",
+        generation: 3,
+      },
+      freshness: {
+        attempt_id: "01BBBBB_attempt_b_00000000",
+        generation: 3,
+        source_recorded_at: "2026-04-08T10:00:00Z",
+        source_kind: "checkpoint_manifest",
+      },
+    };
+    const context: RecoveryContext = {
+      session_id: "sess-65",
+      gathered_at: "2026-04-09T00:00:00Z",
+      apply_state: apply,
+      emergency_log: null,
+      checkpoint_manifest: ckpt,
+    };
+
+    const projectRoot = makeTmpDir("e-p65");
+    const truth = resolveRecoveryTruth(context, projectRoot, {
+      cross_attempt_conflict: "auto_resolve_latest_generation",
+    });
+    assertEqual(truth.kind, "resolved", "auto resolved outcome");
+    if (truth.kind !== "resolved") return;
+    assertEqual(truth.source_of_truth, "auto_resolved", "source_of_truth=auto_resolved");
+    assertEqual(truth.has_conflict, true, "conflict flag preserved");
+    assertEqual(
+      truth.latest_source.freshness.attempt_id,
+      "01BBBBB_attempt_b_00000000",
+      "canonical = lex-max attempt_id",
+    );
+  });
+
+  // E-P66 — operator resolution present and referencing apply_state attempt →
+  //          returns operator_resolution pointing at that attempt's sources
+  await test("E-P66 resolveRecoveryTruth honors operator resolution (selected attempt exists)", () => {
+    const projectRoot = makeTmpDir("e-p66");
+    const sessionId = "sess-66";
+    fs.mkdirSync(
+      path.join(projectRoot, ".onto", "sessions", "promote", sessionId),
+      { recursive: true },
+    );
+
+    const attemptA = "01AAAAA_attempt_a_00000000";
+    const attemptB = "01BBBBB_attempt_b_00000000";
+
+    // Operator picks attempt A
+    const entry = {
+      resolved_at: "2026-04-09T00:00:00Z",
+      resolved_by: "operator" as const,
+      resolution_method: "cli_command" as const,
+      selected_attempt_id: attemptA,
+      selected_attempt_reason: "operator pinned a",
+      all_attempts_at_resolution_time: [],
+    };
+    saveRecoveryResolution(projectRoot, {
+      schema_version: "1",
+      session_id: sessionId,
+      ...entry,
+      resolution_history: [entry],
+    });
+
+    const apply = synthApplyStateSource(sessionId, attemptA, 5, "2026-04-08T12:00:00Z");
+    const ckpt: RecoveryContext["checkpoint_manifest"] = {
+      kind: "checkpoint_manifest",
+      manifest: {
+        schema_version: "1",
+        session_id: sessionId,
+        attempt_id: attemptB,
+        generation: 3,
+        created_at: "2026-04-08T10:00:00Z",
+        backups: [],
+        restore_order: [],
+        verification_after_restore: [],
+      },
+      checkpoint: {
+        schema_version: "1",
+        session_id: sessionId,
+        created_at: "2026-04-08T10:00:00Z",
+        manifest_path: "/tmp/fake/ckpt/restore-manifest.yaml",
+        backups: [],
+        total_bytes: 0,
+        protected: false,
+        protection_reason: null,
+        attempt_id: attemptB,
+        generation: 3,
+      },
+      freshness: {
+        attempt_id: attemptB,
+        generation: 3,
+        source_recorded_at: "2026-04-08T10:00:00Z",
+        source_kind: "checkpoint_manifest",
+      },
+    };
+    const context: RecoveryContext = {
+      session_id: sessionId,
+      gathered_at: "2026-04-09T00:00:00Z",
+      apply_state: apply,
+      emergency_log: null,
+      checkpoint_manifest: ckpt,
+    };
+    const truth = resolveRecoveryTruth(context, projectRoot);
+    assertEqual(truth.kind, "resolved", "resolved via operator");
+    if (truth.kind !== "resolved") return;
+    assertEqual(truth.source_of_truth, "operator_resolution", "operator-chosen");
+    assertEqual(
+      truth.latest_source.freshness.attempt_id,
+      attemptA,
+      "latest_source matches operator choice",
+    );
+    assert(
+      truth.resolution_artifact_path !== undefined,
+      "resolution_artifact_path set on operator_resolution",
+    );
+  });
+
+  // E-P67 — operator resolution references an attempt that no longer has any
+  //          source → must escalate again (fail-close safety)
+  await test("E-P67 resolveRecoveryTruth re-escalates when operator attempt is stale", () => {
+    const projectRoot = makeTmpDir("e-p67");
+    const sessionId = "sess-67";
+    fs.mkdirSync(
+      path.join(projectRoot, ".onto", "sessions", "promote", sessionId),
+      { recursive: true },
+    );
+
+    // Operator picked a third attempt that no longer appears in any source
+    const ghostAttempt = "01GHOSTATTEMPT00000000000X";
+    const entry = {
+      resolved_at: "2026-04-09T00:00:00Z",
+      resolved_by: "operator" as const,
+      resolution_method: "cli_command" as const,
+      selected_attempt_id: ghostAttempt,
+      selected_attempt_reason: "pinned but artifact was since lost",
+      all_attempts_at_resolution_time: [],
+    };
+    saveRecoveryResolution(projectRoot, {
+      schema_version: "1",
+      session_id: sessionId,
+      ...entry,
+      resolution_history: [entry],
+    });
+
+    const apply = synthApplyStateSource(
+      sessionId,
+      "01AAAAA_attempt_a_00000000",
+      5,
+      "2026-04-08T12:00:00Z",
+    );
+    const ckpt: RecoveryContext["checkpoint_manifest"] = {
+      kind: "checkpoint_manifest",
+      manifest: {
+        schema_version: "1",
+        session_id: sessionId,
+        attempt_id: "01BBBBB_attempt_b_00000000",
+        generation: 3,
+        created_at: "2026-04-08T10:00:00Z",
+        backups: [],
+        restore_order: [],
+        verification_after_restore: [],
+      },
+      checkpoint: {
+        schema_version: "1",
+        session_id: sessionId,
+        created_at: "2026-04-08T10:00:00Z",
+        manifest_path: "/tmp/fake/ckpt/restore-manifest.yaml",
+        backups: [],
+        total_bytes: 0,
+        protected: false,
+        protection_reason: null,
+        attempt_id: "01BBBBB_attempt_b_00000000",
+        generation: 3,
+      },
+      freshness: {
+        attempt_id: "01BBBBB_attempt_b_00000000",
+        generation: 3,
+        source_recorded_at: "2026-04-08T10:00:00Z",
+        source_kind: "checkpoint_manifest",
+      },
+    };
+    const context: RecoveryContext = {
+      session_id: sessionId,
+      gathered_at: "2026-04-09T00:00:00Z",
+      apply_state: apply,
+      emergency_log: null,
+      checkpoint_manifest: ckpt,
+    };
+    const truth = resolveRecoveryTruth(context, projectRoot);
+    assertEqual(truth.kind, "manual_escalation_required", "re-escalates on stale op choice");
+    if (truth.kind !== "manual_escalation_required") return;
+    assert(
+      truth.escalation_reason.toLowerCase().includes("no source matches") ||
+        truth.escalation_reason.toLowerCase().includes("re-record"),
+      "reason explains why the prior resolution is stale",
+    );
+  });
+
+  // E-P68 — buildEscalationMessage includes artifact_path for each attempt +
+  //          exposes all three CLI/edit options
+  await test("E-P68 buildEscalationMessage includes artifact_path + all resolution options", () => {
+    const escalation: ManualEscalationRequired = {
+      kind: "manual_escalation_required",
+      conflicting_attempts: [
+        {
+          attempt_id: "01X",
+          source_kind: "apply_state",
+          generation: 2,
+          source_recorded_at: "2026-04-08T09:00:00Z",
+          artifact_path: "/tmp/a/apply.json",
+        },
+        {
+          attempt_id: "01Y",
+          source_kind: "checkpoint_manifest",
+          generation: 1,
+          source_recorded_at: "2026-04-08T08:00:00Z",
+          artifact_path: "/tmp/b/restore-manifest.yaml",
+        },
+      ],
+      escalation_reason: "two attempts detected",
+    };
+    const msg = buildEscalationMessage(escalation);
+    // Both artifact_path strings must be present
+    assert(msg.includes("/tmp/a/apply.json"), "first artifact_path present");
+    assert(msg.includes("/tmp/b/restore-manifest.yaml"), "second artifact_path present");
+    // Both attempt_ids must be present
+    assert(msg.includes("01X"), "first attempt_id present");
+    assert(msg.includes("01Y"), "second attempt_id present");
+    // Resolution options A / B / C present
+    assert(msg.includes("--resolve-conflict"), "option A shown");
+    assert(msg.includes("decisions file"), "option B shown");
+    assert(msg.includes("--auto-resolve-attempt-conflict"), "option C shown");
+  });
+
+  // E-P69 — saveRecoveryResolution merge: prior history preserved + top-level updated
+  //          (companion to E-P36 which checks appending; this one checks that
+  //          the top-level fields reflect the LATEST entry after merge.)
+  await test("E-P69 saveRecoveryResolution merge updates top-level to latest decision", () => {
+    const projectRoot = makeTmpDir("e-p69");
+    const sessionId = "sess-69";
+    fs.mkdirSync(
+      path.join(projectRoot, ".onto", "sessions", "promote", sessionId),
+      { recursive: true },
+    );
+
+    const firstDecision = {
+      resolved_at: "2026-04-09T00:00:00Z",
+      resolved_by: "operator" as const,
+      resolution_method: "cli_command" as const,
+      selected_attempt_id: "01FIRST",
+      selected_attempt_reason: "initial choice",
+      all_attempts_at_resolution_time: [],
+    };
+    saveRecoveryResolution(projectRoot, {
+      schema_version: "1",
+      session_id: sessionId,
+      ...firstDecision,
+      resolution_history: [firstDecision],
+    });
+
+    const secondDecision = {
+      resolved_at: "2026-04-09T01:00:00Z",
+      resolved_by: "operator" as const,
+      resolution_method: "cli_command" as const,
+      selected_attempt_id: "01SECOND",
+      selected_attempt_reason: "operator changed mind",
+      all_attempts_at_resolution_time: [],
+    };
+    saveRecoveryResolution(projectRoot, {
+      schema_version: "1",
+      session_id: sessionId,
+      ...secondDecision,
+      resolution_history: [secondDecision],
+    });
+
+    const loaded = loadRecoveryResolution(projectRoot, sessionId);
+    assert(loaded !== null, "resolution round-trips");
+    assertEqual(
+      loaded!.selected_attempt_id,
+      "01SECOND",
+      "top-level reflects latest decision",
+    );
+    assertEqual(
+      loaded!.resolved_at,
+      "2026-04-09T01:00:00Z",
+      "top-level resolved_at reflects latest",
+    );
+    assertEqual(
+      loaded!.resolution_history.length,
+      2,
+      "both decisions preserved in history",
+    );
+    assertEqual(
+      loaded!.resolution_history[0]!.selected_attempt_id,
+      "01FIRST",
+      "first decision preserved at head",
+    );
+    assertEqual(
+      loaded!.resolution_history[1]!.selected_attempt_id,
+      "01SECOND",
+      "second decision at tail",
+    );
+  });
+
+  // E-P70 — apply-state attempt_id lifecycle: fresh init → unique ULID,
+  //          generation=0. markApplied bumps generation but preserves attempt_id.
+  await test("E-P70 initApplyState fresh attempt_id is unique + markApplied preserves it", () => {
+    const a = initApplyState({
+      sessionId: "sess-70a",
+      pendingDecisions: [
+        { decision_kind: "promotion", decision_id: "dec-1" },
+      ],
+    });
+    const b = initApplyState({
+      sessionId: "sess-70b",
+      pendingDecisions: [
+        { decision_kind: "promotion", decision_id: "dec-1" },
+      ],
+    });
+    assert(a.attempt_id.length === 26, "ULID length");
+    assert(b.attempt_id.length === 26, "ULID length");
+    assert(a.attempt_id !== b.attempt_id, "fresh init produces distinct attempt_ids");
+    assertEqual(a.generation, 0, "fresh generation is 0");
+
+    const applied: AppliedDecision = {
+      decision_kind: "promotion",
+      decision_id: "dec-1",
+      applied_at: "2026-04-09T10:00:00Z",
+      target_path: "/tmp/target",
+      result_summary: "ok",
+    };
+    const aAfter = markApplied(a, applied);
+    assertEqual(
+      aAfter.attempt_id,
+      a.attempt_id,
+      "markApplied preserves attempt_id (DD-22)",
+    );
+    assertEqual(aAfter.generation, 1, "generation bumped monotonically");
   });
 
   // -------------------------------------------------------------------------

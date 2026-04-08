@@ -4788,6 +4788,344 @@ async function main(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // Phase 3 follow-up #2 — Insight reclassifier apply path
+  //
+  // Adds Phase B to the insight reclassifier: read the JSON report, rewrite
+  // the [insight] role bracket in place, and surface per-entry outcomes
+  // (applied / skipped_no_proposal / skipped_already_applied / failed).
+  // -------------------------------------------------------------------------
+
+  // E-P122 — rewriteInsightRoleTag pure function: concrete role replaces
+  //          [insight] bracket; drop_role removes the bracket + adjacent space.
+  await test("E-P122 rewriteInsightRoleTag covers concrete + drop_role cases", async () => {
+    const { rewriteInsightRoleTag } = await import("./insight-reclassifier.js");
+
+    const base =
+      "- [fact] [methodology] [insight] body (source: p, d, 2026-01-01) [impact:normal]";
+
+    // Concrete role → substitution
+    const toGuardrail = rewriteInsightRoleTag(base, "guardrail");
+    assertEqual(
+      toGuardrail,
+      "- [fact] [methodology] [guardrail] body (source: p, d, 2026-01-01) [impact:normal]",
+      "guardrail replacement",
+    );
+
+    const toFoundation = rewriteInsightRoleTag(base, "foundation");
+    assertEqual(
+      toFoundation,
+      "- [fact] [methodology] [foundation] body (source: p, d, 2026-01-01) [impact:normal]",
+      "foundation replacement",
+    );
+
+    // drop_role with a trailing space → consume the trailing space
+    const dropped = rewriteInsightRoleTag(base, "drop_role");
+    assertEqual(
+      dropped,
+      "- [fact] [methodology] body (source: p, d, 2026-01-01) [impact:normal]",
+      "drop_role removes bracket and trailing space",
+    );
+
+    // Idempotent failure: raw line without [insight] → null
+    const noInsight = rewriteInsightRoleTag(
+      "- [fact] [methodology] [foundation] already-applied (source: p, d, 2026-01-01) [impact:normal]",
+      "guardrail",
+    );
+    assertEqual(noInsight, null, "no [insight] bracket → null");
+  });
+
+  // E-P123 — applyInsightReclassifications happy path: one agent file with
+  //          two insight entries, both have proposed roles → two lines
+  //          rewritten on disk.
+  await test("E-P123 applyInsightReclassifications rewrites role tags end-to-end", async () => {
+    const { applyInsightReclassifications } = await import(
+      "./insight-reclassifier.js"
+    );
+
+    const dir = makeTmpDir("e-p123");
+    const agentFile = path.join(dir, "structure.md");
+    const line1 =
+      "- [fact] [methodology] [insight] alpha (source: p, d, 2026-01-01) [impact:normal]";
+    const line2 =
+      "- [fact] [methodology] [insight] beta (source: p, d, 2026-01-02) [impact:normal]";
+    const otherLine =
+      "- [fact] [methodology] [foundation] gamma (source: p, d, 2026-01-03) [impact:normal]";
+    fs.writeFileSync(
+      agentFile,
+      [line1, line2, otherLine, ""].join("\n"),
+      "utf8",
+    );
+
+    const reportPath = path.join(dir, "report.json");
+    const report = {
+      session_id: "test-123",
+      reclassified: [
+        {
+          agent_id: "structure",
+          source_path: agentFile,
+          line_number: 1,
+          raw_line: line1,
+          current_role: "insight",
+          proposed_role: "guardrail",
+          reason: "test",
+          llm_model_id: "mock",
+          llm_prompt_hash: "00000000",
+        },
+        {
+          agent_id: "structure",
+          source_path: agentFile,
+          line_number: 2,
+          raw_line: line2,
+          current_role: "insight",
+          proposed_role: "drop_role",
+          reason: "test",
+          llm_model_id: "mock",
+          llm_prompt_hash: "00000000",
+        },
+      ],
+    };
+    fs.writeFileSync(reportPath, JSON.stringify(report), "utf8");
+
+    const result = applyInsightReclassifications({ reportPath });
+
+    assertEqual(result.applied, 2, "two applied");
+    assertEqual(result.failed, 0, "no failures");
+    assertEqual(result.skipped_already_applied, 0, "no skipped");
+
+    // Verify on-disk changes
+    const content = fs.readFileSync(agentFile, "utf8");
+    assert(
+      content.includes("[guardrail] alpha"),
+      "alpha became guardrail",
+    );
+    assert(!content.includes("[insight] alpha"), "[insight] gone for alpha");
+    assert(
+      content.includes("[methodology] beta"),
+      "beta dropped its role bracket",
+    );
+    assert(!content.includes("[insight] beta"), "[insight] gone for beta");
+    assert(
+      content.includes("[foundation] gamma"),
+      "untouched foundation line preserved",
+    );
+  });
+
+  // E-P124 — Idempotency: running apply twice on the same report is safe.
+  //          First run rewrites, second run sees no matching raw_line so
+  //          every entry becomes skipped_already_applied.
+  await test("E-P124 applyInsightReclassifications is idempotent on repeat runs", async () => {
+    const { applyInsightReclassifications } = await import(
+      "./insight-reclassifier.js"
+    );
+
+    const dir = makeTmpDir("e-p124");
+    const agentFile = path.join(dir, "structure.md");
+    const line =
+      "- [fact] [methodology] [insight] item (source: p, d, 2026-01-01) [impact:normal]";
+    fs.writeFileSync(agentFile, line + "\n", "utf8");
+
+    const reportPath = path.join(dir, "report.json");
+    fs.writeFileSync(
+      reportPath,
+      JSON.stringify({
+        session_id: "test-124",
+        reclassified: [
+          {
+            agent_id: "structure",
+            source_path: agentFile,
+            line_number: 1,
+            raw_line: line,
+            current_role: "insight",
+            proposed_role: "foundation",
+            reason: "test",
+            llm_model_id: "mock",
+            llm_prompt_hash: "00000000",
+          },
+        ],
+      }),
+      "utf8",
+    );
+
+    // First run: applied
+    const first = applyInsightReclassifications({ reportPath });
+    assertEqual(first.applied, 1, "first run applies");
+    assertEqual(first.skipped_already_applied, 0, "nothing skipped yet");
+
+    // Second run: skipped_already_applied (line no longer matches)
+    const second = applyInsightReclassifications({ reportPath });
+    assertEqual(second.applied, 0, "second run applies nothing");
+    assertEqual(
+      second.skipped_already_applied,
+      1,
+      "second run detects already-applied",
+    );
+    assertEqual(second.failed, 0, "no failures on re-run");
+  });
+
+  // E-P125 — proposed_role=null (unclassified) → skipped_no_proposal.
+  //          Reclassified entries left unclassified by Phase A must not
+  //          be touched by apply.
+  await test("E-P125 applyInsightReclassifications skips entries without proposed_role", async () => {
+    const { applyInsightReclassifications } = await import(
+      "./insight-reclassifier.js"
+    );
+
+    const dir = makeTmpDir("e-p125");
+    const agentFile = path.join(dir, "structure.md");
+    const line =
+      "- [fact] [methodology] [insight] item (source: p, d, 2026-01-01) [impact:normal]";
+    fs.writeFileSync(agentFile, line + "\n", "utf8");
+
+    const reportPath = path.join(dir, "report.json");
+    fs.writeFileSync(
+      reportPath,
+      JSON.stringify({
+        session_id: "test-125",
+        reclassified: [
+          {
+            agent_id: "structure",
+            source_path: agentFile,
+            line_number: 1,
+            raw_line: line,
+            current_role: "insight",
+            proposed_role: null,
+            reason: "llm unreachable",
+            llm_model_id: "mock",
+            llm_prompt_hash: "00000000",
+          },
+        ],
+      }),
+      "utf8",
+    );
+
+    const result = applyInsightReclassifications({ reportPath });
+    assertEqual(result.applied, 0, "no applies");
+    assertEqual(result.skipped_no_proposal, 1, "unclassified skipped");
+    assertEqual(result.failed, 0, "no failures");
+
+    // File untouched
+    const content = fs.readFileSync(agentFile, "utf8");
+    assert(content.includes("[insight] item"), "file unchanged");
+  });
+
+  // E-P126 — Dry-run does not write. In-memory entries record the would-be
+  //          changes but the file on disk stays at its original content.
+  await test("E-P126 applyInsightReclassifications dry-run does not write", async () => {
+    const { applyInsightReclassifications } = await import(
+      "./insight-reclassifier.js"
+    );
+
+    const dir = makeTmpDir("e-p126");
+    const agentFile = path.join(dir, "structure.md");
+    const line =
+      "- [fact] [methodology] [insight] item (source: p, d, 2026-01-01) [impact:normal]";
+    fs.writeFileSync(agentFile, line + "\n", "utf8");
+
+    const reportPath = path.join(dir, "report.json");
+    fs.writeFileSync(
+      reportPath,
+      JSON.stringify({
+        session_id: "test-126",
+        reclassified: [
+          {
+            agent_id: "structure",
+            source_path: agentFile,
+            line_number: 1,
+            raw_line: line,
+            current_role: "insight",
+            proposed_role: "guardrail",
+            reason: "test",
+            llm_model_id: "mock",
+            llm_prompt_hash: "00000000",
+          },
+        ],
+      }),
+      "utf8",
+    );
+
+    const result = applyInsightReclassifications({
+      reportPath,
+      dryRun: true,
+    });
+    assertEqual(result.dry_run, true, "dry_run flag set in result");
+    assertEqual(result.applied, 1, "applied count reflects intent");
+
+    // File content unchanged
+    const content = fs.readFileSync(agentFile, "utf8");
+    assert(
+      content.includes("[insight] item"),
+      "dry-run preserved the original tag",
+    );
+    assert(
+      !content.includes("[guardrail]"),
+      "dry-run did not write the new tag",
+    );
+  });
+
+  // E-P127 — Source file missing → failed entry. Rest of the run continues.
+  await test("E-P127 applyInsightReclassifications surfaces missing-file failure", async () => {
+    const { applyInsightReclassifications } = await import(
+      "./insight-reclassifier.js"
+    );
+
+    const dir = makeTmpDir("e-p127");
+    const missingFile = path.join(dir, "nonexistent.md");
+    const existingFile = path.join(dir, "structure.md");
+    const existingLine =
+      "- [fact] [methodology] [insight] ok (source: p, d, 2026-01-01) [impact:normal]";
+    fs.writeFileSync(existingFile, existingLine + "\n", "utf8");
+
+    const reportPath = path.join(dir, "report.json");
+    fs.writeFileSync(
+      reportPath,
+      JSON.stringify({
+        session_id: "test-127",
+        reclassified: [
+          {
+            agent_id: "missing",
+            source_path: missingFile,
+            line_number: 1,
+            raw_line: "- [fact] [methodology] [insight] gone",
+            current_role: "insight",
+            proposed_role: "foundation",
+            reason: "test",
+            llm_model_id: "mock",
+            llm_prompt_hash: "00000000",
+          },
+          {
+            agent_id: "structure",
+            source_path: existingFile,
+            line_number: 1,
+            raw_line: existingLine,
+            current_role: "insight",
+            proposed_role: "guardrail",
+            reason: "test",
+            llm_model_id: "mock",
+            llm_prompt_hash: "00000000",
+          },
+        ],
+      }),
+      "utf8",
+    );
+
+    const result = applyInsightReclassifications({ reportPath });
+    assertEqual(result.failed, 1, "missing-file entry failed");
+    assertEqual(result.applied, 1, "existing-file entry applied");
+
+    const failedEntry = result.entries.find((e) => e.outcome === "failed");
+    assert(failedEntry !== undefined, "failed entry present");
+    assert(
+      failedEntry!.error_message !== null &&
+        failedEntry!.error_message.includes("source file not found"),
+      "error message surfaces the cause",
+    );
+
+    // Existing file was updated
+    const updated = fs.readFileSync(existingFile, "utf8");
+    assert(updated.includes("[guardrail] ok"), "existing file rewritten");
+  });
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   process.stdout.write("\n");

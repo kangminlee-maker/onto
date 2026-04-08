@@ -879,26 +879,330 @@ export async function reviewPanel(
 }
 
 // ---------------------------------------------------------------------------
-// Criterion 6 — cross-agent dedup (stub for Phase A MVP)
+// Criterion 6 — cross-agent dedup (LLM-driven)
 // ---------------------------------------------------------------------------
 
 /**
- * Cross-agent deduplication (criterion 6) — single sequential LLM call path
+ * Cross-agent deduplication (criterion 6) — single-reviewer sequential path
  * with bi-directional removal protection.
  *
- * This Phase A implementation is intentionally a no-op: it returns an empty
- * cluster list so PromoteReport assembly can proceed. The LLM-driven version
- * is scheduled for Step 13 (full E2E) once Phase B atomicity is in place —
- * wiring the call now would create optimistic side-effects without a
- * rollback path if the executor later changes the approval shape.
+ * Algorithm:
+ *   1. Pre-filter via Jaccard token overlap on significant content tokens.
+ *      Cross-agent pairs (different agent_id) with similarity ≥ JACCARD_THRESHOLD
+ *      become edges in a union-find structure.
+ *   2. Each resulting connected component with ≥ 2 distinct agents becomes a
+ *      "shortlist" candidate for LLM confirmation.
+ *   3. The shortlist is capped at MAX_ITEMS_PER_SHORTLIST and the total number
+ *      of shortlists at MAX_SHORTLISTS_PER_RUN to bound LLM cost.
+ *   4. Per shortlist, one LLM call applies the same-principle test with
+ *      agent-specific framing removed (not domain terms). The model returns
+ *      a structured JSON: primary owner + consolidated principle + cases.
+ *   5. Confirmed clusters become CrossAgentDedupCluster entries.
  *
- * TODO(step 13): implement LLM-driven cluster discovery honoring
- * processes/promote.md §3 criterion 6 (same-principle test with agent-specific
- * framing removed instead of domain terms).
+ * Single-reviewer semantics (not 3-agent): promote.md §3 criterion 6 notes
+ * that parallel 3-agent review risks bi-directional deletion (agent A removes
+ * B while agent B removes A). The discovery path is intentionally one voice.
+ *
+ * Pre-filter rationale: an O(N²) naive LLM pass over candidates + globals is
+ * cost-prohibitive at production scale (117 candidates × 1000 globals).
+ * Jaccard is cheap, deterministic, and keeps the LLM load bounded.
+ *
+ * Failure model:
+ *   - LLM unreachable or returns malformed JSON for a shortlist → that shortlist
+ *     is dropped. Other shortlists proceed. (Recording degraded_states for
+ *     dropped discovery shortlists is a follow-up — the current caller
+ *     doesn't propagate them.)
  */
-export function discoverCrossAgentDedupClusters(
-  _candidates: ParsedLearningItem[],
-  _globalItems: ParsedLearningItem[],
-): CrossAgentDedupCluster[] {
-  return [];
+
+const CROSS_AGENT_DEDUP_SYSTEM_PROMPT = `You are detecting cross-agent principle duplication in a learning management system.
+
+You will receive 2 or more learnings from DIFFERENT agents. Apply the same-principle test to decide whether they express the same underlying principle once agent-specific framing is removed:
+
+(a) Remove agent-specific framing (e.g. "the philosopher asks...", "structurally...") from both items.
+(b) Do the remaining sentences prescribe the same action?
+(c) Can you identify a situation where one applies but the other does not? If yes, they are different principles.
+
+If they ARE the same principle:
+- Pick a primary_owner_agent: the agent closest to the verification dimension of the principle.
+  Tiebreaker: the agent of the earliest-created learning (oldest source_date).
+- Write a consolidated_principle statement that generalizes over the agents.
+- Pick up to 3 representative_cases that maximize agent diversity.
+- Compose a consolidated_line in the flat inline format:
+  "- [{type}] [{axis tags}] [{purpose type}] General principle statement. (Representative cases: agent-A에서 X; agent-B에서 Y; agent-C에서 Z) (source: consolidated from [sources])"
+
+Output ONE JSON object:
+{
+  "same_principle": true | false,
+  "primary_owner_agent": "<agent_id>" | null,
+  "primary_owner_reason": "<string>",
+  "consolidated_principle": "<string>",
+  "representative_cases": ["<case 1>", "<case 2>", "<case 3>"],
+  "consolidated_line": "<inline format line>"
 }
+
+NO markdown fences, JSON only.`;
+
+const JACCARD_THRESHOLD = 0.3;
+const MAX_SHORTLISTS_PER_RUN = 20;
+const MAX_ITEMS_PER_SHORTLIST = 10;
+const MIN_TOKEN_LENGTH = 4;
+
+const STOPWORDS: ReadonlySet<string> = new Set([
+  "with",
+  "that",
+  "this",
+  "from",
+  "into",
+  "when",
+  "where",
+  "what",
+  "which",
+  "these",
+  "those",
+  "have",
+  "been",
+  "being",
+  "should",
+  "would",
+  "could",
+  "will",
+  "must",
+  "does",
+  "they",
+  "them",
+  "their",
+  "there",
+  "then",
+  "than",
+  "some",
+  "about",
+  "also",
+  "because",
+  "such",
+  "each",
+  "while",
+  "after",
+  "before",
+]);
+
+function significantTokens(content: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const word of content.toLowerCase().split(/[^a-z0-9]+/)) {
+    if (word.length < MIN_TOKEN_LENGTH) continue;
+    if (STOPWORDS.has(word)) continue;
+    tokens.add(word);
+  }
+  return tokens;
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter += 1;
+  const union = a.size + b.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
+/**
+ * Minimal union-find with path compression. Indices are the slot positions in
+ * the flattened item pool (candidates ++ globals).
+ */
+class UnionFind {
+  private parent: number[];
+  constructor(size: number) {
+    this.parent = Array.from({ length: size }, (_, i) => i);
+  }
+  find(x: number): number {
+    let cur = x;
+    while (this.parent[cur] !== cur) {
+      this.parent[cur] = this.parent[this.parent[cur]!]!;
+      cur = this.parent[cur]!;
+    }
+    return cur;
+  }
+  union(a: number, b: number): void {
+    const ra = this.find(a);
+    const rb = this.find(b);
+    if (ra !== rb) this.parent[ra] = rb;
+  }
+}
+
+function buildShortlists(
+  items: ParsedLearningItem[],
+): ParsedLearningItem[][] {
+  if (items.length < 2) return [];
+  const tokens = items.map((it) => significantTokens(it.content));
+  const uf = new UnionFind(items.length);
+
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      if (items[i]!.agent_id === items[j]!.agent_id) continue;
+      const sim = jaccard(tokens[i]!, tokens[j]!);
+      if (sim >= JACCARD_THRESHOLD) uf.union(i, j);
+    }
+  }
+
+  // Group indices by root
+  const groups = new Map<number, number[]>();
+  for (let i = 0; i < items.length; i++) {
+    const root = uf.find(i);
+    const bucket = groups.get(root);
+    if (bucket) bucket.push(i);
+    else groups.set(root, [i]);
+  }
+
+  const shortlists: ParsedLearningItem[][] = [];
+  // Sort group keys for deterministic order across runs
+  const sortedRoots = [...groups.keys()].sort((a, b) => a - b);
+  for (const root of sortedRoots) {
+    const indices = groups.get(root)!;
+    if (indices.length < 2) continue;
+    const agents = new Set(indices.map((idx) => items[idx]!.agent_id));
+    if (agents.size < 2) continue;
+    const capped = indices
+      .slice(0, MAX_ITEMS_PER_SHORTLIST)
+      .map((idx) => items[idx]!);
+    shortlists.push(capped);
+    if (shortlists.length >= MAX_SHORTLISTS_PER_RUN) break;
+  }
+  return shortlists;
+}
+
+function buildCrossAgentDedupUserPrompt(items: ParsedLearningItem[]): string {
+  const lines: string[] = [
+    "Learnings from different agents to compare:",
+    "",
+  ];
+  items.forEach((item, i) => {
+    lines.push(
+      `${i + 1}. agent_id=${item.agent_id}`,
+      `   role=${item.role ?? "null"}`,
+      `   tags=[${item.applicability_tags.join(" ")}]`,
+      `   source=${item.source_project ?? "?"}/${item.source_domain ?? "?"}/${item.source_date ?? "?"}`,
+      `   content: ${item.content}`,
+      "",
+    );
+  });
+  lines.push("Apply the same-principle test and respond with the JSON object.");
+  return lines.join("\n");
+}
+
+interface LlmClusterVerdict {
+  primary_owner_agent: string;
+  primary_owner_reason: string;
+  consolidated_principle: string;
+  representative_cases: string[];
+  consolidated_line: string;
+}
+
+async function llmConfirmCluster(
+  items: ParsedLearningItem[],
+  modelId?: string,
+): Promise<LlmClusterVerdict | null> {
+  let responseText: string;
+  try {
+    const result = await callLlm(
+      CROSS_AGENT_DEDUP_SYSTEM_PROMPT,
+      buildCrossAgentDedupUserPrompt(items),
+      {
+        max_tokens: 1024,
+        ...(modelId ? { model_id: modelId } : {}),
+      },
+    );
+    responseText = result.text;
+  } catch {
+    // Provider error — drop this shortlist. Other shortlists continue.
+    return null;
+  }
+
+  let parsed: {
+    same_principle?: unknown;
+    primary_owner_agent?: unknown;
+    primary_owner_reason?: unknown;
+    consolidated_principle?: unknown;
+    representative_cases?: unknown;
+    consolidated_line?: unknown;
+  };
+  try {
+    let cleaned = responseText.trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "");
+    }
+    parsed = JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+
+  if (parsed.same_principle !== true) return null;
+  if (typeof parsed.primary_owner_agent !== "string") return null;
+  if (typeof parsed.consolidated_principle !== "string") return null;
+  if (typeof parsed.consolidated_line !== "string") return null;
+  if (!Array.isArray(parsed.representative_cases)) return null;
+
+  return {
+    primary_owner_agent: parsed.primary_owner_agent,
+    primary_owner_reason:
+      typeof parsed.primary_owner_reason === "string"
+        ? parsed.primary_owner_reason
+        : "",
+    consolidated_principle: parsed.consolidated_principle,
+    representative_cases: parsed.representative_cases.filter(
+      (c): c is string => typeof c === "string",
+    ),
+    consolidated_line: parsed.consolidated_line,
+  };
+}
+
+function hashCluster(items: ParsedLearningItem[]): string {
+  // Stable id derived from member identity so repeat runs against unchanged
+  // inputs emit the same cluster_id. Sort to make ordering irrelevant.
+  const canonical = items
+    .map((it) => `${it.agent_id}|${it.content}`)
+    .sort()
+    .join("\n");
+  return crypto.createHash("sha256").update(canonical).digest("hex").slice(0, 12);
+}
+
+export interface CrossAgentDedupConfig {
+  modelId?: string;
+}
+
+export async function discoverCrossAgentDedupClusters(
+  candidates: ParsedLearningItem[],
+  globalItems: ParsedLearningItem[],
+  config: CrossAgentDedupConfig = {},
+): Promise<CrossAgentDedupCluster[]> {
+  // Candidates and globals are folded into a single pool so cross-scope
+  // duplicates surface along with cross-agent duplicates inside either pool.
+  const pool = [...candidates, ...globalItems];
+  const shortlists = buildShortlists(pool);
+  if (shortlists.length === 0) return [];
+
+  const clusters: CrossAgentDedupCluster[] = [];
+  for (const shortlist of shortlists) {
+    const verdict = await llmConfirmCluster(shortlist, config.modelId);
+    if (verdict === null) continue;
+    clusters.push({
+      cluster_id: hashCluster(shortlist),
+      primary_owner_agent: verdict.primary_owner_agent,
+      primary_owner_reason: verdict.primary_owner_reason,
+      consolidated_principle: verdict.consolidated_principle,
+      representative_cases: verdict.representative_cases,
+      member_items: shortlist,
+      consolidated_line: verdict.consolidated_line,
+      user_approval_required: true,
+    });
+  }
+  return clusters;
+}
+
+// Test-only exports for unit coverage. Production imports go through
+// discoverCrossAgentDedupClusters.
+export const __testExports = {
+  significantTokens,
+  jaccard,
+  buildShortlists,
+  JACCARD_THRESHOLD,
+  MAX_SHORTLISTS_PER_RUN,
+  MAX_ITEMS_PER_SHORTLIST,
+};

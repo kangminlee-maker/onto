@@ -279,6 +279,7 @@ const MOCK_MODEL_ID = "mock-llm-deterministic";
  *   - Judgment auditor (audit outcomes)
  *   - Insight reclassifier (proposed_role)
  *   - Domain doc proposer Phase B (reflection_form + content)
+ *   - Cross-agent dedup (criterion 6, same-principle test)
  *   - Phase 2 semantic classifier (decision)
  *
  * N-1 fix: previously, unknown prompts fell through to a generic "ok" string,
@@ -346,6 +347,32 @@ function callMockProvider(
         "**Mock Term** — A mock entry produced by the deterministic LLM provider.",
     });
   } else if (
+    systemPrompt.startsWith(
+      "You are detecting cross-agent principle duplication",
+    )
+  ) {
+    // Cross-agent dedup (criterion 6) — extract the first agent from the
+    // user prompt as primary owner and fabricate a consolidated line. The
+    // mock always confirms same_principle so tests can exercise the happy
+    // path; failure paths use real JSON.parse errors or provider_error
+    // instead.
+    const firstAgent = extractFirstDedupAgent(userPrompt);
+    const agentCount = countDedupAgents(userPrompt);
+    text = JSON.stringify({
+      same_principle: true,
+      primary_owner_agent: firstAgent,
+      primary_owner_reason: "mock — first listed agent",
+      consolidated_principle:
+        "Mock consolidated principle produced by the deterministic LLM provider.",
+      representative_cases: Array.from(
+        { length: Math.min(agentCount, 3) },
+        (_, i) => `mock case ${i + 1}`,
+      ),
+      consolidated_line:
+        "- [fact] [methodology] [foundation] mock consolidated principle " +
+        "(Representative cases: mock case 1; mock case 2) (source: consolidated from mock-mock-2026-04-09)",
+    });
+  } else if (
     systemPrompt.startsWith("You are a semantic classifier")
   ) {
     // Phase 2 semantic classifier (legacy compatibility).
@@ -391,6 +418,36 @@ function extractCandidateIds(userPrompt: string): string[] {
 function extractJudgmentItemCount(userPrompt: string): number {
   const m = userPrompt.match(/Judgment items to re-verify:\s*(\d+)/);
   return m ? Number(m[1]) : 0;
+}
+
+/**
+ * Cross-agent dedup user prompt lists items as:
+ *   1. agent_id=structure
+ *      ...
+ *   2. agent_id=philosopher
+ *      ...
+ * Pick the first agent_id we see so the mock's primary_owner_agent matches
+ * the first listed shortlist member. Falls back to "structure" when no
+ * agent_id appears at all (shouldn't happen in practice).
+ */
+function extractFirstDedupAgent(userPrompt: string): string {
+  const m = userPrompt.match(/agent_id=([A-Za-z0-9_-]+)/);
+  return m ? m[1]! : "structure";
+}
+
+/**
+ * Count the distinct agent_id references in the cross-agent dedup user prompt
+ * so the mock can emit a plausible representative_cases list sized to the
+ * shortlist.
+ */
+function countDedupAgents(userPrompt: string): number {
+  const ids = new Set<string>();
+  const re = /agent_id=([A-Za-z0-9_-]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(userPrompt)) !== null) {
+    ids.add(m[1]!);
+  }
+  return ids.size;
 }
 
 function estimateMockTokens(text: string): number {

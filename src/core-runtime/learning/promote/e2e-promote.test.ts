@@ -4619,6 +4619,175 @@ async function main(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // Phase 3 follow-up #1 — Cross-agent dedup discovery (LLM-driven)
+  //
+  // Replaces the previous stub (return []) with a Jaccard pre-filter +
+  // union-find + LLM confirmation pipeline. These tests use ONTO_LLM_MOCK=1
+  // to exercise the structural path without real LLM cost.
+  // -------------------------------------------------------------------------
+
+  // E-P117 — Jaccard pre-filter: items with zero token overlap are NOT
+  //          grouped even if cross-agent. The union-find never unions them,
+  //          so buildShortlists returns an empty list → zero LLM calls.
+  await test("E-P117 cross-agent dedup pre-filter skips items with no token overlap", async () => {
+    const { __testExports } = await import("./panel-reviewer.js");
+    const { buildShortlists } = __testExports;
+    const items: ParsedLearningItem[] = [
+      syntheticItem({
+        agent_id: "structure",
+        content: "alpha beta gamma delta quux",
+      }),
+      syntheticItem({
+        agent_id: "philosopher",
+        // Zero overlap with the first item
+        content: "zebra xray yankee whiskey vanilla",
+      }),
+    ];
+    const shortlists = buildShortlists(items);
+    assertEqual(shortlists.length, 0, "no shortlist → no LLM call");
+  });
+
+  // E-P118 — Jaccard pre-filter: cross-agent items with high token overlap
+  //          DO group into a shortlist. Same-agent pairs never get unioned.
+  await test("E-P118 cross-agent dedup pre-filter groups overlapping cross-agent items", async () => {
+    const { __testExports } = await import("./panel-reviewer.js");
+    const { buildShortlists } = __testExports;
+    const items: ParsedLearningItem[] = [
+      syntheticItem({
+        agent_id: "structure",
+        content:
+          "verify preconditions constraint validation before applying changes durable",
+      }),
+      syntheticItem({
+        agent_id: "philosopher",
+        // Shares: verify preconditions constraint validation applying changes
+        content:
+          "verify preconditions constraint validation while applying changes idempotent",
+      }),
+      syntheticItem({
+        // Same agent as the first one — must NOT union with it
+        agent_id: "structure",
+        content: "same-agent overlap does not union verify preconditions constraint",
+      }),
+    ];
+    const shortlists = buildShortlists(items);
+    assertEqual(shortlists.length, 1, "one cross-agent shortlist");
+    const shortlist = shortlists[0]!;
+    const agents = new Set(shortlist.map((i) => i.agent_id));
+    assert(agents.size >= 2, "shortlist spans ≥2 distinct agents");
+    assert(
+      shortlist.some((i) => i.agent_id === "structure"),
+      "structure item present",
+    );
+    assert(
+      shortlist.some((i) => i.agent_id === "philosopher"),
+      "philosopher item present",
+    );
+  });
+
+  // E-P119 — Empty input / single item / single-agent pool never produces
+  //          a shortlist. These are the degenerate cases that must
+  //          short-circuit without calling LLM.
+  await test("E-P119 cross-agent dedup buildShortlists handles degenerate inputs", async () => {
+    const { __testExports } = await import("./panel-reviewer.js");
+    const { buildShortlists } = __testExports;
+    assertEqual(buildShortlists([]).length, 0, "empty input → empty");
+    assertEqual(
+      buildShortlists([
+        syntheticItem({ agent_id: "structure", content: "alpha beta gamma delta" }),
+      ]).length,
+      0,
+      "single item → empty",
+    );
+    assertEqual(
+      buildShortlists([
+        syntheticItem({ agent_id: "structure", content: "alpha beta gamma delta" }),
+        syntheticItem({ agent_id: "structure", content: "alpha beta gamma delta" }),
+      ]).length,
+      0,
+      "single-agent pool → empty (only cross-agent counts)",
+    );
+  });
+
+  // E-P120 — discoverCrossAgentDedupClusters end-to-end happy path via
+  //          mock LLM. Two cross-agent overlapping items → one confirmed
+  //          cluster with member_items + cluster_id + consolidated_line.
+  await test("E-P120 discoverCrossAgentDedupClusters returns a cluster via mock LLM", async () => {
+    const { discoverCrossAgentDedupClusters } = await import(
+      "./panel-reviewer.js"
+    );
+    const previousMock = process.env.ONTO_LLM_MOCK;
+    process.env.ONTO_LLM_MOCK = "1";
+    try {
+      const candidates: ParsedLearningItem[] = [
+        syntheticItem({
+          agent_id: "structure",
+          content:
+            "verify preconditions constraint validation before applying changes durable",
+        }),
+        syntheticItem({
+          agent_id: "philosopher",
+          content:
+            "verify preconditions constraint validation while applying changes idempotent",
+        }),
+      ];
+      const clusters = await discoverCrossAgentDedupClusters(candidates, []);
+      assertEqual(clusters.length, 1, "one cluster");
+      const c = clusters[0]!;
+      assert(c.cluster_id.length === 12, "cluster_id is 12-char hash");
+      assertEqual(
+        c.member_items.length,
+        2,
+        "both members preserved",
+      );
+      // Mock sets primary_owner_agent to the first listed item's agent
+      assertEqual(c.primary_owner_agent, "structure", "primary owner");
+      assertEqual(c.user_approval_required, true, "user_approval_required flag");
+      assert(c.consolidated_line.length > 0, "consolidated_line non-empty");
+      assert(c.consolidated_principle.length > 0, "principle non-empty");
+      assert(c.representative_cases.length > 0, "representative_cases present");
+    } finally {
+      if (previousMock === undefined) delete process.env.ONTO_LLM_MOCK;
+      else process.env.ONTO_LLM_MOCK = previousMock;
+    }
+  });
+
+  // E-P121 — Cluster id determinism: the same input produces the same
+  //          cluster_id across runs. The caller relies on this for
+  //          idempotent applicator marker matching.
+  await test("E-P121 discoverCrossAgentDedupClusters cluster_id is deterministic", async () => {
+    const { discoverCrossAgentDedupClusters } = await import(
+      "./panel-reviewer.js"
+    );
+    const previousMock = process.env.ONTO_LLM_MOCK;
+    process.env.ONTO_LLM_MOCK = "1";
+    try {
+      const items: ParsedLearningItem[] = [
+        syntheticItem({
+          agent_id: "structure",
+          content: "apply invariant check constraint validation rollback guarantee",
+        }),
+        syntheticItem({
+          agent_id: "dependency",
+          content: "apply invariant check constraint validation rollback recover",
+        }),
+      ];
+      const run1 = await discoverCrossAgentDedupClusters(items, []);
+      const run2 = await discoverCrossAgentDedupClusters(items, []);
+      assertEqual(run1.length, 1, "run1 cluster");
+      assertEqual(run2.length, 1, "run2 cluster");
+      assertEqual(
+        run1[0]!.cluster_id,
+        run2[0]!.cluster_id,
+        "cluster_id stable across runs",
+      );
+    } finally {
+      if (previousMock === undefined) delete process.env.ONTO_LLM_MOCK;
+      else process.env.ONTO_LLM_MOCK = previousMock;
+    }
+  });
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   process.stdout.write("\n");

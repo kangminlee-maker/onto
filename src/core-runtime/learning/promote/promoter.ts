@@ -71,6 +71,7 @@ import type {
   AuditPolicy,
   CollectorMode,
   ConflictProposalView,
+  CrossAgentDedupCluster,
   PreAnalysisResult,
   PromoteReport,
 } from "./types.js";
@@ -203,12 +204,23 @@ export async function runPromoter(
   }
 
   // -------------------------------------------------------------------------
-  // Step 4: Cross-agent dedup (criterion 6) — stub
+  // Step 4: Cross-agent dedup (criterion 6) — LLM-driven
   // -------------------------------------------------------------------------
-  const cross_agent_dedup_clusters = discoverCrossAgentDedupClusters(
-    collection.candidate_items,
-    collection.global_items,
-  );
+  // Discovery runs only when the panel also ran, so the cost budget is tied
+  // to the same session. skipPanel tests bypass this too (deterministic tests
+  // don't need the LLM pass), and empty-candidate sessions short-circuit to
+  // an empty cluster list without any LLM calls.
+  let cross_agent_dedup_clusters: CrossAgentDedupCluster[] = [];
+  if (
+    !config.skipPanel &&
+    (collection.candidate_items.length > 0 || collection.global_items.length > 0)
+  ) {
+    cross_agent_dedup_clusters = await discoverCrossAgentDedupClusters(
+      collection.candidate_items,
+      collection.global_items,
+      config.modelId !== undefined ? { modelId: config.modelId } : {},
+    );
+  }
 
   // -------------------------------------------------------------------------
   // Step 5: Audit-state carry-forward + Step 6: P-14 judgment audit

@@ -1,9 +1,32 @@
 # Current Work Handoff
 
-> 상태: Active
+> 상태: **MERGED → main** (PR #1, 2026-04-09)
 > 목적: 다음 `LLM`이 이 문서 하나를 읽고 현재 작업 상태를 이해한 뒤 바로 다음 작업을 이어갈 수 있게 한다.
 > 작업 위치: `/Users/kangmin/cowork/onto`
-> 현재 브랜치: `onto-harness`
+> 현재 브랜치: `main` (이전: `onto-harness`, merge 후 삭제됨)
+
+## 0. 이번 사이클 종결 (2026-04-09)
+
+이 handoff는 onto-harness branch의 4주분 작업 (Phase 1/2/3 learn pipeline + harness productization + 모든 fix)을 main으로 merge하면서 마감됩니다. 다음 사이클부터 새 handoff로 시작.
+
+**Merge한 PR**: `kangminlee-maker/onto#1` — `onto-harness: review harness productization + Learn Phases 1-3 + production validation`. 46+ commits, 33K+ lines changed, 191 files.
+
+**Merge 직전 마지막 작업**:
+- Phase 3 production validation (B-1 smoke + B-2 small batch + B-3 full repo, real Anthropic API)
+- B-3에서 발견한 philosopher audit chunking bug fix (B-4)
+- Self + Codex independent code review → 12건 발견 (BLOCKING 2 + MAJOR 3 + MINOR 4 + NIT 3) 모두 fix
+- Cross-plugin `${CLAUDE_PLUGIN_ROOT}` reference bug fix (onto + onto-prototype repos)
+- llm-caller chatgpt OAuth fail-fast (production B-1에서 발견)
+- Issue 4 lessons learned 문서화 (`development-records/tracking/20260330-known-issues.md`)
+
+**Merge 후 plugin 동기화**:
+- marketplace clone (`~/.claude-2/plugins/marketplaces/onto/`) → main pull
+- plugin install cache (`~/.claude-{1,2}/plugins/cache/onto/onto/`) → 새 commit hash로 갱신
+
+**다음 사이클 진입 전 reset 권장**:
+- 새 handoff 파일 생성 (예: `20260409-current-work.md`)
+- 이 파일은 historical reference로 보존
+- onto-prototype branch는 main의 이 시점 snapshot 보관 목적으로 GitHub에 유지
 
 ---
 

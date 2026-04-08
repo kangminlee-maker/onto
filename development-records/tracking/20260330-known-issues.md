@@ -238,3 +238,88 @@ LLM이 연속된 Bash 출력에서 echo 마커(`---PROJECT_ONTO---`, `---GLOBAL_
 
 - `domain_scope.md` 1회 작성 후 폐기
 - 전체 create-domain 프로세스 재시작 (외부 리서치 포함 ~6분 추가 소요)
+
+---
+
+## Issue 4: Cross-plugin `${CLAUDE_PLUGIN_ROOT}` reference broke `/onto:review` and `/onto:onboard` Codex mode (2026-04-09)
+
+### Status: Resolved, fix committed (`dc7f111`)
+
+### Observed Symptoms
+
+`/onto:review` and `/onto:onboard` always halted on the Codex readiness check, falling through to the failure branch unconditionally regardless of whether Codex was actually installed and authenticated.
+
+The user-visible error was a `MODULE_NOT_FOUND` from Node trying to load `codex-companion.mjs` at a non-existent path. The path looked like:
+
+```
+/Users/<user>/.claude-2/plugins/cache/onto/onto/<sha>/scripts/codex-companion.mjs
+```
+
+…but the onto plugin doesn't have a `scripts/` directory at all. The actual `codex-companion.mjs` lives in the **codex** plugin (`cache/openai-codex/codex/1.0.2/scripts/`).
+
+The bug had been latent for the entire history of the `commands/review.md` and `processes/onboard.md` templates — Codex mode never worked from the onto plugin.
+
+### Root Cause
+
+Both onto plugin templates contained:
+
+```markdown
+node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" setup --check
+```
+
+The `${CLAUDE_PLUGIN_ROOT}` variable in Claude Code slash commands expands to the **calling** plugin's root, not to the codex plugin's root. So when the user invoked `/onto:review`:
+
+1. Claude Code expanded `${CLAUDE_PLUGIN_ROOT}` → `/cache/onto/onto/<sha>` (onto plugin root)
+2. Node tried to load `<onto root>/scripts/codex-companion.mjs`
+3. That file does not exist (only the **codex** plugin has it)
+4. `MODULE_NOT_FOUND` → halt branch
+
+The pattern was likely copy-pasted from the **codex** plugin's own `commands/setup.md`, which uses the identical `${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs` pattern. That pattern works correctly for `/codex:setup` because `${CLAUDE_PLUGIN_ROOT}` then expands to the codex plugin's root, where the file does exist. The pattern is non-portable across plugins, but the source code is identical at the syntactic level — a classic "looks the same, means different things in different contexts" failure mode.
+
+### Verification of scope (2026-04-08 sweep)
+
+A full grep across `cowork/` (48 repos) found this exact pattern in only 3 source files (all in onto / onto-prototype):
+- `cowork/onto/processes/onboard.md:161`
+- `cowork/onto-prototype/processes/onboard.md:161`
+- `cowork/onto-prototype/commands/review.md:22`
+
+Other repositories that use `${CLAUDE_PLUGIN_ROOT}` (`ouroboros`, `oh-my-claudecode`) reference their own plugin's `scripts/` files, which is the **correct** use of the variable. Only the cross-plugin pattern was broken.
+
+### Resolution
+
+Applied an **A+D combination fix** ([`dc7f111`](../../../../onto/commit/dc7f111), [`f530bb7`](../../../../onto-prototype/commit/f530bb7) in onto-prototype):
+
+**A — Slash command fallback** (works today): when the env var is unset, invoke `/codex:setup` via the Skill tool. The codex plugin is the canonical source of its readiness check; delegating to its slash command keeps onto out of cross-plugin path resolution entirely.
+
+**D — Env var contract** (forward-compatible): if `$CODEX_COMPANION_PATH` is set and points to an existing file, run it directly. Codex plugin owners would export this env var as the canonical cross-plugin handoff. Until they do, the slash command path handles every install. Decided not to file this contract as an upstream issue (see "Decision: don't file upstream" below).
+
+The new flow:
+
+```markdown
+1. If $CODEX_COMPANION_PATH set + file exists → node "$CODEX_COMPANION_PATH" setup --check
+2. Otherwise → invoke /codex:setup slash command via Skill tool
+3. Either path → check ready: true → branch to success or failure
+```
+
+Active plugin install caches at `~/.claude-{1,2}/plugins/cache/onto/onto/1207d86596f7/` were also hot-patched in the fix session so the bug stopped immediately for the developer's environment.
+
+### Decision: don't file upstream
+
+After investigation (2026-04-08), filing a feature request on `openai/codex-plugin-cc` for the env var contract was **rejected** as low-value:
+
+1. **The slash command pattern is the established norm.** A real third-party plugin (`parthpm/adversarial-dev-plugin`) integrates with codex by invoking `/codex:setup` and `/codex:adversarial-review --wait` via Skill tool, NOT by reaching for `codex-companion.mjs` directly. They never hit the bug we hit.
+2. **Codex plugin team is already strengthening this path.** Issue [openai/codex-plugin-cc#156](https://github.com/openai/codex-plugin-cc/issues/156) (open) removes `disable-model-invocation` from `/codex:adversarial-review`, enabling Skill tool delegation from third-party plugins. This is the same path onto now uses.
+3. **Our bug was bad copy-paste, not a missing feature.** We blindly copied codex's own internal `${CLAUDE_PLUGIN_ROOT}` pattern without realizing the variable expands per-caller. Filing "please add an env var so I don't have to use the existing slash command pattern" would likely be closed as "use the slash command".
+
+The env var path remains in the fix as forward-compatible scaffolding — if codex plugin ever adopts the contract, onto picks it up automatically with no code change. But the slash command path is the canonical answer.
+
+### Lesson for future plugin work
+
+**Never use `${CLAUDE_PLUGIN_ROOT}` to reference resources in another plugin.** The variable expands to the calling plugin's own root, so cross-plugin references silently break. When integrating with another plugin:
+
+1. **Preferred**: invoke the other plugin's slash command (`/{other}:{command}`) via the Skill tool. The other plugin owns its own resource resolution.
+2. **Alternative (if env var contract exists)**: read a documented env var the other plugin exports.
+3. **Anti-pattern**: hardcode `${CLAUDE_PLUGIN_ROOT}/scripts/...` assuming the variable points to the other plugin. It does not.
+4. **Anti-pattern**: vendor a copy of the other plugin's scripts. License + drift cost.
+
+This rule applies not just to codex-companion but to ANY cross-plugin file reference. The common failure mode: you tested the new plugin in a dev workspace where the path happened to resolve, then it broke in production where plugin layouts differ.

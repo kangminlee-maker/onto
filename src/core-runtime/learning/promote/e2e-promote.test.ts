@@ -5126,6 +5126,331 @@ async function main(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // Batch 10 — Remaining E2E edges
+  //
+  // Covers untested corners of Items 1 and 2 (caps, multi-file apply,
+  // edge-case token helpers) plus promoter integration for cross-agent
+  // dedup so the clusters actually land in the generated PromoteReport.
+  // -------------------------------------------------------------------------
+
+  // E-P128 — MAX_SHORTLISTS_PER_RUN cap enforcement: construct more than 20
+  //          independent cross-agent groups and verify buildShortlists
+  //          returns exactly 20. Production cost bound.
+  await test("E-P128 cross-agent dedup buildShortlists caps shortlist count", async () => {
+    const { __testExports } = await import("./panel-reviewer.js");
+    const { buildShortlists, MAX_SHORTLISTS_PER_RUN } = __testExports;
+
+    // Build 25 distinct cross-agent groups, each with 2 items sharing
+    // unique tokens that no other group touches. Jaccard ≥ 0.3 holds
+    // within each group but zero across groups.
+    const items: ParsedLearningItem[] = [];
+    for (let g = 0; g < 25; g++) {
+      // Use 5 unique tokens per group so the within-group Jaccard is ~1.0
+      // while across-group Jaccard is ~0.
+      const tokens = [
+        `groupalpha${g}`,
+        `groupbeta${g}`,
+        `groupgamma${g}`,
+        `groupdelta${g}`,
+        `groupepsilon${g}`,
+      ].join(" ");
+      items.push(
+        syntheticItem({
+          agent_id: "structure",
+          content: tokens,
+        }),
+        syntheticItem({
+          agent_id: "philosopher",
+          content: tokens,
+        }),
+      );
+    }
+    const shortlists = buildShortlists(items);
+    assertEqual(
+      shortlists.length,
+      MAX_SHORTLISTS_PER_RUN,
+      "exactly MAX_SHORTLISTS_PER_RUN returned when more groups exist",
+    );
+  });
+
+  // E-P129 — MAX_ITEMS_PER_SHORTLIST cap: a single connected component
+  //          larger than the limit is capped at MAX_ITEMS_PER_SHORTLIST.
+  //          Ensures one cluster can't dominate the LLM prompt.
+  await test("E-P129 cross-agent dedup caps items per shortlist", async () => {
+    const { __testExports } = await import("./panel-reviewer.js");
+    const { buildShortlists, MAX_ITEMS_PER_SHORTLIST } = __testExports;
+
+    // Build a single connected component with 15 items (> cap of 10).
+    // Alternate two agent ids so every pair is cross-agent AND all
+    // items share the same significant tokens → union-find merges them.
+    const items: ParsedLearningItem[] = [];
+    const sharedContent =
+      "verify preconditions constraint validation before applying changes durable";
+    for (let i = 0; i < 15; i++) {
+      items.push(
+        syntheticItem({
+          agent_id: i % 2 === 0 ? "structure" : "philosopher",
+          // Append a per-item token so they're not identical but still
+          // share the significant words above.
+          content: `${sharedContent} marker${i}`,
+        }),
+      );
+    }
+    const shortlists = buildShortlists(items);
+    assertEqual(shortlists.length, 1, "one connected component");
+    assertEqual(
+      shortlists[0]!.length,
+      MAX_ITEMS_PER_SHORTLIST,
+      "capped at MAX_ITEMS_PER_SHORTLIST",
+    );
+  });
+
+  // E-P130 — applyInsightReclassifications multi-file batch: entries
+  //          spanning two different source_paths each get their own file
+  //          write. Neither file contaminates the other.
+  await test("E-P130 applyInsightReclassifications rewrites multiple files in one run", async () => {
+    const { applyInsightReclassifications } = await import(
+      "./insight-reclassifier.js"
+    );
+
+    const dir = makeTmpDir("e-p130");
+    const fileA = path.join(dir, "structure.md");
+    const fileB = path.join(dir, "philosopher.md");
+    const lineA =
+      "- [fact] [methodology] [insight] alpha (source: p, d, 2026-01-01) [impact:normal]";
+    const lineB =
+      "- [fact] [methodology] [insight] beta (source: p, d, 2026-01-02) [impact:normal]";
+    fs.writeFileSync(fileA, lineA + "\n", "utf8");
+    fs.writeFileSync(fileB, lineB + "\n", "utf8");
+
+    const reportPath = path.join(dir, "report.json");
+    fs.writeFileSync(
+      reportPath,
+      JSON.stringify({
+        session_id: "test-130",
+        reclassified: [
+          {
+            agent_id: "structure",
+            source_path: fileA,
+            line_number: 1,
+            raw_line: lineA,
+            current_role: "insight",
+            proposed_role: "guardrail",
+            reason: "test",
+            llm_model_id: "mock",
+            llm_prompt_hash: "00000000",
+          },
+          {
+            agent_id: "philosopher",
+            source_path: fileB,
+            line_number: 1,
+            raw_line: lineB,
+            current_role: "insight",
+            proposed_role: "foundation",
+            reason: "test",
+            llm_model_id: "mock",
+            llm_prompt_hash: "00000000",
+          },
+        ],
+      }),
+      "utf8",
+    );
+
+    const result = applyInsightReclassifications({ reportPath });
+    assertEqual(result.applied, 2, "both applied");
+    assertEqual(result.failed, 0, "no failures");
+
+    const contentA = fs.readFileSync(fileA, "utf8");
+    const contentB = fs.readFileSync(fileB, "utf8");
+    assert(contentA.includes("[guardrail] alpha"), "fileA rewritten");
+    assert(!contentA.includes("[insight]"), "fileA no longer has [insight]");
+    assert(contentB.includes("[foundation] beta"), "fileB rewritten");
+    assert(!contentB.includes("[insight]"), "fileB no longer has [insight]");
+    // Cross-file isolation: fileA content didn't leak into fileB and vice versa
+    assert(!contentA.includes("beta"), "fileA not polluted");
+    assert(!contentB.includes("alpha"), "fileB not polluted");
+  });
+
+  // E-P131 — Entries array preserves full metadata per outcome so callers
+  //          can render a human report. Each entry carries agent_id,
+  //          source_path, line_number, raw_line, outcome, new_line, error.
+  await test("E-P131 applyInsightReclassifications entries carry full per-outcome metadata", async () => {
+    const { applyInsightReclassifications } = await import(
+      "./insight-reclassifier.js"
+    );
+
+    const dir = makeTmpDir("e-p131");
+    const fileA = path.join(dir, "structure.md");
+    const lineA =
+      "- [fact] [methodology] [insight] apply-me (source: p, d, 2026-01-01) [impact:normal]";
+    fs.writeFileSync(fileA, lineA + "\n", "utf8");
+
+    const reportPath = path.join(dir, "report.json");
+    fs.writeFileSync(
+      reportPath,
+      JSON.stringify({
+        session_id: "test-131",
+        reclassified: [
+          {
+            agent_id: "structure",
+            source_path: fileA,
+            line_number: 1,
+            raw_line: lineA,
+            current_role: "insight",
+            proposed_role: "convention",
+            reason: "test-applied",
+            llm_model_id: "mock",
+            llm_prompt_hash: "aabbcc",
+          },
+          {
+            agent_id: "structure",
+            source_path: fileA,
+            line_number: 2,
+            raw_line: "- [fact] [methodology] [insight] unknown-line",
+            current_role: "insight",
+            proposed_role: "guardrail",
+            reason: "test-skipped",
+            llm_model_id: "mock",
+            llm_prompt_hash: "ddeeff",
+          },
+          {
+            agent_id: "structure",
+            source_path: fileA,
+            line_number: 3,
+            raw_line: "- [fact] [methodology] [insight] unclassified",
+            current_role: "insight",
+            proposed_role: null,
+            reason: "llm unreachable",
+            llm_model_id: "mock",
+            llm_prompt_hash: "001122",
+          },
+        ],
+      }),
+      "utf8",
+    );
+
+    const result = applyInsightReclassifications({ reportPath });
+    assertEqual(result.total_entries, 3, "3 entries reported");
+    assertEqual(result.applied, 1, "one applied");
+    assertEqual(result.skipped_already_applied, 1, "one already applied");
+    assertEqual(result.skipped_no_proposal, 1, "one no proposal");
+
+    // Find and verify each entry
+    const applied = result.entries.find((e) => e.outcome === "applied")!;
+    assertEqual(applied.agent_id, "structure", "applied agent");
+    assertEqual(applied.line_number, 1, "applied line");
+    assertEqual(applied.proposed_role, "convention", "applied role");
+    assert(applied.new_line !== null, "applied new_line set");
+    assert(applied.new_line!.includes("[convention]"), "new_line has new tag");
+    assert(applied.error_message === null, "applied error null");
+
+    const alreadyApplied = result.entries.find(
+      (e) => e.outcome === "skipped_already_applied",
+    )!;
+    assertEqual(alreadyApplied.line_number, 2, "skipped line number");
+    assertEqual(alreadyApplied.new_line, null, "skipped new_line null");
+
+    const noProp = result.entries.find(
+      (e) => e.outcome === "skipped_no_proposal",
+    )!;
+    assertEqual(noProp.line_number, 3, "no-proposal line");
+    assertEqual(noProp.proposed_role, null, "no-proposal role null");
+  });
+
+  // E-P132 — Full runPromoter end-to-end: candidates with cross-agent
+  //          overlap flow through the mock LLM dedup discovery and the
+  //          resulting cluster lands in report.cross_agent_dedup_clusters.
+  //          Validates the wiring between promoter.ts and the new
+  //          discoverCrossAgentDedupClusters implementation.
+  await test("E-P132 runPromoter surfaces cross_agent_dedup_clusters via mock LLM", async () => {
+    const previousMock = process.env.ONTO_LLM_MOCK;
+    process.env.ONTO_LLM_MOCK = "1";
+
+    const projectRoot = makeTmpDir("e-p132-proj");
+    const fakeOnto = makeTmpDir("e-p132-home");
+    const fakeAuditStatePath = path.join(fakeOnto, "audit-state.yaml");
+
+    // Two cross-agent candidates with significant token overlap
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      "- [fact] [methodology] [foundation] verify preconditions constraint validation applying changes durable (source: p, d, 2026-01-01) [impact:normal]",
+    );
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "philosopher",
+      "- [fact] [methodology] [foundation] verify preconditions constraint validation applying changes idempotent (source: p, d, 2026-01-02) [impact:normal]",
+    );
+
+    try {
+      const result = await runPromoter({
+        mode: "promote",
+        sessionId: "test-132",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: fakeAuditStatePath,
+        skipAudit: true, // skip audit to keep the test focused on dedup
+      });
+
+      const clusters = result.report.cross_agent_dedup_clusters;
+      assert(clusters.length >= 1, "at least one cluster detected");
+      const cluster = clusters[0]!;
+      assert(
+        cluster.member_items.length >= 2,
+        "cluster contains multiple members",
+      );
+      const agents = new Set(cluster.member_items.map((i) => i.agent_id));
+      assert(agents.size >= 2, "members span ≥2 distinct agents");
+      assertEqual(
+        cluster.user_approval_required,
+        true,
+        "user approval required flag",
+      );
+      assert(
+        cluster.cluster_id.length === 12,
+        "12-char deterministic cluster_id",
+      );
+    } finally {
+      if (previousMock === undefined) delete process.env.ONTO_LLM_MOCK;
+      else process.env.ONTO_LLM_MOCK = previousMock;
+    }
+  });
+
+  // E-P133 — Token helper edge cases: empty content and stopword-only
+  //          content produce empty token sets; Jaccard on empty sets is 0.
+  //          Degenerate inputs must not NaN or crash the pre-filter.
+  await test("E-P133 significantTokens + jaccard handle empty/stopword-only content", async () => {
+    const { __testExports } = await import("./panel-reviewer.js");
+    const { significantTokens, jaccard } = __testExports;
+
+    // Empty content
+    const empty = significantTokens("");
+    assertEqual(empty.size, 0, "empty content → empty token set");
+
+    // Stopword-only content (all ≥ 4 chars + in stopword list)
+    const stopwordsOnly = significantTokens(
+      "these those have been being should would could will must does",
+    );
+    assertEqual(stopwordsOnly.size, 0, "stopword-only → empty token set");
+
+    // Short words only (each < MIN_TOKEN_LENGTH of 4)
+    const shortOnly = significantTokens("a b c d i as to of in is it on so");
+    assertEqual(shortOnly.size, 0, "short-word-only → empty token set");
+
+    // Jaccard with empty sets
+    const sim1 = jaccard(new Set(), new Set(["a", "b"]));
+    assertEqual(sim1, 0, "empty left → 0");
+    const sim2 = jaccard(new Set(["a", "b"]), new Set());
+    assertEqual(sim2, 0, "empty right → 0");
+    const sim3 = jaccard(new Set(), new Set());
+    assertEqual(sim3, 0, "both empty → 0");
+
+    // Known case: one shared out of two total per side → 1/3
+    const sim4 = jaccard(new Set(["alpha", "beta"]), new Set(["beta", "gamma"]));
+    assert(Math.abs(sim4 - 1 / 3) < 1e-9, "1/3 shared");
+  });
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   process.stdout.write("\n");

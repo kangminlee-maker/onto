@@ -163,29 +163,141 @@
 
 **A-12r/A-12rej**: R1-U1에 의해 Phase 3으로 의도적 이연. 현재는 manifest ConflictProposal에만 기록.
 
-### 3.5 즉시 진행: Learn Phase 3 상세 설계
+### 3.5 완료: Learn Phase 3 상세 설계 (v9 final, 7회 리뷰)
 
-**읽을 파일** (설계 시작 전):
-1. `.onto/temp/learn-implementation-design-v4.md` — 상위 설계 (§3 승격 원자 작업 16개 + §3.2 퇴역 2개 + §3.3 DAG)
-2. `src/core-runtime/learning/extractor.ts` — Phase 2 구현 (shared 모듈 기준)
-3. `src/core-runtime/learning/shared/semantic-classifier.ts` — A-11 공유 모듈 (Phase 3 P-4에서 재사용)
-4. `src/core-runtime/learning/shared/duplicate-check.ts` — A-10 공유 모듈 (Phase 3 P-3에서 재사용)
-5. `processes/promote.md` — promote 프로세스 정의 (기존)
-6. `learning-rules.md` — 학습 저장/소비/승인 규칙
+**상태**: v2~v9까지 7회 9-lens self-review 완료. v9가 구현 진입 직전 final 설계.
 
-**Phase 3 범위** (상위 설계 §5):
-- **승격**: P-1~P-3, P-5, P-9~P-12, P-15
-- **LLM 작업**: P-4 (의미 분류, cross-agent scope), P-6 (기준 1~3), P-7 (applicability 재평가), P-8 (교차 중복 제거), P-13 (도메인 문서 갱신 제안), P-14 (judgment 재검증)
-- **퇴역**: P-10, P-10b, R-2, R-3
-- **Eval**: promote 판정 일치율 ≥90%
+**최종 설계 문서**: `.onto/temp/learn-phase3-design-v9.md`
 
-**설계 시 고려 사항**:
-- Phase 2의 `ConflictProposal`이 Phase 3 promote의 입력으로 합류
-- A-12r/A-12rej 실행은 Phase 3 promote에서 사용자 승인 후 수행
-- `unclassified_pending` 항목(quarantine 파일)의 재분류 경로
-- 기존 755항목의 정규화 (learning_id 부여, format_version, [insight] 재분류)
-- 3-agent 패널 구성 (P-5): philosopher 미구현 시 축소 규칙
-- Event marker 기반 퇴역 (P-10, P-10b): count≥2 + retention-confirmed 제외
+**리뷰 이력**:
+- v2 review (`20260408-fc04862e`): CONS 7 + CC 2 + D 2 + UF 7
+- v3 review (`20260408-27a9deea`): CONS 4 + CC 1 + D 2 + UF 7 + AP 2
+- v4 review (`20260408-0c777e97`): CONS 2 + CC 3 + D 1 + UF 8 + AP 1
+- v5 review (`20260408-41e69b1c`): CONS 4 + CC 2 + D 2 + UF 6 + AP 1
+- v6 review (`20260408-295e0b51`): CONS 5 + CC 1 + D 1 + UF 2 + AP 1
+- v7 review (`20260408-42f47528`): CONS 4 + CC 1 + D 2 + UF 5 + AP 1
+- v8 review (`20260408-ee929b92`): CONS 3 + CC 1 + D 1 + UF 4 + AP 1
+- 진화적 관점 longitudinal 분석 (v2~v6 evolution.md): DD-20/21/22 도출
+
+**핵심 설계 결정 (DD-1 ~ DD-23)**:
+- **DD-1**: 2-Phase CLI + strict source-read-only Phase A
+- **DD-7**: Panel canonical 타입 + array validator (criteria 1~5)
+- **DD-8**: `.layout-version.yaml` + runtime gate
+- **DD-15**: Phase B atomicity + `apply_verification_failed` + `state_persistence_failed` 분리
+- **DD-16**: Recoverability checkpoint + protected backup + restore-manifest
+- **DD-17**: AuditObligation ledger (status + carry-forward, expired_unattended ingress 포함)
+- **DD-18**: CollectionResult canonical seats (project_items / global_items / candidate_items 분리)
+- **DD-19**: P-14 lineage + DomainDoc slot_id/instance_id 분리
+- **DD-20**: Artifact Registry (lazy init + write enforcement + pre-v7 reject)
+- **DD-21**: AuditObligation 캡슐화 (TypeScript private field + construction invariants)
+- **DD-22**: RecoveryContext single consumer (canonical attempt selection + freshness)
+- **DD-23**: Recovery Resolution Artifact (`recovery-resolution.yaml` — operator decision seat)
+
+**Phase 3 runtime 가정 (§12.7)**: short-lived CLI process. daemon/server는 범위 밖.
+
+### 3.6 진행 중: Learn Phase 3 구현 (Step 1~6 완료, Step 7~13 남음)
+
+**현재 상태**: shared infrastructure 구현 완료. 모든 단계에서 `npx tsc --noEmit` 통과.
+다음 세션 진입점은 **Step 7: Collector**.
+
+**Spec 문서**: `.onto/temp/learn-phase3-design-v9.md` (final, 7회 리뷰)
+
+**구현 진입 전 읽을 파일** (필수):
+1. `CLAUDE.md`, `AGENTS.md`
+2. `authority/llm-native-development-guideline.md` (3-질문 프레임)
+3. `authority/ontology-as-code-guideline.md`
+4. **`.onto/temp/learn-phase3-design-v9.md` — final 설계**
+5. **`.onto/temp/learn-phase3-design-v8.md`, `v7.md`, `v6.md` — DD-1~DD-22 본체 정의 (v9는 delta만 명시)**
+6. `src/core-runtime/learning/extractor.ts` — Phase 2 패턴
+7. `src/core-runtime/learning/shared/semantic-classifier.ts` — P-4 재사용
+8. `src/core-runtime/learning/shared/duplicate-check.ts` — P-3 재사용
+9. `processes/promote.md` — 기존 프로세스 (코드 기반으로 갱신할 대상)
+10. `learning-rules.md` — 학습 저장/소비/승인 규칙
+
+#### 완료된 단계 (1~6) — shared infrastructure
+
+| Step | 파일 | DD | 검증 |
+|---|---|---|---|
+| **1. Types + Kernel** | `shared/audit-obligation-kernel.ts`, `promote/types.ts` | DD-21 dependency layering | tsc PASS |
+| **2. Artifact Registry + 9 Specs** | `shared/artifact-registry.ts`, `shared/artifact-registry-init.ts`, `shared/specs/{promote-report,audit-state,emergency-log,layout-version,restore-manifest,prune-log,apply-execution-state,backup-metadata,promote-decisions,recovery-resolution}-spec.ts` + `spec-helpers.ts` | DD-20 (lazy init, write enforcement, pre-v7 reject, schema_version reject) | tsc PASS |
+| **3. AuditObligation class** | `promote/audit-obligation.ts` | DD-21 (private fields, construction invariants, fromJSON 검증) | tsc PASS |
+| **4. Audit State ledger** | `shared/audit-state.ts` | DD-17 (carry-forward, expired_unattended ingress 포함) | tsc PASS |
+| **5. Recoverability** | `shared/recoverability.ts` | DD-16 (CheckpointPreparationResult transient + RecoverabilityCheckpoint persisted + restore-manifest + protection + prune) | tsc PASS |
+| **6. Recovery Context + DD-23** | `shared/recovery-context.ts` (+ `shared/specs/recovery-resolution-spec.ts`는 Step 2에서 함께 등록 완료) | DD-22 (canonical attempt selection, source_kind enum 통일) + DD-23 (RecoveryResolution 영속화 + 재load) | tsc PASS |
+
+**Step 1~6 핵심 결정 사항** (다음 세션에서 회귀 방지를 위해 기억):
+- `REGISTRY.appendToFile()`이 emergency-log/prune-log JSONL을 위해 추가됨 (saveToFile과 별개)
+- `BACKUP_ROOT = ~/.onto/backups`, `EMERGENCY_LOG_PATH = ~/.onto/emergency-log.jsonl`
+- `RecoverySourceKind = "apply_state" | "emergency_log" | "checkpoint_manifest"` (artifact-family axis, v9 SYN-UF-SEM-01)
+- `manual_escalation_required` 시 기존 RecoveryResolution 우선 read (DD-23)
+- `AuditObligation.transition()`이 from을 mutation 전에 capture (v5 SYN-CONS-01 회귀 방지)
+- `LEGAL_TRANSITIONS`에 `pending → expired_unattended`, `blocked → expired_unattended` 포함 (v6 회귀 방지)
+
+#### 남은 단계 (7~13) — business logic + integration
+
+7. **Collector** — `promote/collector.ts`
+   - `learning-rules.md`, `processes/promote.md` Step 1~2 기반
+   - `ParsedLearningItem` 파싱 (TAG_PATTERN/SOURCE_PATTERN/CONTENT_CAPTURE 재사용)
+   - `BaselineHash` 캡처 (DD-10)
+   - `CollectionResult` (DD-18 SST: project_items / global_items / candidate_items 분리)
+   - mode별 candidate_items 정의: promote = `project_items.filter(role!=="insight")`, reclassify-insights = `global_items.filter(role==="insight")`
+8. **Panel Reviewer + Judgment Auditor** — `promote/panel-reviewer.ts`, `promote/judgment-auditor.ts`
+   - DD-2: 3-agent panel API 기반 (Agent Teams 미사용, `llm-caller.ts` 재사용)
+   - DD-7: criteria 1~5 array validator
+   - DD-12: hard gate (valid_member_count < 2 → panel_minimum_unmet)
+   - DD-13: P-14 audit pre-step (lineage tracking)
+   - DD-17: AuditObligation transitions during P-14
+9. **보조 모듈**
+   - `promote/retirement.ts` (DD-6: event marker 2개 이상 → 퇴역 후보)
+   - `promote/degraded-state.ts` (DD-11 taxonomy)
+   - `promote/apply-state.ts` (DD-15 atomicity)
+   - `promote/health-snapshot.ts` (promote.md §9)
+   - `promote/domain-doc-proposer.ts` (DD-19 slot_id/instance_id 분리)
+10. **Orchestrators**
+    - `promote/promoter.ts` (Phase A — strict source-read-only)
+    - `promote/promote-executor.ts` (Phase B — DD-15 atomicity, recovery via DD-22/DD-23, emergency-log write/double-failure fallback)
+11. **CLI 통합**
+    - `cli/session-root-guard.ts` (DD-8 layout marker, inspect mode)
+    - `cli/migrate-session-roots.ts` (legacy session migration)
+    - `src/cli.ts` 서브명령 추가: `promote`, `reclassify-insights`, `migrate-session-roots`, `promote --resolve-conflict` (DD-23)
+12. **Insight Reclassifier** — `promote/insight-reclassifier.ts` (DD-9, `onto reclassify-insights` 별도 명령)
+13. **E2E 테스트** — 138건 (E-P1~E-P138)
+    - 기존 `src/core-runtime/cli/e2e-review-invoke.test.sh` 패턴 재사용 또는 별도 `e2e-promote.test.sh` 신설
+
+**구현 핵심 원칙** (v9 §14.2 — 모든 단계 적용):
+- TypeScript strict mode + private fields (DD-21 mechanical enforcement)
+- Single source of truth (캐시는 documented cache로 명시)
+- Lazy init + fail-close default
+- TDD: E-P1~E-P138은 spec과 동등
+- LEGAL_TRANSITIONS에 expired_unattended ingress 포함 확인 (v6 회귀 방지)
+
+**환경변수**:
+- `ANTHROPIC_API_KEY` 또는 `OPENAI_API_KEY` (P-4/P-6/P-13/P-14 LLM 호출)
+- 또는 Codex auth fallback (`~/.codex/auth.json` — `llm-caller.ts` 재사용)
+
+**구현 시 결정 항목 (v9 §14.3)**:
+- ~~`RecoverabilityCheckpoint.serialize`의 backups 배열 순서~~ → **결정됨**: alphabetic on source_kind (recoverability.ts)
+- ~~`AuditObligation` deserialization missing field~~ → **결정됨**: 명시적 throw (audit-obligation.ts fromJSON)
+- LLM call retry → 권고: extractor.ts 패턴 (1회 retry, fail-close)
+- `recovery-resolution.yaml` 갱신 정책 (NQ-21) → 권고: append-only resolution_history
+- `source_channel` 필드 사용 (NQ-22) → 권고: 미사용 시 제거 (현재 types.ts에 미포함 — 결정 완료)
+
+**다음 세션 진입 명령**:
+```bash
+# 1. 컨텍스트 복원
+cat development-records/handoff/20260406-current-work.md
+cat .onto/temp/learn-phase3-design-v9.md     # delta only
+cat .onto/temp/learn-phase3-design-v8.md     # DD-1~DD-22 본체
+
+# 2. 현재 구현 파일 확인
+ls src/core-runtime/learning/promote/
+ls src/core-runtime/learning/shared/specs/
+
+# 3. tsc 통과 확인
+npx tsc --noEmit
+
+# 4. Step 7 (Collector)부터 이어서 작업
+```
 
 ### 3.4 진화 항목
 

@@ -1,0 +1,84 @@
+# Core Lens Registry
+#
+# Single source of truth for all core lens IDs and per-lens semantic scope.
+# "lens가 무엇을 검증하는가?"의 단일 seat.
+# Consumed by: review-invoke.ts (lens set defaults), materialize-review-prompt-packets.ts (core role detection).
+# Adding a new core lens: add it here. The runtime derives FULL/LIGHT/CORE sets from this file.
+# Canonical label owner: this file owns the canonical bare lens/role IDs (logic, structure, …).
+# Concept ownership is in core-lexicon.yaml; this file owns the runtime-facing ID labels.
+
+lens_definitions:
+  logic:
+    purpose: "Logical consistency verification"
+    semantic_scope: "Contradictions, type conflicts, constraint conflicts"
+    role_ref: "roles/logic.md"
+  structure:
+    purpose: "Structural completeness verification"
+    semantic_scope: "Isolated elements, broken paths, missing relations"
+    role_ref: "roles/structure.md"
+  dependency:
+    purpose: "Dependency integrity verification"
+    semantic_scope: "Cycles, reverse direction, diamond dependencies"
+    role_ref: "roles/dependency.md"
+  semantics:
+    purpose: "Semantic accuracy verification"
+    semantic_scope: "Name-meaning alignment, synonyms/homonyms"
+    role_ref: "roles/semantics.md"
+  pragmatics:
+    purpose: "Pragmatic fitness verification"
+    semantic_scope: "Queryability, competency question testing"
+    role_ref: "roles/pragmatics.md"
+  evolution:
+    purpose: "Evolution fitness verification"
+    semantic_scope: "Breakage when adding new data/domains"
+    role_ref: "roles/evolution.md"
+  coverage:
+    purpose: "Domain coverage verification"
+    semantic_scope: "Missing sub-areas, concept bias, gaps against standards"
+    role_ref: "roles/coverage.md"
+  conciseness:
+    purpose: "Conciseness verification"
+    semantic_scope: "Duplicate definitions, over-specification, unnecessary distinctions"
+    role_ref: "roles/conciseness.md"
+  axiology:
+    purpose: "Purpose and value alignment verification"
+    semantic_scope: "Purpose drift, value conflict, mission misalignment"
+    role_ref: "roles/axiology.md"
+  synthesize:
+    purpose: "Review synthesis and adjudication"
+    semantic_scope: "Consensus integration, disagreement preservation, final review output"
+    role_ref: "roles/synthesize.md"
+
+full_review_lens_ids:
+  - logic
+  - structure
+  - dependency
+  - semantics
+  - pragmatics
+  - evolution
+  - coverage
+  - conciseness
+  - axiology
+
+light_review_lens_ids:
+  - logic
+  - pragmatics
+  - evolution
+  - axiology
+
+# Core role IDs: these lenses have system-level role definitions in ontoHome/roles/.
+# Project override is forbidden for these roles.
+core_role_ids:
+  - logic
+  - structure
+  - dependency
+  - semantics
+  - pragmatics
+  - evolution
+  - coverage
+  - conciseness
+  - axiology
+  - synthesize
+
+always_include_lens_ids:
+  - axiology

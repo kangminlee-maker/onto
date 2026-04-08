@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+
+// Global CLI entry point for onto.
+// Uses tsx for TypeScript execution in development.
+// For production, compile first: npm run build
+
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { execSync } from "node:child_process";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ontoRoot = path.resolve(__dirname, "..");
+
+// Check for compiled dist first
+const distEntry = path.join(ontoRoot, "dist", "cli.js");
+const srcEntry = path.join(ontoRoot, "src", "cli.ts");
+
+import fs from "node:fs";
+
+if (fs.existsSync(distEntry)) {
+  // Production: use compiled JS
+  await import(distEntry);
+} else {
+  // Development: use tsx
+  const tsxBin = path.join(ontoRoot, "node_modules", ".bin", "tsx");
+  const args = [srcEntry, ...process.argv.slice(2)];
+  try {
+    execSync(`"${tsxBin}" ${args.map(a => `"${a}"`).join(" ")}`, {
+      stdio: "inherit",
+      cwd: process.cwd(),
+      env: { ...process.env, ONTO_HOME: ontoRoot },
+    });
+  } catch (error) {
+    process.exit(error && typeof error === "object" && "status" in error ? Number(error.status) || 1 : 1);
+  }
+}

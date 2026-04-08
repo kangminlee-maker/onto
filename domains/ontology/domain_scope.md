@@ -7,7 +7,7 @@ status: established
 
 # Ontology Domain — Domain Scope Definition
 
-This is the reference document used by onto_coverage to identify "what should exist but is missing" in ontology design.
+This is the reference document used by coverage to identify "what should exist but is missing" in ontology design.
 This domain applies when **reviewing** an ontology (a knowledge structuring system).
 
 ## Ontology Type Classification

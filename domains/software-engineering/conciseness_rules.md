@@ -7,7 +7,7 @@ status: established
 
 # Conciseness Rules (software-engineering)
 
-This document contains the domain-specific rules referenced by onto_conciseness during conciseness verification.
+This document contains the domain-specific rules referenced by conciseness during conciseness verification.
 It is organized in the order: **type (allow/remove) → verification criteria → role boundary → measurement method**.
 
 ---
@@ -108,37 +108,37 @@ Anti-examples of premature classification:
 
 ## 4. Boundaries — Domain-specific Application Cases
 
-The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the concrete application cases in the software-engineering domain.
+The authoritative source for boundary definitions is `roles/conciseness.md`. This section describes only the concrete application cases in the software-engineering domain.
 
-### onto_pragmatics Boundary
+### pragmatics Boundary
 
-- onto_conciseness: Does an unnecessary element **exist**? (structural level)
-- onto_pragmatics: Does unnecessary information **hinder** query execution? (execution level)
-- Example: Unused fields included in API response → onto_pragmatics. Unused entity defined in schema → onto_conciseness.
+- conciseness: Does an unnecessary element **exist**? (structural level)
+- pragmatics: Does unnecessary information **hinder** query execution? (execution level)
+- Example: Unused fields included in API response → pragmatics. Unused entity defined in schema → conciseness.
 
-### onto_coverage Boundary
+### coverage Boundary
 
-- onto_conciseness: Does something that should not exist, exist? (reduction direction)
-- onto_coverage: Does something that should exist, not exist? (expansion direction)
-- Example: Security/authentication exists but authorization system is undefined → onto_coverage. Authentication and authorization are redundantly defined in the same module → onto_conciseness.
+- conciseness: Does something that should not exist, exist? (reduction direction)
+- coverage: Does something that should exist, not exist? (expansion direction)
+- Example: Security/authentication exists but authorization system is undefined → coverage. Authentication and authorization are redundantly defined in the same module → conciseness.
 
-### onto_logic Boundary (predecessor/successor relationship)
+### logic Boundary (predecessor/successor relationship)
 
-- onto_logic precedes: determines logical equivalence (entailment). Cross-reference: logic_rules.md 'Type System Logic' for type-level entailment rules, 'State Management Logic' for state-transition equivalence.
-- onto_conciseness follows: determines whether to remove after equivalence is confirmed
-- Example: Superordinate interface's constraint entails subordinate implementation's constraint → onto_logic determines equivalence → onto_conciseness rules "subordinate redeclaration unnecessary."
+- logic precedes: determines logical equivalence (entailment). Cross-reference: logic_rules.md 'Type System Logic' for type-level entailment rules, 'State Management Logic' for state-transition equivalence.
+- conciseness follows: determines whether to remove after equivalence is confirmed
+- Example: Superordinate interface's constraint entails subordinate implementation's constraint → logic determines equivalence → conciseness rules "subordinate redeclaration unnecessary."
 
-### onto_semantics Boundary (predecessor/successor relationship)
+### semantics Boundary (predecessor/successor relationship)
 
-- onto_semantics precedes: determines semantic identity (synonym status). Cross-reference: concepts.md §Homonyms Requiring Attention for canonical term resolution.
-- onto_conciseness follows: determines merge necessity after synonym is confirmed
-- Example: user/account/member are the same concept → onto_semantics determines synonymy → onto_conciseness rules "consolidate to one canonical term."
+- semantics precedes: determines semantic identity (synonym status). Cross-reference: concepts.md §Homonyms Requiring Attention for canonical term resolution.
+- conciseness follows: determines merge necessity after synonym is confirmed
+- Example: user/account/member are the same concept → semantics determines synonymy → conciseness rules "consolidate to one canonical term."
 
-### onto_structure Boundary
+### structure Boundary
 
-- onto_structure: Does the element conform to structural rules? (structure_spec.md 'Required Module Structure Elements', 'Architectural Patterns')
-- onto_conciseness: Is the element duplicated or unnecessary given the structure?
-- Example: A module exists but violates the declared architectural pattern → onto_structure. A module duplicates another module's functionality → onto_conciseness.
+- structure: Does the element conform to structural rules? (structure_spec.md 'Required Module Structure Elements', 'Architectural Patterns')
+- conciseness: Is the element duplicated or unnecessary given the structure?
+- Example: A module exists but violates the declared architectural pattern → structure. A module duplicates another module's functionality → conciseness.
 
 ---
 

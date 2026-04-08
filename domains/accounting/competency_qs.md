@@ -8,7 +8,7 @@ status: established
 # Accounting Domain — Competency Questions
 
 A list of core questions that this domain's system must be able to answer.
-The onto_pragmatics agent verifies the actual reasoning path for each question.
+The pragmatics agent verifies the actual reasoning path for each question.
 
 Classification axis: **verification concern** — classified by the concern of questions that must be answered during accounting system review.
 

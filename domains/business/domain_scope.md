@@ -7,7 +7,7 @@ status: established
 
 # Business Domain — Domain Scope Definition
 
-This is the reference document used by onto_coverage to identify what should exist but is missing when reviewing a business system.
+This is the reference document used by coverage to identify what should exist but is missing when reviewing a business system.
 This domain applies when **reviewing** business plans, operating models, growth strategies, and management system design.
 
 ## Major Sub-areas

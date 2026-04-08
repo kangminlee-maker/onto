@@ -7,7 +7,7 @@ status: established
 
 # LLM-Native Development Domain — Extension Scenarios
 
-The onto_evolution agent simulates each scenario to verify whether the existing structure for LLM-powered systems breaks under real-world changes.
+The evolution agent simulates each scenario to verify whether the existing structure for LLM-powered systems breaks under real-world changes.
 
 **Area key**: 1=Model Integration, 2=Prompt & Context Design, 3=Retrieval & Knowledge Systems, 4=Agentic Systems, 5=Evaluation & Testing, 6=Safety & Alignment, 7=Production Operations, 8=Data & Model Adaptation
 

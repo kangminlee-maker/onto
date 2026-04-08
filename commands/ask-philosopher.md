@@ -1,8 +1,11 @@
-# Onto Philosopher (synthesis)
+# Onto Philosopher (legacy compatibility alias)
 
-Asks $ARGUMENTS to the Philosopher.
+Legacy alias for the axiological alignment perspective.
 
-Agent ID: `philosopher`
+Use `/onto:ask-axiology` for new usage.
+This compatibility command continues to route the question to the axiological lens so existing workflows do not break during productization.
+
+Agent ID: `onto_axiology`
 
 **Domain selection**: Append `@{domain}` to specify a domain, or `@-` for no-domain mode. If omitted, the Domain Selection Flow runs interactively.
 

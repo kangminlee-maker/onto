@@ -2,7 +2,7 @@
 
 Asks $ARGUMENTS to the evolution fitness verification agent.
 
-Agent ID: `onto_evolution`
+Agent ID: `evolution`
 
 **Domain selection**: Append `@{domain}` to specify a domain, or `@-` for no-domain mode. If omitted, the Domain Selection Flow runs interactively.
 

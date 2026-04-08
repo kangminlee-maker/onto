@@ -1,0 +1,64 @@
+{
+  "name": "onto-core",
+  "version": "0.1.0",
+  "description": "Ontology-as-Code productization core — 9-lens review, domain knowledge management, deterministic state enforcement",
+  "onto_release_channel": "beta",
+  "onto_release_label": "onto-harness",
+  "type": "module",
+  "bin": {
+    "onto": "./bin/onto"
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "roles/",
+    "domains/",
+    "authority/",
+    "commands/",
+    "processes/",
+    "explorers/",
+    "CLAUDE.md",
+    "AGENTS.md"
+  ],
+  "scripts": {
+    "prepare": "npm run build:ts-core",
+    "build:ts-core": "tsc -p tsconfig.json",
+    "check:ts-core": "tsc -p tsconfig.json --noEmit",
+    "test:e2e": "bash src/core-runtime/cli/e2e-review-invoke.test.sh",
+    "test:e2e:promote": "tsx src/core-runtime/learning/promote/e2e-promote.test.ts",
+    "review:write-interpretation": "tsx src/core-runtime/cli/write-review-interpretation.ts",
+    "review:bootstrap-binding": "tsx src/core-runtime/cli/bootstrap-review-binding.ts",
+    "review:materialize-execution-preparation": "tsx src/core-runtime/cli/materialize-review-execution-preparation.ts",
+    "review:prepare-session": "tsx src/core-runtime/cli/prepare-review-session.ts",
+    "review:materialize-prompt-packets": "tsx src/core-runtime/cli/materialize-review-prompt-packets.ts",
+    "review:start-session": "tsx src/core-runtime/cli/start-review-session.ts",
+    "review:run-prompt-execution": "tsx src/core-runtime/cli/run-review-prompt-execution.ts",
+    "review:mock-unit-executor": "tsx src/core-runtime/cli/mock-review-unit-executor.ts",
+    "review:subagent-unit-executor": "tsx src/core-runtime/cli/subagent-review-unit-executor.ts",
+    "review:agent-teams-unit-executor": "tsx src/core-runtime/cli/agent-teams-review-unit-executor.ts",
+    "review:codex-unit-executor": "tsx src/core-runtime/cli/codex-review-unit-executor.ts",
+    "review:api-unit-executor": "tsx src/core-runtime/cli/api-review-unit-executor.ts",
+    "review:invoke": "tsx src/core-runtime/cli/review-invoke.ts",
+    "review:watch": "bash scripts/onto-review-watch.sh",
+    "review:render-final-output": "tsx src/core-runtime/cli/render-review-final-output.ts",
+    "review:finalize-session": "tsx src/core-runtime/cli/assemble-review-record.ts",
+    "review:complete-session": "tsx src/core-runtime/cli/complete-review-session.ts",
+    "review:assemble-record": "tsx src/core-runtime/cli/assemble-review-record.ts",
+    "coordinator:start": "tsx src/core-runtime/cli/coordinator-state-machine.ts start",
+    "coordinator:next": "tsx src/core-runtime/cli/coordinator-state-machine.ts next",
+    "coordinator:status": "tsx src/core-runtime/cli/coordinator-state-machine.ts status",
+    "review:coordinator-init-log": "tsx src/core-runtime/cli/coordinator-helpers.ts init-log",
+    "review:coordinator-build-synthesize-packet": "tsx src/core-runtime/cli/coordinator-helpers.ts build-synthesize-packet",
+    "review:coordinator-write-execution-result": "tsx src/core-runtime/cli/coordinator-helpers.ts write-execution-result"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
+    "openai": "^6.33.0",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

@@ -9,7 +9,7 @@ status: established
 
 Classification axis: **change trigger** — cases classified by the type of change that triggers structural evolution of the UI. Cases cover both growth triggers (Cases 1–10) and shrinkage triggers (Cases 11–14).
 
-The onto_evolution agent simulates each scenario to verify whether the existing UI design structure breaks.
+The evolution agent simulates each scenario to verify whether the existing UI design structure breaks.
 
 ---
 

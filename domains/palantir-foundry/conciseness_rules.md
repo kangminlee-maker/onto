@@ -7,7 +7,7 @@ status: established
 
 # Conciseness Rules (palantir-foundry)
 
-This document contains the domain-specific rules referenced by onto_conciseness during conciseness verification.
+This document contains the domain-specific rules referenced by conciseness during conciseness verification.
 It is organized in the order: **type (allow/remove) → verification criteria → role boundary → measurement method**.
 
 ---
@@ -126,47 +126,47 @@ A new Object Type, Property, Link Type, or Action Type is justified **only if at
 
 ## 4. Boundaries — Domain-Specific Application Cases
 
-The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the concrete application cases in the palantir-foundry domain.
+The authoritative source for boundary definitions is `roles/conciseness.md`. This section describes only the concrete application cases in the palantir-foundry domain.
 
-### onto_pragmatics Boundary
+### pragmatics Boundary
 
-- onto_conciseness: Does an unnecessary element **exist** in the ontology definition? (structural level)
-- onto_pragmatics: Does that element **hinder** query execution or workflow performance? (execution level)
-- Example: Unused Property defined in Object Type → onto_conciseness (remove from ontology). That Property included in every codegen-generated type → onto_pragmatics (type bloat affecting compile time).
+- conciseness: Does an unnecessary element **exist** in the ontology definition? (structural level)
+- pragmatics: Does that element **hinder** query execution or workflow performance? (execution level)
+- Example: Unused Property defined in Object Type → conciseness (remove from ontology). That Property included in every codegen-generated type → pragmatics (type bloat affecting compile time).
 - Palantir-Foundry specific: codegen generates TypeScript types from **all** defined Properties. Unused Properties increase bundle size — both concerns apply.
 
-### onto_coverage Boundary
+### coverage Boundary
 
-- onto_conciseness: Does something **exist that should not**? (reduction direction)
-- onto_coverage: Does something **not exist that should**? (expansion direction)
-- Example: Redundant Enum value "unknown" alongside null → onto_conciseness. Missing Link Type to connect Order to Refund → onto_coverage.
-- Palantir-Foundry specific: competency_qs.md CQ-SEM-04 ("Shared Property registration?") is onto_conciseness; CQ-KIN-01 ("major operations defined?") is onto_coverage.
+- conciseness: Does something **exist that should not**? (reduction direction)
+- coverage: Does something **not exist that should**? (expansion direction)
+- Example: Redundant Enum value "unknown" alongside null → conciseness. Missing Link Type to connect Order to Refund → coverage.
+- Palantir-Foundry specific: competency_qs.md CQ-SEM-04 ("Shared Property registration?") is conciseness; CQ-KIN-01 ("major operations defined?") is coverage.
 
-### onto_logic Boundary (predecessor/successor)
+### logic Boundary (predecessor/successor)
 
-- onto_logic precedes: determines **logical equivalence** (entailment)
-- onto_conciseness follows: determines **whether to remove** after equivalence confirmed
-- Example: onto_logic confirms Action A's postcondition entails Action B's precondition → onto_conciseness rules "precondition restatement is redundant, MAY-ALLOW for clarity."
+- logic precedes: determines **logical equivalence** (entailment)
+- conciseness follows: determines **whether to remove** after equivalence confirmed
+- Example: logic confirms Action A's postcondition entails Action B's precondition → conciseness rules "precondition restatement is redundant, MAY-ALLOW for clarity."
 
-### onto_semantics Boundary (predecessor/successor)
+### semantics Boundary (predecessor/successor)
 
-- onto_semantics precedes: determines **semantic identity** (synonym status per concepts.md)
-- onto_conciseness follows: determines **consolidation necessity** after synonymy confirmed
-- Example: "BusinessUnit" and "OrganizationalUnit" confirmed as synonyms → onto_conciseness rules "consolidate to one canonical name."
+- semantics precedes: determines **semantic identity** (synonym status per concepts.md)
+- conciseness follows: determines **consolidation necessity** after synonymy confirmed
+- Example: "BusinessUnit" and "OrganizationalUnit" confirmed as synonyms → conciseness rules "consolidate to one canonical name."
 - Note: concepts.md homonym table (Object, Property, Interface, Action, Branch, Dataset, Pipeline, Function, Marking, Ontology, Sync, Transform) is input — homonyms are NOT synonyms, do not consolidate.
 
-### onto_dependency Boundary
+### dependency Boundary
 
-- onto_dependency: identifies and validates **dependency direction rules**
-- onto_conciseness: uses those rules to identify **redundant paths**
-- Example: A→B→C and A→C both exist. dependency_rules confirms both are correct. onto_conciseness decides: "Is direct path A→C necessary for performance, or is it a redundant shortcut?"
-- Palantir-Foundry specific: Shared Property diamond dependency (X and Y both reference Shared Property A, both feed Derived Data aggregation) — dependency_rules identifies the diamond, onto_conciseness evaluates whether one reference should be removed.
+- dependency: identifies and validates **dependency direction rules**
+- conciseness: uses those rules to identify **redundant paths**
+- Example: A→B→C and A→C both exist. dependency_rules confirms both are correct. conciseness decides: "Is direct path A→C necessary for performance, or is it a redundant shortcut?"
+- Palantir-Foundry specific: Shared Property diamond dependency (X and Y both reference Shared Property A, both feed Derived Data aggregation) — dependency_rules identifies the diamond, conciseness evaluates whether one reference should be removed.
 
-### onto_structure Boundary
+### structure Boundary
 
-- onto_structure: verifies **required elements exist** (primary_key, display_name, etc.)
-- onto_conciseness: evaluates **whether each element is necessary**
-- Example: onto_structure confirms all Link Types have "description." onto_conciseness asks: "If the Link Type's meaning is obvious from source/target names, is the description adding value or is it redundant?"
+- structure: verifies **required elements exist** (primary_key, display_name, etc.)
+- conciseness: evaluates **whether each element is necessary**
+- Example: structure confirms all Link Types have "description." conciseness asks: "If the Link Type's meaning is obvious from source/target names, is the description adding value or is it redundant?"
 - Note: structure_spec.md mandates elements; conciseness_rules.md does not override mandates but identifies cases where mandated elements are redundant with other information.
 
 ---

@@ -7,7 +7,7 @@ status: established
 
 # Software Engineering Domain — Domain Scope Definition
 
-This is the reference document used by onto_coverage to identify "what should exist but is missing."
+This is the reference document used by coverage to identify "what should exist but is missing."
 This domain applies when **reviewing** a software system.
 
 ## Major Sub-areas

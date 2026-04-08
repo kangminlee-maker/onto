@@ -9,7 +9,7 @@ status: established
 
 Classification axis: **change trigger** — cases classified by the type of change that triggers structural evolution. Cases cover both growth triggers (Cases 1–11) and shrinkage triggers (Cases 12–13).
 
-The onto_evolution agent simulates each scenario to verify whether the existing structure breaks.
+The evolution agent simulates each scenario to verify whether the existing structure breaks.
 
 ---
 

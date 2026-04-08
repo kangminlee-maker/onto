@@ -8,7 +8,7 @@ status: seed
 # accounting-korea Domain — 역량 질문
 
 이 도메인의 시스템이 답할 수 있어야 하는 핵심 질문 목록.
-onto_pragmatics 에이전트가 각 질문에 대한 실제 추론 경로를 검증한다.
+pragmatics 에이전트가 각 질문에 대한 실제 추론 경로를 검증한다.
 
 분류 축: **검증 관심사(verification concern)** — 한국 회계 시스템 리뷰 시 답해야 하는 질문의 관심사별 분류.
 

@@ -7,7 +7,7 @@ status: established
 
 # LLM-Native Development Domain — Domain Scope Definition
 
-The reference document used by onto_coverage when identifying "what should exist but is missing" in an LLM-powered system.
+The reference document used by coverage when identifying "what should exist but is missing" in an LLM-powered system.
 
 ## Application Scope
 

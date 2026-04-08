@@ -1,9 +1,13 @@
 # Agent Process — Common Definitions
 
+> 이 문서는 운영 절차와 가변 경로를 소유한다. 원칙은 소유하지 않는다. shadow authority 금지.
+
 Common definitions referenced by each process file (`processes/`).
 
 > Learning storage rules, consumption rules, and tag definitions are in `learning-rules.md`.
 > Teammates self-load `learning-rules.md` during context loading. Team lead references it when needed.
+
+**현재 active enhancement seat**: `development-records/tracking/20260406-discovered-enhancements.md`
 
 **Adaptive axis-based learning system** — Learnings are tagged with 3 adaptive axes (communication, methodology, domain), and a single learning can belong to multiple axes. Process improvement is performed continuously based on empirical data and friction.
 
@@ -32,17 +36,18 @@ Common definitions referenced by each process file (`processes/`).
 
 These agents are not a MECE classification but a set of empirically validated independent verification perspectives. No single classification axis is intentionally used; each perspective's justification for retention is verified by the existence of a unique detection area.
 
-### Verification Agents
+### Review Lenses
 | ID | Role | Verification Dimension | Standard Framework Mapping |
 |---|---|---|---|
-| `onto_logic` | Logical consistency verifier | Contradictions, type conflicts, constraint conflicts | Gomez-Perez: Consistency, Obrst: L4 |
-| `onto_structure` | Structural completeness verifier | Isolated elements, broken paths, missing relations | Obrst: L2-L3, Gomez-Perez: Completeness (internal) |
-| `onto_dependency` | Dependency integrity verifier | Cycles, reverse direction, diamond dependencies | Gomez-Perez: Consistency, Obrst: L4 |
-| `onto_semantics` | Semantic accuracy verifier | Name-meaning alignment, synonyms/homonyms | Obrst: L1, OntoClean: Rigidity/Identity |
-| `onto_pragmatics` | Pragmatic fitness verifier | Queryability, competency question testing | Brank: Application-based |
-| `onto_evolution` | Evolution fitness verifier | Breakage when adding new data/domains | — |
-| `onto_coverage` | Domain coverage verifier | Missing sub-areas, concept bias, gaps against standards | Gomez-Perez: Completeness (external) |
-| `onto_conciseness` | Conciseness verifier | Duplicate definitions, over-specification, unnecessary distinctions | Gomez-Perez: Conciseness |
+| `logic` | Logical consistency verifier | Contradictions, type conflicts, constraint conflicts | Gomez-Perez: Consistency, Obrst: L4 |
+| `structure` | Structural completeness verifier | Isolated elements, broken paths, missing relations | Obrst: L2-L3, Gomez-Perez: Completeness (internal) |
+| `dependency` | Dependency integrity verifier | Cycles, reverse direction, diamond dependencies | Gomez-Perez: Consistency, Obrst: L4 |
+| `semantics` | Semantic accuracy verifier | Name-meaning alignment, synonyms/homonyms | Obrst: L1, OntoClean: Rigidity/Identity |
+| `pragmatics` | Pragmatic fitness verifier | Queryability, competency question testing | Brank: Application-based |
+| `evolution` | Evolution fitness verifier | Breakage when adding new data/domains | — |
+| `coverage` | Domain coverage verifier | Missing sub-areas, concept bias, gaps against standards | Gomez-Perez: Completeness (external) |
+| `conciseness` | Conciseness verifier | Duplicate definitions, over-specification, unnecessary distinctions | Gomez-Perez: Conciseness |
+| `axiology` | Purpose and value alignment verifier | Purpose drift, value conflict, mission misalignment | — |
 
 > Verification dimensions and agents have a many-to-many (N:M) relationship. Since agents are a "set of independent perspectives," a single agent may cover multiple dimensions, and a single dimension may span multiple agents.
 
@@ -54,12 +59,12 @@ When adding or removing an agent, all of the following files must be updated:
 |---|------|----------|
 | 1 | `roles/{agent-id}.md` | Create/delete role definition |
 | 2 | `commands/ask-{dimension}.md` | Create/delete command file |
-| 3 | `process.md` verification agents table | Add/delete row |
+| 3 | `process.md` review lenses table | Add/delete row |
 | 4 | `process.md` domain document mapping | Add/delete row |
 | 5 | `process.md` teammate initial prompt mapping | Add/delete row |
-| 6 | `processes/review.md` Philosopher file list | Add/delete path |
+| 6 | `processes/review.md` review lens + synthesize file list | Add/delete path |
 | 7 | `domains/*/` | Add/delete domain document template for the agent |
-| 8 | `dev-docs/BLUEPRINT.md` agent section | Add/delete description |
+| 8 | `BLUEPRINT.md` agent section | Add/delete description |
 | 9 | `README.md` directory tree | Add/delete filename |
 | 10 | learning-rules.md | Update if learning storage rules change |
 
@@ -73,30 +78,34 @@ When adding or removing a process, all of the following files must be updated:
 | 2 | `commands/{command-name}.md` | Create/delete command file |
 | 3 | `process.md` Process Map table | Add/delete row |
 | 4 | `process.md` Per-process domain resolution table | Add/delete row |
-| 5 | `dev-docs/BLUEPRINT.md` Processes section | Add/delete description |
+| 5 | `BLUEPRINT.md` Processes section | Add/delete description |
 | 6 | `README.md` Commands section + directory tree | Add/delete entries |
 | 7 | learning-rules.md | Update if process affects learning storage |
 
-### Purpose Alignment Verifier (1 agent)
+### Review Synthesis Stage
 | ID | Role |
 |---|---|
-| `philosopher` | Provides meta-perspective based on system purpose, synthesizes and reframes verification agents' review findings from a purpose-oriented viewpoint, presents new perspectives |
+| `synthesize` | Synthesizes review lens findings into consensus, disagreement, overlooked premises, and final review output |
+
+> `philosopher` remains a legacy coordinator term in non-review prototype flows such as the current build prototype. New review productization work uses `axiology` + `synthesize` instead of `philosopher`.
 
 ### Domain Documents
 Each agent reads the corresponding domain documents at execution time (verified using general principles if no file exists):
 
 | Type | Document | Agent | Impact When Absent | Update Method |
 |---|---|---|---|---|
-| **Scope-defining** | `domain_scope.md` | onto_coverage | Role rendered ineffective | Promote proposal -> user approval |
-| **Accumulable** | `concepts.md` | onto_semantics | Performance degradation (compensated by learnings) | Promote proposal -> user approval |
-| **Accumulable** | `competency_qs.md` | onto_pragmatics | Performance degradation (compensated by learnings) | Promote proposal -> user approval |
-| **Rule-defining** | `logic_rules.md` | onto_logic | Performance degradation (LLM can substitute) | User directly writes/edits |
-| **Rule-defining** | `structure_spec.md` | onto_structure | Performance degradation (LLM can substitute) | User directly writes/edits |
-| **Rule-defining** | `dependency_rules.md` | onto_dependency | Performance degradation (LLM can substitute) | User directly writes/edits |
-| **Rule-defining** | `extension_cases.md` | onto_evolution | Performance degradation (LLM can substitute) | User directly writes/edits |
-| **Rule-defining** | `conciseness_rules.md` | onto_conciseness | Performance degradation (LLM can substitute) | User directly writes/edits |
+| **Scope-defining** | `domain_scope.md` | coverage | Role rendered ineffective | Promote proposal -> user approval |
+| **Accumulable** | `concepts.md` | semantics | Performance degradation (compensated by learnings) | Promote proposal -> user approval |
+| **Accumulable** | `competency_qs.md` | pragmatics | Performance degradation (compensated by learnings) | Promote proposal -> user approval |
+| **Rule-defining** | `logic_rules.md` | logic | Performance degradation (LLM can substitute) | User directly writes/edits |
+| **Rule-defining** | `structure_spec.md` | structure | Performance degradation (LLM can substitute) | User directly writes/edits |
+| **Rule-defining** | `dependency_rules.md` | dependency | Performance degradation (LLM can substitute) | User directly writes/edits |
+| **Rule-defining** | `extension_cases.md` | evolution | Performance degradation (LLM can substitute) | User directly writes/edits |
+| **Rule-defining** | `conciseness_rules.md` | conciseness | Performance degradation (LLM can substitute) | User directly writes/edits |
 
 Path: `~/.onto/domains/{domain}/`
+
+`axiology` has no dedicated domain document. It primarily uses system purpose/principles and any selected domain context as supporting input.
 
 #### Domain Document Frontmatter
 
@@ -130,7 +139,7 @@ Seed documents have the same 8-file structure as established domain documents bu
 2. `drafts/` 내 문서는 에이전트의 검증 기준(standard)으로 참조되지 않는다
 3. `drafts/` 내 문서는 리뷰 대상(target)으로 참조 가능하다
 
-Design reference: `dev-docs/design-domain-document-creation.md`
+Design reference: `development-records/design/20260329-domain-document-creation.md`
 
 #### Feedback Log
 
@@ -264,7 +273,7 @@ When a target spans multiple domains, **run a separate review for each relevant 
 
 #### Edge cases
 
-For the complete edge case table, refer to Section 4 of `design-per-session-domain-selection.md`. Key behaviors:
+For the complete edge case table, refer to Section 4 of `development-records/design/20260328-per-session-domain-selection.md`. Key behaviors:
 - Non-existent `@{domain}` → warn + re-ask (no auto-fallback)
 - No config.yml + no global domains → skip selection, no-domain mode
 - Domain directory exists but 0 files → listed with "(empty — no rules)" marker
@@ -276,8 +285,8 @@ When entering a domain that meets the conditions below, agent configuration re-e
 
 | Condition | Reason | Re-evaluation Target |
 |------|------|------------|
-| Domains that classify humans/groups (medical, education, legal, HR) | Ethics/axiology verification required — "Does this classification disadvantage a specific group?" | Consider adding a normative judgment agent |
-| Financial/administrative domains | Increased weight of social ontology — the mode of existence of institutional constructs is central | Adjust onto_semantics' existence-type verification weight |
+| Domains that classify humans/groups (medical, education, legal, HR) | Ethics/axiology verification required — "Does this classification disadvantage a specific group?" | Ensure `axiology` remains included and sufficiently informed |
+| Financial/administrative domains | Increased weight of social ontology — the mode of existence of institutional constructs is central | Adjust semantics' existence-type verification weight |
 
 ---
 
@@ -290,8 +299,8 @@ Processes requiring parallel agent execution (team review, ontology build, learn
 When TeamCreate fails, fall back to the Agent tool (subagent) approach. The **purpose and output format** of the process remain identical, but the execution method differs:
 - Agent tool is used instead of TeamCreate/SendMessage.
 - Each Agent tool call includes the agent definition + context + task directives combined. (Since the teammate cannot self-load, the team lead includes the content directly.)
-- **File-based delivery applies identically**: Subagents also save results to files using the Write tool, and only return the path to the team lead. The Philosopher subagent also reads files directly using the Read tool.
-- Deliberation (direct SendMessage) is skipped. Even if the Philosopher determines "deliberation needed," disagreement items are included as-is in the final report.
+- **File-based delivery applies identically**: Subagents also save results to files using the Write tool, and only return the path to the team lead. In review mode, `synthesize` also reads result files directly using the Read tool.
+- Deliberation (direct SendMessage) is skipped. Even if the final synthesis stage determines "deliberation needed," disagreement items are included as-is in the final report.
 - Content the team lead must include in each Agent tool call during fallback: agent definition + learning file (with axis tag filtering) + domain document + communication learning + task directives + **session path**. (All context must be included directly since self-loading is not possible.)
 
 ### Codex Execution Mode
@@ -301,7 +310,7 @@ When `execution_mode: codex` is set in config.yml or a `--codex` command flag is
 **Scope**: Currently supported for the **review** process only. Other processes (build, promote, question) always use Agent Teams regardless of this setting. This scope will expand as Codex mode is validated in review.
 
 **Purpose and tradeoffs**:
-Codex mode delegates reviewer passes to an external runtime (OpenAI Codex) to reduce Claude token consumption. The team lead coordination (~50-100k tokens) is the only Claude cost; all reviewer and philosopher passes run on Codex. The tradeoff: deliberation (Step 4, direct agent-to-agent exchange) is structurally not possible in Codex mode because Codex tasks are independent processes without inter-agent messaging. Contested points that would be resolved through deliberation in Agent Teams mode are instead reported as-is in the final output's "Disagreement" section. This is a **design choice** (not a technical limitation like Subagent fallback) — users selecting Codex mode accept this tradeoff in exchange for cost efficiency.
+Codex mode delegates review passes to an external runtime (OpenAI Codex) to reduce Claude token consumption. The team lead coordination (~50-100k tokens) is the only Claude cost; all review lens passes and the synthesize stage run on Codex. The tradeoff: deliberation (Step 4, direct lens-to-lens exchange) is structurally not possible in Codex mode because Codex tasks are independent processes without inter-agent messaging. Contested points that would be resolved through deliberation in Agent Teams mode are instead reported as-is in the final output's "Disagreement" section. This is a **design choice** (not a technical limitation like Subagent fallback) — users selecting Codex mode accept this tradeoff in exchange for cost efficiency.
 
 **Prerequisites**:
 - Codex CLI must be installed and authenticated. Verify via `/codex:setup`.
@@ -315,7 +324,7 @@ Codex mode delegates reviewer passes to an external runtime (OpenAI Codex) to re
 **Execution model**:
 - Team lead (Claude): Context Gathering, Complexity Assessment, prompt construction, result collection, learning storage, final output delivery.
 - Reviewer passes (Codex): Independent review execution with self-loading.
-- Philosopher synthesis (Codex): Result synthesis and adjudication.
+- Review synthesize stage (Codex): Result synthesis and adjudication.
 
 **Prompt delivery**:
 - Self-loading instructions are included. Codex reads domain documents and learnings via Bash (cat). Unlike Subagent fallback, the team lead does NOT inline domain documents or learnings.
@@ -327,8 +336,8 @@ Codex mode delegates reviewer passes to an external runtime (OpenAI Codex) to re
 
 **Parallel execution**:
 - All reviewer Agents are launched simultaneously via Agent tool with `subagent_type: "codex:codex-rescue"` and `run_in_background: true`.
-- The team lead waits for all background tasks to complete before proceeding to Philosopher synthesis.
-- Philosopher is executed as a Codex task in foreground (depends on all reviewer results).
+- The team lead waits for all background tasks to complete before proceeding to the review synthesize stage.
+- `synthesize` is executed as a Codex task in foreground (depends on all review lens results).
 
 **Model and effort**:
 - The team lead reads config.yml `codex.model` and `codex.effort` during Context Gathering.
@@ -343,7 +352,7 @@ Codex mode delegates reviewer passes to an external runtime (OpenAI Codex) to re
 
 **Error handling**: Same 4-category classification as Agent Teams (process-halting / process-halting-with-partial-result / transient retry / graceful degradation). Differences:
 - Retry: re-spawn a new `codex:codex-rescue` Agent (not SendMessage).
-- Philosopher failure: process-halting (irreplaceable role). Retry once before halting.
+- Review synthesize failure: process-halting (irreplaceable role). Retry once before halting.
 
 **Comparison**:
 
@@ -458,6 +467,7 @@ If project-level learnings exist:
 
 [Team Rules]
 - Save your review finding to {session path}/round1/{agent-id}.md using the Write tool.
+- Treat `{session path}/execution-preparation/materialized-input.md` as the authoritative review target basis when it is provided.
 - After saving, report **only the file path** to the team lead. Do not include the review text in the message.
 - Only report the full text via SendMessage if Write fails.
 - Do not send direct messages to other teammates until the team lead permits.
@@ -512,33 +522,34 @@ If project-level learnings exist:
 
 [Output Rules]
 - Write your review finding to {session path}/round1/{agent-id}.md using shell redirect (e.g., cat << 'EOF' > {path}).
+- Treat `{session path}/execution-preparation/materialized-input.md` as the authoritative review target basis when it is provided.
 - If file write fails, return the full review text as your response.
 - Respond in {output_language}. (resolved from config.yml, default: en)
 - Do not use metaphors or analogies.
 ```
 
-### Codex Philosopher Prompt Template
+### Codex Review Synthesize Prompt Template
 
-Used when execution_mode is `codex` for the Philosopher synthesis step. The team lead resolves variables and passes this as the Agent tool's `prompt` parameter with `subagent_type: "codex:codex-rescue"` in **foreground** (not background).
+Used when execution_mode is `codex` for the review synthesize step. The team lead resolves variables and passes this as the Agent tool's `prompt` parameter with `subagent_type: "codex:codex-rescue"` in **foreground** (not background).
 
 Differences from Codex Reviewer Prompt Template:
-- Role is Philosopher (synthesis + adjudication), not verification agent.
-- Output path is `{session path}/philosopher_synthesis.md`, not `round1/{agent-id}.md`.
+- Role is `synthesize` (synthesis + adjudication), not a review lens.
+- Output path is `{session path}/synthesis.md`, not `round1/{agent-id}.md`.
 - Includes deliberation-not-possible directive.
-- No domain document self-loading (Philosopher has no domain document).
+- No domain document self-loading (`synthesize` has no dedicated domain document).
 
 ```
-You are Philosopher (purpose alignment mediator).
+You are synthesize (review synthesis stage).
 
 [Your Definition]
-{Content of roles/philosopher.md}
+{Content of roles/synthesize.md}
 
 [Context Self-Loading]
 Read the files below using `cat`. Skip if file does not exist:
-1. Learnings: ~/.onto/learnings/philosopher.md
+1. Learnings: ~/.onto/learnings/synthesize.md
 2. Communication learning: ~/.onto/communication/common.md
 If project-level learnings exist:
-3. Project-level learnings: {project}/.onto/learnings/philosopher.md
+3. Project-level learnings: {project}/.onto/learnings/synthesize.md
 
 [Codex Configuration]
 {If codex.model is set: --model {value}}
@@ -548,7 +559,7 @@ If project-level learnings exist:
 {Content of learning-rules.md — inlined by the team lead}
 
 [Task Directives]
-{Philosopher-specific synthesis directives — reviewer result file paths,
+{Review synthesize directives — lens result file paths,
  system purpose, synthesis format, adjudication rules}
 
 Codex 모드에서는 숙의(deliberation)를 수행할 수 없습니다.
@@ -556,7 +567,8 @@ Codex 모드에서는 숙의(deliberation)를 수행할 수 없습니다.
 모순 항목은 '미합의' 섹션에 포함하여 최종 출력을 직접 작성하세요.
 
 [Output Rules]
-- Write the final output to {session path}/philosopher_synthesis.md using shell redirect.
+- Write the final output to {session path}/synthesis.md using shell redirect.
+- Read `{session path}/interpretation.yaml`, `{session path}/binding.yaml`, and `execution-preparation/*` before synthesizing.
 - If file write fails, return the full synthesis text as your response.
 - Respond in {output_language}. (resolved from config.yml, default: en)
 - Do not use metaphors or analogies.

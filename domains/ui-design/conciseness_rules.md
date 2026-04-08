@@ -7,7 +7,7 @@ status: established
 
 # Conciseness Rules (ui-design)
 
-This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+This document contains the domain-specific rules that conciseness references during conciseness verification.
 It is organized in the order of **type (allow/remove) → verification criteria → role boundaries → measurement method**.
 
 ---
@@ -111,37 +111,37 @@ Anti-examples:
 
 ## 4. Boundaries — Domain-Specific Application Cases
 
-The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the ui-design domain.
+The authoritative source for boundary definitions is `roles/conciseness.md`. This section describes only the specific application cases in the ui-design domain.
 
-### onto_pragmatics Boundary
+### pragmatics Boundary
 
-- onto_conciseness: Does an unnecessary element **exist**? (structural level)
-- onto_pragmatics: Does unnecessary information **impede** user task execution? (execution level)
-- Example: Unused filter options in UI spec → onto_conciseness. Too many filter options impeding discovery → onto_pragmatics.
+- conciseness: Does an unnecessary element **exist**? (structural level)
+- pragmatics: Does unnecessary information **impede** user task execution? (execution level)
+- Example: Unused filter options in UI spec → conciseness. Too many filter options impeding discovery → pragmatics.
 
-### onto_coverage Boundary
+### coverage Boundary
 
-- onto_conciseness: Is there something that should not be there? (reduction direction)
-- onto_coverage: Is there something missing that should be there? (expansion direction)
-- Example: Error states not defined → onto_coverage. Same error message duplicated in three places → onto_conciseness.
+- conciseness: Is there something that should not be there? (reduction direction)
+- coverage: Is there something missing that should be there? (expansion direction)
+- Example: Error states not defined → coverage. Same error message duplicated in three places → conciseness.
 
-### onto_logic Boundary (preceding/following relationship)
+### logic Boundary (preceding/following relationship)
 
-- onto_logic precedes: Determines logical equivalence (implication). (logic_rules.md §Constraint Conflict Checks, §Modal Logic)
-- onto_conciseness follows: Decides whether to remove after equivalence is confirmed
-- Example: Common modal behavior implies individual definitions → onto_logic determines equivalence → onto_conciseness determines "redefinition unnecessary."
+- logic precedes: Determines logical equivalence (implication). (logic_rules.md §Constraint Conflict Checks, §Modal Logic)
+- conciseness follows: Decides whether to remove after equivalence is confirmed
+- Example: Common modal behavior implies individual definitions → logic determines equivalence → conciseness determines "redefinition unnecessary."
 
-### onto_semantics Boundary (preceding/following relationship)
+### semantics Boundary (preceding/following relationship)
 
-- onto_semantics precedes: Determines semantic identity (synonym status). (concepts.md §Homonyms Requiring Attention)
-- onto_conciseness follows: Decides whether merging is needed after synonym is confirmed
-- Example: "popup" and "modal dialog" are the same pattern → onto_semantics determines synonym → onto_conciseness determines "consolidate to canonical term."
+- semantics precedes: Determines semantic identity (synonym status). (concepts.md §Homonyms Requiring Attention)
+- conciseness follows: Decides whether merging is needed after synonym is confirmed
+- Example: "popup" and "modal dialog" are the same pattern → semantics determines synonym → conciseness determines "consolidate to canonical term."
 
-### onto_structure Boundary
+### structure Boundary
 
-- onto_structure: Does the element conform to structural rules? (structure_spec.md §UI Design Required Elements, §Required Relationships)
-- onto_conciseness: Is the element duplicated or unnecessary given the structure?
-- Example: Navigation item violating structure_spec.md §Navigation Structure Patterns → onto_structure. Navigation item duplicating another's destination → onto_conciseness.
+- structure: Does the element conform to structural rules? (structure_spec.md §UI Design Required Elements, §Required Relationships)
+- conciseness: Is the element duplicated or unnecessary given the structure?
+- Example: Navigation item violating structure_spec.md §Navigation Structure Patterns → structure. Navigation item duplicating another's destination → conciseness.
 
 ---
 
@@ -175,7 +175,7 @@ Domain-observed thresholds for conciseness judgment. Each threshold is a review 
 ### Review Output Conciseness
 
 - **Finding deduplication**: 3+ findings citing same root cause → consolidate into 1 finding with root cause + affected locations.
-- **Cross-file finding deduplication**: Issue flagged by both onto_conciseness and preceding agent → defer to preceding agent's finding, add only removal recommendation.
+- **Cross-file finding deduplication**: Issue flagged by both conciseness and preceding agent → defer to preceding agent's finding, add only removal recommendation.
 
 ---
 

@@ -7,7 +7,7 @@ status: established
 
 # Conciseness Rules (accounting)
 
-This document contains the domain-specific rules that onto_conciseness references during conciseness verification.
+This document contains the domain-specific rules that conciseness references during conciseness verification.
 It is organized in the order: **type (allow/remove) -> verification criteria -> role boundaries -> measurement methods**.
 
 ---
@@ -82,31 +82,31 @@ Examples:
 
 ## 4. Boundaries — Domain-Specific Application Cases
 
-The authoritative source for boundary definitions is `roles/onto_conciseness.md`. This section describes only the specific application cases in the accounting domain.
+The authoritative source for boundary definitions is `roles/conciseness.md`. This section describes only the specific application cases in the accounting domain.
 
-### onto_pragmatics boundary
+### pragmatics boundary
 
-- onto_conciseness: Does an unnecessary element **exist**? (structural level)
-- onto_pragmatics: Does unnecessary information **hinder** query execution? (execution level)
-- Example: Unused accounting policies described in financial statement notes -> onto_conciseness. Excessive notes making it difficult to identify important information -> onto_pragmatics.
+- conciseness: Does an unnecessary element **exist**? (structural level)
+- pragmatics: Does unnecessary information **hinder** query execution? (execution level)
+- Example: Unused accounting policies described in financial statement notes -> conciseness. Excessive notes making it difficult to identify important information -> pragmatics.
 
-### onto_coverage boundary
+### coverage boundary
 
-- onto_conciseness: Does something exist that should not? (reduction direction)
-- onto_coverage: Is something missing that should exist? (expansion direction)
-- Example: Accounts receivable impairment model is missing -> onto_coverage. Both individual and collective assessment are redundantly applied to the same receivable -> onto_conciseness.
+- conciseness: Does something exist that should not? (reduction direction)
+- coverage: Is something missing that should exist? (expansion direction)
+- Example: Accounts receivable impairment model is missing -> coverage. Both individual and collective assessment are redundantly applied to the same receivable -> conciseness.
 
-### onto_logic boundary (predecessor/successor relationship)
+### logic boundary (predecessor/successor relationship)
 
-- onto_logic predecessor: determines logical equivalence (entailment)
-- onto_conciseness successor: decides whether to remove after equivalence is confirmed
-- Example: The Conceptual Framework's accrual basis principle entails an individual accounting policy's period attribution rule -> onto_logic determines equivalence -> onto_conciseness determines "individual policy redeclaration is unnecessary."
+- logic predecessor: determines logical equivalence (entailment)
+- conciseness successor: decides whether to remove after equivalence is confirmed
+- Example: The Conceptual Framework's accrual basis principle entails an individual accounting policy's period attribution rule -> logic determines equivalence -> conciseness determines "individual policy redeclaration is unnecessary."
 
-### onto_semantics boundary (predecessor/successor relationship)
+### semantics boundary (predecessor/successor relationship)
 
-- onto_semantics predecessor: determines semantic identity (synonym status)
-- onto_conciseness successor: decides whether merging is needed after synonym confirmation
-- Example: Balance Sheet (대차대조표)/Statement of Financial Position (재무상태표), Income Statement (손익계산서)/Statement of Comprehensive Income (포괄손익계산서) are the same concepts -> onto_semantics determines they are synonyms -> onto_conciseness determines "consolidate to current terms (Statement of Financial Position (재무상태표), Statement of Comprehensive Income (포괄손익계산서))."
+- semantics predecessor: determines semantic identity (synonym status)
+- conciseness successor: decides whether merging is needed after synonym confirmation
+- Example: Balance Sheet (대차대조표)/Statement of Financial Position (재무상태표), Income Statement (손익계산서)/Statement of Comprehensive Income (포괄손익계산서) are the same concepts -> semantics determines they are synonyms -> conciseness determines "consolidate to current terms (Statement of Financial Position (재무상태표), Statement of Comprehensive Income (포괄손익계산서))."
 
 ---
 

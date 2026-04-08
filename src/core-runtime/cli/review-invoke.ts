@@ -339,8 +339,13 @@ function appendExecutorModelArgs(
   ontoConfig?: OntoConfig,
 ): ReviewUnitExecutorConfig {
   // Mock executor does not accept --model/--reasoning-effort flags.
-  // Skip model/effort args when the executor bin ends with mock executor.
-  const isMock = config.bin.includes("mock-review-unit-executor");
+  // Skip model/effort args when the executor targets the mock script.
+  // Note: with the direct-executor path strategy, bin is "node" / "tsx" and
+  // the mock filename lives in args[0] (the script path), so we have to
+  // probe both fields.
+  const isMock =
+    config.bin.includes("mock-review-unit-executor") ||
+    config.args.some((arg) => arg.includes("mock-review-unit-executor"));
   if (isMock) return config;
 
   const args = [...config.args];
@@ -382,10 +387,16 @@ function resolveExecutorConfig(
     );
   }
 
-  const explicitRealization = readSingleOptionValueFromArgv(
-    argv,
-    `${optionPrefixLabel}executor-realization`,
-  );
+  // Read the prefixed flag first, then fall back to the non-prefixed flag
+  // when running in synthesize mode. The test suite (and most operators)
+  // pass `--executor-realization mock` and expect both lens AND synthesize
+  // to honor it; previously synthesize ignored that and dropped to the
+  // subagent+codex default, which silently hangs when codex is unavailable.
+  const explicitRealization =
+    readSingleOptionValueFromArgv(argv, `${optionPrefixLabel}executor-realization`) ??
+    (optionPrefixLabel.length > 0
+      ? readSingleOptionValueFromArgv(argv, "executor-realization")
+      : undefined);
   if (
     explicitRealization === "subagent" ||
     explicitRealization === "agent-teams" ||

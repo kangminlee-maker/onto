@@ -3704,6 +3704,194 @@ async function main(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // Batch 6 — Domain doc lineage + misc (DD-19, misc)
+  //
+  // DD-19 split candidate_id into slot_id (stable across regeneration) and
+  // instance_id (fresh per call). These tests exercise the tuple sensitivity
+  // and the filter rules in identifyDomainDocCandidates beyond what E-P18/
+  // E-P19 already cover. One misc test at the tail checks the ledger's
+  // default audit policy values as a cheap regression guard.
+  // -------------------------------------------------------------------------
+
+  function buildVerdict(
+    candidateId: string,
+    agentId: string,
+    applicabilityTags: string[],
+    consensus: "promote_3_3" | "promote_2_3" | "defer_majority" | "reject_majority" | "split",
+  ): PanelVerdict {
+    const item: ParsedLearningItem = syntheticItem({
+      agent_id: agentId,
+      applicability_tags: applicabilityTags,
+      content: `candidate ${candidateId}`,
+    });
+    return {
+      candidate_id: candidateId,
+      candidate: item,
+      panel_members: [],
+      member_reviews: [],
+      consensus,
+      is_contradiction: false,
+      matched_existing_line: null,
+    };
+  }
+
+  // E-P91 — deriveSlotId tuple sensitivity: changing any single tuple
+  //          component (promotion id, target doc, domain) changes the slot_id.
+  //          Complements E-P18 which only checks determinism for a fixed tuple.
+  await test("E-P91 deriveSlotId tuple sensitivity across all three components", () => {
+    const base = deriveSlotId("prom-1", "concepts.md", "software-engineering");
+    const diffPromo = deriveSlotId("prom-2", "concepts.md", "software-engineering");
+    const diffDoc = deriveSlotId("prom-1", "competency_qs.md", "software-engineering");
+    const diffDomain = deriveSlotId("prom-1", "concepts.md", "business-operations");
+
+    assert(base !== diffPromo, "promotion id change → different slot_id");
+    assert(base !== diffDoc, "target doc change → different slot_id");
+    assert(base !== diffDomain, "domain change → different slot_id");
+    assert(diffPromo !== diffDoc, "pairs are independent");
+    assert(diffDoc !== diffDomain, "pairs are independent");
+    // Length invariant — 12 hex chars per derivation
+    assertEqual(base.length, 12, "slot_id length");
+    assertEqual(diffPromo.length, 12, "slot_id length");
+  });
+
+  // E-P92 — DD-19 UF-SEM-01: regenerating candidates for the same panel
+  //          verdicts must produce stable slot_ids but distinct instance_ids.
+  //          This is the lineage contract: slot_id says "which slot",
+  //          instance_id says "which generation attempt". Re-run is safe.
+  await test("E-P92 DD-19 regeneration: stable slot_id + distinct instance_id", () => {
+    const verdicts = [
+      buildVerdict("prom-92a", "semantics", ["domain/software-engineering"], "promote_3_3"),
+      buildVerdict("prom-92b", "pragmatics", ["domain/business"], "promote_2_3"),
+    ];
+
+    const gen1 = identifyDomainDocCandidates(verdicts);
+    const gen2 = identifyDomainDocCandidates(verdicts);
+
+    assertEqual(gen1.length, 2, "two candidates from gen 1");
+    assertEqual(gen2.length, 2, "two candidates from gen 2");
+
+    // slot_ids are stable across generations (sorted deterministically)
+    assertEqual(
+      gen1[0]!.slot_id,
+      gen2[0]!.slot_id,
+      "slot_id stable first candidate",
+    );
+    assertEqual(
+      gen1[1]!.slot_id,
+      gen2[1]!.slot_id,
+      "slot_id stable second candidate",
+    );
+
+    // instance_ids are fresh per call
+    assert(
+      gen1[0]!.instance_id !== gen2[0]!.instance_id,
+      "instance_id changes across generations",
+    );
+    assert(
+      gen1[1]!.instance_id !== gen2[1]!.instance_id,
+      "instance_id changes across generations",
+    );
+
+    // And instance_ids within a single generation are distinct (DD-19 ULID)
+    assert(
+      gen1[0]!.instance_id !== gen1[1]!.instance_id,
+      "two candidates in same call have distinct instance_ids",
+    );
+  });
+
+  // E-P93 — Non-accumulable agents (logic, structure, dependency, extension)
+  //          are NOT mapped to target docs. They're excluded even with
+  //          promote_3_3 consensus + domain tag. Only semantics, pragmatics,
+  //          coverage are doc-generating per AGENT_TO_TARGET.
+  await test("E-P93 identifyDomainDocCandidates excludes non-accumulable agents", () => {
+    const verdicts = [
+      buildVerdict("prom-93a", "structure", ["domain/software-engineering"], "promote_3_3"),
+      buildVerdict("prom-93b", "logic", ["domain/software-engineering"], "promote_3_3"),
+      buildVerdict("prom-93c", "dependency", ["domain/software-engineering"], "promote_3_3"),
+      buildVerdict("prom-93d", "extension", ["domain/software-engineering"], "promote_3_3"),
+      // Sanity: one accumulable agent to confirm the filter is selective,
+      // not blanket.
+      buildVerdict("prom-93e", "semantics", ["domain/software-engineering"], "promote_3_3"),
+    ];
+    const candidates = identifyDomainDocCandidates(verdicts);
+    assertEqual(candidates.length, 1, "only semantics candidate survives");
+    assertEqual(candidates[0]!.agent_id, "semantics", "correct agent");
+    assertEqual(candidates[0]!.target_doc, "concepts.md", "semantics → concepts.md");
+  });
+
+  // E-P94 — Non-promote verdicts (defer, reject, split) produce no candidates
+  //          even when the originating agent IS accumulable. The filter is
+  //          consensus-first.
+  await test("E-P94 identifyDomainDocCandidates excludes defer/reject/split verdicts", () => {
+    const verdicts = [
+      buildVerdict("prom-94a", "semantics", ["domain/software-engineering"], "defer_majority"),
+      buildVerdict("prom-94b", "pragmatics", ["domain/software-engineering"], "reject_majority"),
+      buildVerdict("prom-94c", "coverage", ["domain/software-engineering"], "split"),
+    ];
+    const candidates = identifyDomainDocCandidates(verdicts);
+    assertEqual(candidates.length, 0, "no candidates emitted");
+  });
+
+  // E-P95 — Methodology-only items (no domain/X tag) produce no candidates.
+  //          DD-19 requires at least one domain tag to fan out against.
+  await test("E-P95 identifyDomainDocCandidates excludes methodology-only items", () => {
+    const verdicts = [
+      // Methodology tag only — no domain tag
+      buildVerdict("prom-95a", "semantics", ["methodology"], "promote_3_3"),
+      // Mixed — has domain tag, should produce a candidate
+      buildVerdict("prom-95b", "semantics", ["methodology", "domain/software-engineering"], "promote_3_3"),
+    ];
+    const candidates = identifyDomainDocCandidates(verdicts);
+    assertEqual(candidates.length, 1, "only the item with a domain tag qualifies");
+    assertEqual(candidates[0]!.approved_promotion_id, "prom-95b", "correct promotion");
+    assertEqual(candidates[0]!.domain, "software-engineering", "domain extracted");
+  });
+
+  // E-P96 — Output ordering is deterministic across calls. Shuffled inputs
+  //          produce the same sorted output. Ordering key: (approved_promotion_id,
+  //          target_doc, domain).
+  await test("E-P96 identifyDomainDocCandidates output is deterministically sorted", () => {
+    const ordered = [
+      buildVerdict("prom-a", "semantics", ["domain/a-first"], "promote_3_3"),
+      buildVerdict("prom-a", "semantics", ["domain/b-second"], "promote_3_3"),
+      buildVerdict("prom-b", "pragmatics", ["domain/a-first"], "promote_3_3"),
+    ];
+    const shuffled = [ordered[2]!, ordered[0]!, ordered[1]!];
+    const c1 = identifyDomainDocCandidates(ordered);
+    const c2 = identifyDomainDocCandidates(shuffled);
+    assertEqual(c1.length, 3, "expected count");
+    assertEqual(c2.length, 3, "expected count");
+    // Compare slot_id sequence — instance_id varies per call
+    for (let i = 0; i < 3; i++) {
+      assertEqual(c1[i]!.slot_id, c2[i]!.slot_id, `slot_id order match @${i}`);
+    }
+    // Lexicographic ordering: prom-a first, then prom-b
+    assertEqual(c1[0]!.approved_promotion_id, "prom-a", "prom-a first");
+    assertEqual(c1[1]!.approved_promotion_id, "prom-a", "prom-a again");
+    assertEqual(c1[2]!.approved_promotion_id, "prom-b", "prom-b last");
+    // Within same promotion+doc, domain is the tiebreaker
+    assertEqual(c1[0]!.domain, "a-first", "a-first before b-second");
+    assertEqual(c1[1]!.domain, "b-second", "b-second after a-first");
+  });
+
+  // E-P97 — Misc regression: DEFAULT_AUDIT_POLICY exports the baked-in
+  //          values used by the Phase 3 design contracts. A silent change
+  //          here would drift judgment_threshold (currently 10 per DD-13)
+  //          or the obligation_max_carry_forward (3 per DD-17).
+  await test("E-P97 DEFAULT_AUDIT_POLICY values match Phase 3 design contracts", () => {
+    assertEqual(
+      DEFAULT_AUDIT_POLICY.judgment_threshold,
+      10,
+      "judgment_threshold = 10 per DD-13 P-14 sequencing",
+    );
+    assertEqual(
+      DEFAULT_AUDIT_POLICY.obligation_max_carry_forward,
+      3,
+      "obligation_max_carry_forward = 3 per DD-17 lifecycle",
+    );
+  });
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   process.stdout.write("\n");

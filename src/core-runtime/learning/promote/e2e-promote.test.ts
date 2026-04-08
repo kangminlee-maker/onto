@@ -4161,6 +4161,224 @@ async function main(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // Batch 8 — Emergency log + persistence paths (DD-15)
+  //
+  // writeEmergencyLogEntry (promote-executor.ts) writes to a HOME-frozen
+  // EMERGENCY_LOG_PATH that cannot be overridden at test time. So these
+  // tests focus on EmergencyLogSpec + REGISTRY.appendToFile discipline
+  // (the contract that writeEmergencyLogEntry's successor path relies on),
+  // not the promote-executor side effect itself.
+  // -------------------------------------------------------------------------
+
+  function syntheticEmergencyEntry(
+    sessionId: string,
+    attemptId: string,
+    generation: number,
+  ): Record<string, unknown> {
+    return {
+      schema_version: "1",
+      entry_id: `entry-${generation}`,
+      session_id: sessionId,
+      written_at: "2026-04-09T12:00:00Z",
+      attempt_id: attemptId,
+      generation,
+      fatal_error_kind: "state_persistence_failed",
+      fatal_error_message: "disk full",
+      last_known_state_snapshot: {
+        status: "in_progress",
+        applied_count: 2,
+        failed_count: 0,
+        pending_count: 3,
+      },
+      recoverability_checkpoint: null,
+      partial_decisions_attempted: [],
+      session_root: "/tmp/fake/session",
+    };
+  }
+
+  // E-P104 — EmergencyLogSpec.validate rejects entries missing required
+  //          top-level fields. This guards against shape drift in
+  //          writeEmergencyLogEntry (if a new field is added to
+  //          ApplyExecutionState, the spec must be updated in lockstep).
+  await test("E-P104 EmergencyLogSpec.validate rejects entries missing required fields", async () => {
+    const { EmergencyLogSpec } = await import(
+      "../shared/specs/emergency-log-spec.js"
+    );
+    // Missing entry_id (all other required fields present)
+    const bad = {
+      schema_version: "1",
+      session_id: "sess-x",
+      written_at: "2026-04-09T12:00:00Z",
+      attempt_id: "01X",
+      generation: 0,
+      fatal_error_kind: "state_persistence_failed",
+      fatal_error_message: "bad",
+      session_root: "/tmp/x",
+    };
+    const result = EmergencyLogSpec.validate(bad);
+    assertEqual(result.valid, false, "invalid without entry_id");
+    assert(
+      result.errors.some((e) => e.includes("entry_id")),
+      "error mentions entry_id",
+    );
+
+    // Missing fatal_error_kind
+    const bad2 = {
+      schema_version: "1",
+      entry_id: "e-1",
+      session_id: "sess-x",
+      written_at: "2026-04-09T12:00:00Z",
+      attempt_id: "01X",
+      generation: 0,
+      fatal_error_message: "bad",
+      session_root: "/tmp/x",
+    };
+    const result2 = EmergencyLogSpec.validate(bad2);
+    assertEqual(result2.valid, false, "invalid without fatal_error_kind");
+    assert(
+      result2.errors.some((e) => e.includes("fatal_error_kind")),
+      "error mentions fatal_error_kind",
+    );
+  });
+
+  // E-P105 — EmergencyLogSpec.parse rejects pre-v7 shapes (no schema_version).
+  //          Historical emergency-log.jsonl files from before Phase 3 get
+  //          surfaced as UF-COV-01 incompatibility, not silently accepted.
+  await test("E-P105 EmergencyLogSpec.parse rejects pre-v7 entries", async () => {
+    const { EmergencyLogSpec } = await import(
+      "../shared/specs/emergency-log-spec.js"
+    );
+    const legacyJson = JSON.stringify({
+      entry_id: "legacy-1",
+      session_id: "old",
+      written_at: "2025-12-01T00:00:00Z",
+      // no schema_version
+    });
+    let caught: unknown = null;
+    try {
+      EmergencyLogSpec.parse(legacyJson, "json");
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof IncompatibleVersionError, "IncompatibleVersionError");
+    assert(
+      (caught as Error).message.toLowerCase().includes("pre-v7"),
+      "message identifies pre-v7",
+    );
+  });
+
+  // E-P106 — EmergencyLogSpec.serialize produces ONE compact JSON line
+  //          (no trailing newline — framing is the registry's job). This
+  //          is the invariant the spec header documents: appendToFile
+  //          adds the newline, serialize does not.
+  await test("E-P106 EmergencyLogSpec.serialize emits one-line JSON without trailing newline", async () => {
+    const { EmergencyLogSpec } = await import(
+      "../shared/specs/emergency-log-spec.js"
+    );
+    const entry = syntheticEmergencyEntry("sess-106", "01AAAA", 0) as unknown as import("./types.js").EmergencyLogEntry;
+    const text = EmergencyLogSpec.serialize(entry, "json");
+    assert(!text.endsWith("\n"), "no trailing newline in serialize output");
+    assert(!text.includes("\n"), "no embedded newlines (one-line framing)");
+    // Round-trip: parse the serialized text back
+    const reparsed = EmergencyLogSpec.parse(text, "json");
+    assertEqual(
+      (reparsed as { entry_id: string }).entry_id,
+      "entry-0",
+      "round-trip preserves entry_id",
+    );
+  });
+
+  // E-P107 — REGISTRY.appendToFile writes JSONL with \n framing. Two
+  //          appends produce exactly two lines, each readable independently.
+  await test("E-P107 REGISTRY.appendToFile frames entries as JSONL", async () => {
+    const dir = makeTmpDir("e-p107");
+    const logPath = path.join(dir, "emergency-log.jsonl");
+
+    const e1 = syntheticEmergencyEntry("sess-107", "01AAAA", 0) as unknown as import("./types.js").EmergencyLogEntry;
+    const e2 = syntheticEmergencyEntry("sess-107", "01AAAA", 1) as unknown as import("./types.js").EmergencyLogEntry;
+
+    REGISTRY.appendToFile("emergency_log_entry", logPath, e1);
+    REGISTRY.appendToFile("emergency_log_entry", logPath, e2);
+
+    assert(fs.existsSync(logPath), "log file written");
+    const content = fs.readFileSync(logPath, "utf8");
+    const lines = content.split("\n").filter((l) => l.trim().length > 0);
+    assertEqual(lines.length, 2, "two lines");
+
+    // Each line is an independently parseable JSON object
+    const parsed1 = JSON.parse(lines[0]!);
+    const parsed2 = JSON.parse(lines[1]!);
+    assertEqual(parsed1.entry_id, "entry-0", "first entry");
+    assertEqual(parsed2.entry_id, "entry-1", "second entry");
+    assertEqual(parsed1.generation, 0, "first generation");
+    assertEqual(parsed2.generation, 1, "second generation");
+
+    // Raw frame check: file content ends with newline, contains exactly
+    // one internal newline between the two entries.
+    assertEqual(
+      content.split("\n").length,
+      3,
+      "3 split parts (two lines + trailing empty)",
+    );
+    assert(content.endsWith("\n"), "trailing newline");
+  });
+
+  // E-P108 — REGISTRY.appendToFile refuses to write entries with wrong
+  //          schema_version (SYN-CC1 discipline). The append path runs
+  //          the same validate() + schema_version check as saveToFile.
+  await test("E-P108 REGISTRY.appendToFile rejects wrong schema_version", async () => {
+    const dir = makeTmpDir("e-p108");
+    const logPath = path.join(dir, "emergency-log.jsonl");
+
+    const wrong = {
+      ...syntheticEmergencyEntry("sess-108", "01BBBB", 0),
+      schema_version: "999",
+    } as unknown as import("./types.js").EmergencyLogEntry;
+
+    let caught: unknown = null;
+    try {
+      REGISTRY.appendToFile("emergency_log_entry", logPath, wrong);
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof InvalidArtifactError, "InvalidArtifactError thrown");
+    assert(
+      (caught as Error).message.toLowerCase().includes("schema_version"),
+      "error names schema_version",
+    );
+    assert(!fs.existsSync(logPath), "file not created when rejected");
+  });
+
+  // E-P109 — End-to-end: write multiple entries with varying generation,
+  //          read the log back, verify entries are in append order (not
+  //          re-sorted on disk). Recovery path relies on append order
+  //          to replay events.
+  await test("E-P109 appendToFile preserves append order for multi-entry JSONL", async () => {
+    const dir = makeTmpDir("e-p109");
+    const logPath = path.join(dir, "emergency-log.jsonl");
+
+    // Write in non-monotonic generation order to verify append order is
+    // preserved (not sorted server-side)
+    const e_hi = syntheticEmergencyEntry("sess-109", "01CCCC", 5) as unknown as import("./types.js").EmergencyLogEntry;
+    const e_lo = syntheticEmergencyEntry("sess-109", "01CCCC", 2) as unknown as import("./types.js").EmergencyLogEntry;
+    const e_mid = syntheticEmergencyEntry("sess-109", "01CCCC", 3) as unknown as import("./types.js").EmergencyLogEntry;
+
+    REGISTRY.appendToFile("emergency_log_entry", logPath, e_hi);
+    REGISTRY.appendToFile("emergency_log_entry", logPath, e_lo);
+    REGISTRY.appendToFile("emergency_log_entry", logPath, e_mid);
+
+    const lines = fs
+      .readFileSync(logPath, "utf8")
+      .split("\n")
+      .filter((l) => l.trim().length > 0);
+    assertEqual(lines.length, 3, "three entries");
+    const generations = lines.map((l) => JSON.parse(l).generation);
+    assertEqual(generations[0], 5, "first appended (gen 5)");
+    assertEqual(generations[1], 2, "second appended (gen 2)");
+    assertEqual(generations[2], 3, "third appended (gen 3)");
+  });
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   process.stdout.write("\n");

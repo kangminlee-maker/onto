@@ -329,12 +329,63 @@ export function loadRecoveryResolution(
   return REGISTRY.loadFromFile<RecoveryResolution>("recovery_resolution", p);
 }
 
+/**
+ * NQ-21: append-only resolution history.
+ *
+ * If a prior recovery-resolution.yaml exists for this session, the new entry
+ * is APPENDED to its resolution_history array and the top-level fields are
+ * updated to reflect the latest decision. Older history entries are
+ * preserved verbatim — the audit trail must show every reversal and reason.
+ *
+ * If no prior file exists, the new entry becomes the sole history entry.
+ *
+ * The caller passes a RecoveryResolution where the top-level fields describe
+ * the new decision and resolution_history contains exactly one entry (the
+ * new decision). saveRecoveryResolution() expands resolution_history with
+ * the prior entries when applicable.
+ */
 export function saveRecoveryResolution(
   projectRoot: string,
   resolution: RecoveryResolution,
 ): void {
   const p = getRecoveryResolutionPath(projectRoot, resolution.session_id);
-  REGISTRY.saveToFile("recovery_resolution", p, resolution);
+
+  // Load prior history if any. We probe via fs.existsSync to distinguish
+  // "first decision" from "load failed" — load failure should propagate.
+  let priorHistory: RecoveryResolution["resolution_history"] = [];
+  if (fs.existsSync(p)) {
+    const prior = REGISTRY.loadFromFile<RecoveryResolution>(
+      "recovery_resolution",
+      p,
+    );
+    priorHistory = prior.resolution_history;
+  }
+
+  const newEntry =
+    resolution.resolution_history.length === 1
+      ? resolution.resolution_history[0]!
+      : // Defensive: if caller passed an already-merged history (e.g., during
+        // a programmatic copy operation), use the LAST entry as the new
+        // decision and treat the earlier entries as prior history they wanted
+        // to preserve.
+        resolution.resolution_history[resolution.resolution_history.length - 1]!;
+
+  const merged: RecoveryResolution = {
+    schema_version: "1",
+    session_id: resolution.session_id,
+    resolved_at: newEntry.resolved_at,
+    resolved_by: newEntry.resolved_by,
+    resolution_method: newEntry.resolution_method,
+    selected_attempt_id: newEntry.selected_attempt_id,
+    selected_attempt_reason: newEntry.selected_attempt_reason,
+    all_attempts_at_resolution_time: newEntry.all_attempts_at_resolution_time,
+    ...(newEntry.operator_note !== undefined
+      ? { operator_note: newEntry.operator_note }
+      : {}),
+    resolution_history: [...priorHistory, newEntry],
+  };
+
+  REGISTRY.saveToFile("recovery_resolution", p, merged);
 }
 
 // ---------------------------------------------------------------------------

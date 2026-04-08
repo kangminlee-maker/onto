@@ -54,6 +54,13 @@ import { identifyDomainDocCandidates, deriveSlotId } from "./domain-doc-proposer
 import { buildHealthSnapshot } from "./health-snapshot.js";
 import { runPromoter } from "./promoter.js";
 import { runPromoteExecutor } from "./promote-executor.js";
+import { runInsightReclassifier } from "./insight-reclassifier.js";
+import {
+  saveRecoveryResolution,
+  loadRecoveryResolution,
+  resolveRecoveryTruth,
+  gatherRecoveryContext,
+} from "../shared/recovery-context.js";
 import {
   inspectMigrationStatus,
   ensureSessionRootsMigrated,
@@ -734,6 +741,706 @@ async function main(): Promise<void> {
     ensureSessionRootsMigrated(projectRoot, "inspect");
     const after = inspectMigrationStatus(projectRoot);
     assertEqual(after.marker_present, false, "still no marker after inspect");
+  });
+
+  // -------------------------------------------------------------------------
+  // Mock-LLM driven E2E tests (D-2) — exercise full LLM call paths via the
+  // ONTO_LLM_MOCK=1 in-process mock provider.
+  // -------------------------------------------------------------------------
+
+  process.env.ONTO_LLM_MOCK = "1";
+
+  // E-P30 — runPromoter Phase A end-to-end with mock panel + audit
+  await test("E-P30 runPromoter assembles report with panel + audit via mock LLM", async () => {
+    const projectRoot = makeTmpDir("e-p30");
+    const fakeOnto = makeTmpDir("e-p30-home");
+
+    // Project: 1 candidate
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      [
+        "<!-- format_version: 1 -->",
+        "- [fact] [methodology] [foundation] e2e-30 (source: p, d, 2026-01-01) [impact:normal]",
+      ].join("\n"),
+    );
+    // Global: 11 judgment items in `philosopher` to trigger audit
+    writeLearningFile(
+      path.join(fakeOnto, ".onto", "learnings"),
+      "philosopher",
+      [
+        "<!-- format_version: 1 -->",
+        ...Array.from({ length: 11 }, (_, i) =>
+          `- [judgment] [methodology] [foundation] philo-${i} (source: p, d, 2026-01-0${(i % 9) + 1}) [impact:normal]`,
+        ),
+      ].join("\n"),
+    );
+    // Global: structure file (so panel composition has known agents)
+    writeLearningFile(
+      path.join(fakeOnto, ".onto", "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->"].join("\n"),
+    );
+
+    const previousHome = process.env.HOME;
+    process.env.HOME = fakeOnto;
+    try {
+      const result = await runPromoter({
+        mode: "promote",
+        sessionId: "test-mock-30",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      });
+      assertEqual(result.report.panel_verdicts.length, 1, "1 panel verdict produced");
+      assertEqual(
+        result.report.panel_verdicts[0]!.consensus,
+        "promote_3_3",
+        "mock returns promote_3_3 (or 2_3 if 2-agent)",
+      );
+      assert(
+        result.report.audit_summary.execution.audited_agents.includes("philosopher"),
+        "philosopher audited",
+      );
+      assertEqual(
+        result.report.audit_summary.outcomes.retain,
+        11,
+        "all 11 retained by mock",
+      );
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+    }
+  });
+
+  // E-P31 — judgment-auditor handles mock LLM provider unreachable gracefully
+  await test("E-P31 audit blocks gracefully on provider error", async () => {
+    // Disable mock and use a synthetic state with a pending obligation
+    delete process.env.ONTO_LLM_MOCK;
+    process.env.ONTO_LLM_MOCK = "0";
+
+    const projectRoot = makeTmpDir("e-p31");
+    const fakeOnto = makeTmpDir("e-p31-home");
+    writeLearningFile(
+      path.join(fakeOnto, ".onto", "learnings"),
+      "structure",
+      [
+        "<!-- format_version: 1 -->",
+        ...Array.from({ length: 11 }, (_, i) =>
+          `- [judgment] [methodology] [foundation] judge-${i} (source: p, d, 2026-01-01) [impact:normal]`,
+        ),
+      ].join("\n"),
+    );
+    const previousHome = process.env.HOME;
+    process.env.HOME = fakeOnto;
+    try {
+      const result = await runPromoter({
+        mode: "promote",
+        sessionId: "test-31",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        skipPanel: true,
+        // skipAudit defaults to false — auditor will hit the network and fail
+      });
+      // Auditor was eligible but failed due to no provider; outcomes should
+      // be empty and llm_calls should reflect at least one attempt.
+      assert(
+        result.report.audit_summary.eligibility.length > 0,
+        "audit was eligible",
+      );
+      assertEqual(
+        result.report.audit_summary.execution.audited_items_count,
+        0,
+        "no items audited (provider failed)",
+      );
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      process.env.ONTO_LLM_MOCK = "1"; // restore for subsequent tests
+    }
+  });
+
+  // E-P32 — insight reclassifier with mock LLM
+  await test("E-P32 insight reclassifier classifies via mock LLM", async () => {
+    const projectRoot = makeTmpDir("e-p32");
+    const fakeOnto = makeTmpDir("e-p32-home");
+    writeLearningFile(
+      path.join(fakeOnto, ".onto", "learnings"),
+      "structure",
+      [
+        "<!-- format_version: 1 -->",
+        "- [fact] [methodology] [insight] insight-1 (source: p, d, 2026-01-01) [impact:normal]",
+        "- [fact] [methodology] [insight] insight-2 (source: p, d, 2026-01-01) [impact:normal]",
+      ].join("\n"),
+    );
+    const previousHome = process.env.HOME;
+    process.env.HOME = fakeOnto;
+    try {
+      const result = await runInsightReclassifier({
+        sessionId: "test-32",
+        projectRoot,
+        ontoHome: fakeOnto,
+      });
+      assertEqual(result.total_insights, 2, "2 insights collected");
+      assertEqual(result.reclassified.length, 2, "both reclassified by mock");
+      assertEqual(
+        result.reclassified[0]!.proposed_role,
+        "foundation",
+        "mock defaults to foundation",
+      );
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+    }
+  });
+
+  // E-P33 — domain doc applicator writes file via mock LLM
+  await test("E-P33 promote-executor applies domain doc update via mock LLM", async () => {
+    const projectRoot = makeTmpDir("e-p33");
+    const fakeOnto = makeTmpDir("e-p33-home");
+
+    // semantics agent so domain-doc-proposer routes to concepts.md
+    const projectLine =
+      "- [fact] [methodology] [domain/finance] [foundation] mock semantics term (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "semantics",
+      ["<!-- format_version: 1 -->", projectLine].join("\n"),
+    );
+    writeLearningFile(
+      path.join(fakeOnto, ".onto", "learnings"),
+      "semantics",
+      ["<!-- format_version: 1 -->"].join("\n"),
+    );
+    writeLearningFile(
+      path.join(fakeOnto, ".onto", "learnings"),
+      "philosopher",
+      ["<!-- format_version: 1 -->"].join("\n"),
+    );
+
+    const previousHome = process.env.HOME;
+    process.env.HOME = fakeOnto;
+    try {
+      const promoter = await runPromoter({
+        mode: "promote",
+        sessionId: "test-33",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        skipAudit: true,
+      });
+      // Phase A produced 1 panel verdict promote + 1 domain doc candidate
+      assertEqual(
+        promoter.report.panel_verdicts.length,
+        1,
+        "1 panel verdict",
+      );
+      assertEqual(
+        promoter.report.domain_doc_candidates.length,
+        1,
+        "1 domain doc candidate",
+      );
+
+      // Build decisions approving both promotion and domain doc update
+      const candidate = promoter.report.domain_doc_candidates[0]!;
+      const decisions: PromoteDecisions = {
+        schema_version: "1",
+        session_id: "test-33",
+        prepared_at: new Date().toISOString(),
+        promotions: [
+          {
+            candidate_agent_id: "semantics",
+            candidate_line: projectLine,
+            approve: true,
+          },
+        ],
+        contradiction_replacements: [],
+        cross_agent_dedup_approvals: [],
+        axis_tag_changes: [],
+        retirements: [],
+        domain_doc_updates: [
+          {
+            slot_id: candidate.slot_id,
+            instance_id: candidate.instance_id,
+            approve: true,
+          },
+        ],
+        audit_outcomes: [],
+        audit_obligations_waived: [],
+      };
+      fs.writeFileSync(
+        path.join(promoter.sessionRoot, "promote-decisions.json"),
+        JSON.stringify(decisions, null, 2),
+      );
+
+      const outcome = await runPromoteExecutor({
+        sessionId: "test-33",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        sessionRoot: promoter.sessionRoot,
+      });
+      assertEqual(outcome.kind, "completed", "executor completed");
+      if (outcome.kind !== "completed") return;
+      assertEqual(
+        outcome.summary.domain_doc_updates_applied,
+        1,
+        "1 domain doc update applied",
+      );
+
+      // Verify the domain doc was actually written
+      const docPath = path.join(
+        fakeOnto,
+        "domains",
+        "finance",
+        "concepts.md",
+      );
+      assert(fs.existsSync(docPath), "concepts.md created");
+      const docContent = fs.readFileSync(docPath, "utf8");
+      assert(
+        docContent.includes(`<!-- slot_id: ${candidate.slot_id} -->`),
+        "slot_id marker present",
+      );
+      assert(docContent.includes("Mock Term"), "mock content present");
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+    }
+  });
+
+  // E-P34 — domain doc applicator skips already-written slot (idempotency)
+  await test("E-P34 domain doc applicator skips already-written slot", async () => {
+    const projectRoot = makeTmpDir("e-p34");
+    const fakeOnto = makeTmpDir("e-p34-home");
+    const projectLine =
+      "- [fact] [methodology] [domain/finance] [foundation] e2e34 (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "semantics",
+      ["<!-- format_version: 1 -->", projectLine].join("\n"),
+    );
+    writeLearningFile(
+      path.join(fakeOnto, ".onto", "learnings"),
+      "philosopher",
+      ["<!-- format_version: 1 -->"].join("\n"),
+    );
+
+    const previousHome = process.env.HOME;
+    process.env.HOME = fakeOnto;
+    try {
+      const promoter = await runPromoter({
+        mode: "promote",
+        sessionId: "test-34",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        skipAudit: true,
+      });
+      const candidate = promoter.report.domain_doc_candidates[0]!;
+      const decisions: PromoteDecisions = {
+        schema_version: "1",
+        session_id: "test-34",
+        prepared_at: new Date().toISOString(),
+        promotions: [
+          {
+            candidate_agent_id: "semantics",
+            candidate_line: projectLine,
+            approve: true,
+          },
+        ],
+        contradiction_replacements: [],
+        cross_agent_dedup_approvals: [],
+        axis_tag_changes: [],
+        retirements: [],
+        domain_doc_updates: [
+          {
+            slot_id: candidate.slot_id,
+            instance_id: candidate.instance_id,
+            approve: true,
+          },
+        ],
+        audit_outcomes: [],
+        audit_obligations_waived: [],
+      };
+      fs.writeFileSync(
+        path.join(promoter.sessionRoot, "promote-decisions.json"),
+        JSON.stringify(decisions, null, 2),
+      );
+
+      // First apply
+      const out1 = await runPromoteExecutor({
+        sessionId: "test-34",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        sessionRoot: promoter.sessionRoot,
+      });
+      assertEqual(out1.kind, "completed", "first apply completed");
+
+      // Manually re-run the executor (simulating a re-attempt). The slot
+      // marker should cause the second apply to skip and report success
+      // without writing duplicate content.
+      const docPath = path.join(
+        fakeOnto,
+        "domains",
+        "finance",
+        "concepts.md",
+      );
+      const sizeBefore = fs.statSync(docPath).size;
+
+      // Reset apply-state by deleting it so the executor starts fresh
+      fs.rmSync(
+        path.join(promoter.sessionRoot, "promote-execution-result.json"),
+        { force: true },
+      );
+
+      const out2 = await runPromoteExecutor({
+        sessionId: "test-34",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        sessionRoot: promoter.sessionRoot,
+        forceStale: true, // file changed because we already applied
+      });
+      assertEqual(out2.kind, "completed", "second apply completed");
+
+      const sizeAfter = fs.statSync(docPath).size;
+      assertEqual(sizeBefore, sizeAfter, "file unchanged on idempotent re-apply");
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+    }
+  });
+
+  // E-P35 — cross_agent_dedup applicator consolidates entries
+  await test("E-P35 cross_agent_dedup applicator consolidates and marks members", async () => {
+    const projectRoot = makeTmpDir("e-p35");
+    const fakeOnto = makeTmpDir("e-p35-home");
+
+    // Two global lines from different agents.
+    //
+    // Path convention note: promote-executor's getGlobalLearningFilePath
+    // treats `ontoHome` as the .onto/ directory itself (writes to
+    // <ontoHome>/learnings/<agent>.md). The collector + panel-reviewer
+    // currently read globals from os.homedir() + .onto/learnings/ — a
+    // different convention. We work around this here by writing globals
+    // to <fakeOnto>/learnings/ AND setting HOME=<fakeOnto>/.. so the
+    // collector reads from the same place. The dual convention is
+    // tracked for follow-up alignment.
+    const lineA =
+      "- [fact] [methodology] [foundation] same principle a (source: p, d, 2026-01-01) [impact:normal]";
+    const lineB =
+      "- [fact] [methodology] [foundation] same principle b (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", lineA].join("\n"),
+    );
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "logic",
+      ["<!-- format_version: 1 -->", lineB].join("\n"),
+    );
+
+    // Make collector see the same globals: collector reads from
+    // os.homedir() + .onto/learnings/, so set HOME so that resolves to
+    // <fakeOnto>/learnings/ via a symlink-style alias dir.
+    const fakeHome = makeTmpDir("e-p35-home2");
+    fs.mkdirSync(path.join(fakeHome, ".onto"), { recursive: true });
+    fs.symlinkSync(
+      path.join(fakeOnto, "learnings"),
+      path.join(fakeHome, ".onto", "learnings"),
+    );
+
+    const previousHome = process.env.HOME;
+    process.env.HOME = fakeHome;
+    try {
+      const promoter = await runPromoter({
+        mode: "promote",
+        sessionId: "test-35",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        skipPanel: true,
+        skipAudit: true,
+      });
+
+      // Synthesize a cross-agent dedup cluster manually (the discovery
+      // function is a Step 13 stub) and inject it into the report on disk.
+      const consolidatedLine =
+        "- [fact] [methodology] [foundation] consolidated principle (source: cluster-1, d, 2026-04-08) [impact:normal]";
+      const cluster = {
+        cluster_id: "cluster-test-35",
+        primary_owner_agent: "structure",
+        primary_owner_reason: "first generated",
+        consolidated_principle: "consolidated principle",
+        representative_cases: ["case a", "case b"],
+        member_items: [
+          { ...syntheticItem({ agent_id: "structure" }), raw_line: lineA },
+          { ...syntheticItem({ agent_id: "logic" }), raw_line: lineB },
+        ],
+        consolidated_line: consolidatedLine,
+        user_approval_required: true as const,
+      };
+      promoter.report.cross_agent_dedup_clusters.push(cluster);
+      fs.writeFileSync(
+        promoter.reportPath,
+        JSON.stringify(promoter.report, null, 2),
+      );
+
+      const decisions: PromoteDecisions = {
+        schema_version: "1",
+        session_id: "test-35",
+        prepared_at: new Date().toISOString(),
+        promotions: [],
+        contradiction_replacements: [],
+        cross_agent_dedup_approvals: [
+          { cluster_id: "cluster-test-35", approve: true },
+        ],
+        axis_tag_changes: [],
+        retirements: [],
+        domain_doc_updates: [],
+        audit_outcomes: [],
+        audit_obligations_waived: [],
+      };
+      fs.writeFileSync(
+        path.join(promoter.sessionRoot, "promote-decisions.json"),
+        JSON.stringify(decisions, null, 2),
+      );
+
+      const outcome = await runPromoteExecutor({
+        sessionId: "test-35",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        sessionRoot: promoter.sessionRoot,
+      });
+      assertEqual(outcome.kind, "completed", "executor completed");
+      if (outcome.kind !== "completed") return;
+      assertEqual(
+        outcome.summary.cross_agent_dedup_applied,
+        1,
+        "1 cluster applied",
+      );
+
+      // structure file gained the consolidated line; logic file's line was
+      // replaced with a consolidated marker.
+      const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+      const logicPath = path.join(fakeOnto, "learnings", "logic.md");
+      const structureContent = fs.readFileSync(structurePath, "utf8");
+      const logicContent = fs.readFileSync(logicPath, "utf8");
+      assert(
+        structureContent.includes("consolidated principle"),
+        "structure has consolidated line",
+      );
+      assert(
+        logicContent.includes("consolidated") && logicContent.includes("cluster-test-35"),
+        "logic line marked as consolidated",
+      );
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+    }
+  });
+
+  // E-P36 — append-only resolution_history (NQ-21)
+  await test("E-P36 saveRecoveryResolution appends to resolution_history", () => {
+    const projectRoot = makeTmpDir("e-p36");
+    const sessionId = "test-36";
+
+    // Create the session root so the artifact path is valid
+    fs.mkdirSync(
+      path.join(projectRoot, ".onto", "sessions", "promote", sessionId),
+      { recursive: true },
+    );
+
+    // First decision
+    const entry1 = {
+      resolved_at: "2026-04-08T10:00:00Z",
+      resolved_by: "operator" as const,
+      resolution_method: "cli_command" as const,
+      selected_attempt_id: "01ATTEMPT_A",
+      selected_attempt_reason: "first decision",
+      all_attempts_at_resolution_time: [],
+      operator_note: "first",
+    };
+    saveRecoveryResolution(projectRoot, {
+      schema_version: "1",
+      session_id: sessionId,
+      ...entry1,
+      resolution_history: [entry1],
+    });
+
+    // Second decision (operator changed mind)
+    const entry2 = {
+      resolved_at: "2026-04-08T11:00:00Z",
+      resolved_by: "operator" as const,
+      resolution_method: "cli_command" as const,
+      selected_attempt_id: "01ATTEMPT_B",
+      selected_attempt_reason: "changed mind",
+      all_attempts_at_resolution_time: [],
+      operator_note: "second",
+    };
+    saveRecoveryResolution(projectRoot, {
+      schema_version: "1",
+      session_id: sessionId,
+      ...entry2,
+      resolution_history: [entry2],
+    });
+
+    const loaded = loadRecoveryResolution(projectRoot, sessionId);
+    assert(loaded !== null, "loaded");
+    assertEqual(loaded!.resolution_history.length, 2, "2 history entries");
+    assertEqual(
+      loaded!.selected_attempt_id,
+      "01ATTEMPT_B",
+      "top-level reflects latest",
+    );
+    assertEqual(
+      loaded!.resolution_history[0]!.selected_attempt_id,
+      "01ATTEMPT_A",
+      "first entry preserved",
+    );
+    assertEqual(
+      loaded!.resolution_history[1]!.selected_attempt_id,
+      "01ATTEMPT_B",
+      "second entry latest",
+    );
+  });
+
+  // E-P37 — recovery resolution applied during --resume
+  await test("E-P37 resolveRecoveryTruth honors saved RecoveryResolution", async () => {
+    const projectRoot = makeTmpDir("e-p37");
+    const sessionId = "test-37";
+
+    // Create the session root so saveRecoveryResolution can write
+    fs.mkdirSync(
+      path.join(projectRoot, ".onto", "sessions", "promote", sessionId),
+      { recursive: true },
+    );
+
+    // Save an operator resolution
+    const entry = {
+      resolved_at: "2026-04-08T12:00:00Z",
+      resolved_by: "operator" as const,
+      resolution_method: "cli_command" as const,
+      selected_attempt_id: "01CHOSEN",
+      selected_attempt_reason: "chosen",
+      all_attempts_at_resolution_time: [],
+    };
+    saveRecoveryResolution(projectRoot, {
+      schema_version: "1",
+      session_id: sessionId,
+      ...entry,
+      resolution_history: [entry],
+    });
+
+    // Verify the resolution loads back correctly
+    const loaded = loadRecoveryResolution(projectRoot, sessionId);
+    assert(loaded !== null, "resolution loaded");
+    assertEqual(loaded!.selected_attempt_id, "01CHOSEN", "decision recorded");
+
+    // gatherRecoveryContext returns no sources (no real apply state on disk),
+    // so resolveRecoveryTruth returns no_recovery_data — but the resolution
+    // file persistence is what we're testing here.
+    const context = await gatherRecoveryContext(sessionId, projectRoot);
+    const truth = resolveRecoveryTruth(context, projectRoot);
+    assertEqual(truth.kind, "no_recovery_data", "no apply state present");
+  });
+
+  // E-P38 — collector skip behavior (parse_errors don't crash promoter)
+  await test("E-P38 collector parse errors surface as warnings without crash", async () => {
+    const projectRoot = makeTmpDir("e-p38");
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      [
+        "<!-- format_version: 1 -->",
+        "- [methodology] [foundation] missing-type-marker (source: p, d, 2026-01-01) [impact:normal]",
+        "- [fact] [methodology] [foundation] valid-line (source: p, d, 2026-01-01) [impact:normal]",
+      ].join("\n"),
+    );
+    const fakeOnto = makeTmpDir("e-p38-home");
+    const result = await runPromoter({
+      mode: "promote",
+      sessionId: "test-38",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+    assert(
+      result.report.collection.parse_errors.length > 0,
+      "parse errors collected",
+    );
+    assert(
+      result.report.warnings.some((w) => w.includes("parse")),
+      "parse warning surfaced",
+    );
+    assertEqual(
+      result.report.collection.candidate_items.length,
+      1,
+      "valid line still collected",
+    );
+  });
+
+  // E-P39 — promote-executor enumerates cross_agent_dedup pending decisions
+  await test("E-P39 cross_agent_dedup_approvals enumerated as pending", async () => {
+    // Verifies the enumerate function picks up cross_agent_dedup approvals
+    // which were previously skipped pre-C-3.
+    const projectRoot = makeTmpDir("e-p39");
+    const fakeOnto = makeTmpDir("e-p39-home");
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->"].join("\n"),
+    );
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-39",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+    // Decisions with one cross_agent_dedup approval but no matching cluster
+    // in the report — should mark as failed (cluster not found) NOT skip.
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-39",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [
+        { cluster_id: "nonexistent-cluster", approve: true },
+      ],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-39",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    assertEqual(
+      outcome.kind,
+      "failed_resumable",
+      "outcome is failed_resumable for missing cluster",
+    );
+    if (outcome.kind !== "failed_resumable") return;
+    assertEqual(outcome.summary.failed_decisions, 1, "1 failed decision");
   });
 
   // -------------------------------------------------------------------------

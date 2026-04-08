@@ -755,24 +755,43 @@ export interface AttemptInfo {
  * can proceed. resolveRecoveryTruth() reads this artifact first and respects
  * the recorded decision over auto-resolution.
  *
- * v9 design decision: append-only resolution_history (NQ-21 recommendation).
- * The current implementation stores a single resolution per session, but the
- * field is named singular for clarity; future phases may extend to multi-step
- * resolutions if needed.
+ * NQ-21 (v9 §14.3): append-only resolution_history. Top-level fields
+ * (selected_attempt_id, etc.) reflect the LATEST decision so consumers can
+ * read the canonical seat in one access. resolution_history records every
+ * prior decision so the audit trail survives across re-resolutions — the
+ * operator may change their mind after seeing apply results, and we want
+ * those reversals visible in the ledger.
  */
-export interface RecoveryResolution {
-  schema_version: "1";
-  session_id: string;
+export interface RecoveryResolutionEntry {
   resolved_at: string;
   resolved_by: "operator" | "auto_resolve";
   resolution_method: "cli_command" | "decisions_file" | "auto";
-
   selected_attempt_id: string;
   selected_attempt_reason: string;
-
   all_attempts_at_resolution_time: AttemptInfo[];
-
   operator_note?: string;
+}
+
+export interface RecoveryResolution {
+  schema_version: "1";
+  session_id: string;
+
+  // Latest decision — denormalized for fast read access. Always equal to
+  // resolution_history[length - 1] field-by-field; the constructor invariant
+  // is enforced by saveRecoveryResolution() which assembles the artifact.
+  resolved_at: string;
+  resolved_by: "operator" | "auto_resolve";
+  resolution_method: "cli_command" | "decisions_file" | "auto";
+  selected_attempt_id: string;
+  selected_attempt_reason: string;
+  all_attempts_at_resolution_time: AttemptInfo[];
+  operator_note?: string;
+
+  // NQ-21: append-only history of all decisions for this session.
+  // Always non-empty when the artifact exists. The latest entry equals the
+  // top-level fields above. Older entries are preserved verbatim and never
+  // mutated after they are appended.
+  resolution_history: RecoveryResolutionEntry[];
 }
 
 // ---------------------------------------------------------------------------

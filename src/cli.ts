@@ -472,10 +472,9 @@ async function handlePromoteResolveConflict(
     return 1;
   }
 
-  const resolution = {
-    schema_version: "1" as const,
-    session_id: sessionId,
-    resolved_at: new Date().toISOString(),
+  const now = new Date().toISOString();
+  const newEntry = {
+    resolved_at: now,
     resolved_by: "operator" as const,
     resolution_method: "cli_command" as const,
     selected_attempt_id: selectedAttemptId,
@@ -484,7 +483,15 @@ async function handlePromoteResolveConflict(
     ...(note !== undefined ? { operator_note: note } : {}),
   };
 
-  saveRecoveryResolution(projectRoot, resolution);
+  // saveRecoveryResolution will merge with prior history (NQ-21 append-only).
+  // We pass a single-entry resolution_history containing the new decision;
+  // the save helper expands prior entries from the existing artifact.
+  saveRecoveryResolution(projectRoot, {
+    schema_version: "1",
+    session_id: sessionId,
+    ...newEntry,
+    resolution_history: [newEntry],
+  });
   console.log(
     JSON.stringify(
       {

@@ -54,6 +54,11 @@ export const RecoveryResolutionSpec: ArtifactSpec<RecoveryResolution> = {
     checkString(obj, "selected_attempt_id", errors);
     checkString(obj, "selected_attempt_reason", errors);
     checkArray(obj, "all_attempts_at_resolution_time", errors);
+    // NQ-21: append-only history. Must be non-empty when artifact exists.
+    checkArray(obj, "resolution_history", errors);
+    if (Array.isArray(obj.resolution_history) && obj.resolution_history.length === 0) {
+      errors.push("resolution_history cannot be empty");
+    }
     return { valid: errors.length === 0, errors };
   },
 };

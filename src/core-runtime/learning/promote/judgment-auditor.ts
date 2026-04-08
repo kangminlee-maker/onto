@@ -308,54 +308,106 @@ async function auditAgent(config: RunAuditConfig): Promise<AuditAgentResult> {
     return { kind: "no_eligible_items", outcomes: [], llm_calls: 0 };
   }
 
-  const userPrompt = buildAuditUserPrompt(config.agentId, judgmentItems);
+  // 1 retry on malformed JSON or per-item normalization failure, mirroring
+  // panel-reviewer's pattern. The retry feeds the previous failure list back
+  // to the model so it can correct course on the second pass. LLM provider
+  // failures (network, auth) skip the retry — they're not the model's fault.
+  let llmCalls = 0;
+  let lastFailureReason: string | null = null;
+  const partialOutcomes: AuditOutcome[] = [];
 
-  let llmText: string;
-  try {
-    const result = await callLlm(AUDIT_SYSTEM_PROMPT, userPrompt, {
-      max_tokens: config.maxTokens ?? 4096,
-      ...(config.modelId ? { model_id: config.modelId } : {}),
-    });
-    llmText = result.text;
-  } catch (error) {
+  const tryOnce = async (
+    retryFeedback?: string[],
+  ): Promise<{
+    kind: "success" | "blocked" | "provider_error";
+    outcomes: AuditOutcome[];
+    failureReason?: string;
+  }> => {
+    let userPrompt = buildAuditUserPrompt(config.agentId, judgmentItems);
+    if (retryFeedback && retryFeedback.length > 0) {
+      userPrompt +=
+        "\n\nPrevious attempt was rejected. Validator feedback:\n" +
+        retryFeedback.map((f) => `  - ${f}`).join("\n") +
+        "\nFix these issues and respond again.";
+    }
+
+    let llmText: string;
+    try {
+      const result = await callLlm(AUDIT_SYSTEM_PROMPT, userPrompt, {
+        max_tokens: config.maxTokens ?? 4096,
+        ...(config.modelId ? { model_id: config.modelId } : {}),
+      });
+      llmText = result.text;
+    } catch (error) {
+      return {
+        kind: "provider_error",
+        outcomes: [],
+        failureReason:
+          error instanceof Error ? error.message : String(error),
+      };
+    }
+
+    let parsed: { outcomes: RawAuditOutcome[] };
+    try {
+      parsed = parseAuditResponse(llmText);
+    } catch (error) {
+      return {
+        kind: "blocked",
+        outcomes: [],
+        failureReason: `malformed JSON: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      };
+    }
+
+    const normalized = normalizeOutcomes(
+      parsed.outcomes,
+      judgmentItems,
+      config.agentId,
+    );
+    if (normalized.failures.length > 0) {
+      return {
+        kind: "blocked",
+        outcomes: normalized.outcomes,
+        failureReason: normalized.failures.join("; "),
+      };
+    }
+    return { kind: "success", outcomes: normalized.outcomes };
+  };
+
+  const first = await tryOnce();
+  llmCalls += 1;
+  if (first.kind === "success") {
+    return { kind: "success", outcomes: first.outcomes, llm_calls: llmCalls };
+  }
+  if (first.kind === "provider_error") {
     return {
       kind: "blocked",
       outcomes: [],
-      llm_calls: 1,
-      failure_reason:
-        error instanceof Error ? error.message : String(error),
+      llm_calls: llmCalls,
+      ...(first.failureReason !== undefined
+        ? { failure_reason: first.failureReason }
+        : {}),
     };
   }
+  // first.kind === "blocked" — try once more with feedback
+  partialOutcomes.push(...first.outcomes);
+  lastFailureReason = first.failureReason ?? null;
 
-  let parsed: { outcomes: RawAuditOutcome[] };
-  try {
-    parsed = parseAuditResponse(llmText);
-  } catch (error) {
-    return {
-      kind: "blocked",
-      outcomes: [],
-      llm_calls: 1,
-      failure_reason: `malformed JSON: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    };
-  }
-
-  const normalized = normalizeOutcomes(
-    parsed.outcomes,
-    judgmentItems,
-    config.agentId,
+  const second = await tryOnce(
+    first.failureReason !== undefined ? [first.failureReason] : undefined,
   );
-  if (normalized.failures.length > 0) {
-    return {
-      kind: "blocked",
-      outcomes: normalized.outcomes,
-      llm_calls: 1,
-      failure_reason: normalized.failures.join("; "),
-    };
+  llmCalls += 1;
+  if (second.kind === "success") {
+    return { kind: "success", outcomes: second.outcomes, llm_calls: llmCalls };
   }
-
-  return { kind: "success", outcomes: normalized.outcomes, llm_calls: 1 };
+  return {
+    kind: "blocked",
+    outcomes: second.kind === "blocked" ? second.outcomes : partialOutcomes,
+    llm_calls: llmCalls,
+    failure_reason:
+      second.failureReason ?? lastFailureReason ?? "unknown failure",
+  };
 }
 
 // ---------------------------------------------------------------------------

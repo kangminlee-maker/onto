@@ -146,19 +146,21 @@ const VALID_ROLES: ReclassificationRole[] = [
 // LLM call
 // ---------------------------------------------------------------------------
 
-async function classifyOne(
+type AttemptResult =
+  | { ok: true; role: ReclassificationRole; reason: string; modelId: string }
+  | { ok: false; kind: "provider_error" | "validation_error"; reason: string };
+
+async function attemptClassify(
   item: ParsedLearningItem,
   modelId: string | undefined,
-): Promise<{
-  ok: true;
-  reclassification: InsightReclassification;
-  llmCalls: number;
-} | {
-  ok: false;
-  reason: string;
-  llmCalls: number;
-}> {
-  const userPrompt = buildReclassifyUserPrompt(item);
+  retryFeedback?: string,
+): Promise<AttemptResult> {
+  let userPrompt = buildReclassifyUserPrompt(item);
+  if (retryFeedback) {
+    userPrompt +=
+      `\n\nPrevious attempt was rejected: ${retryFeedback}\n` +
+      `Fix the issue and respond again.`;
+  }
 
   let llmText: string;
   let llmModelId: string;
@@ -172,10 +174,10 @@ async function classifyOne(
   } catch (error) {
     return {
       ok: false,
+      kind: "provider_error",
       reason: `LLM unreachable: ${
         error instanceof Error ? error.message : String(error)
       }`,
-      llmCalls: 1,
     };
   }
 
@@ -189,10 +191,10 @@ async function classifyOne(
   } catch (error) {
     return {
       ok: false,
+      kind: "validation_error",
       reason: `malformed LLM JSON: ${
         error instanceof Error ? error.message : String(error)
       }`,
-      llmCalls: 1,
     };
   }
 
@@ -200,22 +202,61 @@ async function classifyOne(
   if (!VALID_ROLES.includes(role)) {
     return {
       ok: false,
+      kind: "validation_error",
       reason: `invalid proposed_role "${String(parsed.proposed_role)}"`,
-      llmCalls: 1,
     };
   }
 
   return {
     ok: true,
-    llmCalls: 1,
+    role,
+    reason: typeof parsed.reason === "string" ? parsed.reason : "",
+    modelId: llmModelId,
+  };
+}
+
+async function classifyOne(
+  item: ParsedLearningItem,
+  modelId: string | undefined,
+): Promise<{
+  ok: true;
+  reclassification: InsightReclassification;
+  llmCalls: number;
+} | {
+  ok: false;
+  reason: string;
+  llmCalls: number;
+}> {
+  // 1 retry on validation_error (malformed JSON or invalid role enum).
+  // Provider errors (network, auth) skip the retry — they're not the
+  // model's fault and retry won't help.
+  let llmCalls = 0;
+
+  const first = await attemptClassify(item, modelId);
+  llmCalls += 1;
+  let final: AttemptResult = first;
+  if (!first.ok && first.kind === "validation_error") {
+    const second = await attemptClassify(item, modelId, first.reason);
+    llmCalls += 1;
+    final = second;
+  }
+
+  if (!final.ok) {
+    return { ok: false, reason: final.reason, llmCalls };
+  }
+
+  const userPrompt = buildReclassifyUserPrompt(item);
+  return {
+    ok: true,
+    llmCalls,
     reclassification: {
       agent_id: item.agent_id,
       source_path: item.source_path,
       line_number: item.line_number,
       current_role: item.role,
-      proposed_role: role,
-      reason: typeof parsed.reason === "string" ? parsed.reason : "",
-      llm_model_id: llmModelId,
+      proposed_role: final.role,
+      reason: final.reason,
+      llm_model_id: final.modelId,
       llm_prompt_hash: hashPrompt(RECLASSIFY_SYSTEM_PROMPT + "\n" + userPrompt),
     },
   };

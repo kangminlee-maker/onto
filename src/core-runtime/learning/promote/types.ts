@@ -409,6 +409,11 @@ export interface PromoteReport {
  * `obligations_processed.transition` is the canonical record. Counts and the
  * expired_unattended list are derived helpers (countCarriedForward, etc.).
  * v6 review removed the redundant fields that were previously stored here.
+ *
+ * `failed_agents` (B-4 production finding): when an agent was eligible but
+ * the audit blocked (LLM error, malformed response), record the agent_id +
+ * reason here so the operator can see WHY it was skipped instead of having
+ * to re-run to discover. Empty when all eligible agents succeeded.
  */
 export interface AuditSummary {
   policy: AuditPolicy;
@@ -425,6 +430,14 @@ export interface AuditSummary {
     delete: number;
     audit_to_conflict_proposal: number;
   };
+  failed_agents: AuditFailedAgent[];
+}
+
+export interface AuditFailedAgent {
+  agent_id: string;
+  reason: string;
+  /** Items the agent had — useful for the operator to see scale before retry. */
+  judgment_count: number;
 }
 
 export interface ObligationProcessed {

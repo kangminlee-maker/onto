@@ -1386,6 +1386,113 @@ async function main(): Promise<void> {
     );
   });
 
+  // E-P39a — judgment-auditor chunks large agents (B-4 production fix)
+  await test("E-P39a judgment-auditor chunks ≥13 items into multiple batches", async () => {
+    const projectRoot = makeTmpDir("e-p39a");
+    const fakeOnto = makeTmpDir("e-p39a-home");
+    // 25 judgment items in one agent — should split into 3 batches (12+12+1)
+    writeLearningFile(
+      path.join(fakeOnto, ".onto", "learnings"),
+      "philosopher",
+      [
+        "<!-- format_version: 1 -->",
+        ...Array.from({ length: 25 }, (_, i) =>
+          `- [judgment] [methodology] [foundation] big-batch-${i} (source: p, d, 2026-01-0${(i % 9) + 1}) [impact:normal]`,
+        ),
+      ].join("\n"),
+    );
+
+    const previousHome = process.env.HOME;
+    process.env.HOME = fakeOnto;
+    try {
+      const result = await runPromoter({
+        mode: "promote",
+        sessionId: "test-39a",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        skipPanel: true,
+      });
+      assertEqual(
+        result.report.audit_summary.execution.audited_items_count,
+        25,
+        "all 25 items audited (chunked)",
+      );
+      // 25 / 12 = 3 batches → 3 LLM calls
+      assertEqual(
+        result.report.audit_summary.execution.llm_calls,
+        3,
+        "3 LLM calls (chunked by AUDIT_BATCH_SIZE=12)",
+      );
+      assertEqual(
+        result.report.audit_summary.failed_agents.length,
+        0,
+        "no failures",
+      );
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+    }
+  });
+
+  // E-P39b — failed_agents surfaces blocked audits in summary
+  await test("E-P39b audit failures appear in summary.failed_agents", async () => {
+    // We use the mock provider but force a non-mock prompt path that the
+    // mock doesn't recognize, so it returns "ok" which is not valid JSON.
+    // The mock only matches on system prompt prefix; the audit prompt
+    // matches, so this would normally succeed. To force failure, we
+    // temporarily disable the mock and rely on the auditor's network
+    // failure handling.
+    const previousMock = process.env.ONTO_LLM_MOCK;
+    delete process.env.ONTO_LLM_MOCK;
+    process.env.ONTO_LLM_MOCK = "0";
+
+    const projectRoot = makeTmpDir("e-p39b");
+    const fakeOnto = makeTmpDir("e-p39b-home");
+    writeLearningFile(
+      path.join(fakeOnto, ".onto", "learnings"),
+      "philosopher",
+      [
+        "<!-- format_version: 1 -->",
+        ...Array.from({ length: 11 }, (_, i) =>
+          `- [judgment] [methodology] [foundation] fail-${i} (source: p, d, 2026-01-01) [impact:normal]`,
+        ),
+      ].join("\n"),
+    );
+    const previousHome = process.env.HOME;
+    process.env.HOME = fakeOnto;
+    try {
+      const result = await runPromoter({
+        mode: "promote",
+        sessionId: "test-39b",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        skipPanel: true,
+      });
+      assertEqual(
+        result.report.audit_summary.failed_agents.length,
+        1,
+        "philosopher failure recorded in failed_agents",
+      );
+      assertEqual(
+        result.report.audit_summary.failed_agents[0]!.agent_id,
+        "philosopher",
+        "failed agent id",
+      );
+      assertEqual(
+        result.report.audit_summary.failed_agents[0]!.judgment_count,
+        11,
+        "judgment_count surfaced for operator visibility",
+      );
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousMock === undefined) delete process.env.ONTO_LLM_MOCK;
+      else process.env.ONTO_LLM_MOCK = previousMock;
+    }
+  });
+
   // E-P39 — promote-executor enumerates cross_agent_dedup pending decisions
   await test("E-P39 cross_agent_dedup_approvals enumerated as pending", async () => {
     // Verifies the enumerate function picks up cross_agent_dedup approvals

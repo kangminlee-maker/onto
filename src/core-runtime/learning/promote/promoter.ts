@@ -222,6 +222,7 @@ export async function runPromoter(
     eligibility: [],
     execution: { audited_agents: [], audited_items_count: 0, llm_calls: 0 },
     outcomes: { retain: 0, modify: 0, delete: 0, audit_to_conflict_proposal: 0 },
+    failed_agents: [],
   };
   const auditConflictProposals: ConflictProposalView[] = [];
 

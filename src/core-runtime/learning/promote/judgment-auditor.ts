@@ -40,6 +40,7 @@ import type { AuditState } from "../shared/audit-state.js";
 import type { AuditObligation } from "./audit-obligation.js";
 import type {
   AuditEligibility,
+  AuditFailedAgent,
   AuditOutcome,
   AuditPolicy,
   AuditSummary,
@@ -286,10 +287,13 @@ function normalizeOutcomes(
 // ---------------------------------------------------------------------------
 
 interface AuditAgentResult {
-  kind: "success" | "blocked" | "no_eligible_items";
+  kind: "success" | "partial" | "blocked" | "no_eligible_items";
   outcomes: AuditOutcome[];
   llm_calls: number;
   failure_reason?: string;
+  /** Number of judgment items the agent had — included so the failure
+   *  reporter can show scale to the operator. */
+  judgment_count: number;
 }
 
 interface RunAuditConfig {
@@ -299,31 +303,58 @@ interface RunAuditConfig {
   modelId?: string;
 }
 
+/**
+ * Maximum items per batched LLM call.
+ *
+ * B-3 production found that single-batched calls with 37 items (philosopher)
+ * timed out at 30s and SDK auto-retry compounded into ~90s waste. Splitting
+ * into chunks of ~12 keeps each prompt and response within a comfortable
+ * size window and lets per-chunk failures be isolated rather than failing
+ * the whole agent.
+ */
+const AUDIT_BATCH_SIZE = 12;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  if (size <= 0) return [items];
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
 async function auditAgent(config: RunAuditConfig): Promise<AuditAgentResult> {
   const judgmentItems = config.globalItems.filter(
     (item) => item.agent_id === config.agentId && item.type === "judgment",
   );
 
   if (judgmentItems.length === 0) {
-    return { kind: "no_eligible_items", outcomes: [], llm_calls: 0 };
+    return {
+      kind: "no_eligible_items",
+      outcomes: [],
+      llm_calls: 0,
+      judgment_count: 0,
+    };
   }
 
-  // 1 retry on malformed JSON or per-item normalization failure, mirroring
-  // panel-reviewer's pattern. The retry feeds the previous failure list back
-  // to the model so it can correct course on the second pass. LLM provider
-  // failures (network, auth) skip the retry — they're not the model's fault.
+  // Chunk into batches so large agents (37+ items) don't blow the LLM
+  // timeout window. Each chunk gets its own LLM call with the same
+  // 1-retry-on-validation-error pattern. Per-chunk provider errors are
+  // isolated so a single transient failure doesn't lose the whole agent.
+  const batches = chunk(judgmentItems, AUDIT_BATCH_SIZE);
   let llmCalls = 0;
-  let lastFailureReason: string | null = null;
-  const partialOutcomes: AuditOutcome[] = [];
+  const allOutcomes: AuditOutcome[] = [];
+  const failureReasons: string[] = [];
 
   const tryOnce = async (
+    batchItems: ParsedLearningItem[],
     retryFeedback?: string[],
   ): Promise<{
     kind: "success" | "blocked" | "provider_error";
     outcomes: AuditOutcome[];
     failureReason?: string;
   }> => {
-    let userPrompt = buildAuditUserPrompt(config.agentId, judgmentItems);
+    let userPrompt = buildAuditUserPrompt(config.agentId, batchItems);
     if (retryFeedback && retryFeedback.length > 0) {
       userPrompt +=
         "\n\nPrevious attempt was rejected. Validator feedback:\n" +
@@ -362,7 +393,7 @@ async function auditAgent(config: RunAuditConfig): Promise<AuditAgentResult> {
 
     const normalized = normalizeOutcomes(
       parsed.outcomes,
-      judgmentItems,
+      batchItems,
       config.agentId,
     );
     if (normalized.failures.length > 0) {
@@ -375,38 +406,69 @@ async function auditAgent(config: RunAuditConfig): Promise<AuditAgentResult> {
     return { kind: "success", outcomes: normalized.outcomes };
   };
 
-  const first = await tryOnce();
-  llmCalls += 1;
-  if (first.kind === "success") {
-    return { kind: "success", outcomes: first.outcomes, llm_calls: llmCalls };
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i]!;
+    const first = await tryOnce(batch);
+    llmCalls += 1;
+
+    if (first.kind === "success") {
+      allOutcomes.push(...first.outcomes);
+      continue;
+    }
+    if (first.kind === "provider_error") {
+      failureReasons.push(
+        `batch ${i + 1}/${batches.length} (${batch.length} items): ` +
+          `provider error: ${first.failureReason ?? "unknown"}`,
+      );
+      // Provider errors skip retry and skip the batch entirely.
+      continue;
+    }
+    // first.kind === "blocked" (validation error) — retry the batch
+    const second = await tryOnce(
+      batch,
+      first.failureReason !== undefined ? [first.failureReason] : undefined,
+    );
+    llmCalls += 1;
+
+    if (second.kind === "success") {
+      allOutcomes.push(...second.outcomes);
+      continue;
+    }
+
+    failureReasons.push(
+      `batch ${i + 1}/${batches.length} (${batch.length} items): ` +
+        `${second.failureReason ?? first.failureReason ?? "unknown"}`,
+    );
   }
-  if (first.kind === "provider_error") {
+
+  if (failureReasons.length === 0) {
+    return {
+      kind: "success",
+      outcomes: allOutcomes,
+      llm_calls: llmCalls,
+      judgment_count: judgmentItems.length,
+    };
+  }
+
+  if (allOutcomes.length === 0) {
     return {
       kind: "blocked",
       outcomes: [],
       llm_calls: llmCalls,
-      ...(first.failureReason !== undefined
-        ? { failure_reason: first.failureReason }
-        : {}),
+      failure_reason: failureReasons.join(" | "),
+      judgment_count: judgmentItems.length,
     };
   }
-  // first.kind === "blocked" — try once more with feedback
-  partialOutcomes.push(...first.outcomes);
-  lastFailureReason = first.failureReason ?? null;
 
-  const second = await tryOnce(
-    first.failureReason !== undefined ? [first.failureReason] : undefined,
-  );
-  llmCalls += 1;
-  if (second.kind === "success") {
-    return { kind: "success", outcomes: second.outcomes, llm_calls: llmCalls };
-  }
+  // Some batches succeeded, some failed — partial success. The operator
+  // sees the partial outcomes plus the failure reasons for the missing
+  // batches in failed_agents.
   return {
-    kind: "blocked",
-    outcomes: second.kind === "blocked" ? second.outcomes : partialOutcomes,
+    kind: "partial",
+    outcomes: allOutcomes,
     llm_calls: llmCalls,
-    failure_reason:
-      second.failureReason ?? lastFailureReason ?? "unknown failure",
+    failure_reason: failureReasons.join(" | "),
+    judgment_count: judgmentItems.length,
   };
 }
 
@@ -493,6 +555,7 @@ export async function runJudgmentAudit(
 
   const allOutcomes: AuditOutcome[] = [];
   const auditedAgents: string[] = [];
+  const failedAgents: AuditFailedAgent[] = [];
   let llmCalls = 0;
 
   // Run audits per eligible agent.
@@ -525,6 +588,32 @@ export async function runJudgmentAudit(
       continue;
     }
 
+    if (result.kind === "partial") {
+      // Partial success: some chunks succeeded, some failed. The agent is
+      // counted as audited (its outcomes are real) but also recorded in
+      // failed_agents so the operator sees the missing chunks. Obligation
+      // transitions to blocked because the audit isn't complete.
+      auditedAgents.push(e.agent_id);
+      allOutcomes.push(...result.outcomes);
+      failedAgents.push({
+        agent_id: e.agent_id,
+        reason: `partial: ${result.failure_reason ?? "unknown"}`,
+        judgment_count: result.judgment_count,
+      });
+
+      if (e.obligation_id) {
+        const ob = obligationById.get(e.obligation_id);
+        if (ob && ob.status === "in_progress") {
+          ob.transition(
+            "blocked",
+            `P-14 partial failure: ${result.failure_reason ?? "unknown"}`,
+            { session_id: config.sessionId },
+          );
+        }
+      }
+      continue;
+    }
+
     if (result.kind === "no_eligible_items") {
       if (e.obligation_id) {
         const ob = obligationById.get(e.obligation_id);
@@ -539,7 +628,13 @@ export async function runJudgmentAudit(
       continue;
     }
 
-    // result.kind === "blocked"
+    // result.kind === "blocked" — fully failed, surface as failed_agent
+    failedAgents.push({
+      agent_id: e.agent_id,
+      reason: result.failure_reason ?? "unknown failure",
+      judgment_count: result.judgment_count,
+    });
+
     if (e.obligation_id) {
       const ob = obligationById.get(e.obligation_id);
       if (ob && ob.status === "in_progress") {
@@ -582,6 +677,7 @@ export async function runJudgmentAudit(
       llm_calls: llmCalls,
     },
     outcomes: outcomesTally,
+    failed_agents: failedAgents,
   };
 
   return { summary, outcomes: allOutcomes };

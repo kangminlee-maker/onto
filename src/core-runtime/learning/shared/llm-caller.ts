@@ -38,7 +38,15 @@ export interface LlmCallResult {
 
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
-const DEFAULT_TIMEOUT_MS = 30_000;
+// Phase 3 production found 30s too tight for large audit batches (philosopher
+// 37 items was timing out then SDK-retrying for 90s total). 120s is generous
+// enough for ~50-item single-batch audits while still failing fast on real
+// network problems.
+const DEFAULT_TIMEOUT_MS = 120_000;
+// SDK auto-retry hides failures behind a long stall. We surface failures
+// faster (1 retry instead of the default 2) so operators see provider errors
+// within ~2× timeout instead of ~3×.
+const DEFAULT_MAX_RETRIES = 1;
 
 // ---------------------------------------------------------------------------
 // Provider resolution
@@ -127,7 +135,11 @@ async function callAnthropic(
   maxTokens: number,
 ): Promise<LlmCallResult> {
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  const client = new Anthropic({ apiKey, timeout: DEFAULT_TIMEOUT_MS });
+  const client = new Anthropic({
+    apiKey,
+    timeout: DEFAULT_TIMEOUT_MS,
+    maxRetries: DEFAULT_MAX_RETRIES,
+  });
 
   const response = await client.messages.create({
     model: modelId,
@@ -161,7 +173,11 @@ async function callOpenAI(
   maxTokens: number,
 ): Promise<LlmCallResult> {
   const { default: OpenAI } = await import("openai");
-  const client = new OpenAI({ apiKey, timeout: DEFAULT_TIMEOUT_MS });
+  const client = new OpenAI({
+    apiKey,
+    timeout: DEFAULT_TIMEOUT_MS,
+    maxRetries: DEFAULT_MAX_RETRIES,
+  });
 
   const response = await client.chat.completions.create({
     model: modelId,

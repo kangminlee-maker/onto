@@ -275,11 +275,21 @@ export async function createRecoverabilityCheckpoint(
 // Protection state transitions
 // ---------------------------------------------------------------------------
 
+/**
+ * Update a backup's protection status.
+ *
+ * `rootOverride` is an optional testing hook: when provided, it replaces
+ * BACKUP_ROOT as the base directory where the session's backup-metadata.yaml
+ * is read from and written to. Production callers omit it to use the
+ * module-level BACKUP_ROOT constant (~/.onto/backups).
+ */
 export function setBackupProtection(
   sessionId: string,
   protectionReason: ProtectionReason | null,
+  rootOverride?: string,
 ): void {
-  const metadataPath = path.join(BACKUP_ROOT, sessionId, "backup-metadata.yaml");
+  const root = rootOverride ?? BACKUP_ROOT;
+  const metadataPath = path.join(root, sessionId, "backup-metadata.yaml");
   if (!fs.existsSync(metadataPath)) return;
   const metadata = REGISTRY.loadFromFile<BackupMetadata>(
     "backup_metadata",
@@ -331,13 +341,13 @@ interface BackupDirInfo {
   size_bytes: number;
 }
 
-function listBackupDirs(): BackupDirInfo[] {
-  if (!fs.existsSync(BACKUP_ROOT)) return [];
-  const entries = fs.readdirSync(BACKUP_ROOT, { withFileTypes: true });
+function listBackupDirs(root: string = BACKUP_ROOT): BackupDirInfo[] {
+  if (!fs.existsSync(root)) return [];
+  const entries = fs.readdirSync(root, { withFileTypes: true });
   const result: BackupDirInfo[] = [];
   for (const e of entries) {
     if (!e.isDirectory()) continue;
-    const dir = path.join(BACKUP_ROOT, e.name);
+    const dir = path.join(root, e.name);
     const metadataPath = path.join(dir, "backup-metadata.yaml");
     if (!fs.existsSync(metadataPath)) continue;
     try {
@@ -360,15 +370,36 @@ function listBackupDirs(): BackupDirInfo[] {
   return result;
 }
 
-export function appendPruneLog(entry: Omit<PruneLogEntry, "schema_version">): void {
+/**
+ * Append a prune log entry.
+ *
+ * `rootOverride` is an optional testing hook. When provided, the log file
+ * is written under `{rootOverride}/.prune-log.jsonl` instead of
+ * PRUNE_LOG_PATH (~/.onto/backups/.prune-log.jsonl).
+ */
+export function appendPruneLog(
+  entry: Omit<PruneLogEntry, "schema_version">,
+  rootOverride?: string,
+): void {
   const fullEntry: PruneLogEntry = { schema_version: "1", ...entry };
-  REGISTRY.appendToFile("prune_log_entry", PRUNE_LOG_PATH, fullEntry);
+  const logPath = rootOverride
+    ? path.join(rootOverride, ".prune-log.jsonl")
+    : PRUNE_LOG_PATH;
+  REGISTRY.appendToFile("prune_log_entry", logPath, fullEntry);
 }
 
+/**
+ * Apply the retention policy and prune unprotected backups.
+ *
+ * `rootOverride` is an optional testing hook. When provided, pruneBackups
+ * scans that directory instead of BACKUP_ROOT and writes the prune log
+ * under that root. Production callers omit it to operate on ~/.onto/backups.
+ */
 export async function pruneBackups(
   policy: BackupRetentionPolicy = DEFAULT_RETENTION,
+  rootOverride?: string,
 ): Promise<PruneResult> {
-  const all = listBackupDirs();
+  const all = listBackupDirs(rootOverride);
   const protectedBackups = all.filter((b) => b.metadata.protected);
   const candidates = all
     .filter((b) => !b.metadata.protected)
@@ -407,17 +438,20 @@ export async function pruneBackups(
   for (const v of toPrune) {
     fs.rmSync(v.path, { recursive: true, force: true });
     bytesFreed += v.size_bytes;
-    appendPruneLog({
-      session_id: v.session_id,
-      pruned_at: new Date().toISOString(),
-      reason:
-        now - v.mtime.getTime() >= cutoffMs
-          ? "keep_for_days_exceeded"
-          : keepSorted.length > 0 || toKeep.length > policy.keep_last_n
-            ? "keep_last_n_exceeded"
-            : "storage_max_bytes_exceeded",
-      bytes_freed: v.size_bytes,
-    });
+    appendPruneLog(
+      {
+        session_id: v.session_id,
+        pruned_at: new Date().toISOString(),
+        reason:
+          now - v.mtime.getTime() >= cutoffMs
+            ? "keep_for_days_exceeded"
+            : keepSorted.length > 0 || toKeep.length > policy.keep_last_n
+              ? "keep_last_n_exceeded"
+              : "storage_max_bytes_exceeded",
+        bytes_freed: v.size_bytes,
+      },
+      rootOverride,
+    );
   }
 
   return {

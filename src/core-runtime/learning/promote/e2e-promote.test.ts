@@ -3166,6 +3166,252 @@ async function main(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // Batch 4 — Backup retention & protection (DD-16, BACKUP-PROTECTION-01)
+  //
+  // Uses rootOverride testing hook on pruneBackups/setBackupProtection/
+  // appendPruneLog so tests operate on a tmpdir-based fake BACKUP_ROOT and
+  // never touch the real ~/.onto/backups tree.
+  // -------------------------------------------------------------------------
+
+  interface FakeBackup {
+    sessionId: string;
+    protectedFlag: boolean;
+    protectionReason: "active_session" | "failed_unrecoverable" | "state_persistence_failed" | "user_pinned" | null;
+    totalBytes: number;
+    mtimeMs: number;
+  }
+
+  function writeFakeBackup(root: string, bak: FakeBackup): void {
+    const dir = path.join(root, bak.sessionId);
+    fs.mkdirSync(dir, { recursive: true });
+    // Put a placeholder file so the directory has something to prune
+    fs.writeFileSync(path.join(dir, "placeholder.txt"), "x");
+    const metadata = {
+      schema_version: "1" as const,
+      session_id: bak.sessionId,
+      created_at: new Date(bak.mtimeMs).toISOString(),
+      total_bytes: bak.totalBytes,
+      protected: bak.protectedFlag,
+      protection_reason: bak.protectionReason,
+      protection_set_at: bak.protectedFlag ? new Date(bak.mtimeMs).toISOString() : null,
+    };
+    REGISTRY.saveToFile(
+      "backup_metadata",
+      path.join(dir, "backup-metadata.yaml"),
+      metadata,
+    );
+    // Force the directory mtime so retention/storage tests can control
+    // chronology deterministically. Note: statSync(dir).mtime reflects the
+    // directory's own mtime, which is updated by writes INTO the dir. We
+    // utimesSync the directory itself after finishing writes.
+    const when = new Date(bak.mtimeMs);
+    fs.utimesSync(dir, when, when);
+  }
+
+  // E-P77 — active_session protected backup survives pruning when policy
+  //          would otherwise remove it (keep_last_n = 0, keep_for_days = 0,
+  //          storage budget = 0 → would prune EVERYTHING unprotected).
+  await test("E-P77 pruneBackups respects active_session protection", async () => {
+    const { pruneBackups } = await import("../shared/recoverability.js");
+    const fakeRoot = makeTmpDir("e-p77-backups");
+    writeFakeBackup(fakeRoot, {
+      sessionId: "active-one",
+      protectedFlag: true,
+      protectionReason: "active_session",
+      totalBytes: 1024,
+      mtimeMs: Date.now() - 90 * 24 * 60 * 60 * 1000, // 90 days old
+    });
+    writeFakeBackup(fakeRoot, {
+      sessionId: "unprotected-one",
+      protectedFlag: false,
+      protectionReason: null,
+      totalBytes: 1024,
+      mtimeMs: Date.now() - 1 * 60 * 1000, // 1 minute old
+    });
+
+    const result = await pruneBackups(
+      { backup_storage_max_bytes: 1_000_000, keep_last_n: 0, keep_for_days: 0 },
+      fakeRoot,
+    );
+    assertEqual(result.kept_protected, 1, "protected kept");
+    assertEqual(result.pruned, 1, "unprotected pruned");
+    // Active session backup still on disk
+    assert(
+      fs.existsSync(path.join(fakeRoot, "active-one", "backup-metadata.yaml")),
+      "active_session backup dir preserved",
+    );
+    assert(
+      !fs.existsSync(path.join(fakeRoot, "unprotected-one")),
+      "unprotected backup dir removed",
+    );
+  });
+
+  // E-P78 — failed_unrecoverable is ALSO a protection reason: even though
+  //          the session is finished, the operator needs the backup for
+  //          manual recovery.
+  await test("E-P78 pruneBackups respects failed_unrecoverable protection", async () => {
+    const { pruneBackups } = await import("../shared/recoverability.js");
+    const fakeRoot = makeTmpDir("e-p78-backups");
+    writeFakeBackup(fakeRoot, {
+      sessionId: "failed-recovery-needed",
+      protectedFlag: true,
+      protectionReason: "failed_unrecoverable",
+      totalBytes: 1024,
+      mtimeMs: Date.now() - 90 * 24 * 60 * 60 * 1000,
+    });
+
+    const result = await pruneBackups(
+      { backup_storage_max_bytes: 0, keep_last_n: 0, keep_for_days: 0 },
+      fakeRoot,
+    );
+    assertEqual(result.pruned, 0, "protected not pruned even at 0-byte budget");
+    assertEqual(result.kept_protected, 1, "protected count");
+    assert(
+      fs.existsSync(path.join(fakeRoot, "failed-recovery-needed")),
+      "failed_unrecoverable dir still exists",
+    );
+  });
+
+  // E-P79 — keep_last_n exceeded: oldest unprotected backups pruned.
+  //          Create 5 unprotected backups with distinct mtimes; policy keeps 2.
+  await test("E-P79 pruneBackups enforces keep_last_n and prunes oldest first", async () => {
+    const { pruneBackups } = await import("../shared/recoverability.js");
+    const fakeRoot = makeTmpDir("e-p79-backups");
+    const now = Date.now();
+    // b5 newest → b1 oldest
+    for (let i = 1; i <= 5; i++) {
+      writeFakeBackup(fakeRoot, {
+        sessionId: `bak-${i}`,
+        protectedFlag: false,
+        protectionReason: null,
+        totalBytes: 100,
+        // b1 = oldest, b5 = newest; mtimes span 1..5 minutes ago
+        mtimeMs: now - (6 - i) * 60 * 1000,
+      });
+    }
+    const result = await pruneBackups(
+      { backup_storage_max_bytes: 1_000_000, keep_last_n: 2, keep_for_days: 30 },
+      fakeRoot,
+    );
+    // keep_last_n = 2 → the newest 2 survive, 3 pruned
+    assertEqual(result.pruned, 3, "three oldest pruned");
+    assert(fs.existsSync(path.join(fakeRoot, "bak-5")), "newest survived");
+    assert(fs.existsSync(path.join(fakeRoot, "bak-4")), "second newest survived");
+    assert(!fs.existsSync(path.join(fakeRoot, "bak-3")), "third oldest pruned");
+    assert(!fs.existsSync(path.join(fakeRoot, "bak-2")), "second oldest pruned");
+    assert(!fs.existsSync(path.join(fakeRoot, "bak-1")), "oldest pruned");
+  });
+
+  // E-P80 — storage_max_bytes exceeded: after keep_last_n trim, additional
+  //          pressure pass prunes oldest of the remaining unprotected until
+  //          the total fits under budget.
+  await test("E-P80 pruneBackups enforces storage_max_bytes as secondary pressure", async () => {
+    const { pruneBackups } = await import("../shared/recoverability.js");
+    const fakeRoot = makeTmpDir("e-p80-backups");
+    const now = Date.now();
+    // 3 backups, 1000 bytes each. keep_last_n=5 so initial trim keeps all.
+    // Budget = 2500 bytes → pressure pass must prune oldest (bak-1 at 1000)
+    // to bring total from 3000 → 2000 under 2500.
+    writeFakeBackup(fakeRoot, {
+      sessionId: "bak-1",
+      protectedFlag: false,
+      protectionReason: null,
+      totalBytes: 1000,
+      mtimeMs: now - 3 * 60 * 1000,
+    });
+    writeFakeBackup(fakeRoot, {
+      sessionId: "bak-2",
+      protectedFlag: false,
+      protectionReason: null,
+      totalBytes: 1000,
+      mtimeMs: now - 2 * 60 * 1000,
+    });
+    writeFakeBackup(fakeRoot, {
+      sessionId: "bak-3",
+      protectedFlag: false,
+      protectionReason: null,
+      totalBytes: 1000,
+      mtimeMs: now - 1 * 60 * 1000,
+    });
+    const result = await pruneBackups(
+      { backup_storage_max_bytes: 2500, keep_last_n: 5, keep_for_days: 30 },
+      fakeRoot,
+    );
+    assertEqual(result.pruned, 1, "one pruned under storage pressure");
+    assertEqual(result.bytes_freed, 1000, "1000 bytes freed");
+    assert(!fs.existsSync(path.join(fakeRoot, "bak-1")), "oldest victim");
+    assert(fs.existsSync(path.join(fakeRoot, "bak-2")), "middle survived");
+    assert(fs.existsSync(path.join(fakeRoot, "bak-3")), "newest survived");
+  });
+
+  // E-P81 — Prune log entries are appended per pruned session with correct
+  //          reason and bytes_freed. Check the .prune-log.jsonl file directly.
+  await test("E-P81 pruneBackups appends .prune-log.jsonl entry per pruned session", async () => {
+    const { pruneBackups } = await import("../shared/recoverability.js");
+    const fakeRoot = makeTmpDir("e-p81-backups");
+    const now = Date.now();
+    writeFakeBackup(fakeRoot, {
+      sessionId: "expired-victim",
+      protectedFlag: false,
+      protectionReason: null,
+      totalBytes: 512,
+      mtimeMs: now - 60 * 24 * 60 * 60 * 1000, // 60 days old
+    });
+    const result = await pruneBackups(
+      { backup_storage_max_bytes: 1_000_000, keep_last_n: 10, keep_for_days: 30 },
+      fakeRoot,
+    );
+    assertEqual(result.pruned, 1, "one pruned for age");
+    const logPath = path.join(fakeRoot, ".prune-log.jsonl");
+    assert(fs.existsSync(logPath), "prune log written");
+    const lines = fs
+      .readFileSync(logPath, "utf8")
+      .split("\n")
+      .filter((l) => l.trim().length > 0);
+    assertEqual(lines.length, 1, "one log line");
+    const entry = JSON.parse(lines[0]!);
+    assertEqual(entry.schema_version, "1", "schema_version stamped");
+    assertEqual(entry.session_id, "expired-victim", "victim identified");
+    assertEqual(entry.reason, "keep_for_days_exceeded", "age reason");
+    assertEqual(entry.bytes_freed, 512, "bytes freed recorded");
+  });
+
+  // E-P82 — setBackupProtection toggles protection on/off; pruneBackups
+  //          picks up the new state. Verifies that lifting protection
+  //          makes a formerly protected backup eligible for pruning.
+  await test("E-P82 setBackupProtection toggle flows through to pruneBackups", async () => {
+    const { setBackupProtection, pruneBackups } = await import(
+      "../shared/recoverability.js"
+    );
+    const fakeRoot = makeTmpDir("e-p82-backups");
+    writeFakeBackup(fakeRoot, {
+      sessionId: "toggle-target",
+      protectedFlag: true,
+      protectionReason: "active_session",
+      totalBytes: 100,
+      mtimeMs: Date.now() - 60 * 24 * 60 * 60 * 1000,
+    });
+    // First run: protected → not pruned
+    let result = await pruneBackups(
+      { backup_storage_max_bytes: 0, keep_last_n: 0, keep_for_days: 0 },
+      fakeRoot,
+    );
+    assertEqual(result.pruned, 0, "protected not pruned");
+    // Lift protection
+    setBackupProtection("toggle-target", null, fakeRoot);
+    // Second run: now eligible
+    result = await pruneBackups(
+      { backup_storage_max_bytes: 0, keep_last_n: 0, keep_for_days: 0 },
+      fakeRoot,
+    );
+    assertEqual(result.pruned, 1, "after lift, pruned");
+    assert(
+      !fs.existsSync(path.join(fakeRoot, "toggle-target")),
+      "backup dir removed after protection lifted",
+    );
+  });
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   process.stdout.write("\n");

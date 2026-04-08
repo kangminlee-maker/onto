@@ -158,9 +158,11 @@ Codex mode delegates reviewer passes to OpenAI Codex, reducing Claude token cons
    - Ask user whether to set per-project overrides or rely on global `~/.codex/config.toml` defaults.
    - If user chooses global defaults: add only `execution_mode: codex` (omit `codex:` block).
 
-5. **Verification**: Run a minimal Codex readiness check: `node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" setup --check 2>/dev/null`.
-   - If successful: "Codex 모드가 정상적으로 설정되었습니다."
-   - If failed: "Codex 연결에 실패했습니다. `/codex:setup`으로 상세 진단을 실행하세요." Set `execution_mode` back to `agent-teams` in config.yml.
+5. **Verification**: Confirm Codex is ready, in this priority order:
+   1. **Env var (preferred contract)**: If `$CODEX_COMPANION_PATH` is set and points to an existing file, run `node "$CODEX_COMPANION_PATH" setup --check 2>/dev/null` and parse `ready: true` from the JSON output. (Codex plugin owners are expected to export this env var as the canonical cross-plugin handoff. Until they do, fall through to the slash-command path.)
+   2. **Slash command (fallback)**: Otherwise, invoke the `/codex:setup` slash command via the Skill tool. The codex plugin is the canonical source of its readiness check; delegating to its slash command keeps onto out of `${CLAUDE_PLUGIN_ROOT}` cross-plugin path resolution. (Why not hardcode `${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs`? That variable expands to the *onto* plugin root, where no `scripts/codex-companion.mjs` exists — the file lives in the codex plugin. Hardcoding the path crosses a plugin boundary that Claude Code's variable expansion does not.)
+   - If verification succeeds: "Codex 모드가 정상적으로 설정되었습니다."
+   - If verification fails: "Codex 연결에 실패했습니다. `/codex:setup`으로 상세 진단을 실행하세요." Set `execution_mode` back to `agent-teams` in config.yml.
 
 **If user selects no/skip:** No changes. Default `execution_mode` remains `agent-teams`.
 

@@ -4379,6 +4379,246 @@ async function main(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // Batch 9 — Retirement + session-root + misc (DD-6, DD-8)
+  //
+  // E-P5/E-P6 covered basic retirement; E-P21~E-P24 covered session-root
+  // guard basics. This batch fills the remaining edges:
+  //   - retention cutoff strictness (exact equality)
+  //   - undated marker handling
+  //   - custom threshold override
+  //   - session-root-guard Case 3 (marker + legacy → warn)
+  //   - session-root-guard Case 4 incompat layout_version
+  //   - retirement sort by severity
+  // -------------------------------------------------------------------------
+
+  // E-P110 — retention_confirmed_at === marker date is NOT "strictly after".
+  //          The cutoff is strict, so a marker dated the same day as the
+  //          retention confirmation is treated as already reviewed.
+  await test("E-P110 retirement cutoff is strict (equal date → excluded)", () => {
+    const item: ParsedLearningItem = syntheticItem({
+      scope: "global",
+      event_markers: [
+        "<!-- applied-then-found-invalid: 2026-02-01 -->",
+        "<!-- applied-then-found-invalid: 2026-02-15 -->",
+        "<!-- applied-then-found-invalid: 2026-03-01 -->",
+      ],
+      retention_confirmed_at: "2026-02-15",
+    });
+    const candidates = identifyRetirementCandidates([item]);
+    // Post-cutoff (strictly after 2026-02-15): only 2026-03-01 qualifies → 1 marker
+    // Below threshold 2 → no candidate
+    assertEqual(candidates.length, 0, "below threshold after strict cutoff");
+
+    // Bump retention to earlier: now 2026-02-15 AND 2026-03-01 qualify → 2 markers
+    const item2 = syntheticItem({
+      scope: "global",
+      event_markers: item.event_markers,
+      retention_confirmed_at: "2026-02-01",
+    });
+    const candidates2 = identifyRetirementCandidates([item2]);
+    assertEqual(candidates2.length, 1, "two markers after strict cutoff");
+    assertEqual(candidates2[0]!.marker_count, 2, "marker_count matches");
+  });
+
+  // E-P111 — Undated event markers are dropped from the count but noted in
+  //          the `reason` field for operator transparency.
+  await test("E-P111 retirement drops undated markers but surfaces them in reason", () => {
+    const item = syntheticItem({
+      scope: "global",
+      event_markers: [
+        "<!-- applied-then-found-invalid: 2026-02-01 -->",
+        "<!-- applied-then-found-invalid: -->", // malformed, no date
+        "<!-- applied-then-found-invalid: 2026-03-01 -->",
+      ],
+    });
+    const candidates = identifyRetirementCandidates([item]);
+    assertEqual(candidates.length, 1, "2 dated markers → candidate");
+    const c = candidates[0]!;
+    assertEqual(c.marker_count, 2, "undated marker dropped from count");
+    assert(
+      c.reason.includes("undated"),
+      "reason surfaces undated marker count",
+    );
+    assert(
+      c.reason.includes("1 undated"),
+      "reason shows exact undated count",
+    );
+  });
+
+  // E-P112 — Custom threshold override lets 1-marker items through when
+  //          callers want a lower bar (e.g., aggressive pruning mode).
+  await test("E-P112 retirement threshold=1 includes single-marker items", () => {
+    const items = [
+      syntheticItem({
+        content: "single-marker-item",
+        scope: "global",
+        event_markers: ["<!-- applied-then-found-invalid: 2026-02-01 -->"],
+      }),
+      syntheticItem({
+        content: "zero-marker-item",
+        scope: "global",
+        event_markers: [],
+      }),
+    ];
+    const candidates = identifyRetirementCandidates(items, { threshold: 1 });
+    // Single-marker item qualifies; zero-marker item still excluded
+    assertEqual(candidates.length, 1, "one candidate with threshold=1");
+    assertEqual(
+      candidates[0]!.item.content,
+      "single-marker-item",
+      "correct item",
+    );
+    assertEqual(candidates[0]!.marker_count, 1, "marker_count = 1");
+  });
+
+  // E-P113 — Retirement sort ordering: severity descending by marker_count.
+  //          Operator report shows hot spots at the top.
+  await test("E-P113 retirement candidates sorted by marker_count descending", () => {
+    const items = [
+      syntheticItem({
+        content: "three-markers",
+        scope: "global",
+        event_markers: [
+          "<!-- applied-then-found-invalid: 2026-02-01 -->",
+          "<!-- applied-then-found-invalid: 2026-02-10 -->",
+          "<!-- applied-then-found-invalid: 2026-02-20 -->",
+        ],
+      }),
+      syntheticItem({
+        content: "two-markers",
+        scope: "global",
+        event_markers: [
+          "<!-- applied-then-found-invalid: 2026-02-01 -->",
+          "<!-- applied-then-found-invalid: 2026-02-10 -->",
+        ],
+      }),
+      syntheticItem({
+        content: "four-markers",
+        scope: "global",
+        event_markers: [
+          "<!-- applied-then-found-invalid: 2026-02-01 -->",
+          "<!-- applied-then-found-invalid: 2026-02-10 -->",
+          "<!-- applied-then-found-invalid: 2026-02-20 -->",
+          "<!-- applied-then-found-invalid: 2026-03-01 -->",
+        ],
+      }),
+    ];
+    const candidates = identifyRetirementCandidates(items);
+    assertEqual(candidates.length, 3, "three candidates");
+    // Sort: four → three → two
+    assertEqual(candidates[0]!.item.content, "four-markers", "four at top");
+    assertEqual(candidates[1]!.item.content, "three-markers", "three middle");
+    assertEqual(candidates[2]!.item.content, "two-markers", "two at bottom");
+    assertEqual(candidates[0]!.marker_count, 4, "top count");
+    assertEqual(candidates[2]!.marker_count, 2, "bottom count");
+  });
+
+  // E-P114 — Session-root-guard Case 3: marker present + legacy sessions
+  //          still exist → the guard emits a warning to stderr but does
+  //          NOT throw. Operator should re-run migration but is not blocked.
+  await test("E-P114 session-root-guard Case 3: marker + legacy → warn, not throw", () => {
+    const projectRoot = makeTmpDir("e-p114");
+    // Write a valid layout marker (Case 4 compat)
+    fs.mkdirSync(path.join(projectRoot, ".onto", "sessions"), { recursive: true });
+    ensureSessionRootsMigrated(projectRoot); // writes marker (Case 1 path)
+    // Now inject a legacy session dir that matches LEGACY_SESSION_PATTERN
+    const legacySessionName = "20260101-abcdef";
+    fs.mkdirSync(
+      path.join(projectRoot, ".onto", "sessions", legacySessionName),
+      { recursive: true },
+    );
+
+    // Capture stderr to verify the warning fires. Bypass the overloaded
+    // write type by routing through a mutable holder cast.
+    const stderrChunks: string[] = [];
+    const stderrHolder = process.stderr as unknown as {
+      write: (chunk: unknown) => boolean;
+    };
+    const originalWrite = stderrHolder.write;
+    stderrHolder.write = (chunk: unknown) => {
+      stderrChunks.push(String(chunk));
+      return true;
+    };
+
+    let threw = false;
+    try {
+      ensureSessionRootsMigrated(projectRoot);
+    } catch {
+      threw = true;
+    } finally {
+      stderrHolder.write = originalWrite;
+    }
+
+    assertEqual(threw, false, "did not throw (Case 3 is non-blocking)");
+    const combined = stderrChunks.join("");
+    assert(
+      combined.includes("legacy") && combined.includes("migrate-session-roots"),
+      "warning mentions legacy + remediation command",
+    );
+  });
+
+  // E-P115 — Session-root-guard Case 4: layout marker file present but the
+  //          content is not structurally valid (layout_version ≠ "v3").
+  //          The spec's validate() hard-codes "v3", so REGISTRY refuses to
+  //          write such a payload. To simulate real-world filesystem tampering
+  //          (or a future/past tool writing a different version), we bypass
+  //          REGISTRY with raw fs.writeFileSync. inspectMigrationStatus's
+  //          catch block fires, marker_compatible stays false, and the guard
+  //          throws IncompatibleLayoutError.
+  await test("E-P115 session-root-guard rejects incompatible layout marker", async () => {
+    const { IncompatibleLayoutError } = await import(
+      "../../cli/session-root-guard.js"
+    );
+    const projectRoot = makeTmpDir("e-p115");
+    fs.mkdirSync(path.join(projectRoot, ".onto"), { recursive: true });
+    // Raw YAML bypassing REGISTRY. schema_version is correct (parse will
+    // succeed) but layout_version is not v3 so validate() rejects on load.
+    const rawYaml =
+      'schema_version: "1"\nlayout_version: v99-from-the-future\nwritten_at: "2026-04-09T00:00:00Z"\n';
+    fs.writeFileSync(
+      path.join(projectRoot, ".onto", ".layout-version.yaml"),
+      rawYaml,
+      "utf8",
+    );
+
+    let caught: unknown = null;
+    try {
+      ensureSessionRootsMigrated(projectRoot);
+    } catch (e) {
+      caught = e;
+    }
+    assert(
+      caught instanceof IncompatibleLayoutError,
+      "IncompatibleLayoutError thrown",
+    );
+    const err = caught as Error;
+    assert(
+      err.message.includes("v3") || err.message.toLowerCase().includes("supported"),
+      `message names the supported version or phrase (got: ${err.message})`,
+    );
+  });
+
+  // E-P116 — inspectMigrationStatus pure-read semantics: calling it does
+  //          NOT write a marker even when the project has no marker yet.
+  //          Matches E-P29 (inspect mode does not auto-write) but via the
+  //          dedicated inspectMigrationStatus() entry instead of the guard.
+  await test("E-P116 inspectMigrationStatus never writes a marker", () => {
+    const projectRoot = makeTmpDir("e-p116");
+    fs.mkdirSync(path.join(projectRoot, ".onto"), { recursive: true });
+    // Verify no marker pre-call
+    const markerPath = path.join(projectRoot, ".onto", ".layout-version.yaml");
+    assert(!fs.existsSync(markerPath), "no marker before call");
+
+    const status = inspectMigrationStatus(projectRoot);
+    assertEqual(status.marker_present, false, "status reports no marker");
+    assertEqual(status.marker_compatible, false, "not compatible when absent");
+    assertEqual(status.legacy_session_count, 0, "no legacy sessions");
+
+    // Verify still no marker after call (pure read)
+    assert(!fs.existsSync(markerPath), "marker NOT written (pure read)");
+  });
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   process.stdout.write("\n");

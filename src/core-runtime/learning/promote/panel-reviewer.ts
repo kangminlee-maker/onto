@@ -403,17 +403,31 @@ export function validatePanelMemberReview(
     return { passed: false, failures };
   }
 
-  // Criteria 1~3 vs judgment coherence
+  // Criteria 1~5 vs verdict coherence (M-C fix: c4 is now in the all-yes
+  // gate, matching the prompt at line 196 which says promote is required when
+  // criteria 1..3 are yes AND criterion 4 is yes/uncertain AND criterion 5 is
+  // yes. Without c4 in the check, the validator wrongly rejected coherent
+  // responses like "c1-3 yes, c4 no, c5 yes, verdict defer" — the model
+  // correctly avoided promoting an item with bad axis tags, but the validator
+  // demanded promote anyway).
   const c = new Map(review.criteria.map((x) => [x.criterion, x.judgment]));
   const c1 = c.get(1);
   const c2 = c.get(2);
   const c3 = c.get(3);
+  const c4 = c.get(4);
   const c5 = c.get(5);
 
-  if (c1 === "yes" && c2 === "yes" && c3 === "yes" && c5 === "yes") {
+  const c4PassesGate = c4 === "yes" || c4 === "uncertain";
+  if (
+    c1 === "yes" &&
+    c2 === "yes" &&
+    c3 === "yes" &&
+    c4PassesGate &&
+    c5 === "yes"
+  ) {
     if (review.verdict !== "promote") {
       failures.push(
-        "criteria 1,2,3,5 all yes but verdict is not promote",
+        "criteria 1,2,3 yes + c4 yes/uncertain + c5 yes but verdict is not promote",
       );
     }
   }
@@ -679,7 +693,11 @@ function tallyVerdicts(
  *
  * Rules:
  *   - valid_member_count < 2 → panel_minimum_unmet (hard gate)
- *   - all promote → promote_3_3 (or promote_2_3 in 2-agent degraded panel)
+ *   - 3-agent panel + all promote → promote_3_3
+ *   - 2-agent degraded panel + both promote → promote_2_3
+ *     (m-1 fix: previously the n===2 unanimous case fell into the
+ *     promote_3_3 branch because tally.promote === n. The label was
+ *     misleading because there were only 2 members, not 3.)
  *   - strict majority promote (>= 2) → promote_2_3
  *   - strict majority defer (>= 2) → defer_majority
  *   - strict majority reject (>= 2) → reject_majority
@@ -692,6 +710,10 @@ export function aggregateConsensus(
 
   const tally = tallyVerdicts(validReviews);
   const n = validReviews.length;
+
+  // m-1 fix: 2-member degraded panel with both promoting maps to promote_2_3,
+  // not promote_3_3 (which implies a 3-member panel).
+  if (n === 2 && tally.promote === 2) return "promote_2_3";
 
   if (tally.promote === n) return "promote_3_3";
   if (tally.promote >= 2) return "promote_2_3";

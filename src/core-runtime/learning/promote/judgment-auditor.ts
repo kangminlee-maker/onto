@@ -291,9 +291,11 @@ interface AuditAgentResult {
   outcomes: AuditOutcome[];
   llm_calls: number;
   failure_reason?: string;
-  /** Number of judgment items the agent had — included so the failure
-   *  reporter can show scale to the operator. */
-  judgment_count: number;
+  /** Total number of judgment items the agent had at scan time. */
+  judgment_count_total: number;
+  /** Number of batches (chunks) that failed for this agent. 0 on success
+   *  (and on no_eligible_items, where there are no batches at all). */
+  failed_chunks_count: number;
 }
 
 interface RunAuditConfig {
@@ -314,8 +316,14 @@ interface RunAuditConfig {
  */
 const AUDIT_BATCH_SIZE = 12;
 
+/**
+ * Slice items into batches of `size` each. The constant AUDIT_BATCH_SIZE is
+ * a positive number; the dead `size <= 0` defensive branch was removed in
+ * the N-2 cleanup. If a future caller needs a configurable batch size and
+ * passes 0, the for-loop's `i += 0` would infinite-loop — that's an
+ * obviously broken contract that doesn't need silent special-casing.
+ */
 function chunk<T>(items: T[], size: number): T[][] {
-  if (size <= 0) return [items];
   const chunks: T[][] = [];
   for (let i = 0; i < items.length; i += size) {
     chunks.push(items.slice(i, i + size));
@@ -333,7 +341,8 @@ async function auditAgent(config: RunAuditConfig): Promise<AuditAgentResult> {
       kind: "no_eligible_items",
       outcomes: [],
       llm_calls: 0,
-      judgment_count: 0,
+      judgment_count_total: 0,
+      failed_chunks_count: 0,
     };
   }
 
@@ -441,12 +450,15 @@ async function auditAgent(config: RunAuditConfig): Promise<AuditAgentResult> {
     );
   }
 
-  if (failureReasons.length === 0) {
+  const failedChunksCount = failureReasons.length;
+
+  if (failedChunksCount === 0) {
     return {
       kind: "success",
       outcomes: allOutcomes,
       llm_calls: llmCalls,
-      judgment_count: judgmentItems.length,
+      judgment_count_total: judgmentItems.length,
+      failed_chunks_count: 0,
     };
   }
 
@@ -456,7 +468,8 @@ async function auditAgent(config: RunAuditConfig): Promise<AuditAgentResult> {
       outcomes: [],
       llm_calls: llmCalls,
       failure_reason: failureReasons.join(" | "),
-      judgment_count: judgmentItems.length,
+      judgment_count_total: judgmentItems.length,
+      failed_chunks_count: failedChunksCount,
     };
   }
 
@@ -468,7 +481,8 @@ async function auditAgent(config: RunAuditConfig): Promise<AuditAgentResult> {
     outcomes: allOutcomes,
     llm_calls: llmCalls,
     failure_reason: failureReasons.join(" | "),
-    judgment_count: judgmentItems.length,
+    judgment_count_total: judgmentItems.length,
+    failed_chunks_count: failedChunksCount,
   };
 }
 
@@ -598,7 +612,8 @@ export async function runJudgmentAudit(
       failedAgents.push({
         agent_id: e.agent_id,
         reason: `partial: ${result.failure_reason ?? "unknown"}`,
-        judgment_count: result.judgment_count,
+        judgment_count_total: result.judgment_count_total,
+        failed_chunks_count: result.failed_chunks_count,
       });
 
       if (e.obligation_id) {
@@ -632,7 +647,8 @@ export async function runJudgmentAudit(
     failedAgents.push({
       agent_id: e.agent_id,
       reason: result.failure_reason ?? "unknown failure",
-      judgment_count: result.judgment_count,
+      judgment_count_total: result.judgment_count_total,
+      failed_chunks_count: result.failed_chunks_count,
     });
 
     if (e.obligation_id) {

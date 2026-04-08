@@ -65,6 +65,7 @@ import {
   resolveRecoveryTruth,
   buildEscalationMessage,
   getSessionPromoteRoot,
+  EMERGENCY_LOG_PATH,
   type RecoveryResolutionPolicy,
 } from "../shared/recovery-context.js";
 import { verifyBaselineHash } from "./collector.js";
@@ -191,6 +192,78 @@ function decisionId(kind: string, identity: string): string {
   // Stable string id derived from per-decision identity. Used by
   // markApplied/markFailed to track pending → applied/failed transitions.
   return `${kind}::${identity}`;
+}
+
+/**
+ * Alias used by the apply-loop guards. Same shape as decisionId, named more
+ * explicitly so the call sites read as "the decision id for this kind".
+ */
+function decisionIdFor(
+  kind: AppliedDecision["decision_kind"],
+  identity: string,
+): string {
+  return decisionId(kind, identity);
+}
+
+/**
+ * Write an emergency log entry to ~/.onto/emergency-log.jsonl when
+ * persistApplyState fails. The entry preserves the in-memory state snapshot
+ * + attempt_id + generation so a future recovery run (gatherRecoveryContext)
+ * can reconstruct the apply state from this log even if the on-disk
+ * promote-execution-result.json is corrupted or missing.
+ *
+ * B-B fix: previously, persistApplyState failures were caught only at the
+ * outer catastrophic try, which then called persistApplyState AGAIN. If
+ * disk had already failed, the second call also failed and the executor
+ * crashed without recording the side effects anywhere durable. The
+ * emergency log gives recovery a fall-back source even when the in-band
+ * artifact is unwritable.
+ */
+interface EmergencyLogEntryArgs {
+  sessionId: string;
+  sessionRoot: string;
+  attemptId: string;
+  generation: number;
+  fatalErrorKind: "state_persistence_failed" | "emergency_log_double_failure";
+  fatalErrorMessage: string;
+  snapshot: ApplyExecutionState;
+}
+
+function writeEmergencyLogEntry(args: EmergencyLogEntryArgs): void {
+  const entry = {
+    schema_version: "1" as const,
+    entry_id: crypto.randomBytes(8).toString("hex"),
+    session_id: args.sessionId,
+    written_at: new Date().toISOString(),
+    attempt_id: args.attemptId,
+    generation: args.generation,
+    fatal_error_kind: args.fatalErrorKind,
+    fatal_error_message: args.fatalErrorMessage,
+    last_known_state_snapshot: {
+      status: args.snapshot.status,
+      applied_count: args.snapshot.applied_decisions.length,
+      failed_count: args.snapshot.failed_decisions.length,
+      pending_count: args.snapshot.pending_decisions.length,
+    },
+    recoverability_checkpoint: null,
+    partial_decisions_attempted: args.snapshot.applied_decisions,
+    session_root: args.sessionRoot,
+  };
+  try {
+    fs.mkdirSync(path.dirname(EMERGENCY_LOG_PATH), { recursive: true });
+    fs.appendFileSync(EMERGENCY_LOG_PATH, JSON.stringify(entry) + "\n", "utf8");
+  } catch (logError) {
+    // Double failure: emergency log itself can't be written. There is
+    // nothing more durable we can do — surface to stderr so at least the
+    // process output captures the loss.
+    process.stderr.write(
+      `[promote-executor] FATAL: emergency log write failed after persistence ` +
+        `failure. session=${args.sessionId} attempt=${args.attemptId} ` +
+        `gen=${args.generation} kind=${args.fatalErrorKind} ` +
+        `original_error=${args.fatalErrorMessage} ` +
+        `log_error=${logError instanceof Error ? logError.message : String(logError)}\n`,
+    );
+  }
 }
 
 function ensureFileExists(filePath: string): void {
@@ -574,20 +647,79 @@ function applyCrossAgentDedup(
   if (!decision.approve) return;
   const id = decisionId("cross_agent_dedup", decision.cluster_id);
   try {
-    // 1. Append consolidated entry to the primary owner's global file.
     const primaryPath = getGlobalLearningFilePath(
       cluster.primary_owner_agent,
       ctx.ontoHome,
     );
-    const learningId = hashLine(cluster.consolidated_line);
-    appendLearningLine(primaryPath, cluster.consolidated_line, learningId);
 
-    // 2. For each member item NOT owned by the primary, replace its line
-    //    with a consolidation marker. We keep the original text inside the
-    //    comment so the operator can recover it manually if needed.
+    // M-A idempotency check: if the primary file already contains a
+    // `<!-- cluster_id: <id> -->` marker for this cluster, the previous
+    // attempt already applied this dedup. Skip to avoid double-appending
+    // the consolidated line. Mirrors the domain doc applicator's slot_id
+    // check (C-4).
+    const clusterMarker = `<!-- cluster_id: ${decision.cluster_id} -->`;
+    if (fs.existsSync(primaryPath)) {
+      const existing = fs.readFileSync(primaryPath, "utf8");
+      if (existing.includes(clusterMarker)) {
+        ctx.state = markApplied(ctx.state, {
+          decision_kind: "cross_agent_dedup",
+          decision_id: id,
+          applied_at: new Date().toISOString(),
+          target_path: primaryPath,
+          result_summary: `cluster ${decision.cluster_id} already present, skipped`,
+        });
+        ctx.summary.cross_agent_dedup_applied += 1;
+        return;
+      }
+    }
+
+    // M-A preflight: verify EVERY non-primary member exists in its agent's
+    // file before mutating anything. If any preflight fails, abort the
+    // whole decision so we don't end up half-applied. The non-primary
+    // members are listed first because they're the ones that get marked.
+    const nonPrimaryMembers = cluster.member_items.filter(
+      (m) => m.agent_id !== cluster.primary_owner_agent,
+    );
+    const preflightFailures: string[] = [];
+    for (const member of nonPrimaryMembers) {
+      const memberPath = getGlobalLearningFilePath(
+        member.agent_id,
+        ctx.ontoHome,
+      );
+      if (!fs.existsSync(memberPath)) {
+        preflightFailures.push(
+          `${member.agent_id}: file ${memberPath} does not exist`,
+        );
+        continue;
+      }
+      const content = fs.readFileSync(memberPath, "utf8");
+      if (!content.split("\n").some((line) => line === member.raw_line)) {
+        preflightFailures.push(
+          `${member.agent_id}: line not found in ${memberPath}`,
+        );
+      }
+    }
+    if (preflightFailures.length > 0) {
+      throw new Error(
+        `cross_agent_dedup preflight failed for cluster ${decision.cluster_id}: ` +
+          preflightFailures.join("; "),
+      );
+    }
+
+    // Preflight passed — now mutate. The order matters: append consolidated
+    // entry first (this is the new addition that recovery needs), then mark
+    // each member. Because preflight already verified every member, the
+    // member writes are safe.
+    const learningId = hashLine(cluster.consolidated_line);
+    // Inject the cluster marker on a separate line so the idempotency check
+    // above finds it. Append happens via two-step write: append the line,
+    // then append the marker line. The marker is co-located so a single
+    // file scan recovers both.
+    appendLearningLine(primaryPath, cluster.consolidated_line, learningId);
+    fs.appendFileSync(primaryPath, `${clusterMarker}\n`, "utf8");
+
     let consolidatedCount = 0;
-    for (const member of cluster.member_items) {
-      if (member.agent_id === cluster.primary_owner_agent) continue;
+    for (const member of nonPrimaryMembers) {
       const memberPath = getGlobalLearningFilePath(
         member.agent_id,
         ctx.ontoHome,
@@ -595,7 +727,16 @@ function applyCrossAgentDedup(
       const date = new Date().toISOString().slice(0, 10);
       const marker = `<!-- consolidated (${date}) into ${decision.cluster_id}: ${member.raw_line} -->`;
       const ok = replaceLineInFile(memberPath, member.raw_line, marker);
-      if (ok) consolidatedCount += 1;
+      if (!ok) {
+        // Should never happen because preflight already verified the line
+        // exists. If it does, it means another process raced us — surface
+        // as a failure so the operator investigates.
+        throw new Error(
+          `cross_agent_dedup post-preflight race: ${member.agent_id} line ` +
+            `disappeared from ${memberPath} between preflight and mutation`,
+        );
+      }
+      consolidatedCount += 1;
     }
 
     ctx.state = markApplied(ctx.state, {
@@ -667,6 +808,20 @@ interface DomainDocLlmResult {
   llm_model_id: string;
 }
 
+/**
+ * Allowed reflection_form values per target document. m-4 fix: previously
+ * the LLM could return any string and the applicator would accept it; now
+ * the value is validated against the per-target allow-list. The mapping
+ * mirrors the prompt at DOMAIN_DOC_SYSTEM_PROMPT line ~635.
+ */
+const VALID_REFLECTION_FORMS: Readonly<
+  Record<DomainDocCandidate["target_doc"], readonly string[]>
+> = {
+  "concepts.md": ["add_term", "modify_definition"],
+  "competency_qs.md": ["add_question", "modify_question"],
+  "domain_scope.md": ["add_sub_area", "modify_scope", "add_standard"],
+};
+
 async function callDomainDocLlm(
   candidate: DomainDocCandidate,
   modelId?: string,
@@ -692,6 +847,14 @@ async function callDomainDocLlm(
   ) {
     throw new Error(
       `domain doc LLM returned invalid shape: reflection_form=${typeof parsed.reflection_form}, content=${typeof parsed.content}`,
+    );
+  }
+  // m-4 enum validation: reflection_form must be in the per-target allow-list.
+  const allowed = VALID_REFLECTION_FORMS[candidate.target_doc];
+  if (!allowed.includes(parsed.reflection_form)) {
+    throw new Error(
+      `domain doc LLM returned invalid reflection_form "${parsed.reflection_form}" ` +
+        `for target ${candidate.target_doc}. Allowed: ${allowed.join(", ")}`,
     );
   }
   return {
@@ -1051,6 +1214,12 @@ export async function runPromoteExecutor(
 
   // -------------------------------------------------------------------------
   // Step 7: Apply approved decisions (each one persists state)
+  //
+  // B-A fix: build a Set of pending decision keys (decision_kind:decision_id)
+  // and filter every decision from the input arrays through it before
+  // applying. This guards the resume path: previously, the apply loop
+  // iterated `decisions.X` directly, so already-applied decisions would
+  // re-mutate files and then crash markApplied with "not found in pending".
   // -------------------------------------------------------------------------
   const auditState = loadAuditState(auditStatePath);
   const summary: ExecutionSummary = emptySummary();
@@ -1062,36 +1231,117 @@ export async function runPromoteExecutor(
     ...(config.ontoHome !== undefined ? { ontoHome: config.ontoHome } : {}),
   };
 
+  // Snapshot the pending key set BEFORE the loop. The set is captured once;
+  // we don't recompute from ctx.state.pending_decisions on each iteration
+  // because each markApplied removes the key, which would cause subsequent
+  // pending checks to skip everything.
+  const pendingKeys = new Set(
+    state.pending_decisions.map((p) => `${p.decision_kind}:${p.decision_id}`),
+  );
+  const isPending = (kind: AppliedDecision["decision_kind"], id: string): boolean =>
+    pendingKeys.has(`${kind}:${id}`);
+
+  // Helper that wraps each per-decision step. It checks pending membership,
+  // calls the applicator, then persists state. Persistence failures are
+  // routed through writeEmergencyLogEntry (B-B fix) so applied side effects
+  // never go un-recorded.
+  const applyAndPersist = async (
+    kind: AppliedDecision["decision_kind"],
+    decisionId: string,
+    apply: () => void | Promise<void>,
+  ): Promise<void> => {
+    if (!isPending(kind, decisionId)) {
+      // Already applied (resume case) — skip without re-mutating.
+      return;
+    }
+    await apply();
+    try {
+      persistApplyState(sessionRoot, ctx.state);
+    } catch (persistError) {
+      // B-B fix: persistence failure path. Write an emergency-log entry so
+      // the side effects don't go un-recorded, then re-throw to abort the
+      // loop. The catastrophic catch below will surface this as
+      // failed_resumable to the caller.
+      writeEmergencyLogEntry({
+        sessionId: config.sessionId,
+        sessionRoot,
+        attemptId: ctx.state.attempt_id,
+        generation: ctx.state.generation,
+        fatalErrorKind: "state_persistence_failed",
+        fatalErrorMessage:
+          persistError instanceof Error
+            ? persistError.message
+            : String(persistError),
+        snapshot: ctx.state,
+      });
+      throw persistError;
+    }
+  };
+
   try {
     for (const d of decisions.promotions) {
-      applyPromotion(d, ctx);
-      persistApplyState(sessionRoot, ctx.state);
+      const id = decisionIdFor("promotion", `${d.candidate_agent_id}|${d.candidate_line}`);
+      await applyAndPersist("promotion", id, () => applyPromotion(d, ctx));
     }
     for (const d of decisions.contradiction_replacements) {
-      applyContradictionReplacement(d, ctx);
-      persistApplyState(sessionRoot, ctx.state);
+      const id = decisionIdFor(
+        "contradiction_replacement",
+        `${d.agent_id}|${d.existing_line}`,
+      );
+      await applyAndPersist("contradiction_replacement", id, () =>
+        applyContradictionReplacement(d, ctx),
+      );
     }
     for (const d of decisions.axis_tag_changes) {
-      applyAxisTagChange(d, ctx);
-      persistApplyState(sessionRoot, ctx.state);
+      const id = decisionIdFor("axis_tag_change", `${d.agent_id}|${d.original_line}`);
+      await applyAndPersist("axis_tag_change", id, () => applyAxisTagChange(d, ctx));
     }
     for (const d of decisions.retirements) {
-      applyRetirement(d, ctx, auditState);
-      persistApplyState(sessionRoot, ctx.state);
+      const id = decisionIdFor("retirement", `${d.agent_id}|${d.line_excerpt}`);
+      await applyAndPersist("retirement", id, () =>
+        applyRetirement(d, ctx, auditState),
+      );
     }
     for (const d of decisions.audit_outcomes) {
-      applyAuditOutcome(d, ctx);
-      persistApplyState(sessionRoot, ctx.state);
+      const id = decisionIdFor("audit_outcome", `${d.agent_id}|${d.line_excerpt}`);
+      await applyAndPersist("audit_outcome", id, () => applyAuditOutcome(d, ctx));
     }
     for (const d of decisions.audit_obligations_waived) {
-      applyObligationWaive(
-        d.obligation_id,
-        d.reason,
-        ctx,
-        auditState,
-        config.sessionId,
-      );
-      persistApplyState(sessionRoot, ctx.state);
+      const id = decisionIdFor("obligation_waive", d.obligation_id);
+      // M-B fix: save audit-state IMMEDIATELY after each successful waive so
+      // a mid-loop crash doesn't leave apply-state ahead of the canonical
+      // ledger. Previously the audit-state save was deferred to the end of
+      // the loop.
+      await applyAndPersist("obligation_waive", id, () => {
+        applyObligationWaive(
+          d.obligation_id,
+          d.reason,
+          ctx,
+          auditState,
+          config.sessionId,
+        );
+      });
+      // Save audit-state right after the per-step persistence. We do it
+      // here (not inside applyAndPersist) because only obligation_waive
+      // mutates audit-state.
+      try {
+        saveAuditState(auditState, auditStatePath);
+      } catch (auditPersistError) {
+        writeEmergencyLogEntry({
+          sessionId: config.sessionId,
+          sessionRoot,
+          attemptId: ctx.state.attempt_id,
+          generation: ctx.state.generation,
+          fatalErrorKind: "state_persistence_failed",
+          fatalErrorMessage:
+            "audit-state save after obligation_waive failed: " +
+            (auditPersistError instanceof Error
+              ? auditPersistError.message
+              : String(auditPersistError)),
+          snapshot: ctx.state,
+        });
+        throw auditPersistError;
+      }
     }
 
     // Cross-agent dedup: look up the cluster from the report by cluster_id.
@@ -1100,11 +1350,14 @@ export async function runPromoteExecutor(
     );
     for (const d of decisions.cross_agent_dedup_approvals) {
       if (!d.approve) continue;
+      const id = decisionIdFor("cross_agent_dedup", d.cluster_id);
+      if (!isPending("cross_agent_dedup", id)) continue;
+
       const cluster = clusterById.get(d.cluster_id);
       if (!cluster) {
         ctx.state = markFailed(ctx.state, {
           decision_kind: "cross_agent_dedup",
-          decision_id: decisionId("cross_agent_dedup", d.cluster_id),
+          decision_id: id,
           attempted_at: new Date().toISOString(),
           error_message: `cluster_id ${d.cluster_id} not in report.cross_agent_dedup_clusters`,
           resumable: false,
@@ -1114,7 +1367,23 @@ export async function runPromoteExecutor(
         continue;
       }
       applyCrossAgentDedup(d, cluster, ctx);
-      persistApplyState(sessionRoot, ctx.state);
+      try {
+        persistApplyState(sessionRoot, ctx.state);
+      } catch (persistError) {
+        writeEmergencyLogEntry({
+          sessionId: config.sessionId,
+          sessionRoot,
+          attemptId: ctx.state.attempt_id,
+          generation: ctx.state.generation,
+          fatalErrorKind: "state_persistence_failed",
+          fatalErrorMessage:
+            persistError instanceof Error
+              ? persistError.message
+              : String(persistError),
+          snapshot: ctx.state,
+        });
+        throw persistError;
+      }
     }
 
     // Domain doc updates: look up the candidate from the report by slot_id +
@@ -1127,16 +1396,16 @@ export async function runPromoteExecutor(
     );
     for (const d of decisions.domain_doc_updates) {
       if (!d.approve) continue;
+      const id = decisionIdFor("domain_doc_update", `${d.slot_id}|${d.instance_id}`);
+      if (!isPending("domain_doc_update", id)) continue;
+
       const candidate = candidateBySlotInstance.get(
         `${d.slot_id}|${d.instance_id}`,
       );
       if (!candidate) {
         ctx.state = markFailed(ctx.state, {
           decision_kind: "domain_doc_update",
-          decision_id: decisionId(
-            "domain_doc_update",
-            `${d.slot_id}|${d.instance_id}`,
-          ),
+          decision_id: id,
           attempted_at: new Date().toISOString(),
           error_message: `domain doc candidate ${d.slot_id}|${d.instance_id} not in report.domain_doc_candidates`,
           resumable: false,
@@ -1146,7 +1415,23 @@ export async function runPromoteExecutor(
         continue;
       }
       await applyDomainDocUpdate(candidate, ctx, config.modelId);
-      persistApplyState(sessionRoot, ctx.state);
+      try {
+        persistApplyState(sessionRoot, ctx.state);
+      } catch (persistError) {
+        writeEmergencyLogEntry({
+          sessionId: config.sessionId,
+          sessionRoot,
+          attemptId: ctx.state.attempt_id,
+          generation: ctx.state.generation,
+          fatalErrorKind: "state_persistence_failed",
+          fatalErrorMessage:
+            persistError instanceof Error
+              ? persistError.message
+              : String(persistError),
+          snapshot: ctx.state,
+        });
+        throw persistError;
+      }
     }
   } catch (error) {
     // Catastrophic mid-loop failure (e.g., file system error). Mark state as
@@ -1162,8 +1447,10 @@ export async function runPromoteExecutor(
     };
   }
 
-  // Persist mutated audit-state for obligation waives.
-  saveAuditState(auditState, auditStatePath);
+  // M-B fix: audit-state is now saved per-step inside the obligation_waive
+  // applicator above (immediately after each successful waive), so a
+  // mid-loop crash leaves apply-state and audit-state consistent. The
+  // trailing save here would be redundant.
 
   // -------------------------------------------------------------------------
   // Step 8: Determine final status

@@ -393,8 +393,8 @@ async function main(): Promise<void> {
     const result = validatePanelMemberReview(review);
     assert(!result.passed, "should fail");
     assert(
-      result.failures.some((f) => f.includes("all yes but verdict")),
-      "right reason",
+      result.failures.some((f) => f.includes("verdict is not promote")),
+      "right reason (mentions verdict is not promote)",
     );
   });
 
@@ -793,10 +793,14 @@ async function main(): Promise<void> {
         auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
       });
       assertEqual(result.report.panel_verdicts.length, 1, "1 panel verdict produced");
-      assertEqual(
-        result.report.panel_verdicts[0]!.consensus,
-        "promote_3_3",
-        "mock returns promote_3_3 (or 2_3 if 2-agent)",
+      const consensus = result.report.panel_verdicts[0]!.consensus;
+      // m-1 fix: 2-member panel maps to promote_2_3, not promote_3_3.
+      // The fixture may produce a 2-member or 3-member panel depending on
+      // which agents the mock home directory exposes; both unanimous
+      // outcomes are valid here.
+      assert(
+        consensus === "promote_3_3" || consensus === "promote_2_3",
+        `expected unanimous promote consensus, got ${consensus}`,
       );
       assert(
         result.report.audit_summary.execution.audited_agents.includes("philosopher"),
@@ -1481,9 +1485,13 @@ async function main(): Promise<void> {
         "failed agent id",
       );
       assertEqual(
-        result.report.audit_summary.failed_agents[0]!.judgment_count,
+        result.report.audit_summary.failed_agents[0]!.judgment_count_total,
         11,
-        "judgment_count surfaced for operator visibility",
+        "judgment_count_total surfaced for operator visibility",
+      );
+      assert(
+        result.report.audit_summary.failed_agents[0]!.failed_chunks_count >= 1,
+        "failed_chunks_count >= 1 for blocked agent",
       );
     } finally {
       if (previousHome === undefined) delete process.env.HOME;
@@ -1548,6 +1556,499 @@ async function main(): Promise<void> {
     );
     if (outcome.kind !== "failed_resumable") return;
     assertEqual(outcome.summary.failed_decisions, 1, "1 failed decision");
+  });
+
+  // -------------------------------------------------------------------------
+  // Review fix coverage (PR review BLOCKING + MAJOR + MINOR + NIT fixes)
+  // -------------------------------------------------------------------------
+
+  // E-P40 — B-A: resume path filters already-applied decisions
+  await test("E-P40 resume skips already-applied decisions (no double-write)", async () => {
+    const projectRoot = makeTmpDir("e-p40");
+    const fakeOnto = makeTmpDir("e-p40-home");
+    const projectLine =
+      "- [fact] [methodology] [foundation] resume-target (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", projectLine].join("\n"),
+    );
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-40",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-40",
+      prepared_at: new Date().toISOString(),
+      promotions: [
+        {
+          candidate_agent_id: "structure",
+          candidate_line: projectLine,
+          approve: true,
+        },
+      ],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    // First apply
+    const out1 = await runPromoteExecutor({
+      sessionId: "test-40",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    assertEqual(out1.kind, "completed", "first apply completed");
+
+    // Capture global file size after first apply
+    const globalFile = path.join(fakeOnto, "learnings", "structure.md");
+    const sizeAfterFirst = fs.statSync(globalFile).size;
+
+    // Second apply with --resume flag — should NOT re-write the line.
+    // Pre-fix bug: would double-append AND crash with markApplied error.
+    // forceStale is needed because the first apply annotated the project
+    // file (`(-> promoted to global, ...)`) which changed the baseline hash.
+    // The point of this test is the resume skip logic, not freshness check.
+    const out2 = await runPromoteExecutor({
+      sessionId: "test-40",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+      resume: true,
+      forceStale: true,
+    });
+    assertEqual(out2.kind, "completed", "resume completed without crash");
+
+    const sizeAfterSecond = fs.statSync(globalFile).size;
+    assertEqual(
+      sizeAfterFirst,
+      sizeAfterSecond,
+      "global file unchanged on resume (no double-write)",
+    );
+  });
+
+  // E-P41 — M-A: cross-agent dedup preflight rejects on missing member
+  await test("E-P41 cross_agent_dedup preflight fails on missing member file", async () => {
+    const projectRoot = makeTmpDir("e-p41");
+    const fakeOnto = makeTmpDir("e-p41-home");
+    const lineA =
+      "- [fact] [methodology] [foundation] preflight-a (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", lineA].join("\n"),
+    );
+    // intentionally NO logic.md — preflight should detect this
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-41",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const cluster = {
+      cluster_id: "preflight-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "test",
+      consolidated_principle: "test",
+      representative_cases: [],
+      member_items: [
+        { ...syntheticItem({ agent_id: "structure" }), raw_line: lineA },
+        {
+          ...syntheticItem({ agent_id: "logic" }),
+          raw_line: "- [fact] [methodology] [foundation] missing (source: p, d, 2026-01-01) [impact:normal]",
+        },
+      ],
+      consolidated_line:
+        "- [fact] [methodology] [foundation] consolidated (source: cluster, d, 2026-04-08) [impact:normal]",
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(promoter.reportPath, JSON.stringify(promoter.report, null, 2));
+
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-41",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [{ cluster_id: "preflight-test", approve: true }],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    // Capture structure.md size BEFORE the failing apply.
+    const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+    const sizeBefore = fs.statSync(structurePath).size;
+
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-41",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    assertEqual(outcome.kind, "failed_resumable", "preflight failure marks failed");
+    if (outcome.kind !== "failed_resumable") return;
+    assertEqual(outcome.summary.failed_decisions, 1, "1 failed decision");
+    assertEqual(outcome.summary.cross_agent_dedup_applied, 0, "no cluster applied");
+
+    // Critical: structure.md should be UNCHANGED — preflight aborted before
+    // the consolidated line was appended.
+    const sizeAfter = fs.statSync(structurePath).size;
+    assertEqual(
+      sizeBefore,
+      sizeAfter,
+      "primary file untouched on preflight failure",
+    );
+  });
+
+  // E-P42 — M-A: cross-agent dedup is idempotent on retry
+  await test("E-P42 cross_agent_dedup skips re-application via cluster_id marker", async () => {
+    const projectRoot = makeTmpDir("e-p42");
+    const fakeOnto = makeTmpDir("e-p42-home");
+    const lineA =
+      "- [fact] [methodology] [foundation] idem-a (source: p, d, 2026-01-01) [impact:normal]";
+    const lineB =
+      "- [fact] [methodology] [foundation] idem-b (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", lineA].join("\n"),
+    );
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "logic",
+      ["<!-- format_version: 1 -->", lineB].join("\n"),
+    );
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-42",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const consolidatedLine =
+      "- [fact] [methodology] [foundation] idem-consolidated (source: cluster, d, 2026-04-08) [impact:normal]";
+    const cluster = {
+      cluster_id: "idem-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "test",
+      consolidated_principle: "test",
+      representative_cases: [],
+      member_items: [
+        { ...syntheticItem({ agent_id: "structure" }), raw_line: lineA },
+        { ...syntheticItem({ agent_id: "logic" }), raw_line: lineB },
+      ],
+      consolidated_line: consolidatedLine,
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(promoter.reportPath, JSON.stringify(promoter.report, null, 2));
+
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-42",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [{ cluster_id: "idem-test", approve: true }],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    // First apply
+    const out1 = await runPromoteExecutor({
+      sessionId: "test-42",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    assertEqual(out1.kind, "completed", "first apply completed");
+
+    const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+    const sizeAfterFirst = fs.statSync(structurePath).size;
+
+    // Reset apply-state and re-run
+    fs.rmSync(path.join(promoter.sessionRoot, "promote-execution-result.json"), {
+      force: true,
+    });
+
+    const out2 = await runPromoteExecutor({
+      sessionId: "test-42",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+      forceStale: true,
+    });
+    assertEqual(out2.kind, "completed", "second apply completed");
+
+    const sizeAfterSecond = fs.statSync(structurePath).size;
+    assertEqual(
+      sizeAfterFirst,
+      sizeAfterSecond,
+      "primary file unchanged on idempotent re-apply",
+    );
+  });
+
+  // E-P43 — M-C: validator accepts c4=no with non-promote verdict
+  await test("E-P43 validator allows c4=no + verdict=defer", () => {
+    const review = syntheticReview("promote");
+    review.verdict = "defer";
+    // c1-c3 yes, c4 no, c5 yes — coherent: defer because axis tags need work
+    review.criteria = [
+      { criterion: 1, judgment: "yes", reasoning: "g" },
+      { criterion: 2, judgment: "yes", reasoning: "a" },
+      { criterion: 3, judgment: "yes", reasoning: "c" },
+      { criterion: 4, judgment: "no", reasoning: "axis tags wrong" },
+      { criterion: 5, judgment: "yes", reasoning: "u" },
+    ];
+    const result = validatePanelMemberReview(review);
+    assert(result.passed, `should pass; failures: ${result.failures.join("; ")}`);
+  });
+
+  // E-P44 — m-1: 2-member unanimous panel returns promote_2_3
+  await test("E-P44 2-member unanimous panel returns promote_2_3 not promote_3_3", () => {
+    const a = syntheticReview("promote");
+    a.member = { agent_id: "structure", role: "originator", reachable: true };
+    const b = syntheticReview("promote");
+    b.member = { agent_id: "philosopher", role: "philosopher", reachable: true };
+    assertEqual(aggregateConsensus([a, b]), "promote_2_3", "2-member unanimous → 2_3");
+  });
+
+  // E-P45 — m-2: empty resolution_history input throws
+  await test("E-P45 saveRecoveryResolution rejects empty resolution_history", () => {
+    const projectRoot = makeTmpDir("e-p45");
+    fs.mkdirSync(
+      path.join(projectRoot, ".onto", "sessions", "promote", "test-45"),
+      { recursive: true },
+    );
+    let threw = false;
+    try {
+      saveRecoveryResolution(projectRoot, {
+        schema_version: "1",
+        session_id: "test-45",
+        resolved_at: "2026-04-08T10:00:00Z",
+        resolved_by: "operator",
+        resolution_method: "cli_command",
+        selected_attempt_id: "01ATTEMPT",
+        selected_attempt_reason: "test",
+        all_attempts_at_resolution_time: [],
+        resolution_history: [],
+      });
+    } catch (error) {
+      threw =
+        error instanceof Error &&
+        error.message.includes("resolution_history must contain");
+    }
+    assert(threw, "should throw on empty history");
+  });
+
+  // E-P46 — m-3: failed_chunks_count surfaces alongside total
+  await test("E-P46 failed_agents.failed_chunks_count exposes failed batch count", async () => {
+    const previousMock = process.env.ONTO_LLM_MOCK;
+    delete process.env.ONTO_LLM_MOCK;
+    process.env.ONTO_LLM_MOCK = "0";
+
+    const projectRoot = makeTmpDir("e-p46");
+    const fakeOnto = makeTmpDir("e-p46-home");
+    // 25 items → 3 batches → all 3 fail (no LLM provider)
+    writeLearningFile(
+      path.join(fakeOnto, ".onto", "learnings"),
+      "philosopher",
+      [
+        "<!-- format_version: 1 -->",
+        ...Array.from({ length: 25 }, (_, i) =>
+          `- [judgment] [methodology] [foundation] m3-${i} (source: p, d, 2026-01-01) [impact:normal]`,
+        ),
+      ].join("\n"),
+    );
+    const previousHome = process.env.HOME;
+    process.env.HOME = fakeOnto;
+    try {
+      const result = await runPromoter({
+        mode: "promote",
+        sessionId: "test-46",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        skipPanel: true,
+      });
+      const failed = result.report.audit_summary.failed_agents.find(
+        (f) => f.agent_id === "philosopher",
+      );
+      assert(failed !== undefined, "philosopher in failed_agents");
+      assertEqual(failed!.judgment_count_total, 25, "total = 25");
+      assert(failed!.failed_chunks_count >= 1, "at least 1 chunk failed");
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousMock === undefined) delete process.env.ONTO_LLM_MOCK;
+      else process.env.ONTO_LLM_MOCK = previousMock;
+    }
+  });
+
+  // E-P47 — m-4: invalid reflection_form is rejected
+  await test("E-P47 domain doc applicator rejects invalid reflection_form", async () => {
+    // Use mock LLM with a custom override — the easiest way to inject an
+    // invalid reflection_form is to monkey-patch process.env to put the
+    // mock into a known-bad state. Since the mock returns "add_term"
+    // (valid for concepts.md), we instead test by using a target_doc that
+    // doesn't accept add_term — e.g., domain_scope.md.
+    //
+    // The mock always returns add_term regardless of target. For
+    // domain_scope.md the validator should reject add_term because it's
+    // not in the per-target allow-list.
+    const projectRoot = makeTmpDir("e-p47");
+    const fakeOnto = makeTmpDir("e-p47-home");
+    // coverage agent → domain_scope.md
+    const projectLine =
+      "- [fact] [methodology] [domain/finance] [foundation] e-p47 scope item (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "coverage",
+      ["<!-- format_version: 1 -->", projectLine].join("\n"),
+    );
+    writeLearningFile(
+      path.join(fakeOnto, ".onto", "learnings"),
+      "philosopher",
+      ["<!-- format_version: 1 -->"].join("\n"),
+    );
+
+    const previousHome = process.env.HOME;
+    process.env.HOME = fakeOnto;
+    try {
+      const promoter = await runPromoter({
+        mode: "promote",
+        sessionId: "test-47",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        skipAudit: true,
+      });
+      assertEqual(
+        promoter.report.domain_doc_candidates.length,
+        1,
+        "1 domain doc candidate (coverage → domain_scope.md)",
+      );
+      const candidate = promoter.report.domain_doc_candidates[0]!;
+      assertEqual(candidate.target_doc, "domain_scope.md", "target");
+
+      const decisions: PromoteDecisions = {
+        schema_version: "1",
+        session_id: "test-47",
+        prepared_at: new Date().toISOString(),
+        promotions: [
+          {
+            candidate_agent_id: "coverage",
+            candidate_line: projectLine,
+            approve: true,
+          },
+        ],
+        contradiction_replacements: [],
+        cross_agent_dedup_approvals: [],
+        axis_tag_changes: [],
+        retirements: [],
+        domain_doc_updates: [
+          {
+            slot_id: candidate.slot_id,
+            instance_id: candidate.instance_id,
+            approve: true,
+          },
+        ],
+        audit_outcomes: [],
+        audit_obligations_waived: [],
+      };
+      fs.writeFileSync(
+        path.join(promoter.sessionRoot, "promote-decisions.json"),
+        JSON.stringify(decisions, null, 2),
+      );
+
+      const outcome = await runPromoteExecutor({
+        sessionId: "test-47",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+        sessionRoot: promoter.sessionRoot,
+      });
+      // Mock returns "add_term" which is not in domain_scope.md's allow-list.
+      // The applicator should mark this as failed with the enum reason.
+      assertEqual(
+        outcome.kind,
+        "failed_resumable",
+        "outcome failed due to invalid reflection_form",
+      );
+      if (outcome.kind !== "failed_resumable") return;
+      assertEqual(
+        outcome.summary.domain_doc_updates_applied,
+        0,
+        "no domain doc applied",
+      );
+      assertEqual(outcome.summary.failed_decisions, 1, "1 failed decision");
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+    }
+  });
+
+  // E-P48 — N-1: mock LLM throws on unknown prompt
+  await test("E-P48 mock LLM rejects unknown system prompt", async () => {
+    const { callLlm } = await import("../shared/llm-caller.js");
+    let threw = false;
+    try {
+      await callLlm(
+        "You are an unknown agent doing something the mock doesn't recognize",
+        "test",
+        { max_tokens: 10 },
+      );
+    } catch (error) {
+      threw =
+        error instanceof Error && error.message.includes("no pattern matched");
+    }
+    assert(threw, "mock should throw on unknown prompt");
   });
 
   // -------------------------------------------------------------------------

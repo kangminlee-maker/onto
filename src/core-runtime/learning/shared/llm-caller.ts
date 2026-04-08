@@ -246,9 +246,10 @@ const MOCK_MODEL_ID = "mock-llm-deterministic";
  *   - Domain doc proposer Phase B (reflection_form + content)
  *   - Phase 2 semantic classifier (decision)
  *
- * If no pattern matches, the call falls through to a generic "ok" response so
- * legacy callers (Phase 2 classifier with arbitrary prompts) get something
- * harmless rather than a runtime error.
+ * N-1 fix: previously, unknown prompts fell through to a generic "ok" string,
+ * which made prompt drift a downstream parse failure instead of an immediate
+ * mock-dispatch failure. Now unknown prompts raise an error so test breakage
+ * surfaces at the mock layer with the actual prompt prefix in the message.
  */
 function callMockProvider(
   systemPrompt: string,
@@ -320,7 +321,17 @@ function callMockProvider(
       reason: "mock — no overlap detected",
     });
   } else {
-    text = "ok";
+    // N-1 fail-loud: unknown prompt → throw with the prefix so tests
+    // immediately point at the prompt that drifted. The previous "ok"
+    // fallback masked drift behind a downstream JSON parse failure.
+    const prefix = systemPrompt.slice(0, 80).replace(/\n/g, " ");
+    return Promise.reject(
+      new Error(
+        `mock LLM provider: no pattern matched system prompt prefix "${prefix}". ` +
+          `If this is a new Phase 3 prompt, add a matching branch in callMockProvider. ` +
+          `If this is an old prompt that changed, update the matching prefix.`,
+      ),
+    );
   }
 
   return Promise.resolve({

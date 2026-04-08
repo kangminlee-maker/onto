@@ -348,6 +348,23 @@ export function saveRecoveryResolution(
   projectRoot: string,
   resolution: RecoveryResolution,
 ): void {
+  // m-2 fix: validate input contract before touching disk. Empty
+  // resolution_history would crash on the [length-1] access below; throw
+  // explicitly so the caller knows their input is malformed.
+  if (resolution.resolution_history.length === 0) {
+    throw new Error(
+      `saveRecoveryResolution: resolution_history must contain at least one entry ` +
+        `(got 0). The caller is expected to pass a single-entry history; merging ` +
+        `with prior entries is handled here.`,
+    );
+  }
+
+  // N-3 acknowledged: this load → merge → save sequence is not atomic across
+  // processes. Two concurrent `onto promote --resolve-conflict` invocations
+  // for the same session could lose updates. Phase 3 is single-process per
+  // session by design; cross-process coordination is a follow-up requiring a
+  // file lock or rename-temp pattern. Documented as a known limitation.
+
   const p = getRecoveryResolutionPath(projectRoot, resolution.session_id);
 
   // Load prior history if any. We probe via fs.existsSync to distinguish
@@ -361,14 +378,13 @@ export function saveRecoveryResolution(
     priorHistory = prior.resolution_history;
   }
 
-  const newEntry =
-    resolution.resolution_history.length === 1
-      ? resolution.resolution_history[0]!
-      : // Defensive: if caller passed an already-merged history (e.g., during
-        // a programmatic copy operation), use the LAST entry as the new
-        // decision and treat the earlier entries as prior history they wanted
-        // to preserve.
-        resolution.resolution_history[resolution.resolution_history.length - 1]!;
+  // The caller passes a single-entry resolution_history with the new decision.
+  // We expand it with the prior entries during merge. Multi-entry input is
+  // rejected by the length check above so the LAST-entry fallback is no longer
+  // needed.
+  const newEntry = resolution.resolution_history[
+    resolution.resolution_history.length - 1
+  ]!;
 
   const merged: RecoveryResolution = {
     schema_version: "1",

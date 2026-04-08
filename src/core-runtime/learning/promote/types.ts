@@ -436,8 +436,24 @@ export interface AuditSummary {
 export interface AuditFailedAgent {
   agent_id: string;
   reason: string;
-  /** Items the agent had — useful for the operator to see scale before retry. */
-  judgment_count: number;
+  /**
+   * Total number of judgment items the agent had at scan time. Lets the
+   * operator see scale before deciding whether to retry. NOT a count of
+   * items that failed — see failed_chunks_count for that.
+   *
+   * m-3 fix: previously this field was named `judgment_count` which was
+   * ambiguous in the partial-success case (where some chunks succeed and
+   * some fail). It is now explicitly the TOTAL count.
+   */
+  judgment_count_total: number;
+  /**
+   * Number of batches that failed within this agent. In the "blocked" case
+   * (whole agent failed) this equals the total batch count for the agent.
+   * In the "partial" case it equals the number of failed chunks; the
+   * remaining chunks are reflected in the audited_items_count via the
+   * agent's outcomes.
+   */
+  failed_chunks_count: number;
 }
 
 export interface ObligationProcessed {

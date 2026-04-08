@@ -5,9 +5,32 @@
  *   1. ONTO_LLM_MOCK=1 → in-process mock provider (test only)
  *   2. ANTHROPIC_API_KEY env var → Anthropic API
  *   3. OPENAI_API_KEY env var → OpenAI API
- *   4. ~/.codex/auth.json → OpenAI API (Codex CLI credentials)
+ *   4. ~/.codex/auth.json (`OPENAI_API_KEY` field) → OpenAI API
+ *      (only the API-key mode of codex CLI auth is supported. The chatgpt
+ *      OAuth mode is intentionally NOT honored — see "Why no OAuth fallback"
+ *      below.)
  *
  * model_id fixed per provider (no floating alias — U2).
+ *
+ * Why no OAuth fallback:
+ *   Production validation B-1 (2026-04-08) found that the chatgpt OAuth
+ *   `tokens.access_token` from ~/.codex/auth.json fails when used as an
+ *   OpenAI API key against api.openai.com:
+ *
+ *     401 You have insufficient permissions for this operation.
+ *     Missing scopes: model.request.
+ *
+ *   The chatgpt OAuth token authenticates against chatgpt.com's backend
+ *   (which uses a different wire format and endpoint set than the public
+ *   OpenAI API). Treating it as an OpenAI API key is structurally wrong:
+ *   the codex CLI uses it via its own backend, but onto's llm-caller calls
+ *   the public OpenAI SDK, which only accepts proper sk-... API keys.
+ *
+ *   Previously this fallback was present and silently broken — operators
+ *   discovered the failure only at first LLM call. Now the resolver fails
+ *   fast with a clear instruction to set ANTHROPIC_API_KEY or a real
+ *   OPENAI_API_KEY (or run `codex login` with API key mode rather than
+ *   chatgpt mode).
  *
  * Mock provider:
  *   When ONTO_LLM_MOCK=1 is set, callLlm() routes to an in-process mock that
@@ -60,7 +83,9 @@ interface ResolvedProvider {
 
 /**
  * Resolve the best available LLM provider.
- * Priority: ANTHROPIC_API_KEY → OPENAI_API_KEY → ~/.codex/auth.json
+ *
+ * Priority: ANTHROPIC_API_KEY → OPENAI_API_KEY env → ~/.codex/auth.json
+ * (only the OPENAI_API_KEY field, not chatgpt OAuth — see file header).
  */
 function resolveProvider(preferred?: "anthropic" | "openai"): ResolvedProvider {
   // 1. Explicit ANTHROPIC_API_KEY
@@ -81,13 +106,16 @@ function resolveProvider(preferred?: "anthropic" | "openai"): ResolvedProvider {
     };
   }
 
-  // 3. Codex CLI credentials (~/.codex/auth.json)
-  //    Supports both API key mode (OPENAI_API_KEY) and OAuth mode (tokens.access_token)
+  // 3. Codex CLI credentials (~/.codex/auth.json) — API-key mode ONLY.
+  //    The chatgpt OAuth mode is intentionally not honored: the OAuth
+  //    token authenticates against chatgpt.com, not api.openai.com, and
+  //    silently 401s with "Missing scopes: model.request" when used as
+  //    an OpenAI API key. See file header "Why no OAuth fallback".
+  let chatgptOAuthSeen = false;
   const codexAuthPath = path.join(os.homedir(), ".codex", "auth.json");
   if (fs.existsSync(codexAuthPath)) {
     try {
       const auth = JSON.parse(fs.readFileSync(codexAuthPath, "utf8"));
-      // API key mode
       if (typeof auth.OPENAI_API_KEY === "string" && auth.OPENAI_API_KEY.length > 0) {
         return {
           provider: "openai",
@@ -95,16 +123,16 @@ function resolveProvider(preferred?: "anthropic" | "openai"): ResolvedProvider {
           defaultModel: DEFAULT_OPENAI_MODEL,
         };
       }
-      // OAuth mode (chatgpt auth_mode)
-      if (auth.tokens?.access_token && typeof auth.tokens.access_token === "string") {
-        return {
-          provider: "openai",
-          apiKey: auth.tokens.access_token,
-          defaultModel: DEFAULT_OPENAI_MODEL,
-        };
+      // Detect chatgpt OAuth presence so we can guide the user explicitly.
+      if (
+        auth.auth_mode === "chatgpt" ||
+        (auth.tokens && typeof auth.tokens.access_token === "string")
+      ) {
+        chatgptOAuthSeen = true;
       }
     } catch {
-      // Fall through
+      // Malformed auth.json — ignore silently and fall through to the
+      // no-provider error below.
     }
   }
 
@@ -117,10 +145,17 @@ function resolveProvider(preferred?: "anthropic" | "openai"): ResolvedProvider {
     };
   }
 
-  throw new Error(
-    "No LLM provider available for learning extraction. " +
-    "Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or authenticate Codex CLI (codex login).",
-  );
+  const guidance = chatgptOAuthSeen
+    ? // Targeted message: user has chatgpt OAuth but no usable API key.
+      "No LLM API key available for learning extraction. Detected ~/.codex/auth.json " +
+      "with chatgpt OAuth (auth_mode=chatgpt), but the OAuth access_token cannot " +
+      "authenticate against api.openai.com (it's a chatgpt.com backend token). " +
+      "Set ANTHROPIC_API_KEY or OPENAI_API_KEY (a real sk-... key), or re-run " +
+      "`codex login` and choose API key mode instead of chatgpt OAuth."
+    : "No LLM provider available for learning extraction. " +
+      "Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or place an API key in ~/.codex/auth.json " +
+      "(field: OPENAI_API_KEY). Note: chatgpt OAuth mode is not supported — use API key mode.";
+  throw new Error(guidance);
 }
 
 // ---------------------------------------------------------------------------

@@ -195,10 +195,11 @@
 
 **Phase 3 runtime 가정 (§12.7)**: short-lived CLI process. daemon/server는 범위 밖.
 
-### 3.6 진행 중: Learn Phase 3 구현 (Step 1~6 완료, Step 7~13 남음)
+### 3.6 완료: Learn Phase 3 구현 (Step 1~13 ALL DONE)
 
-**현재 상태**: shared infrastructure 구현 완료. 모든 단계에서 `npx tsc --noEmit` 통과.
-다음 세션 진입점은 **Step 7: Collector**.
+**현재 상태**: 전체 13 step 완료. tsc PASS, E2E 29/29 PASS (`npm run test:e2e:promote`).
+CLI smoke test (`onto promote --skip-panel --skip-audit`)로 실 repo 117 candidates + baseline hash 19 files
+캡처 검증 완료. **다음 작업: Phase 3 production 사용 검증.**
 
 **Spec 문서**: `.onto/temp/learn-phase3-design-v9.md` (final, 7회 리뷰)
 
@@ -214,7 +215,7 @@
 9. `processes/promote.md` — 기존 프로세스 (코드 기반으로 갱신할 대상)
 10. `learning-rules.md` — 학습 저장/소비/승인 규칙
 
-#### 완료된 단계 (1~6) — shared infrastructure
+#### 완료된 단계 (1~13) — full Phase 3 implementation
 
 | Step | 파일 | DD | 검증 |
 |---|---|---|---|
@@ -225,7 +226,7 @@
 | **5. Recoverability** | `shared/recoverability.ts` | DD-16 (CheckpointPreparationResult transient + RecoverabilityCheckpoint persisted + restore-manifest + protection + prune) | tsc PASS |
 | **6. Recovery Context + DD-23** | `shared/recovery-context.ts` (+ `shared/specs/recovery-resolution-spec.ts`는 Step 2에서 함께 등록 완료) | DD-22 (canonical attempt selection, source_kind enum 통일) + DD-23 (RecoveryResolution 영속화 + 재load) | tsc PASS |
 
-**Step 1~6 핵심 결정 사항** (다음 세션에서 회귀 방지를 위해 기억):
+**Step 1~6 핵심 결정 사항** (회귀 방지):
 - `REGISTRY.appendToFile()`이 emergency-log/prune-log JSONL을 위해 추가됨 (saveToFile과 별개)
 - `BACKUP_ROOT = ~/.onto/backups`, `EMERGENCY_LOG_PATH = ~/.onto/emergency-log.jsonl`
 - `RecoverySourceKind = "apply_state" | "emergency_log" | "checkpoint_manifest"` (artifact-family axis, v9 SYN-UF-SEM-01)
@@ -233,9 +234,22 @@
 - `AuditObligation.transition()`이 from을 mutation 전에 capture (v5 SYN-CONS-01 회귀 방지)
 - `LEGAL_TRANSITIONS`에 `pending → expired_unattended`, `blocked → expired_unattended` 포함 (v6 회귀 방지)
 
-#### 남은 단계 (7~13) — business logic + integration
+**Step 7~13 핵심 결정 사항** (회귀 방지):
+- Collector parser는 lenient (ITEM_LINE_RE 기반) — pre-Phase 2 legacy 항목도 best-effort 파싱
+- `event_markers`는 full comment text 저장 (date 파싱을 위해, retention-confirmed cutoff)
+- DD-18 §SST 단일 정의: `buildCandidateItems()`만 candidate filtering 권한
+- Panel composition은 known-agents file scan으로 auto_selected 결정 (`~/.onto/learnings/*.md`)
+- ULID는 in-tree 구현 (Crockford base32, 26 char, no runtime dep)
+- `apply-state.transitionStatus()`는 `state_persistence_failed`를 명시적 reject (emergency log 경유 강제)
+- DD-19 slot_id는 `(approved_promotion_id, target_doc, domain)` sha256 12-char (결정적), instance_id는 fresh ULID
+- domain doc target routing: semantics→concepts.md, pragmatics→competency_qs.md, coverage→domain_scope.md
+- `artifact-registry-init.js`는 entry point에서 side-effect import 필수 (DD-20 lazy init 컨벤션)
+- CLI의 `ontoHome`(install dir)은 promoter/executor의 user data dir과 의미가 다름 — CLI handler는 forward 안 함
+- 각 entry point가 `import "./shared/artifact-registry-init.js"`를 수행해야 함
 
-7. **Collector** — `promote/collector.ts`
+#### 구현된 모듈 (Step 7~13)
+
+7. **Collector** — `promote/collector.ts` ✅
    - `learning-rules.md`, `processes/promote.md` Step 1~2 기반
    - `ParsedLearningItem` 파싱 (TAG_PATTERN/SOURCE_PATTERN/CONTENT_CAPTURE 재사용)
    - `BaselineHash` 캡처 (DD-10)

@@ -280,6 +280,294 @@ function detectInstallationMode(
   return "user";
 }
 
+// ---------------------------------------------------------------------------
+// Phase 3 promote / reclassify-insights / migrate-session-roots
+// ---------------------------------------------------------------------------
+
+function generateSessionId(): string {
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const rand = Math.random().toString(16).slice(2, 10);
+  return `${date}-${rand}`;
+}
+
+async function handleMigrateSessionRoots(argv: string[]): Promise<number> {
+  const projectRoot = resolveProjectRoot();
+  const dryRun = argv.includes("--dry-run");
+
+  // DD-20: wire the builtin spec registrar before session-root-guard /
+  // migrate touch the layout-version artifact.
+  await import("./core-runtime/learning/shared/artifact-registry-init.js");
+
+  const { migrateSessionRoots } = await import(
+    "./core-runtime/cli/migrate-session-roots.js"
+  );
+  const result = migrateSessionRoots({ projectRoot, dryRun });
+
+  console.log(JSON.stringify(result, null, 2));
+  if (result.failures.length > 0) return 1;
+  return 0;
+}
+
+async function handlePromote(ontoHome: string, argv: string[]): Promise<number> {
+  const projectRoot = resolveProjectRoot();
+
+  // DD-20: wire the builtin spec registrar before any REGISTRY use.
+  await import("./core-runtime/learning/shared/artifact-registry-init.js");
+
+  // Migration gate (DD-8)
+  try {
+    const { ensureSessionRootsMigrated } = await import(
+      "./core-runtime/cli/session-root-guard.js"
+    );
+    ensureSessionRootsMigrated(projectRoot, "enforce");
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return 2;
+  }
+
+  // Sub-mode dispatch
+  if (argv.includes("--apply")) {
+    return handlePromoteApply(ontoHome, projectRoot, argv);
+  }
+  if (argv.includes("--resolve-conflict")) {
+    return handlePromoteResolveConflict(projectRoot, argv);
+  }
+  if (argv.includes("--status")) {
+    return handlePromoteStatus(projectRoot, argv);
+  }
+  return handlePromoteAnalyze(ontoHome, projectRoot, argv);
+}
+
+async function handlePromoteAnalyze(
+  ontoHome: string,
+  projectRoot: string,
+  argv: string[],
+): Promise<number> {
+  const sessionId =
+    readSingleOptionValueFromArgv(argv, "session-id") ?? generateSessionId();
+  const skipPanel = argv.includes("--skip-panel");
+  const skipAudit = argv.includes("--skip-audit");
+
+  const { runPromoter } = await import(
+    "./core-runtime/learning/promote/promoter.js"
+  );
+
+  // Note: the CLI's `ontoHome` is the install directory, not the user data
+  // directory. Phase 3 user state (audit-state, global learnings) lives at
+  // `~/.onto/` regardless of where the install lives, so we let runPromoter
+  // default to that path. We pass ontoHome only via panel-reviewer's
+  // ontoHome param when it would be wrong to default to the user dir.
+  void ontoHome;
+
+  const result = await runPromoter({
+    mode: "promote",
+    sessionId,
+    projectRoot,
+    skipPanel,
+    skipAudit,
+  });
+
+  console.log(
+    JSON.stringify(
+      {
+        session_id: sessionId,
+        report_path: result.reportPath,
+        session_root: result.sessionRoot,
+        candidates: result.report.collection.candidate_items.length,
+        panel_verdicts: result.report.panel_verdicts.length,
+        retirement_candidates: result.report.retirement_candidates.length,
+        domain_doc_candidates: result.report.domain_doc_candidates.length,
+        degraded_states: result.report.degraded_states.length,
+        warnings: result.report.warnings,
+      },
+      null,
+      2,
+    ),
+  );
+  return 0;
+}
+
+async function handlePromoteApply(
+  ontoHome: string,
+  projectRoot: string,
+  argv: string[],
+): Promise<number> {
+  // --apply <session-id> [--resume] [--force-stale] [--dry-run]
+  const applyIdx = argv.indexOf("--apply");
+  const sessionId = argv[applyIdx + 1];
+  if (!sessionId || sessionId.startsWith("--")) {
+    console.error("[onto] promote --apply requires a session id");
+    return 1;
+  }
+
+  const { runPromoteExecutor } = await import(
+    "./core-runtime/learning/promote/promote-executor.js"
+  );
+
+  // See handlePromoteAnalyze: don't forward install-dir ontoHome.
+  void ontoHome;
+
+  const outcome = await runPromoteExecutor({
+    sessionId,
+    projectRoot,
+    resume: argv.includes("--resume"),
+    forceStale: argv.includes("--force-stale"),
+    dryRun: argv.includes("--dry-run"),
+  });
+
+  console.log(JSON.stringify(outcome, null, 2));
+  switch (outcome.kind) {
+    case "completed":
+      return 0;
+    case "no_decisions":
+      return 0;
+    case "stale_baseline":
+      return 2;
+    case "manual_escalation_required":
+      return 2;
+    case "failed_resumable":
+      return 3;
+  }
+}
+
+async function handlePromoteResolveConflict(
+  projectRoot: string,
+  argv: string[],
+): Promise<number> {
+  // --resolve-conflict <session-id> --select <attempt-id> [--note "..."]
+  const idx = argv.indexOf("--resolve-conflict");
+  const sessionId = argv[idx + 1];
+  const selectIdx = argv.indexOf("--select");
+  const selectedAttemptId = selectIdx >= 0 ? argv[selectIdx + 1] : undefined;
+  const noteIdx = argv.indexOf("--note");
+  const note = noteIdx >= 0 ? argv[noteIdx + 1] : undefined;
+
+  if (!sessionId || sessionId.startsWith("--") || !selectedAttemptId) {
+    console.error(
+      "[onto] usage: onto promote --resolve-conflict <session-id> " +
+        "--select <attempt-id> [--note '<reason>']",
+    );
+    return 1;
+  }
+
+  const { gatherRecoveryContext, resolveRecoveryTruth, saveRecoveryResolution } =
+    await import("./core-runtime/learning/shared/recovery-context.js");
+
+  const context = await gatherRecoveryContext(sessionId, projectRoot);
+  const resolved = resolveRecoveryTruth(context, projectRoot);
+  if (resolved.kind !== "manual_escalation_required") {
+    console.error(
+      `[onto] no manual escalation required for session ${sessionId} ` +
+        `(current state: ${resolved.kind})`,
+    );
+    return 1;
+  }
+
+  const valid = new Set(resolved.conflicting_attempts.map((c) => c.attempt_id));
+  if (!valid.has(selectedAttemptId)) {
+    console.error(
+      `[onto] selected attempt_id ${selectedAttemptId} not in conflicting attempts. ` +
+        `Valid: ${[...valid].join(", ")}`,
+    );
+    return 1;
+  }
+
+  const resolution = {
+    schema_version: "1" as const,
+    session_id: sessionId,
+    resolved_at: new Date().toISOString(),
+    resolved_by: "operator" as const,
+    resolution_method: "cli_command" as const,
+    selected_attempt_id: selectedAttemptId,
+    selected_attempt_reason: note ?? "Operator selection (no note provided)",
+    all_attempts_at_resolution_time: resolved.conflicting_attempts,
+    ...(note !== undefined ? { operator_note: note } : {}),
+  };
+
+  saveRecoveryResolution(projectRoot, resolution);
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        session_id: sessionId,
+        selected_attempt_id: selectedAttemptId,
+        next_command: `onto promote --apply ${sessionId} --resume`,
+      },
+      null,
+      2,
+    ),
+  );
+  return 0;
+}
+
+async function handlePromoteStatus(
+  projectRoot: string,
+  argv: string[],
+): Promise<number> {
+  const idx = argv.indexOf("--status");
+  const sessionId = argv[idx + 1];
+  if (!sessionId || sessionId.startsWith("--")) {
+    console.error("[onto] promote --status requires a session id");
+    return 1;
+  }
+
+  const { loadApplyState } = await import(
+    "./core-runtime/learning/promote/apply-state.js"
+  );
+  const sessionRoot = path.join(
+    projectRoot,
+    ".onto",
+    "sessions",
+    "promote",
+    sessionId,
+  );
+  const state = loadApplyState(sessionRoot);
+  console.log(JSON.stringify({ session_id: sessionId, state }, null, 2));
+  return state ? 0 : 1;
+}
+
+async function handleReclassifyInsights(
+  ontoHome: string,
+  argv: string[],
+): Promise<number> {
+  const projectRoot = resolveProjectRoot();
+
+  // DD-20: wire the builtin spec registrar before any REGISTRY use.
+  await import("./core-runtime/learning/shared/artifact-registry-init.js");
+
+  try {
+    const { ensureSessionRootsMigrated } = await import(
+      "./core-runtime/cli/session-root-guard.js"
+    );
+    ensureSessionRootsMigrated(projectRoot, "enforce");
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return 2;
+  }
+
+  const sessionId =
+    readSingleOptionValueFromArgv(argv, "session-id") ?? generateSessionId();
+  const targetAgent = readSingleOptionValueFromArgv(argv, "target");
+  const dryRun = argv.includes("--dry-run");
+
+  const { runInsightReclassifier } = await import(
+    "./core-runtime/learning/promote/insight-reclassifier.js"
+  );
+
+  // See handlePromoteAnalyze: don't forward install-dir ontoHome.
+  void ontoHome;
+
+  const result = await runInsightReclassifier({
+    sessionId,
+    projectRoot,
+    ...(targetAgent !== undefined ? { targetAgent } : {}),
+    dryRun,
+  });
+
+  console.log(JSON.stringify(result, null, 2));
+  return 0;
+}
+
 async function handleInfo(ontoHome: string): Promise<number> {
   const projectRoot = resolveProjectRoot();
   const installationMode = detectInstallationMode(ontoHome, projectRoot);
@@ -330,6 +618,15 @@ async function main(): Promise<number> {
     case "info":
       return handleInfo(ontoHome);
 
+    case "promote":
+      return handlePromote(ontoHome, subcommandArgv);
+
+    case "reclassify-insights":
+      return handleReclassifyInsights(ontoHome, subcommandArgv);
+
+    case "migrate-session-roots":
+      return handleMigrateSessionRoots(subcommandArgv);
+
     case "learn":
     case "govern":
     case "build":
@@ -356,6 +653,12 @@ async function main(): Promise<number> {
           "  review --complete-session   Complete a prepared session",
           "  coordinator start|next|status  State machine coordinated review",
           "  info                        Show installation mode, onto home, project root",
+          "  promote                     Phase 3 promote (analyze)",
+          "  promote --apply <id>         Apply approved decisions",
+          "  promote --resolve-conflict <id> --select <attempt-id>  Resolve recovery conflict",
+          "  promote --status <id>        Inspect ApplyExecutionState",
+          "  reclassify-insights         Reclassify [insight] role tags",
+          "  migrate-session-roots       Move pre-v3 sessions under review/",
           "",
           "Options:",
           "  --onto-home <path>         Override onto installation directory",

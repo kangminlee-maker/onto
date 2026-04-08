@@ -2974,6 +2974,198 @@ async function main(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // Batch 3 — AuditObligation construction & transition invariants (DD-21)
+  //
+  // audit-obligation-kernel.ts is test-free in the production suite; this
+  // batch verifies the runtime invariants that back up the TypeScript
+  // encapsulation (private # fields) in promote/audit-obligation.ts.
+  // -------------------------------------------------------------------------
+
+  // E-P71 — Constructor invariant #1: explicit empty status_history →
+  //          InvariantViolatedError. The default path constructs a single
+  //          "pending" entry; passing [] must be refused.
+  await test("E-P71 AuditObligation constructor rejects empty status_history", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const { InvariantViolatedError } = await import("../shared/audit-obligation-kernel.js");
+    let caught: unknown = null;
+    try {
+      new AuditObligation({
+        obligation_id: "ob-71",
+        trigger_kind: "count_threshold",
+        detected_at: "2026-04-09T00:00:00Z",
+        detected_after_session: "sess-71",
+        affected_agents: ["structure"],
+        reason: "test",
+        max_carry_forward: 3,
+        status_history: [], // empty — violates construction invariant
+      });
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof InvariantViolatedError, "InvariantViolatedError thrown");
+    assert(
+      (caught as Error).message.includes("status_history"),
+      "error names status_history",
+    );
+  });
+
+  // E-P72 — Constructor invariant #2: declared status must match the last
+  //          history entry's `to`. A divergent declared status must throw,
+  //          because it means the serialized data was corrupted.
+  await test("E-P72 AuditObligation constructor rejects status ↔ last history mismatch", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const { InvariantViolatedError } = await import("../shared/audit-obligation-kernel.js");
+    let caught: unknown = null;
+    try {
+      new AuditObligation({
+        obligation_id: "ob-72",
+        trigger_kind: "count_threshold",
+        detected_at: "2026-04-09T00:00:00Z",
+        detected_after_session: "sess-72",
+        affected_agents: ["structure"],
+        reason: "test",
+        max_carry_forward: 3,
+        // Last history entry says 'pending' but declared status says 'in_progress'
+        status: "in_progress",
+        status_history: [
+          {
+            from: null,
+            to: "pending",
+            at: "2026-04-09T00:00:00Z",
+            reason: "initial detection",
+          },
+        ],
+      });
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof InvariantViolatedError, "InvariantViolatedError thrown");
+    const msg = (caught as Error).message;
+    assert(
+      msg.includes("in_progress") && msg.includes("pending"),
+      "error names both declared and actual status",
+    );
+  });
+
+  // E-P73 — fromJSON missing required field → InvariantViolatedError with the
+  //          field name surfaced. Prevents corrupted ledger entries from
+  //          silently deserializing.
+  await test("E-P73 AuditObligation.fromJSON rejects missing required field", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const { InvariantViolatedError } = await import("../shared/audit-obligation-kernel.js");
+    // Missing "status" field — deserialization must refuse.
+    const corrupt = {
+      obligation_id: "ob-73",
+      trigger_kind: "count_threshold",
+      detected_at: "2026-04-09T00:00:00Z",
+      detected_after_session: "sess-73",
+      affected_agents: ["structure"],
+      reason: "test",
+      max_carry_forward: 3,
+      // status: omitted on purpose
+      status_history: [
+        { from: null, to: "pending", at: "2026-04-09T00:00:00Z", reason: "init" },
+      ],
+      carry_forward_count: 0,
+    } as unknown as Parameters<typeof AuditObligation.fromJSON>[0];
+
+    let caught: unknown = null;
+    try {
+      AuditObligation.fromJSON(corrupt);
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof InvariantViolatedError, "InvariantViolatedError thrown");
+    assert((caught as Error).message.includes("status"), "error names the missing field");
+    assert((caught as Error).message.includes("ob-73"), "error surfaces obligation_id for triage");
+  });
+
+  // E-P74 — transition() rejects illegal edges via the kernel's LEGAL_TRANSITIONS
+  //          matrix. `pending → fulfilled` is invalid (must pass through in_progress).
+  await test("E-P74 AuditObligation.transition rejects illegal pending → fulfilled", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const { IllegalTransitionError } = await import("../shared/audit-obligation-kernel.js");
+    const ob = new AuditObligation({
+      obligation_id: "ob-74",
+      trigger_kind: "count_threshold",
+      detected_at: "2026-04-09T00:00:00Z",
+      detected_after_session: "sess-74",
+      affected_agents: ["structure"],
+      reason: "test",
+      max_carry_forward: 3,
+    });
+    assertEqual(ob.status, "pending", "starts pending");
+    let caught: unknown = null;
+    try {
+      ob.transition("fulfilled", "trying to skip in_progress");
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof IllegalTransitionError, "IllegalTransitionError thrown");
+    const msg = (caught as Error).message;
+    assert(msg.includes("pending"), "error names from state");
+    assert(msg.includes("fulfilled"), "error names to state");
+    // Status must remain unchanged after a rejected transition
+    assertEqual(ob.status, "pending", "status not mutated on rejection");
+    assertEqual(ob.status_history.length, 1, "history not extended on rejection");
+  });
+
+  // E-P75 — transition() allows pending → expired_unattended (v6 EXPIRED-
+  //          UNATTENDED-01 legal edge). After transition, status mirrors
+  //          the last history entry (cache invariant).
+  await test("E-P75 AuditObligation pending → expired_unattended is legal", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const ob = new AuditObligation({
+      obligation_id: "ob-75",
+      trigger_kind: "count_threshold",
+      detected_at: "2026-04-09T00:00:00Z",
+      detected_after_session: "sess-75",
+      affected_agents: ["structure"],
+      reason: "test",
+      max_carry_forward: 3,
+    });
+    ob.transition("expired_unattended", "carry-forward exhausted", {
+      session_id: "sess-exp",
+      at: "2026-04-09T01:00:00Z",
+    });
+    assertEqual(ob.status, "expired_unattended", "status updated");
+    assertEqual(ob.status_history.length, 2, "history extended by one");
+    const last = ob.status_history[ob.status_history.length - 1]!;
+    assertEqual(last.from, "pending", "from captured pre-mutation");
+    assertEqual(last.to, "expired_unattended", "to matches requested");
+    assertEqual(last.at, "2026-04-09T01:00:00Z", "at honors context override");
+    assertEqual(last.session_id, "sess-exp", "session_id carried");
+    // Active/inactive cache: expired_unattended is NOT strictly terminal but
+    // isActive() returns false because the obligation is no longer in flight.
+    assertEqual(ob.isTerminal(), false, "not strictly terminal");
+    assertEqual(ob.isActive(), false, "no longer active");
+  });
+
+  // E-P76 — SYN-CONS-01 regression: transition() must capture `from` BEFORE
+  //          mutating #status. A waive from pending must record from=pending,
+  //          NOT from=waived (which was the v5 bug).
+  await test("E-P76 transition captures `from` before mutation (SYN-CONS-01 regression)", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const ob = new AuditObligation({
+      obligation_id: "ob-76",
+      trigger_kind: "count_threshold",
+      detected_at: "2026-04-09T00:00:00Z",
+      detected_after_session: "sess-76",
+      affected_agents: ["structure"],
+      reason: "test",
+      max_carry_forward: 3,
+    });
+    ob.transition("waived", "operator decision");
+    assertEqual(ob.status, "waived", "status now waived");
+    const last = ob.status_history[ob.status_history.length - 1]!;
+    // The v5 bug would set from = "waived" because it assigned #status first.
+    // The v7+ fix captures the pre-mutation value.
+    assertEqual(last.from, "pending", "from is pre-mutation value (SYN-CONS-01 fix)");
+    assertEqual(last.to, "waived", "to is the transition target");
+    assertEqual(ob.isTerminal(), true, "waived is strictly terminal");
+  });
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   process.stdout.write("\n");

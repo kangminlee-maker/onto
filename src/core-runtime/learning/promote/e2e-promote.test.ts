@@ -3412,6 +3412,298 @@ async function main(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // Batch 5 — Audit obligation lifecycle (DD-17)
+  //
+  // Lifecycle paths exercised here:
+  //   pending  →  pending (carry-forward increment, still under max)
+  //   pending  →  expired_unattended (carry-forward exceeded)
+  //   blocked  →  pending (auto re-entry via processCarryForward)
+  //   expired  →  waived  (operator resolution after expiration)
+  //
+  // Terminal statuses are also verified to be untouched by carry-forward.
+  // -------------------------------------------------------------------------
+
+  // E-P83 — processCarryForward increments count but keeps pending obligations
+  //          that are still under their max_carry_forward threshold.
+  await test("E-P83 processCarryForward increments count without expiring under max", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const { processCarryForward, countCarriedForward } = await import(
+      "../shared/audit-state.js"
+    );
+    const ob = new AuditObligation({
+      obligation_id: "ob-83",
+      trigger_kind: "count_threshold",
+      detected_at: "2026-04-09T00:00:00Z",
+      detected_after_session: "sess-83a",
+      affected_agents: ["structure"],
+      reason: "test",
+      max_carry_forward: 3,
+    });
+    const state: AuditState = { schema_version: "1", obligations: [ob] };
+    processCarryForward(state, "sess-83b");
+    assertEqual(ob.status, "pending", "still pending after 1 pass");
+    assertEqual(ob.carry_forward_count, 1, "count incremented to 1");
+    assertEqual(countCarriedForward(state), 1, "ledger-level counter reflects");
+  });
+
+  // E-P84 — Carry-forward exhausted → expired_unattended. max_carry_forward=2
+  //          means: after pass 3, count=3 > max=2, transitions to expired.
+  //          v9 semantics: hasExceededCarryForward is strict > (not >=).
+  await test("E-P84 processCarryForward expires on carry-forward exhaustion", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const { processCarryForward, getExpiredUnattended, getActiveObligations } =
+      await import("../shared/audit-state.js");
+    const ob = new AuditObligation({
+      obligation_id: "ob-84",
+      trigger_kind: "count_threshold",
+      detected_at: "2026-04-09T00:00:00Z",
+      detected_after_session: "sess-84a",
+      affected_agents: ["structure"],
+      reason: "test",
+      max_carry_forward: 2,
+    });
+    const state: AuditState = { schema_version: "1", obligations: [ob] };
+    // Pass 1: count=1, still pending
+    processCarryForward(state, "sess-84b");
+    assertEqual(ob.status, "pending", "pass 1: still pending");
+    // Pass 2: count=2, still pending (2 > 2 is false, not expired)
+    processCarryForward(state, "sess-84c");
+    assertEqual(ob.status, "pending", "pass 2: still pending");
+    // Pass 3: count=3, 3 > 2, expired
+    processCarryForward(state, "sess-84d");
+    assertEqual(ob.status, "expired_unattended", "pass 3: expired");
+    assertEqual(getExpiredUnattended(state).length, 1, "ledger filter picks it up");
+    assertEqual(
+      getActiveObligations(state).length,
+      0,
+      "expired is not active anymore",
+    );
+    // Expiration transition must be recorded in history
+    const last = ob.status_history[ob.status_history.length - 1]!;
+    assertEqual(last.to, "expired_unattended", "history records transition");
+    assert(last.reason.includes("exceeded"), "reason explains why");
+  });
+
+  // E-P85 — blocked → pending auto re-entry on next promote pass.
+  //          Mirrors the "transient failure recovers on retry" path.
+  await test("E-P85 processCarryForward re-enters blocked → pending automatically", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const { processCarryForward } = await import("../shared/audit-state.js");
+    const ob = new AuditObligation({
+      obligation_id: "ob-85",
+      trigger_kind: "contradiction_threshold_exceeded",
+      detected_at: "2026-04-09T00:00:00Z",
+      detected_after_session: "sess-85a",
+      affected_agents: ["philosopher"],
+      reason: "test",
+      max_carry_forward: 5,
+    });
+    // Move pending → in_progress → blocked manually (legal transitions)
+    ob.transition("in_progress", "picked up by P-14");
+    ob.transition("blocked", "LLM timeout during audit");
+    assertEqual(ob.status, "blocked", "now blocked");
+
+    const state: AuditState = { schema_version: "1", obligations: [ob] };
+    processCarryForward(state, "sess-85b");
+    assertEqual(ob.status, "pending", "re-entered pending");
+    assertEqual(ob.carry_forward_count, 1, "count incremented once");
+    // History should now contain: init-pending, in_progress, blocked, pending
+    assertEqual(ob.status_history.length, 4, "4 transitions recorded");
+    const last = ob.status_history[ob.status_history.length - 1]!;
+    assertEqual(last.from, "blocked", "from=blocked");
+    assertEqual(last.to, "pending", "to=pending");
+    assert(last.reason.includes("Re-entry"), "reason names re-entry path");
+  });
+
+  // E-P86 — Terminal obligations (fulfilled, waived, no_eligible_agents) are
+  //          untouched by processCarryForward. The filter only processes
+  //          pending/blocked entries.
+  await test("E-P86 processCarryForward skips terminal obligations", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const { processCarryForward, getActiveObligations } = await import(
+      "../shared/audit-state.js"
+    );
+
+    function buildTerminal(
+      obligationId: string,
+      terminalState: "fulfilled" | "waived" | "no_eligible_agents",
+    ): InstanceType<typeof AuditObligation> {
+      const ob = new AuditObligation({
+        obligation_id: obligationId,
+        trigger_kind: "count_threshold",
+        detected_at: "2026-04-09T00:00:00Z",
+        detected_after_session: "sess-86",
+        affected_agents: ["structure"],
+        reason: "test",
+        max_carry_forward: 3,
+      });
+      if (terminalState === "waived") {
+        ob.transition("waived", "operator");
+      } else {
+        ob.transition("in_progress", "picked up");
+        ob.transition(terminalState, "terminal reached");
+      }
+      return ob;
+    }
+
+    const fulfilled = buildTerminal("ob-86f", "fulfilled");
+    const waived = buildTerminal("ob-86w", "waived");
+    const noEligible = buildTerminal("ob-86n", "no_eligible_agents");
+    const state: AuditState = {
+      schema_version: "1",
+      obligations: [fulfilled, waived, noEligible],
+    };
+    processCarryForward(state, "sess-86b");
+    // No transitions fired
+    assertEqual(fulfilled.carry_forward_count, 0, "fulfilled untouched");
+    assertEqual(waived.carry_forward_count, 0, "waived untouched");
+    assertEqual(noEligible.carry_forward_count, 0, "no_eligible untouched");
+    assertEqual(getActiveObligations(state).length, 0, "none active");
+  });
+
+  // E-P87 — AuditState round-trip through YAML preserves class semantics.
+  //          After save → load, the obligation is an AuditObligation instance
+  //          (not just a plain object), status is private, transition() works.
+  await test("E-P87 AuditState save/load round-trip preserves DD-21 class semantics", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const { saveAuditState, loadAuditState } = await import(
+      "../shared/audit-state.js"
+    );
+    const ob = new AuditObligation({
+      obligation_id: "ob-87",
+      trigger_kind: "count_threshold",
+      detected_at: "2026-04-09T00:00:00Z",
+      detected_after_session: "sess-87a",
+      affected_agents: ["structure"],
+      reason: "roundtrip",
+      max_carry_forward: 3,
+    });
+    ob.transition("in_progress", "picked up");
+    const pre: AuditState = { schema_version: "1", obligations: [ob] };
+
+    const dir = makeTmpDir("e-p87");
+    const filePath = path.join(dir, "audit-state.yaml");
+    saveAuditState(pre, filePath);
+    assert(fs.existsSync(filePath), "audit-state written");
+
+    const post = loadAuditState(filePath);
+    assertEqual(post.obligations.length, 1, "one obligation");
+    const restored = post.obligations[0]!;
+    // Class-level assertions
+    assert(restored instanceof AuditObligation, "restored is AuditObligation instance");
+    assertEqual(restored.status, "in_progress", "status preserved");
+    assertEqual(restored.status_history.length, 2, "history preserved");
+    assertEqual(restored.obligation_id, "ob-87", "identity preserved");
+    // Class behavior still works — illegal transition is still rejected
+    let rejected = false;
+    try {
+      restored.transition("pending", "bogus");
+    } catch {
+      rejected = true;
+    }
+    assert(rejected, "illegal transition still enforced post-roundtrip");
+  });
+
+  // E-P88 — loadAuditState returns an empty ledger when the file doesn't
+  //          exist (fresh user bootstrap). Must not throw.
+  await test("E-P88 loadAuditState returns empty ledger for missing file", async () => {
+    const { loadAuditState } = await import("../shared/audit-state.js");
+    const dir = makeTmpDir("e-p88");
+    const filePath = path.join(dir, "nonexistent.yaml");
+    const state = loadAuditState(filePath);
+    assertEqual(state.schema_version, "1", "schema_version set");
+    assertEqual(state.obligations.length, 0, "empty obligations");
+  });
+
+  // E-P89 — Expired obligations can still be waived by the operator.
+  //          v6 EXPIRED-UNATTENDED-01 intent: expired_unattended is
+  //          "visible but not strictly terminal" — LEGAL_TRANSITIONS lists
+  //          waived as the one allowed outgoing edge.
+  await test("E-P89 expired_unattended → waived is legal (operator resolution)", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const ob = new AuditObligation({
+      obligation_id: "ob-89",
+      trigger_kind: "count_threshold",
+      detected_at: "2026-04-09T00:00:00Z",
+      detected_after_session: "sess-89a",
+      affected_agents: ["structure"],
+      reason: "test",
+      max_carry_forward: 3,
+    });
+    ob.transition("expired_unattended", "carry-forward exhausted");
+    assertEqual(ob.status, "expired_unattended", "expired");
+    // Now the operator reviews and waives it
+    ob.transition("waived", "operator acknowledged and dismissed");
+    assertEqual(ob.status, "waived", "transitioned to waived");
+    assertEqual(ob.isTerminal(), true, "waived is strictly terminal");
+    const last = ob.status_history[ob.status_history.length - 1]!;
+    assertEqual(last.from, "expired_unattended", "from captured pre-mutation");
+  });
+
+  // E-P90 — Ledger filter helpers return the right subsets. Build a ledger
+  //          with 4 obligations spanning active/inactive/terminal/expired,
+  //          then check each helper picks its target set.
+  await test("E-P90 audit-state filter helpers partition the ledger correctly", async () => {
+    const { AuditObligation } = await import("./audit-obligation.js");
+    const {
+      getActiveObligations,
+      getExpiredUnattended,
+      countCarriedForward,
+      findObligation,
+    } = await import("../shared/audit-state.js");
+
+    function fresh(id: string): InstanceType<typeof AuditObligation> {
+      return new AuditObligation({
+        obligation_id: id,
+        trigger_kind: "count_threshold",
+        detected_at: "2026-04-09T00:00:00Z",
+        detected_after_session: "sess-90",
+        affected_agents: ["structure"],
+        reason: "test",
+        max_carry_forward: 3,
+      });
+    }
+
+    const active = fresh("ob-90a"); // stays pending
+    const carried = fresh("ob-90b");
+    carried.incrementCarryForward(); // count=1
+    const expired = fresh("ob-90c");
+    expired.transition("expired_unattended", "exhausted");
+    const waived = fresh("ob-90d");
+    waived.transition("waived", "operator");
+
+    const state: AuditState = {
+      schema_version: "1",
+      obligations: [active, carried, expired, waived],
+    };
+
+    const activeSet = getActiveObligations(state);
+    assertEqual(activeSet.length, 2, "2 active: plain + carried");
+    assertEqual(
+      activeSet.map((o) => o.obligation_id).sort().join(","),
+      "ob-90a,ob-90b",
+      "active subset",
+    );
+
+    const expiredSet = getExpiredUnattended(state);
+    assertEqual(expiredSet.length, 1, "1 expired");
+    assertEqual(expiredSet[0]!.obligation_id, "ob-90c", "expired entry");
+
+    assertEqual(countCarriedForward(state), 1, "one has carry > 0");
+
+    assertEqual(
+      findObligation(state, "ob-90b")?.obligation_id,
+      "ob-90b",
+      "findObligation locates by id",
+    );
+    assertEqual(
+      findObligation(state, "nonexistent"),
+      undefined,
+      "findObligation returns undefined for unknown id",
+    );
+  });
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   process.stdout.write("\n");

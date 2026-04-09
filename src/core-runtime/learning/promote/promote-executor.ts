@@ -502,12 +502,28 @@ function isPidAlive(pid: number): boolean | null {
  *     propagates out; the lock is released before the error escapes.
  *
  * ===========================================================================
- * RUNTIME FLOOR (6-SYN-C3)
+ * RUNTIME FLOOR (6-SYN-C3 + 7-wording cleanup)
  * ===========================================================================
  * Depends on Atomics.wait on a SharedArrayBuffer-backed Int32Array
- * (see sleepSyncMs above). package.json `engines.node` declares the
- * supported Node floor. On older runtimes the helper will throw at
- * first use rather than silently spin.
+ * (see sleepSyncMs above).
+ *
+ * `engines.node` in package.json declares a SUPPORT-POLICY floor, NOT a
+ * minimal technical floor. Both Atomics.wait and SharedArrayBuffer have
+ * been generally available since much older Node releases (SharedArrayBuffer
+ * since Node 10, Atomics.wait since Node 8.3), so technically the helper
+ * CAN run on runtimes older than the declared engines.node value. The
+ * >=18 floor reflects:
+ *   (a) the current Node LTS we intentionally support and test against,
+ *   (b) a soft advisory signal to package managers (note: engine-range
+ *       enforcement varies per package manager — npm emits a warning by
+ *       default, yarn's behavior is configurable, pnpm is strict only
+ *       when engine-strict is enabled).
+ *
+ * This is NOT a claim that 18.0.0 is where Atomics.wait starts working,
+ * and it is NOT a universal hard-install gate. Older runtimes may still
+ * execute the helper successfully if the bundling path bypasses the
+ * engines check; operators running on pre-18 Node do so outside the
+ * supported envelope and should not expect the same guarantees.
  */
 function withFileLock<T>(
   targetPath: string,

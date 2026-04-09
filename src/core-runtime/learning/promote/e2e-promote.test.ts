@@ -8341,14 +8341,25 @@ async function main(): Promise<void> {
   //   6-SYN-U1: malformed-PID reclaim branch test
   // -------------------------------------------------------------------------
 
-  // E-P162 — 6-SYN-U1: lockfile with a malformed PID (unparseable first line)
-  //          must NOT trigger reclaim. The helper's readLockHolderPid returns
-  //          null for unparseable content, and the reclaim branch explicitly
-  //          requires a numeric PID, so the wait path takes over. Verified
-  //          end-to-end by pre-creating a malformed lockfile with a backdated
-  //          mtime and asserting that withFileLock times out at the wait
-  //          budget instead of reclaiming.
-  await test("E-P162 withFileLock does NOT reclaim stale lock with malformed PID (6-SYN-U1)", async () => {
+  // E-P162 — 6-SYN-U1: lockfile with a malformed PID must NOT trigger
+  //          reclaim. Three malformed-input cases all converge on the
+  //          SAME outer reclaim-refusal path, routed through distinct
+  //          parser-time rejections inside readLockHolderPid. This is
+  //          NOT coverage of three separate outer reclaim branches —
+  //          there is only one outer branch ("PID not parseable or not
+  //          ESRCH → refuse reclaim, fall into wait"). The three cases
+  //          exercise different PARSER SHAPES feeding into that branch:
+  //            1. non-numeric first line ("not-a-pid\n...")
+  //            2. empty lockfile (zero bytes)
+  //            3. negative integer first line ("-1\n...")
+  //          Each shape exits readLockHolderPid via a different code
+  //          path (Number.parseInt → NaN; empty split[0] → empty; range
+  //          check → <= 0), but all three land in the same outer "no
+  //          reclaim, fall to wait-timeout" behavior. If future work
+  //          wants to claim broader reclaim-branch coverage, it must
+  //          exercise the OUTER branches separately (ESRCH vs EPERM vs
+  //          indeterminate null from isPidAlive), not parser variants.
+  await test("E-P162 withFileLock refuses reclaim across malformed-PID parser shapes (6-SYN-U1)", async () => {
     const { __testExports: execExports } = await import(
       "./promote-executor.js"
     );

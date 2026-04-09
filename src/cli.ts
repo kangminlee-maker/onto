@@ -653,6 +653,13 @@ async function main(): Promise<number> {
     case "migrate-session-roots":
       return handleMigrateSessionRoots(subcommandArgv);
 
+    case "design": {
+      const { handleDesignCli } = await import(
+        "./core-runtime/design/cli.js"
+      );
+      return handleDesignCli(ontoHome, subcommandArgv);
+    }
+
     case "learn":
     case "govern":
     case "build":
@@ -675,6 +682,7 @@ async function main(): Promise<number> {
           "Usage: onto <subcommand> [options]",
           "",
           "Subcommands:",
+          "  design start <description>  Start a design scope",
           "  review <target> <intent>   Run 9-lens review",
           "  review --complete-session   Complete a prepared session",
           "  coordinator start|next|status  State machine coordinated review",

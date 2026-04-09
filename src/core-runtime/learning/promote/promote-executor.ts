@@ -345,6 +345,12 @@ function replaceLineInFile(
  * (SYN-C2). Keeping the mutation bound to the resolved index prevents
  * the "first-verbatim-match" regression that made preflight useless
  * for duplicate raw_line files.
+ *
+ * NOTE: this helper is a LINE-LEVEL CAS only. It does NOT protect against
+ * lost updates from concurrent writes to OTHER lines in the same file.
+ * When that matters (cross_agent_dedup apply), the caller wraps the
+ * read-modify-write in withFileLock so the entire file-level transition
+ * is serialized against other processes (4-D1(a)).
  */
 function replaceLineAtIndex(
   filePath: string,
@@ -360,6 +366,118 @@ function replaceLineAtIndex(
   lines[lineIndex] = newLine;
   fs.writeFileSync(filePath, lines.join("\n"), "utf8");
   return true;
+}
+
+/**
+ * Acquire an advisory file-level lock on `targetPath` using a sibling
+ * `.lock` file opened with O_CREAT|O_EXCL (atomic on POSIX). Run `fn`
+ * while holding the lock; release via unlink on exit.
+ *
+ * 4-D1(a) fix: prevents lost unrelated edits between a read and write
+ * on the same learning file. When two processes both run
+ * `onto promote --apply`, line-level optimistic concurrency in
+ * replaceLineAtIndex catches SAME-LINE races but loses updates to
+ * OTHER lines written by the peer after our read-to-write window. The
+ * lockfile serializes the entire read-modify-write cycle at file
+ * granularity.
+ *
+ * Semantics:
+ *   - Retry on EEXIST for up to `waitMs` (default 5s) with exponential
+ *     fallback. If we never acquire, throw with guidance pointing at the
+ *     stale lockfile path.
+ *   - Stale-lock recovery: if the lockfile is older than `staleAfterMs`
+ *     (default 5 min), assume the prior holder crashed and forcibly
+ *     remove + retry once. This covers the process-killed case without
+ *     requiring manual intervention for the common "I ctrl-C'd a
+ *     previous promote run" recovery scenario.
+ *   - The lockfile contains the acquiring process's pid, so operators
+ *     can sanity-check liveness with `ps -p`.
+ *   - Single-host only: flock-equivalent semantics across networks or
+ *     multiple mounts are NOT guaranteed. Phase 3 is single-operator by
+ *     design so this trade-off is acceptable.
+ */
+function withFileLock<T>(
+  targetPath: string,
+  fn: () => T,
+  options: { waitMs?: number; staleAfterMs?: number } = {},
+): T {
+  const lockPath = `${targetPath}.lock`;
+  const waitMs = options.waitMs ?? 5000;
+  const staleAfterMs = options.staleAfterMs ?? 5 * 60 * 1000;
+  const startedAt = Date.now();
+  let sleepMs = 10;
+  let staleRecoveryAttempted = false;
+
+  // Ensure parent directory exists so the lockfile can be created.
+  const parent = path.dirname(lockPath);
+  if (!fs.existsSync(parent)) {
+    fs.mkdirSync(parent, { recursive: true });
+  }
+
+  while (true) {
+    try {
+      const fd = fs.openSync(lockPath, "wx");
+      try {
+        fs.writeSync(
+          fd,
+          `${process.pid}\n${new Date().toISOString()}\n${targetPath}\n`,
+        );
+      } finally {
+        fs.closeSync(fd);
+      }
+      break; // Acquired
+    } catch (err) {
+      const code =
+        err instanceof Error && "code" in err
+          ? (err as NodeJS.ErrnoException).code
+          : undefined;
+      if (code !== "EEXIST") throw err;
+
+      // Stale-lock recovery: only if we haven't already tried, and only
+      // for lockfiles older than the stale threshold.
+      if (!staleRecoveryAttempted) {
+        staleRecoveryAttempted = true;
+        try {
+          const stat = fs.statSync(lockPath);
+          const ageMs = Date.now() - stat.mtimeMs;
+          if (ageMs > staleAfterMs) {
+            fs.unlinkSync(lockPath);
+            continue; // Retry immediately
+          }
+        } catch {
+          // stat failed (maybe the lock was just released) — fall through
+          // to the normal retry path.
+        }
+      }
+
+      if (Date.now() - startedAt > waitMs) {
+        throw new Error(
+          `withFileLock: could not acquire lock on ${targetPath} within ${waitMs}ms. ` +
+            `Another process is likely holding ${lockPath}. ` +
+            `If no process is active, inspect and remove the stale lockfile manually.`,
+        );
+      }
+      // Backoff poll (bounded so cumulative wait stays within waitMs).
+      const end = Date.now() + Math.min(sleepMs, 100);
+      while (Date.now() < end) {
+        // Busy-wait — tests run in-process with short timeouts; Atomics
+        // wait would require a SharedArrayBuffer which is overkill here.
+      }
+      sleepMs = Math.min(sleepMs * 2, 100);
+      continue;
+    }
+  }
+
+  try {
+    return fn();
+  } finally {
+    try {
+      fs.unlinkSync(lockPath);
+    } catch {
+      // Cleanup best-effort. If unlink fails, subsequent acquires will
+      // eventually recover via the stale-lock path.
+    }
+  }
 }
 
 /**
@@ -795,8 +913,27 @@ function applyCrossAgentDedup(
   const id = decisionId("cross_agent_dedup", decision.cluster_id);
   try {
     // Structural guard — primary_member_index must point at a valid slot.
-    // If the cluster was loaded from a stale PromoteReport that omits this
-    // field, the schema validator should already have refused the load.
+    //
+    // 4-Rec4 / 4-UF2: This is intentional defense-in-depth and duplicates
+    // the validation that PromoteReportSpec.validate() performs at the
+    // load-time (spec/registry) boundary. The duplication is NOT a
+    // redundant check:
+    //
+    //   - PromoteReportSpec guards the REGISTRY-load path. Every report
+    //     that reaches this function via REGISTRY.loadFromFile has already
+    //     been validated and its primary_member_index field is sound.
+    //
+    //   - This applicator-side guard protects the PROGRAMMATIC path: tests
+    //     that push a cluster directly onto promoter.report.cross_agent_dedup_clusters
+    //     and re-serialize it through fs.writeFileSync (bypassing REGISTRY),
+    //     or future in-process callers that construct a cluster object
+    //     without going through REGISTRY.saveToFile.
+    //
+    // Both guards exist because both entry paths are real. The error
+    // message is applicator-specific ("Re-run 'onto promote' to regenerate")
+    // so the operator-legible owner is the applicator; the spec-level
+    // message is load-time ("legacy schema v1 detected"). They target
+    // different failure modes.
     if (
       !Number.isInteger(cluster.primary_member_index) ||
       cluster.primary_member_index < 0 ||
@@ -807,7 +944,8 @@ function applyCrossAgentDedup(
           `primary_member_index ${cluster.primary_member_index} out of range ` +
           `(member_items.length=${cluster.member_items.length}). ` +
           `This likely means the report was generated by an older Phase A ` +
-          `build. Re-run 'onto promote' to regenerate the report.`,
+          `build or constructed programmatically without going through the ` +
+          `panel-reviewer selector. Re-run 'onto promote' to regenerate the report.`,
       );
     }
 
@@ -888,25 +1026,47 @@ function applyCrossAgentDedup(
       }
       // Finish the partial apply: mark only the still-original members.
       // SYN-C2: use the resolved lineIndex as the mutation authority.
+      // 4-D1(a): wrap each per-file read-modify-write in withFileLock to
+      // serialize against concurrent writers. We re-resolve the anchor
+      // INSIDE the lock so no window exists between validation and write.
       const date = new Date().toISOString().slice(0, 10);
       let finishedCount = 0;
-      for (const { member, lineIndex } of unmarkedMembers) {
-        const marker = `<!-- consolidated (${date}) into ${decision.cluster_id}: ${member.raw_line} -->`;
-        const ok = replaceLineAtIndex(
-          member.source_path,
-          lineIndex,
-          member.raw_line,
-          marker,
-        );
-        if (!ok) {
-          throw new Error(
-            `cross_agent_dedup resume: failed to mark ${member.agent_id} ` +
-              `(${member.source_path} line ${lineIndex + 1}) during ` +
-              `partial-apply recovery — on-disk line drifted from the ` +
-              `resolved anchor`,
+      for (const { member } of unmarkedMembers) {
+        withFileLock(member.source_path, () => {
+          const memberLines = fs
+            .readFileSync(member.source_path, "utf8")
+            .split("\n");
+          const reResolution = resolveDedupMemberAnchor(
+            memberLines,
+            member,
+            decision.cluster_id,
           );
-        }
-        finishedCount += 1;
+          if (reResolution.kind === "already_consolidated") {
+            // Another resumed process finished this one — skip gracefully.
+            return;
+          }
+          if (reResolution.kind !== "match_original") {
+            throw new Error(
+              `cross_agent_dedup resume: member ${member.agent_id} in ` +
+                `${member.source_path} became ${reResolution.kind} ` +
+                `inside the lock window (cluster_id=${decision.cluster_id})`,
+            );
+          }
+          const marker = `<!-- consolidated (${date}) into ${decision.cluster_id}: ${member.raw_line} -->`;
+          const ok = replaceLineAtIndex(
+            member.source_path,
+            reResolution.lineIndex!,
+            member.raw_line,
+            marker,
+          );
+          if (!ok) {
+            throw new Error(
+              `cross_agent_dedup resume: replaceLineAtIndex failed under lock ` +
+                `for ${member.agent_id} (${member.source_path})`,
+            );
+          }
+          finishedCount += 1;
+        });
       }
       ctx.state = markApplied(ctx.state, {
         decision_kind: "cross_agent_dedup",
@@ -955,22 +1115,39 @@ function applyCrossAgentDedup(
         continue;
       }
       if (resolution.kind === "already_consolidated") {
-        // SYN-CC1: cluster marker absent but this member IS already marked.
-        // This is the "crash mid-apply after ordering flip" state. Fail-closed
-        // by intent — we do NOT auto-recover. The manual recovery path is:
-        //   1. Restore the member file from the recoverability checkpoint
-        //      ($ORIGINAL_ONTO_HOME/.onto/backups/<session_id>/), OR
+        // SYN-CC1 + 4-D2(a): cluster marker absent but this member IS
+        // already marked — the "crash mid-apply after ordering flip"
+        // state. Fail-closed by intent; automatic finish would risk data
+        // corruption if the partial apply came from a different shortlist
+        // composition than the current cluster.
+        //
+        // Operator-guidance: the error message includes both recovery
+        // options with concrete paths/commands so the operator can act
+        // without chasing docs:
+        //   1. Restore the specific member file from the recoverability
+        //      checkpoint at the session-specific manifest path, OR
         //   2. Manually remove the stray consolidated marker from the
-        //      member file, then re-run 'onto promote --apply <session>'.
-        // Automatic finish would risk data corruption if the partial apply
-        // came from a different shortlist composition than the current
-        // cluster (e.g. the operator changed candidates between attempts).
+        //      member file and re-run 'onto promote --apply <session>'.
+        const sessionId = ctx.state.session_id;
+        const checkpointManifestPath = path.join(
+          os.homedir(),
+          ".onto",
+          "backups",
+          sessionId,
+          "restore-manifest.yaml",
+        );
         preflightFailures.push(
           `${member.agent_id} (${member.scope}): already carries consolidated ` +
             `marker for cluster ${decision.cluster_id} in ${member.source_path} ` +
-            `despite missing cluster marker in primary file. ` +
-            `Manual recovery required — restore from checkpoint or remove the ` +
-            `stray marker. See SYN-CC1 contract.`,
+            `despite missing cluster marker in primary file (${primaryPath}). ` +
+            `Manual recovery required — SYN-CC1 fail-closed contract. ` +
+            `Options: ` +
+            `(A) Restore this file from the checkpoint manifest at ` +
+            `${checkpointManifestPath} (follow the backup entry whose ` +
+            `source_path matches ${member.source_path}); or ` +
+            `(B) Manually remove the stray '<!-- consolidated (...) into ` +
+            `${decision.cluster_id}: ... -->' line from ${member.source_path} ` +
+            `and re-run 'onto promote --apply ${sessionId}'.`,
         );
         continue;
       }
@@ -988,44 +1165,58 @@ function applyCrossAgentDedup(
     }
 
     // Preflight passed — mark each member first, THEN write consolidated
-    // line + cluster marker on the primary file. UF1 ordering intent:
-    // the cluster marker is the "commit marker" that indicates
-    // "all member markers were written during this run," so we write it
-    // AFTER the member mutations. Crash-mid-marks leaves a stray
-    // already_consolidated state that rerun detects and fails-closed on
-    // (SYN-CC1 contract).
-    //
-    // SYN-C2: mutation uses replaceLineAtIndex with the resolved lineIndex,
-    // NOT replaceLineInFile. For duplicate raw_line files, the latter would
-    // replace the first occurrence regardless of which one the anchor
-    // actually validated.
+    // line + cluster marker on the primary file. UF1 ordering: cluster
+    // marker is the "commit marker" written last. SYN-C2: mutation uses
+    // replaceLineAtIndex. 4-D1(a): each read-modify-write cycle runs
+    // under a file-level lock so concurrent peers cannot lose updates on
+    // unrelated lines of the same file. We re-resolve the anchor INSIDE
+    // the lock so there is no TOCTOU window between validation and write.
     const date = new Date().toISOString().slice(0, 10);
     let consolidatedCount = 0;
-    for (const { member, lineIndex } of resolvedMembers) {
-      const marker = `<!-- consolidated (${date}) into ${decision.cluster_id}: ${member.raw_line} -->`;
-      const ok = replaceLineAtIndex(
-        member.source_path,
-        lineIndex,
-        member.raw_line,
-        marker,
-      );
-      if (!ok) {
-        throw new Error(
-          `cross_agent_dedup post-preflight race: ${member.agent_id} line ${
-            lineIndex + 1
-          } ` +
-            `in ${member.source_path} no longer matches the anchored raw_line ` +
-            `(another process mutated the file between preflight and mutation)`,
+    for (const { member } of resolvedMembers) {
+      withFileLock(member.source_path, () => {
+        const memberLines = fs
+          .readFileSync(member.source_path, "utf8")
+          .split("\n");
+        const reResolution = resolveDedupMemberAnchor(
+          memberLines,
+          member,
+          decision.cluster_id,
         );
-      }
-      consolidatedCount += 1;
+        if (reResolution.kind !== "match_original") {
+          throw new Error(
+            `cross_agent_dedup post-preflight race: ${member.agent_id} ` +
+              `(${member.source_path}) became ${reResolution.kind} inside the ` +
+              `lock window — another process mutated this member file between ` +
+              `preflight and the locked write. The apply is aborted fail-closed; ` +
+              `no member file was left in an inconsistent state.`,
+          );
+        }
+        const marker = `<!-- consolidated (${date}) into ${decision.cluster_id}: ${member.raw_line} -->`;
+        const ok = replaceLineAtIndex(
+          member.source_path,
+          reResolution.lineIndex!,
+          member.raw_line,
+          marker,
+        );
+        if (!ok) {
+          throw new Error(
+            `cross_agent_dedup: replaceLineAtIndex failed under lock for ` +
+              `${member.agent_id} (${member.source_path})`,
+          );
+        }
+        consolidatedCount += 1;
+      });
     }
 
     // All member marks complete — now write the consolidated line + cluster
-    // marker as the commit step.
-    const learningId = hashLine(cluster.consolidated_line);
-    appendLearningLine(primaryPath, cluster.consolidated_line, learningId);
-    fs.appendFileSync(primaryPath, `${clusterMarker}\n`, "utf8");
+    // marker as the commit step. Locked at the primary file level to
+    // serialize against peers that may be appending to the same file.
+    withFileLock(primaryPath, () => {
+      const learningId = hashLine(cluster.consolidated_line);
+      appendLearningLine(primaryPath, cluster.consolidated_line, learningId);
+      fs.appendFileSync(primaryPath, `${clusterMarker}\n`, "utf8");
+    });
 
     ctx.state = markApplied(ctx.state, {
       decision_kind: "cross_agent_dedup",

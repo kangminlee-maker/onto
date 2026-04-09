@@ -1490,17 +1490,32 @@ function pickPrimaryMemberIndex(
       ownerPairs.push({ index: i, item });
     }
   }
-  // Guaranteed non-empty by the C2 precondition. Array.prototype.sort is
-  // stable in modern Node, so equal keys preserve original ordering.
+  // Guaranteed non-empty by the C2 precondition.
+  //
+  // 4-Rec3: Explicit slot tiebreaker. Previously this relied on
+  // Array.prototype.sort's stability (ECMAScript 2019+ / Node 12+) to
+  // preserve first-seen ordering on equal sort keys. That implicit
+  // dependency is documented-but-fragile — a code reader inspecting this
+  // function shouldn't have to know the Node engine floor to predict
+  // tie-break behavior. We now use original slot index as the explicit
+  // last tiebreaker in the comparator, so the selection is deterministic
+  // regardless of the runtime's sort stability guarantees.
   ownerPairs.sort((a, b) => {
     const aDate = a.item.source_date;
     const bDate = b.item.source_date;
-    // Dated BEFORE null-dated (stronger provenance wins).
-    if (aDate === null && bDate === null) return 0;
+    // Rule 1: dated BEFORE null-dated (stronger provenance wins).
+    if (aDate === null && bDate === null) {
+      // Rule 3 (tiebreaker): lower slot index wins — explicit, no
+      // stability reliance.
+      return a.index - b.index;
+    }
     if (aDate === null) return 1;
     if (bDate === null) return -1;
-    // Both dated — ascending lexicographic (earliest first).
-    return aDate.localeCompare(bDate);
+    // Rule 2: both dated — ascending lexicographic (earliest first).
+    const cmp = aDate.localeCompare(bDate);
+    if (cmp !== 0) return cmp;
+    // Rule 3 (tiebreaker): equal dates → lower slot index wins.
+    return a.index - b.index;
   });
   return ownerPairs[0]!.index;
 }

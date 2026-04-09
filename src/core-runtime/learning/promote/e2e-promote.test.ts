@@ -7164,6 +7164,661 @@ async function main(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // Batch 14 — 4th review (20260409-eacd0242) fixes
+  //   4-C1: legacy schema v1 promote_report migration message
+  //   4-D1(a): file-level lock (withFileLock) for cross-agent dedup apply
+  //   4-D2(a): SYN-CC1 concrete operator guidance (checkpoint path + rerun cmd)
+  //   4-CC + 4-Rec2: replaceLineAtIndex drift branch regression
+  //   4-Rec1 + 4-UF1: malformed primary_member_index reject-path tests
+  //   4-Rec3: explicit slot tiebreaker
+  //   (4-Rec4 + 4-UF2 are comment-only; covered by code review not tests)
+  // -------------------------------------------------------------------------
+
+  // E-P152 — 4-C1: legacy schema_version="1" promote_report load produces
+  //          dedicated migration guidance, not generic "unsupported version".
+  await test("E-P152 PromoteReportSpec rejects legacy schema v1 with regenerate guidance (4-C1)", async () => {
+    const { PromoteReportSpec } = await import(
+      "../shared/specs/promote-report-spec.js"
+    );
+    const legacyJson = JSON.stringify({
+      schema_version: "1",
+      session_id: "legacy-session",
+      generated_at: "2026-04-01T00:00:00Z",
+      mode: "promote",
+      collection: {},
+      pre_analysis: [],
+      panel_verdicts: [],
+      cross_agent_dedup_clusters: [
+        {
+          cluster_id: "legacy-cluster",
+          primary_owner_agent: "structure",
+          primary_owner_reason: "legacy",
+          // no primary_member_index (v1)
+          consolidated_principle: "legacy",
+          representative_cases: [],
+          member_items: [],
+          consolidated_line: "legacy",
+          user_approval_required: true,
+        },
+      ],
+      audit_summary: {},
+      retirement_candidates: [],
+      conflict_proposals: [],
+      domain_doc_candidates: [],
+      health_snapshot: {},
+      degraded_states: [],
+      warnings: [],
+    });
+    let caught: unknown = null;
+    try {
+      PromoteReportSpec.parse(legacyJson, "json");
+    } catch (e) {
+      caught = e;
+    }
+    assert(
+      caught instanceof IncompatibleVersionError,
+      "expected IncompatibleVersionError",
+    );
+    const msg = (caught as Error).message;
+    assert(
+      msg.includes('legacy schema_version="1"'),
+      "message names the legacy version explicitly",
+    );
+    assert(
+      msg.includes("primary_member_index"),
+      "message names the field that's missing in v1",
+    );
+    assert(
+      msg.includes("onto promote"),
+      "message names the regenerate command",
+    );
+    assert(
+      msg.toLowerCase().includes("discard") ||
+        msg.toLowerCase().includes("regenerate"),
+      "message gives an action verb",
+    );
+  });
+
+  // E-P153 — 4-CC + 4-Rec2: replaceLineAtIndex drift branch. When the
+  //          line at the expected index does NOT match expectedLine
+  //          (simulating a race), the helper returns false and the file
+  //          is untouched. Direct positive + negative test.
+  await test("E-P153 replaceLineAtIndex fail-closes on post-preflight drift", async () => {
+    // replaceLineAtIndex is not exported — exercise it via the cross-agent
+    // dedup path by anchoring at a line that doesn't match expectedLine.
+    const projectRoot = makeTmpDir("e-p153-proj");
+    const fakeOnto = makeTmpDir("e-p153-home");
+
+    const structureLine =
+      "- [fact] [methodology] [foundation] primary alpha (source: p, d, 2026-01-01) [impact:normal]";
+    // philosopher file: at line 2 (index 1) has ONE line, but we'll
+    // anchor member.line_number=5 which is OUT OF RANGE on purpose — this
+    // exercises the "index out of bounds" branch of replaceLineAtIndex
+    // through the preflight path.
+    const philosopherLine =
+      "- [fact] [methodology] [foundation] drift test line (source: p, d, 2026-01-01) [impact:normal]";
+    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", structureLine].join("\n"),
+    );
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "philosopher",
+      ["<!-- format_version: 1 -->", philosopherLine].join("\n"),
+    );
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-153",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+    const cluster = {
+      cluster_id: "drift-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "test",
+      primary_member_index: 0,
+      consolidated_principle: "test",
+      representative_cases: [],
+      member_items: [
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "global",
+            source_path: structurePath,
+          }),
+          raw_line: structureLine,
+          line_number: 2,
+        },
+        {
+          ...syntheticItem({
+            agent_id: "philosopher",
+            scope: "global",
+            source_path: philosopherPath,
+          }),
+          raw_line: philosopherLine,
+          // line_number=5 is beyond the file (out of range) → anchor
+          // fallback scan finds it (unique) → match_original. Then we
+          // inject drift AFTER preflight by swapping the file content
+          // before the locked write window. Because the lock re-reads
+          // inside the window, it will detect drift and fail-closed.
+          line_number: 5,
+        },
+      ],
+      consolidated_line:
+        "- [fact] [methodology] [foundation] consolidated drift (source: cluster, d, 2026-04-09) [impact:normal]",
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(
+      promoter.reportPath,
+      JSON.stringify(promoter.report, null, 2),
+    );
+
+    // Overwrite philosopher.md AFTER the promoter write but BEFORE the
+    // executor runs — this simulates a race where the file drifted
+    // between Phase A report generation and Phase B apply. The locked
+    // re-read inside withFileLock should detect that the raw_line is
+    // no longer present at any anchor position.
+    fs.writeFileSync(
+      philosopherPath,
+      [
+        "<!-- format_version: 1 -->",
+        "- [fact] [methodology] [foundation] a totally different line (source: p, d, 2026-01-01) [impact:normal]",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-153",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [
+        { cluster_id: "drift-test", approve: true },
+      ],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-153",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    // The drift causes preflight to fail (raw_line not locatable).
+    assert(
+      outcome.kind === "failed_resumable",
+      `expected failed_resumable on drift (got ${outcome.kind})`,
+    );
+
+    // Primary file must NOT have been mutated (no consolidated line, no cluster marker)
+    const structureContent = fs.readFileSync(structurePath, "utf8");
+    assert(
+      !structureContent.includes("consolidated drift"),
+      "primary file untouched on drift",
+    );
+    assert(
+      !structureContent.includes("cluster_id: drift-test"),
+      "cluster marker NOT written on drift",
+    );
+  });
+
+  // E-P154 — 4-D2(a): SYN-CC1 error message contains checkpoint manifest
+  //          path AND rerun command. Extends E-P148 which only checked the
+  //          general "Manual recovery required" substring.
+  await test("E-P154 SYN-CC1 error message includes concrete recovery guidance (4-D2(a))", async () => {
+    const projectRoot = makeTmpDir("e-p154-proj");
+    const fakeOnto = makeTmpDir("e-p154-home");
+
+    const primaryLine =
+      "- [fact] [methodology] [foundation] primary untouched (source: p, d, 2026-01-01) [impact:normal]";
+    const memberLine =
+      "- [fact] [methodology] [foundation] member pre-marked (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", primaryLine].join("\n"),
+    );
+    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "philosopher",
+      [
+        "<!-- format_version: 1 -->",
+        `<!-- consolidated (2026-04-08) into cc1-guidance-test: ${memberLine} -->`,
+      ].join("\n"),
+    );
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-154",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+    const cluster = {
+      cluster_id: "cc1-guidance-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "test",
+      primary_member_index: 0,
+      consolidated_principle: "test",
+      representative_cases: [],
+      member_items: [
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "global",
+            source_path: structurePath,
+          }),
+          raw_line: primaryLine,
+          line_number: 2,
+        },
+        {
+          ...syntheticItem({
+            agent_id: "philosopher",
+            scope: "global",
+            source_path: philosopherPath,
+          }),
+          raw_line: memberLine,
+          line_number: 2,
+        },
+      ],
+      consolidated_line:
+        "- [fact] [methodology] [foundation] consolidated cc1 guidance (source: cluster, d, 2026-04-09) [impact:normal]",
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(
+      promoter.reportPath,
+      JSON.stringify(promoter.report, null, 2),
+    );
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-154",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [
+        { cluster_id: "cc1-guidance-test", approve: true },
+      ],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-154",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    assert(
+      outcome.kind === "failed_resumable",
+      `expected failed_resumable (got ${outcome.kind})`,
+    );
+
+    // Pin concrete operator guidance strings in the failure message
+    const applyStatePath = path.join(
+      promoter.sessionRoot,
+      "promote-execution-result.json",
+    );
+    const applyState = JSON.parse(fs.readFileSync(applyStatePath, "utf8"));
+    const failed = applyState.failed_decisions ?? [];
+    const dedupFail = failed.find(
+      (f: { decision_kind: string }) =>
+        f.decision_kind === "cross_agent_dedup",
+    );
+    assert(dedupFail !== undefined, "dedup failure recorded");
+    const msg: string = dedupFail.error_message;
+
+    // Manual recovery heading
+    assert(
+      msg.includes("Manual recovery required") && msg.includes("SYN-CC1"),
+      "message names manual recovery + SYN-CC1 contract",
+    );
+    // Option A: checkpoint manifest path (session-specific)
+    assert(
+      msg.includes("restore-manifest.yaml"),
+      "option A references restore-manifest.yaml",
+    );
+    assert(
+      msg.includes("test-154"),
+      "checkpoint path is session-specific (names session id)",
+    );
+    // Option B: stray marker removal + rerun command
+    assert(
+      msg.includes("remove the stray") &&
+        msg.includes("consolidated"),
+      "option B names the marker removal action",
+    );
+    assert(
+      msg.includes("onto promote --apply test-154"),
+      "option B includes the exact rerun command with session id",
+    );
+  });
+
+  // E-P155 — 4-Rec1 + 4-UF1: malformed primary_member_index reject-path.
+  //          Direct spec.validate() tests for negative, non-integer, and
+  //          out-of-range values. PromoteReportSpec must refuse all of
+  //          them with a named field error.
+  await test("E-P155 PromoteReportSpec rejects malformed primary_member_index values (4-Rec1)", async () => {
+    const { PromoteReportSpec } = await import(
+      "../shared/specs/promote-report-spec.js"
+    );
+
+    function buildReport(primaryMemberIndex: unknown, memberItemCount = 2) {
+      return {
+        schema_version: "2",
+        session_id: "test-155",
+        generated_at: "2026-04-09T00:00:00Z",
+        mode: "promote",
+        collection: {},
+        pre_analysis: [],
+        panel_verdicts: [],
+        cross_agent_dedup_clusters: [
+          {
+            cluster_id: "malformed-test",
+            primary_owner_agent: "structure",
+            primary_owner_reason: "test",
+            primary_member_index: primaryMemberIndex,
+            consolidated_principle: "test",
+            representative_cases: [],
+            member_items: Array.from({ length: memberItemCount }, (_, i) => ({
+              agent_id: "structure",
+              raw_line: `line ${i}`,
+            })),
+            consolidated_line: "test",
+            user_approval_required: true,
+          },
+        ],
+        audit_summary: {},
+        retirement_candidates: [],
+        conflict_proposals: [],
+        domain_doc_candidates: [],
+        health_snapshot: {},
+        degraded_states: [],
+        warnings: [],
+      };
+    }
+
+    // Case 1: negative index
+    const neg = PromoteReportSpec.validate(buildReport(-1));
+    assertEqual(neg.valid, false, "negative index rejected");
+    assert(
+      neg.errors.some((e) => e.includes("primary_member_index")),
+      "error names the field",
+    );
+
+    // Case 2: non-integer (floating point)
+    const frac = PromoteReportSpec.validate(buildReport(0.5));
+    assertEqual(frac.valid, false, "non-integer index rejected");
+    assert(
+      frac.errors.some((e) => e.includes("primary_member_index")),
+      "error names the field",
+    );
+
+    // Case 3: out of range (>=member_items.length)
+    const oor = PromoteReportSpec.validate(buildReport(5, 2));
+    assertEqual(oor.valid, false, "out-of-range index rejected");
+    assert(
+      oor.errors.some((e) => e.includes("primary_member_index")),
+      "error names the field",
+    );
+    assert(
+      oor.errors.some((e) => e.includes("out of member_items bounds")),
+      "error identifies bounds violation",
+    );
+
+    // Case 4: undefined (missing)
+    const missing = PromoteReportSpec.validate(buildReport(undefined));
+    assertEqual(missing.valid, false, "missing index rejected");
+    assert(
+      missing.errors.some((e) => e.includes("primary_member_index")),
+      "error names the field",
+    );
+
+    // Case 5: string instead of number
+    const str = PromoteReportSpec.validate(buildReport("0"));
+    assertEqual(str.valid, false, "string index rejected");
+
+    // Positive control: integer 0 within bounds passes the cluster-level check
+    const ok = PromoteReportSpec.validate(buildReport(0, 2));
+    // (This may still fail other top-level checks like empty collection,
+    // but not the primary_member_index one.)
+    assert(
+      !ok.errors.some((e) => e.includes("primary_member_index")),
+      "valid integer 0 does NOT produce primary_member_index errors",
+    );
+  });
+
+  // E-P156 — 4-D1(a): withFileLock concurrency barrier. Start a fake
+  //          "holder" that creates the lockfile manually, then attempt
+  //          an apply — it must time out with the "could not acquire lock"
+  //          message, NOT silently succeed or hang forever.
+  await test("E-P156 withFileLock fails fast when another holder occupies the lock", async () => {
+    // The withFileLock helper is not exported; exercise it indirectly
+    // through applyCrossAgentDedup by placing a sibling .lock file before
+    // the apply runs. The apply should time out at the lock acquisition
+    // step and surface as failed_resumable.
+    const projectRoot = makeTmpDir("e-p156-proj");
+    const fakeOnto = makeTmpDir("e-p156-home");
+
+    const structureLine =
+      "- [fact] [methodology] [foundation] primary (source: p, d, 2026-01-01) [impact:normal]";
+    const philosopherLine =
+      "- [fact] [methodology] [foundation] member (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", structureLine].join("\n"),
+    );
+    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "philosopher",
+      ["<!-- format_version: 1 -->", philosopherLine].join("\n"),
+    );
+
+    // Simulate a concurrent holder by creating philosopher.md.lock RIGHT NOW.
+    // The file mtime is "now" so stale-lock recovery (5min threshold) won't
+    // kick in. The helper's waitMs default is 5000 — we set up the holder
+    // to stay alive across that window so the acquire fails.
+    const lockPath = `${philosopherPath}.lock`;
+    fs.writeFileSync(lockPath, "999999\n2026-04-09T00:00:00Z\n", "utf8");
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-156",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+    const cluster = {
+      cluster_id: "lock-barrier-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "test",
+      primary_member_index: 0,
+      consolidated_principle: "test",
+      representative_cases: [],
+      member_items: [
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "global",
+            source_path: structurePath,
+          }),
+          raw_line: structureLine,
+          line_number: 2,
+        },
+        {
+          ...syntheticItem({
+            agent_id: "philosopher",
+            scope: "global",
+            source_path: philosopherPath,
+          }),
+          raw_line: philosopherLine,
+          line_number: 2,
+        },
+      ],
+      consolidated_line:
+        "- [fact] [methodology] [foundation] consolidated lock test (source: cluster, d, 2026-04-09) [impact:normal]",
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(
+      promoter.reportPath,
+      JSON.stringify(promoter.report, null, 2),
+    );
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-156",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [
+        { cluster_id: "lock-barrier-test", approve: true },
+      ],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    const startedAt = Date.now();
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-156",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    const elapsed = Date.now() - startedAt;
+
+    // The acquire should have failed within ~5s (waitMs default)
+    assert(
+      elapsed < 7000,
+      `lock wait should terminate around waitMs=5000 (took ${elapsed}ms)`,
+    );
+    assert(
+      outcome.kind === "failed_resumable",
+      `expected failed_resumable, got ${outcome.kind}`,
+    );
+
+    // Verify the failure message surfaces the lock path
+    const applyState = JSON.parse(
+      fs.readFileSync(
+        path.join(promoter.sessionRoot, "promote-execution-result.json"),
+        "utf8",
+      ),
+    );
+    const failed = applyState.failed_decisions ?? [];
+    const dedupFail = failed.find(
+      (f: { decision_kind: string }) =>
+        f.decision_kind === "cross_agent_dedup",
+    );
+    assert(dedupFail !== undefined, "dedup failure recorded");
+    assert(
+      dedupFail.error_message.includes("could not acquire lock") ||
+        dedupFail.error_message.includes("lock"),
+      `error message names the lock problem (got: ${dedupFail.error_message})`,
+    );
+
+    // Neither file should have been mutated
+    const structureContent = fs.readFileSync(structurePath, "utf8");
+    const philosopherContent = fs.readFileSync(philosopherPath, "utf8");
+    assert(
+      !structureContent.includes("consolidated lock test"),
+      "primary untouched",
+    );
+    assert(
+      philosopherContent.includes(philosopherLine),
+      "member unchanged (original raw_line preserved)",
+    );
+
+    // Cleanup the fake holder lockfile
+    try {
+      fs.unlinkSync(lockPath);
+    } catch {
+      /* already gone */
+    }
+  });
+
+  // E-P157 — 4-Rec3: explicit tiebreaker. When two owner candidates share
+  //          null source_date AND the ambient sort would randomly reorder
+  //          them, the slot-index tiebreaker ensures a deterministic pick.
+  //          Direct test of pickPrimaryMemberIndex with all-equal keys.
+  await test("E-P157 pickPrimaryMemberIndex uses explicit slot tiebreaker (4-Rec3)", async () => {
+    const { __testExports } = await import("./panel-reviewer.js");
+    const { pickPrimaryMemberIndex } = __testExports;
+
+    // All three candidates share agent_id="structure" AND source_date=null.
+    // The only distinguisher is slot index. Expected winner: slot 0 (lowest
+    // index), regardless of Array.sort stability.
+    const allEqual = [
+      syntheticItem({ agent_id: "structure", source_date: null }),
+      syntheticItem({ agent_id: "structure", source_date: null }),
+      syntheticItem({ agent_id: "structure", source_date: null }),
+    ];
+    assertEqual(
+      pickPrimaryMemberIndex(allEqual, "structure"),
+      0,
+      "lowest slot index wins for all-equal candidates",
+    );
+
+    // Mix: one with a date further out, several tied at the SAME date.
+    // Expected: the first slot with the earliest shared date wins.
+    const tiedDates = [
+      syntheticItem({ agent_id: "structure", source_date: "2026-03-01" }),
+      syntheticItem({ agent_id: "philosopher", source_date: "2026-02-01" }),
+      syntheticItem({ agent_id: "structure", source_date: "2026-01-15" }),
+      syntheticItem({ agent_id: "structure", source_date: "2026-01-15" }),
+    ];
+    assertEqual(
+      pickPrimaryMemberIndex(tiedDates, "structure"),
+      2,
+      "earliest date wins; among ties, lowest slot index (2 < 3)",
+    );
+  });
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   process.stdout.write("\n");

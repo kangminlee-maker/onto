@@ -15,7 +15,11 @@
  * falling through to the apply-time structural guard.
  */
 
-import type { ArtifactSpec, ValidationResult } from "../artifact-registry.js";
+import {
+  IncompatibleVersionError,
+  type ArtifactSpec,
+  type ValidationResult,
+} from "../artifact-registry.js";
 import type { PromoteReport } from "../../promote/types.js";
 import {
   parseRaw,
@@ -38,6 +42,26 @@ export const PromoteReportSpec: ArtifactSpec<PromoteReport> = {
 
   parse(content, format) {
     const raw = parseRaw(content, format);
+    // 4-C1 fix: schema_version="1" reports from before the index-based
+    // primary_member bump get a dedicated migration message naming the
+    // specific action operator needs to take. rejectPreV7 handles the
+    // no-schema_version and wrong-version cases with a generic message;
+    // this explicit branch runs FIRST so the v1→v2 path is operator-legible.
+    if (
+      typeof raw === "object" &&
+      raw !== null &&
+      (raw as { schema_version?: unknown }).schema_version === "1"
+    ) {
+      throw new IncompatibleVersionError(
+        `${KIND}: legacy schema_version="1" detected. ` +
+          `This report was generated before the index-based primary_member identity ` +
+          `bump (v1→v2). The new Phase B apply path requires ` +
+          `cross_agent_dedup_clusters[].primary_member_index which the legacy format ` +
+          `does not carry. ` +
+          `Action: discard the legacy report and regenerate via ` +
+          `'onto promote' (new session), then re-run apply on the fresh session.`,
+      );
+    }
     return rejectPreV7<PromoteReport>(raw, KIND, SUPPORTED);
   },
 

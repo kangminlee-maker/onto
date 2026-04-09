@@ -1196,7 +1196,7 @@ async function main(): Promise<void> {
         cluster_id: "cluster-test-35",
         primary_owner_agent: "structure",
         primary_owner_reason: "first generated",
-        primary_member_raw_line: lineA,
+        primary_member_index: 0,
         consolidated_principle: "consolidated principle",
         representative_cases: ["case a", "case b"],
         member_items: [
@@ -1708,7 +1708,7 @@ async function main(): Promise<void> {
       cluster_id: "preflight-test",
       primary_owner_agent: "structure",
       primary_owner_reason: "test",
-      primary_member_raw_line: lineA,
+      primary_member_index: 0,
       consolidated_principle: "test",
       representative_cases: [],
       member_items: [
@@ -1820,7 +1820,7 @@ async function main(): Promise<void> {
       cluster_id: "idem-test",
       primary_owner_agent: "structure",
       primary_owner_reason: "test",
-      primary_member_raw_line: lineA,
+      primary_member_index: 0,
       consolidated_principle: "test",
       representative_cases: [],
       member_items: [
@@ -5616,7 +5616,7 @@ async function main(): Promise<void> {
       cluster_id: "mixed-scope-test",
       primary_owner_agent: "structure",
       primary_owner_reason: "global canonical",
-      primary_member_raw_line: globalLine,
+      primary_member_index: 0,
       consolidated_principle: "mixed-scope consolidation",
       representative_cases: ["a", "b"],
       member_items: [
@@ -6227,7 +6227,7 @@ async function main(): Promise<void> {
       cluster_id: "transitive-test",
       primary_owner_agent: "structure",
       primary_owner_reason: "earliest source_date among structure members",
-      primary_member_raw_line: structureLineA,
+      primary_member_index: 0,
       consolidated_principle: "same principle across agents and within one",
       representative_cases: ["a", "b", "c"],
       member_items: [
@@ -6401,7 +6401,7 @@ async function main(): Promise<void> {
       cluster_id: "ambig-test",
       primary_owner_agent: "structure",
       primary_owner_reason: "test",
-      primary_member_raw_line: structureLine,
+      primary_member_index: 0,
       consolidated_principle: "test",
       representative_cases: [],
       member_items: [
@@ -6482,6 +6482,684 @@ async function main(): Promise<void> {
       !philosopherContent.includes("consolidated (") ||
         !philosopherContent.includes("ambig-test"),
       "no consolidated marker written for ambiguous member",
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Batch 13 — 3rd review (20260409-a9286288) fixes (SYN-C1/C2 + CC1 + D1 + U1~U4)
+  // -------------------------------------------------------------------------
+
+  // E-P146 — SYN-C1: same-content duplicate member regression. Two shortlist
+  //          members sharing IDENTICAL raw_line must still be distinguishable
+  //          via primary_member_index. Only the one at the primary index is
+  //          skipped from marking; the other is marked consolidated.
+  await test("E-P146 cross_agent_dedup index-based identity handles identical raw_line members (SYN-C1)", async () => {
+    const projectRoot = makeTmpDir("e-p146-proj");
+    const fakeOnto = makeTmpDir("e-p146-home");
+
+    // Two structure files (different scope to force different source_path)
+    // with LITERALLY the same raw_line text.
+    const sharedLine =
+      "- [fact] [methodology] [foundation] literally identical content (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", sharedLine].join("\n"),
+    );
+    const projectLearningsDir = path.join(projectRoot, ".onto", "learnings");
+    fs.mkdirSync(projectLearningsDir, { recursive: true });
+    const projectStructurePath = path.join(projectLearningsDir, "structure.md");
+    fs.writeFileSync(
+      projectStructurePath,
+      ["<!-- format_version: 1 -->", sharedLine].join("\n"),
+      "utf8",
+    );
+    const globalStructurePath = path.join(fakeOnto, "learnings", "structure.md");
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-146",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const consolidatedLine =
+      "- [fact] [methodology] [foundation] consolidated identical case (source: cluster, d, 2026-04-09) [impact:normal]";
+    const cluster = {
+      cluster_id: "identical-content-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "first slot is the canonical global original",
+      // primary_member_index points at slot 0 (global structure). Slot 1
+      // (project structure) has IDENTICAL raw_line but MUST still be
+      // marked consolidated — the filter uses index, not content.
+      primary_member_index: 0,
+      consolidated_principle: "identical content test",
+      representative_cases: ["global", "project"],
+      member_items: [
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "global",
+            source_path: globalStructurePath,
+          }),
+          raw_line: sharedLine,
+          line_number: 2,
+        },
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "project",
+            source_path: projectStructurePath,
+          }),
+          raw_line: sharedLine,
+          line_number: 2,
+        },
+      ],
+      consolidated_line: consolidatedLine,
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(
+      promoter.reportPath,
+      JSON.stringify(promoter.report, null, 2),
+    );
+
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-146",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [
+        { cluster_id: "identical-content-test", approve: true },
+      ],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-146",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    assertEqual(outcome.kind, "completed", "executor completed for identical-content cluster");
+
+    // Primary (global structure) gets the consolidated line appended and
+    // the original sharedLine REMAINS as the source of truth for the
+    // absorbed principle.
+    const globalLines = fs.readFileSync(globalStructurePath, "utf8").split("\n");
+    assert(
+      globalLines.includes(sharedLine),
+      "global structure.md primary slot preserved",
+    );
+    assert(
+      globalLines.some((l: string) => l.includes("consolidated identical case")),
+      "consolidated line appended to global primary",
+    );
+
+    // Non-primary (project structure) gets the consolidated marker — even
+    // though raw_line is identical to the primary's.
+    const projectLines = fs
+      .readFileSync(projectStructurePath, "utf8")
+      .split("\n");
+    assert(
+      !projectLines.includes(sharedLine),
+      "project structure.md sharedLine was replaced (non-primary slot)",
+    );
+    assert(
+      projectLines.some(
+        (l: string) =>
+          l.includes("consolidated") && l.includes("identical-content-test"),
+      ),
+      "project structure carries consolidated marker",
+    );
+  });
+
+  // E-P147 — SYN-C2: anchor as mutation authority. When a member file has
+  //          TWO verbatim copies of raw_line and the line_number anchor
+  //          points at the SECOND one, mutation must land on line 2 (the
+  //          anchored one), NOT line 1 (first verbatim match).
+  await test("E-P147 replaceLineAtIndex honors resolved anchor, not first verbatim match (SYN-C2)", async () => {
+    const projectRoot = makeTmpDir("e-p147-proj");
+    const fakeOnto = makeTmpDir("e-p147-home");
+
+    const structureLine =
+      "- [fact] [methodology] [foundation] primary alpha (source: p, d, 2026-01-01) [impact:normal]";
+    const duplicateLine =
+      "- [fact] [methodology] [foundation] dup content beta (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", structureLine].join("\n"),
+    );
+    // philosopher.md has TWO copies of duplicateLine. Anchor member.line_number=4
+    // points at the SECOND copy. SYN-C2 fix: the mutation must target that
+    // specific line, not fall back to first-verbatim-match scanning.
+    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "philosopher",
+      [
+        "<!-- format_version: 1 -->",
+        duplicateLine, // line 2 — first copy (must NOT be touched)
+        "- [fact] [methodology] [foundation] divider line (source: p, d, 2026-01-01) [impact:normal]",
+        duplicateLine, // line 4 — second copy (anchor target)
+      ].join("\n"),
+    );
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-147",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+    const consolidatedLine =
+      "- [fact] [methodology] [foundation] consolidated anchor auth (source: cluster, d, 2026-04-09) [impact:normal]";
+    const cluster = {
+      cluster_id: "anchor-auth-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "test",
+      primary_member_index: 0,
+      consolidated_principle: "test",
+      representative_cases: [],
+      member_items: [
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "global",
+            source_path: structurePath,
+          }),
+          raw_line: structureLine,
+          line_number: 2,
+        },
+        {
+          ...syntheticItem({
+            agent_id: "philosopher",
+            scope: "global",
+            source_path: philosopherPath,
+          }),
+          raw_line: duplicateLine,
+          // Anchor the SECOND copy at file line 4 (index 3)
+          line_number: 4,
+        },
+      ],
+      consolidated_line: consolidatedLine,
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(
+      promoter.reportPath,
+      JSON.stringify(promoter.report, null, 2),
+    );
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-147",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [
+        { cluster_id: "anchor-auth-test", approve: true },
+      ],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-147",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    assertEqual(outcome.kind, "completed", "executor completed");
+
+    const philosopherLines = fs
+      .readFileSync(philosopherPath, "utf8")
+      .split("\n");
+    // The anchored (second) copy at index 3 must be replaced with the marker.
+    assert(
+      philosopherLines[3]!.includes("consolidated") &&
+        philosopherLines[3]!.includes("anchor-auth-test"),
+      `line 4 (index 3) replaced with consolidated marker (got "${philosopherLines[3]}")`,
+    );
+    // The FIRST copy at index 1 must remain untouched.
+    assertEqual(
+      philosopherLines[1],
+      duplicateLine,
+      "line 2 (index 1) is unchanged — SYN-C2 fix prevents first-verbatim replacement",
+    );
+  });
+
+  // E-P148 — SYN-CC1 contract: cluster marker absent + some members already
+  //          consolidated → fail-closed with manual recovery guidance.
+  await test("E-P148 cross_agent_dedup fails closed on partial-apply state (SYN-CC1)", async () => {
+    const projectRoot = makeTmpDir("e-p148-proj");
+    const fakeOnto = makeTmpDir("e-p148-home");
+
+    const primaryLine =
+      "- [fact] [methodology] [foundation] primary untouched (source: p, d, 2026-01-01) [impact:normal]";
+    const memberLine =
+      "- [fact] [methodology] [foundation] member pre-marked (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", primaryLine].join("\n"),
+    );
+    // philosopher file ALREADY has the consolidated marker for our cluster_id
+    // but the PRIMARY file has NO cluster marker — simulating a crash that
+    // left the apply mid-transition.
+    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "philosopher",
+      [
+        "<!-- format_version: 1 -->",
+        `<!-- consolidated (2026-04-08) into partial-apply-test: ${memberLine} -->`,
+      ].join("\n"),
+    );
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-148",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+    const cluster = {
+      cluster_id: "partial-apply-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "test",
+      primary_member_index: 0,
+      consolidated_principle: "test",
+      representative_cases: [],
+      member_items: [
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "global",
+            source_path: structurePath,
+          }),
+          raw_line: primaryLine,
+          line_number: 2,
+        },
+        {
+          ...syntheticItem({
+            agent_id: "philosopher",
+            scope: "global",
+            source_path: philosopherPath,
+          }),
+          raw_line: memberLine,
+          line_number: 2, // the line is now the marker — anchor says already_consolidated
+        },
+      ],
+      consolidated_line:
+        "- [fact] [methodology] [foundation] consolidated partial (source: cluster, d, 2026-04-09) [impact:normal]",
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(
+      promoter.reportPath,
+      JSON.stringify(promoter.report, null, 2),
+    );
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-148",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [
+        { cluster_id: "partial-apply-test", approve: true },
+      ],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-148",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+
+    // Fail-closed: the decision failed, executor returned failed_resumable.
+    assert(
+      outcome.kind === "failed_resumable",
+      `expected failed_resumable, got ${outcome.kind}`,
+    );
+
+    // Primary file untouched (no consolidated line appended)
+    const structureContent = fs.readFileSync(structurePath, "utf8");
+    assert(
+      !structureContent.includes("consolidated partial"),
+      "primary file NOT mutated",
+    );
+    assert(
+      !structureContent.includes("cluster_id: partial-apply-test"),
+      "primary file has NO cluster marker (fail-closed)",
+    );
+
+    // Verify the failure surfaced in apply-state with the SYN-CC1 message
+    const applyStatePath = path.join(
+      promoter.sessionRoot,
+      "promote-execution-result.json",
+    );
+    const applyState = JSON.parse(fs.readFileSync(applyStatePath, "utf8"));
+    const failed = applyState.failed_decisions ?? [];
+    assert(failed.length >= 1, "one failed decision recorded");
+    const dedupFail = failed.find(
+      (f: { decision_kind: string }) =>
+        f.decision_kind === "cross_agent_dedup",
+    );
+    assert(dedupFail !== undefined, "dedup failure present");
+    assert(
+      dedupFail.error_message.includes("Manual recovery required") ||
+        dedupFail.error_message.includes("SYN-CC1"),
+      `error message names manual recovery path (got: ${dedupFail.error_message})`,
+    );
+  });
+
+  // E-P149 — SYN-D1 / SYN-U2: pickPrimaryMemberIndex edge cases.
+  await test("E-P149 pickPrimaryMemberIndex edge cases (SYN-D1, SYN-U2)", async () => {
+    const { __testExports } = await import("./panel-reviewer.js");
+    const { pickPrimaryMemberIndex } = __testExports;
+
+    // Case 1: single match — trivial
+    const single = [
+      syntheticItem({ agent_id: "structure", source_date: "2026-01-01" }),
+      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-02" }),
+    ];
+    assertEqual(
+      pickPrimaryMemberIndex(single, "structure"),
+      0,
+      "single owner candidate → its index",
+    );
+
+    // Case 2: multi-match, earliest date wins
+    const multi = [
+      syntheticItem({ agent_id: "structure", source_date: "2026-02-01" }),
+      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-01" }),
+      syntheticItem({ agent_id: "structure", source_date: "2026-01-05" }),
+    ];
+    assertEqual(
+      pickPrimaryMemberIndex(multi, "structure"),
+      2,
+      "earliest dated structure member wins (index 2)",
+    );
+
+    // Case 3: equal source_dates — stable sort preserves original order
+    const equalDates = [
+      syntheticItem({ agent_id: "structure", source_date: "2026-01-01" }),
+      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-05" }),
+      syntheticItem({ agent_id: "structure", source_date: "2026-01-01" }),
+    ];
+    assertEqual(
+      pickPrimaryMemberIndex(equalDates, "structure"),
+      0,
+      "equal dates → first-encountered owner wins (index 0)",
+    );
+
+    // Case 4: null date AFTER dated — dated wins
+    const nullAfter = [
+      syntheticItem({ agent_id: "structure", source_date: null }),
+      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-05" }),
+      syntheticItem({ agent_id: "structure", source_date: "2026-01-01" }),
+    ];
+    assertEqual(
+      pickPrimaryMemberIndex(nullAfter, "structure"),
+      2,
+      "dated member outranks null-dated sibling (index 2)",
+    );
+
+    // Case 5: null date BEFORE dated — dated still wins
+    const datedAfter = [
+      syntheticItem({ agent_id: "structure", source_date: "2026-01-01" }),
+      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-05" }),
+      syntheticItem({ agent_id: "structure", source_date: null }),
+    ];
+    assertEqual(
+      pickPrimaryMemberIndex(datedAfter, "structure"),
+      0,
+      "dated member at index 0 wins over null-dated sibling",
+    );
+
+    // Case 6: all-null owners — first-encountered wins (stable sort)
+    const allNull = [
+      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-05" }),
+      syntheticItem({ agent_id: "structure", source_date: null }),
+      syntheticItem({ agent_id: "structure", source_date: null }),
+    ];
+    assertEqual(
+      pickPrimaryMemberIndex(allNull, "structure"),
+      1,
+      "all-null owners → first encountered (index 1)",
+    );
+
+    // Case 7: duplicate content, different slots — both survive pick
+    const dupContent = [
+      syntheticItem({
+        agent_id: "structure",
+        source_date: "2026-01-01",
+        raw_line: "same raw_line content",
+      }),
+      syntheticItem({
+        agent_id: "structure",
+        source_date: "2026-02-01",
+        raw_line: "same raw_line content",
+      }),
+      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-05" }),
+    ];
+    assertEqual(
+      pickPrimaryMemberIndex(dupContent, "structure"),
+      0,
+      "earliest of two identical-content owners by slot (index 0)",
+    );
+  });
+
+  // E-P150 — SYN-U3: same_principle_rejected reaches report.warnings via
+  //          runPromoter (end-to-end operator visibility).
+  await test("E-P150 same_principle_rejected surfaces in report.warnings (SYN-U3)", async () => {
+    const previousMock = process.env.ONTO_LLM_MOCK;
+    const previousFlag = process.env.ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE;
+    process.env.ONTO_LLM_MOCK = "1";
+    process.env.ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE = "1";
+
+    const projectRoot = makeTmpDir("e-p150-proj");
+    const fakeOnto = makeTmpDir("e-p150-home");
+    const fakeAuditStatePath = path.join(fakeOnto, "audit-state.yaml");
+
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      "- [fact] [methodology] [foundation] overlapping constraint validation applying change durable (source: p, d, 2026-01-01) [impact:normal]",
+    );
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "philosopher",
+      "- [fact] [methodology] [foundation] overlapping constraint validation applying change idempotent (source: p, d, 2026-01-02) [impact:normal]",
+    );
+
+    try {
+      const result = await runPromoter({
+        mode: "promote",
+        sessionId: "test-150",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: fakeAuditStatePath,
+        skipAudit: true,
+      });
+      // No clusters because same_principle=false
+      assertEqual(
+        result.report.cross_agent_dedup_clusters.length,
+        0,
+        "no cluster (LLM rejected)",
+      );
+      const warnings = result.report.warnings ?? [];
+      const rejected = warnings.filter(
+        (w) =>
+          w.includes("cross_agent_dedup:") &&
+          w.includes("same_principle=false"),
+      );
+      assert(
+        rejected.length > 0,
+        `expected same_principle=false warning (got ${JSON.stringify(warnings)})`,
+      );
+      // Ensure it's not conflated with failure warnings
+      assert(
+        !rejected[0]!.includes("LLM failures"),
+        "warning is NOT labeled as llm_failures",
+      );
+    } finally {
+      if (previousMock === undefined) delete process.env.ONTO_LLM_MOCK;
+      else process.env.ONTO_LLM_MOCK = previousMock;
+      if (previousFlag === undefined)
+        delete process.env.ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE;
+      else
+        process.env.ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE = previousFlag;
+    }
+  });
+
+  // E-P151 — SYN-U4: trailing-newline guard on a non-dedup path (promotion).
+  //          applyPromotion also uses appendLearningLine. Verify that when
+  //          the target global file has no trailing newline, the promoted
+  //          line does NOT collide with the last existing line.
+  await test("E-P151 trailing-newline guard protects applyPromotion path (SYN-U4)", async () => {
+    const projectRoot = makeTmpDir("e-p151-proj");
+    const fakeOnto = makeTmpDir("e-p151-home");
+    const fakeAuditStatePath = path.join(fakeOnto, "audit-state.yaml");
+
+    // Global file without trailing newline — the last line is a plain
+    // learning line (no marker comment at the tail). If appendLearningLine
+    // doesn't prepend a newline, the new promoted line will fuse with it.
+    const lastExistingLine =
+      "- [fact] [methodology] [foundation] existing tail line (source: p, d, 2026-01-01) [impact:normal]";
+    const globalStructurePath = path.join(
+      fakeOnto,
+      "learnings",
+      "structure.md",
+    );
+    fs.mkdirSync(path.dirname(globalStructurePath), { recursive: true });
+    // Write WITHOUT trailing newline
+    fs.writeFileSync(
+      globalStructurePath,
+      ["<!-- format_version: 1 -->", lastExistingLine].join("\n"),
+      "utf8",
+    );
+
+    // Project file with candidate line
+    const candidateLine =
+      "- [fact] [methodology] [foundation] newly promoted content (source: p, d, 2026-01-15) [impact:normal]";
+    const projectStructurePath = path.join(
+      projectRoot,
+      ".onto",
+      "learnings",
+      "structure.md",
+    );
+    fs.mkdirSync(path.dirname(projectStructurePath), { recursive: true });
+    fs.writeFileSync(
+      projectStructurePath,
+      ["<!-- format_version: 1 -->", candidateLine].join("\n"),
+      "utf8",
+    );
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-151",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: fakeAuditStatePath,
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    // Approve the promotion manually
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-151",
+      prepared_at: new Date().toISOString(),
+      promotions: [
+        {
+          candidate_agent_id: "structure",
+          candidate_line: candidateLine,
+          approve: true,
+        },
+      ],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-151",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: fakeAuditStatePath,
+      sessionRoot: promoter.sessionRoot,
+    });
+    assertEqual(outcome.kind, "completed", "promotion completed");
+
+    const globalLines = fs.readFileSync(globalStructurePath, "utf8").split("\n");
+    // The existing tail line must appear ALONE on its own line (not
+    // concatenated with the promoted content).
+    assert(
+      globalLines.includes(lastExistingLine),
+      "existing tail line preserved as a standalone line (no collision)",
+    );
+    assert(
+      globalLines.includes(candidateLine),
+      "promoted candidate line present as a standalone line",
+    );
+    // No line contains BOTH — that would indicate collision
+    const collision = globalLines.find(
+      (l: string) =>
+        l.includes("existing tail line") && l.includes("newly promoted content"),
+    );
+    assert(
+      collision === undefined,
+      "no line collides existing + promoted content",
     );
   });
 

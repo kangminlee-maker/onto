@@ -222,15 +222,24 @@ export interface CrossAgentDedupCluster {
   primary_owner_agent: string;
   primary_owner_reason: string;
   /**
-   * CG1 fix: the exact raw_line of the member that BECOMES the consolidated
-   * line. `primary_owner_agent` is just the agent label; a shortlist can
-   * contain multiple members from that same agent (transitive A-B-A
-   * clusters), and those same-agent siblings must ALSO be marked
-   * consolidated-into. The apply path matches on this specific raw_line to
-   * identify the one owner-side item to skip, not every item sharing the
-   * primary agent_id.
+   * CG1 + SYN-C1 fix: zero-based index into `member_items` naming the exact
+   * entry that BECOMES the consolidated line.
+   *
+   * Why an index (not raw_line or agent_id):
+   *   - `primary_owner_agent` alone can point at multiple members when a
+   *     transitive A-B-A cluster contains two items from the same agent.
+   *   - `primary_member_raw_line` disambiguated agent-level ambiguity but
+   *     still failed when two members happen to share identical `raw_line`
+   *     text (legitimate in criterion 6 — that's the whole point). Content
+   *     equality is not identity.
+   *   - The slot position within `member_items` is the only unambiguous,
+   *     stable identity for the shortlist pass that produced the cluster.
+   *
+   * Apply-path semantics: every member in `member_items` EXCEPT the one at
+   * `primary_member_index` gets marked consolidated-into. The primary item
+   * is semantically absorbed by the consolidated line and is NOT marked.
    */
-  primary_member_raw_line: string;
+  primary_member_index: number;
   consolidated_principle: string;
   representative_cases: string[];
   member_items: ParsedLearningItem[];
@@ -394,7 +403,13 @@ export interface ConflictProposalView {
 // ---------------------------------------------------------------------------
 
 export interface PromoteReport {
-  schema_version: "1";
+  /**
+   * Schema version. Bumped to "2" in SYN-U1 fix when
+   * CrossAgentDedupCluster gained the required `primary_member_index`
+   * field. Old reports (schema "1") are refused at load time with a
+   * regenerate instruction.
+   */
+  schema_version: "2";
   session_id: string;
   generated_at: string;
   mode: CollectorMode;

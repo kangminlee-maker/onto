@@ -340,13 +340,14 @@ export async function runPromoter(
   // -------------------------------------------------------------------------
   const generated_at = new Date().toISOString();
 
-  // ConflictProposal[] from collector + audit. The collector currently surfaces
-  // none (Phase 2 ConflictProposal merging is a Step 13 follow-up), so the
-  // only entries are audit-derived.
+  // ConflictProposal[] is audit-derived only. The collector does not produce
+  // conflict proposals on its own — Phase 2 ConflictProposal merging lives in
+  // the extraction pipeline, not the Phase 3 collector. All entries here come
+  // from the judgment-auditor's audit_to_conflict_proposal outcomes.
   const conflict_proposals: ConflictProposalView[] = auditConflictProposals;
 
   const report: PromoteReport = {
-    schema_version: "1",
+    schema_version: "2",
     session_id: config.sessionId,
     generated_at,
     mode: config.mode,

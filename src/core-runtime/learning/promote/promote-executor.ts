@@ -313,7 +313,9 @@ function appendLearningLine(
  * Replace the first line in the file that matches `existingLine` with
  * `newLine`. Returns true on success, false when no match was found.
  *
- * Used by contradiction_replacement and axis_tag_change.
+ * Used by contradiction_replacement and axis_tag_change. NOT used by
+ * cross_agent_dedup — that path uses replaceLineAtIndex to honor the
+ * resolved anchor (see SYN-C2 fix).
  */
 function replaceLineInFile(
   filePath: string,
@@ -331,6 +333,33 @@ function replaceLineInFile(
     }
   }
   return false;
+}
+
+/**
+ * Replace the line at exact `lineIndex` with `newLine`, only if the
+ * existing content at that index still equals `expectedLine` (optimistic
+ * concurrency check). Returns true on success, false when the index is
+ * out of bounds or the on-disk content at that index drifted.
+ *
+ * Used by cross_agent_dedup where the caller has a resolved anchor
+ * (SYN-C2). Keeping the mutation bound to the resolved index prevents
+ * the "first-verbatim-match" regression that made preflight useless
+ * for duplicate raw_line files.
+ */
+function replaceLineAtIndex(
+  filePath: string,
+  lineIndex: number,
+  expectedLine: string,
+  newLine: string,
+): boolean {
+  if (!fs.existsSync(filePath)) return false;
+  const content = fs.readFileSync(filePath, "utf8");
+  const lines = content.split("\n");
+  if (lineIndex < 0 || lineIndex >= lines.length) return false;
+  if (lines[lineIndex] !== expectedLine) return false;
+  lines[lineIndex] = newLine;
+  fs.writeFileSync(filePath, lines.join("\n"), "utf8");
+  return true;
 }
 
 /**
@@ -725,29 +754,37 @@ function resolveDedupMemberAnchor(
 }
 
 /**
- * C1 + CG1 + CG2 + UF1 fix: scope-aware, primary-member-precise, anchor-
- * resolved, and marker-closure-aware cross-agent dedup apply.
+ * C1 + CG1 + CG2 + UF1 + SYN-C1 + SYN-C2 fix: scope-aware, primary-member-
+ * precise (index-based), anchor-authoritative, and marker-closure-aware
+ * cross-agent dedup apply.
  *
  * C1: Scope-aware — non-primary members apply at their own source_path.
  * Mixed-scope clusters (project + global) correctly mark each member file.
  *
- * CG1: Exact primary member identity — cluster.primary_member_raw_line
- * identifies the ONE member that becomes the consolidated line. Every other
- * member — including same-agent siblings — is marked consolidated.
- * Previously the filter `m.agent_id !== primary_owner_agent` silently
- * dropped transitive A-B-A cluster siblings from the mark list.
+ * CG1 + SYN-C1: Exact primary member identity via `primary_member_index`
+ * (zero-based slot in `member_items`). Content-based identity (raw_line)
+ * failed when multiple shortlist members shared identical content; slot
+ * identity is unambiguous regardless of content duplication.
  *
- * CG2: Anchor resolution — member lookup uses line_number as the primary
- * anchor, unique verbatim scan as the fallback. Ambiguous and missing
- * outcomes fail-closed; evidence of a prior apply (already_consolidated) is
- * treated as idempotent success without re-marking.
+ * CG2 + SYN-C2: Anchor IS the mutation authority. resolveDedupMemberAnchor
+ * returns the exact `lineIndex` that was validated against the original
+ * raw_line, and replaceLineAtIndex mutates ONLY that index (with an
+ * optimistic-concurrency equality check). The previous code validated
+ * one occurrence in preflight but mutated a different occurrence via
+ * first-verbatim-match replaceLineInFile.
  *
  * UF1: Cluster marker closure — on rerun with the cluster marker already
  * present in the primary file, we ALSO verify that every member file has
  * its expected consolidated marker. Any missing member marker triggers
- * re-mark to complete a partial prior apply. Previously the cluster marker
- * alone was treated as "already applied" even when a crash had left member
- * files un-marked.
+ * re-mark to complete a partial prior apply.
+ *
+ * SYN-CC1 contract: if cluster marker is ABSENT but some members are
+ * already_consolidated (crash mid-apply AFTER the ordering flip), the
+ * apply fails-closed with an explicit manual-recovery message. This is
+ * intentional — automatic recovery of a split state risks data corruption
+ * when the shortlist used to produce the partial apply might not match
+ * the current one. Operators reset by restoring from the recoverability
+ * checkpoint or manually rolling the member markers back.
  */
 function applyCrossAgentDedup(
   decision: CrossAgentDedupDecision,
@@ -757,6 +794,23 @@ function applyCrossAgentDedup(
   if (!decision.approve) return;
   const id = decisionId("cross_agent_dedup", decision.cluster_id);
   try {
+    // Structural guard — primary_member_index must point at a valid slot.
+    // If the cluster was loaded from a stale PromoteReport that omits this
+    // field, the schema validator should already have refused the load.
+    if (
+      !Number.isInteger(cluster.primary_member_index) ||
+      cluster.primary_member_index < 0 ||
+      cluster.primary_member_index >= cluster.member_items.length
+    ) {
+      throw new Error(
+        `cross_agent_dedup cluster ${decision.cluster_id}: ` +
+          `primary_member_index ${cluster.primary_member_index} out of range ` +
+          `(member_items.length=${cluster.member_items.length}). ` +
+          `This likely means the report was generated by an older Phase A ` +
+          `build. Re-run 'onto promote' to regenerate the report.`,
+      );
+    }
+
     // Primary owner: ALWAYS the global file of the primary_owner_agent.
     // Mixed-scope clusters promote the consolidated principle to global
     // regardless of the primary member's origin scope.
@@ -766,11 +820,13 @@ function applyCrossAgentDedup(
     );
     const clusterMarker = `<!-- cluster_id: ${decision.cluster_id} -->`;
 
-    // CG1: non-primary members are every item in the cluster EXCEPT the
-    // specific item that becomes the consolidated line. Match by raw_line
-    // (the canonical primary member identity from panel-reviewer).
+    // SYN-C1: non-primary members are every item EXCEPT the one at
+    // primary_member_index. Index-based filter handles same-content
+    // duplicates correctly — two members with identical raw_line can
+    // occupy different slots, and we only skip the specific slot the
+    // panel-reviewer picked.
     const nonPrimaryMembers = cluster.member_items.filter(
-      (m) => m.raw_line !== cluster.primary_member_raw_line,
+      (_, idx) => idx !== cluster.primary_member_index,
     );
 
     // UF1: cluster marker in the primary file is ONLY evidence of success
@@ -782,7 +838,10 @@ function applyCrossAgentDedup(
       fs.readFileSync(primaryPath, "utf8").includes(clusterMarker);
 
     if (clusterMarkerPresent) {
-      const unmarkedMembers: ParsedLearningItem[] = [];
+      const unmarkedMembers: Array<{
+        member: ParsedLearningItem;
+        lineIndex: number;
+      }> = [];
       for (const member of nonPrimaryMembers) {
         if (!fs.existsSync(member.source_path)) {
           // A previously marked member file that subsequently disappeared —
@@ -802,7 +861,10 @@ function applyCrossAgentDedup(
         );
         if (resolution.kind === "already_consolidated") continue;
         if (resolution.kind === "match_original") {
-          unmarkedMembers.push(member);
+          unmarkedMembers.push({
+            member,
+            lineIndex: resolution.lineIndex!,
+          });
           continue;
         }
         // ambiguous or missing — neither the original nor the expected
@@ -825,19 +887,23 @@ function applyCrossAgentDedup(
         return;
       }
       // Finish the partial apply: mark only the still-original members.
+      // SYN-C2: use the resolved lineIndex as the mutation authority.
       const date = new Date().toISOString().slice(0, 10);
       let finishedCount = 0;
-      for (const member of unmarkedMembers) {
+      for (const { member, lineIndex } of unmarkedMembers) {
         const marker = `<!-- consolidated (${date}) into ${decision.cluster_id}: ${member.raw_line} -->`;
-        const ok = replaceLineInFile(
+        const ok = replaceLineAtIndex(
           member.source_path,
+          lineIndex,
           member.raw_line,
           marker,
         );
         if (!ok) {
           throw new Error(
             `cross_agent_dedup resume: failed to mark ${member.agent_id} ` +
-              `(${member.source_path}) during partial-apply recovery`,
+              `(${member.source_path} line ${lineIndex + 1}) during ` +
+              `partial-apply recovery — on-disk line drifted from the ` +
+              `resolved anchor`,
           );
         }
         finishedCount += 1;
@@ -859,7 +925,6 @@ function applyCrossAgentDedup(
     const preflightFailures: string[] = [];
     const resolvedMembers: Array<{
       member: ParsedLearningItem;
-      fileLines: string[];
       lineIndex: number;
     }> = [];
     for (const member of nonPrimaryMembers) {
@@ -890,17 +955,28 @@ function applyCrossAgentDedup(
         continue;
       }
       if (resolution.kind === "already_consolidated") {
-        // Unusual: cluster marker absent but this member IS already marked.
-        // Suggests cross-cluster contamination or partial rollback. Fail-closed.
+        // SYN-CC1: cluster marker absent but this member IS already marked.
+        // This is the "crash mid-apply after ordering flip" state. Fail-closed
+        // by intent — we do NOT auto-recover. The manual recovery path is:
+        //   1. Restore the member file from the recoverability checkpoint
+        //      ($ORIGINAL_ONTO_HOME/.onto/backups/<session_id>/), OR
+        //   2. Manually remove the stray consolidated marker from the
+        //      member file, then re-run 'onto promote --apply <session>'.
+        // Automatic finish would risk data corruption if the partial apply
+        // came from a different shortlist composition than the current
+        // cluster (e.g. the operator changed candidates between attempts).
         preflightFailures.push(
-          `${member.agent_id} (${member.scope}): already carries consolidated marker for cluster ${decision.cluster_id} despite absent cluster marker in primary file`,
+          `${member.agent_id} (${member.scope}): already carries consolidated ` +
+            `marker for cluster ${decision.cluster_id} in ${member.source_path} ` +
+            `despite missing cluster marker in primary file. ` +
+            `Manual recovery required — restore from checkpoint or remove the ` +
+            `stray marker. See SYN-CC1 contract.`,
         );
         continue;
       }
-      // match_original
+      // match_original — carry the resolved lineIndex into the mutation pass.
       resolvedMembers.push({
         member,
-        fileLines,
         lineIndex: resolution.lineIndex!,
       });
     }
@@ -915,33 +991,31 @@ function applyCrossAgentDedup(
     // line + cluster marker on the primary file. UF1 ordering intent:
     // the cluster marker is the "commit marker" that indicates
     // "all member markers were written during this run," so we write it
-    // AFTER the member mutations. If a crash happens mid-members, a rerun
-    // will find the cluster marker absent AND the member markers partially
-    // present, and the normal preflight will treat the unmarked members as
-    // match_original and re-mark them. The already-marked members are
-    // detected as already_consolidated and fail preflight — but the resume
-    // path above catches this via clusterMarkerPresent.
+    // AFTER the member mutations. Crash-mid-marks leaves a stray
+    // already_consolidated state that rerun detects and fails-closed on
+    // (SYN-CC1 contract).
     //
-    // Wait: that's the loophole. If the cluster marker is absent but SOME
-    // members are already marked (partial prior apply + post-prior-apply
-    // crash before cluster marker could be written), the preflight above
-    // flags already_consolidated as a failure. That's intentional: the
-    // operator should investigate via manual recovery rather than
-    // auto-completing. For the normal happy path (no prior crash) this
-    // loophole never triggers.
+    // SYN-C2: mutation uses replaceLineAtIndex with the resolved lineIndex,
+    // NOT replaceLineInFile. For duplicate raw_line files, the latter would
+    // replace the first occurrence regardless of which one the anchor
+    // actually validated.
     const date = new Date().toISOString().slice(0, 10);
     let consolidatedCount = 0;
-    for (const { member } of resolvedMembers) {
+    for (const { member, lineIndex } of resolvedMembers) {
       const marker = `<!-- consolidated (${date}) into ${decision.cluster_id}: ${member.raw_line} -->`;
-      const ok = replaceLineInFile(
+      const ok = replaceLineAtIndex(
         member.source_path,
+        lineIndex,
         member.raw_line,
         marker,
       );
       if (!ok) {
         throw new Error(
-          `cross_agent_dedup post-preflight race: ${member.agent_id} line ` +
-            `disappeared from ${member.source_path} between preflight and mutation`,
+          `cross_agent_dedup post-preflight race: ${member.agent_id} line ${
+            lineIndex + 1
+          } ` +
+            `in ${member.source_path} no longer matches the anchored raw_line ` +
+            `(another process mutated the file between preflight and mutation)`,
         );
       }
       consolidatedCount += 1;

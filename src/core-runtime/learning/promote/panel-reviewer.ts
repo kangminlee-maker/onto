@@ -1423,13 +1423,11 @@ export async function discoverCrossAgentDedupClusters(
       continue;
     }
     const verdict = outcome.verdict;
-    // CG1: Select the specific primary MEMBER among the shortlist members
-    // that share the LLM-chosen primary_owner_agent. Tiebreaker: earliest
-    // source_date (promote.md §3 criterion 6 — "먼저 생성된 학습"). Fallback
-    // to first-seen when source_date is null on any candidate. The picked
-    // member is the ONE item that "becomes" the consolidated line; every
-    // OTHER member — including same-agent siblings — is marked consolidated.
-    const primaryMember = pickPrimaryMember(
+    // CG1 + SYN-C1: Select the specific primary MEMBER INDEX (not raw_line
+    // or agent_id) among shortlist members sharing the LLM-chosen
+    // primary_owner_agent. An index is the only unambiguous identity when
+    // multiple shortlist members share identical content.
+    const primaryIndex = pickPrimaryMemberIndex(
       shortlist,
       verdict.primary_owner_agent,
     );
@@ -1437,7 +1435,7 @@ export async function discoverCrossAgentDedupClusters(
       cluster_id: hashCluster(shortlist),
       primary_owner_agent: verdict.primary_owner_agent,
       primary_owner_reason: verdict.primary_owner_reason,
-      primary_member_raw_line: primaryMember.raw_line,
+      primary_member_index: primaryIndex,
       consolidated_principle: verdict.consolidated_principle,
       representative_cases: verdict.representative_cases,
       member_items: shortlist,
@@ -1449,29 +1447,62 @@ export async function discoverCrossAgentDedupClusters(
 }
 
 /**
- * Pick the specific shortlist member that acts as the primary owner.
- * Must be called only after the shortlist is confirmed by the LLM AND the
- * owner agent is validated against shortlist membership (C2), so at least
- * one member with primary_owner_agent is guaranteed to exist.
+ * Pick the specific shortlist MEMBER INDEX that acts as the primary owner.
+ *
+ * Precondition: the shortlist was LLM-confirmed AND the owner agent was
+ * validated against shortlist membership (the C2 guard), so at least one
+ * member with `primary_owner_agent` is guaranteed to exist.
+ *
+ * Selection rule (promote.md §3 criterion 6 tiebreaker: "먼저 생성된 학습"):
+ *   1. Filter shortlist to members whose `agent_id === primaryOwnerAgent`.
+ *   2. Among those, prefer the member with the EARLIEST `source_date` in
+ *      ISO-8601 lexicographic order.
+ *   3. Tiebreakers beyond source_date:
+ *      a. Dated members ALWAYS outrank null-dated members. A dated entry
+ *         carries verifiable provenance; a null-dated entry is a legacy
+ *         line with unknown age. When a timestamped and an untimed member
+ *         share the primary_owner_agent, the timestamped one wins.
+ *      b. Within all-null-dated members, the original shortlist ordering
+ *         is preserved (stable sort on equal keys).
+ *      c. Within equal source_date members, the original shortlist
+ *         ordering is preserved.
+ *   4. The FIRST entry after sort is the winner; its ORIGINAL index in the
+ *      unsorted shortlist is returned (so downstream apply filters by slot
+ *      identity, not by content).
+ *
+ * Contract note (SYN-D1): the "null dated sorts AFTER dated" rule is
+ * deliberate — "earliest known provenance" is a stronger signal than
+ * "appears first in shortlist." If every owner candidate is null-dated,
+ * the winner is the first one encountered, which is also stable and
+ * deterministic (shortlist order is already deterministic per
+ * buildShortlists).
  */
-function pickPrimaryMember(
+function pickPrimaryMemberIndex(
   shortlist: ParsedLearningItem[],
   primaryOwnerAgent: string,
-): ParsedLearningItem {
-  const ownerCandidates = shortlist.filter(
-    (m) => m.agent_id === primaryOwnerAgent,
-  );
-  // At least one candidate is guaranteed by the C2 membership check.
-  // Sort by source_date (ascending — earliest first) for a deterministic
-  // pick. Items with null source_date sort after dated ones to prefer
-  // timestamped provenance over legacy untimed lines.
-  ownerCandidates.sort((a, b) => {
-    if (a.source_date === null && b.source_date === null) return 0;
-    if (a.source_date === null) return 1;
-    if (b.source_date === null) return -1;
-    return a.source_date.localeCompare(b.source_date);
+): number {
+  // Collect (index, item) pairs for owner candidates so we can sort by
+  // source_date while preserving original slot positions.
+  const ownerPairs: Array<{ index: number; item: ParsedLearningItem }> = [];
+  for (let i = 0; i < shortlist.length; i++) {
+    const item = shortlist[i]!;
+    if (item.agent_id === primaryOwnerAgent) {
+      ownerPairs.push({ index: i, item });
+    }
+  }
+  // Guaranteed non-empty by the C2 precondition. Array.prototype.sort is
+  // stable in modern Node, so equal keys preserve original ordering.
+  ownerPairs.sort((a, b) => {
+    const aDate = a.item.source_date;
+    const bDate = b.item.source_date;
+    // Dated BEFORE null-dated (stronger provenance wins).
+    if (aDate === null && bDate === null) return 0;
+    if (aDate === null) return 1;
+    if (bDate === null) return -1;
+    // Both dated — ascending lexicographic (earliest first).
+    return aDate.localeCompare(bDate);
   });
-  return ownerCandidates[0]!;
+  return ownerPairs[0]!.index;
 }
 
 // Test-only exports for unit coverage. Production imports go through
@@ -1480,6 +1511,7 @@ export const __testExports = {
   significantTokens,
   jaccard,
   buildShortlists,
+  pickPrimaryMemberIndex,
   JACCARD_THRESHOLD,
   MAX_SHORTLISTS_PER_RUN,
   MAX_ITEMS_PER_SHORTLIST,

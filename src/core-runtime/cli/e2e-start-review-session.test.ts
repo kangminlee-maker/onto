@@ -292,6 +292,64 @@ async function main(): Promise<void> {
     });
   });
 
+  // E-SRS-10 — invalid --onto-home (directory exists but fails isOntoRoot)
+  //            → resolveOntoHome throws a HARD error. The resolver MUST NOT
+  //            silently fall through to default "disabled". Pins the
+  //            exception-boundary contract: resolveOntoHome is called OUTSIDE
+  //            the swallowed try, so invalid --onto-home surfaces as a startup
+  //            error. Regression lock for the 9-lens consensus finding.
+  await test("E-SRS-10 invalid --onto-home fails fast (not swallowed)", async () => {
+    // A real directory that is NOT an onto root (no package.json with
+    // name "onto-core", no roles/, no authority/).
+    const bogusOntoHome = makeTmpDir("e-srs-10-bogus-home");
+    const projectRoot = makeProjectRoot("e-srs-10-proj", "shadow");
+    const argv = ["--onto-home", bogusOntoHome];
+    let caught: unknown = null;
+    await withEnvExtractMode(undefined, async () => {
+      try {
+        await resolveReviewSessionExtractMode(argv, projectRoot);
+      } catch (e) {
+        caught = e;
+      }
+    });
+    assert(
+      caught instanceof Error,
+      "invalid --onto-home must throw, not fall through to default",
+    );
+    assert(
+      (caught as Error).message.toLowerCase().includes("onto"),
+      "error mentions onto-home / onto root context",
+    );
+  });
+
+  // E-SRS-11 — env unset + project has MALFORMED .onto/config.yml (invalid
+  //            YAML that fails to parse) → resolver swallows the read/parse
+  //            failure and falls through to default "disabled". Pins the
+  //            narrowed try/catch contract: only config read/parse is
+  //            best-effort. Regression lock for the review's coverage gap:
+  //            previously no test directly exercised the catch branch.
+  await test("E-SRS-11 malformed project config falls through to default", async () => {
+    const ontoHome = makeFakeOntoHome("e-srs-11-home");
+    const projectRoot = makeTmpDir("e-srs-11-proj");
+    fs.mkdirSync(path.join(projectRoot, ".onto"), { recursive: true });
+    // Write syntactically invalid YAML. `yaml` parser will throw on the
+    // unclosed flow mapping / mismatched indentation below.
+    fs.writeFileSync(
+      path.join(projectRoot, ".onto", "config.yml"),
+      "learning_extract_mode: [unterminated\n  : : : not valid yaml\n",
+      "utf8",
+    );
+    const argv = ["--onto-home", ontoHome];
+    await withEnvExtractMode(undefined, async () => {
+      const mode = await resolveReviewSessionExtractMode(argv, projectRoot);
+      assertEqual(
+        mode,
+        "disabled",
+        "malformed config read/parse failure → default disabled",
+      );
+    });
+  });
+
   // ---------------------------------------------------------------------
   // Summary
   // ---------------------------------------------------------------------

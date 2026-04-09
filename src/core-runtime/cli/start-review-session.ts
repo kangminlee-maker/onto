@@ -37,17 +37,26 @@ function requireString(
  *   2. `.onto/config.yml` `learning_extract_mode` field (if env var not set)
  *   3. default `"disabled"` (via validateExtractMode)
  *
- * Invalid values at step 1 or step 2 fail-fast via validateExtractMode.
- * A config.yml read failure (file missing, parse error, etc.) is swallowed
- * and the resolver falls through — env var → default is the stable baseline
- * and a missing or malformed config file should not block session startup.
+ * Exception-boundary contract:
+ *   - Invalid extract mode value at step 1 or step 2 fails-fast via
+ *     validateExtractMode. No silent degradation — operators must fix the
+ *     bad value before the session can start.
+ *   - Invalid `--onto-home` / `ONTO_HOME` at step 2 fails-fast via
+ *     resolveOntoHome. The resolver's own hard-error contract is NOT
+ *     swallowed — a mis-configured installation root surfaces as a
+ *     startup error, not a silent default.
+ *   - Only a `.onto/config.yml` read or parse failure (file missing,
+ *     malformed YAML, unreadable due to permissions, etc.) is caught
+ *     and falls through to the default. The reasoning: a missing or
+ *     malformed config file should not block session startup, because
+ *     env var + default is a complete stable baseline that does not
+ *     depend on config.yml being present.
  *
  * Empty-env-var normalization: an env var set to the empty string is
  * treated identically to an unset env var. Without this, the empty string
  * would pass the nullish check in the final `??` and be forwarded to the
  * validator, which then throws "Invalid ONTO_LEARNING_EXTRACT_MODE: ''"
- * instead of allowing config.yml to supply the value. The normalization
- * matches the `length === 0` branch that already triggered config read.
+ * instead of allowing config.yml to supply the value.
  *
  * Exported for direct testing. `startReviewSession` is the only production
  * caller.
@@ -63,15 +72,22 @@ export async function resolveReviewSessionExtractMode(
     rawEnv === undefined || rawEnv.length === 0 ? undefined : rawEnv;
   let configExtractMode: string | undefined;
   if (envExtractMode === undefined) {
+    // resolveOntoHome is OUTSIDE the try/catch: its throw contract is
+    // "hard error on invalid onto-home" and we must not swallow it.
+    // Invalid --onto-home or ONTO_HOME should surface as a session
+    // startup error, not a silent default.
+    const ontoHomeFlag = readSingleOptionValueFromArgv(argv, "onto-home");
+    const ontoHome = resolveOntoHome(
+      typeof ontoHomeFlag === "string" ? ontoHomeFlag : undefined,
+    );
+    // ONLY the config read path is best-effort. A missing or malformed
+    // .onto/config.yml must not block session startup because env var +
+    // default is a complete baseline.
     try {
-      const ontoHomeFlag = readSingleOptionValueFromArgv(argv, "onto-home");
-      const ontoHome = resolveOntoHome(
-        typeof ontoHomeFlag === "string" ? ontoHomeFlag : undefined,
-      );
       const config = await resolveConfigChain(ontoHome, projectRoot);
       configExtractMode = config.learning_extract_mode;
     } catch {
-      // best-effort: config read failure falls through to default
+      // best-effort: config read/parse failure falls through to default
     }
   }
   return validateExtractMode(envExtractMode ?? configExtractMode);

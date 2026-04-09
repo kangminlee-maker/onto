@@ -368,30 +368,103 @@ function replaceLineAtIndex(
   return true;
 }
 
+// -----------------------------------------------------------------------
+// Non-spinning synchronous sleep for withFileLock's backoff.
+// -----------------------------------------------------------------------
+// Atomics.wait blocks the current thread without CPU spin. Backed by a
+// SharedArrayBuffer-based Int32Array so we can call Atomics.wait on it.
+// The buffer is reused across calls (module-scoped) so repeated waits
+// don't allocate new SharedArrayBuffers. Atomics.wait(view, 0, 0, ms)
+// blocks until either (a) the cell at index 0 changes from 0, or (b) the
+// timeout ms elapses. We never mutate the cell, so every wait runs the
+// full timeout without CPU overhead.
+const __lockSleepBuf = new Int32Array(new SharedArrayBuffer(4));
+function sleepSyncMs(ms: number): void {
+  if (ms <= 0) return;
+  Atomics.wait(__lockSleepBuf, 0, 0, ms);
+}
+
+/**
+ * Parse the PID from the first line of a lockfile's content.
+ * Returns null when the content is malformed or unreadable.
+ */
+function readLockHolderPid(lockPath: string): number | null {
+  try {
+    const content = fs.readFileSync(lockPath, "utf8");
+    const firstLine = content.split("\n")[0]?.trim();
+    if (!firstLine) return null;
+    const pid = Number.parseInt(firstLine, 10);
+    if (!Number.isInteger(pid) || pid <= 0) return null;
+    return pid;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check whether a given PID is alive on this host. Uses `process.kill(pid, 0)`
+ * which is the POSIX idiom: the signal 0 doesn't actually signal anything
+ * but does perform the kernel's existence check. Returns:
+ *   - true  : the process exists AND we have permission to signal it
+ *   - false : the process does NOT exist (ESRCH) — safe to reclaim
+ *   - null  : indeterminate (EPERM or any other error) — do NOT reclaim
+ */
+function isPidAlive(pid: number): boolean | null {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    const code =
+      err instanceof Error && "code" in err
+        ? (err as NodeJS.ErrnoException).code
+        : undefined;
+    if (code === "ESRCH") return false;
+    // EPERM: pid exists but we can't signal it — treat as alive.
+    if (code === "EPERM") return true;
+    return null;
+  }
+}
+
 /**
  * Acquire an advisory file-level lock on `targetPath` using a sibling
  * `.lock` file opened with O_CREAT|O_EXCL (atomic on POSIX). Run `fn`
  * while holding the lock; release via unlink on exit.
  *
- * 4-D1(a) fix: prevents lost unrelated edits between a read and write
- * on the same learning file. When two processes both run
- * `onto promote --apply`, line-level optimistic concurrency in
- * replaceLineAtIndex catches SAME-LINE races but loses updates to
- * OTHER lines written by the peer after our read-to-write window. The
- * lockfile serializes the entire read-modify-write cycle at file
- * granularity.
+ * ===========================================================================
+ * SCOPE — this helper is NOT a general "all Phase B mutators are serialized"
+ * ===========================================================================
+ * withFileLock is intentionally narrow. It exists to serialize the
+ * multi-file, multi-step cross_agent_dedup apply flow (CG1/CG2/UF1/SYN-*)
+ * where a single logical transaction touches several files and needs
+ * in-lock anchor re-resolution to close TOCTOU. Other Phase B applicators
+ * (applyPromotion, applyAxisTagChange, applyContradictionReplacement,
+ * applyRetirement, etc.) operate on single-line mutations with their own
+ * guard semantics (replaceLineInFile + its return-value check). They do
+ * NOT route through this lock, and "learning files are globally serialized"
+ * is NOT a claim this helper makes.
  *
- * Semantics:
- *   - Retry on EEXIST for up to `waitMs` (default 5s) with exponential
- *     fallback. If we never acquire, throw with guidance pointing at the
- *     stale lockfile path.
- *   - Stale-lock recovery: if the lockfile is older than `staleAfterMs`
- *     (default 5 min), assume the prior holder crashed and forcibly
- *     remove + retry once. This covers the process-killed case without
- *     requiring manual intervention for the common "I ctrl-C'd a
- *     previous promote run" recovery scenario.
- *   - The lockfile contains the acquiring process's pid, so operators
- *     can sanity-check liveness with `ps -p`.
+ * If the product contract later expands to "any two apply attempts on the
+ * same file cannot interleave", every applicator has to opt in explicitly.
+ * Until then, this helper's guarantees apply only where it is called from:
+ * applyCrossAgentDedup.
+ *
+ * ===========================================================================
+ * SEMANTICS
+ * ===========================================================================
+ *   - Retries on EEXIST for up to `waitMs` (default 5s) with exponential
+ *     backoff bounded at 100ms per sleep. Uses Atomics.wait for a
+ *     non-spinning synchronous wait (LOCK-SPIN fix from 5th review) —
+ *     blocks the thread without burning CPU.
+ *   - Stale-lock recovery is owner-aware (5-RECLAIM fix): reads the PID
+ *     from the lockfile, checks process liveness via kill(pid, 0), and
+ *     reclaims ONLY when the holder is demonstrably dead (ESRCH). An
+ *     EPERM response (PID exists but unsignal-able) treats the holder as
+ *     alive. Age is used as a hint so we don't probe PID liveness on
+ *     every poll — but the final reclaim decision is always PID-based.
+ *   - Lockfile payload: `<pid>\n<acquired_at_iso>\n<target_path>\n` so
+ *     operators can diagnose holders with `cat` and correlate with `ps`.
+ *   - Cleanup is best-effort via finally-unlink. fn's thrown error
+ *     propagates out; the lock is released before the error escapes.
  *   - Single-host only: flock-equivalent semantics across networks or
  *     multiple mounts are NOT guaranteed. Phase 3 is single-operator by
  *     design so this trade-off is acceptable.
@@ -403,10 +476,13 @@ function withFileLock<T>(
 ): T {
   const lockPath = `${targetPath}.lock`;
   const waitMs = options.waitMs ?? 5000;
-  const staleAfterMs = options.staleAfterMs ?? 5 * 60 * 1000;
+  // Age threshold used as a hint — we only probe PID liveness when the
+  // lockfile is at least this old. Shortens the default wait-to-reclaim
+  // window to 2s so a dead holder doesn't force the full 5-min hold we
+  // had in the prior design.
+  const staleAfterMs = options.staleAfterMs ?? 2000;
   const startedAt = Date.now();
   let sleepMs = 10;
-  let staleRecoveryAttempted = false;
 
   // Ensure parent directory exists so the lockfile can be created.
   const parent = path.dirname(lockPath);
@@ -433,36 +509,54 @@ function withFileLock<T>(
           : undefined;
       if (code !== "EEXIST") throw err;
 
-      // Stale-lock recovery: only if we haven't already tried, and only
-      // for lockfiles older than the stale threshold.
-      if (!staleRecoveryAttempted) {
-        staleRecoveryAttempted = true;
-        try {
-          const stat = fs.statSync(lockPath);
-          const ageMs = Date.now() - stat.mtimeMs;
-          if (ageMs > staleAfterMs) {
-            fs.unlinkSync(lockPath);
-            continue; // Retry immediately
+      // Owner-aware stale-lock reclaim (5-RECLAIM fix).
+      //
+      // We probe PID liveness when:
+      //   (a) the lockfile is older than staleAfterMs (don't hammer the
+      //       syscall on every retry), AND
+      //   (b) the PID can be parsed from the lockfile content.
+      //
+      // The reclaim is atomic in the sense of "unlink + retry loop":
+      // after unlinking, another contender could win the next open race.
+      // That's fine — we're acting as peers at this point, and the loser
+      // falls back into the retry path to wait for the next release.
+      try {
+        const stat = fs.statSync(lockPath);
+        if (Date.now() - stat.mtimeMs >= staleAfterMs) {
+          const holderPid = readLockHolderPid(lockPath);
+          if (holderPid !== null && isPidAlive(holderPid) === false) {
+            // Dead holder — reclaim by unlinking. Verify the file we're
+            // about to unlink is still the same file (not replaced by
+            // a newer acquirer between stat and unlink) using the inode
+            // via fstat. On POSIX we can't atomically "unlink if
+            // unchanged", so the best we can do is re-stat and compare.
+            try {
+              const reStat = fs.statSync(lockPath);
+              if (reStat.ino === stat.ino && reStat.mtimeMs === stat.mtimeMs) {
+                fs.unlinkSync(lockPath);
+              }
+            } catch {
+              // Lock already gone — someone else reclaimed. Retry below.
+            }
+            continue; // Try to acquire right away.
           }
-        } catch {
-          // stat failed (maybe the lock was just released) — fall through
-          // to the normal retry path.
         }
+      } catch {
+        // stat failed (maybe the lock was just released) — fall through
+        // to the normal retry path.
       }
 
       if (Date.now() - startedAt > waitMs) {
         throw new Error(
           `withFileLock: could not acquire lock on ${targetPath} within ${waitMs}ms. ` +
             `Another process is likely holding ${lockPath}. ` +
-            `If no process is active, inspect and remove the stale lockfile manually.`,
+            `If no process is active, inspect the lockfile (contains holder pid + ` +
+            `acquired_at) and remove it manually.`,
         );
       }
-      // Backoff poll (bounded so cumulative wait stays within waitMs).
-      const end = Date.now() + Math.min(sleepMs, 100);
-      while (Date.now() < end) {
-        // Busy-wait — tests run in-process with short timeouts; Atomics
-        // wait would require a SharedArrayBuffer which is overkill here.
-      }
+      // Non-spinning wait — Atomics.wait blocks the thread for sleepMs
+      // without CPU consumption (LOCK-SPIN fix).
+      sleepSyncMs(Math.min(sleepMs, 100));
       sleepMs = Math.min(sleepMs * 2, 100);
       continue;
     }
@@ -976,10 +1070,13 @@ function applyCrossAgentDedup(
       fs.readFileSync(primaryPath, "utf8").includes(clusterMarker);
 
     if (clusterMarkerPresent) {
-      const unmarkedMembers: Array<{
-        member: ParsedLearningItem;
-        lineIndex: number;
-      }> = [];
+      // 5-LINEINDEX cleanup: preflight here only classifies whether a
+      // member is already_consolidated, still needs marking, or drifted.
+      // The actual write re-resolves the anchor INSIDE the lock (below),
+      // so the preflight line index would be stale by the time the lock
+      // is acquired. Pass-through the member ref; the write path is the
+      // single source of truth for the current lineIndex.
+      const unmarkedMembers: ParsedLearningItem[] = [];
       for (const member of nonPrimaryMembers) {
         if (!fs.existsSync(member.source_path)) {
           // A previously marked member file that subsequently disappeared —
@@ -999,10 +1096,7 @@ function applyCrossAgentDedup(
         );
         if (resolution.kind === "already_consolidated") continue;
         if (resolution.kind === "match_original") {
-          unmarkedMembers.push({
-            member,
-            lineIndex: resolution.lineIndex!,
-          });
+          unmarkedMembers.push(member);
           continue;
         }
         // ambiguous or missing — neither the original nor the expected
@@ -1031,7 +1125,7 @@ function applyCrossAgentDedup(
       // INSIDE the lock so no window exists between validation and write.
       const date = new Date().toISOString().slice(0, 10);
       let finishedCount = 0;
-      for (const { member } of unmarkedMembers) {
+      for (const member of unmarkedMembers) {
         withFileLock(member.source_path, () => {
           const memberLines = fs
             .readFileSync(member.source_path, "utf8")
@@ -1082,11 +1176,12 @@ function applyCrossAgentDedup(
     }
 
     // No cluster marker — fresh apply. CG2 anchor resolution per member.
+    // 5-LINEINDEX: we only classify here (valid target / drifted / ambig /
+    // already_marked). The concrete lineIndex is re-resolved inside the
+    // locked write below so the preflight index wouldn't be authoritative
+    // even if we saved it.
     const preflightFailures: string[] = [];
-    const resolvedMembers: Array<{
-      member: ParsedLearningItem;
-      lineIndex: number;
-    }> = [];
+    const resolvedMembers: ParsedLearningItem[] = [];
     for (const member of nonPrimaryMembers) {
       if (!fs.existsSync(member.source_path)) {
         preflightFailures.push(
@@ -1151,11 +1246,9 @@ function applyCrossAgentDedup(
         );
         continue;
       }
-      // match_original — carry the resolved lineIndex into the mutation pass.
-      resolvedMembers.push({
-        member,
-        lineIndex: resolution.lineIndex!,
-      });
+      // match_original — classified valid. Index is re-derived inside
+      // the lock window during the write loop.
+      resolvedMembers.push(member);
     }
     if (preflightFailures.length > 0) {
       throw new Error(
@@ -1173,7 +1266,7 @@ function applyCrossAgentDedup(
     // the lock so there is no TOCTOU window between validation and write.
     const date = new Date().toISOString().slice(0, 10);
     let consolidatedCount = 0;
-    for (const { member } of resolvedMembers) {
+    for (const member of resolvedMembers) {
       withFileLock(member.source_path, () => {
         const memberLines = fs
           .readFileSync(member.source_path, "utf8")
@@ -1184,12 +1277,22 @@ function applyCrossAgentDedup(
           decision.cluster_id,
         );
         if (reResolution.kind !== "match_original") {
+          // 5-OVERCLAIM fix: the prior message said "no member file was
+          // left in an inconsistent state", which was false — any earlier
+          // members in this cluster that ALREADY succeeded inside this
+          // loop are already on disk. We no longer overclaim. Operators
+          // use apply-state (promote-execution-result.json) to see which
+          // members were marked before this failure and restore from the
+          // recoverability checkpoint.
           throw new Error(
             `cross_agent_dedup post-preflight race: ${member.agent_id} ` +
               `(${member.source_path}) became ${reResolution.kind} inside the ` +
               `lock window — another process mutated this member file between ` +
-              `preflight and the locked write. The apply is aborted fail-closed; ` +
-              `no member file was left in an inconsistent state.`,
+              `preflight and the locked write. ${consolidatedCount} earlier ` +
+              `member(s) in this cluster were already marked before this ` +
+              `failure; consult apply-state (promote-execution-result.json in ` +
+              `the session root) to see the committed subset and use the ` +
+              `recoverability checkpoint to restore if needed.`,
           );
         }
         const marker = `<!-- consolidated (${date}) into ${decision.cluster_id}: ${member.raw_line} -->`;
@@ -1986,3 +2089,12 @@ function emptySummary(): ExecutionSummary {
 // loadApplyState exported for CLI consumers needing to inspect state without
 // running the executor (e.g., `onto promote --status <session-id>`).
 export { loadApplyState };
+
+// Test-only exports for unit coverage of internal primitives that do not
+// warrant a full public API seat. Production code MUST NOT import these.
+export const __testExports = {
+  withFileLock,
+  replaceLineAtIndex,
+  isPidAlive,
+  readLockHolderPid,
+};

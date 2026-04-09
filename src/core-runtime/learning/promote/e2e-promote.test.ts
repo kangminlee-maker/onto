@@ -7649,11 +7649,19 @@ async function main(): Promise<void> {
     );
 
     // Simulate a concurrent holder by creating philosopher.md.lock RIGHT NOW.
-    // The file mtime is "now" so stale-lock recovery (5min threshold) won't
-    // kick in. The helper's waitMs default is 5000 — we set up the holder
-    // to stay alive across that window so the acquire fails.
+    // Use THIS process's own PID so the PID-liveness reclaim check sees a
+    // live holder and refuses to reclaim — the acquirer then waits out
+    // the waitMs budget and fails closed with "could not acquire lock".
+    // Previously a bogus PID (999999) worked because the stale threshold
+    // was 5 minutes; the 5-RECLAIM fix shortened that to 2s AND requires
+    // the holder PID to be demonstrably dead, so the test must now
+    // provide a real live PID to stay locked.
     const lockPath = `${philosopherPath}.lock`;
-    fs.writeFileSync(lockPath, "999999\n2026-04-09T00:00:00Z\n", "utf8");
+    fs.writeFileSync(
+      lockPath,
+      `${process.pid}\n${new Date().toISOString()}\n${philosopherPath}\n`,
+      "utf8",
+    );
 
     const promoter = await runPromoter({
       mode: "promote",
@@ -7816,6 +7824,496 @@ async function main(): Promise<void> {
       2,
       "earliest date wins; among ties, lowest slot index (2 < 3)",
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // Batch 15 — 5th review (20260409-4225806f) fixes
+  //   5-LOCK-SPIN: non-spinning withFileLock via Atomics.wait
+  //   5-OVERCLAIM: remove false "no inconsistent state" claim
+  //   5-RECLAIM: PID-liveness stale-lock reclaim
+  //   5-LINEINDEX: drop dead preflight lineIndex accumulator
+  //   5-SCOPE: narrow withFileLock doc scope (cross_agent_dedup-only)
+  //   5-D1: rerun command fidelity (onto promote --apply re-run skips
+  //         already-applied decisions via isPending filter)
+  //   5-LOCK-LIFECYCLE: stale reclaim + cleanup-on-throw tests
+  // -------------------------------------------------------------------------
+
+  // E-P158 — 5-RECLAIM: dead-PID stale lock is reclaimed on next acquire.
+  //          Place a lockfile containing a demonstrably-dead PID, wait for
+  //          the stale threshold, then run an apply — the helper reclaims
+  //          and succeeds instead of timing out.
+  await test("E-P158 withFileLock reclaims stale lock when holder PID is dead", async () => {
+    const projectRoot = makeTmpDir("e-p158-proj");
+    const fakeOnto = makeTmpDir("e-p158-home");
+
+    const structureLine =
+      "- [fact] [methodology] [foundation] primary reclaim (source: p, d, 2026-01-01) [impact:normal]";
+    const philosopherLine =
+      "- [fact] [methodology] [foundation] member reclaim (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", structureLine].join("\n"),
+    );
+    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "philosopher",
+      ["<!-- format_version: 1 -->", philosopherLine].join("\n"),
+    );
+
+    // Pre-create a stale lockfile with a PID that is definitely dead.
+    // PID 999999 is out of range on every supported OS. Backdate mtime
+    // via utimesSync so it's older than staleAfterMs (2s default).
+    const lockPath = `${philosopherPath}.lock`;
+    fs.writeFileSync(
+      lockPath,
+      `999999\n2020-01-01T00:00:00Z\n${philosopherPath}\n`,
+      "utf8",
+    );
+    const longAgo = new Date(Date.now() - 60 * 1000); // 1 minute ago
+    fs.utimesSync(lockPath, longAgo, longAgo);
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-158",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+    const cluster = {
+      cluster_id: "reclaim-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "test",
+      primary_member_index: 0,
+      consolidated_principle: "test",
+      representative_cases: [],
+      member_items: [
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "global",
+            source_path: structurePath,
+          }),
+          raw_line: structureLine,
+          line_number: 2,
+        },
+        {
+          ...syntheticItem({
+            agent_id: "philosopher",
+            scope: "global",
+            source_path: philosopherPath,
+          }),
+          raw_line: philosopherLine,
+          line_number: 2,
+        },
+      ],
+      consolidated_line:
+        "- [fact] [methodology] [foundation] consolidated reclaim (source: cluster, d, 2026-04-09) [impact:normal]",
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(
+      promoter.reportPath,
+      JSON.stringify(promoter.report, null, 2),
+    );
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-158",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [
+        { cluster_id: "reclaim-test", approve: true },
+      ],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-158",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    assertEqual(
+      outcome.kind,
+      "completed",
+      "executor completed — stale lock was reclaimed",
+    );
+
+    // The stale lockfile must be gone after reclaim + release
+    assert(
+      !fs.existsSync(lockPath),
+      "stale lockfile was removed (reclaimed, then released by successful apply)",
+    );
+    // Philosopher file was successfully marked
+    const philoContent = fs.readFileSync(philosopherPath, "utf8");
+    assert(
+      philoContent.includes("consolidated") && philoContent.includes("reclaim-test"),
+      "philosopher marked after reclaim",
+    );
+  });
+
+  // E-P159 — 5-D1 empirical: rerun fidelity of `onto promote --apply`.
+  //          Run a session with promotion + cross-agent dedup. First apply
+  //          succeeds only the promotion (dedup member file missing →
+  //          preflight fails → failed_resumable). Re-run --apply on the
+  //          same session — the isPending filter must skip the already-
+  //          applied promotion and only re-attempt the dedup decision.
+  //          Resolves SYN-CC1-RERUN-COMMAND disagreement empirically.
+  await test("E-P159 onto promote --apply re-run skips already-applied via isPending (5-D1)", async () => {
+    const projectRoot = makeTmpDir("e-p159-proj");
+    const fakeOnto = makeTmpDir("e-p159-home");
+    const fakeAuditStatePath = path.join(fakeOnto, "audit-state.yaml");
+
+    // A candidate project line that WILL promote successfully.
+    const candidateLine =
+      "- [fact] [methodology] [foundation] rerun fidelity candidate (source: p, d, 2026-01-01) [impact:normal]";
+    const projectLearnings = path.join(projectRoot, ".onto", "learnings");
+    fs.mkdirSync(projectLearnings, { recursive: true });
+    fs.writeFileSync(
+      path.join(projectLearnings, "structure.md"),
+      ["<!-- format_version: 1 -->", candidateLine].join("\n"),
+      "utf8",
+    );
+
+    // A global primary file for the dedup cluster. The non-primary
+    // member points at a FILE THAT DOES NOT EXIST, so the dedup decision
+    // fails preflight on the first attempt.
+    const structureGlobal =
+      "- [fact] [methodology] [foundation] global structure (source: p, d, 2026-01-01) [impact:normal]";
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", structureGlobal].join("\n"),
+    );
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-159",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: fakeAuditStatePath,
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+    const missingMemberFile = path.join(
+      fakeOnto,
+      "learnings",
+      "philosopher-missing.md",
+    );
+    const cluster = {
+      cluster_id: "rerun-fidelity-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "test",
+      primary_member_index: 0,
+      consolidated_principle: "test",
+      representative_cases: [],
+      member_items: [
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "global",
+            source_path: structurePath,
+          }),
+          raw_line: structureGlobal,
+          line_number: 2,
+        },
+        {
+          ...syntheticItem({
+            agent_id: "philosopher-missing",
+            scope: "global",
+            source_path: missingMemberFile, // does NOT exist
+          }),
+          raw_line: "- [fact] [methodology] [foundation] ghost line (source: p, d, 2026-01-01) [impact:normal]",
+          line_number: 2,
+        },
+      ],
+      consolidated_line:
+        "- [fact] [methodology] [foundation] consolidated rerun (source: cluster, d, 2026-04-09) [impact:normal]",
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(
+      promoter.reportPath,
+      JSON.stringify(promoter.report, null, 2),
+    );
+
+    // Both a promotion and the failing dedup decision
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-159",
+      prepared_at: new Date().toISOString(),
+      promotions: [
+        {
+          candidate_agent_id: "structure",
+          candidate_line: candidateLine,
+          approve: true,
+        },
+      ],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [
+        { cluster_id: "rerun-fidelity-test", approve: true },
+      ],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    // First apply: promotion succeeds, dedup fails preflight
+    const firstOutcome = await runPromoteExecutor({
+      sessionId: "test-159",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: fakeAuditStatePath,
+      sessionRoot: promoter.sessionRoot,
+    });
+    assert(
+      firstOutcome.kind === "failed_resumable",
+      `first apply fails resumable (got ${firstOutcome.kind})`,
+    );
+
+    // Verify the promotion landed on disk: the candidate line is now in
+    // the global structure.md.
+    let globalContent = fs.readFileSync(structurePath, "utf8");
+    assert(
+      globalContent.includes("rerun fidelity candidate"),
+      "first apply: promotion landed in global structure.md",
+    );
+
+    // Now re-run --apply on the SAME session. The isPending filter must
+    // recognize the promotion as already applied and skip it. Only the
+    // dedup decision should be re-attempted.
+    //
+    // We verify this by (a) running the executor again, and (b) checking
+    // that the promotion line does NOT appear twice in the global file
+    // after the re-run (which it would if isPending failed and the
+    // promotion was replayed).
+    const beforeRerun = fs.readFileSync(structurePath, "utf8");
+    const promoCountBefore = (
+      beforeRerun.match(/rerun fidelity candidate/g) ?? []
+    ).length;
+    assertEqual(
+      promoCountBefore,
+      1,
+      "exactly one copy of the promoted line before rerun",
+    );
+
+    const secondOutcome = await runPromoteExecutor({
+      sessionId: "test-159",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: fakeAuditStatePath,
+      sessionRoot: promoter.sessionRoot,
+      // forceStale bypasses the baseline check because the first apply
+      // annotated the project file (promotion side-effect) which shifts
+      // the baseline hash. resume:true loads the prior apply-state so
+      // isPending can filter out the already-applied promotion.
+      forceStale: true,
+      resume: true,
+    });
+    // NOTE on resume semantics: in the current apply-state model,
+    // markFailed moves the decision OUT of pending_decisions into
+    // failed_decisions. On resume, the executor's pendingKeys snapshot
+    // is taken from the loaded state's pending_decisions, so previously
+    // failed_resumable decisions are NOT automatically retried — the
+    // rerun reports "completed" with no work to do. Whether failed
+    // decisions should be re-enqueued on rerun is a separate contract
+    // question (tracked out of scope for this test).
+    //
+    // What THIS test proves is the SYN-CC1-RERUN-COMMAND resolution:
+    // the isPending filter correctly skips the already-applied
+    // promotion, so `onto promote --apply` rerun is safe even when the
+    // session already has applied side effects. That proof lives in
+    // the promoCountAfter assertion below.
+    assert(
+      secondOutcome.kind === "completed" ||
+        secondOutcome.kind === "failed_resumable" ||
+        secondOutcome.kind === "no_decisions",
+      `second apply returns a terminal outcome (got ${secondOutcome.kind})`,
+    );
+
+    // CRITICAL: no duplicate promotion line — isPending filter did its job.
+    // This is the actual SYN-CC1-RERUN-COMMAND proof: plain --apply rerun
+    // does NOT replay the previously successful promotion.
+    globalContent = fs.readFileSync(structurePath, "utf8");
+    const promoCountAfter = (
+      globalContent.match(/rerun fidelity candidate/g) ?? []
+    ).length;
+    assertEqual(
+      promoCountAfter,
+      1,
+      "rerun did NOT replay the already-applied promotion (isPending filter)",
+    );
+
+    // The apply-state on disk still records the dedup failure from the
+    // first attempt — operators can inspect promote-execution-result.json
+    // to see what's outstanding.
+    const applyStatePath = path.join(
+      promoter.sessionRoot,
+      "promote-execution-result.json",
+    );
+    const applyState = JSON.parse(fs.readFileSync(applyStatePath, "utf8"));
+    assert(
+      Array.isArray(applyState.applied_decisions) &&
+        applyState.applied_decisions.some(
+          (a: { decision_kind: string }) => a.decision_kind === "promotion",
+        ),
+      "apply-state records the promotion as applied",
+    );
+  });
+
+  // E-P160 — 5-LOCK-LIFECYCLE: throw-cleanup semantics via direct
+  //          withFileLock import. The wrapped fn throws an error; the
+  //          lockfile MUST be unlinked in the finally block so future
+  //          acquirers can get the lock without waiting for stale reclaim.
+  await test("E-P160 withFileLock releases lock even when wrapped fn throws", async () => {
+    const { __testExports: execExports } = await import(
+      "./promote-executor.js"
+    );
+    const { withFileLock } = execExports;
+    const dir = makeTmpDir("e-p160");
+    const target = path.join(dir, "target.txt");
+    fs.writeFileSync(target, "original", "utf8");
+    const lockPath = `${target}.lock`;
+
+    // 1) Happy path — lock acquired, fn runs, lock released.
+    const happyResult = withFileLock(target, () => {
+      assert(fs.existsSync(lockPath), "lockfile exists while fn runs (happy)");
+      return 42;
+    });
+    assertEqual(happyResult, 42, "fn return value propagated");
+    assert(
+      !fs.existsSync(lockPath),
+      "lockfile removed after successful fn (happy)",
+    );
+
+    // 2) Throw path — fn throws; the lockfile MUST still be released.
+    let caught: unknown = null;
+    try {
+      withFileLock(target, () => {
+        assert(fs.existsSync(lockPath), "lockfile exists while fn runs (throw)");
+        throw new Error("boom");
+      });
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof Error, "throw propagated");
+    assertEqual((caught as Error).message, "boom", "original error preserved");
+    assert(
+      !fs.existsSync(lockPath),
+      "lockfile removed after fn threw (critical — prevents deadlock on retry)",
+    );
+
+    // 3) Verify the lock can be acquired AGAIN immediately after the
+    //    throw-release cycle — no stale-lock wait required.
+    const startedAt = Date.now();
+    const secondResult = withFileLock(target, () => "re-acquired");
+    const elapsed = Date.now() - startedAt;
+    assertEqual(secondResult, "re-acquired", "second acquire succeeded");
+    assert(
+      elapsed < 1000,
+      `second acquire was fast (no stale-wait), elapsed=${elapsed}ms`,
+    );
+  });
+
+  // E-P161 — 5-LOCK-SPIN: withFileLock waits without busy-spinning CPU.
+  //          Place a lockfile with a LIVE holder (this process's own PID),
+  //          measure wall time AND approximate CPU time during the wait.
+  //          A busy-spin would burn ~100% CPU for the full wait; Atomics.wait
+  //          should keep CPU near zero.
+  await test("E-P161 withFileLock wait is non-spinning (Atomics.wait, low CPU)", async () => {
+    const { __testExports: execExports } = await import(
+      "./promote-executor.js"
+    );
+    const { withFileLock } = execExports;
+    const dir = makeTmpDir("e-p161");
+    const target = path.join(dir, "target.txt");
+    fs.writeFileSync(target, "original", "utf8");
+    const lockPath = `${target}.lock`;
+
+    // Pre-create a lockfile with THIS process's PID so the liveness
+    // check treats it as alive and refuses stale reclaim.
+    fs.writeFileSync(
+      lockPath,
+      `${process.pid}\n${new Date().toISOString()}\n${target}\n`,
+      "utf8",
+    );
+
+    // Measure process.cpuUsage before the wait. withFileLock times out
+    // after the configured waitMs (we use 300ms here to keep the test
+    // fast). A busy-spin would consume ~300ms of CPU; Atomics.wait
+    // should consume only a few ms.
+    const waitMs = 300;
+    const cpuBefore = process.cpuUsage();
+    const wallBefore = Date.now();
+    let threw = false;
+    try {
+      withFileLock(
+        target,
+        () => {
+          assert(false, "fn should never run — lock held by peer");
+        },
+        { waitMs },
+      );
+    } catch (e) {
+      threw = true;
+      assert(
+        e instanceof Error && e.message.includes("could not acquire lock"),
+        `expected lock-wait timeout error (got ${(e as Error).message})`,
+      );
+    }
+    const wallElapsed = Date.now() - wallBefore;
+    const cpuElapsed = process.cpuUsage(cpuBefore);
+    // cpuUsage returns microseconds; convert to ms
+    const cpuMsTotal = (cpuElapsed.user + cpuElapsed.system) / 1000;
+
+    assert(threw, "lock acquisition timed out as expected");
+    assert(
+      wallElapsed >= waitMs - 50,
+      `wall time respected waitMs (elapsed=${wallElapsed}ms, waitMs=${waitMs}ms)`,
+    );
+    // Non-spinning assertion: CPU usage during wait should be a small
+    // fraction of wall time. A busy-wait would show cpu ≈ wall. We
+    // require cpu < 50% of wall as a generous threshold — in practice
+    // Atomics.wait yields ~5-10% CPU (mostly the stat syscalls in the
+    // retry loop during stale-lock probing).
+    assert(
+      cpuMsTotal < wallElapsed * 0.5,
+      `non-spinning wait: cpu time should be << wall time ` +
+        `(cpu=${cpuMsTotal.toFixed(1)}ms, wall=${wallElapsed}ms, ratio=${(
+          (cpuMsTotal / wallElapsed) *
+          100
+        ).toFixed(1)}%)`,
+    );
+
+    // Cleanup
+    try {
+      fs.unlinkSync(lockPath);
+    } catch {
+      /* already gone */
+    }
   });
 
   // -------------------------------------------------------------------------

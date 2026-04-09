@@ -1,6 +1,6 @@
-import type { ScopeState, VerdictLogEntry } from "../scope-runtime/types.js";
-import { isPolicyChangeRequired } from "../scope-runtime/types.js";
-import { MAX_COMPILE_RETRIES } from "../scope-runtime/constants.js";
+import type { ScopeState, VerdictLogEntry } from "../../scope-runtime/types.js";
+import { isPolicyChangeRequired } from "../../scope-runtime/types.js";
+import { MAX_COMPILE_RETRIES } from "../../scope-runtime/constants.js";
 
 /**
  * Render scope.md — the current status view of a scope.

@@ -283,7 +283,7 @@ export interface ValidationPlanItem extends ValidationPlanEntry {
   edge_cases?: Array<{
     scenario: string;
     expected_result: string;
-  }>;
+  }> | undefined;
 }
 
 // ─── Reality Snapshot ───
@@ -761,12 +761,12 @@ export interface ConstraintEntry {
   evidence_note?: string | undefined;
   requires_policy_change?: boolean;
   status: ConstraintStatus;
-  invalidation_reason?: string;
-  decision?: ConstraintDecision;
-  selected_option?: string;
-  rationale?: string;
+  invalidation_reason?: string | undefined;
+  decision?: ConstraintDecision | undefined;
+  selected_option?: string | undefined;
+  rationale?: string | undefined;
   discovered_at: number; // revision
-  decided_at?: number; // revision
+  decided_at?: number | undefined; // revision
 }
 
 export interface ConstraintPool {
@@ -932,8 +932,8 @@ export type ConstraintDetail = ConstraintDetailPO | ConstraintDetailBuilder;
 export interface DraftPacketContent {
   // Section 1: 확정된 Surface
   surface_path: string;
-  run_command?: string;
-  mockup_revisions?: number;
+  run_command?: string | undefined;
+  mockup_revisions?: number | undefined;
   scenario_guide: Array<{
     scenario: string;
     start: string;

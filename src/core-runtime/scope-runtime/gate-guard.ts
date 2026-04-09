@@ -68,7 +68,7 @@ export type GateResult =
 // ─── Gate options (caller-provided context) ───
 
 export interface GateOptions {
-  apply_enabled?: boolean;
+  apply_enabled?: boolean | undefined;
 }
 
 // ─── Events that reference a constraint_id ───

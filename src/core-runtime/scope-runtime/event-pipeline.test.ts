@@ -268,7 +268,7 @@ describe("event-pipeline — state for caller rendering", () => {
       expect(result.state.current_state).toBe("draft");
 
       // Caller can render scope.md using returned state
-      const { renderScopeMd } = await import("../renderers/scope-md.js");
+      const { renderScopeMd } = await import("../design/renderers/scope-md.js");
       const md = renderScopeMd(result.state);
       expect(md).toContain("# Scope: Test Scope");
     }

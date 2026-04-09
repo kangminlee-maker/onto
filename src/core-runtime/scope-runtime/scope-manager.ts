@@ -109,7 +109,7 @@ export function generateScopeId(
 export interface BriefSourceEntry {
   type: string;
   identifier: string;
-  description?: string;
+  description?: string | undefined;
 }
 
 /**

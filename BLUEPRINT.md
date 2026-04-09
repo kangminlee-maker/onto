@@ -932,7 +932,7 @@ Reference: `authority/core-lexicon.yaml` (auto_state, await_state, terminal_stat
 
 Build will follow the same methodology as review: ontology-as-code authority → prompt-backed reference path → observation → bounded TS runtime replacement, one boundary at a time.
 
-**Adoption hypothesis input**: `development-records/design/20260409-graphify-adoption-hypothesis.md` — graphify(safishamsi/graphify v3 @ 92b70ce5) 차용 가능성을 6 review pass로 평가한 provisional backlog memo. Tree-sitter AST seed / versioned cache + correct diff / rationale concept seat / derived reporting surface / multimodal source profile 등 후보와 §8의 graphify 자체 결함(CR1/CR2/CR3) 차용 금지 조항 포함. final tiering은 build authority owner와 함께 재검토 필요.
+**Architecture design + adoption hypothesis**: `development-records/design/20260409-graphify-adoption-hypothesis.md` (v7) — onto build의 **Two-Layer Architecture canonical design document**. Part I은 Phase 0 architectural decisions 6건 (ARCH-L1L2 / ARCH-RAWFMT / ARCH-BOUNDARY / ARCH-PROMOTION / ARCH-CACHE-L / ARCH-MCP-L)을 포함하여 ground truth layer (precise reproduction)와 inference layer (evolution driver)의 분리·gated promotion 메커니즘을 정의. Part II는 graphify(safishamsi/graphify v3 @ 92b70ce5) 차용 평가를 layer 분류 하에서 재구성. Part III는 prior-finding crosswalk + review history. v6 대비 핵심 변화: 단일 raw.yml → `raw-ground-truth.yml` + `raw-inference.yml` 분리, 새 명령 `/onto:promote-inference` 및 `/onto:refine` 도입, BT-E5/BT-E6 layer split, BT-A1/A2/A3/A4 inference layer 1급 시민 승격.
 
 Reference: `design-principles/productization-charter.md` §7, §12
 

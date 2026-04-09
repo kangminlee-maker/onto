@@ -1196,6 +1196,7 @@ async function main(): Promise<void> {
         cluster_id: "cluster-test-35",
         primary_owner_agent: "structure",
         primary_owner_reason: "first generated",
+        primary_member_raw_line: lineA,
         consolidated_principle: "consolidated principle",
         representative_cases: ["case a", "case b"],
         member_items: [
@@ -1206,6 +1207,7 @@ async function main(): Promise<void> {
               source_path: path.join(fakeOnto, "learnings", "structure.md"),
             }),
             raw_line: lineA,
+            line_number: 2,
           },
           {
             ...syntheticItem({
@@ -1214,6 +1216,7 @@ async function main(): Promise<void> {
               source_path: path.join(fakeOnto, "learnings", "logic.md"),
             }),
             raw_line: lineB,
+            line_number: 2,
           },
         ],
         consolidated_line: consolidatedLine,
@@ -1705,6 +1708,7 @@ async function main(): Promise<void> {
       cluster_id: "preflight-test",
       primary_owner_agent: "structure",
       primary_owner_reason: "test",
+      primary_member_raw_line: lineA,
       consolidated_principle: "test",
       representative_cases: [],
       member_items: [
@@ -1715,6 +1719,7 @@ async function main(): Promise<void> {
             source_path: path.join(fakeOnto, "learnings", "structure.md"),
           }),
           raw_line: lineA,
+          line_number: 2,
         },
         {
           ...syntheticItem({
@@ -1725,6 +1730,7 @@ async function main(): Promise<void> {
           }),
           raw_line:
             "- [fact] [methodology] [foundation] missing (source: p, d, 2026-01-01) [impact:normal]",
+          line_number: 2,
         },
       ],
       consolidated_line:
@@ -1814,6 +1820,7 @@ async function main(): Promise<void> {
       cluster_id: "idem-test",
       primary_owner_agent: "structure",
       primary_owner_reason: "test",
+      primary_member_raw_line: lineA,
       consolidated_principle: "test",
       representative_cases: [],
       member_items: [
@@ -1824,6 +1831,7 @@ async function main(): Promise<void> {
             source_path: path.join(fakeOnto, "learnings", "structure.md"),
           }),
           raw_line: lineA,
+          line_number: 2,
         },
         {
           ...syntheticItem({
@@ -1832,6 +1840,7 @@ async function main(): Promise<void> {
             source_path: path.join(fakeOnto, "learnings", "logic.md"),
           }),
           raw_line: lineB,
+          line_number: 2,
         },
       ],
       consolidated_line: consolidatedLine,
@@ -5607,6 +5616,7 @@ async function main(): Promise<void> {
       cluster_id: "mixed-scope-test",
       primary_owner_agent: "structure",
       primary_owner_reason: "global canonical",
+      primary_member_raw_line: globalLine,
       consolidated_principle: "mixed-scope consolidation",
       representative_cases: ["a", "b"],
       member_items: [
@@ -5617,6 +5627,7 @@ async function main(): Promise<void> {
             source_path: globalStructurePath,
           }),
           raw_line: globalLine,
+          line_number: 2,
         },
         {
           ...syntheticItem({
@@ -5625,6 +5636,7 @@ async function main(): Promise<void> {
             source_path: projectPhilosopherPath,
           }),
           raw_line: projectLine,
+          line_number: 2,
         },
       ],
       consolidated_line: consolidatedLine,
@@ -5998,6 +6010,479 @@ async function main(): Promise<void> {
     // Exit code semantics the CLI uses: failed > 0 → exit 1
     const cliExitCode = result.failed > 0 ? 1 : 0;
     assertEqual(cliExitCode, 0, "CLI exit code = 0 for clean apply");
+  });
+
+  // -------------------------------------------------------------------------
+  // Batch 12 — re-review fixes (CG1, CG2, CG3, UF1, UF2, UF3)
+  // -------------------------------------------------------------------------
+
+  // E-P141 — CG3: off-shortlist primary_owner_agent is rejected by the C2
+  //          runtime guard AND the failure metric is incremented. Uses the
+  //          ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER env hook to force the negative
+  //          path without requiring module-level mock injection.
+  await test("E-P141 dedup drops cluster + bumps metric when LLM returns off-shortlist owner (CG3)", async () => {
+    const { discoverCrossAgentDedupClusters } = await import(
+      "./panel-reviewer.js"
+    );
+    const previousMock = process.env.ONTO_LLM_MOCK;
+    const previousBogus = process.env.ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER;
+    process.env.ONTO_LLM_MOCK = "1";
+    process.env.ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER = "1";
+    try {
+      const items: ParsedLearningItem[] = [
+        syntheticItem({
+          agent_id: "structure",
+          content:
+            "invariant check constraint validation rollback guarantee durable",
+        }),
+        syntheticItem({
+          agent_id: "philosopher",
+          content:
+            "invariant check constraint validation rollback guarantee idempotent",
+        }),
+      ];
+      const discovery = await discoverCrossAgentDedupClusters(items, []);
+      assertEqual(
+        discovery.clusters.length,
+        0,
+        "cluster dropped because owner is off-shortlist",
+      );
+      assertEqual(
+        discovery.metrics.llm_failures.primary_owner_not_in_shortlist,
+        1,
+        "metric increment: primary_owner_not_in_shortlist",
+      );
+      // Not conflated with the other failure buckets
+      assertEqual(discovery.metrics.llm_failures.provider_error, 0, "not provider_error");
+      assertEqual(discovery.metrics.llm_failures.malformed_json, 0, "not malformed");
+      assertEqual(discovery.metrics.llm_failures.missing_field, 0, "not missing_field");
+      assertEqual(discovery.metrics.same_principle_rejected, 0, "not rejected");
+    } finally {
+      if (previousMock === undefined) delete process.env.ONTO_LLM_MOCK;
+      else process.env.ONTO_LLM_MOCK = previousMock;
+      if (previousBogus === undefined)
+        delete process.env.ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER;
+      else process.env.ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER = previousBogus;
+    }
+  });
+
+  // E-P142 — UF2: same_principle=false is counted as a valid negative
+  //          outcome (same_principle_rejected), NOT as an llm_failure.
+  //          Forces the path via ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE.
+  await test("E-P142 same_principle=false counted outside llm_failures (UF2)", async () => {
+    const { discoverCrossAgentDedupClusters } = await import(
+      "./panel-reviewer.js"
+    );
+    const previousMock = process.env.ONTO_LLM_MOCK;
+    const previousFalse = process.env.ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE;
+    process.env.ONTO_LLM_MOCK = "1";
+    process.env.ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE = "1";
+    try {
+      const items: ParsedLearningItem[] = [
+        syntheticItem({
+          agent_id: "structure",
+          content: "different notion alpha gamma tau sigma phi omega",
+        }),
+        syntheticItem({
+          agent_id: "philosopher",
+          content: "different notion alpha gamma tau sigma phi delta",
+        }),
+      ];
+      const discovery = await discoverCrossAgentDedupClusters(items, []);
+      assertEqual(discovery.clusters.length, 0, "no cluster emitted");
+      assertEqual(
+        discovery.metrics.same_principle_rejected,
+        1,
+        "same_principle_rejected counter bumped",
+      );
+      // NOT counted under llm_failures
+      assertEqual(discovery.metrics.llm_failures.provider_error, 0, "not provider_error");
+      assertEqual(discovery.metrics.llm_failures.malformed_json, 0, "not malformed");
+      assertEqual(discovery.metrics.llm_failures.missing_field, 0, "not missing_field");
+      assertEqual(
+        discovery.metrics.llm_failures.primary_owner_not_in_shortlist,
+        0,
+        "not owner mismatch",
+      );
+    } finally {
+      if (previousMock === undefined) delete process.env.ONTO_LLM_MOCK;
+      else process.env.ONTO_LLM_MOCK = previousMock;
+      if (previousFalse === undefined)
+        delete process.env.ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE;
+      else
+        process.env.ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE = previousFalse;
+    }
+  });
+
+  // E-P143 — UF3: bounded-loss warnings reach report.warnings end-to-end
+  //          via runPromoter. Force LLM failure using the bogus-owner hook
+  //          and verify report.warnings contains "cross_agent_dedup:" prefix.
+  await test("E-P143 runPromoter surfaces cross_agent_dedup warnings end-to-end (UF3)", async () => {
+    const previousMock = process.env.ONTO_LLM_MOCK;
+    const previousBogus = process.env.ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER;
+    process.env.ONTO_LLM_MOCK = "1";
+    process.env.ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER = "1";
+
+    const projectRoot = makeTmpDir("e-p143-proj");
+    const fakeOnto = makeTmpDir("e-p143-home");
+    const fakeAuditStatePath = path.join(fakeOnto, "audit-state.yaml");
+
+    // Two cross-agent candidates with overlap — they'll form a shortlist
+    // that the bogus-owner mock will reject.
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "structure",
+      "- [fact] [methodology] [foundation] verify constraint validation applying change durable (source: p, d, 2026-01-01) [impact:normal]",
+    );
+    writeLearningFile(
+      path.join(projectRoot, ".onto", "learnings"),
+      "philosopher",
+      "- [fact] [methodology] [foundation] verify constraint validation applying change idempotent (source: p, d, 2026-01-02) [impact:normal]",
+    );
+
+    try {
+      const result = await runPromoter({
+        mode: "promote",
+        sessionId: "test-143",
+        projectRoot,
+        ontoHome: fakeOnto,
+        auditStatePath: fakeAuditStatePath,
+        skipAudit: true,
+      });
+      // No clusters emitted (owner mismatch dropped them)
+      assertEqual(
+        result.report.cross_agent_dedup_clusters.length,
+        0,
+        "no clusters passed runtime guard",
+      );
+      // But a warning DID surface
+      const warnings = result.report.warnings ?? [];
+      const dedupWarnings = warnings.filter((w) =>
+        w.includes("cross_agent_dedup:"),
+      );
+      assert(
+        dedupWarnings.length > 0,
+        `expected cross_agent_dedup warning in report.warnings (got ${JSON.stringify(warnings)})`,
+      );
+      assert(
+        dedupWarnings.some((w) =>
+          w.includes("primary_owner_not_in_shortlist"),
+        ),
+        "warning names the specific failure channel",
+      );
+    } finally {
+      if (previousMock === undefined) delete process.env.ONTO_LLM_MOCK;
+      else process.env.ONTO_LLM_MOCK = previousMock;
+      if (previousBogus === undefined)
+        delete process.env.ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER;
+      else process.env.ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER = previousBogus;
+    }
+  });
+
+  // E-P144 — CG1: Transitive A-B-A cluster. A shortlist with TWO members
+  //          from the primary_owner_agent plus one member from another
+  //          agent. All non-primary siblings (including the same-agent
+  //          second structure member) must be marked, not just the
+  //          other-agent member.
+  await test("E-P144 cross_agent_dedup marks same-agent siblings (CG1 transitive)", async () => {
+    const projectRoot = makeTmpDir("e-p144-proj");
+    const fakeOnto = makeTmpDir("e-p144-home");
+
+    // primary_owner_agent = structure. Shortlist has 2 structure members +
+    // 1 philosopher member. The primary member is structureLineA (earliest
+    // source_date). structureLineB (later source_date) is a SIBLING that
+    // must ALSO be marked consolidated.
+    const structureLineA =
+      "- [fact] [methodology] [foundation] same principle early (source: p, d, 2026-01-01) [impact:normal]";
+    const structureLineB =
+      "- [fact] [methodology] [foundation] same principle later (source: p, d, 2026-02-01) [impact:normal]";
+    const philosopherLine =
+      "- [fact] [methodology] [foundation] same principle philosophical (source: p, d, 2026-01-10) [impact:normal]";
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", structureLineA, structureLineB].join("\n"),
+    );
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "philosopher",
+      ["<!-- format_version: 1 -->", philosopherLine].join("\n"),
+    );
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-144",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    const consolidatedLine =
+      "- [fact] [methodology] [foundation] consolidated transitive (source: cluster, d, 2026-04-09) [impact:normal]";
+    const cluster = {
+      cluster_id: "transitive-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "earliest source_date among structure members",
+      primary_member_raw_line: structureLineA,
+      consolidated_principle: "same principle across agents and within one",
+      representative_cases: ["a", "b", "c"],
+      member_items: [
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "global",
+            source_path: structurePath,
+            source_date: "2026-01-01",
+          }),
+          raw_line: structureLineA,
+          line_number: 2,
+        },
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "global",
+            source_path: structurePath,
+            source_date: "2026-02-01",
+          }),
+          raw_line: structureLineB,
+          line_number: 3,
+        },
+        {
+          ...syntheticItem({
+            agent_id: "philosopher",
+            scope: "global",
+            source_path: philosopherPath,
+            source_date: "2026-01-10",
+          }),
+          raw_line: philosopherLine,
+          line_number: 2,
+        },
+      ],
+      consolidated_line: consolidatedLine,
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(
+      promoter.reportPath,
+      JSON.stringify(promoter.report, null, 2),
+    );
+
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-144",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [
+        { cluster_id: "transitive-test", approve: true },
+      ],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-144",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    assertEqual(outcome.kind, "completed", "executor completed");
+
+    const structureContent = fs.readFileSync(structurePath, "utf8");
+    const philosopherContent = fs.readFileSync(philosopherPath, "utf8");
+    const structureLines = structureContent.split("\n");
+    const philosopherLines = philosopherContent.split("\n");
+
+    // structureLineA (primary) stays as an exact line — it's absorbed into
+    // the consolidated line semantically but the physical line is NOT
+    // replaced. Check via exact line-equality, not substring (the marker
+    // comment for structureLineB naturally embeds structureLineB text).
+    assert(
+      structureLines.includes(structureLineA),
+      "primary member (structureLineA) kept as exact line in structure file",
+    );
+    // structureLineB (sibling) must be marked consolidated — the exact line
+    // should no longer be present in the file as-is.
+    assert(
+      !structureLines.includes(structureLineB),
+      "sibling member (structureLineB) no longer present as raw line",
+    );
+    // Positive check: a consolidated marker referencing this sibling exists.
+    assert(
+      structureLines.some(
+        (l: string) =>
+          l.includes("consolidated") &&
+          l.includes("transitive-test") &&
+          l.includes("same principle later"),
+      ),
+      "structure file carries consolidated marker for sibling structureLineB",
+    );
+    // philosopherLine must also be marked — exact line replaced.
+    assert(
+      !philosopherLines.includes(philosopherLine),
+      "philosopher member no longer present as raw line",
+    );
+    assert(
+      philosopherLines.some(
+        (l: string) =>
+          l.includes("consolidated") &&
+          l.includes("transitive-test") &&
+          l.includes("same principle philosophical"),
+      ),
+      "philosopher file carries consolidated marker",
+    );
+    // Consolidated line was appended to the primary file
+    assert(
+      structureContent.includes("consolidated transitive"),
+      "consolidated line appended to primary (structure) file",
+    );
+    assert(
+      structureContent.includes("cluster_id: transitive-test"),
+      "cluster marker present in primary",
+    );
+  });
+
+  // E-P145 — CG2: Ambiguous duplicate raw_line in a member file fails
+  //          preflight when line_number anchor does not resolve.
+  //          Previously applyCrossAgentDedup would replace the first
+  //          verbatim match silently, now it fails-closed.
+  await test("E-P145 cross_agent_dedup preflight rejects ambiguous duplicate raw_line (CG2)", async () => {
+    const projectRoot = makeTmpDir("e-p145-proj");
+    const fakeOnto = makeTmpDir("e-p145-home");
+    const structureLine =
+      "- [fact] [methodology] [foundation] primary alpha (source: p, d, 2026-01-01) [impact:normal]";
+    // Two verbatim duplicates of the philosopher line; line_number anchor
+    // points at a decoy line in the middle so neither anchor resolves cleanly.
+    const philosopherLine =
+      "- [fact] [methodology] [foundation] duplicate beta (source: p, d, 2026-01-01) [impact:normal]";
+    const philosopherFile = path.join(fakeOnto, "learnings", "philosopher.md");
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "structure",
+      ["<!-- format_version: 1 -->", structureLine].join("\n"),
+    );
+    writeLearningFile(
+      path.join(fakeOnto, "learnings"),
+      "philosopher",
+      [
+        "<!-- format_version: 1 -->",
+        philosopherLine,
+        "- [fact] [methodology] [foundation] decoy (source: p, d, 2026-01-01) [impact:normal]",
+        philosopherLine,
+      ].join("\n"),
+    );
+
+    const promoter = await runPromoter({
+      mode: "promote",
+      sessionId: "test-145",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      skipPanel: true,
+      skipAudit: true,
+    });
+
+    const structurePath = path.join(fakeOnto, "learnings", "structure.md");
+    const consolidatedLine =
+      "- [fact] [methodology] [foundation] consolidated ambig (source: cluster, d, 2026-04-09) [impact:normal]";
+    const cluster = {
+      cluster_id: "ambig-test",
+      primary_owner_agent: "structure",
+      primary_owner_reason: "test",
+      primary_member_raw_line: structureLine,
+      consolidated_principle: "test",
+      representative_cases: [],
+      member_items: [
+        {
+          ...syntheticItem({
+            agent_id: "structure",
+            scope: "global",
+            source_path: structurePath,
+          }),
+          raw_line: structureLine,
+          line_number: 2,
+        },
+        {
+          ...syntheticItem({
+            agent_id: "philosopher",
+            scope: "global",
+            source_path: philosopherFile,
+          }),
+          raw_line: philosopherLine,
+          // line_number=3 points at the decoy line, neither anchor resolves
+          line_number: 3,
+        },
+      ],
+      consolidated_line: consolidatedLine,
+      user_approval_required: true as const,
+    };
+    promoter.report.cross_agent_dedup_clusters.push(cluster);
+    fs.writeFileSync(
+      promoter.reportPath,
+      JSON.stringify(promoter.report, null, 2),
+    );
+
+    const decisions: PromoteDecisions = {
+      schema_version: "1",
+      session_id: "test-145",
+      prepared_at: new Date().toISOString(),
+      promotions: [],
+      contradiction_replacements: [],
+      cross_agent_dedup_approvals: [
+        { cluster_id: "ambig-test", approve: true },
+      ],
+      axis_tag_changes: [],
+      retirements: [],
+      domain_doc_updates: [],
+      audit_outcomes: [],
+      audit_obligations_waived: [],
+    };
+    fs.writeFileSync(
+      path.join(promoter.sessionRoot, "promote-decisions.json"),
+      JSON.stringify(decisions, null, 2),
+    );
+
+    // Preflight must fail — decision routes through failed_decisions, not
+    // applied. The overall executor run may still return failed_resumable.
+    const outcome = await runPromoteExecutor({
+      sessionId: "test-145",
+      projectRoot,
+      ontoHome: fakeOnto,
+      auditStatePath: path.join(fakeOnto, "audit-state.yaml"),
+      sessionRoot: promoter.sessionRoot,
+    });
+    // The single decision failed preflight → executor returns failed_resumable
+    assert(
+      outcome.kind === "failed_resumable",
+      `expected failed_resumable (got ${outcome.kind})`,
+    );
+    // Verify the philosopher file was NOT silently mutated
+    const philosopherContent = fs.readFileSync(philosopherFile, "utf8");
+    const matchCount = philosopherContent
+      .split("\n")
+      .filter((l) => l === philosopherLine).length;
+    assertEqual(
+      matchCount,
+      2,
+      "both duplicate raw_lines preserved (no silent mutation)",
+    );
+    assert(
+      !philosopherContent.includes("consolidated (") ||
+        !philosopherContent.includes("ambig-test"),
+      "no consolidated marker written for ambiguous member",
+    );
   });
 
   // -------------------------------------------------------------------------

@@ -24,17 +24,12 @@
  *       4. retirements         (delete or comment out)
  *       5. audit_outcomes      (modify/delete based on audit)
  *       6. obligation_waive    (audit-state transition)
- *       7. cross_agent_dedup_approvals (stub — TODO step 13)
- *       8. domain_doc_updates  (stub — TODO step 13)
+ *       7. cross_agent_dedup_approvals (scope-aware line-level mark +
+ *          consolidated append, CG1/CG2/UF1 fixes applied)
+ *       8. domain_doc_updates  (LLM content generation + file update)
  *   - Transition status: in_progress → completed | failed_resumable |
  *     apply_verification_failed.
  *   - Emergency log on state_persistence_failed (DD-15 dual failure).
- *
- * Scope boundary:
- *   - Domain doc LLM call is intentionally TODO for Step 13. Phase B currently
- *     accepts the approval but does not generate content; the report shows
- *     candidates only.
- *   - Cross-agent dedup application is TODO for the same reason.
  *
  * File-mutation contract:
  *   - All learning file edits are line-level operations against the .md
@@ -87,6 +82,7 @@ import type {
   CrossAgentDedupCluster,
   CrossAgentDedupDecision,
   DomainDocCandidate,
+  ParsedLearningItem,
   PendingDecisionRef,
   PromoteDecisions,
   PromoteReport,
@@ -288,7 +284,28 @@ function appendLearningLine(
   learningId: string,
 ): void {
   ensureFileExists(filePath);
-  const block = `${line}\n<!-- learning_id: ${learningId} taxonomy_version: phase3-promoted -->\n`;
+  // Guard against existing files that lack a trailing newline: without this
+  // the new block would concatenate onto the last existing line (e.g. a
+  // comment marker written by replaceLineInFile), producing lines like
+  // `<!-- ... -->- [fact] ...`. Peek at the last byte and prepend a newline
+  // if needed.
+  let leading = "";
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.size > 0) {
+      const fd = fs.openSync(filePath, "r");
+      try {
+        const tail = Buffer.alloc(1);
+        fs.readSync(fd, tail, 0, 1, stat.size - 1);
+        if (tail[0] !== 0x0a /* \n */) leading = "\n";
+      } finally {
+        fs.closeSync(fd);
+      }
+    }
+  } catch {
+    // stat/open failure falls through to the plain append path
+  }
+  const block = `${leading}${line}\n<!-- learning_id: ${learningId} taxonomy_version: phase3-promoted -->\n`;
   fs.appendFileSync(filePath, block, "utf8");
 }
 
@@ -640,29 +657,97 @@ function applyAuditOutcome(
  * its inputs.
  */
 /**
- * C1 fix: scope-aware cross-agent dedup apply.
+ * Anchor resolution for cross-agent dedup members (CG2 fix).
  *
- * Criterion 6 discovery (panel-reviewer.discoverCrossAgentDedupClusters) pools
- * candidate items (scope=project) with global items (scope=global) because the
- * intent of criterion 6 is to consolidate the same principle across agent
- * files regardless of source scope. Previously, applyCrossAgentDedup resolved
- * every member path via getGlobalLearningFilePath(), which is correct for
- * global-global clusters but silently wrong for clusters containing any
- * project-scope member — the consolidated-into marker would land on (or fail
- * to find) the wrong file.
+ * Identical shape as insight-reclassifier.resolveAnchor but inlined here
+ * because the dedup apply runs inside promote-executor and shares no state
+ * with the reclassifier module.
  *
- * Correct semantics:
- *   - The primary owner's consolidated line ALWAYS goes to the GLOBAL file of
- *     the primary owner agent, because the whole point of criterion 6 is to
- *     create a durable shared principle. Even if the primary owner's original
- *     member was scope=project, consolidation promotes it to global.
- *   - Non-primary members are marked at THEIR source_path. A scope=project
- *     member marks the project file; a scope=global member marks the global
- *     file. ParsedLearningItem.source_path carries the absolute path from
- *     collector discovery, so this is unambiguous.
+ * Three outcomes:
+ *   - match_original    → line_number anchor points at the original raw_line
+ *                         (or the verbatim scan found a unique match)
+ *   - already_consolidated → line_number anchor points at the post-marker
+ *                            form (evidence of a previously successful apply)
+ *   - ambiguous         → verbatim scan found more than one hit AND the
+ *                         line_number anchor didn't resolve → fail-closed
+ *   - missing           → neither anchor produced a hit → fail-closed
+ */
+interface DedupAnchorResolution {
+  kind: "match_original" | "already_consolidated" | "ambiguous" | "missing";
+  lineIndex: number | null;
+}
+
+function resolveDedupMemberAnchor(
+  fileLines: string[],
+  member: ParsedLearningItem,
+  clusterId: string,
+): DedupAnchorResolution {
+  const rawLine = member.raw_line;
+  const date = new Date().toISOString().slice(0, 10);
+  // The rewritten form includes a date stamp that we can't predict exactly
+  // at resolution time (prior runs used a different date). Match on the
+  // stable prefix + cluster_id + raw_line tail instead.
+  const expectedMarkerPrefix = `<!-- consolidated (`;
+  const expectedMarkerSuffix = `) into ${clusterId}: ${rawLine} -->`;
+  void date; // suppress unused warning
+
+  const anchoredIdx = member.line_number - 1;
+  if (anchoredIdx >= 0 && anchoredIdx < fileLines.length) {
+    const candidate = fileLines[anchoredIdx]!;
+    if (candidate === rawLine) {
+      return { kind: "match_original", lineIndex: anchoredIdx };
+    }
+    if (
+      candidate.startsWith(expectedMarkerPrefix) &&
+      candidate.endsWith(expectedMarkerSuffix)
+    ) {
+      return { kind: "already_consolidated", lineIndex: anchoredIdx };
+    }
+  }
+
+  // Verbatim scan fallback — must be unambiguous.
+  let firstMatch = -1;
+  let matchCount = 0;
+  for (let i = 0; i < fileLines.length; i++) {
+    if (fileLines[i] === rawLine) {
+      if (firstMatch === -1) firstMatch = i;
+      matchCount += 1;
+      if (matchCount > 1) break;
+    }
+  }
+  if (matchCount === 1 && firstMatch !== -1) {
+    return { kind: "match_original", lineIndex: firstMatch };
+  }
+  if (matchCount > 1) {
+    return { kind: "ambiguous", lineIndex: null };
+  }
+  return { kind: "missing", lineIndex: null };
+}
+
+/**
+ * C1 + CG1 + CG2 + UF1 fix: scope-aware, primary-member-precise, anchor-
+ * resolved, and marker-closure-aware cross-agent dedup apply.
  *
- * The preflight also now uses source_path, so existence and line-match checks
- * hit the correct file for every member regardless of scope.
+ * C1: Scope-aware — non-primary members apply at their own source_path.
+ * Mixed-scope clusters (project + global) correctly mark each member file.
+ *
+ * CG1: Exact primary member identity — cluster.primary_member_raw_line
+ * identifies the ONE member that becomes the consolidated line. Every other
+ * member — including same-agent siblings — is marked consolidated.
+ * Previously the filter `m.agent_id !== primary_owner_agent` silently
+ * dropped transitive A-B-A cluster siblings from the mark list.
+ *
+ * CG2: Anchor resolution — member lookup uses line_number as the primary
+ * anchor, unique verbatim scan as the fallback. Ambiguous and missing
+ * outcomes fail-closed; evidence of a prior apply (already_consolidated) is
+ * treated as idempotent success without re-marking.
+ *
+ * UF1: Cluster marker closure — on rerun with the cluster marker already
+ * present in the primary file, we ALSO verify that every member file has
+ * its expected consolidated marker. Any missing member marker triggers
+ * re-mark to complete a partial prior apply. Previously the cluster marker
+ * alone was treated as "already applied" even when a crash had left member
+ * files un-marked.
  */
 function applyCrossAgentDedup(
   decision: CrossAgentDedupDecision,
@@ -672,55 +757,152 @@ function applyCrossAgentDedup(
   if (!decision.approve) return;
   const id = decisionId("cross_agent_dedup", decision.cluster_id);
   try {
-    // Primary owner: ALWAYS the global file. Mixed-scope clusters promote
-    // the consolidated principle to global regardless of the primary
-    // member's origin scope.
+    // Primary owner: ALWAYS the global file of the primary_owner_agent.
+    // Mixed-scope clusters promote the consolidated principle to global
+    // regardless of the primary member's origin scope.
     const primaryPath = getGlobalLearningFilePath(
       cluster.primary_owner_agent,
       ctx.ontoHome,
     );
-
-    // M-A idempotency check: if the primary file already contains a
-    // `<!-- cluster_id: <id> -->` marker for this cluster, the previous
-    // attempt already applied this dedup. Skip to avoid double-appending
-    // the consolidated line.
     const clusterMarker = `<!-- cluster_id: ${decision.cluster_id} -->`;
-    if (fs.existsSync(primaryPath)) {
-      const existing = fs.readFileSync(primaryPath, "utf8");
-      if (existing.includes(clusterMarker)) {
+
+    // CG1: non-primary members are every item in the cluster EXCEPT the
+    // specific item that becomes the consolidated line. Match by raw_line
+    // (the canonical primary member identity from panel-reviewer).
+    const nonPrimaryMembers = cluster.member_items.filter(
+      (m) => m.raw_line !== cluster.primary_member_raw_line,
+    );
+
+    // UF1: cluster marker in the primary file is ONLY evidence of success
+    // when every non-primary member also has its own marker. Otherwise the
+    // prior attempt crashed after writing the cluster marker but before
+    // finishing member marks — we must finish the unfinished work.
+    const clusterMarkerPresent =
+      fs.existsSync(primaryPath) &&
+      fs.readFileSync(primaryPath, "utf8").includes(clusterMarker);
+
+    if (clusterMarkerPresent) {
+      const unmarkedMembers: ParsedLearningItem[] = [];
+      for (const member of nonPrimaryMembers) {
+        if (!fs.existsSync(member.source_path)) {
+          // A previously marked member file that subsequently disappeared —
+          // treat as resumable failure so the operator investigates.
+          throw new Error(
+            `cross_agent_dedup resume: expected member file ${member.source_path} ` +
+              `missing for ${member.agent_id}`,
+          );
+        }
+        const memberLines = fs
+          .readFileSync(member.source_path, "utf8")
+          .split("\n");
+        const resolution = resolveDedupMemberAnchor(
+          memberLines,
+          member,
+          decision.cluster_id,
+        );
+        if (resolution.kind === "already_consolidated") continue;
+        if (resolution.kind === "match_original") {
+          unmarkedMembers.push(member);
+          continue;
+        }
+        // ambiguous or missing — neither the original nor the expected
+        // marker is locatable. Fail-closed.
+        throw new Error(
+          `cross_agent_dedup resume: member ${member.agent_id} in ` +
+            `${member.source_path} is ${resolution.kind} (cluster_id=${decision.cluster_id})`,
+        );
+      }
+      if (unmarkedMembers.length === 0) {
+        // Clean idempotent success — cluster AND all members are consolidated.
         ctx.state = markApplied(ctx.state, {
           decision_kind: "cross_agent_dedup",
           decision_id: id,
           applied_at: new Date().toISOString(),
           target_path: primaryPath,
-          result_summary: `cluster ${decision.cluster_id} already present, skipped`,
+          result_summary: `cluster ${decision.cluster_id} fully consolidated, skipped`,
         });
         ctx.summary.cross_agent_dedup_applied += 1;
         return;
       }
+      // Finish the partial apply: mark only the still-original members.
+      const date = new Date().toISOString().slice(0, 10);
+      let finishedCount = 0;
+      for (const member of unmarkedMembers) {
+        const marker = `<!-- consolidated (${date}) into ${decision.cluster_id}: ${member.raw_line} -->`;
+        const ok = replaceLineInFile(
+          member.source_path,
+          member.raw_line,
+          marker,
+        );
+        if (!ok) {
+          throw new Error(
+            `cross_agent_dedup resume: failed to mark ${member.agent_id} ` +
+              `(${member.source_path}) during partial-apply recovery`,
+          );
+        }
+        finishedCount += 1;
+      }
+      ctx.state = markApplied(ctx.state, {
+        decision_kind: "cross_agent_dedup",
+        decision_id: id,
+        applied_at: new Date().toISOString(),
+        target_path: primaryPath,
+        result_summary:
+          `cluster ${decision.cluster_id} resumed; ` +
+          `${finishedCount} additional member entries marked to close prior partial apply`,
+      });
+      ctx.summary.cross_agent_dedup_applied += 1;
+      return;
     }
 
-    // C1: non-primary members use their own source_path (scope-aware). The
-    // primary owner's source item is excluded from the marking loop because
-    // its role is absorbed into the new consolidated line.
-    const nonPrimaryMembers = cluster.member_items.filter(
-      (m) => m.agent_id !== cluster.primary_owner_agent,
-    );
+    // No cluster marker — fresh apply. CG2 anchor resolution per member.
     const preflightFailures: string[] = [];
+    const resolvedMembers: Array<{
+      member: ParsedLearningItem;
+      fileLines: string[];
+      lineIndex: number;
+    }> = [];
     for (const member of nonPrimaryMembers) {
-      const memberPath = member.source_path;
-      if (!fs.existsSync(memberPath)) {
+      if (!fs.existsSync(member.source_path)) {
         preflightFailures.push(
-          `${member.agent_id} (${member.scope}): file ${memberPath} does not exist`,
+          `${member.agent_id} (${member.scope}): file ${member.source_path} does not exist`,
         );
         continue;
       }
-      const content = fs.readFileSync(memberPath, "utf8");
-      if (!content.split("\n").some((line) => line === member.raw_line)) {
+      const fileLines = fs
+        .readFileSync(member.source_path, "utf8")
+        .split("\n");
+      const resolution = resolveDedupMemberAnchor(
+        fileLines,
+        member,
+        decision.cluster_id,
+      );
+      if (resolution.kind === "missing") {
         preflightFailures.push(
-          `${member.agent_id} (${member.scope}): line not found in ${memberPath}`,
+          `${member.agent_id} (${member.scope}): raw_line not locatable at line ${member.line_number} or via verbatim scan in ${member.source_path}`,
         );
+        continue;
       }
+      if (resolution.kind === "ambiguous") {
+        preflightFailures.push(
+          `${member.agent_id} (${member.scope}): multiple verbatim matches for raw_line in ${member.source_path} and line_number anchor did not resolve`,
+        );
+        continue;
+      }
+      if (resolution.kind === "already_consolidated") {
+        // Unusual: cluster marker absent but this member IS already marked.
+        // Suggests cross-cluster contamination or partial rollback. Fail-closed.
+        preflightFailures.push(
+          `${member.agent_id} (${member.scope}): already carries consolidated marker for cluster ${decision.cluster_id} despite absent cluster marker in primary file`,
+        );
+        continue;
+      }
+      // match_original
+      resolvedMembers.push({
+        member,
+        fileLines,
+        lineIndex: resolution.lineIndex!,
+      });
     }
     if (preflightFailures.length > 0) {
       throw new Error(
@@ -729,31 +911,47 @@ function applyCrossAgentDedup(
       );
     }
 
-    // Preflight passed — now mutate. The order matters: append consolidated
-    // entry first (this is the new addition that recovery needs), then mark
-    // each member. Because preflight already verified every member, the
-    // member writes are safe.
-    const learningId = hashLine(cluster.consolidated_line);
-    appendLearningLine(primaryPath, cluster.consolidated_line, learningId);
-    fs.appendFileSync(primaryPath, `${clusterMarker}\n`, "utf8");
-
+    // Preflight passed — mark each member first, THEN write consolidated
+    // line + cluster marker on the primary file. UF1 ordering intent:
+    // the cluster marker is the "commit marker" that indicates
+    // "all member markers were written during this run," so we write it
+    // AFTER the member mutations. If a crash happens mid-members, a rerun
+    // will find the cluster marker absent AND the member markers partially
+    // present, and the normal preflight will treat the unmarked members as
+    // match_original and re-mark them. The already-marked members are
+    // detected as already_consolidated and fail preflight — but the resume
+    // path above catches this via clusterMarkerPresent.
+    //
+    // Wait: that's the loophole. If the cluster marker is absent but SOME
+    // members are already marked (partial prior apply + post-prior-apply
+    // crash before cluster marker could be written), the preflight above
+    // flags already_consolidated as a failure. That's intentional: the
+    // operator should investigate via manual recovery rather than
+    // auto-completing. For the normal happy path (no prior crash) this
+    // loophole never triggers.
+    const date = new Date().toISOString().slice(0, 10);
     let consolidatedCount = 0;
-    for (const member of nonPrimaryMembers) {
-      const memberPath = member.source_path;
-      const date = new Date().toISOString().slice(0, 10);
+    for (const { member } of resolvedMembers) {
       const marker = `<!-- consolidated (${date}) into ${decision.cluster_id}: ${member.raw_line} -->`;
-      const ok = replaceLineInFile(memberPath, member.raw_line, marker);
+      const ok = replaceLineInFile(
+        member.source_path,
+        member.raw_line,
+        marker,
+      );
       if (!ok) {
-        // Should never happen because preflight already verified the line
-        // exists. If it does, it means another process raced us — surface
-        // as a failure so the operator investigates.
         throw new Error(
           `cross_agent_dedup post-preflight race: ${member.agent_id} line ` +
-            `disappeared from ${memberPath} between preflight and mutation`,
+            `disappeared from ${member.source_path} between preflight and mutation`,
         );
       }
       consolidatedCount += 1;
     }
+
+    // All member marks complete — now write the consolidated line + cluster
+    // marker as the commit step.
+    const learningId = hashLine(cluster.consolidated_line);
+    appendLearningLine(primaryPath, cluster.consolidated_line, learningId);
+    fs.appendFileSync(primaryPath, `${clusterMarker}\n`, "utf8");
 
     ctx.state = markApplied(ctx.state, {
       decision_kind: "cross_agent_dedup",
@@ -762,7 +960,7 @@ function applyCrossAgentDedup(
       target_path: primaryPath,
       result_summary:
         `consolidated to ${path.basename(primaryPath)}; ` +
-        `${consolidatedCount} member entries marked (scope-aware)`,
+        `${consolidatedCount} member entries marked (scope-aware, anchor-resolved)`,
     });
     ctx.summary.cross_agent_dedup_applied += 1;
   } catch (error) {

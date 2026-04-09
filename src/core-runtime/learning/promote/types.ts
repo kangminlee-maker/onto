@@ -221,6 +221,16 @@ export interface CrossAgentDedupCluster {
   cluster_id: string;
   primary_owner_agent: string;
   primary_owner_reason: string;
+  /**
+   * CG1 fix: the exact raw_line of the member that BECOMES the consolidated
+   * line. `primary_owner_agent` is just the agent label; a shortlist can
+   * contain multiple members from that same agent (transitive A-B-A
+   * clusters), and those same-agent siblings must ALSO be marked
+   * consolidated-into. The apply path matches on this specific raw_line to
+   * identify the one owner-side item to skip, not every item sharing the
+   * primary agent_id.
+   */
+  primary_member_raw_line: string;
   consolidated_principle: string;
   representative_cases: string[];
   member_items: ParsedLearningItem[];

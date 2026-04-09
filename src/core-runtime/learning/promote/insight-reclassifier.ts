@@ -302,9 +302,12 @@ async function classifyOne(
  * Run the reclassifier in analyze mode.
  *
  * Output is written to `<sessionRoot>/insight-reclassification-report.json`
- * (unless dryRun). The follow-up apply path will read that file and route
- * each reclassification through Phase B's axis_tag_change applicator —
- * tracked as Step 13 work.
+ * (unless dryRun). The apply phase (Phase B) is implemented in this same
+ * module as applyInsightReclassifications — it reads the report JSON and
+ * rewrites role tags in place. Originally planned to reuse Phase B's
+ * axis_tag_change applicator via promote-executor, but the standalone
+ * function path is simpler because single-line role rewrites don't need
+ * the full PromoteReport + PromoteDecisions infrastructure.
  */
 export async function runInsightReclassifier(
   config: RunInsightReclassifierConfig,

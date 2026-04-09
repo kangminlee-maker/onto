@@ -349,25 +349,53 @@ function callMockProvider(
   ) {
     // Cross-agent dedup (criterion 6) — extract the first agent from the
     // user prompt as primary owner and fabricate a consolidated line. The
-    // mock always confirms same_principle so tests can exercise the happy
-    // path; failure paths use real JSON.parse errors or provider_error
-    // instead.
-    const firstAgent = extractFirstDedupAgent(userPrompt);
-    const agentCount = countDedupAgents(userPrompt);
-    text = JSON.stringify({
-      same_principle: true,
-      primary_owner_agent: firstAgent,
-      primary_owner_reason: "mock — first listed agent",
-      consolidated_principle:
-        "Mock consolidated principle produced by the deterministic LLM provider.",
-      representative_cases: Array.from(
-        { length: Math.min(agentCount, 3) },
-        (_, i) => `mock case ${i + 1}`,
-      ),
-      consolidated_line:
-        "- [fact] [methodology] [foundation] mock consolidated principle " +
-        "(Representative cases: mock case 1; mock case 2) (source: consolidated from mock-mock-2026-04-09)",
-    });
+    // mock happy path always confirms same_principle so tests can exercise
+    // the structural path.
+    //
+    // Negative-path hooks (CG3 + UF3):
+    //   ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER=1
+    //     → return a primary_owner_agent that is NOT in the shortlist so the
+    //       C2 runtime guard in llmConfirmCluster rejects the cluster.
+    //   ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE=1
+    //     → return same_principle=false so the UF2 metric bucket bumps.
+    //   ONTO_LLM_MOCK_DEDUP_MALFORMED=1
+    //     → emit non-JSON so the malformed_json failure channel fires.
+    //
+    // These hooks are test-only and gated on the ONTO_LLM_MOCK=1 envelope
+    // already checked above; production runs never see them.
+    if (process.env.ONTO_LLM_MOCK_DEDUP_MALFORMED === "1") {
+      text = "{this is not valid json at all";
+    } else if (process.env.ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE === "1") {
+      text = JSON.stringify({
+        same_principle: false,
+        primary_owner_agent: null,
+        primary_owner_reason: "mock — disagreement",
+        consolidated_principle: "",
+        representative_cases: [],
+        consolidated_line: "",
+      });
+    } else {
+      const firstAgent = extractFirstDedupAgent(userPrompt);
+      const agentCount = countDedupAgents(userPrompt);
+      const bogusOwner =
+        process.env.ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER === "1"
+          ? "offshortlist_ghost_agent"
+          : firstAgent;
+      text = JSON.stringify({
+        same_principle: true,
+        primary_owner_agent: bogusOwner,
+        primary_owner_reason: "mock — first listed agent",
+        consolidated_principle:
+          "Mock consolidated principle produced by the deterministic LLM provider.",
+        representative_cases: Array.from(
+          { length: Math.min(agentCount, 3) },
+          (_, i) => `mock case ${i + 1}`,
+        ),
+        consolidated_line:
+          "- [fact] [methodology] [foundation] mock consolidated principle " +
+          "(Representative cases: mock case 1; mock case 2) (source: consolidated from mock-mock-2026-04-09)",
+      });
+    }
   } else if (
     systemPrompt.startsWith("You are a semantic classifier")
   ) {

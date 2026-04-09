@@ -762,8 +762,10 @@ export interface ReviewPanelResult {
  * the same panel member list, but each member's LLM call is per-candidate
  * anyway, so there's no cost saving from merging here.
  *
- * TODO(step 13 eval): group candidates by originator and issue one LLM call
- * per (originator, philosopher, auto_selected) tuple to save N×3 calls.
+ * Future optimization: group candidates by originator and issue one LLM call
+ * per (originator, philosopher, auto_selected) tuple to save N×3 calls. The
+ * current shape correctly implements criterion 1~5 per candidate; batching
+ * is a cost improvement, not a correctness gap.
  */
 export async function reviewPanel(
   config: ReviewPanelConfig,
@@ -1322,8 +1324,10 @@ export interface CrossAgentDedupConfig {
  * caller could not tell whether an empty cluster list meant "nothing to
  * merge" or "we dropped everything due to cost caps and provider errors".
  *
- * This struct exposes each loss channel so the caller (promoter) can surface
- * them into the PromoteReport's degraded_states or warnings.
+ * UF2 fix: `same_principle_rejected` is a VALID classifier outcome (the LLM
+ * said "these are not the same principle"), NOT a failure. It lives outside
+ * `llm_failures` so the warning aggregation doesn't conflate classification
+ * rejection with provider/contract errors.
  */
 export interface DedupDiscoveryMetrics {
   pool_size: number;
@@ -1332,10 +1336,19 @@ export interface DedupDiscoveryMetrics {
   shortlists_cap_dropped_count: number;
   shortlists_truncated_count: number;
   members_truncated_total: number;
+  /**
+   * LLM returned a structurally valid response with same_principle=false.
+   * This is a valid negative classification — the shortlist was not actually
+   * a cluster. NOT a failure, not counted under llm_failures.
+   */
+  same_principle_rejected: number;
+  /**
+   * Shortlists dropped due to actual LLM/provider/contract errors. These
+   * signal operational issues the operator should investigate.
+   */
   llm_failures: {
     provider_error: number;
     malformed_json: number;
-    same_principle_false: number;
     missing_field: number;
     primary_owner_not_in_shortlist: number;
   };
@@ -1354,10 +1367,10 @@ function emptyMetrics(poolSize: number): DedupDiscoveryMetrics {
     shortlists_cap_dropped_count: 0,
     shortlists_truncated_count: 0,
     members_truncated_total: 0,
+    same_principle_rejected: 0,
     llm_failures: {
       provider_error: 0,
       malformed_json: 0,
-      same_principle_false: 0,
       missing_field: 0,
       primary_owner_not_in_shortlist: 0,
     },
@@ -1397,7 +1410,8 @@ export async function discoverCrossAgentDedupClusters(
           metrics.llm_failures.malformed_json += 1;
           break;
         case "same_principle_false":
-          metrics.llm_failures.same_principle_false += 1;
+          // UF2: not an llm_failure — valid negative classification.
+          metrics.same_principle_rejected += 1;
           break;
         case "missing_field":
           metrics.llm_failures.missing_field += 1;
@@ -1409,10 +1423,21 @@ export async function discoverCrossAgentDedupClusters(
       continue;
     }
     const verdict = outcome.verdict;
+    // CG1: Select the specific primary MEMBER among the shortlist members
+    // that share the LLM-chosen primary_owner_agent. Tiebreaker: earliest
+    // source_date (promote.md §3 criterion 6 — "먼저 생성된 학습"). Fallback
+    // to first-seen when source_date is null on any candidate. The picked
+    // member is the ONE item that "becomes" the consolidated line; every
+    // OTHER member — including same-agent siblings — is marked consolidated.
+    const primaryMember = pickPrimaryMember(
+      shortlist,
+      verdict.primary_owner_agent,
+    );
     clusters.push({
       cluster_id: hashCluster(shortlist),
       primary_owner_agent: verdict.primary_owner_agent,
       primary_owner_reason: verdict.primary_owner_reason,
+      primary_member_raw_line: primaryMember.raw_line,
       consolidated_principle: verdict.consolidated_principle,
       representative_cases: verdict.representative_cases,
       member_items: shortlist,
@@ -1421,6 +1446,32 @@ export async function discoverCrossAgentDedupClusters(
     });
   }
   return { clusters, metrics };
+}
+
+/**
+ * Pick the specific shortlist member that acts as the primary owner.
+ * Must be called only after the shortlist is confirmed by the LLM AND the
+ * owner agent is validated against shortlist membership (C2), so at least
+ * one member with primary_owner_agent is guaranteed to exist.
+ */
+function pickPrimaryMember(
+  shortlist: ParsedLearningItem[],
+  primaryOwnerAgent: string,
+): ParsedLearningItem {
+  const ownerCandidates = shortlist.filter(
+    (m) => m.agent_id === primaryOwnerAgent,
+  );
+  // At least one candidate is guaranteed by the C2 membership check.
+  // Sort by source_date (ascending — earliest first) for a deterministic
+  // pick. Items with null source_date sort after dated ones to prefer
+  // timestamped provenance over legacy untimed lines.
+  ownerCandidates.sort((a, b) => {
+    if (a.source_date === null && b.source_date === null) return 0;
+    if (a.source_date === null) return 1;
+    if (b.source_date === null) return -1;
+    return a.source_date.localeCompare(b.source_date);
+  });
+  return ownerCandidates[0]!;
 }
 
 // Test-only exports for unit coverage. Production imports go through

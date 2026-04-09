@@ -946,6 +946,7 @@ const JACCARD_THRESHOLD = 0.3;
 const MAX_SHORTLISTS_PER_RUN = 20;
 const MAX_ITEMS_PER_SHORTLIST = 10;
 const MIN_TOKEN_LENGTH = 4;
+const MIN_CJK_TOKEN_LENGTH = 2;
 
 const STOPWORDS: ReadonlySet<string> = new Set([
   "with",
@@ -985,14 +986,45 @@ const STOPWORDS: ReadonlySet<string> = new Set([
   "before",
 ]);
 
+/**
+ * U4 fix: Unicode-aware tokenization. Previously the splitter was
+ * `[^a-z0-9]+`, which stripped every Korean (and other non-Latin)
+ * character. On a Korean-heavy corpus (like this repo's own learnings),
+ * that made criterion 6 effectively blind — no shortlist ever formed.
+ *
+ * New behavior:
+ *   - Split on characters that are NOT Unicode letters or numbers
+ *     (`\p{L}` / `\p{N}` with the `u` flag).
+ *   - Latin tokens still require MIN_TOKEN_LENGTH (4) to avoid matching
+ *     on short words like "with" or "that".
+ *   - Korean tokens (CJK ideographs and Hangul) use a lower threshold
+ *     (MIN_CJK_TOKEN_LENGTH = 2) because one-syllable Korean words carry
+ *     content ("코드", "검증", etc.).
+ *   - English stopwords still filtered.
+ */
 function significantTokens(content: string): Set<string> {
   const tokens = new Set<string>();
-  for (const word of content.toLowerCase().split(/[^a-z0-9]+/)) {
-    if (word.length < MIN_TOKEN_LENGTH) continue;
+  // Match runs of Unicode letters/numbers rather than splitting on
+  // ASCII punctuation only.
+  const matches = content.toLowerCase().match(/[\p{L}\p{N}]+/gu);
+  if (!matches) return tokens;
+  for (const word of matches) {
     if (STOPWORDS.has(word)) continue;
+    if (isCjkWord(word)) {
+      if (word.length < MIN_CJK_TOKEN_LENGTH) continue;
+    } else if (word.length < MIN_TOKEN_LENGTH) {
+      continue;
+    }
     tokens.add(word);
   }
   return tokens;
+}
+
+// Hangul syllables + jamo + CJK unified ideographs cover Korean content.
+const CJK_RE = /[\u3040-\u30ff\u3130-\u318f\uac00-\ud7af\u4e00-\u9fff]/;
+
+function isCjkWord(word: string): boolean {
+  return CJK_RE.test(word);
 }
 
 function jaccard(a: Set<string>, b: Set<string>): number {
@@ -1027,10 +1059,29 @@ class UnionFind {
   }
 }
 
+interface ShortlistBuildResult {
+  shortlists: ParsedLearningItem[][];
+  /** Groups that had >=2 items AND >=2 distinct agents (valid candidates). */
+  total_valid_groups: number;
+  /** Shortlists that hit MAX_ITEMS_PER_SHORTLIST and lost members. */
+  shortlists_truncated_count: number;
+  /** Members dropped across all truncations (sum of items removed). */
+  members_truncated_total: number;
+  /** Valid groups beyond MAX_SHORTLISTS_PER_RUN that were dropped entirely. */
+  shortlists_cap_dropped_count: number;
+}
+
 function buildShortlists(
   items: ParsedLearningItem[],
-): ParsedLearningItem[][] {
-  if (items.length < 2) return [];
+): ShortlistBuildResult {
+  const empty: ShortlistBuildResult = {
+    shortlists: [],
+    total_valid_groups: 0,
+    shortlists_truncated_count: 0,
+    members_truncated_total: 0,
+    shortlists_cap_dropped_count: 0,
+  };
+  if (items.length < 2) return empty;
   const tokens = items.map((it) => significantTokens(it.content));
   const uf = new UnionFind(items.length);
 
@@ -1051,21 +1102,45 @@ function buildShortlists(
     else groups.set(root, [i]);
   }
 
-  const shortlists: ParsedLearningItem[][] = [];
-  // Sort group keys for deterministic order across runs
+  // First pass: filter to VALID groups (≥2 items, ≥2 distinct agents) and
+  // record total valid group count so cap-drop tallies are accurate.
   const sortedRoots = [...groups.keys()].sort((a, b) => a - b);
+  const validGroups: number[][] = [];
   for (const root of sortedRoots) {
     const indices = groups.get(root)!;
     if (indices.length < 2) continue;
     const agents = new Set(indices.map((idx) => items[idx]!.agent_id));
     if (agents.size < 2) continue;
-    const capped = indices
-      .slice(0, MAX_ITEMS_PER_SHORTLIST)
-      .map((idx) => items[idx]!);
-    shortlists.push(capped);
-    if (shortlists.length >= MAX_SHORTLISTS_PER_RUN) break;
+    validGroups.push(indices);
   }
-  return shortlists;
+
+  // Second pass: apply the per-shortlist size cap and the total shortlist
+  // count cap while recording bounded-loss metrics for C4.
+  const shortlists: ParsedLearningItem[][] = [];
+  let shortlistsTruncatedCount = 0;
+  let membersTruncatedTotal = 0;
+  for (const indices of validGroups) {
+    if (shortlists.length >= MAX_SHORTLISTS_PER_RUN) break;
+    let capped = indices;
+    if (indices.length > MAX_ITEMS_PER_SHORTLIST) {
+      capped = indices.slice(0, MAX_ITEMS_PER_SHORTLIST);
+      shortlistsTruncatedCount += 1;
+      membersTruncatedTotal += indices.length - MAX_ITEMS_PER_SHORTLIST;
+    }
+    shortlists.push(capped.map((idx) => items[idx]!));
+  }
+  const shortlistsCapDroppedCount = Math.max(
+    0,
+    validGroups.length - shortlists.length,
+  );
+
+  return {
+    shortlists,
+    total_valid_groups: validGroups.length,
+    shortlists_truncated_count: shortlistsTruncatedCount,
+    members_truncated_total: membersTruncatedTotal,
+    shortlists_cap_dropped_count: shortlistsCapDroppedCount,
+  };
 }
 
 function buildCrossAgentDedupUserPrompt(items: ParsedLearningItem[]): string {
@@ -1095,10 +1170,24 @@ interface LlmClusterVerdict {
   consolidated_line: string;
 }
 
+/**
+ * Failure classification for llmConfirmCluster so the discovery pipeline
+ * can surface bounded loss (C4). null outcomes are turned into a typed
+ * reason the caller can aggregate into DedupDiscoveryMetrics.
+ */
+type ClusterConfirmFailure =
+  | { kind: "provider_error"; detail: string }
+  | { kind: "malformed_json"; detail: string }
+  | { kind: "same_principle_false" }
+  | { kind: "missing_field"; field: string }
+  | { kind: "primary_owner_not_in_shortlist"; declared: string };
+
 async function llmConfirmCluster(
   items: ParsedLearningItem[],
   modelId?: string,
-): Promise<LlmClusterVerdict | null> {
+): Promise<
+  { ok: true; verdict: LlmClusterVerdict } | { ok: false; failure: ClusterConfirmFailure }
+> {
   let responseText: string;
   try {
     const result = await callLlm(
@@ -1110,9 +1199,14 @@ async function llmConfirmCluster(
       },
     );
     responseText = result.text;
-  } catch {
-    // Provider error — drop this shortlist. Other shortlists continue.
-    return null;
+  } catch (error) {
+    return {
+      ok: false,
+      failure: {
+        kind: "provider_error",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+    };
   }
 
   let parsed: {
@@ -1129,33 +1223,87 @@ async function llmConfirmCluster(
       cleaned = cleaned.replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "");
     }
     parsed = JSON.parse(cleaned);
-  } catch {
-    return null;
+  } catch (error) {
+    return {
+      ok: false,
+      failure: {
+        kind: "malformed_json",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+    };
   }
 
-  if (parsed.same_principle !== true) return null;
-  if (typeof parsed.primary_owner_agent !== "string") return null;
-  if (typeof parsed.consolidated_principle !== "string") return null;
-  if (typeof parsed.consolidated_line !== "string") return null;
-  if (!Array.isArray(parsed.representative_cases)) return null;
+  if (parsed.same_principle !== true) {
+    return { ok: false, failure: { kind: "same_principle_false" } };
+  }
+  if (typeof parsed.primary_owner_agent !== "string") {
+    return { ok: false, failure: { kind: "missing_field", field: "primary_owner_agent" } };
+  }
+  if (typeof parsed.consolidated_principle !== "string") {
+    return { ok: false, failure: { kind: "missing_field", field: "consolidated_principle" } };
+  }
+  if (typeof parsed.consolidated_line !== "string") {
+    return { ok: false, failure: { kind: "missing_field", field: "consolidated_line" } };
+  }
+  if (!Array.isArray(parsed.representative_cases)) {
+    return { ok: false, failure: { kind: "missing_field", field: "representative_cases" } };
+  }
+
+  // C2 fix: primary_owner_agent must be one of the shortlist members. The
+  // LLM can hallucinate an agent_id or pick an unrelated one; we fail closed
+  // so approval never routes to an off-shortlist file.
+  const shortlistAgents = new Set(items.map((it) => it.agent_id));
+  if (!shortlistAgents.has(parsed.primary_owner_agent)) {
+    return {
+      ok: false,
+      failure: {
+        kind: "primary_owner_not_in_shortlist",
+        declared: parsed.primary_owner_agent,
+      },
+    };
+  }
 
   return {
-    primary_owner_agent: parsed.primary_owner_agent,
-    primary_owner_reason:
-      typeof parsed.primary_owner_reason === "string"
-        ? parsed.primary_owner_reason
-        : "",
-    consolidated_principle: parsed.consolidated_principle,
-    representative_cases: parsed.representative_cases.filter(
-      (c): c is string => typeof c === "string",
-    ),
-    consolidated_line: parsed.consolidated_line,
+    ok: true,
+    verdict: {
+      primary_owner_agent: parsed.primary_owner_agent,
+      primary_owner_reason:
+        typeof parsed.primary_owner_reason === "string"
+          ? parsed.primary_owner_reason
+          : "",
+      consolidated_principle: parsed.consolidated_principle,
+      representative_cases: parsed.representative_cases.filter(
+        (c): c is string => typeof c === "string",
+      ),
+      consolidated_line: parsed.consolidated_line,
+    },
   };
 }
 
+/**
+ * Stable id derived from member identity so repeat runs against unchanged
+ * inputs emit the same cluster_id.
+ *
+ * Stability caveat (review CC2):
+ *   cluster_id is derived from the SHORTLIST members, not the full valid
+ *   group. The shortlist may have been truncated by MAX_ITEMS_PER_SHORTLIST
+ *   or the corpus may have grown between runs. Both conditions change the
+ *   hashed member set and therefore the cluster_id.
+ *
+ *   This is the intentional trade-off: cluster_id is meant to identify
+ *   "the cluster the LLM reviewed in THIS run," not "the canonical cluster
+ *   for this principle across all runs." The applicator uses cluster_id
+ *   for within-run apply-state idempotency (matching a cluster_id marker
+ *   in the target file when re-applying the same report). It is NOT a
+ *   durable operator-facing identity across independent runs; treat
+ *   cluster_id as session-scoped and re-derive it from the report JSON
+ *   when you need to match an existing apply.
+ *
+ *   If a future consumer needs cross-run identity, derive it from the
+ *   consolidated_principle text + primary_owner_agent instead, and keep
+ *   cluster_id as the run-local id.
+ */
 function hashCluster(items: ParsedLearningItem[]): string {
-  // Stable id derived from member identity so repeat runs against unchanged
-  // inputs emit the same cluster_id. Sort to make ordering irrelevant.
   const canonical = items
     .map((it) => `${it.agent_id}|${it.content}`)
     .sort()
@@ -1167,21 +1315,100 @@ export interface CrossAgentDedupConfig {
   modelId?: string;
 }
 
+/**
+ * C4 fix: explicit bounded-loss metrics. discoverCrossAgentDedupClusters
+ * caps work in multiple places (MAX_SHORTLISTS_PER_RUN, per-shortlist item
+ * limit, LLM failures dropped). Previously these losses were silent — the
+ * caller could not tell whether an empty cluster list meant "nothing to
+ * merge" or "we dropped everything due to cost caps and provider errors".
+ *
+ * This struct exposes each loss channel so the caller (promoter) can surface
+ * them into the PromoteReport's degraded_states or warnings.
+ */
+export interface DedupDiscoveryMetrics {
+  pool_size: number;
+  total_valid_groups: number;
+  shortlists_processed: number;
+  shortlists_cap_dropped_count: number;
+  shortlists_truncated_count: number;
+  members_truncated_total: number;
+  llm_failures: {
+    provider_error: number;
+    malformed_json: number;
+    same_principle_false: number;
+    missing_field: number;
+    primary_owner_not_in_shortlist: number;
+  };
+}
+
+export interface CrossAgentDedupDiscoveryResult {
+  clusters: CrossAgentDedupCluster[];
+  metrics: DedupDiscoveryMetrics;
+}
+
+function emptyMetrics(poolSize: number): DedupDiscoveryMetrics {
+  return {
+    pool_size: poolSize,
+    total_valid_groups: 0,
+    shortlists_processed: 0,
+    shortlists_cap_dropped_count: 0,
+    shortlists_truncated_count: 0,
+    members_truncated_total: 0,
+    llm_failures: {
+      provider_error: 0,
+      malformed_json: 0,
+      same_principle_false: 0,
+      missing_field: 0,
+      primary_owner_not_in_shortlist: 0,
+    },
+  };
+}
+
 export async function discoverCrossAgentDedupClusters(
   candidates: ParsedLearningItem[],
   globalItems: ParsedLearningItem[],
   config: CrossAgentDedupConfig = {},
-): Promise<CrossAgentDedupCluster[]> {
+): Promise<CrossAgentDedupDiscoveryResult> {
   // Candidates and globals are folded into a single pool so cross-scope
   // duplicates surface along with cross-agent duplicates inside either pool.
   const pool = [...candidates, ...globalItems];
-  const shortlists = buildShortlists(pool);
-  if (shortlists.length === 0) return [];
+  const metrics = emptyMetrics(pool.length);
+
+  const built = buildShortlists(pool);
+  metrics.total_valid_groups = built.total_valid_groups;
+  metrics.shortlists_cap_dropped_count = built.shortlists_cap_dropped_count;
+  metrics.shortlists_truncated_count = built.shortlists_truncated_count;
+  metrics.members_truncated_total = built.members_truncated_total;
+
+  if (built.shortlists.length === 0) {
+    return { clusters: [], metrics };
+  }
 
   const clusters: CrossAgentDedupCluster[] = [];
-  for (const shortlist of shortlists) {
-    const verdict = await llmConfirmCluster(shortlist, config.modelId);
-    if (verdict === null) continue;
+  for (const shortlist of built.shortlists) {
+    metrics.shortlists_processed += 1;
+    const outcome = await llmConfirmCluster(shortlist, config.modelId);
+    if (!outcome.ok) {
+      switch (outcome.failure.kind) {
+        case "provider_error":
+          metrics.llm_failures.provider_error += 1;
+          break;
+        case "malformed_json":
+          metrics.llm_failures.malformed_json += 1;
+          break;
+        case "same_principle_false":
+          metrics.llm_failures.same_principle_false += 1;
+          break;
+        case "missing_field":
+          metrics.llm_failures.missing_field += 1;
+          break;
+        case "primary_owner_not_in_shortlist":
+          metrics.llm_failures.primary_owner_not_in_shortlist += 1;
+          break;
+      }
+      continue;
+    }
+    const verdict = outcome.verdict;
     clusters.push({
       cluster_id: hashCluster(shortlist),
       primary_owner_agent: verdict.primary_owner_agent,
@@ -1193,7 +1420,7 @@ export async function discoverCrossAgentDedupClusters(
       user_approval_required: true,
     });
   }
-  return clusters;
+  return { clusters, metrics };
 }
 
 // Test-only exports for unit coverage. Production imports go through
@@ -1205,4 +1432,5 @@ export const __testExports = {
   JACCARD_THRESHOLD,
   MAX_SHORTLISTS_PER_RUN,
   MAX_ITEMS_PER_SHORTLIST,
+  MIN_CJK_TOKEN_LENGTH,
 };

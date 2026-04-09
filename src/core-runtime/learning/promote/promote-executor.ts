@@ -639,6 +639,31 @@ function applyAuditOutcome(
  * cluster in via the third arg so the applicator stays a pure function of
  * its inputs.
  */
+/**
+ * C1 fix: scope-aware cross-agent dedup apply.
+ *
+ * Criterion 6 discovery (panel-reviewer.discoverCrossAgentDedupClusters) pools
+ * candidate items (scope=project) with global items (scope=global) because the
+ * intent of criterion 6 is to consolidate the same principle across agent
+ * files regardless of source scope. Previously, applyCrossAgentDedup resolved
+ * every member path via getGlobalLearningFilePath(), which is correct for
+ * global-global clusters but silently wrong for clusters containing any
+ * project-scope member — the consolidated-into marker would land on (or fail
+ * to find) the wrong file.
+ *
+ * Correct semantics:
+ *   - The primary owner's consolidated line ALWAYS goes to the GLOBAL file of
+ *     the primary owner agent, because the whole point of criterion 6 is to
+ *     create a durable shared principle. Even if the primary owner's original
+ *     member was scope=project, consolidation promotes it to global.
+ *   - Non-primary members are marked at THEIR source_path. A scope=project
+ *     member marks the project file; a scope=global member marks the global
+ *     file. ParsedLearningItem.source_path carries the absolute path from
+ *     collector discovery, so this is unambiguous.
+ *
+ * The preflight also now uses source_path, so existence and line-match checks
+ * hit the correct file for every member regardless of scope.
+ */
 function applyCrossAgentDedup(
   decision: CrossAgentDedupDecision,
   cluster: CrossAgentDedupCluster,
@@ -647,6 +672,9 @@ function applyCrossAgentDedup(
   if (!decision.approve) return;
   const id = decisionId("cross_agent_dedup", decision.cluster_id);
   try {
+    // Primary owner: ALWAYS the global file. Mixed-scope clusters promote
+    // the consolidated principle to global regardless of the primary
+    // member's origin scope.
     const primaryPath = getGlobalLearningFilePath(
       cluster.primary_owner_agent,
       ctx.ontoHome,
@@ -655,8 +683,7 @@ function applyCrossAgentDedup(
     // M-A idempotency check: if the primary file already contains a
     // `<!-- cluster_id: <id> -->` marker for this cluster, the previous
     // attempt already applied this dedup. Skip to avoid double-appending
-    // the consolidated line. Mirrors the domain doc applicator's slot_id
-    // check (C-4).
+    // the consolidated line.
     const clusterMarker = `<!-- cluster_id: ${decision.cluster_id} -->`;
     if (fs.existsSync(primaryPath)) {
       const existing = fs.readFileSync(primaryPath, "utf8");
@@ -673,29 +700,25 @@ function applyCrossAgentDedup(
       }
     }
 
-    // M-A preflight: verify EVERY non-primary member exists in its agent's
-    // file before mutating anything. If any preflight fails, abort the
-    // whole decision so we don't end up half-applied. The non-primary
-    // members are listed first because they're the ones that get marked.
+    // C1: non-primary members use their own source_path (scope-aware). The
+    // primary owner's source item is excluded from the marking loop because
+    // its role is absorbed into the new consolidated line.
     const nonPrimaryMembers = cluster.member_items.filter(
       (m) => m.agent_id !== cluster.primary_owner_agent,
     );
     const preflightFailures: string[] = [];
     for (const member of nonPrimaryMembers) {
-      const memberPath = getGlobalLearningFilePath(
-        member.agent_id,
-        ctx.ontoHome,
-      );
+      const memberPath = member.source_path;
       if (!fs.existsSync(memberPath)) {
         preflightFailures.push(
-          `${member.agent_id}: file ${memberPath} does not exist`,
+          `${member.agent_id} (${member.scope}): file ${memberPath} does not exist`,
         );
         continue;
       }
       const content = fs.readFileSync(memberPath, "utf8");
       if (!content.split("\n").some((line) => line === member.raw_line)) {
         preflightFailures.push(
-          `${member.agent_id}: line not found in ${memberPath}`,
+          `${member.agent_id} (${member.scope}): line not found in ${memberPath}`,
         );
       }
     }
@@ -711,19 +734,12 @@ function applyCrossAgentDedup(
     // each member. Because preflight already verified every member, the
     // member writes are safe.
     const learningId = hashLine(cluster.consolidated_line);
-    // Inject the cluster marker on a separate line so the idempotency check
-    // above finds it. Append happens via two-step write: append the line,
-    // then append the marker line. The marker is co-located so a single
-    // file scan recovers both.
     appendLearningLine(primaryPath, cluster.consolidated_line, learningId);
     fs.appendFileSync(primaryPath, `${clusterMarker}\n`, "utf8");
 
     let consolidatedCount = 0;
     for (const member of nonPrimaryMembers) {
-      const memberPath = getGlobalLearningFilePath(
-        member.agent_id,
-        ctx.ontoHome,
-      );
+      const memberPath = member.source_path;
       const date = new Date().toISOString().slice(0, 10);
       const marker = `<!-- consolidated (${date}) into ${decision.cluster_id}: ${member.raw_line} -->`;
       const ok = replaceLineInFile(memberPath, member.raw_line, marker);
@@ -746,7 +762,7 @@ function applyCrossAgentDedup(
       target_path: primaryPath,
       result_summary:
         `consolidated to ${path.basename(primaryPath)}; ` +
-        `${consolidatedCount} member entries marked`,
+        `${consolidatedCount} member entries marked (scope-aware)`,
     });
     ctx.summary.cross_agent_dedup_applied += 1;
   } catch (error) {
@@ -1161,11 +1177,24 @@ export async function runPromoteExecutor(
 
   let checkpointPath: string | null = null;
   if (!config.dryRun) {
+    // U3 fix: forward ontoHome / auditStatePath overrides into checkpoint
+    // creation so backup scope tracks actual mutation scope.
+    const checkpointOverride: {
+      ontoHome?: string;
+      auditStatePath?: string;
+    } = {};
+    if (config.ontoHome !== undefined) {
+      checkpointOverride.ontoHome = config.ontoHome;
+    }
+    if (config.auditStatePath !== undefined) {
+      checkpointOverride.auditStatePath = config.auditStatePath;
+    }
     const prep = await createRecoverabilityCheckpoint(
       config.sessionId,
       config.projectRoot,
       attemptId,
       generation,
+      checkpointOverride,
     );
     if (prep.kind === "created" && prep.checkpoint) {
       checkpointPath = prep.checkpoint.manifest_path;

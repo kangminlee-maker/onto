@@ -206,20 +206,51 @@ export async function runPromoter(
   // -------------------------------------------------------------------------
   // Step 4: Cross-agent dedup (criterion 6) — LLM-driven
   // -------------------------------------------------------------------------
-  // Discovery runs only when the panel also ran, so the cost budget is tied
-  // to the same session. skipPanel tests bypass this too (deterministic tests
-  // don't need the LLM pass), and empty-candidate sessions short-circuit to
-  // an empty cluster list without any LLM calls.
+  // Discovery runs only when the panel also ran AND there are candidate
+  // items (U1 fix: criterion 6 inspects candidate-vs-global + cross-candidate
+  // principle duplication. With zero candidates there is nothing to evaluate,
+  // even if global_items is populated — running the LLM on a global-only pool
+  // would burn cost without producing actionable clusters.)
+  //
+  // Bounded loss metrics (C4) are captured regardless of whether clusters
+  // were emitted and surfaced as warnings so the report never looks more
+  // complete than the actual work performed.
   let cross_agent_dedup_clusters: CrossAgentDedupCluster[] = [];
-  if (
-    !config.skipPanel &&
-    (collection.candidate_items.length > 0 || collection.global_items.length > 0)
-  ) {
-    cross_agent_dedup_clusters = await discoverCrossAgentDedupClusters(
+  if (!config.skipPanel && collection.candidate_items.length > 0) {
+    const discovery = await discoverCrossAgentDedupClusters(
       collection.candidate_items,
       collection.global_items,
       config.modelId !== undefined ? { modelId: config.modelId } : {},
     );
+    cross_agent_dedup_clusters = discovery.clusters;
+
+    // C4: surface bounded-loss signals as warnings. Each channel surfaces
+    // a human-readable line so report consumers see what was dropped.
+    const m = discovery.metrics;
+    if (m.shortlists_cap_dropped_count > 0) {
+      warnings.push(
+        `cross_agent_dedup: ${m.shortlists_cap_dropped_count} valid shortlist(s) ` +
+          `dropped because total exceeded MAX_SHORTLISTS_PER_RUN cap.`,
+      );
+    }
+    if (m.shortlists_truncated_count > 0) {
+      warnings.push(
+        `cross_agent_dedup: ${m.shortlists_truncated_count} shortlist(s) truncated ` +
+          `(${m.members_truncated_total} total member(s) removed) by MAX_ITEMS_PER_SHORTLIST cap.`,
+      );
+    }
+    const totalLlmFailures =
+      m.llm_failures.provider_error +
+      m.llm_failures.malformed_json +
+      m.llm_failures.missing_field +
+      m.llm_failures.primary_owner_not_in_shortlist;
+    if (totalLlmFailures > 0) {
+      warnings.push(
+        `cross_agent_dedup: ${totalLlmFailures} shortlist(s) dropped due to LLM failures ` +
+          `(provider_error=${m.llm_failures.provider_error}, malformed_json=${m.llm_failures.malformed_json}, ` +
+          `missing_field=${m.llm_failures.missing_field}, primary_owner_not_in_shortlist=${m.llm_failures.primary_owner_not_in_shortlist}).`,
+      );
+    }
   }
 
   // -------------------------------------------------------------------------

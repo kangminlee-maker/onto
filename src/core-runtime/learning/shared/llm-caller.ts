@@ -136,14 +136,10 @@ function resolveProvider(preferred?: "anthropic" | "openai"): ResolvedProvider {
     }
   }
 
-  // 4. Preferred anthropic but not available — check again without preference
-  if (preferred === undefined && process.env.ANTHROPIC_API_KEY) {
-    return {
-      provider: "anthropic",
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      defaultModel: DEFAULT_ANTHROPIC_MODEL,
-    };
-  }
+  // (Dead fallback branch removed — the earlier ANTHROPIC_API_KEY check at
+  // step 1 already handles both the `preferred === undefined` and the
+  // `preferred !== "openai"` cases, so the previous duplicate probe here was
+  // unreachable. Kept a comment to document the cleanup for future readers.)
 
   const guidance = chatgptOAuthSeen
     ? // Targeted message: user has chatgpt OAuth but no usable API key.

@@ -63,11 +63,29 @@ import type {
 // Result types
 // ---------------------------------------------------------------------------
 
+/**
+ * ReclassificationRole mixes three concrete ontology roles (guardrail,
+ * foundation, convention) with one ACTION token (drop_role). This is a
+ * known ontology-boundary smell flagged by review (U6): the field collapses
+ * "which target role" and "apply remove operation" into one value.
+ *
+ * Deferred rename rationale:
+ *   - A cleaner schema would separate a target_role field ("guardrail" |
+ *     "foundation" | "convention" | null) from an action field ("replace" |
+ *     "drop"), requiring migration of both the Phase A report JSON and the
+ *     Phase B apply path. That change is intentionally scoped out of the
+ *     follow-up patch because the consumer surface is small (a single CLI
+ *     command + its own E2E) and the current union is explicit enough at
+ *     the call sites that downstream readers cannot confuse the two.
+ *   - When the action axis grows beyond drop_role (e.g. "split_into_two"),
+ *     or when a new consumer needs the target role as a pure ontology value,
+ *     that is the point to split the field.
+ */
 export type ReclassificationRole =
   | "guardrail"
   | "foundation"
   | "convention"
-  | "drop_role"; // Operator may decide to remove the role tag entirely.
+  | "drop_role"; // Action token — not an ontology role. See comment above.
 
 export interface InsightReclassification {
   agent_id: string;
@@ -380,19 +398,49 @@ export async function runInsightReclassifier(
 /**
  * Outcome of applying a single reclassification to the on-disk file.
  *
- * Four outcomes by design:
- *   - applied: line was matched and rewritten
- *   - skipped_no_proposal: classify phase left proposed_role=null (skipped
- *     already at Phase A, carried through for counts)
- *   - skipped_already_applied: line not found in file (verbatim match), so
- *     either the rewrite already happened or an external edit changed it.
- *     Treated as idempotent success so re-running apply is safe.
+ * Outcomes:
+ *   - applied: line was matched and rewritten (only emitted when dryRun=false)
+ *   - would_apply: dry-run preview — rewrite would have happened, no disk write
+ *     (U2 fix: previously dry-run used "applied" which contradicted its own
+ *     semantics. Now dry-run entries get a distinct outcome so callers cannot
+ *     mistake a preview result for a real apply.)
+ *   - skipped_no_proposal: Phase A left proposed_role=null
+ *   - skipped_already_applied: proposed target tag is ALREADY present on the
+ *     resolved target line (evidence-based idempotency). We verified the
+ *     post-apply state matches the intended rewrite.
+ *   - skipped_source_drift: C3/CC1 fix — neither the original raw_line nor the
+ *     already-rewritten form can be located via line_number OR verbatim scan.
+ *     This means the file changed out from under us (external edit, stale
+ *     report, etc.). We do NOT pretend this is idempotent success; the operator
+ *     has to re-classify.
  *   - failed: file missing, write error, or any other I/O failure
+ */
+/**
+ * Outcome enum: skipped_no_proposal vs unclassified_pending (review U8).
+ *
+ * Phase A's `unclassified_pending` array tracks classify-time outcomes for
+ * items the LLM could not classify — these items have no `proposed_role` in
+ * the `reclassified` array either. When Phase B walks the report, entries
+ * with `proposed_role=null` are legitimately present in `reclassified` only
+ * for historical reasons (early Phase A implementations kept both buckets
+ * for uniform iteration). The `skipped_no_proposal` apply outcome exists so
+ * the apply result surfaces those cases as "we explicitly did nothing" and
+ * the operator can reconcile against Phase A's `unclassified_pending` count.
+ *
+ * Yes, this duplicates state with `unclassified_pending` somewhat. The
+ * duplication is intentional for now: apply has no access to the Phase A
+ * runtime context that produced `unclassified_pending`, so it cannot
+ * re-derive the count without walking the same array and reapplying the
+ * same filter. Collapsing the two would require Phase A to stop emitting
+ * null-role entries in `reclassified`, which is a Phase A API change out
+ * of scope for this follow-up.
  */
 export type InsightApplyOutcome =
   | "applied"
+  | "would_apply"
   | "skipped_no_proposal"
   | "skipped_already_applied"
+  | "skipped_source_drift"
   | "failed";
 
 export interface InsightApplyEntry {
@@ -403,16 +451,37 @@ export interface InsightApplyEntry {
   current_role: LearningPurposeRole;
   proposed_role: ReclassificationRole | null;
   outcome: InsightApplyOutcome;
+  /**
+   * Which anchor resolved the line position.
+   *   - "line_number_and_raw_line" — both matched, safe apply
+   *   - "line_number_only" — raw_line drifted but line_number points at the
+   *     rewritten form (treated as skipped_already_applied)
+   *   - "raw_line_scan" — line_number was off, verbatim fallback hit
+   *   - "none" — neither anchor hit (skipped_source_drift or skipped_no_proposal)
+   */
+  anchor_resolution:
+    | "line_number_and_raw_line"
+    | "line_number_only"
+    | "raw_line_scan"
+    | "none";
   new_line: string | null;
   error_message: string | null;
 }
 
 export interface InsightApplyResult {
   report_path: string;
+  /**
+   * Timestamp when the report was produced (copied from report.generated_at).
+   * Consumers can compare against source file mtimes to decide whether to
+   * re-run Phase A instead of applying a stale report.
+   */
+  report_generated_at: string | null;
   total_entries: number;
   applied: number;
+  would_apply: number;
   skipped_no_proposal: number;
   skipped_already_applied: number;
+  skipped_source_drift: number;
   failed: number;
   entries: InsightApplyEntry[];
   dry_run: boolean;
@@ -456,17 +525,109 @@ export function rewriteInsightRoleTag(
 }
 
 /**
+ * Anchor resolution for a single reclassification against a loaded file.
+ *
+ * Two anchors are available:
+ *   - line_number: the 1-indexed line recorded at classify time (primary)
+ *   - raw_line: verbatim text recorded at classify time (secondary)
+ *
+ * Resolution semantics (C3 + CC1):
+ *   1. Look at the file's line at `line_number - 1`. If it equals raw_line,
+ *      that is the unambiguous match ("line_number_and_raw_line").
+ *   2. If the file's line at that index is the ALREADY-rewritten form
+ *      (raw_line with [insight] replaced per proposed_role), this is
+ *      evidence-based idempotency success ("line_number_only" +
+ *      outcome=skipped_already_applied).
+ *   3. Otherwise, scan the file for a verbatim raw_line match. If exactly
+ *      one match is found, use it ("raw_line_scan"). Multiple matches are
+ *      ambiguous and fall through to drift.
+ *   4. Otherwise the file state is drifted — neither the original nor the
+ *      rewritten form is present at any known position — so we refuse to
+ *      guess and emit skipped_source_drift.
+ */
+interface AnchorResolution {
+  kind:
+    | "match_original"
+    | "already_rewritten"
+    | "verbatim_fallback"
+    | "drift"
+    | "ambiguous_raw_line";
+  lineIndex: number | null;
+  anchor: InsightApplyEntry["anchor_resolution"];
+}
+
+function resolveAnchor(
+  fileLines: string[],
+  rec: InsightReclassification,
+): AnchorResolution {
+  const preRewrite = rec.raw_line;
+  const postRewrite =
+    rec.proposed_role !== null
+      ? rewriteInsightRoleTag(preRewrite, rec.proposed_role)
+      : null;
+
+  // Anchor #1: the 1-indexed line_number pointer.
+  const anchoredIdx = rec.line_number - 1;
+  if (anchoredIdx >= 0 && anchoredIdx < fileLines.length) {
+    const candidate = fileLines[anchoredIdx]!;
+    if (candidate === preRewrite) {
+      return {
+        kind: "match_original",
+        lineIndex: anchoredIdx,
+        anchor: "line_number_and_raw_line",
+      };
+    }
+    if (postRewrite !== null && candidate === postRewrite) {
+      return {
+        kind: "already_rewritten",
+        lineIndex: anchoredIdx,
+        anchor: "line_number_only",
+      };
+    }
+  }
+
+  // Anchor #2: verbatim raw_line scan fallback. Must be UNAMBIGUOUS.
+  let firstMatch = -1;
+  let matchCount = 0;
+  for (let i = 0; i < fileLines.length; i++) {
+    if (fileLines[i] === preRewrite) {
+      if (firstMatch === -1) firstMatch = i;
+      matchCount += 1;
+      if (matchCount > 1) break;
+    }
+  }
+  if (matchCount === 1 && firstMatch !== -1) {
+    return {
+      kind: "verbatim_fallback",
+      lineIndex: firstMatch,
+      anchor: "raw_line_scan",
+    };
+  }
+  if (matchCount > 1) {
+    return { kind: "ambiguous_raw_line", lineIndex: null, anchor: "none" };
+  }
+
+  // No anchor hit. File has drifted out from under the report.
+  return { kind: "drift", lineIndex: null, anchor: "none" };
+}
+
+/**
  * Apply a reclassification report to the on-disk learning files.
  *
- * Reads the JSON report, walks each reclassification entry, and rewrites
- * the `[insight]` role tag in the source file. Every entry produces an
- * InsightApplyEntry record so the caller can surface a summary to the
- * operator.
+ * Reads the JSON report, walks each reclassification entry, resolves
+ * the target line via line_number + raw_line anchors (see resolveAnchor),
+ * and rewrites the `[insight]` role tag in the source file.
  *
- * Atomicity: writes are per-file and per-line. A partial run (e.g.
- * process killed mid-loop) leaves the files with a mix of old and new
- * tags, but re-running is safe because the idempotency check detects
- * already-applied lines and skips them.
+ * Evidence-based idempotency (C3 + CC1):
+ *   - applied / would_apply — original raw_line was located and rewritten
+ *     (or would have been in dry-run)
+ *   - skipped_already_applied — the proposed rewrite is already present at
+ *     the recorded line_number (not just "line not found")
+ *   - skipped_source_drift — neither original nor rewritten form matched.
+ *     Operator must re-classify to resync.
+ *
+ * Atomicity: writes are per-file. Write failures roll back every applied
+ * entry for that file. Dry-run never writes.
  */
 export function applyInsightReclassifications(
   config: ApplyInsightReclassificationsConfig,
@@ -477,14 +638,18 @@ export function applyInsightReclassifications(
   }
   const raw = fs.readFileSync(reportPath, "utf8");
   const report = JSON.parse(raw) as {
+    generated_at?: string;
     reclassified?: InsightReclassification[];
   };
   const reclassified = report.reclassified ?? [];
+  const dryRun = config.dryRun === true;
 
   const entries: InsightApplyEntry[] = [];
   let applied = 0;
+  let wouldApply = 0;
   let skippedNoProposal = 0;
   let skippedAlreadyApplied = 0;
+  let skippedSourceDrift = 0;
   let failed = 0;
 
   // Group by source_path so we load each file at most once per run.
@@ -496,11 +661,9 @@ export function applyInsightReclassifications(
   }
 
   for (const [filePath, items] of byFile) {
-    let fileContent: string | null = null;
     let fileLines: string[] | null = null;
     if (fs.existsSync(filePath)) {
-      fileContent = fs.readFileSync(filePath, "utf8");
-      fileLines = fileContent.split("\n");
+      fileLines = fs.readFileSync(filePath, "utf8").split("\n");
     }
 
     for (const r of items) {
@@ -513,6 +676,7 @@ export function applyInsightReclassifications(
           current_role: r.current_role,
           proposed_role: null,
           outcome: "skipped_no_proposal",
+          anchor_resolution: "none",
           new_line: null,
           error_message: null,
         });
@@ -529,6 +693,7 @@ export function applyInsightReclassifications(
           current_role: r.current_role,
           proposed_role: r.proposed_role,
           outcome: "failed",
+          anchor_resolution: "none",
           new_line: null,
           error_message: `source file not found: ${filePath}`,
         });
@@ -536,9 +701,10 @@ export function applyInsightReclassifications(
         continue;
       }
 
-      // Idempotent check: is the raw_line still present verbatim?
-      const lineIdx = fileLines.indexOf(r.raw_line);
-      if (lineIdx === -1) {
+      const resolution = resolveAnchor(fileLines, r);
+
+      // Already-rewritten: evidence-based idempotency success
+      if (resolution.kind === "already_rewritten") {
         entries.push({
           agent_id: r.agent_id,
           source_path: r.source_path,
@@ -547,6 +713,7 @@ export function applyInsightReclassifications(
           current_role: r.current_role,
           proposed_role: r.proposed_role,
           outcome: "skipped_already_applied",
+          anchor_resolution: resolution.anchor,
           new_line: null,
           error_message: null,
         });
@@ -554,10 +721,37 @@ export function applyInsightReclassifications(
         continue;
       }
 
+      // Drift or ambiguous: fail safe
+      if (
+        resolution.kind === "drift" ||
+        resolution.kind === "ambiguous_raw_line"
+      ) {
+        entries.push({
+          agent_id: r.agent_id,
+          source_path: r.source_path,
+          line_number: r.line_number,
+          raw_line: r.raw_line,
+          current_role: r.current_role,
+          proposed_role: r.proposed_role,
+          outcome: "skipped_source_drift",
+          anchor_resolution: resolution.anchor,
+          new_line: null,
+          error_message:
+            resolution.kind === "ambiguous_raw_line"
+              ? "multiple verbatim matches for raw_line (line_number drifted)"
+              : "neither line_number anchor nor verbatim raw_line matched",
+        });
+        skippedSourceDrift += 1;
+        continue;
+      }
+
+      // Match confirmed — compute the rewrite
+      const lineIdx = resolution.lineIndex!;
       const newLine = rewriteInsightRoleTag(r.raw_line, r.proposed_role);
       if (newLine === null) {
-        // raw_line does not contain [insight] — unexpected but treat as
-        // already applied for safety.
+        // raw_line has no [insight] bracket. The anchor matched so we
+        // know this is the right line but the rewrite is a no-op —
+        // treat as already applied for safety.
         entries.push({
           agent_id: r.agent_id,
           source_path: r.source_path,
@@ -566,6 +760,7 @@ export function applyInsightReclassifications(
           current_role: r.current_role,
           proposed_role: r.proposed_role,
           outcome: "skipped_already_applied",
+          anchor_resolution: resolution.anchor,
           new_line: null,
           error_message: null,
         });
@@ -573,8 +768,25 @@ export function applyInsightReclassifications(
         continue;
       }
 
-      // Mutate the in-memory array; we'll write the file once per source
-      // after the loop finishes for this file.
+      if (dryRun) {
+        // Do NOT mutate fileLines in dry-run. Record preview only.
+        entries.push({
+          agent_id: r.agent_id,
+          source_path: r.source_path,
+          line_number: r.line_number,
+          raw_line: r.raw_line,
+          current_role: r.current_role,
+          proposed_role: r.proposed_role,
+          outcome: "would_apply",
+          anchor_resolution: resolution.anchor,
+          new_line: newLine,
+          error_message: null,
+        });
+        wouldApply += 1;
+        continue;
+      }
+
+      // Real apply
       fileLines[lineIdx] = newLine;
       entries.push({
         agent_id: r.agent_id,
@@ -584,15 +796,16 @@ export function applyInsightReclassifications(
         current_role: r.current_role,
         proposed_role: r.proposed_role,
         outcome: "applied",
+        anchor_resolution: resolution.anchor,
         new_line: newLine,
         error_message: null,
       });
       applied += 1;
     }
 
-    // Flush the file if any line was mutated AND we're not in dry-run mode.
+    // Flush the file if any line was mutated AND we're not in dry-run.
     if (
-      !config.dryRun &&
+      !dryRun &&
       fileLines !== null &&
       entries.some(
         (e) => e.source_path === filePath && e.outcome === "applied",
@@ -601,8 +814,6 @@ export function applyInsightReclassifications(
       try {
         fs.writeFileSync(filePath, fileLines.join("\n"), "utf8");
       } catch (error) {
-        // Mark every applied entry for this file as failed since the write
-        // rolled back.
         const message =
           error instanceof Error ? error.message : String(error);
         for (const e of entries) {
@@ -619,12 +830,16 @@ export function applyInsightReclassifications(
 
   return {
     report_path: reportPath,
+    report_generated_at:
+      typeof report.generated_at === "string" ? report.generated_at : null,
     total_entries: reclassified.length,
     applied,
+    would_apply: wouldApply,
     skipped_no_proposal: skippedNoProposal,
     skipped_already_applied: skippedAlreadyApplied,
+    skipped_source_drift: skippedSourceDrift,
     failed,
     entries,
-    dry_run: config.dryRun ?? false,
+    dry_run: dryRun,
   };
 }

@@ -89,10 +89,28 @@ interface CheckpointTarget {
   is_directory: boolean;
 }
 
-function enumerateMutableRoots(projectRoot: string): CheckpointTarget[] {
-  const targets: CheckpointTarget[] = [];
+/**
+ * U3 fix: resolve mutable roots using caller-provided overrides when
+ * present. Without this, runPromoteExecutor(ontoHome=X) would still
+ * backup ~/.onto/learnings instead of X/learnings, so a resume run
+ * restores the wrong tree.
+ */
+export interface MutableRootsOverride {
+  /** Overrides ~/.onto as the global learnings / domain docs home. */
+  ontoHome?: string;
+  /** Overrides ~/.onto/audit-state.yaml. */
+  auditStatePath?: string;
+}
 
-  const globalLearnings = path.join(os.homedir(), ".onto", "learnings");
+function enumerateMutableRoots(
+  projectRoot: string,
+  override: MutableRootsOverride = {},
+): CheckpointTarget[] {
+  const targets: CheckpointTarget[] = [];
+  const ontoHome = override.ontoHome ?? path.join(os.homedir(), ".onto");
+  const auditStatePath = override.auditStatePath ?? DEFAULT_AUDIT_STATE_PATH;
+
+  const globalLearnings = path.join(ontoHome, "learnings");
   if (fs.existsSync(globalLearnings)) {
     targets.push({
       source_kind: "global_learnings",
@@ -110,15 +128,15 @@ function enumerateMutableRoots(projectRoot: string): CheckpointTarget[] {
     });
   }
 
-  if (fs.existsSync(DEFAULT_AUDIT_STATE_PATH)) {
+  if (fs.existsSync(auditStatePath)) {
     targets.push({
       source_kind: "audit_state",
-      source_path: DEFAULT_AUDIT_STATE_PATH,
+      source_path: auditStatePath,
       is_directory: false,
     });
   }
 
-  const domainDocsRoot = path.join(os.homedir(), ".onto", "domains");
+  const domainDocsRoot = path.join(ontoHome, "domains");
   if (fs.existsSync(domainDocsRoot)) {
     targets.push({
       source_kind: "domain_docs",
@@ -170,15 +188,21 @@ function buildRestoreCommand(target: CheckpointTarget, backupPath: string): stri
  * Returns CheckpointPreparationResult — transient. The caller is expected to
  * read prep.checkpoint, attach it to ApplyExecutionState, and let prep go out
  * of scope. Do not persist this struct.
+ *
+ * U3 fix: `override` is an optional 5th parameter so callers that passed
+ * ontoHome / auditStatePath overrides to runPromoteExecutor can carry them
+ * into checkpoint creation too. Without this, backup scope would diverge
+ * from actual mutation scope on override runs.
  */
 export async function createRecoverabilityCheckpoint(
   sessionId: string,
   projectRoot: string,
   attemptId: string,
   generation: number = 0,
+  override: MutableRootsOverride = {},
 ): Promise<CheckpointPreparationResult> {
   const attemptedAt = new Date().toISOString();
-  const targets = enumerateMutableRoots(projectRoot);
+  const targets = enumerateMutableRoots(projectRoot, override);
 
   if (targets.length === 0) {
     return {

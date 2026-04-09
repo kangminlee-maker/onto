@@ -20,7 +20,7 @@ Common definitions referenced by each process file (`processes/`).
 | Team Review | `processes/review.md` | Agent panel review (Agent Teams) | Learning -> Promotion |
 | Ontology Build | `processes/build.md` | Build ontology from analysis target (Agent Teams) | -> Transform, Review |
 | Transform | `processes/transform.md` | Raw Ontology format conversion | Build -> |
-| Learning Promotion | `processes/promote.md` | Learning Quality Assurance — 승격, 큐레이션, 감사 (Agent Teams) | Review/Query -> |
+| Learning Promotion | `processes/promote.md` | Learning Quality Assurance — 승격, 큐레이션, 감사. Canonical entrypoints: `onto promote` (Phase A analyze), `onto promote --apply <session>` (Phase B mutations), `onto reclassify-insights [--apply]` (insight role reclassification), `onto migrate-session-roots` (legacy layout migration). Slash command `/onto:promote` is the prompt-backed reference path. | Review/Query -> |
 | Domain Creation | `processes/create-domain.md` | Generate seed domain documents from minimal input | -> Feedback, Review |
 | Domain Feedback | `processes/feedback.md` | Feed learnings back into domain documents | Review/Query -> |
 | Domain Promotion | `processes/promote-domain.md` | Promote seed domain to established | Feedback -> |
@@ -307,7 +307,11 @@ When TeamCreate fails, fall back to the Agent tool (subagent) approach. The **pu
 
 When `execution_mode: codex` is set in config.yml or a `--codex` command flag is used, reviewer passes are delegated to Codex (OpenAI) via the `codex:codex-rescue` subagent type. The **purpose and output format** remain identical to Agent Teams and Subagent fallback.
 
-**Scope**: Currently supported for the **review** process only. Other processes (build, promote, question) always use Agent Teams regardless of this setting. This scope will expand as Codex mode is validated in review.
+**Scope**: Currently supported for the **review** process only. Other processes behave differently:
+- **promote** — the Phase 3 CLI pipeline (`onto promote`, `onto promote --apply`, `onto reclassify-insights`) calls Anthropic / OpenAI / Codex CLI APIs directly through `src/core-runtime/learning/shared/llm-caller.ts` with automatic provider resolution. It does NOT route through the Agent Teams / Codex mode infrastructure. The `/onto:promote` slash command is a prompt-backed reference path that still uses Agent Teams.
+- **build, question** — always use Agent Teams regardless of this setting.
+
+This scope will expand as Codex mode is validated in review.
 
 **Purpose and tradeoffs**:
 Codex mode delegates review passes to an external runtime (OpenAI Codex) to reduce Claude token consumption. The team lead coordination (~50-100k tokens) is the only Claude cost; all review lens passes and the synthesize stage run on Codex. The tradeoff: deliberation (Step 4, direct lens-to-lens exchange) is structurally not possible in Codex mode because Codex tasks are independent processes without inter-agent messaging. Contested points that would be resolved through deliberation in Agent Teams mode are instead reported as-is in the final output's "Disagreement" section. This is a **design choice** (not a technical limitation like Subagent fallback) — users selecting Codex mode accept this tradeoff in exchange for cost efficiency.

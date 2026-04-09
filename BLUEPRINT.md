@@ -456,11 +456,21 @@ Sets up `.onto/` directories, domain declaration in `.onto/config.yml`, suggests
 
 ### 4.6 Learning Promotion ✅
 
-**Command**: `/onto:promote`
-**Input**: Project-level learnings
-**Output**: Learnings promoted to global-level after review
+**Command**: `/onto:promote` (slash) or `onto promote` (CLI subcommand)
+**Input**: Project-level learnings (plus global learnings for curation passes)
+**Output**: Learnings promoted to global-level + retired candidates + health snapshot
 
-Promotes learnings valid across projects. Includes tag re-evaluation, cross-duplication removal, judgment re-verification, and event marker review. All changes require user approval.
+Promotes learnings valid across projects. Split into two phases:
+
+- **Phase A (analyze)**: `onto promote` collects candidates, runs a 3-agent panel review (criteria 1~5), runs cross-agent dedup discovery (criterion 6, LLM-driven with Jaccard pre-filter + union-find + same-principle test), runs judgment-audit re-verification, identifies retirement candidates, and writes a `PromoteReport` as the Phase A seat. No mutation.
+- **Phase B (apply)**: `onto promote --apply <session>` reads the operator-approved decisions from the report, mutates the global learning files with line-level file locking (cross-agent dedup writes through a best-effort advisory lock), and persists an `ApplyExecutionState` ledger with resume support.
+
+Related CLI subcommands:
+- `onto reclassify-insights` — analyze phase for `[insight]`-tagged learnings
+- `onto reclassify-insights --apply <report>` — rewrite `[insight]` role tags in place (idempotent via `line_number` + `raw_line` anchor)
+- `onto migrate-session-roots` — one-shot legacy session layout migration
+
+All destructive operations require user approval via the decisions file. The pipeline fails-closed on partial-apply detection (SYN-CC1 contract — see `src/core-runtime/learning/promote/promote-executor.ts`).
 
 ---
 
@@ -881,10 +891,15 @@ onto/
 | **Domain system** — per-session selection | ✅ | config.yml + interactive flow |
 | **Learning** — 2-path + axis tags | ✅ | Global + project paths |
 | **Learning** — consumption feedback | ✅ | Event markers + retirement candidates |
-| **Learning** — Phase 1 tiered loading | 🔲 | Triggers at >100 lines per lens |
-| **Learn entrypoint** | 📐 | Reads ReviewRecord. Design: `design-principles/productization-charter.md` §12 |
+| **Learn Phase 1/1.5** — tiered consumption loader | ✅ | `src/core-runtime/learning/loader.ts`. Triggers at >100 lines per lens, 3-tier priority + token budget |
+| **Learn Phase 2** — extraction + feedback markers | ✅ | `src/core-runtime/learning/extractor.ts`, `feedback.ts` |
+| **Learn Phase 3** — promote + retire pipeline | ✅ | `src/core-runtime/learning/promote/` (24 modules). Phase A (analyze) + Phase B (apply) split with resume support |
+| **Learn Phase 3** — cross-agent dedup discovery (criterion 6) | ✅ | LLM-driven Jaccard pre-filter + union-find + same-principle test. `panel-reviewer.ts`. Cost-bounded (MAX_SHORTLISTS_PER_RUN=20) |
+| **Learn Phase 3** — insight reclassifier apply path | ✅ | `insight-reclassifier.ts` apply phase. Idempotent via line_number + raw_line anchors. CLI: `onto reclassify-insights --apply` |
+| **Learn Phase 3** — file-level lock for dedup apply | ✅ | Best-effort advisory `.lock` with PID-liveness stale reclaim. Non-spinning via Atomics.wait |
+| **Learn entrypoint (CLI)** | ✅ | `onto promote`, `onto promote --apply`, `onto reclassify-insights`, `onto migrate-session-roots` |
 | **Govern entrypoint** | 📐 | Reads learnings + ReviewRecords. Design: `design-principles/productization-charter.md` §12 |
-| **Onboard / Promote / Health** | ✅ | |
+| **Onboard / Promote slash command / Health** | ✅ | |
 | **Domain creation / feedback / promotion** | ✅ | |
 | **Backup / Restore** | ✅ | |
 
@@ -894,13 +909,18 @@ onto/
 
 Decided items only. All below are confirmed in design-principles/ documents.
 
-### 11.1 Learn and Govern Entrypoints 📐
+### 11.1 Learn and Govern Entrypoints
 
-`learn` reads ReviewRecord artifacts to extract, curate, and promote learnings systematically. `govern` reads accumulated learnings and ReviewRecords to propose structural governance actions. Both are downstream consumers of the review output.
+**Learn ✅ (Phase 1~3 implemented)** — The `learn` family reads the in-session learning files (plus the review/promote output trail) to extract, curate, promote, and retire learnings systematically. The full pipeline lives in `src/core-runtime/learning/` and exposes four CLI subcommands:
 
-Current state: review writes ReviewRecords; learn/govern will read them. Review must close its boundary before learn/govern productization begins.
+- `onto promote` — Phase 3 analyze (candidates + panel review + criterion 6 dedup + judgment audit + retirement scan)
+- `onto promote --apply <session>` — Phase 3 apply (file-level mutations with resume support and fail-closed partial-apply detection)
+- `onto reclassify-insights` — Phase 3 insight role reclassification (analyze + apply variants)
+- `onto migrate-session-roots` — one-shot legacy session layout migration
 
-Reference: `design-principles/productization-charter.md` §12 Current Priority Order
+**Govern 📐** — Reads accumulated learnings + ReviewRecords to propose structural governance actions. Downstream consumer of Learn output. Not yet implemented.
+
+Reference: `design-principles/productization-charter.md` §12 Current Priority Order, `src/core-runtime/learning/promote/`
 
 ### 11.2 Review State Machine Completion 📐
 
@@ -912,13 +932,17 @@ Reference: `authority/core-lexicon.yaml` (auto_state, await_state, terminal_stat
 
 Build will follow the same methodology as review: ontology-as-code authority → prompt-backed reference path → observation → bounded TS runtime replacement, one boundary at a time.
 
+**Adoption hypothesis input**: `development-records/design/20260409-graphify-adoption-hypothesis.md` — graphify(safishamsi/graphify v3 @ 92b70ce5) 차용 가능성을 6 review pass로 평가한 provisional backlog memo. Tree-sitter AST seed / versioned cache + correct diff / rationale concept seat / derived reporting surface / multimodal source profile 등 후보와 §8의 graphify 자체 결함(CR1/CR2/CR3) 차용 금지 조항 포함. final tiering은 build authority owner와 함께 재검토 필요.
+
 Reference: `design-principles/productization-charter.md` §7, §12
 
-### 11.4 Learning Phase 1 Tiered Loading 🔲
+### 11.4 Learning Phase 1 Tiered Loading ✅
 
-When any lens exceeds 100 accumulated learnings, a 3-tier priority system activates:
+Implemented in `src/core-runtime/learning/loader.ts`. When any lens exceeds 100 accumulated learnings, a 3-tier priority system activates:
 - Tier 1 (unconditional): `[foundation]`, `[convention]`
 - Tier 2 (purpose-based): `[guardrail]`
 - Tier 3 (recency): `[insight]`
 
-Reference: `learning-rules.md` §Learning Lifecycle Phases
+The loader also enforces a per-agent token budget (default 4000 tokens) and truncates lower-tier items when the budget is exhausted. Phase 1.5 adds source metadata preservation so Phase 2 (extractor) can attribute learnings back to their originating session.
+
+Reference: `learning-rules.md` §Learning Lifecycle Phases, `src/core-runtime/learning/loader.ts`

@@ -469,7 +469,24 @@ During reviews and queries, if a domain-specific fact (data format, industry rul
 
 ### Deduplication at Promote
 
-When promoting learnings via `/onto:promote`, a "same principle" test identifies domain variants of existing global learnings. Same-principle entries are consolidated into a single entry with representative cases from diverse domains.
+`/onto:promote` (or the `onto promote` CLI subcommand) runs two deduplication passes:
+
+1. **Criterion 5 — candidate-vs-global same-principle test**: identifies domain variants of existing global learnings (e.g., a [domain/finance] learning that restates a [domain/accounting] principle after removing domain-specific terms). Same-principle entries are consolidated into a single entry with representative cases from diverse domains.
+2. **Criterion 6 — cross-agent same-principle test**: identifies the same principle appearing under different agent-specific framings across multiple lens files (e.g., `structure` and `philosopher` both writing the same underlying rule with different vocabulary). LLM-driven, cost-bounded discovery with a deterministic primary-owner selection rule (earliest `source_date` among shortlist members).
+
+Both passes surface their findings in the `PromoteReport` for operator approval before any file mutation. Phase B (apply) runs under a best-effort advisory file lock and fails-closed on partial-apply detection.
+
+### Insight Reclassification
+
+Legacy `[insight]`-tagged learnings (the default "we don't yet know the role" bucket) can be reclassified into `[guardrail]` / `[foundation]` / `[convention]` (or dropped entirely) using the CLI:
+
+```bash
+onto reclassify-insights                              # analyze: produce report
+onto reclassify-insights --apply <report-path>        # apply: rewrite role tags
+onto reclassify-insights --apply <report-path> --dry-run  # preview without writing
+```
+
+The apply path uses `line_number` as the primary anchor and `raw_line` verbatim match as a secondary anchor, so rerunning is idempotent and source-drift cases fail closed rather than silently succeed.
 
 ### Consumption Feedback
 

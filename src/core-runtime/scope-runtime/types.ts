@@ -168,11 +168,11 @@ export type SurfaceType = "experience" | "interface";
 // ─── Source Entry (config 수준) ───
 
 export type SourceEntry =
-  | { type: "add-dir"; path: string; description?: string }
-  | { type: "github-tarball"; url: string; description?: string }
-  | { type: "figma-mcp"; file_key: string; description?: string }
-  | { type: "obsidian-vault"; path: string; description?: string }
-  | { type: "mcp"; provider: string; description?: string; tools?: string[]; query_policy?: Record<string, unknown> };
+  | { type: "add-dir"; path: string; description?: string | undefined }
+  | { type: "github-tarball"; url: string; description?: string | undefined }
+  | { type: "figma-mcp"; file_key: string; description?: string | undefined }
+  | { type: "obsidian-vault"; path: string; description?: string | undefined }
+  | { type: "mcp"; provider: string; description?: string | undefined; tools?: string[] | undefined; query_policy?: Record<string, unknown> | undefined };
 
 // SourceType is derived from SourceEntry to enforce sync
 export type SourceType = SourceEntry["type"];
@@ -234,9 +234,9 @@ export interface BrownfieldConfigEntry {
 export interface BrownfieldContext {
   related_files: BrownfieldFileEntry[];
   module_dependencies: BrownfieldDepEntry[];
-  api_contracts?: BrownfieldApiEntry[];
-  db_schemas?: BrownfieldSchemaEntry[];
-  config_env?: BrownfieldConfigEntry[];
+  api_contracts?: BrownfieldApiEntry[] | undefined;
+  db_schemas?: BrownfieldSchemaEntry[] | undefined;
+  config_env?: BrownfieldConfigEntry[] | undefined;
 }
 
 export interface BrownfieldEnumDef {

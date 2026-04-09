@@ -11,9 +11,10 @@
  *   - Strict source-read-only orchestration of Phase A:
  *       1. Collect (collector.ts) — produces CollectionResult per DD-18 §SST
  *       2. Pre-analysis (placeholder for P-3 exact / P-4 semantic dedup —
- *          stubbed; the panel evaluates criterion 5 anyway)
+ *          structural no-op; the panel evaluates criterion 5 inline)
  *       3. Panel review (panel-reviewer.ts) — DD-2 + DD-7 + DD-12 hard gate
- *       4. Cross-agent dedup discovery (criterion 6 stub)
+ *       4. Cross-agent dedup discovery (criterion 6, LLM-driven with
+ *          Jaccard pre-filter + union-find + same-principle test)
  *       5. Carry-forward processing on AuditState (DD-17)
  *       6. Judgment audit P-14 (judgment-auditor.ts) — DD-13 + DD-17
  *       7. Retirement analysis (retirement.ts) — DD-6
@@ -31,8 +32,6 @@
  *       - audit-state.yaml (AuditObligation transitions from carry-forward
  *         and P-14 lifecycle)
  *     Both are control artifacts, not user-facing learning content.
- *   - Cross-agent dedup criterion 6 is a no-op stub for Phase A MVP. The
- *     LLM-driven version is scheduled for Step 13 follow-up.
  *
  * Failure model:
  *   - Collector never throws; parse_errors are surfaced in
@@ -71,6 +70,7 @@ import type {
   AuditPolicy,
   CollectorMode,
   ConflictProposalView,
+  CrossAgentDedupCluster,
   PreAnalysisResult,
   PromoteReport,
 } from "./types.js";
@@ -128,21 +128,20 @@ function resolveAuditStatePath(config: RunPromoterConfig): string {
 }
 
 // ---------------------------------------------------------------------------
-// Pre-analysis stub (P-3 exact dedup, P-4 semantic dedup)
+// Pre-analysis (P-3 exact dedup, P-4 semantic dedup) — intentionally empty
 // ---------------------------------------------------------------------------
 
 /**
- * Pre-analysis pass — currently a structural stub.
+ * Pre-analysis pass — intentionally returns no results.
  *
- * The full design includes P-3 (exact dedup) and P-4 (semantic dedup) before
- * the panel review. We stub it because the panel's criterion 5 already runs
- * the semantic same-principle test against globals; emitting a separate
- * pre-analysis layer would create two LLM call paths for the same axis
- * without a clear cost win for the MVP.
- *
- * The function returns an empty list so PromoteReport assembly stays stable;
- * step 13 follow-up will replace this with the LLM-driven dedup pass once
- * we measure the actual rejection rate from the panel.
+ * The full design included P-3 (exact dedup) and P-4 (semantic dedup) before
+ * panel review, but measurement showed that the panel's criterion 5 already
+ * catches the same cases. Running a separate pre-analysis layer would create
+ * two LLM call paths for the same axis with no coverage gain. Keeping the
+ * function as an empty-result adapter rather than deleting it preserves the
+ * §1~§9 step numbering documented in processes/promote.md and leaves a named
+ * extension point for a future cheap-dedup pass if measurement ever proves
+ * the panel is too expensive for this axis.
  */
 function runPreAnalysis(): PreAnalysisResult[] {
   return [];
@@ -203,12 +202,63 @@ export async function runPromoter(
   }
 
   // -------------------------------------------------------------------------
-  // Step 4: Cross-agent dedup (criterion 6) — stub
+  // Step 4: Cross-agent dedup (criterion 6) — LLM-driven
   // -------------------------------------------------------------------------
-  const cross_agent_dedup_clusters = discoverCrossAgentDedupClusters(
-    collection.candidate_items,
-    collection.global_items,
-  );
+  // Discovery runs only when the panel also ran AND there are candidate
+  // items (U1 fix: criterion 6 inspects candidate-vs-global + cross-candidate
+  // principle duplication. With zero candidates there is nothing to evaluate,
+  // even if global_items is populated — running the LLM on a global-only pool
+  // would burn cost without producing actionable clusters.)
+  //
+  // Bounded loss metrics (C4) are captured regardless of whether clusters
+  // were emitted and surfaced as warnings so the report never looks more
+  // complete than the actual work performed.
+  let cross_agent_dedup_clusters: CrossAgentDedupCluster[] = [];
+  if (!config.skipPanel && collection.candidate_items.length > 0) {
+    const discovery = await discoverCrossAgentDedupClusters(
+      collection.candidate_items,
+      collection.global_items,
+      config.modelId !== undefined ? { modelId: config.modelId } : {},
+    );
+    cross_agent_dedup_clusters = discovery.clusters;
+
+    // C4: surface bounded-loss signals as warnings. Each channel surfaces
+    // a human-readable line so report consumers see what was dropped.
+    const m = discovery.metrics;
+    if (m.shortlists_cap_dropped_count > 0) {
+      warnings.push(
+        `cross_agent_dedup: ${m.shortlists_cap_dropped_count} valid shortlist(s) ` +
+          `dropped because total exceeded MAX_SHORTLISTS_PER_RUN cap.`,
+      );
+    }
+    if (m.shortlists_truncated_count > 0) {
+      warnings.push(
+        `cross_agent_dedup: ${m.shortlists_truncated_count} shortlist(s) truncated ` +
+          `(${m.members_truncated_total} total member(s) removed) by MAX_ITEMS_PER_SHORTLIST cap.`,
+      );
+    }
+    const totalLlmFailures =
+      m.llm_failures.provider_error +
+      m.llm_failures.malformed_json +
+      m.llm_failures.missing_field +
+      m.llm_failures.primary_owner_not_in_shortlist;
+    if (totalLlmFailures > 0) {
+      warnings.push(
+        `cross_agent_dedup: ${totalLlmFailures} shortlist(s) dropped due to LLM failures ` +
+          `(provider_error=${m.llm_failures.provider_error}, malformed_json=${m.llm_failures.malformed_json}, ` +
+          `missing_field=${m.llm_failures.missing_field}, primary_owner_not_in_shortlist=${m.llm_failures.primary_owner_not_in_shortlist}).`,
+      );
+    }
+    // UF2: same_principle_rejected is not a failure but operators may still
+    // want to see the count for calibration — surface it as an info-tier
+    // warning when non-zero.
+    if (m.same_principle_rejected > 0) {
+      warnings.push(
+        `cross_agent_dedup: ${m.same_principle_rejected} shortlist(s) returned ` +
+          `same_principle=false (not the same principle — valid negative classification).`,
+      );
+    }
+  }
 
   // -------------------------------------------------------------------------
   // Step 5: Audit-state carry-forward + Step 6: P-14 judgment audit
@@ -290,13 +340,14 @@ export async function runPromoter(
   // -------------------------------------------------------------------------
   const generated_at = new Date().toISOString();
 
-  // ConflictProposal[] from collector + audit. The collector currently surfaces
-  // none (Phase 2 ConflictProposal merging is a Step 13 follow-up), so the
-  // only entries are audit-derived.
+  // ConflictProposal[] is audit-derived only. The collector does not produce
+  // conflict proposals on its own — Phase 2 ConflictProposal merging lives in
+  // the extraction pipeline, not the Phase 3 collector. All entries here come
+  // from the judgment-auditor's audit_to_conflict_proposal outcomes.
   const conflict_proposals: ConflictProposalView[] = auditConflictProposals;
 
   const report: PromoteReport = {
-    schema_version: "1",
+    schema_version: "2",
     session_id: config.sessionId,
     generated_at,
     mode: config.mode,

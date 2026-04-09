@@ -136,14 +136,10 @@ function resolveProvider(preferred?: "anthropic" | "openai"): ResolvedProvider {
     }
   }
 
-  // 4. Preferred anthropic but not available — check again without preference
-  if (preferred === undefined && process.env.ANTHROPIC_API_KEY) {
-    return {
-      provider: "anthropic",
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      defaultModel: DEFAULT_ANTHROPIC_MODEL,
-    };
-  }
+  // (Dead fallback branch removed — the earlier ANTHROPIC_API_KEY check at
+  // step 1 already handles both the `preferred === undefined` and the
+  // `preferred !== "openai"` cases, so the previous duplicate probe here was
+  // unreachable. Kept a comment to document the cleanup for future readers.)
 
   const guidance = chatgptOAuthSeen
     ? // Targeted message: user has chatgpt OAuth but no usable API key.
@@ -279,6 +275,7 @@ const MOCK_MODEL_ID = "mock-llm-deterministic";
  *   - Judgment auditor (audit outcomes)
  *   - Insight reclassifier (proposed_role)
  *   - Domain doc proposer Phase B (reflection_form + content)
+ *   - Cross-agent dedup (criterion 6, same-principle test)
  *   - Phase 2 semantic classifier (decision)
  *
  * N-1 fix: previously, unknown prompts fell through to a generic "ok" string,
@@ -346,6 +343,60 @@ function callMockProvider(
         "**Mock Term** — A mock entry produced by the deterministic LLM provider.",
     });
   } else if (
+    systemPrompt.startsWith(
+      "You are detecting cross-agent principle duplication",
+    )
+  ) {
+    // Cross-agent dedup (criterion 6) — extract the first agent from the
+    // user prompt as primary owner and fabricate a consolidated line. The
+    // mock happy path always confirms same_principle so tests can exercise
+    // the structural path.
+    //
+    // Negative-path hooks (CG3 + UF3):
+    //   ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER=1
+    //     → return a primary_owner_agent that is NOT in the shortlist so the
+    //       C2 runtime guard in llmConfirmCluster rejects the cluster.
+    //   ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE=1
+    //     → return same_principle=false so the UF2 metric bucket bumps.
+    //   ONTO_LLM_MOCK_DEDUP_MALFORMED=1
+    //     → emit non-JSON so the malformed_json failure channel fires.
+    //
+    // These hooks are test-only and gated on the ONTO_LLM_MOCK=1 envelope
+    // already checked above; production runs never see them.
+    if (process.env.ONTO_LLM_MOCK_DEDUP_MALFORMED === "1") {
+      text = "{this is not valid json at all";
+    } else if (process.env.ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE === "1") {
+      text = JSON.stringify({
+        same_principle: false,
+        primary_owner_agent: null,
+        primary_owner_reason: "mock — disagreement",
+        consolidated_principle: "",
+        representative_cases: [],
+        consolidated_line: "",
+      });
+    } else {
+      const firstAgent = extractFirstDedupAgent(userPrompt);
+      const agentCount = countDedupAgents(userPrompt);
+      const bogusOwner =
+        process.env.ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER === "1"
+          ? "offshortlist_ghost_agent"
+          : firstAgent;
+      text = JSON.stringify({
+        same_principle: true,
+        primary_owner_agent: bogusOwner,
+        primary_owner_reason: "mock — first listed agent",
+        consolidated_principle:
+          "Mock consolidated principle produced by the deterministic LLM provider.",
+        representative_cases: Array.from(
+          { length: Math.min(agentCount, 3) },
+          (_, i) => `mock case ${i + 1}`,
+        ),
+        consolidated_line:
+          "- [fact] [methodology] [foundation] mock consolidated principle " +
+          "(Representative cases: mock case 1; mock case 2) (source: consolidated from mock-mock-2026-04-09)",
+      });
+    }
+  } else if (
     systemPrompt.startsWith("You are a semantic classifier")
   ) {
     // Phase 2 semantic classifier (legacy compatibility).
@@ -391,6 +442,36 @@ function extractCandidateIds(userPrompt: string): string[] {
 function extractJudgmentItemCount(userPrompt: string): number {
   const m = userPrompt.match(/Judgment items to re-verify:\s*(\d+)/);
   return m ? Number(m[1]) : 0;
+}
+
+/**
+ * Cross-agent dedup user prompt lists items as:
+ *   1. agent_id=structure
+ *      ...
+ *   2. agent_id=philosopher
+ *      ...
+ * Pick the first agent_id we see so the mock's primary_owner_agent matches
+ * the first listed shortlist member. Falls back to "structure" when no
+ * agent_id appears at all (shouldn't happen in practice).
+ */
+function extractFirstDedupAgent(userPrompt: string): string {
+  const m = userPrompt.match(/agent_id=([A-Za-z0-9_-]+)/);
+  return m ? m[1]! : "structure";
+}
+
+/**
+ * Count the distinct agent_id references in the cross-agent dedup user prompt
+ * so the mock can emit a plausible representative_cases list sized to the
+ * shortlist.
+ */
+function countDedupAgents(userPrompt: string): number {
+  const ids = new Set<string>();
+  const re = /agent_id=([A-Za-z0-9_-]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(userPrompt)) !== null) {
+    ids.add(m[1]!);
+  }
+  return ids.size;
 }
 
 function estimateMockTokens(text: string): number {

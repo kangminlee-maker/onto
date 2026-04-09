@@ -762,8 +762,10 @@ export interface ReviewPanelResult {
  * the same panel member list, but each member's LLM call is per-candidate
  * anyway, so there's no cost saving from merging here.
  *
- * TODO(step 13 eval): group candidates by originator and issue one LLM call
- * per (originator, philosopher, auto_selected) tuple to save N×3 calls.
+ * Future optimization: group candidates by originator and issue one LLM call
+ * per (originator, philosopher, auto_selected) tuple to save N×3 calls. The
+ * current shape correctly implements criterion 1~5 per candidate; batching
+ * is a cost improvement, not a correctness gap.
  */
 export async function reviewPanel(
   config: ReviewPanelConfig,
@@ -879,26 +881,654 @@ export async function reviewPanel(
 }
 
 // ---------------------------------------------------------------------------
-// Criterion 6 — cross-agent dedup (stub for Phase A MVP)
+// Criterion 6 — cross-agent dedup (LLM-driven)
 // ---------------------------------------------------------------------------
 
 /**
- * Cross-agent deduplication (criterion 6) — single sequential LLM call path
+ * Cross-agent deduplication (criterion 6) — single-reviewer sequential path
  * with bi-directional removal protection.
  *
- * This Phase A implementation is intentionally a no-op: it returns an empty
- * cluster list so PromoteReport assembly can proceed. The LLM-driven version
- * is scheduled for Step 13 (full E2E) once Phase B atomicity is in place —
- * wiring the call now would create optimistic side-effects without a
- * rollback path if the executor later changes the approval shape.
+ * Algorithm:
+ *   1. Pre-filter via Jaccard token overlap on significant content tokens.
+ *      Cross-agent pairs (different agent_id) with similarity ≥ JACCARD_THRESHOLD
+ *      become edges in a union-find structure.
+ *   2. Each resulting connected component with ≥ 2 distinct agents becomes a
+ *      "shortlist" candidate for LLM confirmation.
+ *   3. The shortlist is capped at MAX_ITEMS_PER_SHORTLIST and the total number
+ *      of shortlists at MAX_SHORTLISTS_PER_RUN to bound LLM cost.
+ *   4. Per shortlist, one LLM call applies the same-principle test with
+ *      agent-specific framing removed (not domain terms). The model returns
+ *      a structured JSON: primary owner + consolidated principle + cases.
+ *   5. Confirmed clusters become CrossAgentDedupCluster entries.
  *
- * TODO(step 13): implement LLM-driven cluster discovery honoring
- * processes/promote.md §3 criterion 6 (same-principle test with agent-specific
- * framing removed instead of domain terms).
+ * Single-reviewer semantics (not 3-agent): promote.md §3 criterion 6 notes
+ * that parallel 3-agent review risks bi-directional deletion (agent A removes
+ * B while agent B removes A). The discovery path is intentionally one voice.
+ *
+ * Pre-filter rationale: an O(N²) naive LLM pass over candidates + globals is
+ * cost-prohibitive at production scale (117 candidates × 1000 globals).
+ * Jaccard is cheap, deterministic, and keeps the LLM load bounded.
+ *
+ * Failure model:
+ *   - LLM unreachable or returns malformed JSON for a shortlist → that shortlist
+ *     is dropped. Other shortlists proceed. (Recording degraded_states for
+ *     dropped discovery shortlists is a follow-up — the current caller
+ *     doesn't propagate them.)
  */
-export function discoverCrossAgentDedupClusters(
-  _candidates: ParsedLearningItem[],
-  _globalItems: ParsedLearningItem[],
-): CrossAgentDedupCluster[] {
-  return [];
+
+const CROSS_AGENT_DEDUP_SYSTEM_PROMPT = `You are detecting cross-agent principle duplication in a learning management system.
+
+You will receive 2 or more learnings from DIFFERENT agents. Apply the same-principle test to decide whether they express the same underlying principle once agent-specific framing is removed:
+
+(a) Remove agent-specific framing (e.g. "the philosopher asks...", "structurally...") from both items.
+(b) Do the remaining sentences prescribe the same action?
+(c) Can you identify a situation where one applies but the other does not? If yes, they are different principles.
+
+If they ARE the same principle:
+- Pick a primary_owner_agent: the agent closest to the verification dimension of the principle.
+  Tiebreaker: the agent of the earliest-created learning (oldest source_date).
+- Write a consolidated_principle statement that generalizes over the agents.
+- Pick up to 3 representative_cases that maximize agent diversity.
+- Compose a consolidated_line in the flat inline format:
+  "- [{type}] [{axis tags}] [{purpose type}] General principle statement. (Representative cases: agent-A에서 X; agent-B에서 Y; agent-C에서 Z) (source: consolidated from [sources])"
+
+Output ONE JSON object:
+{
+  "same_principle": true | false,
+  "primary_owner_agent": "<agent_id>" | null,
+  "primary_owner_reason": "<string>",
+  "consolidated_principle": "<string>",
+  "representative_cases": ["<case 1>", "<case 2>", "<case 3>"],
+  "consolidated_line": "<inline format line>"
 }
+
+NO markdown fences, JSON only.`;
+
+const JACCARD_THRESHOLD = 0.3;
+const MAX_SHORTLISTS_PER_RUN = 20;
+const MAX_ITEMS_PER_SHORTLIST = 10;
+const MIN_TOKEN_LENGTH = 4;
+const MIN_CJK_TOKEN_LENGTH = 2;
+
+const STOPWORDS: ReadonlySet<string> = new Set([
+  "with",
+  "that",
+  "this",
+  "from",
+  "into",
+  "when",
+  "where",
+  "what",
+  "which",
+  "these",
+  "those",
+  "have",
+  "been",
+  "being",
+  "should",
+  "would",
+  "could",
+  "will",
+  "must",
+  "does",
+  "they",
+  "them",
+  "their",
+  "there",
+  "then",
+  "than",
+  "some",
+  "about",
+  "also",
+  "because",
+  "such",
+  "each",
+  "while",
+  "after",
+  "before",
+]);
+
+/**
+ * U4 fix: Unicode-aware tokenization. Previously the splitter was
+ * `[^a-z0-9]+`, which stripped every Korean (and other non-Latin)
+ * character. On a Korean-heavy corpus (like this repo's own learnings),
+ * that made criterion 6 effectively blind — no shortlist ever formed.
+ *
+ * New behavior:
+ *   - Split on characters that are NOT Unicode letters or numbers
+ *     (`\p{L}` / `\p{N}` with the `u` flag).
+ *   - Latin tokens still require MIN_TOKEN_LENGTH (4) to avoid matching
+ *     on short words like "with" or "that".
+ *   - Korean tokens (CJK ideographs and Hangul) use a lower threshold
+ *     (MIN_CJK_TOKEN_LENGTH = 2) because one-syllable Korean words carry
+ *     content ("코드", "검증", etc.).
+ *   - English stopwords still filtered.
+ */
+function significantTokens(content: string): Set<string> {
+  const tokens = new Set<string>();
+  // Match runs of Unicode letters/numbers rather than splitting on
+  // ASCII punctuation only.
+  const matches = content.toLowerCase().match(/[\p{L}\p{N}]+/gu);
+  if (!matches) return tokens;
+  for (const word of matches) {
+    if (STOPWORDS.has(word)) continue;
+    if (isCjkWord(word)) {
+      if (word.length < MIN_CJK_TOKEN_LENGTH) continue;
+    } else if (word.length < MIN_TOKEN_LENGTH) {
+      continue;
+    }
+    tokens.add(word);
+  }
+  return tokens;
+}
+
+// Hangul syllables + jamo + CJK unified ideographs cover Korean content.
+const CJK_RE = /[\u3040-\u30ff\u3130-\u318f\uac00-\ud7af\u4e00-\u9fff]/;
+
+function isCjkWord(word: string): boolean {
+  return CJK_RE.test(word);
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter += 1;
+  const union = a.size + b.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
+/**
+ * Minimal union-find with path compression. Indices are the slot positions in
+ * the flattened item pool (candidates ++ globals).
+ */
+class UnionFind {
+  private parent: number[];
+  constructor(size: number) {
+    this.parent = Array.from({ length: size }, (_, i) => i);
+  }
+  find(x: number): number {
+    let cur = x;
+    while (this.parent[cur] !== cur) {
+      this.parent[cur] = this.parent[this.parent[cur]!]!;
+      cur = this.parent[cur]!;
+    }
+    return cur;
+  }
+  union(a: number, b: number): void {
+    const ra = this.find(a);
+    const rb = this.find(b);
+    if (ra !== rb) this.parent[ra] = rb;
+  }
+}
+
+interface ShortlistBuildResult {
+  shortlists: ParsedLearningItem[][];
+  /** Groups that had >=2 items AND >=2 distinct agents (valid candidates). */
+  total_valid_groups: number;
+  /** Shortlists that hit MAX_ITEMS_PER_SHORTLIST and lost members. */
+  shortlists_truncated_count: number;
+  /** Members dropped across all truncations (sum of items removed). */
+  members_truncated_total: number;
+  /** Valid groups beyond MAX_SHORTLISTS_PER_RUN that were dropped entirely. */
+  shortlists_cap_dropped_count: number;
+}
+
+function buildShortlists(
+  items: ParsedLearningItem[],
+): ShortlistBuildResult {
+  const empty: ShortlistBuildResult = {
+    shortlists: [],
+    total_valid_groups: 0,
+    shortlists_truncated_count: 0,
+    members_truncated_total: 0,
+    shortlists_cap_dropped_count: 0,
+  };
+  if (items.length < 2) return empty;
+  const tokens = items.map((it) => significantTokens(it.content));
+  const uf = new UnionFind(items.length);
+
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      if (items[i]!.agent_id === items[j]!.agent_id) continue;
+      const sim = jaccard(tokens[i]!, tokens[j]!);
+      if (sim >= JACCARD_THRESHOLD) uf.union(i, j);
+    }
+  }
+
+  // Group indices by root
+  const groups = new Map<number, number[]>();
+  for (let i = 0; i < items.length; i++) {
+    const root = uf.find(i);
+    const bucket = groups.get(root);
+    if (bucket) bucket.push(i);
+    else groups.set(root, [i]);
+  }
+
+  // First pass: filter to VALID groups (≥2 items, ≥2 distinct agents) and
+  // record total valid group count so cap-drop tallies are accurate.
+  const sortedRoots = [...groups.keys()].sort((a, b) => a - b);
+  const validGroups: number[][] = [];
+  for (const root of sortedRoots) {
+    const indices = groups.get(root)!;
+    if (indices.length < 2) continue;
+    const agents = new Set(indices.map((idx) => items[idx]!.agent_id));
+    if (agents.size < 2) continue;
+    validGroups.push(indices);
+  }
+
+  // Second pass: apply the per-shortlist size cap and the total shortlist
+  // count cap while recording bounded-loss metrics for C4.
+  const shortlists: ParsedLearningItem[][] = [];
+  let shortlistsTruncatedCount = 0;
+  let membersTruncatedTotal = 0;
+  for (const indices of validGroups) {
+    if (shortlists.length >= MAX_SHORTLISTS_PER_RUN) break;
+    let capped = indices;
+    if (indices.length > MAX_ITEMS_PER_SHORTLIST) {
+      capped = indices.slice(0, MAX_ITEMS_PER_SHORTLIST);
+      shortlistsTruncatedCount += 1;
+      membersTruncatedTotal += indices.length - MAX_ITEMS_PER_SHORTLIST;
+    }
+    shortlists.push(capped.map((idx) => items[idx]!));
+  }
+  const shortlistsCapDroppedCount = Math.max(
+    0,
+    validGroups.length - shortlists.length,
+  );
+
+  return {
+    shortlists,
+    total_valid_groups: validGroups.length,
+    shortlists_truncated_count: shortlistsTruncatedCount,
+    members_truncated_total: membersTruncatedTotal,
+    shortlists_cap_dropped_count: shortlistsCapDroppedCount,
+  };
+}
+
+function buildCrossAgentDedupUserPrompt(items: ParsedLearningItem[]): string {
+  const lines: string[] = [
+    "Learnings from different agents to compare:",
+    "",
+  ];
+  items.forEach((item, i) => {
+    lines.push(
+      `${i + 1}. agent_id=${item.agent_id}`,
+      `   role=${item.role ?? "null"}`,
+      `   tags=[${item.applicability_tags.join(" ")}]`,
+      `   source=${item.source_project ?? "?"}/${item.source_domain ?? "?"}/${item.source_date ?? "?"}`,
+      `   content: ${item.content}`,
+      "",
+    );
+  });
+  lines.push("Apply the same-principle test and respond with the JSON object.");
+  return lines.join("\n");
+}
+
+interface LlmClusterVerdict {
+  primary_owner_agent: string;
+  primary_owner_reason: string;
+  consolidated_principle: string;
+  representative_cases: string[];
+  consolidated_line: string;
+}
+
+/**
+ * Failure classification for llmConfirmCluster so the discovery pipeline
+ * can surface bounded loss (C4). null outcomes are turned into a typed
+ * reason the caller can aggregate into DedupDiscoveryMetrics.
+ */
+type ClusterConfirmFailure =
+  | { kind: "provider_error"; detail: string }
+  | { kind: "malformed_json"; detail: string }
+  | { kind: "same_principle_false" }
+  | { kind: "missing_field"; field: string }
+  | { kind: "primary_owner_not_in_shortlist"; declared: string };
+
+async function llmConfirmCluster(
+  items: ParsedLearningItem[],
+  modelId?: string,
+): Promise<
+  { ok: true; verdict: LlmClusterVerdict } | { ok: false; failure: ClusterConfirmFailure }
+> {
+  let responseText: string;
+  try {
+    const result = await callLlm(
+      CROSS_AGENT_DEDUP_SYSTEM_PROMPT,
+      buildCrossAgentDedupUserPrompt(items),
+      {
+        max_tokens: 1024,
+        ...(modelId ? { model_id: modelId } : {}),
+      },
+    );
+    responseText = result.text;
+  } catch (error) {
+    return {
+      ok: false,
+      failure: {
+        kind: "provider_error",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+
+  let parsed: {
+    same_principle?: unknown;
+    primary_owner_agent?: unknown;
+    primary_owner_reason?: unknown;
+    consolidated_principle?: unknown;
+    representative_cases?: unknown;
+    consolidated_line?: unknown;
+  };
+  try {
+    let cleaned = responseText.trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "");
+    }
+    parsed = JSON.parse(cleaned);
+  } catch (error) {
+    return {
+      ok: false,
+      failure: {
+        kind: "malformed_json",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+
+  if (parsed.same_principle !== true) {
+    return { ok: false, failure: { kind: "same_principle_false" } };
+  }
+  if (typeof parsed.primary_owner_agent !== "string") {
+    return { ok: false, failure: { kind: "missing_field", field: "primary_owner_agent" } };
+  }
+  if (typeof parsed.consolidated_principle !== "string") {
+    return { ok: false, failure: { kind: "missing_field", field: "consolidated_principle" } };
+  }
+  if (typeof parsed.consolidated_line !== "string") {
+    return { ok: false, failure: { kind: "missing_field", field: "consolidated_line" } };
+  }
+  if (!Array.isArray(parsed.representative_cases)) {
+    return { ok: false, failure: { kind: "missing_field", field: "representative_cases" } };
+  }
+
+  // C2 fix: primary_owner_agent must be one of the shortlist members. The
+  // LLM can hallucinate an agent_id or pick an unrelated one; we fail closed
+  // so approval never routes to an off-shortlist file.
+  const shortlistAgents = new Set(items.map((it) => it.agent_id));
+  if (!shortlistAgents.has(parsed.primary_owner_agent)) {
+    return {
+      ok: false,
+      failure: {
+        kind: "primary_owner_not_in_shortlist",
+        declared: parsed.primary_owner_agent,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    verdict: {
+      primary_owner_agent: parsed.primary_owner_agent,
+      primary_owner_reason:
+        typeof parsed.primary_owner_reason === "string"
+          ? parsed.primary_owner_reason
+          : "",
+      consolidated_principle: parsed.consolidated_principle,
+      representative_cases: parsed.representative_cases.filter(
+        (c): c is string => typeof c === "string",
+      ),
+      consolidated_line: parsed.consolidated_line,
+    },
+  };
+}
+
+/**
+ * Stable id derived from member identity so repeat runs against unchanged
+ * inputs emit the same cluster_id.
+ *
+ * Stability caveat (review CC2):
+ *   cluster_id is derived from the SHORTLIST members, not the full valid
+ *   group. The shortlist may have been truncated by MAX_ITEMS_PER_SHORTLIST
+ *   or the corpus may have grown between runs. Both conditions change the
+ *   hashed member set and therefore the cluster_id.
+ *
+ *   This is the intentional trade-off: cluster_id is meant to identify
+ *   "the cluster the LLM reviewed in THIS run," not "the canonical cluster
+ *   for this principle across all runs." The applicator uses cluster_id
+ *   for within-run apply-state idempotency (matching a cluster_id marker
+ *   in the target file when re-applying the same report). It is NOT a
+ *   durable operator-facing identity across independent runs; treat
+ *   cluster_id as session-scoped and re-derive it from the report JSON
+ *   when you need to match an existing apply.
+ *
+ *   If a future consumer needs cross-run identity, derive it from the
+ *   consolidated_principle text + primary_owner_agent instead, and keep
+ *   cluster_id as the run-local id.
+ */
+function hashCluster(items: ParsedLearningItem[]): string {
+  const canonical = items
+    .map((it) => `${it.agent_id}|${it.content}`)
+    .sort()
+    .join("\n");
+  return crypto.createHash("sha256").update(canonical).digest("hex").slice(0, 12);
+}
+
+export interface CrossAgentDedupConfig {
+  modelId?: string;
+}
+
+/**
+ * C4 fix: explicit bounded-loss metrics. discoverCrossAgentDedupClusters
+ * caps work in multiple places (MAX_SHORTLISTS_PER_RUN, per-shortlist item
+ * limit, LLM failures dropped). Previously these losses were silent — the
+ * caller could not tell whether an empty cluster list meant "nothing to
+ * merge" or "we dropped everything due to cost caps and provider errors".
+ *
+ * UF2 fix: `same_principle_rejected` is a VALID classifier outcome (the LLM
+ * said "these are not the same principle"), NOT a failure. It lives outside
+ * `llm_failures` so the warning aggregation doesn't conflate classification
+ * rejection with provider/contract errors.
+ */
+export interface DedupDiscoveryMetrics {
+  pool_size: number;
+  total_valid_groups: number;
+  shortlists_processed: number;
+  shortlists_cap_dropped_count: number;
+  shortlists_truncated_count: number;
+  members_truncated_total: number;
+  /**
+   * LLM returned a structurally valid response with same_principle=false.
+   * This is a valid negative classification — the shortlist was not actually
+   * a cluster. NOT a failure, not counted under llm_failures.
+   */
+  same_principle_rejected: number;
+  /**
+   * Shortlists dropped due to actual LLM/provider/contract errors. These
+   * signal operational issues the operator should investigate.
+   */
+  llm_failures: {
+    provider_error: number;
+    malformed_json: number;
+    missing_field: number;
+    primary_owner_not_in_shortlist: number;
+  };
+}
+
+export interface CrossAgentDedupDiscoveryResult {
+  clusters: CrossAgentDedupCluster[];
+  metrics: DedupDiscoveryMetrics;
+}
+
+function emptyMetrics(poolSize: number): DedupDiscoveryMetrics {
+  return {
+    pool_size: poolSize,
+    total_valid_groups: 0,
+    shortlists_processed: 0,
+    shortlists_cap_dropped_count: 0,
+    shortlists_truncated_count: 0,
+    members_truncated_total: 0,
+    same_principle_rejected: 0,
+    llm_failures: {
+      provider_error: 0,
+      malformed_json: 0,
+      missing_field: 0,
+      primary_owner_not_in_shortlist: 0,
+    },
+  };
+}
+
+export async function discoverCrossAgentDedupClusters(
+  candidates: ParsedLearningItem[],
+  globalItems: ParsedLearningItem[],
+  config: CrossAgentDedupConfig = {},
+): Promise<CrossAgentDedupDiscoveryResult> {
+  // Candidates and globals are folded into a single pool so cross-scope
+  // duplicates surface along with cross-agent duplicates inside either pool.
+  const pool = [...candidates, ...globalItems];
+  const metrics = emptyMetrics(pool.length);
+
+  const built = buildShortlists(pool);
+  metrics.total_valid_groups = built.total_valid_groups;
+  metrics.shortlists_cap_dropped_count = built.shortlists_cap_dropped_count;
+  metrics.shortlists_truncated_count = built.shortlists_truncated_count;
+  metrics.members_truncated_total = built.members_truncated_total;
+
+  if (built.shortlists.length === 0) {
+    return { clusters: [], metrics };
+  }
+
+  const clusters: CrossAgentDedupCluster[] = [];
+  for (const shortlist of built.shortlists) {
+    metrics.shortlists_processed += 1;
+    const outcome = await llmConfirmCluster(shortlist, config.modelId);
+    if (!outcome.ok) {
+      switch (outcome.failure.kind) {
+        case "provider_error":
+          metrics.llm_failures.provider_error += 1;
+          break;
+        case "malformed_json":
+          metrics.llm_failures.malformed_json += 1;
+          break;
+        case "same_principle_false":
+          // UF2: not an llm_failure — valid negative classification.
+          metrics.same_principle_rejected += 1;
+          break;
+        case "missing_field":
+          metrics.llm_failures.missing_field += 1;
+          break;
+        case "primary_owner_not_in_shortlist":
+          metrics.llm_failures.primary_owner_not_in_shortlist += 1;
+          break;
+      }
+      continue;
+    }
+    const verdict = outcome.verdict;
+    // CG1 + SYN-C1: Select the specific primary MEMBER INDEX (not raw_line
+    // or agent_id) among shortlist members sharing the LLM-chosen
+    // primary_owner_agent. An index is the only unambiguous identity when
+    // multiple shortlist members share identical content.
+    const primaryIndex = pickPrimaryMemberIndex(
+      shortlist,
+      verdict.primary_owner_agent,
+    );
+    clusters.push({
+      cluster_id: hashCluster(shortlist),
+      primary_owner_agent: verdict.primary_owner_agent,
+      primary_owner_reason: verdict.primary_owner_reason,
+      primary_member_index: primaryIndex,
+      consolidated_principle: verdict.consolidated_principle,
+      representative_cases: verdict.representative_cases,
+      member_items: shortlist,
+      consolidated_line: verdict.consolidated_line,
+      user_approval_required: true,
+    });
+  }
+  return { clusters, metrics };
+}
+
+/**
+ * Pick the specific shortlist MEMBER INDEX that acts as the primary owner.
+ *
+ * Precondition: the shortlist was LLM-confirmed AND the owner agent was
+ * validated against shortlist membership (the C2 guard), so at least one
+ * member with `primary_owner_agent` is guaranteed to exist.
+ *
+ * Selection rule (promote.md §3 criterion 6 tiebreaker: "먼저 생성된 학습"):
+ *   1. Filter shortlist to members whose `agent_id === primaryOwnerAgent`.
+ *   2. Among those, prefer the member with the EARLIEST `source_date` in
+ *      ISO-8601 lexicographic order.
+ *   3. Tiebreakers beyond source_date:
+ *      a. Dated members ALWAYS outrank null-dated members. A dated entry
+ *         carries verifiable provenance; a null-dated entry is a legacy
+ *         line with unknown age. When a timestamped and an untimed member
+ *         share the primary_owner_agent, the timestamped one wins.
+ *      b. Within all-null-dated members, the original shortlist ordering
+ *         is preserved (stable sort on equal keys).
+ *      c. Within equal source_date members, the original shortlist
+ *         ordering is preserved.
+ *   4. The FIRST entry after sort is the winner; its ORIGINAL index in the
+ *      unsorted shortlist is returned (so downstream apply filters by slot
+ *      identity, not by content).
+ *
+ * Contract note (SYN-D1): the "null dated sorts AFTER dated" rule is
+ * deliberate — "earliest known provenance" is a stronger signal than
+ * "appears first in shortlist." If every owner candidate is null-dated,
+ * the winner is the first one encountered, which is also stable and
+ * deterministic (shortlist order is already deterministic per
+ * buildShortlists).
+ */
+function pickPrimaryMemberIndex(
+  shortlist: ParsedLearningItem[],
+  primaryOwnerAgent: string,
+): number {
+  // Collect (index, item) pairs for owner candidates so we can sort by
+  // source_date while preserving original slot positions.
+  const ownerPairs: Array<{ index: number; item: ParsedLearningItem }> = [];
+  for (let i = 0; i < shortlist.length; i++) {
+    const item = shortlist[i]!;
+    if (item.agent_id === primaryOwnerAgent) {
+      ownerPairs.push({ index: i, item });
+    }
+  }
+  // Guaranteed non-empty by the C2 precondition.
+  //
+  // 4-Rec3: Explicit slot tiebreaker. Previously this relied on
+  // Array.prototype.sort's stability (ECMAScript 2019+ / Node 12+) to
+  // preserve first-seen ordering on equal sort keys. That implicit
+  // dependency is documented-but-fragile — a code reader inspecting this
+  // function shouldn't have to know the Node engine floor to predict
+  // tie-break behavior. We now use original slot index as the explicit
+  // last tiebreaker in the comparator, so the selection is deterministic
+  // regardless of the runtime's sort stability guarantees.
+  ownerPairs.sort((a, b) => {
+    const aDate = a.item.source_date;
+    const bDate = b.item.source_date;
+    // Rule 1: dated BEFORE null-dated (stronger provenance wins).
+    if (aDate === null && bDate === null) {
+      // Rule 3 (tiebreaker): lower slot index wins — explicit, no
+      // stability reliance.
+      return a.index - b.index;
+    }
+    if (aDate === null) return 1;
+    if (bDate === null) return -1;
+    // Rule 2: both dated — ascending lexicographic (earliest first).
+    const cmp = aDate.localeCompare(bDate);
+    if (cmp !== 0) return cmp;
+    // Rule 3 (tiebreaker): equal dates → lower slot index wins.
+    return a.index - b.index;
+  });
+  return ownerPairs[0]!.index;
+}
+
+// Test-only exports for unit coverage. Production imports go through
+// discoverCrossAgentDedupClusters.
+export const __testExports = {
+  significantTokens,
+  jaccard,
+  buildShortlists,
+  pickPrimaryMemberIndex,
+  JACCARD_THRESHOLD,
+  MAX_SHORTLISTS_PER_RUN,
+  MAX_ITEMS_PER_SHORTLIST,
+  MIN_CJK_TOKEN_LENGTH,
+};

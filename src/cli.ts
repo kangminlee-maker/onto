@@ -552,17 +552,36 @@ async function handleReclassifyInsights(
     return 2;
   }
 
+  const dryRun = argv.includes("--dry-run");
+  const applyReportPath = readSingleOptionValueFromArgv(argv, "apply");
+
+  // See handlePromoteAnalyze: don't forward install-dir ontoHome.
+  void ontoHome;
+
+  // Apply mode: --apply <report-path> reads the Phase A report and rewrites
+  // role tags in place. The analyze mode writes that report first.
+  if (applyReportPath !== undefined) {
+    const { applyInsightReclassifications } = await import(
+      "./core-runtime/learning/promote/insight-reclassifier.js"
+    );
+    const resolvedReportPath = path.isAbsolute(applyReportPath)
+      ? applyReportPath
+      : path.join(projectRoot, applyReportPath);
+    const applyResult = applyInsightReclassifications({
+      reportPath: resolvedReportPath,
+      dryRun,
+    });
+    console.log(JSON.stringify(applyResult, null, 2));
+    return applyResult.failed > 0 ? 1 : 0;
+  }
+
   const sessionId =
     readSingleOptionValueFromArgv(argv, "session-id") ?? generateSessionId();
   const targetAgent = readSingleOptionValueFromArgv(argv, "target");
-  const dryRun = argv.includes("--dry-run");
 
   const { runInsightReclassifier } = await import(
     "./core-runtime/learning/promote/insight-reclassifier.js"
   );
-
-  // See handlePromoteAnalyze: don't forward install-dir ontoHome.
-  void ontoHome;
 
   const result = await runInsightReclassifier({
     sessionId,

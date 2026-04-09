@@ -404,10 +404,23 @@ function readLockHolderPid(lockPath: string): number | null {
 /**
  * Check whether a given PID is alive on this host. Uses `process.kill(pid, 0)`
  * which is the POSIX idiom: the signal 0 doesn't actually signal anything
- * but does perform the kernel's existence check. Returns:
- *   - true  : the process exists AND we have permission to signal it
- *   - false : the process does NOT exist (ESRCH) — safe to reclaim
- *   - null  : indeterminate (EPERM or any other error) — do NOT reclaim
+ * but does perform the kernel's existence check.
+ *
+ * Return contract (6-SYN-CC1 clarification):
+ *   - `true`  → the process provably exists. This covers two sub-cases:
+ *       (a) the kill(0) succeeded — we own or can signal the PID
+ *       (b) the kill(0) failed with EPERM — the PID is registered with the
+ *           kernel but we lack permission to signal it. EPERM is a
+ *           POSITIVE existence signal: the OS only raises EPERM when the
+ *           target exists. We deliberately treat EPERM as "alive" so
+ *           reclaim fails-closed on a live-but-unreachable holder (e.g.
+ *           another user's promote process on a shared host).
+ *   - `false` → the process does NOT exist (ESRCH). Safe to reclaim.
+ *   - `null`  → indeterminate (any other error code). Reclaim must NOT
+ *               fire — caller treats null the same as true.
+ *
+ * Consumers should interpret "not false" as alive: only a definitive
+ * ESRCH response authorizes stale-lock reclaim.
  */
 function isPidAlive(pid: number): boolean | null {
   try {
@@ -419,16 +432,43 @@ function isPidAlive(pid: number): boolean | null {
         ? (err as NodeJS.ErrnoException).code
         : undefined;
     if (code === "ESRCH") return false;
-    // EPERM: pid exists but we can't signal it — treat as alive.
+    // EPERM: the PID exists (kernel raised EPERM instead of ESRCH) but
+    // we can't signal it. Per the contract above, treat as alive so we
+    // never reclaim a lockfile whose holder we just couldn't probe.
     if (code === "EPERM") return true;
     return null;
   }
 }
 
 /**
- * Acquire an advisory file-level lock on `targetPath` using a sibling
- * `.lock` file opened with O_CREAT|O_EXCL (atomic on POSIX). Run `fn`
- * while holding the lock; release via unlink on exit.
+ * Acquire a BEST-EFFORT ADVISORY file-level lock on `targetPath` using a
+ * sibling `.lock` file opened with O_CREAT|O_EXCL (atomic on POSIX). Run
+ * `fn` while holding the lock; release via unlink on exit.
+ *
+ * ===========================================================================
+ * CONTRACT (6-SYN-C1 rewording)
+ * ===========================================================================
+ * withFileLock provides ADVISORY mutual exclusion suitable for the
+ * single-operator, single-host Phase 3 deployment model. It is NOT a
+ * strong POSIX file lock and does NOT provide:
+ *
+ *   - Kernel-enforced exclusivity: peers that ignore the lockfile
+ *     convention are not blocked. This is a cooperative protocol.
+ *
+ *   - Network-filesystem or multi-mount semantics: NFS, SMB, and
+ *     overlay filesystems do NOT guarantee O_EXCL atomicity across
+ *     clients. The helper assumes a single local POSIX filesystem.
+ *
+ *   - A "dead holder only reclaim" guarantee: the stale-lock reclaim
+ *     path runs `stat → PID check → reStat → unlink-by-path`, which
+ *     closes the common TOCTOU cases but NOT the narrow race where a
+ *     fresh live lockfile is created at the same path after our reStat
+ *     and before our unlink. In that window we may delete a peer's
+ *     newly-created lockfile. The probability is low under single-
+ *     operator cadence (reclaim triggers only after staleAfterMs=2s
+ *     of real idle time), but the window is real. Callers that need
+ *     strong exclusivity must switch to flock() or an external lock
+ *     manager.
  *
  * ===========================================================================
  * SCOPE — this helper is NOT a general "all Phase B mutators are serialized"
@@ -443,31 +483,31 @@ function isPidAlive(pid: number): boolean | null {
  * NOT route through this lock, and "learning files are globally serialized"
  * is NOT a claim this helper makes.
  *
- * If the product contract later expands to "any two apply attempts on the
- * same file cannot interleave", every applicator has to opt in explicitly.
- * Until then, this helper's guarantees apply only where it is called from:
- * applyCrossAgentDedup.
- *
  * ===========================================================================
  * SEMANTICS
  * ===========================================================================
  *   - Retries on EEXIST for up to `waitMs` (default 5s) with exponential
  *     backoff bounded at 100ms per sleep. Uses Atomics.wait for a
- *     non-spinning synchronous wait (LOCK-SPIN fix from 5th review) —
- *     blocks the thread without burning CPU.
- *   - Stale-lock recovery is owner-aware (5-RECLAIM fix): reads the PID
+ *     non-spinning synchronous wait — blocks the thread without CPU spin.
+ *   - Stale-lock recovery is owner-aware but best-effort: reads the PID
  *     from the lockfile, checks process liveness via kill(pid, 0), and
- *     reclaims ONLY when the holder is demonstrably dead (ESRCH). An
- *     EPERM response (PID exists but unsignal-able) treats the holder as
- *     alive. Age is used as a hint so we don't probe PID liveness on
- *     every poll — but the final reclaim decision is always PID-based.
+ *     reclaims only when the holder returns ESRCH (definitely dead).
+ *     Any indeterminate (`null`) or live (`true`, including EPERM)
+ *     response skips reclaim and the caller falls back into the normal
+ *     wait path. Age (staleAfterMs, default 2s) gates the probe so we
+ *     don't run kill() on every poll.
  *   - Lockfile payload: `<pid>\n<acquired_at_iso>\n<target_path>\n` so
  *     operators can diagnose holders with `cat` and correlate with `ps`.
  *   - Cleanup is best-effort via finally-unlink. fn's thrown error
  *     propagates out; the lock is released before the error escapes.
- *   - Single-host only: flock-equivalent semantics across networks or
- *     multiple mounts are NOT guaranteed. Phase 3 is single-operator by
- *     design so this trade-off is acceptable.
+ *
+ * ===========================================================================
+ * RUNTIME FLOOR (6-SYN-C3)
+ * ===========================================================================
+ * Depends on Atomics.wait on a SharedArrayBuffer-backed Int32Array
+ * (see sleepSyncMs above). package.json `engines.node` declares the
+ * supported Node floor. On older runtimes the helper will throw at
+ * first use rather than silently spin.
  */
 function withFileLock<T>(
   targetPath: string,
@@ -2090,11 +2130,11 @@ function emptySummary(): ExecutionSummary {
 // running the executor (e.g., `onto promote --status <session-id>`).
 export { loadApplyState };
 
-// Test-only exports for unit coverage of internal primitives that do not
-// warrant a full public API seat. Production code MUST NOT import these.
+// Test-only exports. Kept minimal (6-SYN-D2) — only primitives directly
+// exercised by tests are exposed. Additional helpers (isPidAlive,
+// readLockHolderPid, replaceLineAtIndex) are covered indirectly via the
+// withFileLock and applyCrossAgentDedup paths. Production code MUST NOT
+// import __testExports.
 export const __testExports = {
   withFileLock,
-  replaceLineAtIndex,
-  isPidAlive,
-  readLockHolderPid,
 };

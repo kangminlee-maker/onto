@@ -7967,14 +7967,24 @@ async function main(): Promise<void> {
     );
   });
 
-  // E-P159 — 5-D1 empirical: rerun fidelity of `onto promote --apply`.
-  //          Run a session with promotion + cross-agent dedup. First apply
-  //          succeeds only the promotion (dedup member file missing →
-  //          preflight fails → failed_resumable). Re-run --apply on the
-  //          same session — the isPending filter must skip the already-
-  //          applied promotion and only re-attempt the dedup decision.
-  //          Resolves SYN-CC1-RERUN-COMMAND disagreement empirically.
-  await test("E-P159 onto promote --apply re-run skips already-applied via isPending (5-D1)", async () => {
+  // E-P159 — isPending filter skips already-applied decisions on the
+  //          resume path. This is a NARROW claim: it demonstrates that
+  //          when resume:true is passed and a prior successful promotion
+  //          exists in apply-state, the second executor run does NOT
+  //          replay that promotion. It does NOT (and cannot on this
+  //          fixture) exercise the broader "rerun picks up failed
+  //          decisions" contract — failed_resumable decisions are moved
+  //          out of pending_decisions on markFailed, so the second run
+  //          sees no pending work left and reports a terminal outcome
+  //          rather than re-attempting the dedup that failed on the
+  //          first run. See 6-SYN-C2 narrowing.
+  //
+  //          What this test IS about: the B-A isPending filter from
+  //          promote-executor correctly recognizes already-applied
+  //          promotion decisions from prior apply-state on resume, so
+  //          the promotion side-effect (appended line in global file)
+  //          does not duplicate on a rerun.
+  await test("E-P159 isPending filter prevents promotion replay on resume (narrow proof)", async () => {
     const projectRoot = makeTmpDir("e-p159-proj");
     const fakeOnto = makeTmpDir("e-p159-home");
     const fakeAuditStatePath = path.join(fakeOnto, "audit-state.yaml");
@@ -8133,20 +8143,21 @@ async function main(): Promise<void> {
       forceStale: true,
       resume: true,
     });
-    // NOTE on resume semantics: in the current apply-state model,
+    // Resume semantics note: in the current apply-state model,
     // markFailed moves the decision OUT of pending_decisions into
     // failed_decisions. On resume, the executor's pendingKeys snapshot
     // is taken from the loaded state's pending_decisions, so previously
     // failed_resumable decisions are NOT automatically retried — the
-    // rerun reports "completed" with no work to do. Whether failed
+    // rerun reports a terminal outcome with no work left. Whether failed
     // decisions should be re-enqueued on rerun is a separate contract
-    // question (tracked out of scope for this test).
+    // question (not claimed by this test).
     //
-    // What THIS test proves is the SYN-CC1-RERUN-COMMAND resolution:
-    // the isPending filter correctly skips the already-applied
-    // promotion, so `onto promote --apply` rerun is safe even when the
-    // session already has applied side effects. That proof lives in
-    // the promoCountAfter assertion below.
+    // What THIS test narrowly asserts: the B-A isPending filter on the
+    // resume path correctly skips the promotion because it is in
+    // applied_decisions. The proof is the promoCountAfter assertion
+    // below — without the filter, a fresh apply on the same fixture
+    // would re-run applyPromotion and duplicate the line in the global
+    // file.
     assert(
       secondOutcome.kind === "completed" ||
         secondOutcome.kind === "failed_resumable" ||
@@ -8154,9 +8165,13 @@ async function main(): Promise<void> {
       `second apply returns a terminal outcome (got ${secondOutcome.kind})`,
     );
 
-    // CRITICAL: no duplicate promotion line — isPending filter did its job.
-    // This is the actual SYN-CC1-RERUN-COMMAND proof: plain --apply rerun
-    // does NOT replay the previously successful promotion.
+    // CRITICAL: no duplicate promotion line — isPending filter did its
+    // job. A fresh (non-resume) apply would see the approved promotion
+    // in the decisions file and route through applyPromotion, which
+    // appends the candidate line to the global structure file and
+    // bumps promoCount to 2. Because resume:true loads prior state and
+    // the promotion is in applied_decisions, pendingKeys excludes it
+    // and applyAndPersist() skips the call.
     globalContent = fs.readFileSync(structurePath, "utf8");
     const promoCountAfter = (
       globalContent.match(/rerun fidelity candidate/g) ?? []
@@ -8164,7 +8179,7 @@ async function main(): Promise<void> {
     assertEqual(
       promoCountAfter,
       1,
-      "rerun did NOT replay the already-applied promotion (isPending filter)",
+      "rerun did NOT replay the already-applied promotion (isPending filter on resume path)",
     );
 
     // The apply-state on disk still records the dedup failure from the
@@ -8306,6 +8321,116 @@ async function main(): Promise<void> {
           (cpuMsTotal / wallElapsed) *
           100
         ).toFixed(1)}%)`,
+    );
+
+    // Cleanup
+    try {
+      fs.unlinkSync(lockPath);
+    } catch {
+      /* already gone */
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Batch 16 — 6th review (20260409-2fd17ef9) fixes
+  //   6-SYN-C1: stale-lock contract weakened to "best-effort advisory"
+  //   6-SYN-C2: E-P159 narrow naming + comment
+  //   6-SYN-C3: package.json engines.node declaration
+  //   6-SYN-CC1: isPidAlive JSDoc clarification (EPERM → alive)
+  //   6-SYN-D2: __testExports minimized to withFileLock only
+  //   6-SYN-U1: malformed-PID reclaim branch test
+  // -------------------------------------------------------------------------
+
+  // E-P162 — 6-SYN-U1: lockfile with a malformed PID (unparseable first line)
+  //          must NOT trigger reclaim. The helper's readLockHolderPid returns
+  //          null for unparseable content, and the reclaim branch explicitly
+  //          requires a numeric PID, so the wait path takes over. Verified
+  //          end-to-end by pre-creating a malformed lockfile with a backdated
+  //          mtime and asserting that withFileLock times out at the wait
+  //          budget instead of reclaiming.
+  await test("E-P162 withFileLock does NOT reclaim stale lock with malformed PID (6-SYN-U1)", async () => {
+    const { __testExports: execExports } = await import(
+      "./promote-executor.js"
+    );
+    const { withFileLock } = execExports;
+
+    const dir = makeTmpDir("e-p162");
+    const target = path.join(dir, "target.txt");
+    fs.writeFileSync(target, "original", "utf8");
+    const lockPath = `${target}.lock`;
+
+    // Case 1: non-numeric first line. The lockfile is old enough to cross
+    // staleAfterMs (backdated 1 minute) AND contains garbage where a PID
+    // should be. reclaim must NOT fire (null PID → indeterminate → no
+    // reclaim). The acquire times out at waitMs.
+    fs.writeFileSync(
+      lockPath,
+      "not-a-pid\n2020-01-01T00:00:00Z\n" + target + "\n",
+      "utf8",
+    );
+    const backdate = new Date(Date.now() - 60 * 1000);
+    fs.utimesSync(lockPath, backdate, backdate);
+
+    const startedAt = Date.now();
+    let caught1: unknown = null;
+    try {
+      withFileLock(target, () => "should-never-run", { waitMs: 250 });
+    } catch (e) {
+      caught1 = e;
+    }
+    const elapsed1 = Date.now() - startedAt;
+    assert(
+      caught1 instanceof Error &&
+        caught1.message.includes("could not acquire lock"),
+      "malformed PID lockfile → acquire times out (no reclaim)",
+    );
+    assert(
+      elapsed1 >= 200,
+      `waited at least waitMs (elapsed=${elapsed1}ms)`,
+    );
+    // The lockfile is still there — reclaim did NOT happen
+    assert(
+      fs.existsSync(lockPath),
+      "malformed lockfile preserved — reclaim refused",
+    );
+
+    // Case 2: empty lockfile (zero bytes). Same reclaim refusal expected.
+    fs.writeFileSync(lockPath, "", "utf8");
+    fs.utimesSync(lockPath, backdate, backdate);
+    let caught2: unknown = null;
+    try {
+      withFileLock(target, () => "should-never-run", { waitMs: 200 });
+    } catch (e) {
+      caught2 = e;
+    }
+    assert(
+      caught2 instanceof Error &&
+        caught2.message.includes("could not acquire lock"),
+      "empty lockfile → acquire times out (no reclaim)",
+    );
+    assert(
+      fs.existsSync(lockPath),
+      "empty lockfile preserved — reclaim refused",
+    );
+
+    // Case 3: negative PID (structurally valid integer but invalid). The
+    // helper must reject any non-positive integer.
+    fs.writeFileSync(lockPath, "-1\n2020-01-01T00:00:00Z\n", "utf8");
+    fs.utimesSync(lockPath, backdate, backdate);
+    let caught3: unknown = null;
+    try {
+      withFileLock(target, () => "should-never-run", { waitMs: 200 });
+    } catch (e) {
+      caught3 = e;
+    }
+    assert(
+      caught3 instanceof Error &&
+        caught3.message.includes("could not acquire lock"),
+      "negative PID lockfile → acquire times out (no reclaim)",
+    );
+    assert(
+      fs.existsSync(lockPath),
+      "negative-PID lockfile preserved — reclaim refused",
     );
 
     // Cleanup

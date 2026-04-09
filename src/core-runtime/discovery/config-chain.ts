@@ -26,6 +26,15 @@ export interface OntoConfig {
   max_listing_entries?: number | string;
   max_embed_lines?: number | string;
   output_language?: string;
+  /**
+   * Learning extraction mode for review sessions.
+   * Valid values: disabled | shadow | active
+   * Resolution priority: env var ONTO_LEARNING_EXTRACT_MODE > this field > default (disabled).
+   * - disabled: extractor is skipped (Newly Learned sections are written to round1 files but not processed)
+   * - shadow: extractor runs and writes manifest but does NOT update live project learnings
+   * - active: extractor runs and updates {project}/.onto/learnings/{agent-id}.md
+   */
+  learning_extract_mode?: string;
 }
 
 async function readConfigAt(dir: string): Promise<OntoConfig> {

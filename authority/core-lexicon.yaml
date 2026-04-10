@@ -14,18 +14,20 @@ legacy_alias_governance:
   owner: "core-lexicon.yaml (this file)"
   precedence: "canonical_label always wins. legacy_aliases exist for comprehension bridging only."
   lifecycle: "A legacy alias is retired when zero prototype files reference it."
-  retire_gate: "Dual-read fallback code (lens-registry.ts canonicalizeLensId, paths.ts resolveWithFallback) may be removed when: (1) zero onto_* learning files exist in any active seat, AND (2) at least one successful full review session has run with bare IDs."
+  retire_gate: "Dual-read fallback code (lens-registry.ts canonicalizeLensId, paths.ts resolveWithFallback) may be removed when: (1) zero onto_* learning files exist in project AND user seats (active review/promote sessions 제외), AND (2) at least one successful full review session has run with bare IDs."
   relation_to_translation_reference: "translation-reference.yaml is a NON-AUTHORITATIVE onboarding aid. This governance block is the canonical bridge."
-review_taxonomy_migration:
-  note: "Informative record. Canonical aliases are owned by each entity/term's legacy_aliases field. See development-records/tracking/ for full history."
+# review_taxonomy_migration: removed in v0.2.0. Canonical aliases are owned by each entity/term's legacy_aliases field.
 
 # ---------------------------------------------------------------------------
 # Authoring Rules
 # ---------------------------------------------------------------------------
 
 authoring_rules:
-  canonical_identity: "YAML key = canonical identifier. canonical_label은 표시용."
+  canonical_identity: "YAML key = canonical identifier. canonical_label은 표시용. terms의 canonical identifier는 term_id."
   identifier_resolution: "entities key를 우선 resolve. 동명 term이 존재하면 entities가 canonical."
+  term_frame:
+    required_slots: [term_id, canonical_label, korean_label, definition, term_status]
+    optional_slots: [axis, allowed_values, notes, legacy_aliases, contract_ref]
   relation_ownership: "source entity(및 그 instances)가 outbound relation만 소유. inverse는 derived, authored하지 않음."
   relation_target_resolution: "relation target은 entities의 key 또는 terms의 term_id로 resolve된다."
   relation_execution_rules_ref: >
@@ -38,7 +40,7 @@ authoring_rules:
     references: "source가 target을 검증 기준 또는 맥락으로 참조한다. target을 변경하지 않는다."
     produces: "source가 target artifact를 산출물로 생성한다. creates와 달리 lifecycle 관리 대상이 아닌 artifact."
     dispatches: "source가 target을 독립적 실행 책임 단위(process, lens, stage)로 호출한다."
-    extension: "새 relation type 도입 시 기존 5종과의 의미 경계를 명시해야 한다."
+    extension: "새 relation type 도입 시: (1) 기존 5종 각각과의 의미 경계를 1문장으로 기술, (2) 이 vocabulary 블록에 추가, (3) lexicon_version minor bump."
   relation_note_interpretation: >
     relation의 note는 정보 제공 목적이며 규범적 실행 규칙이 아니다.
     실행 규칙은 반드시 execution_rules_ref로 위임한다.
@@ -47,6 +49,7 @@ authoring_rules:
   authority_boundary: >
     이 파일은 개념 식별(definition, core_value, attributes, relations)을 소유.
     실행 규칙(precondition, transition, constraint)은 processes/ 및 design-principles/에 위임.
+    위임 대상 문서는 역방향으로 "개념 SSOT: core-lexicon.yaml의 {entity/term}" 참조를 갖추는 것을 권장.
   core_value_boundary: >
     core_value는 "이 개념이 온톨로지에 존재하는 이유"(existence justification)만 기술.
     "이 개념을 특정 방식으로 사용해야 하는 이유"(usage justification)는 execution_rules_ref에 위임.
@@ -57,11 +60,12 @@ authoring_rules:
     required_slots: [canonical_label, korean_label, definition, core_value]
     optional_slots: [attributes, relations, instances, execution_rules_ref, notes, legacy_aliases]
     instance_minimum: "definition 필수. instances는 parent의 relations/attributes를 상속하며, 추가로 자체 relations 및 notes를 정의할 수 있다."
-  schema_evolution: >
-    적용 대상: schema_version. additive change = minor 올림.
-    entity/attribute 삭제·의미 변경 = major 올림.
+  schema_version_evolution: >
+    additive change = minor 올림. entity/attribute 삭제·의미 변경 = major 올림.
     0.x 단계에서는 minor가 구조 변경을 포함할 수 있다.
-    lexicon_version은 schema_version과 독립. 내용 추가/수정 시 minor, 구조 변경 시 major.
+  lexicon_version_evolution: >
+    내용 추가/수정 시 minor 올림. 구조(섹션 신설/폐지) 변경 시 major 올림.
+    schema_version과 독립적으로 진화한다.
   schema_migration: "schema_version 부재 시 '1'로 간주."
   partition_trigger: "entity 수 100개 또는 파일 크기 50KB 초과 시 domain별 분할 검토."
   definition_language: "entities: 한국어. shared_attributes: 기존 영문 유지. terms: 기존 영문 유지, 신규는 한국어."
@@ -87,18 +91,20 @@ shared_attributes:
       deprecated: "퇴역 후보"
       retired: "퇴역 완료"
     notes:
-      - "전이 모델은 각 entity의 execution_rules_ref.lifecycle_transition에 정의됨"
-      - "이 값 집합을 소비하는 문서: processes/promote.md, processes/promote-domain.md, design-principles/project-locality-principle.md §2.2"
+      - "전이 모델과 소비 문서는 각 entity의 execution_rules_ref에서 확인"
   scope:
     definition: "Storage ownership boundary of a knowledge asset."
     values:
       user: "사용자 전역 (~/.onto/)"
       project: "프로젝트 범위 ({project}/.onto/)"
-      domain: "특정 도메인 범위"
+      domain: "특정 도메인 범위 (~/.onto/domains/{domain}/ 또는 {project}/.onto/domains/{domain}/)"
 
 # ---------------------------------------------------------------------------
-# Entities (Stage 1: review-critical)
+# Entities
 # ---------------------------------------------------------------------------
+# Stage 1 scope: review 실행 체인에 필요한 entity만 등록.
+# build, ask, learn, govern, design의 고유 개념(process entity, dispatch target 등)은
+# Stage 2에서 추가. 이 scope 경계는 의도적이며, 비-review 개념의 부재는 누락이 아님.
 
 entities:
   learning:
@@ -117,7 +123,9 @@ entities:
           values: ["guardrail", "foundation", "convention"]
         learning_impact:
           definition: "학습 항목의 영향 수준. 생성 시 결정, 불변"
-          values: ["high", "normal"]
+          values:
+            high: "이 학습이 없으면 critical 수준의 실패가 반복되거나, 복구 비용이 매우 높은 경우"
+            normal: "유용하지만 부재 시 영향이 high 미만인 경우"
     execution_rules_ref:
       data_accumulation: "design-principles/project-locality-principle.md §2.2"
       consumption_precondition: "design-principles/project-locality-principle.md §2.2"
@@ -133,7 +141,7 @@ entities:
     relations:
       - type: creates
         target: learning
-        note: "review/ask 실행 시 학습 생성. lifecycle transition은 learning.execution_rules_ref.lifecycle_transition 참조"
+        note: "review 실행 시 학습 생성. lifecycle transition은 learning.execution_rules_ref.lifecycle_transition 참조"
       - type: consumes
         target: learning
         note: "consumption precondition은 learning.execution_rules_ref.consumption_precondition 참조"
@@ -183,26 +191,18 @@ entities:
     korean_label: "진입점"
     definition: "사용자가 onto에 진입하는 최상위 의도"
     core_value: "이 개념이 없으면 사용자 의도와 시스템 프로세스 사이에 해석 공백이 생긴다"
+    notes:
+      - "Stage 1은 review instance만 relation을 보유. build/ask/learn/govern/design의 dispatch target relation은 Stage 2에서 추가."
     instances:
       review:
         definition: "9-lens 구조로 검증"
         relations:
           - { type: dispatches, target: review_lens }
-      build:
-        definition: "지식을 구조화된 artifact로 구축"
-        notes: ["Stage 2에서 dispatch target relation 추가 예정"]
-      ask:
-        definition: "특정 관점에서 질의에 답변"
-        notes: ["Stage 2에서 dispatch target relation 추가 예정"]
-      learn:
-        definition: "학습 축적·승격·큐레이션·감사"
-        notes: ["Stage 2에서 dispatch target relation 추가 예정"]
-      govern:
-        definition: "규칙·구조·프로세스 관리"
-        notes: ["Stage 2에서 dispatch target relation 추가 예정"]
-      design:
-        definition: "대상을 분석하고 설계 문서를 생성"
-        notes: ["Stage 2에서 dispatch target relation 추가 예정"]
+      build: { definition: "지식을 구조화된 artifact로 구축" }
+      ask: { definition: "특정 관점에서 질의에 답변" }
+      learn: { definition: "학습 축적·승격·큐레이션·감사" }
+      govern: { definition: "규칙·구조·프로세스 관리" }
+      design: { definition: "대상을 분석하고 설계 문서를 생성" }
 
 # ---------------------------------------------------------------------------
 # Terms (existing, preserved from v0.1.0 with minimal changes)

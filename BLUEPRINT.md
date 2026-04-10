@@ -622,8 +622,8 @@ create-domain → seed in drafts/
 
 | Path | Scope | Contents |
 |---|---|---|
-| `{project}/.onto/learnings/{lens-id}.md` | Project | 축적 시작점. 리뷰/질의에서 직접 기록 |
-| `~/.onto/learnings/{lens-id}.md` | Global | `onto promote`로 승격된 methodology + domain learnings |
+| `{project}/.onto/learnings/{lens-id}.md` | Project | 축적(creation) 시작점. 소비(consumption) 대상 아님 |
+| `~/.onto/learnings/{lens-id}.md` | Global | `onto promote`로 승격된 학습. 소비(consumption) 유일 소스 |
 | `~/.onto/communication/common.md` | Global | User communication preferences |
 
 **Entry format**: `- [type] [axis tag] [purpose type] content (source: ...) [impact:severity]`

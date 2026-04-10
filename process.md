@@ -452,14 +452,13 @@ You are joining the {team name} team.
 
 [Context Self-Loading]
 Read the files below and construct your own context. Skip if file does not exist:
-1. Project-level learnings: {project}/.onto/learnings/{agent-id}.md
-2. Global learnings: ~/.onto/learnings/{agent-id}.md
-3. Domain document: {resolved_domain_dir}/{corresponding domain document}
+1. Learnings: ~/.onto/learnings/{agent-id}.md (promoted only)
+2. Domain document: {resolved_domain_dir}/{corresponding domain document}
    (Skip this line if {session_domain} is empty)
    (Note: Documents in ~/.onto/drafts/ are never loaded as verification standards.
     When reviewing seed documents, they are loaded as review targets in Step 1, not as domain documents here.)
-4. Communication learning: ~/.onto/communication/common.md
-5. Learning rules: {plugin_path}/learning-rules.md
+3. Communication learning: ~/.onto/communication/common.md
+4. Learning rules: {plugin_path}/learning-rules.md
 
 [Agent-Domain Document Mapping]
 (Refer to the Domain Documents table in this file. Include the corresponding domain document path for the agent.)
@@ -499,13 +498,12 @@ You are {role}.
 [Context Self-Loading]
 Read the files below using `cat` and use them as your verification context.
 Skip if file does not exist:
-1. Project-level learnings: {project}/.onto/learnings/{agent-id}.md
-2. Global learnings: ~/.onto/learnings/{agent-id}.md
-3. Domain document: {resolved_domain_dir}/{corresponding domain document}
+1. Learnings: ~/.onto/learnings/{agent-id}.md (promoted only)
+2. Domain document: {resolved_domain_dir}/{corresponding domain document}
    (Skip this line if {session_domain} is empty)
    (Note: Documents in ~/.onto/drafts/ are never loaded as verification standards.
     When reviewing seed documents, they are loaded as review targets, not as domain documents here.)
-4. Communication learning: ~/.onto/communication/common.md
+3. Communication learning: ~/.onto/communication/common.md
 
 [Agent-Domain Document Mapping]
 (Refer to the Domain Documents table in process.md.)
@@ -548,9 +546,8 @@ You are synthesize (review synthesis stage).
 
 [Context Self-Loading]
 Read the files below using `cat`. Skip if file does not exist:
-1. Project-level learnings: {project}/.onto/learnings/synthesize.md
-2. Global learnings: ~/.onto/learnings/synthesize.md
-3. Communication learning: ~/.onto/communication/common.md
+1. Learnings: ~/.onto/learnings/synthesize.md (promoted only)
+2. Communication learning: ~/.onto/communication/common.md
 
 [Codex Configuration]
 {If codex.model is set: --model {value}}

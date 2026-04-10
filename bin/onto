@@ -3,34 +3,90 @@
 // Global CLI entry point for onto.
 // Uses tsx for TypeScript execution in development.
 // For production, compile first: npm run build
+//
+// Project Locality Principle (design-principles/project-locality-principle.md):
+// If a project-local installation exists, delegate execution to it.
+// --global flag bypasses delegation.
 
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { execSync } from "node:child_process";
+import fs from "node:fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ontoRoot = path.resolve(__dirname, "..");
 
-// Check for compiled dist first
-const distEntry = path.join(ontoRoot, "dist", "cli.js");
-const srcEntry = path.join(ontoRoot, "src", "cli.ts");
+// ---------------------------------------------------------------------------
+// Project-local delegation (§2.1)
+// ---------------------------------------------------------------------------
 
-import fs from "node:fs";
+function findProjectRoot(startDir) {
+  let dir = startDir;
+  while (true) {
+    if (
+      fs.existsSync(path.join(dir, ".onto", "config.yml")) ||
+      fs.existsSync(path.join(dir, ".git")) ||
+      fs.existsSync(path.join(dir, "package.json"))
+    ) {
+      return dir;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) return startDir;
+    dir = parent;
+  }
+}
 
-if (fs.existsSync(distEntry)) {
-  // Production: use compiled JS
-  await import(distEntry);
-} else {
-  // Development: use tsx
-  const tsxBin = path.join(ontoRoot, "node_modules", ".bin", "tsx");
-  const args = [srcEntry, ...process.argv.slice(2)];
+function tryDelegateToLocal(argv) {
+  if (argv.includes("--global")) return false;
+
+  const projectRoot = findProjectRoot(process.cwd());
+  const localBin = path.join(projectRoot, "node_modules", "onto-core", "bin", "onto");
+
+  // Don't delegate to ourselves
+  if (!fs.existsSync(localBin)) return false;
+  const resolvedLocal = fs.realpathSync(localBin);
+  const resolvedSelf = fs.realpathSync(fileURLToPath(import.meta.url));
+  if (resolvedLocal === resolvedSelf) return false;
+
+  // CON-2: Force ONTO_HOME to the local installation to prevent resource mismatch (§3 #5)
+  const localOntoRoot = path.resolve(path.dirname(localBin), "..");
   try {
-    execSync(`"${tsxBin}" ${args.map(a => `"${a}"`).join(" ")}`, {
+    execSync(`"${process.execPath}" "${localBin}" ${argv.map(a => `"${a}"`).join(" ")}`, {
       stdio: "inherit",
       cwd: process.cwd(),
-      env: { ...process.env, ONTO_HOME: ontoRoot },
+      env: { ...process.env, ONTO_HOME: localOntoRoot },
     });
   } catch (error) {
     process.exit(error && typeof error === "object" && "status" in error ? Number(error.status) || 1 : 1);
+  }
+  process.exit(0);
+}
+
+const userArgs = process.argv.slice(2);
+
+if (!tryDelegateToLocal(userArgs)) {
+  // ---------------------------------------------------------------------------
+  // No local installation — run from this (global/development) binary
+  // ---------------------------------------------------------------------------
+
+  const distEntry = path.join(ontoRoot, "dist", "cli.js");
+  const srcEntry = path.join(ontoRoot, "src", "cli.ts");
+
+  if (fs.existsSync(distEntry)) {
+    // Production: use compiled JS
+    await import(distEntry);
+  } else {
+    // Development: use tsx
+    const tsxBin = path.join(ontoRoot, "node_modules", ".bin", "tsx");
+    const args = [srcEntry, ...userArgs];
+    try {
+      execSync(`"${tsxBin}" ${args.map(a => `"${a}"`).join(" ")}`, {
+        stdio: "inherit",
+        cwd: process.cwd(),
+        env: { ...process.env, ONTO_HOME: ontoRoot },
+      });
+    } catch (error) {
+      process.exit(error && typeof error === "object" && "status" in error ? Number(error.status) || 1 : 1);
+    }
   }
 }

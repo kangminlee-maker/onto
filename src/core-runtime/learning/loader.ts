@@ -375,8 +375,11 @@ export function loadLearningsForAgent(
   const warnings: string[] = [];
   const filePaths: string[] = [];
 
-  // C-1/C-2: Load and parse — per-file try-catch so one file failure doesn't block the other
-  for (const [scope, filePath] of [["user", paths.user_path], ["project", paths.project_path]] as const) {
+  // C-1/C-2: Load and parse — promoted (global/user) learnings only.
+  // Project-level learnings (seed, unpromoted) are excluded from consumption
+  // to prevent drift. They serve as input for creation and promotion only.
+  // See design-principles/project-locality-principle.md §2.2.
+  for (const [scope, filePath] of [["user", paths.user_path]] as const) {
     if (!filePath) continue;
     filePaths.push(filePath);
     try {

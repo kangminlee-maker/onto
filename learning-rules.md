@@ -13,7 +13,9 @@
 | Audit (감사) | judgment 학습 재검증 + event marker 보유 학습 퇴역 검토 | promote Step 8 |
 | Verification quality | 학습이 새로운 발견을 가능하게 하거나 기존에 놓쳤을 문제를 탐지하는 정도 | 소비 단계에서 실현 |
 
-**Note**: "Verification quality"(검증 결과의 품질)와 "Learning Quality Assurance"(학습 항목의 품질 보증)는 다른 개념이다. 전자는 시스템 목적, 후자는 promote 프로세스의 범위이다.
+**Learning의 핵심 가치**: `authority/core-lexicon.yaml` entities.learning 참조. 소비(consumption)는 promoted 학습만 대상 — `design-principles/project-locality-principle.md` §2.2 참조.
+
+**Note**: "Verification quality"(검증 결과의 품질)와 "Learning Quality Assurance"(학습 항목의 품질 보증)는 다른 개념이다. 전자는 핵심 가치(비용 절감)가 실현되는 형태, 후자는 promote 프로세스의 범위이다.
 
 **Note**: 수명주기에 "퇴역(retirement)"을 명시적으로 포함. 퇴역은 보존 상태에서 벗어나는 전이(transition)이며, 내용은 주석으로 보존된다.
 

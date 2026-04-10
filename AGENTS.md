@@ -22,6 +22,7 @@
 | 1 | [core-lexicon.yaml](/Users/kangmin/cowork/onto/authority/core-lexicon.yaml) | authority/ |
 | 2 | [ontology-as-code-guideline.md](/Users/kangmin/cowork/onto/design-principles/ontology-as-code-guideline.md) | design-principles/ |
 | 2 | [llm-native-development-guideline.md](/Users/kangmin/cowork/onto/design-principles/llm-native-development-guideline.md) | design-principles/ |
+| 2 | [project-locality-principle.md](/Users/kangmin/cowork/onto/design-principles/project-locality-principle.md) | design-principles/ |
 | 3 | [productization-charter.md](/Users/kangmin/cowork/onto/design-principles/productization-charter.md) | design-principles/ |
 | 4 | [llm-runtime-interface-principles.md](/Users/kangmin/cowork/onto/design-principles/llm-runtime-interface-principles.md) | design-principles/ |
 | 4 | [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/design-principles/ontology-as-code-naming-charter.md) | design-principles/ |

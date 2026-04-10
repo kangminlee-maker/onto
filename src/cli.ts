@@ -703,8 +703,8 @@ async function main(): Promise<number> {
           "  --help, -h                 Show this help",
           "",
           "Installation:",
-          "  npm install -g onto-core   User install (onto command everywhere)",
-          "  npm install onto-core       Project install (npx onto within project)",
+          "  npm install -g onto-core   Global install (onto command everywhere)",
+          "  npm install onto-core       Project install (npx onto within project, version pinned)",
         ].join("\n"),
       );
       return 0;

@@ -96,7 +96,8 @@ export interface LearningWritePaths {
 /**
  * Resolve the single write target for learning accumulation.
  *
- * Routing: project `.onto/learnings/` directory exists → project scope, else → user scope.
+ * Project Locality Principle (§2.2): always write to project scope.
+ * If `{project}/.onto/learnings/` does not exist, create it.
  * read_paths: both user and project (A-10 dedup). Dual-write 금지.
  * Phase 0: write always uses canonical (bare) ID. Read checks both bare + onto_ fallback.
  */
@@ -116,10 +117,10 @@ export function resolveWritePaths(
     if (fs.existsSync(projectResolved)) readPaths.push(projectResolved);
   }
 
-  // Write path: always canonical (bare) ID
-  if (raw.projectDirExists) {
-    return { write_path: raw.projectPath, write_scope: "project", read_paths: readPaths };
+  // Write path: always project scope (Project Locality Principle §2.2).
+  // Create the directory if it doesn't exist yet.
+  if (!raw.projectDirExists) {
+    fs.mkdirSync(raw.projectDir, { recursive: true });
   }
-
-  return { write_path: raw.userPath, write_scope: "user", read_paths: readPaths };
+  return { write_path: raw.projectPath, write_scope: "project", read_paths: readPaths };
 }

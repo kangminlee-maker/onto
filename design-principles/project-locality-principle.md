@@ -1,0 +1,113 @@
+# Project Locality Principle
+
+> 상태: Active
+> 목적: onto가 여러 설치 형태(global, project, development)로 동작할 때, 실행과 데이터 축적의 우선순위를 고정한다.
+
+---
+
+## 1. Position
+
+onto는 세 가지 방식으로 설치될 수 있다.
+
+| 설치 형태 | 경로 | 용도 |
+|---|---|---|
+| **project** | `{project}/node_modules/onto-core/` | 프로젝트에 버전 고정된 설치 |
+| **global** | 글로벌 `node_modules/onto-core/` (`npm install -g`) | 사용자 전역 설치 |
+| **development** | onto 소스 레포 자체 (`npm link`) | 개발 중 실행 |
+
+이 세 형태가 공존할 수 있으며, 공존할 때의 동작은 아래 원칙으로 결정한다.
+
+`detectInstallationMode()`의 반환값은 `"project"`, `"user"`, `"development"`다. `"user"`는 이 문서의 **global**에 대응한다.
+
+새 설치 형태(monorepo workspace, pnpm/Yarn PnP 등)가 필요할 경우, 이 테이블에 행을 추가하고 §2.1 위임 규칙, §2.2 축적 규칙을 함께 갱신해야 한다.
+
+---
+
+## 2. 핵심 원칙
+
+### 2.1 실행: 프로젝트 로컬이 항상 우선한다
+
+onto CLI 진입 스크립트(`bin/onto`)가 실행될 때, 현재 프로젝트에 로컬 설치(`node_modules/onto-core`)가 존재하면 **로컬 바이너리에 실행을 위임**한다. 글로벌 설치는 로컬이 없을 때의 fallback이다.
+
+이 우선순위는 프로젝트가 고정한 버전의 roles, authority, contract가 항상 사용되도록 보장하기 위한 것이다 (OaC authority chain 무결성).
+
+해석 순서:
+
+1. 프로젝트 `node_modules/onto-core/bin/onto` 존재 → 로컬에 위임
+2. 존재하지 않음 → 현재(global/development) 바이너리가 직접 실행
+
+위임 시 `ONTO_HOME` 환경변수는 로컬 설치 경로로 강제 설정된다. 이는 위임된 프로세스가 global 설치의 리소스를 참조하는 것을 구조적으로 방지한다.
+
+`--global` 플래그로 위임을 건너뛸 수 있다.
+
+**development 모드**: `npm link`로 실행 중인 경우, 로컬 설치와 자기 자신이 동일 바이너리를 가리키면 위임을 건너뛴다 (`realpath` 비교). development 바이너리가 별도 project 설치를 감지한 경우에는 해당 project 설치에 위임한다.
+
+### 2.2 데이터 축적: 프로젝트부터 쌓는다
+
+학습, 리뷰 세션, 설정 등 onto가 생성하는 데이터는 **항상 프로젝트 디렉토리(`{project}/.onto/`)에 먼저 기록**한다. 글로벌 설치만 존재하는 경우에도 동일하다. `{project}/.onto/learnings/` 디렉토리가 아직 없으면 생성 후 기록한다.
+
+| 데이터 종류 | 축적 위치 | 비고 |
+|---|---|---|
+| 리뷰 세션 | `{project}/.onto/review/` | 항상 프로젝트 |
+| promote 세션 | `{project}/.onto/sessions/promote/` | 항상 프로젝트 |
+| 학습 | `{project}/.onto/learnings/` | 프로젝트에 먼저 기록. 디렉토리 없으면 생성 |
+| 설정 | `{project}/.onto/config.yml` | 프로젝트별 |
+
+새 데이터 종류 추가 시 이 테이블에 등록해야 한다. 등록 전 기본 경로는 `{project}/.onto/{feature}/`다.
+
+### 2.3 글로벌 저장소의 역할
+
+`~/.onto/`는 프로젝트 간 공유 자산을 보관하는 곳이다.
+
+| 글로벌 자산 | 용도 | 프로젝트와의 관계 |
+|---|---|---|
+| `~/.onto/domains/` | 검증된 도메인 문서 | 리뷰 시 읽기 참조됨, 프로젝트에서 override 가능 |
+| `~/.onto/learnings/` | 승격된 methodology 학습 | `onto promote`로 프로젝트 학습에서 올림 |
+
+**쓰기 흐름은 단방향**이다: **프로젝트 → 글로벌** (`onto promote`). 글로벌에서 프로젝트로 자동 복사되는 경로는 없다.
+
+**읽기 시에는 글로벌 자산이 참조**되되, 프로젝트 자산이 우선한다 (project-override 규칙). 이 읽기 참조는 단방향 쓰기 흐름과 별개다.
+
+---
+
+## 3. 위반 판정 기준
+
+아래 중 하나라도 해당하면 이 원칙을 위반한 것이다. 각 기준의 보장 메커니즘은 §4에 명시된다.
+
+1. **글로벌 바이너리가 로컬 설치를 무시하고 직접 실행**한다 (`--global` 플래그 없이) → §4 `bin/onto`
+2. **학습이 `~/.onto/learnings/`에 직접 기록**된다 (promote를 거치지 않고) → §4 `paths.ts`
+3. **리뷰 세션이 프로젝트 외부에 기록**된다 → §4 `cli.ts`
+4. **글로벌 자산이 프로젝트 자산을 자동으로 덮어쓴다** → 해당 기능 없음 (부재가 보장)
+5. **위임된 프로세스가 위임 원본(global)의 리소스(roles, authority)를 사용**한다 → §4 `bin/onto` (`ONTO_HOME` 강제 설정)
+
+---
+
+## 4. 구현 지점
+
+이 원칙은 문서를 런타임이 참조하는 것이 아니라, 코드에 구현된다.
+
+| 구현 위치 | 책임 | 보장하는 위반 기준 |
+|---|---|---|
+| `bin/onto` | 로컬 설치 감지 + 위임 + `ONTO_HOME` 강제 설정 | #1, #5 |
+| `src/core-runtime/discovery/onto-home.ts` | 설치 루트 해석 (리소스 기준 경로 결정) | #5 |
+| `src/core-runtime/discovery/project-root.ts` | 프로젝트 루트 해석 | #3 |
+| `src/core-runtime/learning/shared/paths.ts` | 학습 기록 경로 결정 (프로젝트 우선) | #2 |
+| `src/cli.ts` `detectInstallationMode()` | 설치 형태 감지 (진단용) | — |
+
+---
+
+## 5. 설계 판단 시 적용
+
+새 기능을 설계할 때 아래 세 질문을 확인한다.
+
+### 5.1 이 기능이 생성하는 데이터는 어디에 저장되는가
+
+§2.2 원칙에 따라 프로젝트 `.onto/` 아래에 저장되어야 한다. 글로벌 경로에 직접 쓰는 기능은 promote 계열(프로젝트 → 글로벌 승격)만 허용된다.
+
+### 5.2 이 기능이 읽는 리소스의 출처는 어디인가
+
+§2.1 원칙에 따라, 위임된 경우 리소스(roles, authority, domains)는 위임받은 로컬 설치의 것을 사용한다. 글로벌 설치의 리소스가 혼입되면 §3 기준 #5 위반이다.
+
+### 5.3 `{project}/.onto/` 디렉토리가 없는 경우
+
+신규 프로젝트에서 `.onto/` 디렉토리가 아직 없을 때: `onto` CLI는 Trust Boundary 확인(`checkOntoDirectoryInit`)을 거쳐 사용자 동의 후 디렉토리를 생성한다. 학습 기록은 `{project}/.onto/learnings/`를 생성한 후 프로젝트에 기록한다.

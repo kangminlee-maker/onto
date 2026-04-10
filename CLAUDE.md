@@ -7,6 +7,8 @@
 | 1 | 개념 SSOT | authority/core-lexicon.yaml |
 | 2 | 개발 원칙: OaC | design-principles/ontology-as-code-guideline.md |
 | 2 | 개발 원칙: LLM-Native | design-principles/llm-native-development-guideline.md |
+| 2 | 개발 원칙: 비전문가 소통 | design-principles/non-specialist-communication-guideline.md |
+| 2 | 개발 원칙: 프로젝트 우선 | design-principles/project-locality-principle.md |
 | 3 | 제품 방향 | design-principles/productization-charter.md |
 | 4 | 인터페이스 명세 | design-principles/llm-runtime-interface-principles.md |
 | 4 | 이름 규칙 | design-principles/ontology-as-code-naming-charter.md |
@@ -16,7 +18,7 @@
 | 8 | 기능 프로세스 | processes/*.md, commands/*.md, roles/*.md |
 
 authority/ 구성: 개념 SSOT + 2개 authority-adjacent data seat (core-lens-registry.yaml: 런타임 전용, translation-reference.yaml: 온보딩용 NON-AUTHORITATIVE)
-design-principles/ 구성: rank 2~4 개발 규범 문서 5개 (배포 제외)
+design-principles/ 구성: rank 2~4 개발 규범 문서 7개 (배포 제외)
 위계 밖: development-records/ (이력/참조)
 
 ## design/ 구조 (sprint-kit 흡수, 2026-04-10)

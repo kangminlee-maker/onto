@@ -618,10 +618,12 @@ create-domain → seed in drafts/
 
 ### 6.1 Storage Model (2-Path + Axis Tags)
 
+**Project Locality Principle**: 학습은 항상 프로젝트(`{project}/.onto/learnings/`)에 먼저 기록된다. 글로벌 설치만 존재하는 경우에도 동일하다. 글로벌 학습(`~/.onto/learnings/`)은 `onto promote`를 통해 프로젝트 학습에서 승격된다. 전체 원칙은 `design-principles/project-locality-principle.md` 참조.
+
 | Path | Scope | Contents |
 |---|---|---|
-| `~/.onto/learnings/{lens-id}.md` | Global | Methodology + domain learnings (axis-tagged) |
-| `{project}/.onto/learnings/{lens-id}.md` | Project | Same format, project-specific |
+| `{project}/.onto/learnings/{lens-id}.md` | Project | 축적 시작점. 리뷰/질의에서 직접 기록 |
+| `~/.onto/learnings/{lens-id}.md` | Global | `onto promote`로 승격된 methodology + domain learnings |
 | `~/.onto/communication/common.md` | Global | User communication preferences |
 
 **Entry format**: `- [type] [axis tag] [purpose type] content (source: ...) [impact:severity]`
@@ -862,9 +864,11 @@ onto/
 
 ### 9.3 Global Storage
 
+Project Locality Principle: 글로벌 저장소는 프로젝트 간 공유 자산 보관용. 학습은 `onto promote`로만 도달.
+
 ```
 ~/.onto/
-├── learnings/{lens-id}.md          # Global learnings (2-path model)
+├── learnings/{lens-id}.md          # Promoted learnings (from project via onto promote)
 ├── communication/common.md         # Communication learnings
 ├── domains/{domain}/               # Established domain documents (8 files)
 ├── drafts/{domain}/                # Seed domain documents

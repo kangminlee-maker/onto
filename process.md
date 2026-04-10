@@ -454,8 +454,7 @@ You are joining the {team name} team.
 Read the files below and construct your own context. Skip if file does not exist:
 1. Project-level learnings: {project}/.onto/learnings/{agent-id}.md
 2. Global learnings: ~/.onto/learnings/{agent-id}.md
-3. Domain document (resolved in order: {project}/.onto/domains/{session_domain}/ → ~/.onto/domains/{session_domain}/ → {ontoHome}/domains/{session_domain}/):
-   {resolved_domain_dir}/{corresponding domain document}
+3. Domain document: {resolved_domain_dir}/{corresponding domain document}
    (Skip this line if {session_domain} is empty)
    (Note: Documents in ~/.onto/drafts/ are never loaded as verification standards.
     When reviewing seed documents, they are loaded as review targets in Step 1, not as domain documents here.)
@@ -502,8 +501,7 @@ Read the files below using `cat` and use them as your verification context.
 Skip if file does not exist:
 1. Project-level learnings: {project}/.onto/learnings/{agent-id}.md
 2. Global learnings: ~/.onto/learnings/{agent-id}.md
-3. Domain document (resolved in order: {project}/.onto/domains/{session_domain}/ → ~/.onto/domains/{session_domain}/ → {ontoHome}/domains/{session_domain}/):
-   {resolved_domain_dir}/{corresponding domain document}
+3. Domain document: {resolved_domain_dir}/{corresponding domain document}
    (Skip this line if {session_domain} is empty)
    (Note: Documents in ~/.onto/drafts/ are never loaded as verification standards.
     When reviewing seed documents, they are loaded as review targets, not as domain documents here.)
@@ -550,10 +548,9 @@ You are synthesize (review synthesis stage).
 
 [Context Self-Loading]
 Read the files below using `cat`. Skip if file does not exist:
-1. Learnings: ~/.onto/learnings/synthesize.md
-2. Communication learning: ~/.onto/communication/common.md
-If project-level learnings exist:
-3. Project-level learnings: {project}/.onto/learnings/synthesize.md
+1. Project-level learnings: {project}/.onto/learnings/synthesize.md
+2. Global learnings: ~/.onto/learnings/synthesize.md
+3. Communication learning: ~/.onto/communication/common.md
 
 [Codex Configuration]
 {If codex.model is set: --model {value}}

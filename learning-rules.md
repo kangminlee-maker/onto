@@ -38,10 +38,7 @@ Entry format:
 ```
 
 **Verification learning** (`{project}/.onto/learnings/{agent-id}.md`):
-- Storage path determination (Project Locality Principle §2.2):
-  - Always write to `{project}/.onto/learnings/{agent-id}.md` (project-level)
-  - If `{project}/.onto/learnings/` does not exist, create it
-  - Global learnings (`~/.onto/learnings/`) are reached only through `onto promote`
+- Storage path: `design-principles/project-locality-principle.md` §2.2에 따른다.
 - Do not add if it duplicates an existing entry.
 - If it contradicts an existing entry, replace with the new learning.
 

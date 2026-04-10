@@ -42,6 +42,17 @@ Entry format:
 - Do not add if it duplicates an existing entry.
 - If it contradicts an existing entry, replace with the new learning.
 
+**Design learning** (`{project}/.onto/learnings/design.md`):
+- 파일명 `design.md`는 `{agent-id}.md` 패턴의 확장이다. 기존 learning 파일은 review lens별로 소유되지만(`logic.md`, `structure.md` 등), design learning은 design 프로세스 전체가 하나의 학습 생산자이므로 프로세스 이름을 파일명으로 사용한다. promote, loader 등 `{agent-id}` 패턴을 기반으로 동작하는 코드에서 `design`을 유효한 ID로 인식해야 한다.
+- 저장: 각 Phase 종료 시 `{project}/.onto/learnings/design.md`에 저장
+  - project-local only (project-locality principle §2.2)
+  - entry format, axis tag, purpose type, impact, verification gate: 공통 규칙 적용
+- 소비: `~/.onto/learnings/design.md` (promoted global만)
+  - project-level 학습은 promote 전까지 소비하지 않음
+  - Context Acquisition에서 로드. consumption rules 적용
+- promote: 기존 `onto promote` 흐름에 포함 (디렉토리 스캔)
+- review 학습과의 관계: design 산출물을 review한 학습은 review가 저장. 중복 저장 금지
+
 Entry format:
 ```markdown
 - [{type}] [{axis tag}] [{purpose type}] {learning content} (source: {project name}, {session_domain}, {date}) [impact:{impact_severity}]

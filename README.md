@@ -132,6 +132,7 @@ Usable without domain documents (verified using general principles). Domain docu
 /onto:review {target} --codex        # Use codex host runtime (defaults to subagent)
 /onto:ask-logic {question}           # Ask an individual agent
 /onto:build {path|GitHub URL}        # Build ontology from analysis target
+/onto:design {goal}                  # Design new areas for existing target (brownfield)
 ```
 
 ### Domain Selection
@@ -221,6 +222,13 @@ This is a current implementation-status difference, not a canonical hierarchy or
 |---|---|
 | `/onto:build {path\|URL}` | Build ontology from analysis target (integral exploration) |
 | `/onto:transform {file}` | Transform Raw Ontology to desired format |
+
+### Design
+| Command | Description |
+|---|---|
+| `/onto:design {goal}` | 온톨로지 기반 설계 — 기존 설계 대상에 새 영역 추가 (brownfield) |
+| `/onto:design {goal} @{domain}` | Design with specific domain |
+| `/onto:design {goal} @-` | Design without domain rules |
 
 ### Environment Management
 | Command | Description |

@@ -46,7 +46,7 @@ export async function handleDesignCli(
           "  --scopes-dir <path>         Scopes directory (default: <project-root>/scopes)",
           "  --project-name <name>       Project name for scope ID generation",
           "  --scope-id <id>             Target scope ID (required for align/draft/apply/close)",
-          "  --entry-mode <mode>         'experience' or 'interface' (default: experience)",
+          "  --entry-mode <mode>         'experience', 'interface', or 'process' (default: experience)",
           "  --verdict <verdict>         Align verdict: approve/revise/reject/rescan",
         ].join("\n"),
       );
@@ -92,7 +92,7 @@ async function handleDesignStart(
   const scopesDir = readOption(argv, "scopes-dir") ?? join(projectRoot, "scopes");
   const projectName = readOption(argv, "project-name");
   const scopeId = readOption(argv, "scope-id");
-  const entryMode = (readOption(argv, "entry-mode") ?? "experience") as "experience" | "interface";
+  const entryMode = (readOption(argv, "entry-mode") ?? "experience") as "experience" | "interface" | "process";
 
   // Collect non-flag arguments as description
   const rawInput = argv
@@ -150,7 +150,19 @@ async function handleDesignStart(
       return 0;
     }
 
-    // Full execution result
+    if (result.action === "process_scope_created") {
+      console.log(
+        JSON.stringify({
+          status: "process_scope_created",
+          scope_id: result.scopeId,
+          authority_sources: result.authoritySources.length,
+          authority_consistency: result.authorityConsistency,
+        }, null, 2),
+      );
+      return 0;
+    }
+
+    // Full execution result (code-product path)
     console.log(
       JSON.stringify({
         status: "executed",

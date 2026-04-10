@@ -17,6 +17,9 @@ Display the command reference below in the configured language.
 /onto:review {target} --codex              Use codex host runtime (defaults to subagent)
 /onto:review {target} --claude             Use claude host runtime (defaults to agent-teams)
 /onto:build {path|URL}                     Build ontology from analysis target
+/onto:design {goal}                        Design new areas for existing target (brownfield)
+/onto:design {goal} @{domain}              Design with specific domain
+/onto:design {goal} @-                     Design without domain rules
 /onto:transform {file}                     Transform raw ontology to desired format
 ```
 

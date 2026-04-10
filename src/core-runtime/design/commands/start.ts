@@ -14,7 +14,7 @@
  *   executes immediately (existing tests keep passing).
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   createScope,
@@ -62,8 +62,10 @@ export interface StartInput {
   scopeId?: string;
   /** Title — optional; extracted from brief or rawInput */
   title?: string;
-  /** Entry mode: "experience" | "interface" */
-  entryMode?: "experience" | "interface";
+  /** Entry mode: "experience" | "interface" | "process" */
+  entryMode?: "experience" | "interface" | "process";
+  /** Authority source paths (process mode only) */
+  authoritySources?: Array<{ path: string; rank: number; description: string }>;
   /** Progress callback for scan feedback */
   onProgress?: (message: string) => void;
 }
@@ -109,7 +111,23 @@ export interface StartFailure {
   step: string;
 }
 
-export type StartOutput = StartResult | StartInitResult | StartResumeResult | StartFailure;
+export interface StartProcessResult {
+  success: true;
+  action: "process_scope_created";
+  paths: ScopePaths;
+  scopeId: string;
+  authoritySources: Array<{ path: string; rank: number; description: string }>;
+  authorityConsistency: {
+    passed: boolean;
+    total: number;
+    high: number;
+    medium: number;
+    low: number;
+    violations: Array<{ id: string; type: string; severity: string; summary: string }>;
+  };
+}
+
+export type StartOutput = StartResult | StartInitResult | StartResumeResult | StartProcessResult | StartFailure;
 
 // ─── Scope lookup ───
 
@@ -141,6 +159,11 @@ export function findExistingScope(scopesDir: string, projectName: string): strin
 
 export async function executeStart(input: StartInput): Promise<StartOutput> {
   const progress = input.onProgress ?? (() => {});
+
+  // Process mode: methodology adapter path
+  if (input.entryMode === "process") {
+    return handleProcessStart(input, progress);
+  }
 
   // Backward compatibility: when scopeId + title are provided directly,
   // go straight to Path B execution logic (old interface).
@@ -741,5 +764,379 @@ async function scanSource(source: SourceEntry, etagCache?: EtagCacheData): Promi
       const _exhaustive: never = source;
       return { source: source as SourceEntry, error_type: "parse" as const, message: `Unknown source type` };
     }
+  }
+}
+
+// ─── Process mode: methodology adapter path ───
+
+import { createHash } from "node:crypto";
+
+async function handleProcessStart(
+  input: StartInput,
+  progress: (msg: string) => void,
+): Promise<StartProcessResult | StartFailure> {
+  const { checkAuthorityConsistency } = await import(
+    "../adapters/methodology/perspectives/authority-consistency.js"
+  );
+  const { validateProcessScopeConfig } = await import(
+    "../adapters/methodology/scope-types/process.js"
+  );
+
+  // Step 1: Discover and validate authority sources BEFORE creating scope
+  progress("authority sources를 탐색합니다...");
+
+  const authoritySources = input.authoritySources ?? discoverAuthoritySources(input.projectRoot);
+
+  if (authoritySources.length === 0) {
+    return {
+      success: false,
+      reason: "authority source가 없습니다. --authority-source 플래그로 지정하거나, 프로젝트에 CLAUDE.md authority 위계가 있어야 합니다.",
+      step: "authority_discovery",
+    };
+  }
+
+  // Step 2: Validate process scope config BEFORE creating scope
+  const config = {
+    authority_sources: authoritySources,
+    target_document: input.rawInput || "untitled",
+    perspectives: ["authority-consistency"],
+  };
+
+  const validation = validateProcessScopeConfig(config);
+  if (!validation.valid) {
+    return {
+      success: false,
+      reason: `process scope 설정 오류: ${validation.errors.join("; ")}`,
+      step: "scope_validation",
+    };
+  }
+
+  // Step 3: Load authority documents — fail closed on missing files
+  progress("authority documents를 로드합니다...");
+
+  const { sections, loadErrors } = loadAuthoritySections(authoritySources, input.projectRoot);
+
+  if (loadErrors.length > 0) {
+    return {
+      success: false,
+      reason: `authority 파일 로드 실패: ${loadErrors.join("; ")}. authority 파일이 모두 존재해야 합니다.`,
+      step: "authority_load",
+    };
+  }
+
+  if (sections.length === 0) {
+    return {
+      success: false,
+      reason: "authority 문서를 하나도 로드하지 못했습니다.",
+      step: "authority_load",
+    };
+  }
+
+  // Step 4: Load target document for consistency check (the document being designed/checked)
+  let targetSections: Array<{ id: string; title: string; content: string }> = [];
+  const targetDocPath = resolveTargetDocument(input.rawInput, input.projectRoot);
+  if (targetDocPath) {
+    try {
+      const targetContent = readFileSync(targetDocPath, "utf-8");
+      targetSections = parseDocumentSections(targetDocPath, targetContent);
+      progress(`target document 로드: ${targetDocPath} (${targetSections.length}개 섹션)`);
+    } catch {
+      // Target document may not exist yet (new design) — proceed without it
+      progress("target document가 아직 존재하지 않습니다. authority 간 정합성만 검증합니다.");
+    }
+  }
+
+  // Step 5: NOW create scope (all prerequisites validated)
+  progress("process scope를 생성합니다...");
+
+  const projectName = input.projectName ?? "process";
+  const scopeId = input.scopeId ?? generateScopeId(input.scopesDir, projectName);
+  const paths = createScope(input.scopesDir, scopeId);
+
+  // Record scope.created — use "experience" as entry_mode for state machine compatibility
+  // The actual scope kind is recorded in the description for downstream consumers
+  const createResult = appendScopeEvent(paths, {
+    type: "scope.created",
+    actor: "user",
+    payload: {
+      title: input.rawInput || "Process Design",
+      description: `[scope_kind:process] authority_sources:${authoritySources.length}`,
+      entry_mode: "experience",
+    },
+  });
+
+  if (!createResult.success) {
+    return { success: false, reason: wrapGateError(createResult.reason), step: "scope.created" };
+  }
+
+  // Record grounding with authority sources
+  const groundingStarted = appendScopeEvent(paths, {
+    type: "grounding.started",
+    actor: "system",
+    payload: {
+      sources: authoritySources.map(s => ({
+        type: "add-dir" as const,
+        path: join(input.projectRoot, s.path),
+        description: `[rank ${s.rank}] ${s.description}`,
+      })),
+    },
+  });
+
+  if (!groundingStarted.success) {
+    return { success: false, reason: wrapGateError(groundingStarted.reason), step: "grounding.started" };
+  }
+
+  // Step 6: Run authority-consistency check
+  progress("authority-consistency 검증을 실행합니다...");
+
+  // Use target sections if available, otherwise check authority documents against each other
+  const checkSections = targetSections.length > 0 ? targetSections : sections;
+  const authorityRefs = authoritySources.map(s => ({
+    source: s.path,
+    rank: s.rank,
+    relevant_rules: extractRulesFromContent(s.path, input.projectRoot),
+  }));
+
+  const consistencyResult = checkAuthorityConsistency({
+    sections: checkSections,
+    authority_refs: authorityRefs,
+  });
+
+  // Record grounding.completed with real content hashes
+  const sourceHashes: Record<string, string> = {};
+  for (const s of sections) {
+    sourceHashes[s.id] = createHash("sha256").update(s.content).digest("hex").slice(0, 16);
+  }
+
+  const groundingCompleted = appendScopeEvent(paths, {
+    type: "grounding.completed",
+    actor: "system",
+    payload: {
+      snapshot_revision: 1,
+      source_hashes: sourceHashes,
+      perspective_summary: {
+        experience: 0,
+        code: 0,
+        policy: authoritySources.length,
+      },
+    },
+  });
+
+  if (!groundingCompleted.success) {
+    return { success: false, reason: wrapGateError(groundingCompleted.reason), step: "grounding.completed" };
+  }
+
+  // Write scope.md
+  const finalState = reduce(readEvents(paths.events));
+  writeFileSync(paths.scopeMd, renderScopeMd(finalState), "utf-8");
+
+  // Write sources.yaml for stale-check compatibility
+  const sourcesYamlContent = authoritySources.map(s =>
+    `- path: ${join(input.projectRoot, s.path)}\n  rank: ${s.rank}\n  description: "${s.description}"`
+  ).join("\n");
+  writeFileSync(join(paths.build, "authority-sources.yaml"), sourcesYamlContent + "\n", "utf-8");
+
+  progress(`process scope 생성 완료 (authority sources ${authoritySources.length}개, violations ${consistencyResult.summary.total}건)`);
+
+  return {
+    success: true,
+    action: "process_scope_created",
+    paths,
+    scopeId,
+    authoritySources,
+    authorityConsistency: {
+      passed: consistencyResult.passed,
+      total: consistencyResult.summary.total,
+      high: consistencyResult.summary.high,
+      medium: consistencyResult.summary.medium,
+      low: consistencyResult.summary.low,
+      violations: consistencyResult.violations.map(v => ({
+        id: v.id,
+        type: v.type,
+        severity: v.severity,
+        summary: v.summary,
+      })),
+    },
+  };
+}
+
+// ─── Process mode helpers ───
+
+/**
+ * Auto-discover authority sources from the project's CLAUDE.md hierarchy.
+ *
+ * Reads CLAUDE.md to find the authority table, falling back to known
+ * onto canonical paths. All paths are relative to projectRoot.
+ */
+function discoverAuthoritySources(projectRoot: string): Array<{ path: string; rank: number; description: string }> {
+  const sources: Array<{ path: string; rank: number; description: string }> = [];
+
+  // Try to parse CLAUDE.md authority table first
+  const claudeMdPath = join(projectRoot, "CLAUDE.md");
+  if (existsSync(claudeMdPath)) {
+    try {
+      const claudeContent = readFileSync(claudeMdPath, "utf-8");
+      const parsed = parseAuthorityTable(claudeContent, projectRoot);
+      if (parsed.length > 0) return parsed;
+    } catch {
+      // Fall through to hardcoded fallback
+    }
+  }
+
+  // Fallback: known onto canonical paths
+  const candidates = [
+    { rel: "authority/core-lexicon.yaml", rank: 1, desc: "개념 SSOT" },
+    { rel: "design-principles/ontology-as-code-guideline.md", rank: 2, desc: "개발 원칙: OaC" },
+    { rel: "design-principles/llm-native-development-guideline.md", rank: 2, desc: "개발 원칙: LLM-Native" },
+    { rel: "design-principles/non-specialist-communication-guideline.md", rank: 2, desc: "개발 원칙: 비전문가 소통" },
+    { rel: "design-principles/project-locality-principle.md", rank: 2, desc: "개발 원칙: 프로젝트 우선" },
+    { rel: "design-principles/productization-charter.md", rank: 3, desc: "제품 방향" },
+    { rel: "design-principles/llm-runtime-interface-principles.md", rank: 4, desc: "인터페이스 명세" },
+    { rel: "design-principles/ontology-as-code-naming-charter.md", rank: 4, desc: "이름 규칙" },
+    { rel: "process.md", rank: 7, desc: "운영 인프라" },
+    { rel: "learning-rules.md", rank: 7, desc: "운영 인프라: 학습 규칙" },
+  ];
+
+  for (const c of candidates) {
+    if (existsSync(join(projectRoot, c.rel))) {
+      sources.push({ path: c.rel, rank: c.rank, description: c.desc });
+    }
+  }
+
+  return sources;
+}
+
+/**
+ * Parse authority hierarchy table from CLAUDE.md.
+ * Looks for the "Authority 위계" table pattern.
+ */
+function parseAuthorityTable(content: string, projectRoot: string): Array<{ path: string; rank: number; description: string }> {
+  const sources: Array<{ path: string; rank: number; description: string }> = [];
+  const lines = content.split("\n");
+
+  let inTable = false;
+  for (const line of lines) {
+    if (line.includes("Authority 위계") || line.includes("순위") && line.includes("역할") && line.includes("위치")) {
+      inTable = true;
+      continue;
+    }
+    if (inTable && line.startsWith("|")) {
+      const cells = line.split("|").map(c => c.trim()).filter(c => c.length > 0);
+      if (cells.length >= 3) {
+        const rank = parseInt(cells[0]!, 10);
+        if (!isNaN(rank) && rank >= 1) {
+          const desc = cells[1]!;
+          const pathStr = cells[2]!;
+          // Skip directory paths, glob patterns, and comma-separated lists
+          if (pathStr.endsWith("/") || pathStr.includes("*") || pathStr.includes(",")) continue;
+          const fullPath = join(projectRoot, pathStr);
+          if (existsSync(fullPath) && !statSync(fullPath).isDirectory()) {
+            sources.push({ path: pathStr, rank, description: desc });
+          }
+        }
+      }
+    } else if (inTable && !line.startsWith("|") && line.trim().length > 0 && !line.startsWith("#")) {
+      break; // End of table
+    }
+  }
+
+  return sources;
+}
+
+/**
+ * Load authority documents as sections. Fail closed — returns errors for unreadable files.
+ * All paths resolved relative to projectRoot.
+ */
+function loadAuthoritySections(
+  sources: Array<{ path: string; rank: number; description: string }>,
+  projectRoot: string,
+): { sections: Array<{ id: string; title: string; content: string }>; loadErrors: string[] } {
+  const sections: Array<{ id: string; title: string; content: string }> = [];
+  const loadErrors: string[] = [];
+
+  for (const s of sources) {
+    const fullPath = join(projectRoot, s.path);
+    try {
+      const content = readFileSync(fullPath, "utf-8");
+      sections.push({
+        id: s.path,
+        title: `[rank ${s.rank}] ${s.description}`,
+        content,
+      });
+    } catch {
+      loadErrors.push(`${s.path} (rank ${s.rank})`);
+    }
+  }
+
+  return { sections, loadErrors };
+}
+
+/**
+ * Resolve target document path from user input.
+ * If rawInput contains a file path (ends with .md, .yaml, etc.), use it.
+ * Otherwise return null (new design — target doesn't exist yet).
+ */
+function resolveTargetDocument(rawInput: string, projectRoot: string): string | null {
+  const words = rawInput.split(/\s+/);
+  for (const w of words) {
+    if (/\.(md|yaml|yml|json|ts)$/.test(w)) {
+      const candidate = join(projectRoot, w);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+/**
+ * Parse a document into sections by ## headings.
+ */
+function parseDocumentSections(
+  docPath: string,
+  content: string,
+): Array<{ id: string; title: string; content: string }> {
+  const sections: Array<{ id: string; title: string; content: string }> = [];
+  let currentId = `${docPath}:header`;
+  let currentTitle = "Header";
+  let currentLines: string[] = [];
+
+  for (const line of content.split("\n")) {
+    const h2Match = line.match(/^## (.+)/);
+    if (h2Match) {
+      if (currentLines.length > 0) {
+        sections.push({ id: currentId, title: currentTitle, content: currentLines.join("\n") });
+      }
+      currentId = `${docPath}:${h2Match[1]}`;
+      currentTitle = h2Match[1]!;
+      currentLines = [];
+    } else {
+      currentLines.push(line);
+    }
+  }
+  if (currentLines.length > 0) {
+    sections.push({ id: currentId, title: currentTitle, content: currentLines.join("\n") });
+  }
+
+  return sections;
+}
+
+/**
+ * Extract rule-like statements from an authority document.
+ */
+function extractRulesFromContent(relativePath: string, projectRoot: string): string[] {
+  try {
+    const content = readFileSync(join(projectRoot, relativePath), "utf-8");
+    const rules: string[] = [];
+
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (/\b(must|shall|required|mandatory|금지|필수|위반|허용|불가|항상|절대)\b/i.test(trimmed) &&
+          trimmed.length > 10 && trimmed.length < 300) {
+        rules.push(trimmed);
+      }
+    }
+
+    return rules.slice(0, 20);
+  } catch {
+    return [];
   }
 }

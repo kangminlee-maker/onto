@@ -27,6 +27,7 @@ Common definitions referenced by each process file (`processes/`).
 | Data Backup | `processes/backup.md` | Snapshot onto user data for rollback | -> Restore |
 | Data Restore | `processes/restore.md` | Restore user data from backup | Backup -> |
 | Health Dashboard | `processes/health.md` | Show learning pool health metrics | Standalone |
+| Design | `processes/design.md` | 온톨로지 기반 설계 — 기존 설계 대상에 새 영역 추가 (brownfield) | Build ->, -> Review |
 
 ---
 
@@ -256,7 +257,7 @@ Old format compatibility: `domain: A` + `secondary_domains: B` → automatically
 
 | Process | Domain resolution |
 |---------|-------------------|
-| review, build, question | Session domain selection (above) |
+| review, build, question, design | Session domain selection (above) |
 | promote | Auto-determined from learning tags' `[domain/X]` (no selection needed) |
 | transform | No domain context needed |
 | onboard | Asks user for relevant domain list |

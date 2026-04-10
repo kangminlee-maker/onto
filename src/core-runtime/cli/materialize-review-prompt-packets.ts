@@ -2,6 +2,7 @@
 
 import fsSync from "node:fs";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
@@ -123,33 +124,38 @@ const LENS_DOMAIN_FILE_MAP: Record<string, string> = {
 };
 
 /**
- * Resolve domain directory per the Domain Resolution Policy:
- * - Discriminator: if ontoHome/domains/{domain}/ exists → "onto-provided" → ontoHome only
- * - Otherwise: projectRoot/domains/{domain}/ → "project-defined"
- * - Terminal failure: null (caller must error)
+ * Resolve domain directory per the Project Locality Principle §2.3:
+ *
+ * Resolution order (project-override rule):
+ * 1. Project-level domain: {project}/.onto/domains/{domain}/
+ * 2. User-level global domain: ~/.onto/domains/{domain}/
+ * 3. Installation default: ontoHome/domains/{domain}/
  *
  * Directory-level all-or-nothing: the entire directory from one location is used.
+ * Terminal failure: null (caller must error).
  */
 function resolveDomainDirectory(
   domain: string,
   projectRoot: string,
   ontoHome: string | undefined,
 ): string | null {
-  // 1. onto-provided domain: ontoHome has it → use ontoHome (project override forbidden)
+  // 1. Project-level domain (highest priority)
+  const projectDomainPath = path.join(projectRoot, ".onto", "domains", domain);
+  if (fsSync.existsSync(projectDomainPath)) return projectDomainPath;
+
+  // 2. User-level global domain (~/.onto/domains/)
+  const userDomainPath = path.join(os.homedir(), ".onto", "domains", domain);
+  if (fsSync.existsSync(userDomainPath)) return userDomainPath;
+
+  // 3. Installation default (ontoHome/domains/)
   if (typeof ontoHome === "string" && ontoHome.length > 0) {
     const homePath = path.join(ontoHome, "domains", domain);
     if (fsSync.existsSync(homePath)) return homePath;
   }
 
-  // 2. project-defined domain: projectRoot has it
-  const projectPath = path.join(projectRoot, "domains", domain);
-  if (fsSync.existsSync(projectPath)) return projectPath;
-
-  // 3. Legacy fallback: when ontoHome is undefined, projectRoot is the onto repo
-  // Precondition: in legacy npm-run path, projectRoot === ontoHome
-  if (!ontoHome) {
-    return null; // already checked projectPath above
-  }
+  // 4. Legacy fallback: projectRoot/domains/ (for development mode where projectRoot === ontoHome)
+  const legacyPath = path.join(projectRoot, "domains", domain);
+  if (fsSync.existsSync(legacyPath)) return legacyPath;
 
   return null;
 }

@@ -520,7 +520,7 @@ Migration targets:
 - `.claude/sessions/` to `.onto/review/`, `.onto/builds/`
 - `.claude/learnings/` to `.onto/learnings/`
 - `.claude/ontology/` to `.onto/builds/{session-id}/`
-- `.onto/sessions/` intermediate layer removed (directly under `review/`, `builds/`)
+- `.onto/sessions/` intermediate layer removed for review/builds (directly under `review/`, `builds/`). promote sessions remain at `.onto/sessions/promote/`
 
 ```bash
 # Preview targets (no actual moves)

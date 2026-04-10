@@ -37,10 +37,11 @@ Entry format:
 - **Reflection status**: Not reflected (user confirmation required)
 ```
 
-**Verification learning** (`~/.onto/learnings/{agent-id}.md` or `{project}/.onto/learnings/{agent-id}.md`):
-- Storage path determination:
-  - If the project has a `.onto/learnings/` directory: `{project}/.onto/learnings/{agent-id}.md` (project-level)
-  - If it does not exist: `~/.onto/learnings/{agent-id}.md` (global-level)
+**Verification learning** (`{project}/.onto/learnings/{agent-id}.md`):
+- Storage path determination (Project Locality Principle §2.2):
+  - Always write to `{project}/.onto/learnings/{agent-id}.md` (project-level)
+  - If `{project}/.onto/learnings/` does not exist, create it
+  - Global learnings (`~/.onto/learnings/`) are reached only through `onto promote`
 - Do not add if it duplicates an existing entry.
 - If it contradicts an existing entry, replace with the new learning.
 

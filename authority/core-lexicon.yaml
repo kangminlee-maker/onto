@@ -170,7 +170,7 @@ entities:
         note: "전체 lens 결과를 통합하는 비-lens 단계. lens 완료 후 순차 실행"
       - type: creates
         target: learning
-        note: "review 실행 시 학습 생성. lifecycle transition은 learning.execution_rules_ref.lifecycle_transition 참조"
+        note: "lens 실행 중 생성. ReviewRecord는 별도의 primary artifact이며 learning 생성을 매개하지 않는다. lifecycle transition은 learning.execution_rules_ref.lifecycle_transition 참조"
       - type: consumes
         target: learning
         note: "consumption precondition은 learning.execution_rules_ref.consumption_precondition 참조"
@@ -500,8 +500,7 @@ terms:
     axis: "actor"
     term_status: "active"
     definition: "onto에 목적과 의도를 부여하고, 프로세스 결과의 가치를 판단하는 최종 권한 주체. entrypoint를 호출하여 실행을 개시한다."
-    legacy_aliases:
-      - alias: "designer"
-        context: "design 맥락에서 사용되던 역할명. principal로 통합됨."
     notes:
-      - "entity 승격 검토: entrypoint와의 invokes relation 표현이 필요하면 entity로 승격. Stage 3에서 검토."
+      - >
+        entity 승격 조건: entrypoint와의 invokes relation이 onto 실행 체인에서 추적 필수가 되는 시점.
+        판단 기준은 "principal 부재 시 dispatch 체인이 불완전한가" 여부. Stage 3에서 결정.

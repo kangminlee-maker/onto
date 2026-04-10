@@ -27,6 +27,7 @@
     "test:e2e": "bash src/core-runtime/cli/e2e-review-invoke.test.sh",
     "test:e2e:promote": "tsx src/core-runtime/learning/promote/e2e-promote.test.ts",
     "test:e2e:start-review-session": "tsx src/core-runtime/cli/e2e-start-review-session.test.ts",
+    "test:e2e:codex-multi-agent-fixes": "tsx src/core-runtime/cli/e2e-codex-multi-agent-fixes.test.ts",
     "review:write-interpretation": "tsx src/core-runtime/cli/write-review-interpretation.ts",
     "review:bootstrap-binding": "tsx src/core-runtime/cli/bootstrap-review-binding.ts",
     "review:materialize-execution-preparation": "tsx src/core-runtime/cli/materialize-review-execution-preparation.ts",

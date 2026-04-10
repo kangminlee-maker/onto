@@ -388,6 +388,21 @@ Errors are classified into 4 categories for response:
 
 ### Team Lifecycle Management
 
+#### Tool Availability Check (mandatory — before any Team operation)
+
+TeamCreate, SendMessage, and TeamDelete are **deferred tools** in Claude Code. Their schemas are not loaded at conversation start and must be fetched explicitly before first use. Without this step, the LLM cannot invoke TeamCreate and silently falls back to Agent tool (subagent), bypassing Agent Teams entirely.
+
+Before the first TeamCreate call in any process, execute:
+
+```
+ToolSearch("select:TeamCreate,SendMessage,TeamDelete")
+```
+
+- ToolSearch succeeds → proceed to Team Creation.
+- ToolSearch fails (tools do not exist in this environment) → apply Fallback Rules (Agent tool subagent approach).
+
+This check is required **once per conversation session**. Subsequent TeamCreate calls in the same session do not need to repeat it.
+
 #### Team Creation
 
 When executing TeamCreate, generate a session ID and use it identically for the team_name and session directory.

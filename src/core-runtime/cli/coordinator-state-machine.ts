@@ -77,7 +77,7 @@ Rules:
 - Preserve disagreement and uncertainty explicitly when present.
 - If you cannot complete the task within the declared boundary, preserve that limitation explicitly as insufficient access or insufficient evidence within boundary instead of broadening the search.
 
-Read the prompt packet, execute the review, then write the complete output to {output_path} using the Write tool.`;
+Read the prompt packet, execute the review, then write the complete output to {output_path}.`;
 
 function buildAgentPrompt(
   unitId: string,

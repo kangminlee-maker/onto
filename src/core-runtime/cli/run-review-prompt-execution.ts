@@ -669,21 +669,53 @@ export async function executeReviewPromptExecution(
     ],
   );
   const synthesizeStartedAtMs = Date.now();
+  const synthesizeMaxRetries = 1; // process.md: "Retry once before halting"
   let synthesizeOutcome: ExecutionOutcome | null = null;
-  try {
-    await invokeExecutor(
-      synthesizeExecutorConfig,
-      projectRoot,
-      sessionRoot,
-      synthesizeDispatch,
-    );
+  let synthesizeLastError: unknown = undefined;
+  let synthesizeSucceeded = false;
+
+  for (let attempt = 0; attempt <= synthesizeMaxRetries; attempt++) {
+    try {
+      await invokeExecutor(
+        synthesizeExecutorConfig,
+        projectRoot,
+        sessionRoot,
+        synthesizeDispatch,
+      );
+      synthesizeSucceeded = true;
+      break;
+    } catch (error: unknown) {
+      synthesizeLastError = error;
+      if (attempt < synthesizeMaxRetries) {
+        const retryDelay = DEFAULT_LENS_RETRY_INITIAL_DELAY_MS;
+        console.log(
+          `[review runner] synthesize attempt ${attempt + 1} failed, retrying in ${retryDelay}ms...`,
+        );
+        await appendExecutionProgress(
+          executionPlan.error_log_path,
+          "runner synthesize retry",
+          [
+            `attempt: ${attempt + 1}/${synthesizeMaxRetries}`,
+            `retry_delay_ms: ${retryDelay}`,
+            `error: ${error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200)}`,
+          ],
+        );
+        await sleep(retryDelay);
+      }
+    }
+  }
+
+  if (synthesizeSucceeded) {
     synthesizeOutcome = {
       dispatch: synthesizeDispatch,
       success: true,
       startedAtMs: synthesizeStartedAtMs,
       completedAtMs: Date.now(),
     };
-  } catch (error: unknown) {
+  }
+
+  if (!synthesizeSucceeded) {
+    const error = synthesizeLastError;
     const failure: ExecutionFailure = {
       unit_id: synthesizeDispatch.unit_id,
       unit_kind: synthesizeDispatch.unit_kind,

@@ -349,13 +349,18 @@ function appendExecutorModelArgs(
   if (isMock) return config;
 
   const args = [...config.args];
-  const model = readSingleOptionValueFromArgv(argv, "model") ?? ontoConfig?.model;
+  // Resolution: CLI flag > top-level config > codex namespace (fallback for codex mode)
+  const model =
+    readSingleOptionValueFromArgv(argv, "model") ??
+    ontoConfig?.model ??
+    ontoConfig?.codex?.model;
   if (typeof model === "string" && model.length > 0) {
     args.push("--model", model);
   }
   const reasoningEffort =
     readSingleOptionValueFromArgv(argv, "reasoning-effort") ??
-    ontoConfig?.reasoning_effort;
+    ontoConfig?.reasoning_effort ??
+    ontoConfig?.codex?.effort;
   if (typeof reasoningEffort === "string" && reasoningEffort.length > 0) {
     args.push("--reasoning-effort", reasoningEffort);
   }

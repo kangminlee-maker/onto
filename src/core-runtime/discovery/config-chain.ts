@@ -35,6 +35,17 @@ export interface OntoConfig {
    * - active: extractor runs and updates {project}/.onto/learnings/{agent-id}.md
    */
   learning_extract_mode?: string;
+  /**
+   * Codex-specific overrides.
+   * Used when execution_mode is "codex" or --codex flag is set.
+   * CLI executor path: codex.model → fallback for top-level model when in codex mode.
+   * Prompt path: team lead reads codex.model / codex.effort and inserts into [Codex Configuration].
+   */
+  codex?: {
+    model?: string;
+    /** Reasoning effort for codex. Maps to model_reasoning_effort in codex config. */
+    effort?: string;
+  };
 }
 
 async function readConfigAt(dir: string): Promise<OntoConfig> {

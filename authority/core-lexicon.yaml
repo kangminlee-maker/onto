@@ -1,4 +1,4 @@
-lexicon_version: "0.2.0"
+lexicon_version: "0.3.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
@@ -102,9 +102,9 @@ shared_attributes:
 # ---------------------------------------------------------------------------
 # Entities
 # ---------------------------------------------------------------------------
-# Stage 1 scope: review 실행 체인에 필요한 entity만 등록.
+# Stage 2 scope: review_process entity + principal term 추가.
 # build, ask, learn, govern, design의 고유 개념(process entity, dispatch target 등)은
-# Stage 2에서 추가. 이 scope 경계는 의도적이며, 비-review 개념의 부재는 누락이 아님.
+# Stage 3에서 추가. 이 scope 경계는 의도적이며, 비-review 개념의 부재는 누락이 아님.
 
 entities:
   learning:
@@ -138,18 +138,6 @@ entities:
     korean_label: "리뷰 렌즈"
     definition: "독립적 검증 관점. 다른 lens와 맥락을 공유하지 않고 자체 finding을 생산"
     core_value: "이 개념이 없으면 단일 관점으로만 검증되어 놓침이 발생한다"
-    relations:
-      - type: creates
-        target: learning
-        note: "review 실행 시 학습 생성. lifecycle transition은 learning.execution_rules_ref.lifecycle_transition 참조"
-      - type: consumes
-        target: learning
-        note: "consumption precondition은 learning.execution_rules_ref.consumption_precondition 참조"
-      - type: references
-        target: domain_document
-        note: "resolution order는 domain_document.execution_rules_ref.resolution_order 참조"
-      - type: produces
-        target: review_record
     instances:
       logic: { definition: "명제 간 모순, 전제-결론 비약, 조건 누락 검증" }
       structure: { definition: "구성 요소의 완전성, 참조 연결, 구조적 대칭 검증" }
@@ -162,16 +150,38 @@ entities:
       axiology:
         definition: "목적/가치 정합성, 숨겨진 tradeoff, 이해관계자 영향 검증"
         notes: ["New Perspectives proposal 책임 (productization-charter §10.2)"]
-    notes:
-      - >
-        이 relation들의 실제 운영 주체는 review process(entrypoint.review → lens → synthesize → record)이며,
-        review_lens에 임시 귀속된 상태이다. 소비자는 relation을 review process 맥락에서 해석해야 한다.
-        재배치 게이트: review process entity가 도입되거나 Stage 2가 착수되면 relation 주체를 재평가한다.
     legacy_aliases:
       - alias: "agent"
         context: "Legacy 'agent panel' referred to what is now the 9 review lenses."
       - alias: "onto_{id}"
         context: "Pre-migration lens/role IDs used 'onto_' prefix. Bare IDs are canonical since 2026-04-08."
+
+  review_process:
+    canonical_label: "review_process"
+    korean_label: "리뷰 프로세스"
+    definition: "review entrypoint의 의도를 실행하는 프로세스. lens dispatch, synthesis, record assembly를 순차 수행한다"
+    core_value: "이 개념이 없으면 review의 개별 단계(lens, synthesize, record)가 운영 주체 없이 흩어져, 전체 실행 흐름과 책임 귀속을 추적할 수 없다"
+    relations:
+      - type: dispatches
+        target: review_lens
+        note: "lens를 독립 실행 단위로 호출. 병렬 dispatch, degradation 허용"
+      - type: dispatches
+        target: synthesize_stage
+        note: "전체 lens 결과를 통합하는 비-lens 단계. lens 완료 후 순차 실행"
+      - type: creates
+        target: learning
+        note: "lens 실행 중 생성. ReviewRecord는 별도의 primary artifact이며 learning 생성을 매개하지 않는다. lifecycle transition은 learning.execution_rules_ref.lifecycle_transition 참조"
+      - type: consumes
+        target: learning
+        note: "consumption precondition은 learning.execution_rules_ref.consumption_precondition 참조"
+      - type: references
+        target: domain_document
+        note: "resolution order는 domain_document.execution_rules_ref.resolution_order 참조"
+      - type: produces
+        target: review_record
+        note: "synthesis + record assembly를 거쳐 산출"
+    execution_rules_ref:
+      execution_flow: "processes/review/productized-live-path.md"
 
   domain_document:
     canonical_label: "domain_document"
@@ -189,15 +199,15 @@ entities:
   entrypoint:
     canonical_label: "entrypoint"
     korean_label: "진입점"
-    definition: "사용자가 onto에 진입하는 최상위 의도"
-    core_value: "이 개념이 없으면 사용자 의도와 시스템 프로세스 사이에 해석 공백이 생긴다"
+    definition: "주체자(principal)가 onto에 진입하는 최상위 의도"
+    core_value: "이 개념이 없으면 주체자의 의도와 시스템 프로세스 사이에 해석 공백이 생긴다"
     notes:
-      - "Stage 1은 review instance만 relation을 보유. build/ask/learn/govern/design의 dispatch target relation은 Stage 2에서 추가."
+      - "Stage 2에서 review의 dispatch target을 review_process로 변경 완료. build/ask/learn/govern/design의 dispatch target relation은 Stage 3에서 추가."
     instances:
       review:
         definition: "9-lens 구조로 검증"
         relations:
-          - { type: dispatches, target: review_lens }
+          - { type: dispatches, target: review_process }
       build: { definition: "지식을 구조화된 artifact로 구축" }
       ask: { definition: "특정 관점에서 질의에 답변" }
       learn: { definition: "학습 축적·승격·큐레이션·감사" }
@@ -205,7 +215,7 @@ entities:
       design: { definition: "대상을 분석하고 설계 문서를 생성" }
 
 # ---------------------------------------------------------------------------
-# Terms (existing, preserved from v0.1.0 with minimal changes)
+# Terms
 # ---------------------------------------------------------------------------
 
 terms:
@@ -266,7 +276,7 @@ terms:
     definition: "Canonical output of review; structured lineage record consumed by later learning/governance."
     contract_ref: "processes/review/record-contract.md"
     notes:
-      - "Stage 2에서 entity 승격 여부를 검토한다. lifecycle 부여 시 relation type을 produces → creates로 변경 필요."
+      - "Stage 3에서 entity 승격 여부를 검토한다. lifecycle 부여 시 relation type을 produces → creates로 변경 필요."
   - term_id: "review_target_scope"
     canonical_label: "review_target_scope"
     korean_label: "검토 대상 범위"
@@ -454,8 +464,10 @@ terms:
     canonical_label: "designer"
     korean_label: "설계자"
     axis: "design"
-    term_status: "active"
+    term_status: "deprecated"
     definition: "Participant who presents goals and makes decisions in the design process. A role name, not a job title."
+    notes:
+      - "principal로 통합됨. designer가 수행하던 역할(목표 제시, 결정)은 principal의 정의에 포함된다."
   - term_id: "outcome"
     canonical_label: "outcome"
     korean_label: "결과"
@@ -482,3 +494,13 @@ terms:
     axis: "design"
     term_status: "active"
     definition: "The magnitude of difference between current state and Phase 1 outcomes within a given area. Qualitative 3-level: large / medium / small. Input to Phase 4 scenario ordering."
+  - term_id: "principal"
+    canonical_label: "principal"
+    korean_label: "주체자"
+    axis: "actor"
+    term_status: "active"
+    definition: "onto에 목적과 의도를 부여하고, 프로세스 결과의 가치를 판단하는 최종 권한 주체. entrypoint를 호출하여 실행을 개시한다."
+    notes:
+      - >
+        entity 승격 조건: entrypoint와의 invokes relation이 onto 실행 체인에서 추적 필수가 되는 시점.
+        판단 기준은 "principal 부재 시 dispatch 체인이 불완전한가" 여부. Stage 3에서 결정.

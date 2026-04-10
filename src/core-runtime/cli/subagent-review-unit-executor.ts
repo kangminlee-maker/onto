@@ -159,6 +159,18 @@ async function runCodexSubagent(
         : `codex subagent executor exited with code ${exitCode}`,
     );
   }
+
+  // Codex CLI -o flag may not reliably write the output file.
+  // If the file is missing or empty, fall back to stdout (same pattern as runClaudeSubagent).
+  const outputExists = await fs.access(outputPath).then(() => true, () => false);
+  const outputSize = outputExists ? (await fs.stat(outputPath)).size : 0;
+  if (!outputExists || outputSize === 0) {
+    const normalizedOutput = stdout.trim();
+    if (normalizedOutput.length === 0) {
+      throw new Error("Codex subagent executor produced no output (neither -o file nor stdout).");
+    }
+    await fs.writeFile(outputPath, `${normalizedOutput}\n`, "utf8");
+  }
 }
 
 async function runClaudeSubagent(

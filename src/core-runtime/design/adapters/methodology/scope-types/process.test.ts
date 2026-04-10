@@ -39,11 +39,24 @@ describe("process scope type", () => {
     expect(result.errors).toContain("At least one authority source is required for a process scope");
   });
 
-  it("rejects config with duplicate authority ranks", () => {
+  it("allows duplicate authority ranks (onto hierarchy has shared ranks)", () => {
     const config: ProcessScopeConfig = {
       authority_sources: [
-        { path: "a.md", rank: 1, description: "A" },
-        { path: "b.md", rank: 1, description: "B" },
+        { path: "design-principles/oac.md", rank: 2, description: "OaC" },
+        { path: "design-principles/llm-native.md", rank: 2, description: "LLM-Native" },
+      ],
+      target_document: "processes/design.md",
+      perspectives: ["authority-consistency"],
+    };
+
+    const result = validateProcessScopeConfig(config);
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects config with non-positive authority rank", () => {
+    const config: ProcessScopeConfig = {
+      authority_sources: [
+        { path: "a.md", rank: 0, description: "A" },
       ],
       target_document: "processes/design.md",
       perspectives: ["authority-consistency"],
@@ -51,7 +64,6 @@ describe("process scope type", () => {
 
     const result = validateProcessScopeConfig(config);
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain("Authority source ranks must be unique");
   });
 
   it("rejects config with empty target_document", () => {

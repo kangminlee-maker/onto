@@ -48,6 +48,38 @@ describe("authority-consistency perspective", () => {
     expect(result.summary.high).toBeGreaterThanOrEqual(1);
   });
 
+  it("detects authority-violation when section contradicts authority refs", () => {
+    const input: AuthorityConsistencyInput = {
+      sections: fixture.sections,
+      authority_refs: fixture.authority_refs,
+    };
+
+    const result = checkAuthorityConsistency(input);
+
+    // §6.3 says "design은 학습을 저장하지 않는다" which contradicts
+    // authority refs that define learn write permissions (build.md, review.md)
+    const authViolations = result.violations.filter((v) => v.type === "authority-violation");
+    expect(authViolations.length).toBeGreaterThanOrEqual(1);
+
+    // At least one violation should originate from §6.3
+    const fromSection63 = authViolations.find((v) => v.source_section === "§6.3");
+    expect(fromSection63).toBeDefined();
+  });
+
+  it("detects self-contradiction between sections", () => {
+    const input: AuthorityConsistencyInput = {
+      sections: fixture.sections,
+      authority_refs: fixture.authority_refs,
+    };
+
+    const result = checkAuthorityConsistency(input);
+
+    // §6.3 negates learn participation ("학습을 저장하지 않는다")
+    // but §8.0 affirms learn as a real consumer with direct participation
+    const selfContradictions = result.violations.filter((v) => v.type === "self-contradiction");
+    expect(selfContradictions.length).toBeGreaterThanOrEqual(1);
+  });
+
   it("returns passed=true for clean document", () => {
     const input: AuthorityConsistencyInput = {
       sections: [

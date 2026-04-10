@@ -9,7 +9,12 @@
  * 2. Surface is a process document (Markdown), not a UI mockup or API spec.
  * 3. Constraints come from authority consistency, not code architecture.
  * 4. Validation checks document coherence, not test execution.
+ *
+ * Perspectives are derived from the methodology adapter (adapter.ts = SSOT).
+ * This eliminates UF-CONCISENESS-METADATA-DUPLICATION.
  */
+
+import { methodologyAdapter } from "../adapter.js";
 
 export interface ProcessScopeConfig {
   /** Authority documents that define the rules this process must follow. */
@@ -31,7 +36,8 @@ export interface ProcessScopeDefaults {
 }
 
 export const processScopeDefaults: ProcessScopeDefaults = {
-  perspectives: ["authority-consistency"],
+  /** Derived from adapter.ts — single source of truth for methodology capabilities. */
+  perspectives: methodologyAdapter.perspectives,
   entry_mode: "experience",
   surface_type: "markdown",
 };
@@ -56,10 +62,13 @@ export function validateProcessScopeConfig(
     errors.push("At least one perspective is required");
   }
 
-  // Authority sources must have unique ranks
-  const ranks = config.authority_sources.map((s) => s.rank);
-  if (new Set(ranks).size !== ranks.length) {
-    errors.push("Authority source ranks must be unique");
+  // Authority sources at the same rank are allowed (e.g., onto authority
+  // hierarchy has rank 2 for both OaC and LLM-Native guidelines).
+  // Only validate that ranks are positive integers.
+  for (const source of config.authority_sources) {
+    if (!Number.isInteger(source.rank) || source.rank < 1) {
+      errors.push(`Authority source rank must be a positive integer: ${source.path} has rank ${source.rank}`);
+    }
   }
 
   return { valid: errors.length === 0, errors };

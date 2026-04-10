@@ -12,17 +12,15 @@
  * This module provides the event recording orchestration.
  */
 
-import { writeFileSync } from "node:fs";
 import { readEvents } from "../../scope-runtime/event-store.js";
 import { reduce } from "../../scope-runtime/reducer.js";
 import { appendScopeEvent } from "../../scope-runtime/event-pipeline.js";
-import { renderScopeMd } from "../renderers/scope-md.js";
 import { wrapGateError } from "./error-messages.js";
+import { refreshScopeMd } from "./shared.js";
 import { validate, type ValidateInput } from "../adapters/code-product/validators/validate.js";
 import type { ScopePaths } from "../../scope-runtime/scope-manager.js";
 import { loadProjectConfig } from "../config/project-config.js";
 import type {
-  ScopeState,
   ConstraintDiscoveredPayload,
   ApplyDecisionGapFoundPayload,
   ValidationItemResult,
@@ -102,7 +100,7 @@ function handleStartApply(
   }, { apply_enabled: config.apply_enabled });
 
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -122,7 +120,7 @@ function handleCompleteApply(
   });
 
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -152,7 +150,7 @@ function handleReportGap(
   });
 
   if (!gapResult.success) return { success: false, reason: wrapGateError(gapResult.reason) };
-  writeScopeMd(paths, gapResult.state);
+  refreshScopeMd(paths, gapResult.state);
 
   return {
     success: true,
@@ -174,7 +172,7 @@ function handleStartValidation(
   });
 
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -213,7 +211,7 @@ function handleCompleteValidation(
   });
 
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   if (validateOutput.result === "pass") {
     return {
@@ -240,10 +238,4 @@ function handleCompleteValidation(
   };
 }
 
-// ─── Helpers ───
-
-function writeScopeMd(paths: ScopePaths, state?: ScopeState): void {
-  const s = state ?? reduce(readEvents(paths.events));
-  const md = renderScopeMd(s);
-  writeFileSync(paths.scopeMd, md, "utf-8");
-}
+// refreshScopeMd is imported from ./shared.ts (UF-CONCISENESS-SCOPE-MD consolidated)

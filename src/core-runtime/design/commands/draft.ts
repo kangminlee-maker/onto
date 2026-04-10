@@ -12,18 +12,19 @@
  * This module provides the event recording orchestration.
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { readEvents } from "../../scope-runtime/event-store.js";
 import { reduce } from "../../scope-runtime/reducer.js";
 import { appendScopeEvent } from "../../scope-runtime/event-pipeline.js";
-import { renderScopeMd } from "../renderers/scope-md.js";
+import { renderDraftPacket } from "../renderers/draft-packet.js";
 import { wrapGateError } from "./error-messages.js";
+import { refreshScopeMd } from "./shared.js";
 import { contentHash } from "../../scope-runtime/hash.js";
 import { compile, type CompileInput, type CompileSuccess } from "../adapters/code-product/compile/compile.js";
 import type { DefenseViolation } from "../adapters/code-product/compile/compile-defense.js";
 import type { ScopePaths } from "../../scope-runtime/scope-manager.js";
-import type { ScopeState, ConstraintDiscoveredPayload, ConstraintDecisionRecordedPayload, FeedbackClassification } from "../../scope-runtime/types.js";
+import type { ScopeState, ConstraintDiscoveredPayload, ConstraintDecisionRecordedPayload, FeedbackClassification, DraftPacketContent } from "../../scope-runtime/types.js";
 
 // ─── Input ───
 
@@ -109,7 +110,7 @@ function handleGenerateSurface(
   });
 
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   const guide = state.entry_mode === "experience"
     ? "`cd surface/preview && npm run dev`로 mockup을 확인하세요."
@@ -160,7 +161,7 @@ function handleApplyFeedback(
       },
     });
     if (!redirectResult.success) return { success: false, reason: wrapGateError(redirectResult.reason) };
-    writeScopeMd(paths, redirectResult.state);
+    refreshScopeMd(paths, redirectResult.state);
 
     return {
       success: true,
@@ -181,7 +182,7 @@ function handleApplyFeedback(
   });
   if (!revResult.success) return { success: false, reason: wrapGateError(revResult.reason) };
 
-  writeScopeMd(paths, revResult.state);
+  refreshScopeMd(paths, revResult.state);
 
   // 5. target_change → append scope change notice
   const message = classification === "target_change"
@@ -211,7 +212,7 @@ function handleConfirmSurface(
   });
 
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -234,7 +235,7 @@ function handleSurfaceChangeRequired(
   });
 
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -254,7 +255,7 @@ function handleRecordConstraint(
   });
 
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   const cstId = action.constraintPayload.constraint_id ?? "?";
   return {
@@ -290,7 +291,7 @@ function handleRecordDecision(
       },
     });
     if (!redirectResult.success) return { success: false, reason: wrapGateError(redirectResult.reason) };
-    writeScopeMd(paths, redirectResult.state);
+    refreshScopeMd(paths, redirectResult.state);
 
     return {
       success: true,
@@ -299,7 +300,7 @@ function handleRecordDecision(
     };
   }
 
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -324,7 +325,7 @@ function handleLockTarget(paths: ScopePaths, state: ScopeState): DraftOutput {
   });
 
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -387,7 +388,7 @@ function handleCompile(
   });
 
   if (!completeResult.success) return { success: false, reason: wrapGateError(completeResult.reason) };
-  writeScopeMd(paths, completeResult.state);
+  refreshScopeMd(paths, completeResult.state);
 
   return {
     success: true,
@@ -402,10 +403,24 @@ function handleCompile(
   };
 }
 
-// ─── Helpers ───
+// ─── Packet Rendering (UF-STRUCTURE-PACKET-SEAT) ───
 
-function writeScopeMd(paths: ScopePaths, state?: ScopeState): void {
-  const s = state ?? reduce(readEvents(paths.events));
-  const md = renderScopeMd(s);
-  writeFileSync(paths.scopeMd, md, "utf-8");
+/**
+ * Render a Draft Packet and write it to `build/draft-packet.md`.
+ *
+ * Called by the agent when it has assembled DraftPacketContent
+ * (after surface confirmation + constraint discovery).
+ * Returns the content hash of the written packet.
+ */
+export function writeDraftPacket(
+  paths: ScopePaths,
+  content: DraftPacketContent,
+): { packetPath: string; packetHash: string } {
+  const state = reduce(readEvents(paths.events));
+  const md = renderDraftPacket(state, content);
+  const packetPath = join(paths.build, "draft-packet.md");
+  writeFileSync(packetPath, md, "utf-8");
+  return { packetPath, packetHash: contentHash(md) };
 }
+
+// refreshScopeMd is imported from ./shared.ts (UF-CONCISENESS-SCOPE-MD consolidated)

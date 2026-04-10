@@ -142,6 +142,8 @@ function buildSourceEntry(
       return { type: "figma-mcp", file_key: identifier, description };
     case "obsidian-vault":
       return { type: "obsidian-vault", path: identifier, description };
+    case "mcp":
+      return { type: "mcp", provider: identifier, description };
     default:
       return null;
   }

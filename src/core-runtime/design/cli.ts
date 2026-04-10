@@ -2,12 +2,11 @@
  * onto design — CLI entry point.
  *
  * Routes design subcommands to the appropriate command handler.
- * Currently wired: start
- * Planned: align, draft, apply, close
  */
 
 import { join } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
+import { resolveScopePaths, type ScopePaths } from "../scope-runtime/scope-manager.js";
 
 export async function handleDesignCli(
   ontoHome: string,
@@ -19,13 +18,14 @@ export async function handleDesignCli(
   switch (subcommand) {
     case "start":
       return handleDesignStart(ontoHome, subArgv);
-
     case "align":
+      return handleDesignAlign(subArgv);
     case "draft":
+      return handleDesignDraft(subArgv);
     case "apply":
+      return handleDesignApply(subArgv);
     case "close":
-      console.error(`[onto] design ${subcommand} is not yet implemented.`);
-      return 1;
+      return handleDesignClose(subArgv);
 
     case "--help":
     case "-h":
@@ -36,17 +36,18 @@ export async function handleDesignCli(
           "",
           "Subcommands:",
           "  start <description>         Start or resume a design scope",
-          "  align                       (planned) Generate align packet",
-          "  draft                       (planned) Generate draft packet",
-          "  apply                       (planned) Apply design to implementation",
-          "  close                       (planned) Close design scope",
+          "  align --scope-id <id>       Lock or revise alignment direction",
+          "  draft --scope-id <id>       Generate draft packet / confirm surface / decide constraints",
+          "  apply --scope-id <id>       Apply design to implementation",
+          "  close --scope-id <id>       Close a validated scope",
           "",
           "Options:",
           "  --project-root <path>       Project root (default: cwd)",
           "  --scopes-dir <path>         Scopes directory (default: <project-root>/scopes)",
           "  --project-name <name>       Project name for scope ID generation",
-          "  --scope-id <id>             Resume an existing scope",
+          "  --scope-id <id>             Target scope ID (required for align/draft/apply/close)",
           "  --entry-mode <mode>         'experience' or 'interface' (default: experience)",
+          "  --verdict <verdict>         Align verdict: approve/revise/reject/rescan",
         ].join("\n"),
       );
       return 0;
@@ -58,7 +59,7 @@ export async function handleDesignCli(
   }
 }
 
-// ─── start ───
+// ─── Shared helpers ───
 
 function readOption(argv: string[], name: string): string | undefined {
   const idx = argv.indexOf(`--${name}`);
@@ -67,6 +68,19 @@ function readOption(argv: string[], name: string): string | undefined {
   }
   return undefined;
 }
+
+function resolveScopePathsFromArgv(argv: string[]): ScopePaths | null {
+  const scopeId = readOption(argv, "scope-id");
+  if (!scopeId) {
+    console.error("[onto] --scope-id is required.");
+    return null;
+  }
+  const projectRoot = readOption(argv, "project-root") ?? process.cwd();
+  const scopesDir = readOption(argv, "scopes-dir") ?? join(projectRoot, "scopes");
+  return resolveScopePaths(scopesDir, scopeId);
+}
+
+// ─── start ───
 
 async function handleDesignStart(
   _ontoHome: string,
@@ -153,4 +167,77 @@ async function handleDesignStart(
     );
     return 1;
   }
+}
+
+// ─── align ───
+
+async function handleDesignAlign(argv: string[]): Promise<number> {
+  const paths = resolveScopePathsFromArgv(argv);
+  if (!paths) return 1;
+
+  const jsonInput = readOption(argv, "json");
+  if (!jsonInput) {
+    console.error("[onto] design align requires --json '<verdict-object>'.");
+    console.error("Example: --json '{\"type\":\"approve\",\"direction\":\"...\",\"scope_in\":[],\"scope_out\":[]}'");
+    return 1;
+  }
+
+  const { executeAlign } = await import("./commands/align.js");
+  const verdict = JSON.parse(jsonInput);
+  const result = executeAlign({ paths, verdict });
+  console.log(JSON.stringify(result, null, 2));
+  return result.success ? 0 : 1;
+}
+
+// ─── draft ───
+
+async function handleDesignDraft(argv: string[]): Promise<number> {
+  const paths = resolveScopePathsFromArgv(argv);
+  if (!paths) return 1;
+
+  const jsonInput = readOption(argv, "json");
+  if (!jsonInput) {
+    console.error("[onto] design draft requires --json '<action-object>'.");
+    console.error("Example: --json '{\"type\":\"generate_surface\"}'");
+    return 1;
+  }
+
+  const { executeDraft } = await import("./commands/draft.js");
+  const action = JSON.parse(jsonInput);
+  const result = executeDraft({ paths, action });
+  console.log(JSON.stringify(result, null, 2));
+  return result.success ? 0 : 1;
+}
+
+// ─── apply ───
+
+async function handleDesignApply(argv: string[]): Promise<number> {
+  const paths = resolveScopePathsFromArgv(argv);
+  if (!paths) return 1;
+
+  const jsonInput = readOption(argv, "json");
+  if (!jsonInput) {
+    console.error("[onto] design apply requires --json '<action-object>'.");
+    console.error("Example: --json '{\"type\":\"start_apply\",\"buildSpecHash\":\"...\"}'");
+    return 1;
+  }
+
+  const projectRoot = readOption(argv, "project-root") ?? process.cwd();
+  const { executeApply } = await import("./commands/apply.js");
+  const action = JSON.parse(jsonInput);
+  const result = executeApply(paths, action, { projectRoot });
+  console.log(JSON.stringify(result, null, 2));
+  return result.success ? 0 : 1;
+}
+
+// ─── close ───
+
+async function handleDesignClose(argv: string[]): Promise<number> {
+  const paths = resolveScopePathsFromArgv(argv);
+  if (!paths) return 1;
+
+  const { executeClose } = await import("./commands/close.js");
+  const result = executeClose(paths);
+  console.log(JSON.stringify(result, null, 2));
+  return result.success ? 0 : 1;
 }

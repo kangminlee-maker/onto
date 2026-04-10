@@ -82,6 +82,62 @@ export function checkAuthorityConsistency(
     }
   }
 
+  // Phase 2: detect authority violations —
+  // sections that contradict rules from higher-authority sources
+  for (const section of input.sections) {
+    const negations = extractNegations(section.content);
+    for (const ref of input.authority_refs) {
+      for (const rule of ref.relevant_rules) {
+        for (const neg of negations) {
+          if (negationContradictsRule(neg, rule)) {
+            const vid = `AUTH-${section.id}-${ref.source}`;
+            // Avoid duplicate ids for same section+source pair
+            const exists = violations.some((v) => v.id === vid);
+            if (!exists) {
+              violations.push({
+                id: vid,
+                type: "authority-violation",
+                severity: "high",
+                source_section: section.id,
+                conflicting_section: ref.source,
+                summary: `${section.id} declares "${neg.statement}" which contradicts authority rule "${rule}" from ${ref.source} (rank ${ref.rank})`,
+                recommendation: `Align ${section.id} with ${ref.source} or provide explicit justification for the override`,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Phase 3: detect self-contradictions —
+  // pairs of sections where one negates what the other affirms about the same topic
+  for (const sA of input.sections) {
+    const negationsA = extractNegations(sA.content);
+    for (const sB of input.sections) {
+      if (sA.id === sB.id) continue;
+      // Only process each unordered pair once: skip if sB.id < sA.id
+      if (sB.id <= sA.id) continue;
+      for (const neg of negationsA) {
+        if (hasAffirmation(sB.content, neg)) {
+          const vid = `SELF-${sA.id}-${sB.id}-${neg.topic}`;
+          const exists = violations.some((v) => v.id === vid);
+          if (!exists) {
+            violations.push({
+              id: vid,
+              type: "self-contradiction",
+              severity: "medium",
+              source_section: sA.id,
+              conflicting_section: sB.id,
+              summary: `${sA.id} negates "${neg.topic}" ("${neg.statement}") but ${sB.id} affirms it`,
+              recommendation: `Reconcile the conflicting statements about "${neg.topic}" between ${sA.id} and ${sB.id}`,
+            });
+          }
+        }
+      }
+    }
+  }
+
   const high = violations.filter((v) => v.severity === "high").length;
   const medium = violations.filter((v) => v.severity === "medium").length;
   const low = violations.filter((v) => v.severity === "low").length;
@@ -147,4 +203,173 @@ function hasOperativeUsage(content: string, term: string): boolean {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// ─── Authority-violation & Self-contradiction Helpers ───
+
+/** Strip common Korean postpositions/particles from a word. */
+function stripKoreanParticles(word: string): string {
+  // Order matters: longer suffixes first
+  return word.replace(
+    /(?:에서|으로|이며|에게|부터|까지|처럼|만큼|이라|라고|이고|하고|과는|와는|은|는|이|가|을|를|의|에|도|로|와|과|고)$/,
+    "",
+  );
+}
+
+/** Strip Korean verb/adjective endings to extract stem. */
+function stripKoreanVerbEndings(word: string): string {
+  return word.replace(
+    /(?:하지|하는|한다|하고|하며|해야|합니다|합니|했다|해서|하여|된다|되지|않는다|않다)$/,
+    "",
+  );
+}
+
+interface Negation {
+  /** The topic/subject being negated (e.g., "학습", "learn") */
+  topic: string;
+  /** The full negation statement for display */
+  statement: string;
+  /** Keywords extracted from the negation for matching (particles stripped) */
+  keywords: string[];
+}
+
+/**
+ * Korean negation patterns:
+ *   "X는/은 Y하지 않는다", "X를/을 Y하지 않는다"
+ *   "X를/을 차단", "X를/을 금지"
+ *
+ * English negation patterns:
+ *   "does not X", "must not X", "cannot X", "X is blocked/prohibited"
+ */
+const NEGATION_PATTERNS: Array<{ pattern: RegExp; topicGroup: number; keywordGroups: number[] }> = [
+  // Korean: "A은/는 B하지 않는다" — topic = A, action keywords = B
+  {
+    pattern: /([가-힣\w_-]+)(?:은|는)\s+([가-힣\w_-]+(?:을|를)?)\s*(?:저장하지|하지|작성하지|기록하지)\s*않/g,
+    topicGroup: 1,
+    keywordGroups: [1, 2],
+  },
+  // Korean: "A를/을 차단/금지"
+  {
+    pattern: /([가-힣\w_-]+)(?:를|을)\s*(?:차단|금지|거부)/g,
+    topicGroup: 1,
+    keywordGroups: [1],
+  },
+  // English: "does not / must not / cannot X"
+  {
+    pattern: /(\w[\w_-]*)\s+(?:does not|must not|cannot|shall not)\s+(\w[\w_-]*)/gi,
+    topicGroup: 1,
+    keywordGroups: [1, 2],
+  },
+];
+
+function extractNegations(content: string): Negation[] {
+  const results: Negation[] = [];
+  const sentences = content.split(/[.。!\n]+/).filter((s) => s.trim());
+
+  for (const sentence of sentences) {
+    for (const { pattern, topicGroup, keywordGroups } of NEGATION_PATTERNS) {
+      const regex = new RegExp(pattern.source, pattern.flags);
+      let match;
+      while ((match = regex.exec(sentence)) !== null) {
+        const topic = match[topicGroup]?.trim();
+        if (!topic) continue;
+        const keywords: string[] = [];
+        for (const g of keywordGroups) {
+          if (match[g]) {
+            const raw = match[g].trim();
+            keywords.push(raw);
+            keywords.push(stripKoreanParticles(raw));
+          }
+        }
+        // Also extract keywords from surrounding context (with particles and verb endings stripped)
+        const surroundingWords = sentence
+          .replace(/[^가-힣a-zA-Z0-9_-]/g, " ")
+          .split(/\s+/)
+          .filter((w) => w.length > 1)
+          .flatMap((w) => {
+            const stripped = stripKoreanParticles(w);
+            const stemmed = stripKoreanVerbEndings(w);
+            const stemmedStripped = stripKoreanVerbEndings(stripped);
+            return [w, stripped, stemmed, stemmedStripped];
+          });
+        results.push({
+          topic,
+          statement: sentence.trim(),
+          keywords: [...new Set([...keywords, ...surroundingWords].filter((k) => k.length > 0))],
+        });
+      }
+    }
+  }
+  return results;
+}
+
+/**
+ * Check if a negation contradicts an authority rule.
+ * A contradiction occurs when the negation's topic/keywords overlap
+ * significantly with the rule's content, and the rule is affirmative
+ * (grants permission or defines capability) while the section denies it.
+ */
+function negationContradictsRule(neg: Negation, rule: string): boolean {
+  // Extract rule words (both raw and particle-stripped)
+  const rawRuleWords = rule
+    .replace(/[^가-힣a-zA-Z0-9_-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 1);
+  const ruleWords = [...new Set(rawRuleWords.flatMap((w) => [w, stripKoreanParticles(w)]).filter((w) => w.length > 0))];
+
+  // The rule must contain affirmative action keywords
+  const affirmativePatterns = [
+    /write/i, /저장/i, /생성/i, /기록/i, /자동/i, /권한/i, /정의/i,
+  ];
+  const ruleIsAffirmative = affirmativePatterns.some((p) => p.test(rule));
+  if (!ruleIsAffirmative) return false;
+
+  // Count keyword overlap between negation keywords and rule words
+  const negKeySet = new Set(neg.keywords.map((k) => k.toLowerCase()));
+  let overlap = 0;
+  for (const rw of ruleWords) {
+    if (negKeySet.has(rw.toLowerCase())) {
+      overlap++;
+    }
+  }
+
+  // Also check if the topic itself appears in the rule (partial match),
+  // or if negation keywords intersect with the rule's core concepts
+  const strippedTopic = stripKoreanParticles(neg.topic).toLowerCase();
+  const topicInRule =
+    rule.toLowerCase().includes(strippedTopic) ||
+    (strippedTopic.includes("learn") && /learn/i.test(rule)) ||
+    (strippedTopic.includes("학습") && /학습|learn|저장/i.test(rule));
+
+  // Require either topic match or significant keyword overlap
+  return topicInRule || overlap >= 2;
+}
+
+/**
+ * Check if content affirms what a negation denies.
+ * Used for self-contradiction detection between section pairs.
+ */
+function hasAffirmation(content: string, neg: Negation): boolean {
+  const topicEscaped = escapeRegex(neg.topic);
+  const topicRegex = new RegExp(topicEscaped, "gi");
+
+  if (!topicRegex.test(content)) return false;
+
+  // The content should use the topic in an affirmative/operative way
+  // (not in another negation)
+  const lines = content.split("\n");
+  for (const line of lines) {
+    const lineTopicRegex = new RegExp(topicEscaped, "gi");
+    if (!lineTopicRegex.test(line)) continue;
+
+    // Check this line is NOT itself a negation
+    const isNeg = /하지\s*않|차단|금지|does not|must not|cannot|shall not/i.test(line);
+    if (isNeg) continue;
+
+    // Affirmative usage patterns
+    const affirmativeUsage =
+      /실재|직접|참여|사용|결정|생성|저장|기록|적용|소비|pipeline|consumer|write|read|create|apply/i.test(line);
+    if (affirmativeUsage) return true;
+  }
+  return false;
 }

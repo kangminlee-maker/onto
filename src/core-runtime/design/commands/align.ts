@@ -10,16 +10,19 @@
  * Stale detection and convergence safety are handled here.
  */
 
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { readEvents } from "../../scope-runtime/event-store.js";
 import { reduce } from "../../scope-runtime/reducer.js";
 import { appendScopeEvent, type PipelineResult } from "../../scope-runtime/event-pipeline.js";
-import { renderScopeMd } from "../renderers/scope-md.js";
+import { renderAlignPacket } from "../renderers/align-packet.js";
 import { checkStale } from "./stale-check.js";
 import { wrapGateError } from "./error-messages.js";
+import { refreshScopeMd } from "./shared.js";
 import { CONVERGENCE_THRESHOLDS } from "../../scope-runtime/constants.js";
-import { writeFileSync } from "node:fs";
+import { contentHash } from "../../scope-runtime/hash.js";
 import type { ScopePaths } from "../../scope-runtime/scope-manager.js";
-import type { ScopeState } from "../../scope-runtime/types.js";
+import type { ScopeState, AlignPacketContent } from "../../scope-runtime/types.js";
 
 // ─── Input ───
 
@@ -120,7 +123,7 @@ function handleApprove(
     return { success: false, reason: wrapGateError(result.reason) };
   }
 
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -173,7 +176,7 @@ function handleRevise(
     });
   }
 
-  writeScopeMd(paths);
+  refreshScopeMd(paths);
 
   let message = "피드백이 반영되었습니다. 수정된 Align Packet을 확인하세요.";
   if (revCount >= CONVERGENCE_THRESHOLDS.blocked) {
@@ -208,7 +211,7 @@ function handleReject(
     return { success: false, reason: wrapGateError(result.reason) };
   }
 
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -234,7 +237,7 @@ function handleRedirect(
     return { success: false, reason: wrapGateError(result.reason) };
   }
 
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -243,10 +246,23 @@ function handleRedirect(
   };
 }
 
-// ─── Helpers ───
+// ─── Packet Rendering (UF-STRUCTURE-PACKET-SEAT) ───
 
-function writeScopeMd(paths: ScopePaths, state?: ScopeState): void {
-  const s = state ?? reduce(readEvents(paths.events));
-  const md = renderScopeMd(s);
-  writeFileSync(paths.scopeMd, md, "utf-8");
+/**
+ * Render an Align Packet and write it to `build/align-packet.md`.
+ *
+ * Called by the agent when it has assembled AlignPacketContent.
+ * Returns the content hash of the written packet (used by align.revised events).
+ */
+export function writeAlignPacket(
+  paths: ScopePaths,
+  content: AlignPacketContent,
+): { packetPath: string; packetHash: string } {
+  const state = reduce(readEvents(paths.events));
+  const md = renderAlignPacket(state, content);
+  const packetPath = join(paths.build, "align-packet.md");
+  writeFileSync(packetPath, md, "utf-8");
+  return { packetPath, packetHash: contentHash(md) };
 }
+
+// refreshScopeMd is imported from ./shared.ts (UF-CONCISENESS-SCOPE-MD consolidated)

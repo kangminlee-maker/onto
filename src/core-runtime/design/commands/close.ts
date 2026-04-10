@@ -7,14 +7,12 @@
  * Only allowed when current state is "validated".
  */
 
-import { writeFileSync } from "node:fs";
 import { readEvents } from "../../scope-runtime/event-store.js";
 import { reduce } from "../../scope-runtime/reducer.js";
 import { appendScopeEvent } from "../../scope-runtime/event-pipeline.js";
-import { renderScopeMd } from "../renderers/scope-md.js";
 import { wrapGateError } from "./error-messages.js";
+import { refreshScopeMd } from "./shared.js";
 import type { ScopePaths } from "../../scope-runtime/scope-manager.js";
-import type { ScopeState } from "../../scope-runtime/types.js";
 
 // ─── Output ───
 
@@ -51,7 +49,7 @@ export function executeClose(paths: ScopePaths): CloseOutput {
   });
 
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -85,7 +83,7 @@ export function executeDefer(
   });
 
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  writeScopeMd(paths, result.state);
+  refreshScopeMd(paths, result.state);
 
   return {
     success: true,
@@ -94,10 +92,4 @@ export function executeDefer(
   };
 }
 
-// ─── Helpers ───
-
-function writeScopeMd(paths: ScopePaths, state?: ScopeState): void {
-  const s = state ?? reduce(readEvents(paths.events));
-  const md = renderScopeMd(s);
-  writeFileSync(paths.scopeMd, md, "utf-8");
-}
+// refreshScopeMd is imported from ./shared.ts (UF-CONCISENESS-SCOPE-MD consolidated)

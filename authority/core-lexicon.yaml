@@ -95,9 +95,13 @@ shared_attributes:
   scope:
     definition: "Storage ownership boundary of a knowledge asset."
     values:
-      user: "주체자 전역 (~/.onto/)"
+      user: "전역 홈 스코프 (~/.onto/)"
       project: "프로젝트 범위 ({project}/.onto/)"
       domain: "특정 도메인 범위 (~/.onto/domains/{domain}/ 또는 {project}/.onto/domains/{domain}/)"
+    notes:
+      - >
+        scope.values의 식별자(user, project, domain)는 저장 경계 레이블이며 실행 주체(principal)와 별개 개념이다.
+        user scope는 OS home directory 관례를 따르는 저장 경로일 뿐, principal을 가리키지 않는다.
 
 # ---------------------------------------------------------------------------
 # Entities
@@ -492,6 +496,9 @@ terms:
     axis: "actor"
     term_status: "active"
     definition: "onto에 목적과 의도를 부여하고, 프로세스 결과의 가치를 판단하는 최종 권한 주체. entrypoint를 호출하여 실행을 개시한다."
+    legacy_aliases:
+      - alias: "designer"
+        context: "Retired design-context role name. Principal이 design entrypoint를 호출할 때 수행하던 역할의 구 명칭."
     notes:
       - >
         entity 승격 조건: entrypoint와의 invokes relation이 onto 실행 체인에서 추적 필수가 되는 시점.

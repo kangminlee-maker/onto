@@ -1,4 +1,4 @@
-lexicon_version: "0.3.0"
+lexicon_version: "0.4.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
@@ -86,7 +86,7 @@ shared_attributes:
     values:
       seed: "생성 직후. 검증 전"
       candidate: "승격 후보로 식별됨"
-      provisional: "패널 리뷰 통과, 사용자 승인 대기"
+      provisional: "패널 리뷰 통과, 주체자 승인 대기"
       promoted: "승인 완료. 소비 가능"
       deprecated: "퇴역 후보"
       retired: "퇴역 완료"
@@ -95,7 +95,7 @@ shared_attributes:
   scope:
     definition: "Storage ownership boundary of a knowledge asset."
     values:
-      user: "사용자 전역 (~/.onto/)"
+      user: "주체자 전역 (~/.onto/)"
       project: "프로젝트 범위 ({project}/.onto/)"
       domain: "특정 도메인 범위 (~/.onto/domains/{domain}/ 또는 {project}/.onto/domains/{domain}/)"
 
@@ -460,14 +460,6 @@ terms:
     definition: "The existing system (code, spreadsheet, document, etc.) to which design adds new areas."
     notes:
       - "build's analysis target and design_target can refer to the same system, but the relationship is contextual, not definitional."
-  - term_id: "designer"
-    canonical_label: "designer"
-    korean_label: "설계자"
-    axis: "design"
-    term_status: "deprecated"
-    definition: "Participant who presents goals and makes decisions in the design process. A role name, not a job title."
-    notes:
-      - "principal로 통합됨. designer가 수행하던 역할(목표 제시, 결정)은 principal의 정의에 포함된다."
   - term_id: "outcome"
     canonical_label: "outcome"
     korean_label: "결과"

@@ -951,8 +951,8 @@ phrases:
   - ko: "~에 저장합니다"
     en: "Stored at ~"
 
-  - ko: "사용자에게 질문합니다"
-    en: "Ask the user"
+  - ko: "주체자에게 질문합니다"
+    en: "Ask the principal"
 
   - ko: "~를 종합합니다"
     en: "Synthesizes ~"

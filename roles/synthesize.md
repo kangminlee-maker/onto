@@ -12,6 +12,7 @@
   - Acting as an additional independent lens -> handled by the lens set, including `axiology`
   - Replacing per-lens reasoning with its own ad hoc judgments
   - Directly storing learning candidates as the primary output of review
+- **Build mode role shift**: In build mode, synthesize composes resolved epsilon material (consensus, rule-resolved, adjudicator-resolved, forced directions) into integrated exploration directives for the Explorer. The core principle is identical — integrate without inventing — but the input is exploration directions rather than review findings, and the output is exploration directives rather than a final review result.
 - **Output obligation**:
   - Produce a structured final review result that preserves:
     - consensus

@@ -1,6 +1,6 @@
 # Ontology Build Process (Integral Exploration)
 
-> The Explorer traverses the source, and verification agents provide exploration directions in an iterative loop that incrementally builds the ontology.
+> The Explorer traverses the source, and lenses provide exploration directions in an iterative loop that incrementally builds the ontology.
 > Related: After build, transform via `/onto:transform`, verification via `/onto:review`.
 
 ## Generalization Scope
@@ -16,8 +16,8 @@ This process is an **extensible design**. Currently supported source types are c
 
 Therefore, build uses an **integral exploration** structure:
 - A single Explorer traverses the source and generates **deltas** (domain fact reports)
-- Verification agents analyze deltas to attach **labels** (ontology elements) and propose **epsilons** (next exploration directions)
-- The Philosopher coordinates epsilons and judges convergence
+- Lenses analyze deltas to attach **labels** (ontology elements) and propose **epsilons** (next exploration directions)
+- Runtime Coordinator applies patches and checks convergence; Axiology Adjudicator resolves conflicts; Synthesize composes integrated directives
 - Termination condition: (coverage satisfied) AND (new facts = 0)
 
 ### Purpose: Precise Reproduction
@@ -46,7 +46,7 @@ The purpose of this classification is to **determine the action type** to presen
 
 Boundary case: A hardcoded constant (e.g., MIN_PAYMENT=500) is `observed` (the value itself is verifiable from the source). The rationale for that constant (why 500) is `pending`.
 
-**Stage 2 classification (verification agents refine `pending` when assigning labels)**:
+**Stage 2 classification (lenses refine `pending` when assigning labels)**:
 
 | Level | Definition | Downstream Action |
 |---|---|---|
@@ -57,7 +57,7 @@ Boundary case: A hardcoded constant (e.g., MIN_PAYMENT=500) is `observed` (the v
 
 `ambiguous` determination criteria: "Do 2 or more equally valid interpretations exist, with no evidence in the current source to narrow down to one?" → if yes, `ambiguous`. If one is more valid, judge as `inferred` and mention alternative interpretations in the rationale.
 
-If a verification agent determines that the Explorer's Stage 1 classification was incorrect, they report a "certainty reclassification request" in issues. The Philosopher reflects this when applying patches.
+If a lens determines that the Explorer's Stage 1 classification was incorrect, it reports a "certainty reclassification request" in issues. The Runtime Coordinator reflects this when applying patches.
 
 **abduction_quality** (required for `inferred` classifications):
 
@@ -68,14 +68,14 @@ abduction_quality:
   coherence: consistent | partial | conflicting  # Is it consistent with existing confirmed facts
 ```
 
-When competing labels exist and the Philosopher must choose, the following rules apply:
+When competing labels exist, the following rules apply (executed by Runtime Coordinator; ties escalated to Axiology Adjudicator):
 1. Exclude candidates with `coherence: conflicting` from comparison (handled separately via conflict operation).
 2. Among remaining candidates, compare `explanatory_power` first (high > medium > low).
 3. If tied, compare `coherence` (consistent > partial).
 
 **Justification guidelines**:
 
-When verification agents write the `rationale` field of a label, include the following:
+When lenses write the `rationale` field of a label, include the following:
 - **Observed evidence**: From which cases/patterns was this observed (specify case count if applicable)
 - **Logical connection**: The reasoning path from observation to judgment
 - Write in 1-2 sentences.
@@ -87,14 +87,23 @@ When verification agents write the `rationale` field of a label, include the fol
 | ID | Role | Behavior in Build |
 |---|---|---|
 | `explorer` | Source traverser | Directly traverses the source and generates deltas (domain fact reports). Only judges certainty as binary (`observed`/`pending`). Does not perform ontological interpretation. Performs structural recognition |
-| Verification agents (N) | Direction providers | Label deltas and propose epsilons for gaps in their dimension. **Do not directly traverse the source**. Refine `pending` facts' certainty |
-| `philosopher` | Coordinator | Coordinates verification agents' epsilons into integrated directives, judges convergence, manages ontology consistency, applies patches |
+| Lenses (N, per process.md agent table) | Direction providers | Label deltas and propose epsilons for gaps in their dimension. **Do not directly traverse the source**. Refine `pending` facts' certainty |
+| Runtime Coordinator | Deterministic orchestrator | Applies patches to wip.yml, processes certainty reclassifications, checks convergence, preprocesses epsilons (sorting, grouping, forced_directions), classifies conflicts by rule-resolvability, anonymizes unresolved conflicts. **Not an LLM agent — implemented as runtime logic** |
+| Axiology Adjudicator | Conflict resolver | Resolves conflicts that runtime rules cannot resolve. Judges based on system purpose only. **Spawned as a fresh context per invocation with anonymized inputs** — does not carry lens-pass context, cannot identify which lens produced which position |
+| `synthesize` | Integrator | Composes resolved material into integrated exploration directives. Does not produce independent perspectives or resolve conflicts — structures and edits only |
 
-Verification agent definitions (`roles/{agent-id}.md`) are the same as in review. In build, the role shifts from "verification" to "identifying gaps in their dimension + assigning labels." The current verification agent list is managed in the agent configuration table in `process.md`.
+Lens definitions (`roles/{lens-id}.md`) are the same as in review. In build, the role shifts from "verification" to "identifying gaps in their dimension + assigning labels." The current lens list is managed in the agent configuration table in `process.md`.
+
+### Role Boundary Principles
+
+- **Lenses** produce findings independently. They do not see each other's outputs within the same round.
+- **Runtime Coordinator** performs only deterministic operations. Any operation requiring semantic judgment is delegated to the appropriate lens or adjudicator.
+- **Axiology Adjudicator** receives only: (1) system purpose documents, (2) anonymized conflict pairs (lens IDs removed). Three protections against self-reinforcement: context isolation (fresh agent), source anonymization (lens ID removal), scope restriction (purpose documents only).
+- **Synthesize** integrates material where all conflicts have already been resolved. It must not invent new perspectives or resolve conflicts.
 
 ### Distinction Between Explorer's Structural Recognition and Ontological Interpretation
 
-The Explorer reports "what exists." "What it means" is judged by verification agents.
+The Explorer reports "what exists." "What it means" is judged by lenses.
 
 | Action | Structural Recognition (Explorer allowed) | Ontological Interpretation (Explorer prohibited) |
 |---|---|---|
@@ -123,6 +132,38 @@ If non-code source traversal tools are unavailable (MCP server not configured, e
 
 ---
 
+### Focused Lens Query Protocol
+
+A focused lens query is a single-question call to a specific lens outside the normal round loop. It is used in two contexts: (1) Phase 1 semantic identity matching (step 3c), and (2) Phase 2 finalization queries (Step 2).
+
+**Invocation**: The team lead issues the query. Runtime Coordinator identifies when a query is needed and specifies the target lens and question; the team lead dispatches it.
+
+**Context model**: Fresh context (new agent spawn). The lens receives only the query input and its role definition — not the full Phase 1 round context. This preserves independence from accumulated round-level reasoning.
+
+**Input format**:
+```yaml
+focused_query:
+  target_lens: {lens-id}
+  query_type: {identity_match | ubiquitous_language_cleanup | underexplored_assessment | custom}
+  input: {query-specific structured input}
+  context_refs: [{minimal reference files — role definition, domain document if applicable}]
+```
+
+**Output format**:
+```yaml
+focused_response:
+  target_lens: {lens-id}
+  query_type: {type}
+  result: {query-specific structured output}
+```
+
+**Failure handling**: If the targeted lens fails to respond, the query result is treated as absent. The calling context proceeds without it:
+- Semantic identity matching: Tier 2 candidates treated as "different" (conservative)
+- Phase 2 UL cleanup: ubiquitous_language section left unchanged
+- Phase 2 underexplored assessment: all underexplored modules reported to user as-is (no gap/skip classification)
+
+---
+
 ### Domain Selection (before Phase 0)
 
 Determine `{session_domain}` per the "Domain Determination Rules" in `process.md`.
@@ -145,7 +186,7 @@ Determines the ontology structure in consultation with the user. **Must be execu
 
 **0.2 Present structure options**
 
-Since Phase 0.5 context (source type, architecture, domain) has not yet been collected, the team lead recommends based on information available from $ARGUMENTS and the project's CLAUDE.md/README.md.
+Since full Phase 0.5 context (architecture, domain) has not yet been collected, the team lead recommends based on information available from $ARGUMENTS, the project's CLAUDE.md/README.md, and the source type determined in Phase 0.5.1 (which runs before Phase 0 — see Phase 0.5.1).
 
 ```markdown
 ## Please select the ontology structure
@@ -209,7 +250,9 @@ Collects as much available context as possible before exploration begins.
 
 Auto-determines the source type from $ARGUMENTS and file extensions/content. If determination is ambiguous (extensions like `.json`, `.csv` that apply to multiple types), asks the user for the source type.
 
-After source type determination, checks availability of traversal tools defined in the corresponding profile (`explorers/{source_type}.md`). If tools are unavailable (MCP server not configured, etc.), inform the user and halt the process. This verification is completed before Schema selection (Phase 0) to prevent wasting the user's time.
+After source type determination, checks availability of traversal tools defined in the corresponding profile (`explorers/{source_type}.md`). If tools are unavailable (MCP server not configured, etc.), inform the user and halt the process.
+
+> **Execution order note**: Phase 0.5.1 (source type determination + tool availability check) runs **before** Phase 0 (schema negotiation) to prevent wasting the user's time on schema selection when tools are unavailable. The remaining Phase 0.5 steps (0.5.2–0.5.4) run after Phase 0 as originally ordered. Effective sequence: Domain Selection → **0.5.1** → Phase 0 → 0.5.2–0.5.4 → Phase 1.
 
 Source-type-specific scan targets are defined in the "Phase 0.5 scan targets" section of each Explorer profile. Source-type-specific context questions are defined in the "Phase 0.5 context questions" section of the profile.
 
@@ -248,7 +291,7 @@ context_brief:
 
 ### Phase 1: Integral Exploration Loop
 
-Phase 1 consists of **2 Stages**. Within each Stage, the existing integral loop (Explorer→verification→Philosopher) operates independently.
+Phase 1 consists of **2 Stages**. Within each Stage, the integral loop (Explorer→lenses→Runtime→Adjudicator→Synthesize) operates independently.
 
 | Stage | Purpose | fact_type Scope | Max Rounds |
 |---|---|---|---|
@@ -263,23 +306,21 @@ When Stage 1 converges (or reaches maximum), proceed to Stage 2. The Stage 2 Exp
 Follows the **Agent Teams Execution** in `process.md` (including error handling rules).
 Creates a team (`onto-build`) via TeamCreate.
 
-**Error handling (build-specific)**:
+**Error handling (build-specific)** — applies process.md Retry Protocol. Build-specific rules:
+
 - **Explorer failure**: Halt the process + inform the user (irreplaceable single point).
-- **Philosopher failure**: Halt the process + inform the user (irreplaceable single point).
-- **Partial failure among N verification agents**: Apply graceful degradation from process.md. Adjust the denominator to the number of responding agents when judging convergence.
-
-#### Error Recovery
-
-> process.md Error Handling Rules의 Retry Protocol을 적용한다.
-> build 고유 사항: Explorer는 irreplaceable role이므로 에러 시 process-halting.
-> Verification agents와 Philosopher에 대해서만 retry → graceful degradation 적용.
+- **Runtime Coordinator failure**: Halt the process + inform the user (irreplaceable; failure indicates a bug, not a transient error).
+- **Partial failure among N lenses**: Retry per process.md → graceful degradation. Adjust the denominator to the number of responding lenses when judging convergence.
+- **Axiology Adjudicator failure**: Skip adjudication for this round. Unresolved conflicts are preserved and carried to Phase 3 as user escalation items. The round continues with consensus + rule-resolved epsilons only.
+- **Synthesize failure**: Deliver raw (non-integrated) epsilons directly to Explorer, sorted by priority. Log degradation.
+- **Degradation accumulation threshold**: If Adjudicator or Synthesize failure occurs in 2 consecutive rounds within the same Stage, warn the user about quality degradation and confirm whether to continue.
 
 #### 1.0 Team Composition
 
 Creates the following agents as teammates:
 - **explorer**: Dedicated source traverser. Recommended to use Explore-type subagent.
-- **Verification agents (N)**: Analysis agents that do not directly traverse the source.
-- **philosopher**: Epsilon coordination + convergence judgment + patch application.
+- **Lenses (N, per process.md agent table)**: Analysis agents that do not directly traverse the source. Same role definitions as review (`roles/{lens-id}.md`), operating in build mode.
+- **synthesize**: Integrator that composes resolved material into unified output. Not an independent lens.
 
 Explorer initial prompt composition:
 
@@ -336,7 +377,7 @@ Refer to "Delta Format" below.
 - Do not use metaphors or analogies.
 ```
 
-Verification agent initial prompt: use the **Teammate Initial Prompt Template** from `process.md`. However, replace [Task Directives] with the following:
+Lens initial prompt: use the **Teammate Initial Prompt Template** from `process.md`. However, replace [Task Directives] with the following:
 
 ```
 [Task Directives — build mode]
@@ -383,33 +424,70 @@ Procedure:
 Refer to "Label/Epsilon Format" below.
 ```
 
-Philosopher initial prompt:
+Axiology Adjudicator prompt (spawned as a **fresh agent per invocation** — not a persistent teammate):
+
 ```
-You are the coordinator (Philosopher).
+You are the conflict adjudicator.
+
+[Role]
+You resolve conflicts between lenses that runtime rules could not resolve.
+Your sole criterion is alignment with the system's stated purpose and operating principles.
+You do not produce independent findings, propose exploration directions, or assign labels.
+
+[Input]
+You receive:
+- System purpose and operating principles (from `context_brief.system_purpose` field and design-principles/ documents only — architecture, legacy_context, and other structural fields are excluded to preserve scope restriction)
+- A list of anonymized conflict pairs. Each pair contains:
+  - position_a: {direction or label} + priority + justification
+  - position_b: {direction or label} + priority + justification
+  - Lens identifiers are removed. You do not know which lens produced which position.
+
+[Procedure]
+For each conflict pair:
+1. Evaluate which position better serves the system's stated purpose
+2. If one position clearly aligns better, select it with a 1-sentence rationale
+3. If neither position has a clear purpose advantage, report "no_resolution" — the conflict will be escalated to the user in Phase 3
+
+[Output Format]
+Refer to "Adjudicator Output Format" below.
+
+[Rules]
+- Judge based on system purpose only. Do not apply structural, coverage, or pragmatic criteria — those perspectives are already represented in the justifications.
+- Do not speculate about which lens produced which position. Justification text may contain perspective-revealing language (e.g., "from a structural perspective") — disregard such cues entirely.
+- Respond in {output_language}. (resolved from config.yml, default: en)
+- Do not use metaphors or analogies.
+```
+
+Synthesize initial prompt:
+
+```
+You are the integrator (Synthesize).
 You are joining the onto-build team.
 
 [Role]
-You coordinate verification agents' epsilons into integrated directives, judge convergence, manage ontology consistency, and convert labels into patches to update wip.yml.
+You compose resolved material into integrated exploration directives for the Explorer.
+You do not produce independent perspectives, resolve conflicts, or assign labels.
+All conflicts have been resolved before material reaches you.
 
 [Procedure]
 Each round, the team lead delivers:
-- Verification agents' labels, epsilons, issues
-- Current wip.yml
+- Consensus epsilon items (agreed by multiple lenses)
+- Rule-resolved epsilon items (resolved by runtime via abduction_quality rules)
+- Adjudicator-resolved epsilon items (resolved by Axiology Adjudicator)
+- Forced directions (generated by runtime for uncovered modules)
 
 Perform:
-1. Convert labels into patches per the "Patch Format" below and update wip.yml
-2. Coordinate conflicts between epsilons (priority judgment)
-3. Reflect certainty reclassification requests
-4. Judge convergence — use the "convergence_status format" below
-5. Generate integrated exploration directives — use the "epsilon integration format" below
+1. Merge epsilon items that point to the same exploration area into unified directives
+2. Order directives by priority (high → medium → low)
+3. Generate the integrated exploration directive text for the Explorer
+4. Carry forward any `no_resolution` items from the Adjudicator into the `unresolved_for_user` list
 
-[Patch Format]
-Refer to "Patch Format" below.
+[Output Format]
+Refer to "Synthesize Output Format" below.
 
-[convergence_status Format]
-Refer to "Philosopher's epsilon integration format" below.
-
-[Team Rules]
+[Rules]
+- Do not invent new exploration directions not present in the input.
+- Do not re-adjudicate resolved conflicts.
 - Work according to the team lead's directives.
 - Respond in {output_language}. (resolved from config.yml, default: en)
 - Do not use metaphors or analogies.
@@ -443,29 +521,41 @@ You must include module_inventory in delta-0:
 - Format: module_inventory: [{module list}]
 ```
 
-When the Explorer reports delta-0, the team lead delivers the content to verification agents without modification.
+When the Explorer reports delta-0, the team lead delivers the content to lenses without modification.
 
 #### 1.2 Round N: Iterative Loop (Common to Stage 1 and Stage 2)
 
 ```
 Loop:
-  1. Team lead delivers Explorer's delta(N-1) to verification agents
+  1. Team lead delivers Explorer's delta(N-1) to lenses
      + cumulative confirmed elements list (anonymized wip: labeled_by excluded)
-  2. Verification agents each report label + epsilon + issues
-  2.5. Philosopher converts labels into patches and updates wip.yml (Phase 1.4)
-  3. Team lead delivers verification agents' epsilons and issues to Philosopher
-  4. Philosopher:
-     a. Coordinates conflicts between epsilons (priority judgment)
-     b. Reflects certainty reclassification requests
-     c. Judges convergence (termination)
-     d. Generates integrated exploration directives
-  5. Team lead delivers Philosopher's integrated directives to Explorer
+  2. Lenses each report label + epsilon + issues
+  3. Runtime Coordinator (deterministic):
+     a. Applies patches to wip.yml from lens labels (Phase 1.4)
+     b. Processes certainty reclassification requests from issues
+     c. Checks convergence (termination condition)
+     d. If terminate → exit loop
+     e. Preprocesses epsilons: sort by priority, group by direction, generate forced_directions for uncovered modules
+     f. Classifies conflicts: consensus / rule-resolvable / unresolvable
+     g. Resolves rule-resolvable conflicts via abduction_quality rules
+     h. Anonymizes unresolvable conflicts (removes lens IDs)
+  4. Axiology Adjudicator (fresh context, only if unresolvable conflicts exist):
+     - Receives anonymized conflict pairs + system purpose documents
+     - Returns resolution or "no_resolution" per conflict
+     - "no_resolution" items are preserved for Phase 3 user escalation
+  5. Synthesize:
+     - Receives: consensus items + rule-resolved items + adjudicator-resolved items + forced_directions
+     - Composes integrated exploration directives
+  6. Team lead delivers integrated directives to Explorer
      (does not modify or summarize the content)
-  6. Explorer traverses in the directed direction → reports delta(N)
+  7. Explorer traverses in the directed direction → reports delta(N)
   → return to 1
 ```
 
 **Convergence judgment (termination condition)** — AND:
+
+Computed by Runtime Coordinator at step 3c. No LLM judgment required.
+
 ```
 Termination = (coverage satisfied) AND (information convergence)
 
@@ -477,28 +567,38 @@ Information convergence = number of new facts in Explorer's reported delta = 0
                Supplementing an existing fact's detail does not count as "new."
 ```
 
-If coverage is unsatisfied (facts=0 but unexplored modules exist), the Philosopher force-generates epsilons targeting unexplored modules.
+> **Semantic identity matching**: Runtime Coordinator determines "new fact" via a two-tier deterministic process:
+>
+> **Tier 1 (exact match)**: Normalize subject+statement (lowercase, trim whitespace, strip punctuation) and compare. If identical → same fact.
+>
+> **Tier 2 (candidate detection)**: Compute token-level Jaccard similarity between the new fact and each existing fact. If similarity ≥ 0.7 → candidate pair. Candidate pairs are forwarded to a focused lens query (see "Focused Lens Query Protocol" below) addressed to the semantics lens, which returns `same | different` per pair.
+>
+> **Semantics lens failure fallback**: If the semantics lens is unavailable (graceful degradation), Tier 2 candidates are treated as "different" (conservative — may overcount new facts, but never undercounts). This is logged as a degradation event.
+>
+> This process runs as a sub-step within step 3c. Runtime's deterministic scope is preserved — Tier 1 and Tier 2 candidate detection are string operations; only the final identity judgment is delegated to the semantics lens via the focused query protocol.
 
-The Philosopher judges termination. convergence_status format:
+If coverage is unsatisfied (facts=0 but unexplored modules exist), Runtime Coordinator force-generates epsilons targeting unexplored modules (step 3e).
+
+Runtime Coordinator computes convergence_status:
 
 ```yaml
 convergence_status:
   fact_convergence: true | false
   coverage_complete: true | false
   uncovered_modules: [{unexplored module list}]
-  converged_agents: [{agents that reported no epsilon}]
-  remaining_agents: [{agents with epsilons}]
+  converged_lenses: [{lenses that reported no epsilon}]
+  remaining_lenses: [{lenses with epsilons}]
   judgment: continue | terminate
-  reason: "{judgment rationale}"
+  reason: "{judgment rationale — deterministic: references termination formula}"
 ```
 
-**Maximum rounds**: 5 per Stage (10 total maximum). If convergence is not reached, proceed to Phase 2 with the current state and inform the user of unexplored areas (remaining_agents' epsilons + uncovered_modules).
+**Maximum rounds**: 5 per Stage (10 total maximum). If convergence is not reached, proceed to Phase 2 with the current state and inform the user of unexplored areas (remaining_lenses' epsilons + uncovered_modules).
 
 #### 1.3 Stage Transition
 
 **When a Stage 1 missing Entity is discovered in Stage 2**:
 - The Explorer reports it as fact_type: entity (Stage fact_type scope exception).
-- The Philosopher adds it to wip.yml with added_in_stage: 2, note: "supplemental discovery in Stage 2".
+- The Runtime Coordinator adds it to wip.yml with added_in_stage: 2, note: "supplemental discovery in Stage 2".
 - Properties/relations for this Entity are explored in Stage 2's remaining rounds.
 
 **Cross-Stage certainty propagation rules**:
@@ -507,12 +607,12 @@ Certainty of elements confirmed in Stage 1 can change in Stage 2. This is becaus
 
 | Situation | Allowed | Action |
 |---|---|---|
-| **Demotion** of Stage 1 element's certainty in Stage 2 | Allowed | Stage 2 verification agent reports "certainty reclassification request" in issues. Philosopher applies demote patch |
-| **Upgrade** of Stage 1 element's certainty in Stage 2 (ambiguous→inferred) | Allowed | When Stage 2's additional evidence narrows the interpretation. Philosopher applies upgrade patch |
+| **Demotion** of Stage 1 element's certainty in Stage 2 | Allowed | Stage 2 lens reports "certainty reclassification request" in issues. Runtime Coordinator applies demote patch |
+| **Upgrade** of Stage 1 element's certainty in Stage 2 (ambiguous→inferred) | Allowed | When Stage 2's additional evidence narrows the interpretation. Runtime Coordinator applies upgrade patch |
 | **Type change** of Stage 1 element in Stage 2 | Not allowed | If type change is needed, record in issues and present to user in Phase 3 |
 
 When Stage 1 terminates (convergence or maximum 5 rounds reached):
-1. The Philosopher finalizes Stage 1's wip.yml.
+1. The Runtime Coordinator finalizes Stage 1's wip.yml.
 2. Updates wip.yml's `meta.stage` to 2.
 3. The team lead delivers Stage 2 initial directives to the Explorer:
 
@@ -535,9 +635,9 @@ Reference Stage 1 wip.yml: {wip.yml path}
 
 #### 1.4 Cross-Round Ontology Accumulation
 
-Executed at **step 2.5** of Phase 1.2 (after verification agent reports are complete, before delivering epsilons to Philosopher).
+Executed at **step 3a** of Phase 1.2 (after lens reports are complete, as part of Runtime Coordinator's deterministic processing).
 
-The Philosopher converts verification agents' labels into **patches** to update wip.yml.
+The Runtime Coordinator converts lens labels into **patches** to update wip.yml. This is a deterministic field-mapping operation — no LLM judgment required.
 
 **Patch Format**:
 ```yaml
@@ -568,14 +668,17 @@ patch:
       conflicting_label: {conflicting label content}
       reported_by: {reporting agent}
       resolution: pending | resolved
-      # If pending, record in issues; Philosopher makes final determination in Phase 2
+      # If pending, stays in wip.yml issues across rounds. Resolved in Phase 2 Step 3 by Axiology Adjudicator.
+      # Distinct from per-round epsilon conflicts (resolved in Phase 1.2 step 4).
 
     - operation: demote
       target_id: {existing element ID}
-      from_certainty: inferred
+      from_certainty: {inferred | rationale-absent}
       to_certainty: pending
       reason: "{refutation rationale}"
-      # When an existing inferred fact is refuted in a subsequent round
+      # When an existing inferred or rationale-absent fact is refuted in a subsequent round.
+      # `observed` → demotion is a certainty reclassification request (Stage 1 error), not a demote operation.
+      # `ambiguous` → demotion uses the nullify operation instead.
 
     - operation: upgrade
       target_id: {existing element ID}
@@ -596,7 +699,7 @@ patch:
 - New element (add): add to wip.yml
 - Additional label for existing element (update): add agent to labeled_by, supplement details
 - Multiple agent labels for the same type (update): add agents to labeled_by list (treated as consensus)
-- Label contradicting existing element (conflict): record in issues, Philosopher adjudicates in Phase 2
+- Label contradicting existing element (conflict): record in wip.yml issues with `resolution: pending`. Persists across rounds (not retried per-round — distinct from epsilon conflicts). Batch-resolved by Axiology Adjudicator in Phase 2 Step 3
 - Refutation of existing inferred element (demote): demote certainty to pending, re-adjudicate in next round
 - Resolution of existing ambiguous element (upgrade): when additional evidence makes one interpretation dominant, upgrade to inferred. Retain alternative interpretation record in rationale
 - All interpretations excluded for existing ambiguous element (nullify): when all interpretations are excluded by subsequent evidence, convert to not-in-source. Record exclusion rationale in issue
@@ -631,9 +734,9 @@ elements:
 # relations, constraints, issues also follow the same accumulation structure (with certainty)
 ```
 
-**Anonymized wip (version shared with verification agents)**:
+**Anonymized wip (version shared with lenses)**:
 - Version of wip.yml with the `labeled_by` field removed
-- Verification agents know "which elements have already been identified" but not "who made the judgment"
+- Lenses know "which elements have already been identified" but not "who made the judgment"
 - This is a **build mode exception** to the "independence guarantee" principle in process.md: to ensure coverage completeness, the confirmed element list from previous rounds is shared, but the judgment author is hidden to mitigate anchoring bias
 
 ---
@@ -661,7 +764,7 @@ delta:
     - subject: "{domain entity or relation}"
       statement: "{domain fact — natural language summary}"
       certainty: observed | pending
-      lens: [structure | rationale | presentation]
+      observation_aspect: [structure | rationale | presentation]  # renamed from "lens" to avoid homonym with review lenses
       fact_type: entity | enum | property | relation | state_transition | command | query | policy_constant | flow | code_mapping
       structured_data:  # structured data per fact_type (optional)
         # entity: {name, domain, db_table, properties: [{name, type, nullable, description, enum_ref, constraints}]}
@@ -690,7 +793,7 @@ delta:
 - `partial`: some source exploration failed, facts from explored portions included
 - `failed`: entire exploration in this direction failed, facts empty
 
-Verification agents record a delta with status `failed` as "unexplored" for that direction (distinct from delta=0).
+Lenses record a delta with status `failed` as "unexplored" for that direction (distinct from delta=0).
 
 **detail field format (by certainty)**:
 - `observed`: `"structure/value description — source location"` (source location required)
@@ -700,7 +803,7 @@ Verification agents record a delta with status `failed` as "unexplored" for that
 
 ### Label/Epsilon Format
 
-Format reported by verification agents:
+Format reported by lenses:
 
 ```yaml
 agent: {agent-id}
@@ -750,63 +853,149 @@ learnings:
 - direction: "Check the 'REFUNDED' string at PaymentGateway.java line 1092"
 ```
 
-**open_questions handling**: Verification agents review the delta's `open_questions` and convert them to epsilons if important from their dimension. Ignore if not important.
+**open_questions handling**: Lenses review the delta's `open_questions` and convert them to epsilons if important from their dimension. Ignore if not important.
 
 ---
 
-### Philosopher's Epsilon Integration Format
+### Epsilon Integration Pipeline Formats
+
+The epsilon integration pipeline has three stages, each with its own output format.
+
+#### Stage 1: Runtime Coordinator Output
+
+Deterministic preprocessing. Produced at step 3e-3h of the Round N loop.
 
 ```yaml
 round: {next round number}
-convergence_status:
-  fact_convergence: true | false
-  coverage_complete: true | false
-  uncovered_modules: [{unexplored modules}]
-  converged_agents: [{agents with no epsilon}]
-  remaining_agents: [{agents with epsilons}]
-  judgment: continue | terminate
-  reason: "{judgment rationale}"
+convergence_status: # see Phase 1.2 convergence_status definition
 
-integrated_directions:
-  - direction: "{integrated exploration direction}"
-    requested_by: [{requesting agent list}]
+consensus_epsilons:
+  - direction: "{direction agreed by multiple lenses}"
+    requested_by: [{requesting lens list}]
     priority: high | medium | low
-  # ... sorted by priority
 
-# Force-generated when coverage is unsatisfied
+rule_resolved_epsilons:
+  - direction: "{direction selected by abduction_quality rules}"
+    selected_over: "{defeated direction summary}"
+    rule_applied: "{which rule resolved it — explanatory_power / coherence}"
+    priority: high | medium | low
+
+unresolved_conflicts:
+  - conflict_id: {id}
+    position_a:
+      direction: "{direction}"
+      priority: high | medium | low
+      justification: "{rationale}"
+      # lens ID removed (anonymized)
+    position_b:
+      direction: "{direction}"
+      priority: high | medium | low
+      justification: "{rationale}"
+      # lens ID removed (anonymized)
+
 forced_directions:
   - direction: "Explore {unexplored module}"
     reason: "coverage unsatisfied"
     priority: high
 ```
 
-**Philosopher's role scope distinction**:
-- **Phase 1 (within rounds)**: label conflict resolution, certainty reclassification reflection, epsilon integration. Per-round consistency management.
-- **Phase 2 (finalization)**: full ontology structural consistency verification, exploration direction bias verification, ubiquitous language/external system cleanup.
+#### Stage 2: Adjudicator Output Format
+
+Produced by Axiology Adjudicator (fresh context). Only invoked when `unresolved_conflicts` is non-empty.
+
+```yaml
+adjudication_results:
+  - conflict_id: {id}
+    resolution: selected_a | selected_b | no_resolution
+    rationale: "{1-sentence purpose-based rationale}"
+    # no_resolution items are preserved for Phase 3 user escalation
+```
+
+#### Stage 3: Synthesize Output Format
+
+Produced by Synthesize. Composes all resolved material into integrated directives for the Explorer.
+
+```yaml
+integrated_directions:
+  - direction: "{integrated exploration direction}"
+    source: consensus | rule_resolved | adjudicator_resolved | forced
+    priority: high | medium | low
+  # ... sorted by priority
+
+unresolved_for_user:
+  - conflict_id: {id}
+    description: "{brief description of the unresolved conflict}"
+    # Carried to Phase 3 for user decision
+```
 
 ---
 
 ### Phase 2: Finalization
 
-When the exploration loop terminates, the Philosopher performs a final review of wip.yml.
+When the exploration loop terminates, finalization is performed in 4 steps. No single agent owns Phase 2 — each step is handled by the appropriate role.
 
-Final review directive delivered by the team lead to the Philosopher:
+#### Step 1: Runtime Coordinator (deterministic)
 
 ```
-Perform a final review of wip.yml.
+1. Element reference integrity verification:
+   - All relation from/to IDs exist in elements
+   - No duplicate element IDs
+   - All constraint applies_to IDs exist
+   - All source_deltas references exist in saved delta files
 
-[Review Items]
-1. Verify consistency of elements accumulated across rounds
-2. If unresolved conflicts exist, adjudicate to resolve or record in issues
-3. Clean up the ubiquitous language section (domain terms discovered during exploration)
-4. Clean up external system boundaries
-5. Exploration direction bias verification: compare the distribution of actually explored areas against Round 0's module_inventory to identify areas that structurally exist but were never deeply explored
+2. External system deduplication and field validation:
+   - Remove duplicate entries by name
+   - Validate external_systems direction field values (upstream | downstream | bidirectional only)
+   - Validate relations direction field values (forward | backward | bidirectional only)
 
-[Output]
-Convert the reviewed wip.yml into the raw.yml format.
+3. Exploration bias calculation:
+   - Compute: module_inventory set − modules with ≥1 fact in any delta
+   - Compute: per-module fact count distribution
+   - Output: underexplored_modules list (for Step 2b)
 ```
 
-After the final review, convert wip.yml → raw.yml.
+#### Step 2: Focused lens queries (parallel)
+
+These are focused lens queries per the "Focused Lens Query Protocol" above. The team lead dispatches each query as a fresh-context agent.
+
+**2a. Semantics lens — ubiquitous language cleanup**:
+
+```
+Review the ubiquitous_language section of wip.yml.
+- Identify synonyms (different names for the same concept) and propose unification
+- Identify homonyms (same name for different concepts) and propose distinction
+- Output: list of proposed changes with rationale
+```
+
+**2b. Coverage lens — underexplored module interpretation**:
+
+```
+The following modules were identified as underexplored (≤N facts):
+{underexplored_modules from Step 1}
+
+For each module, assess:
+- Is this a coverage gap that affects ontology completeness?
+- Or was this module intentionally low-priority given the system's domain?
+- Output: list of modules classified as "gap" or "acceptable_skip" with rationale
+```
+
+#### Step 3: Axiology Adjudicator (fresh context)
+
+Resolves any remaining `resolution: pending` label conflicts from the exploration loop, plus any new conflicts from Step 1-2. Same mechanism as Phase 1 adjudication — anonymized inputs, system purpose criterion.
+
+**Input sources**: (1) wip.yml issues with `resolution: pending` accumulated during Phase 1 rounds, (2) any new conflicts identified by Step 1 or Step 2 queries.
+
+**`no_resolution` handling**: If the Adjudicator returns `no_resolution` for a conflict, the item is carried to Phase 3's "Unresolved Conflicts" section for user decision. This is the final adjudication attempt — there is no further retry.
+
+#### Step 4: Synthesize
+
+Integrates Step 1-3 results into the final wip.yml:
+- Applies Runtime's integrity fixes
+- Applies Semantics' UL changes
+- Annotates Coverage's gap assessments in issues
+- Applies Adjudicator's conflict resolutions; carries `no_resolution` items to Phase 3
+- Applies Adjudicator's conflict resolutions
+- Converts finalized wip.yml → raw.yml format
 
 ---
 
@@ -850,6 +1039,13 @@ After the final review, convert wip.yml → raw.yml.
 - `ambiguous` items: "Multiple interpretations are possible. Please choose" + each interpretation option with rationale
 - `not-in-source` items: "Cannot be confirmed from this source. Please provide the information"
 
+### Unresolved Conflicts — N items (if any)
+| # | Conflict Subject | Position A | Position B | Unresolved Since |
+|---|---|---|---|---|
+
+- These are lens perspective conflicts that neither runtime rules nor the Axiology Adjudicator could resolve.
+- Please choose one position, or provide your own resolution.
+
 ### Discovered Issues — N items
 | # | Severity | Description | Identified Round |
 |---|---|---|---|
@@ -892,7 +1088,7 @@ meta:
   rounds: {total round count}
   convergence: converged | max_rounds_reached
   unexplored_directions: [{unexplored areas — when max_rounds_reached}]
-  agents: [explorer, {verification agent list}, philosopher]
+  agents: [explorer, {lens list}, synthesize]
 ```
 
 **Schema C default format** (when Schema C is selected, or as reference for custom schemas):
@@ -970,7 +1166,7 @@ issues:
 
 ### Phase 5: Learning Storage
 
-Stores learnings from all verification agents. Follows the "Learning Storage Rules" in `learning-rules.md`.
+Stores learnings from all lenses. Follows the "Learning Storage Rules" in `learning-rules.md`.
 The Explorer does not store learnings (since it does not perform interpretation).
 
 Completion report:
@@ -1022,5 +1218,7 @@ When modifying this file (build.md), the following documents must be synchronize
 |---|---|
 | `README.md` | Line 3 (description), agent table, "Ontology Build" section, certainty description, directory structure |
 | `BLUEPRINT.md` | Section 2 (term definitions), Section 3.6 (Explorer), Section 4.3 (build), certainty table, directory structure, MCP interface |
-| `process.md` | Certainty-related content in Teammate prompt template, agent-domain document mapping |
+| `process.md` | Certainty-related content in Teammate prompt template, agent-domain document mapping, "verification agent" → "lens" terminology |
 | `explorers/*.md` | Source-type profiles — if certainty level names/formats in build.md change, synchronize the examples in the profiles |
+| `roles/philosopher.md` | Update legacy note — now legacy for both review and build |
+| `src/core-runtime/cli/coordinator-state-machine.ts` | Add `awaiting_adjudication` state for build mode pipeline |

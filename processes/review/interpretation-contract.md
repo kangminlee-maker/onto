@@ -15,7 +15,7 @@
 
 이 단계의 목적은 아래를 해석하는 것이다.
 
-- 사용자가 지금 정말 `review`를 하려는가
+- 주체자가 지금 정말 `review`를 하려는가
 - review 대상이 무엇인가
 - 어떤 종류의 검토를 기대하는가
 - domain recommendation이 필요한가
@@ -30,7 +30,7 @@
 
 아래 질문은 deterministic rule만으로 닫기 어렵다.
 
-1. 사용자가 말한 `"이 문서"`가 정확히 어떤 대상을 가리키는가
+1. 주체자가 말한 `"이 문서"`가 정확히 어떤 대상을 가리키는가
 2. review intent가 contradiction 검토인지, naming 검토인지, purpose/value alignment 검토인지
 3. 대상의 성격상 어떤 lens들이 핵심인가
 4. 놓침 비용과 교차 검증 필요성을 고려할 때 경량 리뷰가 허용되는가
@@ -44,7 +44,7 @@
 
 `검토 해석 (InvocationInterpretation)`의 입력은 아래다.
 
-1. 사용자 자연어 요청
+1. 주체자 자연어 요청
 2. 명시된 target token
 3. 명시된 domain token (`@{domain}` / `@-`)
 4. 실행 mode 힌트 (`--codex` / `--claude`)
@@ -68,11 +68,11 @@
 2. `target_scope_candidate`
    - review가 실제로 보아야 할 1차 대상 범위 또는 묶음
 3. `intent_summary`
-   - 사용자가 무엇을 검토받고 싶은지 한 문장으로 정리
+   - 주체자가 무엇을 검토받고 싶은지 한 문장으로 정리
 4. `domain_recommendation`
    - 특정 domain 추천 또는 `@-` 추천
 5. `domain_selection_required`
-   - 추천 후 사용자 확인이 필요한지
+   - 추천 후 주체자 확인이 필요한지
 6. `review_mode_recommendation`
    - `light` 또는 `full`
 7. `lens_selection_plan`
@@ -125,7 +125,7 @@ target_scope_candidate:
 
 ### 5.1 Input
 
-사용자 요청:
+주체자 요청:
 
 ```text
 /onto:review design-principles/ontology-as-code-guideline.md

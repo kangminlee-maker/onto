@@ -258,7 +258,7 @@ This is a current implementation-status difference, not a canonical hierarchy or
 ```
 user request
 -> 호출 해석 (InvocationInterpretation)
--> 사용자 확인 / 선택 확정
+-> 주체자 확인 / 선택 확정
 -> 호출 고정 (InvocationBinding)
 -> execution preparation artifacts
 -> 9개 lens 독립 실행

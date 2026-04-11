@@ -223,7 +223,7 @@ binding_notes:
 
 `domain_final_selection`도 마찬가지로,
 이 단계가 recommendation을 새로 만드는 것이 아니라
-recommendation, explicit token, 사용자 확인 결과를
+recommendation, explicit token, 주체자 확인 결과를
 최종 값으로 materialize한 결과여야 한다.
 
 ---

@@ -228,7 +228,7 @@ fail-close posture를 유지한다.
 
 ### 6.6 host-native invocation을 유지한다
 
-사용자는 shell 인자를 기억하지 않아도 되어야 한다.
+주체자는 shell 인자를 기억하지 않아도 되어야 한다.
 
 즉 host는 자기 방식으로 자연어 요청을 받아
 canonical entrypoint path로 연결할 수 있어야 한다.
@@ -282,7 +282,7 @@ canonical entrypoint path로 연결할 수 있어야 한다.
 
 이유:
 
-1. 현재 프로토타입에서 가장 핵심적인 사용자 가치가 `review`에 있다
+1. 현재 프로토타입에서 가장 핵심적인 주체자 가치가 `review`에 있다
 2. `review`는 `LLM` 판단과 결정론적 계약 실행 경계를 가장 선명하게 나눌 수 있다
 3. `review`를 정리하면 이후 `build`, `learn`, `govern`에도 공통 구조를 이식할 수 있다
 
@@ -299,7 +299,7 @@ canonical entrypoint path로 연결할 수 있어야 한다.
 `review`의 canonical 구조는 아래다.
 
 1. `호출 해석 (InvocationInterpretation)`
-2. 사용자 확인 / 선택 확정
+2. 주체자 확인 / 선택 확정
 3. `호출 고정 (InvocationBinding)`
 4. execution preparation artifacts
 5. `9개 lens` 독립 실행
@@ -340,7 +340,7 @@ canonical은:
 
 → canonical 위치: `design-principles/ontology-as-code-guideline.md` §7 (구조 규칙) + `design-principles/llm-native-development-guideline.md` (설계 가이드)
 
-### 10.4 execution profile 기본값은 host-runtime 기반이지만 사용자 override 가능
+### 10.4 execution profile 기본값은 host-runtime 기반이지만 주체자 override 가능
 
 canonical execution profile은 아래 두 축으로 표현한다.
 
@@ -353,7 +353,7 @@ canonical execution profile은 아래 두 축으로 표현한다.
 - `claude` host runtime → `agent-teams`
 
 하지만 이건 절대 우선순위나 품질 위계가 아니다.
-사용자가 명시적으로 설정하면 그것이 우선한다.
+주체자가 명시적으로 설정하면 그것이 우선한다.
 
 즉 현재 채택된 원칙은:
 

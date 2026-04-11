@@ -83,7 +83,7 @@ function renderSurface(
   }
   if (content.mockup_revisions !== undefined) {
     lines.push(
-      `- **mockup 반복**: ${content.mockup_revisions}회 수정 후 사용자 확정`,
+      `- **mockup 반복**: ${content.mockup_revisions}회 수정 후 주체자 확정`,
     );
   }
   lines.push("");

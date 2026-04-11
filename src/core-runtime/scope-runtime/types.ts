@@ -420,7 +420,7 @@ export interface SurfaceConfirmedPayload {
 export type EvidenceStatus =
   | "verified"       // 정책 문서에서 확인됨 (문서명+섹션 인용)
   | "code_inferred"  // 코드에서 추론됨 (문서 근거 없음)
-  | "brief_claimed"  // brief/사용자 주장 (검증 필요)
+  | "brief_claimed"  // brief/주체자 주장 (검증 필요)
   | "unverified";    // 출처 미확인
 
 /** EvidenceStatus가 정책 문서에서 검증되지 않은 상태인지 판별 */

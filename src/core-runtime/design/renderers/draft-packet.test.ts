@@ -344,7 +344,7 @@ describe("draft-packet — empty/undefined edge cases", () => {
     const md = renderDraftPacket(makeState(), makeContent({
       mockup_revisions: 5,
     }));
-    expect(md).toContain("5회 수정 후 사용자 확정");
+    expect(md).toContain("5회 수정 후 주체자 확정");
   });
 });
 

@@ -310,7 +310,7 @@ describe("gate-guard — Rule 3b: required constraint invalidation [GC-017]", ()
     ]);
     const event = {
       ...makeEvent("constraint.invalidated", {
-        constraint_id: "CST-001", reason: "사용자 확인 완료",
+        constraint_id: "CST-001", reason: "주체자 확인 완료",
       }),
       actor: "user" as const,
     };
@@ -338,7 +338,7 @@ describe("gate-guard — Rule 3b: required constraint invalidation [GC-017]", ()
     ]);
     const event = {
       ...makeEvent("constraint.invalidated", {
-        constraint_id: "CST-001", reason: "에이전트가 사용자 확인 후 발행",
+        constraint_id: "CST-001", reason: "에이전트가 주체자 확인 후 발행",
       }),
       actor: "agent" as const,
     };

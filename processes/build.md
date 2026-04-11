@@ -89,7 +89,7 @@ When lenses write the `rationale` field of a label, include the following:
 | `explorer` | Source traverser | Directly traverses the source and generates deltas (domain fact reports). Only judges certainty as binary (`observed`/`pending`). Does not perform ontological interpretation. Performs structural recognition |
 | Lenses (N, per process.md agent table) | Direction providers | Label deltas and propose epsilons for gaps in their dimension. **Do not directly traverse the source**. Refine `pending` facts' certainty |
 | Runtime Coordinator | Deterministic orchestrator | Applies patches to wip.yml, processes certainty reclassifications, checks convergence, preprocesses epsilons (sorting, grouping, forced_directions), classifies conflicts by rule-resolvability, anonymizes unresolved conflicts. **Not an LLM agent — implemented as runtime logic** |
-| Axiology Adjudicator | Conflict resolver | Resolves conflicts that runtime rules cannot resolve. Judges based on system purpose only. **Spawned as a fresh context per invocation with anonymized inputs** — does not carry lens-pass context, cannot identify which lens produced which position |
+| Axiology Adjudicator | Conflict resolver | Resolves conflicts that runtime rules cannot resolve. Judges based on system purpose only. **Spawned as a fresh context per invocation with anonymized inputs** — does not carry round-level reasoning context, cannot identify which lens produced which position |
 | `synthesize` | Integrator | Composes resolved material into integrated exploration directives. Does not produce independent perspectives or resolve conflicts — structures and edits only |
 
 Lens definitions (`roles/{lens-id}.md`) are the same as in review. In build, the role shifts from "verification" to "identifying gaps in their dimension + assigning labels." The current lens list is managed in the agent configuration table in `process.md`.
@@ -98,7 +98,7 @@ Lens definitions (`roles/{lens-id}.md`) are the same as in review. In build, the
 
 - **Lenses** produce findings independently. They do not see each other's outputs within the same round.
 - **Runtime Coordinator** performs only deterministic operations. Any operation requiring semantic judgment is delegated to the appropriate lens or adjudicator.
-- **Axiology Adjudicator** receives only: (1) system purpose documents, (2) anonymized conflict pairs (lens IDs removed). Three protections against self-reinforcement: context isolation (fresh agent), source anonymization (lens ID removal), scope restriction (purpose documents only).
+- **Axiology Adjudicator** receives only: (1) `context_brief.system_purpose` + `design-principles/productization-charter.md`, (2) anonymized conflict pairs (lens IDs removed). Three protections against self-reinforcement: context isolation (fresh agent), source anonymization (lens ID removal), scope restriction (purpose documents only — see Adjudicator prompt for exact allowed inputs).
 - **Synthesize** integrates material where all conflicts have already been resolved. It must not invent new perspectives or resolve conflicts.
 
 ### Distinction Between Explorer's Structural Recognition and Ontological Interpretation
@@ -134,7 +134,7 @@ If non-code source traversal tools are unavailable (MCP server not configured, e
 
 ### Focused Lens Query Protocol
 
-A focused lens query is a single-question call to a specific lens outside the normal round loop. It is used in two contexts: (1) Phase 1 semantic identity matching (step 3c), and (2) Phase 2 finalization queries (Step 2).
+A focused lens query is a single-question call to a specific lens outside the standard round loop (which dispatches all lenses in parallel). It is used in three contexts: (1) Phase 1 semantic identity matching (step 3c, addressed to semantics lens), (2) Phase 2 Step 2a ubiquitous_language cleanup (addressed to semantics lens), and (3) Phase 2 Step 2b underexplored module assessment (addressed to coverage lens).
 
 **Invocation**: The team lead issues the query. Runtime Coordinator identifies when a query is needed and specifies the target lens and question; the team lead dispatches it.
 
@@ -144,8 +144,8 @@ A focused lens query is a single-question call to a specific lens outside the no
 ```yaml
 focused_query:
   target_lens: {lens-id}
-  query_type: {identity_match | ubiquitous_language_cleanup | underexplored_assessment | custom}
-  input: {query-specific structured input}
+  query_type: {identity_match | ubiquitous_language_cleanup | underexplored_assessment}
+  input: {query-specific structured input — schema defined in Query Type Registry below}
   context_refs: [{minimal reference files — role definition, domain document if applicable}]
 ```
 
@@ -154,13 +154,21 @@ focused_query:
 focused_response:
   target_lens: {lens-id}
   query_type: {type}
-  result: {query-specific structured output}
+  result: {query-specific structured output — schema defined in Query Type Registry below}
 ```
 
+**Query Type Registry**: Adding a new focused query type requires adding a row below and defining the input/output schemas. Current types:
+
+| query_type | target_lens | Input | Output | Used at |
+|---|---|---|---|---|
+| `identity_match` | semantics | List of candidate fact pairs (from Tier 2) | `[{pair_id, result: same\|different}]` | Phase 1.2 step 3c (diagnostic only) |
+| `ubiquitous_language_cleanup` | semantics | wip.yml `ubiquitous_language` section | `[{term, proposed_action: unify\|distinguish\|keep, rationale}]` | Phase 2 Step 2a |
+| `underexplored_assessment` | coverage | List of `underexplored_modules` from Step 1 | `[{module, classification: gap\|acceptable_skip, rationale}]` | Phase 2 Step 2b |
+
 **Failure handling**: If the targeted lens fails to respond, the query result is treated as absent. The calling context proceeds without it:
-- Semantic identity matching: Tier 2 candidates treated as "different" (conservative)
-- Phase 2 UL cleanup: ubiquitous_language section left unchanged
-- Phase 2 underexplored assessment: all underexplored modules reported to user as-is (no gap/skip classification)
+- `identity_match`: Tier 2 diagnostic signal simply skipped (convergence unaffected — see Semantic identity matching)
+- `ubiquitous_language_cleanup`: ubiquitous_language section left unchanged
+- `underexplored_assessment`: all underexplored modules reported to user as-is (no gap/skip classification)
 
 ---
 
@@ -220,11 +228,15 @@ Since full Phase 0.5 context (architecture, domain) has not yet been collected, 
 Please select an option or describe the desired structure.
 ```
 
-**Recommendation judgment criteria**:
-- Source is a single-service codebase + clear business logic boundaries → D
-- Source is a data platform, operational system with many tables/APIs → B
-- Source is a document, spreadsheet, or initial exploration with unclear structure → C
-- Cannot determine → C (most flexible)
+**Recommendation judgment criteria** (based on Phase 0.5.1 data only — source_type, file extensions, top-level module count, CLAUDE.md/README.md keyword scan):
+
+- source_type = `document` or `spreadsheet` → C (knowledge graph — most flexible for unstructured content)
+- source_type = `database` with many tables → B (action-centric)
+- source_type = `code` AND top-level module count ≤ 3 AND CLAUDE.md/README.md contains "domain" / "aggregate" / "bounded context" keywords → D (domain-driven)
+- source_type = `code` AND top-level module count > 10 OR CLAUDE.md/README.md contains "service" / "API" / "platform" keywords → B (action-centric)
+- Otherwise (including ambiguous cases) → C (most flexible, default safe choice)
+
+> **Note**: Deeper architecture-based judgments (business logic boundary clarity, operational vs transactional, etc.) require `context_brief.architecture` which is only collected in Phase 0.5.2–0.5.4 (after Phase 0). The team lead may revisit schema selection after Phase 0.5 completes if the collected context contradicts the initial recommendation.
 
 **0.3 Schema confirmation and save**
 
@@ -312,8 +324,16 @@ Creates a team (`onto-build`) via TeamCreate.
 - **Runtime Coordinator failure**: Halt the process + inform the user (irreplaceable; failure indicates a bug, not a transient error).
 - **Partial failure among N lenses**: Retry per process.md → graceful degradation. Adjust the denominator to the number of responding lenses when judging convergence.
 - **Axiology Adjudicator failure**: Skip adjudication for this round. Unresolved conflicts are preserved and carried to Phase 3 as user escalation items. The round continues with consensus + rule-resolved epsilons only.
-- **Synthesize failure**: Deliver raw (non-integrated) epsilons directly to Explorer, sorted by priority. Log degradation.
-- **Degradation accumulation threshold**: If Adjudicator or Synthesize failure occurs in 2 consecutive rounds within the same Stage, warn the user about quality degradation and confirm whether to continue.
+- **Synthesize failure**: Deliver raw epsilons directly to Explorer, sorted by priority. Specifically: consensus items pass through as-is; rule-resolved items pass through with their selected direction; adjudicator-resolved items pass through as the Adjudicator's selected position (not the raw conflict pair); forced_directions pass through as-is. Log degradation.
+- **Degradation accumulation threshold**: Runtime Coordinator maintains two per-Stage counters in `convergence_status`: `adjudicator_failures_streak` and `synthesize_failures_streak`. Each increments when its agent fails in a round and resets to 0 on a successful round. Counters also reset at Stage transition. If either counter reaches 2, present a warning to the user before the next round starts:
+  - Show which role(s) degraded and what that implies for Phase 3 output (Adjudicator down → N unresolved conflicts will escalate to the user; Synthesize down → exploration directives will be unsorted lists)
+  - Show current round and remaining rounds in the Stage
+  - Ask: "Continue this Stage? [continue / end Stage now / abort build]"
+    - **continue** — proceed with degraded execution
+    - **end Stage now** — close current Stage immediately, proceed to Stage transition (if Stage 1) or Phase 2 (if Stage 2)
+    - **abort build** — halt the entire build process, preserve current wip.yml as partial artifact in the session directory
+  - Default action (if user does not respond): continue
+- **Stage 2 module_inventory replacement**: Any modules from Stage 1's `module_inventory` that remained in `uncovered_modules` at Stage 1 termination are preserved in wip.yml meta as `stage1_uncovered_modules` and reported in Phase 3's "Unexplored Areas" section.
 
 #### 1.0 Team Composition
 
@@ -345,6 +365,11 @@ Include structured_data whenever possible. Specifically:
 - Service method discovery: fact_type: command or query + signature
 - Hardcoded constant discovery: fact_type: policy_constant + value
 If structuring is not possible, report with statement + detail only.
+
+Also populate `observation_aspect` for each fact:
+- structure: fact about what the source IS (names, fields, schemas, relations)
+- behavior: fact about what the source DOES (state transitions, methods, flows)
+- presentation: fact about how the source is displayed (formatting, layout, merged cells)
 
 [Source Type: {source_type}]
 - Traversal tools: {profile's "traversal tools"}
@@ -436,7 +461,10 @@ You do not produce independent findings, propose exploration directions, or assi
 
 [Input]
 You receive:
-- System purpose and operating principles (from `context_brief.system_purpose` field and design-principles/ documents only — architecture, legacy_context, and other structural fields are excluded to preserve scope restriction)
+- System purpose and operating principles only. Specific allowed inputs:
+  - `context_brief.system_purpose` field
+  - `design-principles/productization-charter.md` (the canonical system purpose document)
+  - Excluded: `context_brief.architecture`, `context_brief.legacy_context`, other `design-principles/` files (naming-charter, OaC, LLM-Native, etc. — these encode structural/engineering rules and would violate scope restriction)
 - A list of anonymized conflict pairs. Each pair contains:
   - position_a: {direction or label} + priority + justification
   - position_b: {direction or label} + priority + justification
@@ -446,7 +474,7 @@ You receive:
 For each conflict pair:
 1. Evaluate which position better serves the system's stated purpose
 2. If one position clearly aligns better, select it with a 1-sentence rationale
-3. If neither position has a clear purpose advantage, report "no_resolution" — the conflict will be escalated to the user in Phase 3
+3. If neither position has a clear purpose advantage, report "no_resolution" (see Phase 2 Step 3 for downstream handling)
 
 [Output Format]
 Refer to "Adjudicator Output Format" below.
@@ -541,8 +569,7 @@ Loop:
      h. Anonymizes unresolvable conflicts (removes lens IDs)
   4. Axiology Adjudicator (fresh context, only if unresolvable conflicts exist):
      - Receives anonymized conflict pairs + system purpose documents
-     - Returns resolution or "no_resolution" per conflict
-     - "no_resolution" items are preserved for Phase 3 user escalation
+     - Returns resolution or "no_resolution" per conflict (see Phase 2 Step 3 for no_resolution handling)
   5. Synthesize:
      - Receives: consensus items + rule-resolved items + adjudicator-resolved items + forced_directions
      - Composes integrated exploration directives
@@ -567,15 +594,21 @@ Information convergence = number of new facts in Explorer's reported delta = 0
                Supplementing an existing fact's detail does not count as "new."
 ```
 
-> **Semantic identity matching**: Runtime Coordinator determines "new fact" via a two-tier deterministic process:
+> **Semantic identity matching**: Runtime Coordinator determines "new fact" via a deterministic single-tier rule, with an optional LLM-based diagnostic signal:
 >
-> **Tier 1 (exact match)**: Normalize subject+statement (lowercase, trim whitespace, strip punctuation) and compare. If identical → same fact.
+> **Tier 1 (gating, deterministic)**: Normalize subject+statement (lowercase, trim whitespace, strip punctuation, split on whitespace into tokens, drop stopwords {`a, an, the, of, to, in, on, is, are, was, were, be`}). Two facts are the "same fact" if and only if their normalized token multisets are identical.
 >
-> **Tier 2 (candidate detection)**: Compute token-level Jaccard similarity between the new fact and each existing fact. If similarity ≥ 0.7 → candidate pair. Candidate pairs are forwarded to a focused lens query (see "Focused Lens Query Protocol" below) addressed to the semantics lens, which returns `same | different` per pair.
+> **Convergence is determined solely by Tier 1.** This preserves the "No LLM judgment required" guarantee for termination: given the same source, the same normalized facts, the build terminates at the same round.
 >
-> **Semantics lens failure fallback**: If the semantics lens is unavailable (graceful degradation), Tier 2 candidates are treated as "different" (conservative — may overcount new facts, but never undercounts). This is logged as a degradation event.
+> **Tier 2 (non-gating signal, optional)**: As a diagnostic aid, Runtime Coordinator MAY compute token-level Jaccard similarity between each new fact and existing facts. Pairs with similarity in `[T_diag, 1.0)` — default `T_diag = 0.7`, tunable via `config.semantic_identity.diagnostic_threshold` — are forwarded to a focused lens query (semantics lens) which returns `same | different`. Pairs below `T_diag` are logged as "different without query."
 >
-> This process runs as a sub-step within step 3c. Runtime's deterministic scope is preserved — Tier 1 and Tier 2 candidate detection are string operations; only the final identity judgment is delegated to the semantics lens via the focused query protocol.
+> Tier 2 results are **logged as diagnostic warnings** (e.g., "potential duplicate — fact A and fact B judged same by semantics lens but kept as separate facts by Tier 1") and surfaced in Phase 3 issues if any, but DO NOT affect convergence, DO NOT change the new-fact count, and DO NOT trigger degradation counters.
+>
+> **Rationale for `T_diag = 0.7`**: chosen as a conservative over-recall cutoff for diagnostic purposes. Values below 0.3 overwhelm the semantics lens with noise; values above 0.85 miss common synonym patterns. 0.7 balances call volume against recall. Implementers may tune.
+>
+> **Tokenization note**: mirrors the `significantTokens` function in `src/core-runtime/learning/promote/panel-reviewer.ts` to maintain a single tokenization convention across the codebase. Facts with <4 tokens after normalization are excluded from Tier 2 (too noisy); Tier 1 always applies.
+>
+> **Semantics lens unavailable**: Tier 2 simply skipped. No impact on convergence (Tier 1 is authoritative). Logged once per affected round as an "advisory signal unavailable" notice.
 
 If coverage is unsatisfied (facts=0 but unexplored modules exist), Runtime Coordinator force-generates epsilons targeting unexplored modules (step 3e).
 
@@ -631,7 +664,7 @@ Reference Stage 1 wip.yml: {wip.yml path}
 ```
 
 4. Restart the integral loop from Stage 2's Round 0.
-5. Stage 2's module_inventory is replaced by the Entity list confirmed in Stage 1.
+5. Stage 2's module_inventory is replaced by the Entity list confirmed in Stage 1. In Stage 2, an entity is "covered" when ≥1 fact of type `state_transition`, `command`, or `query` references it in `structured_data.entity` / `structured_data.target_entities`. `policy_constant` and `flow` facts do not count toward Stage 2 coverage (they're cross-cutting).
 
 #### 1.4 Cross-Round Ontology Accumulation
 
@@ -673,12 +706,14 @@ patch:
 
     - operation: demote
       target_id: {existing element ID}
-      from_certainty: {inferred | rationale-absent}
+      from_certainty: inferred
       to_certainty: pending
       reason: "{refutation rationale}"
-      # When an existing inferred or rationale-absent fact is refuted in a subsequent round.
-      # `observed` → demotion is a certainty reclassification request (Stage 1 error), not a demote operation.
-      # `ambiguous` → demotion uses the nullify operation instead.
+      # When an existing inferred fact is refuted in a subsequent round.
+      # Scoped to `inferred` only per the Certainty Classification SSOT.
+      # `observed` misidentified → certainty reclassification request (Stage 1 error), not demote.
+      # `rationale-absent` refuted → certainty reclassification request (the implementation itself was misread).
+      # `ambiguous` → use nullify (not demote).
 
     - operation: upgrade
       target_id: {existing element ID}
@@ -692,7 +727,9 @@ patch:
       from_certainty: ambiguous
       to_certainty: not-in-source
       reason: "{rationale for excluding all interpretations}"
-      # When all interpretations are excluded by subsequent evidence
+      # Generated by Runtime Coordinator when a lens reports (via issue with
+      # issue_type: certainty_reclassification) that all registered interpretations
+      # of an existing ambiguous element have been excluded by subsequent evidence.
 ```
 
 **Patch application rules**:
@@ -764,7 +801,12 @@ delta:
     - subject: "{domain entity or relation}"
       statement: "{domain fact — natural language summary}"
       certainty: observed | pending
-      observation_aspect: [structure | rationale | presentation]  # renamed from "lens" to avoid homonym with review lenses
+      observation_aspect: [structure | behavior | presentation]
+      # structure: what the source IS — names, fields, relations, schemas
+      # behavior: what the source DOES — state transitions, method signatures, data flows
+      # presentation: how the source is displayed to humans — formatting, layout, cell styling (spreadsheets), UI ordering (code)
+      # Explorer populates this field based on which aspect of the source was traversed to discover the fact.
+      # Used by Phase 2 Step 1 exploration bias calculation and Phase 3 summary grouping.
       fact_type: entity | enum | property | relation | state_transition | command | query | policy_constant | flow | code_mapping
       structured_data:  # structured data per fact_type (optional)
         # entity: {name, domain, db_table, properties: [{name, type, nullable, description, enum_ref, constraints}]}
@@ -882,13 +924,16 @@ rule_resolved_epsilons:
 
 unresolved_conflicts:
   - conflict_id: {id}
+    conflict_kind: epsilon | label
+    subject: "{short phrase identifying what the conflict is about — e.g., 'PaymentInfo.status exploration direction' or 'Order entity classification'}"
+    unresolved_since: "{stage}.{round}"   # first round this conflict appeared
     position_a:
-      direction: "{direction}"
+      content: "{direction (for epsilon conflicts) or label (for label conflicts)}"
       priority: high | medium | low
-      justification: "{rationale}"
-      # lens ID removed (anonymized)
+      justification: "{rationale with perspective-revealing language neutralized when possible}"
+      # lens ID removed (anonymized). For label conflicts, labeled_by is also stripped.
     position_b:
-      direction: "{direction}"
+      content: "{direction or label}"
       priority: high | medium | low
       justification: "{rationale}"
       # lens ID removed (anonymized)
@@ -908,7 +953,7 @@ adjudication_results:
   - conflict_id: {id}
     resolution: selected_a | selected_b | no_resolution
     rationale: "{1-sentence purpose-based rationale}"
-    # no_resolution items are preserved for Phase 3 user escalation
+    # no_resolution handling: see Phase 2 Step 3
 ```
 
 #### Stage 3: Synthesize Output Format
@@ -924,8 +969,16 @@ integrated_directions:
 
 unresolved_for_user:
   - conflict_id: {id}
-    description: "{brief description of the unresolved conflict}"
-    # Carried to Phase 3 for user decision
+    conflict_kind: epsilon | label
+    subject: "{from Runtime output}"
+    unresolved_since: "{stage}.{round}"
+    position_a:
+      content: "{from Runtime output}"
+      justification: "{from Runtime output}"
+    position_b:
+      content: "{from Runtime output}"
+      justification: "{from Runtime output}"
+    # Carried to Phase 3 Unresolved Conflicts section for user decision
 ```
 
 ---
@@ -951,10 +1004,11 @@ When the exploration loop terminates, finalization is performed in 4 steps. No s
 3. Exploration bias calculation:
    - Compute: module_inventory set − modules with ≥1 fact in any delta
    - Compute: per-module fact count distribution
+   - Define threshold: module is "underexplored" if fact count ≤ max(2, 0.5 × median per-module fact count). Tunable via `config.build.underexplored_threshold`.
    - Output: underexplored_modules list (for Step 2b)
 ```
 
-#### Step 2: Focused lens queries (parallel)
+#### Step 2: Focused lens queries (2a and 2b run in parallel, after Step 1 completes)
 
 These are focused lens queries per the "Focused Lens Query Protocol" above. The team lead dispatches each query as a fresh-context agent.
 
@@ -970,7 +1024,7 @@ Review the ubiquitous_language section of wip.yml.
 **2b. Coverage lens — underexplored module interpretation**:
 
 ```
-The following modules were identified as underexplored (≤N facts):
+The following modules were identified as underexplored (per Step 1's threshold):
 {underexplored_modules from Step 1}
 
 For each module, assess:
@@ -987,14 +1041,16 @@ Resolves any remaining `resolution: pending` label conflicts from the exploratio
 
 **`no_resolution` handling**: If the Adjudicator returns `no_resolution` for a conflict, the item is carried to Phase 3's "Unresolved Conflicts" section for user decision. This is the final adjudication attempt — there is no further retry.
 
+**Step 3 invocation failure**: If the Adjudicator agent itself fails to respond (not `no_resolution`, but agent-level failure), all pending label conflicts are escalated en masse to Phase 3 as "Unresolved Conflicts" (same format as `no_resolution`). Step 4 proceeds normally — the wip.yml remains in its pre-Step-3 state for these conflicts. This failure is logged but does not halt Phase 2.
+
 #### Step 4: Synthesize
 
 Integrates Step 1-3 results into the final wip.yml:
 - Applies Runtime's integrity fixes
 - Applies Semantics' UL changes
 - Annotates Coverage's gap assessments in issues
-- Applies Adjudicator's conflict resolutions; carries `no_resolution` items to Phase 3
-- Applies Adjudicator's conflict resolutions
+- Applies Adjudicator's conflict resolutions; carries `no_resolution` items to Phase 3 Unresolved Conflicts section
+- Collates Phase 1 round-level `unresolved_for_user` items with Phase 2 Step 3 `no_resolution` items into the single Phase 3 Unresolved Conflicts table
 - Converts finalized wip.yml → raw.yml format
 
 ---
@@ -1040,11 +1096,12 @@ Integrates Step 1-3 results into the final wip.yml:
 - `not-in-source` items: "Cannot be confirmed from this source. Please provide the information"
 
 ### Unresolved Conflicts — N items (if any)
-| # | Conflict Subject | Position A | Position B | Unresolved Since |
-|---|---|---|---|---|
+| # | Kind | Subject | Position A | Position B | Unresolved Since |
+|---|---|---|---|---|---|
 
+- `Kind` = `epsilon` (exploration direction conflict) or `label` (ontology type classification conflict)
 - These are lens perspective conflicts that neither runtime rules nor the Axiology Adjudicator could resolve.
-- Please choose one position, or provide your own resolution.
+- Please choose one position, or provide your own resolution. If you provide a custom resolution, it is recorded as an issue with `resolution: user_resolved` and applied to the corresponding element.
 
 ### Discovered Issues — N items
 | # | Severity | Description | Identified Round |

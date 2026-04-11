@@ -16,7 +16,7 @@
 
 이 문서는 `commands/review.md`가 가리키는 실행 계약 중 하나다.
 
-- `commands/review.md`는 사용자 옵션과 경로 선택만 담는 thin entrypoint다
+- `commands/review.md`는 주체자 옵션과 경로 선택만 담는 thin entrypoint다
 - 이 문서는 Nested Spawn Coordinator 경로의 실행 절차를 정의한다
 - 실행 중 사용하는 값은 이 문서의 prose가 아니라 `execution-plan.yaml`과 `binding.yaml`이 authority다
 

@@ -83,7 +83,7 @@
 canonical review 구조:
 
 1. `호출 해석 (InvocationInterpretation)`
-2. 사용자 확인 / 선택 확정
+2. 주체자 확인 / 선택 확정
 3. `호출 고정 (InvocationBinding)`
 4. execution preparation artifacts
 5. `9개 lens`

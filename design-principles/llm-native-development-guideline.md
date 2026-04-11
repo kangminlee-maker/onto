@@ -158,7 +158,7 @@ interface seat 정의(`DeclaredHandoffInputs`, `SelfDirectedExplorationInputs`, 
 
 LLM 기능은 아래 기준으로 평가한다.
 
-- `usefulness`: 실제 사용자가 다시 쓰고 싶은 결과인가
+- `usefulness`: 실제 주체자가 다시 쓰고 싶은 결과인가
 - `faithfulness`: 입력과 근거를 벗어나 허위로 꾸미지 않았는가
 - `specificity`: 모호한 일반론 대신 구체적이고 적용 가능한가
 - `actionability`: 다음 행동으로 이어질 수 있는가

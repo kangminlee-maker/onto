@@ -37,7 +37,7 @@ live path authority는 이 문서가 가진다.
 ```text
 user request
 -> 호출 해석 (InvocationInterpretation)
--> 사용자 확인 / 선택 확정
+-> 주체자 확인 / 선택 확정
 -> 호출 고정 (InvocationBinding)
 -> execution preparation artifacts
 -> 9개 lens 독립 실행
@@ -50,11 +50,11 @@ user request
 
 ## 3. Step-by-Step
 
-### 3.1 사용자 요청 수집
+### 3.1 주체자 요청 수집
 
 host가 아래를 받는다.
 
-- 사용자 자연어 요청
+- 주체자 자연어 요청
 - explicit target token
 - explicit domain token
 - explicit execution profile token
@@ -74,16 +74,16 @@ host가 아래를 받는다.
 prompt-backed path에서도 이 단계의 결과는 최종적으로
 `interpretation.yaml`로 materialize되어야 한다.
 
-### 3.3 사용자 확인 / 선택 확정
+### 3.3 주체자 확인 / 선택 확정
 
-필요한 경우 아래를 사용자와 확정한다.
+필요한 경우 아래를 주체자와 확정한다.
 
 - `도메인 최종 선택 (DomainFinalSelection)`
 - `light/full`
 - explicit override
 
 이 단계는 semantic recommendation과 deterministic binding의 중간에서
-사용자가 최종 authority를 행사하는 구간이다.
+주체자가 최종 authority를 행사하는 구간이다.
 
 현재 host-facing `review:invoke`의 기본 규칙:
 
@@ -280,7 +280,7 @@ Preferred repo-local combined completion 포함 entrypoint는 아래다.
 
 ### 3.9 Human-Readable Final Output
 
-사용자에게 보여주는 최종 review output은
+주체자에게 보여주는 최종 review output은
 `ReviewRecord`와 synthesis result를 기반으로 render된 결과다.
 
 즉 사람이 읽는 결과와

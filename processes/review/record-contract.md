@@ -182,7 +182,7 @@ degraded_lens_ids: []
 - `synthesis_result_ref`는 `synthesis.md`를 가리킨다
 - `deliberation_status`의 canonical source는 우선 `execution-result.yaml`이다
 - `synthesis.md`는 frontmatter로 `deliberation_status`를 선언해야 한다
-- `final_output_ref`는 사용자에게 보여주는 rendered output을 가리킨다
+- `final_output_ref`는 주체자에게 보여주는 rendered output을 가리킨다
 - `ReviewRecord`가 primary artifact이고 `final-output.md`는 secondary human-readable output이다
 
 ---
@@ -288,7 +288,7 @@ npm run review:assemble-record -- \
 이 계약이 들어오면 아래 truth가 바뀐다.
 
 1. `synthesis.md`는 더 이상 review의 primary artifact가 아니다
-2. `final-output.md`는 사용자용 rendering layer다
+2. `final-output.md`는 주체자용 rendering layer다
 3. later `learn/govern` handoff는 `ReviewRecord`를 기준으로 정의해야 한다
 4. prompt-backed path와 runtime path는 모두 `ReviewRecord`를 같은 primary artifact로 유지해야 한다
 

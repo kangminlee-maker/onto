@@ -445,7 +445,7 @@ Each certainty level triggers different actions in Phase 3 (user confirmation).
 
 온톨로지를 기반으로 기존 설계 대상(design target)에 새 영역을 추가하는 설계 프로세스.
 brownfield 전용 — 기존 대상의 constraint를 인식하고 그 안에서 설계.
-6-Phase inquiry로 설계자의 인지 한계를 보완하여 constraint-aware한 설계를 도출.
+6-Phase inquiry로 주체자의 인지 한계를 보완하여 constraint-aware한 설계를 도출.
 산출물 검증은 `/onto:review`로 연결.
 
 code-product(experience/interface) 런타임 경로 구현 완료.

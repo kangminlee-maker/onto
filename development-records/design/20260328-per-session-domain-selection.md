@@ -74,7 +74,7 @@ output_language: ko
 
 1. **대상 분석** — 리뷰 대상을 읽고 1-2문장 요약
 2. **가용 도메인 수집** — config.yml `domains:` + `~/.onto/domains/` 합산, 중복 제거
-3. **추천 도메인 도출** — 가용 도메인 목록 + 대상 내용 분석 + 세션 맥락을 기반으로 LLM이 추천. 추천은 **제안**이며 사용자의 최종 선택을 대체하지 않음
+3. **추천 도메인 도출** — 가용 도메인 목록 + 대상 내용 분석 + 세션 맥락을 기반으로 LLM이 추천. 추천은 **제안**이며 사용자(=주체자)의 최종 선택을 대체하지 않음
 4. **선택 UI 표시**
 
 ```
@@ -126,7 +126,7 @@ Select domain [a]: _
 | Old format `domain:` + `secondary_domains:` | unordered set으로 변환. 마이그레이션 안내 |
 | Domain directory exists but 0 files | 목록에 표시하되 "(empty — no rules)" 표기 |
 | `[-]` selected (interactive no-domain) | → §5-B |
-| 추천 도메인 0개 (LLM이 추천 산출 실패) | 추천 없이 가용 도메인 목록만 표시. 기본값 없이 사용자 입력 대기 |
+| 추천 도메인 0개 (LLM이 추천 산출 실패) | 추천 없이 가용 도메인 목록만 표시. 기본값 없이 사용자(=주체자) 입력 대기 |
 | Enter 입력 (기본값 선택) | 추천 도메인 선택 |
 | 미드세션 도메인 변경 요청 | 현재 프로세스 종료 후 새 프로세스를 다른 도메인으로 재실행 필요 |
 | 도메인 제거 시 기존 학습 | 기존 `[domain/X]` 태그 학습은 유지. 해당 도메인 리뷰 시에만 로딩 |
@@ -167,7 +167,7 @@ Select domain [a]: _
 | review, build, question | §5-A (세션 도메인 선택) |
 | promote | 학습 태그의 `[domain/X]`에서 자동 결정 (선택 불필요) |
 | transform | 도메인 컨텍스트 불필요 |
-| onboard | 사용자에게 관련 도메인 목록 질문 |
+| onboard | 사용자(=주체자)에게 관련 도메인 목록 질문 |
 
 ---
 
@@ -261,7 +261,7 @@ Order does not matter. If unsure, you can skip and select domains per review."
 
 | Decision | Rationale |
 |----------|-----------|
-| Non-existent domain → re-ask | 사용자가 `@X`로 명시한 의도 존중. 자동 폴백은 의도 무시 |
+| Non-existent domain → re-ask | 사용자(=주체자)가 `@X`로 명시한 의도 존중. 자동 폴백은 의도 무시 |
 | `domains:` = unordered set | 서비스 철학: "작업 성격에 따라 적합한 도메인이 개입" |
 | `@none` 제거 → `[-]` | 에이전트 기본 방법론 자체가 온톨로지적 검증. ontology 도메인 문서는 온톨로지 공학 규칙이므로 기본값으로 부적합 |
 | "정의 1곳 + 참조 N곳" 원칙 | 동일 동작의 중복 서술이 모순의 구조적 원인 |

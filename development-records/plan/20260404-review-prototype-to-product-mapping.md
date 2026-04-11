@@ -15,7 +15,7 @@
 
 현재 프로토타입에서 `검토 (review)`는 아래 이유로 가장 먼저 제품화해야 한다.
 
-1. 사용자 가치가 가장 분명하다.
+1. 사용자(=주체자) 가치가 가장 분명하다.
 2. `LLM` 소유와 runtime 소유가 가장 뚜렷하게 섞여 있다.
 3. 이후 `학습 (learn)`과 `운영 결정 (govern)`의 상위 입력이 된다.
 4. 기존 `onto`의 핵심 경험을 가장 잘 보존해야 하는 영역이다.
@@ -60,7 +60,7 @@ Canonical live execution truth:
 
 ```mermaid
 flowchart TD
-  A[사용자 요청] --> B[Host surface]
+  A[사용자(=주체자) 요청] --> B[Host surface]
   B --> C[호출 해석\nInvocationInterpretation]
   C --> D[호출 고정\nInvocationBinding]
   D --> E[Review execution plan]
@@ -87,13 +87,13 @@ flowchart TD
 
 | 현재 프로토타입 단계 | 현재 의미 | 목표 서비스 단계 | Owner | 비고 |
 |---|---|---|---|---|
-| 0. 도메인 선택 | review에 쓸 domain context 선택 | `호출 해석 (InvocationInterpretation)` + `호출 고정 (InvocationBinding)` + explicit user confirmation | 혼합 | 추천은 `LLM`, 도메인 목록 수집/선택값 고정은 runtime, 최종 선택은 사용자 확인 |
+| 0. 도메인 선택 | review에 쓸 domain context 선택 | `호출 해석 (InvocationInterpretation)` + `호출 고정 (InvocationBinding)` + explicit user confirmation | 혼합 | 추천은 `LLM`, 도메인 목록 수집/선택값 고정은 runtime, 최종 선택은 사용자(=주체자) 확인 |
 | 1. Context Gathering | 대상, 시스템 목적, domain docs, agent defs 수집 | `review execution plan` + `context candidate assembly` | 혼합 | 어떤 context가 필요한지 판단은 `LLM`, 실제 파일/문서 resolve는 runtime |
 | 1.5 Complexity Assessment | 경량 리뷰 vs 전원 리뷰 판단 | `호출 해석 (InvocationInterpretation)`의 일부 | `LLM` | 관련 관점 수, 놓침 리스크, 교차 검증 필요성은 semantic judgment |
 | 2. Team Creation + Round 1 | 에이전트 생성 및 독립 리뷰 | `per-lens execution` | 혼합 | 현재의 agent spawn은 later adapter/runtime detail로 내려가고, 핵심은 lens execution contract가 됨 |
 | 3. Synthesize + Adjudication | 관점 종합, 목적 정합성 판단 | `synthesize` | `LLM` | synthesize는 계속 `LLM` 소유, 다만 output은 계약화된 artifact로 남겨야 함 |
 | 4. Deliberation | contested point 재검토 | optional `re-ask / second-pass lens execution` | 혼합 | 서비스형 구조에서는 독립 step으로 남기되, host-specific direct messaging는 핵심 개념이 아님 |
-| 5. Final Output | 사용자에게 결과 전달 | `final review output` | runtime + host | final output rendering은 runtime/host, 내용 초안은 synthesis artifact 기반 |
+| 5. Final Output | 사용자(=주체자)에게 결과 전달 | `final review output` | runtime + host | final output rendering은 runtime/host, 내용 초안은 synthesis artifact 기반 |
 | 6. Learning Storage + Team Shutdown | 학습 저장, 팀 종료 | `ReviewRecord` 저장 + later `learn/govern` handoff + execution cleanup | 혼합 | review 단계에서는 우선 `리뷰 기록 (ReviewRecord)`까지만 확정하는 것이 우선 |
 
 ---
@@ -199,7 +199,7 @@ flowchart TD
 
 1. 도메인 추천: `LLM`
 2. 도메인 목록 수집 / explicit token parsing: runtime
-3. 최종 도메인 선택: 사용자 확인
+3. 최종 도메인 선택: 사용자(=주체자) 확인
 
 즉 Step 0은 later 아래 둘로 다시 써야 한다.
 
@@ -217,7 +217,7 @@ flowchart TD
 
 ### 7.1 Step A — Host request capture
 
-- 사용자 자연어 요청을 받는다
+- 사용자(=주체자) 자연어 요청을 받는다
 - current repo/selected target 같은 explicit context를 함께 본다
 
 ### 7.2 Step B — `호출 해석 (InvocationInterpretation)`

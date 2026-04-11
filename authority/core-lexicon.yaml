@@ -1,4 +1,4 @@
-lexicon_version: "0.4.0"
+lexicon_version: "0.5.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
@@ -206,17 +206,30 @@ entities:
     definition: "주체자(principal)가 onto에 진입하는 최상위 의도"
     core_value: "이 개념이 없으면 주체자의 의도와 시스템 프로세스 사이에 해석 공백이 생긴다"
     notes:
-      - "Stage 2에서 review의 dispatch target을 review_process로 변경 완료. build/ask/learn/govern/design의 dispatch target relation은 Stage 3에서 추가."
+      - >
+        현재 review instance만 dispatch target relation을 보유한다.
+        나머지 instance는 자체 notes에 deferred 상태를 명시하며, 이는 모델링 누락이 아니라 의도적 지연이다.
+        각 instance의 Stage 3 dispatch target relation 도입은 `project_principal_stage3_backlog.md` 참조.
     instances:
       review:
         definition: "9-lens 구조로 검증"
         relations:
           - { type: dispatches, target: review_process }
-      build: { definition: "지식을 구조화된 artifact로 구축" }
-      ask: { definition: "특정 관점에서 질의에 답변" }
-      learn: { definition: "학습 축적·승격·큐레이션·감사" }
-      govern: { definition: "규칙·구조·프로세스 관리" }
-      design: { definition: "대상을 분석하고 설계 문서를 생성" }
+      build:
+        definition: "지식을 구조화된 artifact로 구축"
+        notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
+      ask:
+        definition: "특정 관점에서 질의에 답변"
+        notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
+      learn:
+        definition: "학습 축적·승격·큐레이션·감사"
+        notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
+      govern:
+        definition: "규칙·구조·프로세스 관리"
+        notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
+      design:
+        definition: "대상을 분석하고 설계 문서를 생성"
+        notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
 
 # ---------------------------------------------------------------------------
 # Terms

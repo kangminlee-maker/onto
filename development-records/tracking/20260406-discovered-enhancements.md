@@ -63,7 +63,7 @@
 
 - **발견일**: 2026-04-06
 - **출처**: 글로벌 CLI 설계 9-lens full review (session `20260406-b28811ff`). onto_axiology AX-4 제안, Consensus C-3/CC-1 관련.
-- **개념**: 외부 프로젝트에 `.onto/` 디렉토리를 처음 생성할 때 사용자 확인이 필요함. 현재는 `--project-root`를 명시적으로 전달하면 silent하게 생성됨. auto-detection(`--project-root` 없이 CWD에서 자동 결정)이 활성화되면 사용자가 의도하지 않은 디렉토리 생성이 발생할 수 있음.
+- **개념**: 외부 프로젝트에 `.onto/` 디렉토리를 처음 생성할 때 사용자(=주체자) 확인이 필요함. 현재는 `--project-root`를 명시적으로 전달하면 silent하게 생성됨. auto-detection(`--project-root` 없이 CWD에서 자동 결정)이 활성화되면 사용자(=주체자)가 의도하지 않은 디렉토리 생성이 발생할 수 있음.
 - **현재 상태**: **해결됨** (2026-04-06). `cli.ts`에서 `.onto/` 미존재 시 확인 prompt (TTY) 또는 `--allow-onto-init` 필수 (non-TTY). E2E E43/E44 추가.
 - **판단**: ~~blocker~~ → 해결됨
 - **비고**: TTY: interactive prompt ("이 프로젝트에 .onto/ 디렉토리를 생성합니다. 계속하시겠습니까?"). non-TTY: `--allow-onto-init` flag 필수. `.gitignore`에 `.onto/review/` 추가 안내. 9-lens review의 Trust Boundary perspective에서 도출.

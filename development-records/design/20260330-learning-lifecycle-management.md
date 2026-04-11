@@ -30,7 +30,7 @@
 | 영향도가 큰 학습은 빈도 무관 보호 | `impact_severity == high` | Tier-2 |
 | 실패를 통해 얻은 학습은 대체 불가능하다 | `purpose_type == guardrail` | Tier-2 |
 | 다른 학습의 전제가 되는 기반 지식 보호 | `is_foundation == true` | Tier-1 |
-| 사용자가 직접 제공한 학습은 권위 기반 보호 | `source_type ∈ {user, promoted}` | Tier-1 |
+| 사용자(=주체자)가 직접 제공한 학습은 권위 기반 보호 | `source_type ∈ {user, promoted}` | Tier-1 |
 | 도메인 문서에 반영 완료 = 목적 달성 (졸업) | `reflected_in_doc` → Tier-3 경쟁 | Tier-3 |
 
 ---
@@ -167,7 +167,7 @@ Tier-1 + Tier-2 > 행 상한 시:
 | 타입 | enum (high / normal) |
 | 판정 시점 | learning 생성 시 1회, 이후 고정 (immutable) |
 | 판정 기준 | 다음 중 하나 이상 충족 시 `high`: |
-| | (a) "이 learning이 무시되었을 때 데이터 유실, 시스템 장애, 또는 사용자 대면 오류가 발생할 수 있는가?" |
+| | (a) "이 learning이 무시되었을 때 데이터 유실, 시스템 장애, 또는 사용자(=주체자) 대면 오류가 발생할 수 있는가?" |
 | | (b) "이 learning 없이 동일 결론에 도달하려면 상당한 조사/디버깅이 필요했을 것인가?" |
 
 ### is_failure_experience (실패경험) — 폐기

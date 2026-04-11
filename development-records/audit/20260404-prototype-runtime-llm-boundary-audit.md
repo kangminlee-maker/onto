@@ -35,7 +35,7 @@
 
 예:
 
-- 사용자의 자연어 요청에서 실제 의도를 해석
+- 사용자(=주체자)의 자연어 요청에서 실제 의도를 해석
 - 어떤 관점의 리뷰가 필요한지 판단
 - 구조적 모순, 의미적 갭, 정책 리스크를 판단
 - `build`에서 delta의 의미를 ontology element로 해석
@@ -59,7 +59,7 @@
 
 ### 2.3 `혼합 (mixed)`
 
-하나의 사용자 기능 안에 `LLM` 단계와 runtime 단계가 함께 있으면 `혼합`이다.
+하나의 사용자(=주체자) 기능 안에 `LLM` 단계와 runtime 단계가 함께 있으면 `혼합`이다.
 
 대표 예:
 
@@ -75,7 +75,7 @@
 
 | 자산 그룹 | 현재 역할 | 현재 분류 | 이유 | 대표 파일 |
 |---|---|---|---|---|
-| `commands/` | host-facing 호출 표면 | 혼합 | 사용자가 보는 진입점이지만, 현재는 프롬프트 지시와 실행 규칙이 뒤섞여 있다 | `commands/review.md`, `commands/build.md` |
+| `commands/` | host-facing 호출 표면 | 혼합 | 사용자(=주체자)가 보는 진입점이지만, 현재는 프롬프트 지시와 실행 규칙이 뒤섞여 있다 | `commands/review.md`, `commands/build.md` |
 | `process.md` | 공통 실행 규칙, 에이전트 정의, 도메인 규칙 | 혼합 | 개념 SSOT와 실행 규칙이 함께 있다. 일부는 runtime화 가능, 일부는 `LLM` 지시다 | `process.md` |
 | `processes/` | 실제 작업 절차 정의 | 대부분 혼합 | 절차 안에 의미 판단과 파일시스템 조작이 모두 섞여 있다 | `processes/review.md`, `processes/build.md`, `processes/promote.md` |
 | `roles/` | 관점별 전문성 정의 | `LLM` 소유 | 전문 관점과 핵심 질문은 의미 판단 그 자체다 | `roles/onto_logic.md`, `roles/onto_axiology.md`, `roles/onto_synthesize.md` |

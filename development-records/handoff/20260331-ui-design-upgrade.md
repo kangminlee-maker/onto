@@ -105,7 +105,7 @@
 1. 계획 원문은 `.claude-1`이 원본이다
    - `.claude-2/plans`는 심볼릭 링크
 2. `dev-docs/handoff/20260331-session-ui-design-upgrade.md`는 현재 세션 상태 SSOT로 유지
-3. 기존 ui-design 문서들은 이미 사용자 수정과 세션 수정이 섞여 있으므로 되돌리기 금지
+3. 기존 ui-design 문서들은 이미 사용자(=주체자) 수정과 세션 수정이 섞여 있으므로 되돌리기 금지
 4. 다음 세션에서 바로 문서 추가 수정부터 하지 말고, 먼저 **2차 파일럿 결과만으로 학습 승격할지 / capture-backed rerun을 할지**를 정해야 한다
 
 ---

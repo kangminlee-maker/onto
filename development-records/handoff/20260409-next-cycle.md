@@ -67,7 +67,7 @@
 
 ---
 
-## 3. 사용자 액션 필요 (이 세션에서 처리 안 됨)
+## 3. 사용자(=주체자) 액션 필요 (이 세션에서 처리 안 됨)
 
 ### 3.1 Plugin install update (Claude Code plugin manager 필요)
 
@@ -83,7 +83,7 @@ Bash subprocess로는 update 불가 — Claude Code 내부 plugin manager가 관
 
 ### 3.2 Anthropic API 키 rotation
 
-**왜**: 이전 cycle의 Phase 3 production validation 중 사용자가 API 키를 conversation history에 평문으로 노출. 이후 `/tmp/onto-anthropic-key` 임시 파일을 통해 사용. 파일은 cycle 종료 시 정리됨.
+**왜**: 이전 cycle의 Phase 3 production validation 중 사용자(=주체자)가 API 키를 conversation history에 평문으로 노출. 이후 `/tmp/onto-anthropic-key` 임시 파일을 통해 사용. 파일은 cycle 종료 시 정리됨.
 
 **액션**: https://console.anthropic.com/settings/keys 에서 rotate.
 
@@ -91,7 +91,7 @@ Bash subprocess로는 update 불가 — Claude Code 내부 plugin manager가 관
 
 **상태**: `~/.claude-2/plugins/marketplaces/onto/` 가 origin/main보다 53 commits 뒤짐 + 수동 modifications 다수 + untracked files.
 
-**액션** (사용자 판단):
+**액션** (사용자(=주체자) 판단):
 - Option A: `cd ~/.claude-2/plugins/marketplaces/onto && git stash && git pull origin main` (수동 modifications 보존)
 - Option B: `/plugin marketplace remove onto && /plugin marketplace add https://github.com/kangminlee-maker/onto` (clean re-add)
 - Option C: 무시 (marketplace clone이 직접 사용되지 않는다면)
@@ -146,7 +146,7 @@ Bash subprocess로는 update 불가 — Claude Code 내부 plugin manager가 관
 - E2E 커버리지 확대 (52 → 138 중 고가치 항목)
 - Phase 3 follow-up implementation items (§5의 1, 2, 3)
 
-### 6.2 사용자 액션 필요한 선행
+### 6.2 사용자(=주체자) 액션 필요한 선행
 
 - `/plugin update onto` 후 `/onto:review`, `/onto:promote` smoke test — plugin이 새 commit 반영하는지 확인
 - 실 `onto promote` 첫 실행 후 발견되는 edge case 대응

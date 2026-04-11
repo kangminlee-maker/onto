@@ -210,7 +210,7 @@ LLM이 연속된 Bash 출력에서 echo 마커(`---PROJECT_ONTO---`, `---GLOBAL_
 
 `/onto:create-domain paid-marketing` 실행 시, 프로젝트 내부 파일(`dev_docs/pre-research/01_performance_marketer_research.md`)을 읽고 이를 기반으로 도메인 시드 문서(`domain_scope.md`) 생성을 시작.
 
-사용자가 즉시 중단: "paid marketing 도메인을 만들기 위한 기반자료는 이 프로젝트 내의 파일이 되어서는 안돼. 외부 리서치를 통해 진행해야 해."
+사용자(=주체자)가 즉시 중단: "paid marketing 도메인을 만들기 위한 기반자료는 이 프로젝트 내의 파일이 되어서는 안돼. 외부 리서치를 통해 진행해야 해."
 
 ### Root Cause
 

@@ -191,7 +191,7 @@ business 도메인 핵심 문서 8개를 기존 59K 수준에서, accounting-kr 
 |------|------|------|
 | 2026-03-31 | 리서치-작성 분리 유지 | PF 교훈 재사용 |
 | 2026-03-31 | Scale Tier 방향 A 확정 | employee count 단일 축 + lifecycle 분리 |
-| 2026-03-31 | domain 문서는 모두 영문으로 작성 | 사용자 지시 |
+| 2026-03-31 | domain 문서는 모두 영문으로 작성 | 사용자(=주체자) 지시 |
 | 2026-03-31 | benchmark 수치 SSOT는 `concepts.md §Benchmark Registry` | 계약 정합성 |
 | 2026-03-31 | CQ는 46개 구조로 확장 | 기존 36개 정규화 + modern / transfer coverage 보강 |
 | 2026-03-31 | commit 전 교차 참조 무결성 점검을 우선 수행 | 현재 리스크가 내용 부족보다 정합성 쪽에 더 큼 |

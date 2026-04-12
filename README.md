@@ -387,11 +387,12 @@ onto/
 |   +-- conciseness.md  # Conciseness
 |   +-- axiology.md     # Purpose and value alignment
 |   +-- synthesize.md   # Review synthesis
-|   +-- philosopher.md       # Legacy build coordinator
 +-- explorers/               # Explorer profiles for build process
 +-- domains/                 # Domain base documents (8 per domain)
 +-- golden/                  # Golden examples per schema + schema templates
 +-- development-records/     # Development history (배포 제외)
+|   +-- legacy/
+|   |   +-- philosopher.md   # Legacy build coordinator
 |   +-- tracking/20260330-known-issues.md
 |   +-- tracking/20260406-discovered-enhancements.md
 |   +-- reference/20260327-philosophical-foundations-of-ontology.md

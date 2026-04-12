@@ -385,12 +385,7 @@ Also populate `observation_aspect` for each fact:
 {profile's "structural recognition examples" — correct reporting / what not to do}
 
 [Certainty Classification Rules]
-Perform only Stage 1 classification for each fact:
-- observed: a fact directly observed from the source (structure, value, relation, constraint)
-- pending: a fact that cannot be fully confirmed from the source alone
-
-Determination criteria: "Would this fact remain unchanged if the source is not modified?" → if yes, observed.
-Boundary case: A hardcoded constant (e.g., MIN_PAYMENT=500) is observed (the value itself is verifiable from the source). The rationale for that constant (why 500) is pending.
+Perform only Stage 1 classification for each fact (two levels: observed vs pending). The Stage 1 level definitions, determination criterion, and boundary case are owned by the Certainty Classification SSOT section of this document; Runtime inlines them verbatim at prompt render time. Stage 2 levels are out of Explorer scope — leave them to lenses.
 
 [context_brief]
 {context collected in Phase 0.5 — content of context_brief.yml}
@@ -426,11 +421,7 @@ Procedure:
    - Specify the matching element_type from the schema
    - If not applicable, state "no label"
    - Specify the rationale in 1 sentence
-   - If the fact's certainty is pending, perform the following refinement (refer to the "Certainty Classification" section for definitions):
-     * rationale-absent: implementation exists in the source but its rationale is not in the source
-     * inferred: inference not directly confirmed from the source. Also evaluate abduction_quality
-     * ambiguous: equally valid multiple interpretations exist and cannot converge to a single inference
-     * not-in-source: cannot be determined from this source. Requires another source or user input
+   - If the fact's certainty is pending, perform Stage 2 refinement. The four Stage 2 levels (`rationale-absent`, `inferred`, `ambiguous`, `not-in-source`), their definitions, and their downstream actions are owned by the Certainty Classification SSOT section; Runtime inlines them verbatim at prompt render time. Lens-local addition: for any fact classified as `inferred`, also evaluate `abduction_quality`.
 
 2. **Certainty-specific processing rules**:
    - observed fact: assign label normally
@@ -882,8 +873,11 @@ meta:
   # Atomic-clear invariant: phase3_user_responses and phase4_runtime_state MUST be cleared in the same wip.yml
   # rewrite that marks Save success. Partial clear (one but not the other) leaves the next /onto:build invocation
   # unable to distinguish completion from resumption; Runtime enforces this via a single atomic write.
-  # Lifecycle of cumulative_unresolved_conflicts (Runtime-managed):
-  #   - Appended by Runtime at end of each round (from Synthesize's unresolved_for_user).
+  # Lifecycle of cumulative_unresolved_conflicts (Runtime-managed — canonical definition; all other
+  # sections referencing this field MUST point here rather than restating the rules):
+  #   - Append point: Runtime Coordinator (sole writer of wip.yml) appends Synthesize's
+  #     `unresolved_for_user` items at the end of each round, between step 5 Synthesize completion and
+  #     step 6 Explorer dispatch. This ordering is consistent with Runtime's sole-writer authority.
   #   - Clear-on-resolve: at each round's step 3 (after Runtime applies label patches) and step 4
   #     (after Adjudicator resolutions are applied), Runtime scans cumulative entries and removes
   #     any whose conflict_id now has a terminal resolution in wip.issues[] (resolved, user_resolved,
@@ -891,7 +885,10 @@ meta:
   #     are matched by conflict_id against Synthesize's current-round resolution list. Entries not
   #     matched remain in the cumulative list.
   #   - Carried across Stage transition (NOT reset) — Stage 1 unresolved items may still need user attention at Phase 3.
-  #   - Dropped at Phase 4 Save (intermediate artifact). User-deferred items persist via raw.yml.issues[] instead.
+  #   - Dropped at Phase 4 Save (intermediate artifact; never persisted to raw.yml). User-deferred
+  #     items persist via raw.yml.issues[] instead, written by Phase 4's save-time handling.
+  #   - Input exclusion invariant: NEVER included in lens input context across rounds — preserves
+  #     lens independence (see Role Boundary Principles).
 
 elements:
   - id: {element ID}
@@ -1130,17 +1127,15 @@ unresolved_for_user:
       content: "{from Runtime output}"
       priority: "{from Runtime output}"
       justification: "{from Runtime output}"
-    # Synthesize emits this list. Runtime Coordinator (sole writer of wip.yml) appends the items to
-    # meta.cumulative_unresolved_conflicts at the end of the round (between step 5 Synthesize completion
-    # and step 6 Explorer dispatch), consistent with Runtime's sole-writer authority over wip.yml.
-    # Phase 2 Step 4 reads from meta.cumulative_unresolved_conflicts to collate with Phase 2 Step 3 results.
-    # Phase 3 display ordering (three-level sort):
+    # Synthesize emits this list; Runtime appends to meta.cumulative_unresolved_conflicts and Phase 2
+    # Step 4 reads from it. For append timing, clear-on-resolve, Stage transition, save-time handling,
+    # and lens-input exclusion, see the cumulative_unresolved_conflicts lifecycle comment in the wip.yml
+    # schema (canonical — do not restate).
+    # Phase 3 display ordering (three-level sort — renderer-local, not part of the lifecycle):
     #   1. max(position_a.priority, position_b.priority) desc — symmetric-high > asymmetric-high > medium > low
     #   2. min(position_a.priority, position_b.priority) desc — distinguishes high/high (both lenses agree)
     #      from high/low (lop-sided) within the same max tier
     #   3. unresolved_since asc — older conflicts first among same-priority pairs
-    # Invariant: meta.cumulative_unresolved_conflicts is NEVER included in lens input context across rounds
-    # (preserves lens independence — see Role Boundary Principles).
 ```
 
 ---
@@ -1467,7 +1462,7 @@ issues:
   - **Re-entry bound**: `config.build.max_phase4_reentries` (default 2) re-entries per Phase 4 attempt. Counter stored as `meta.phase4_runtime_state.reentry_count` (persists across Runtime restarts to prevent crash-restart loop bypass).
   - **Counter increment timing**: Runtime increments `reentry_count` by 1 **immediately upon bug-guard detecting `resolution: pending`, atomically with a wip.yml fsync, BEFORE issuing the Phase 3 re-render prompt**. This ordering ensures that a crash between detection and re-render does not bypass the bound (after restart, the counter already reflects the detection).
   - **Bound semantics**: `max_phase4_reentries: N` means the counter MAY reach N; at `reentry_count == N` with pending still remaining after the N-th re-entry's Phase 3.5 completes, halt with `phase_reentry_bound_exhausted`. Per Phase 3.5 step 5 invariants, surviving `pending` after a full Phase 3.5 pass indicates a Runtime defect; the bound exists to prevent infinite re-entry loops while surfacing the defect for investigation. Default N=2 → up to 2 re-entries allowed; 3rd detection of pending halts. (Prior name `phase_3_5_defect_unresolvable` was retired when the registry consolidated on `phase_reentry_bound_exhausted`.)
-- `meta.cumulative_unresolved_conflicts` is dropped at save (see its lifecycle comment in the wip.yml schema). User-deferred items persist via `raw.yml.issues[]` instead.
+- `meta.cumulative_unresolved_conflicts` save-time handling: see its canonical lifecycle comment in the wip.yml schema.
 
 ---
 
@@ -1547,7 +1542,7 @@ Preserved: session directory (not modified by this halt).
 Either delete the session directory and start a new build, or repair the affected file manually and re-run.
 ```
 
-**Registered error/warning codes** (this document's canonical enumeration; extensible via additions to this list):
+**Registered error/warning codes** (this document's canonical enumeration; extensible via additions to this list). The `Code` column is the primary registry key; the `Phase` column may list multiple phases when the same code fires across phases, and phase-local distinctions belong in the `Trigger` column rather than as duplicate rows.
 
 | Code | Level | Phase | Trigger |
 |---|---|---|---|
@@ -1561,8 +1556,7 @@ Either delete the session directory and start a new build, or repair the affecte
 | `runtime_coordinator_failure` | halt | phase_1 | Runtime Coordinator deterministic failure (indicates bug) |
 | `session_state_corrupt` | halt | phase_0 | Resumption integrity check detects any of: malformed `wip.yml`, missing `deltas/`, corrupt `session-log.yml`, or missing `schema.yml` — any of which prevents deterministic replay |
 | `lens_partial_failure` | warning | phase_1 | One or more lenses failed; graceful degradation applied |
-| `adjudicator_failure` | warning | phase_1 | Axiology Adjudicator agent failed during Phase 1 lens-loop; fallback paths engaged |
-| `adjudicator_failure` | warning | phase_2 | Axiology Adjudicator agent failed during Phase 2 cross-Stage collation; fallback paths engaged |
+| `adjudicator_failure` | warning | phase_1, phase_2 | Axiology Adjudicator agent failed; fallback paths engaged. Triggers in Phase 1 lens-loop (per-round adjudication) and Phase 2 cross-Stage collation (Step 3 batch adjudication) |
 | `synthesize_failure` | warning | phase_1 | Synthesize agent failed; raw epsilons delivered to Explorer |
 | `degradation_threshold_warning` | warning | phase_1 | 2 consecutive Adjudicator/Synthesize failures reached; user warned |
 | `phase3_response_inconsistent` | warning | phase_3 | User submitted `adjustments_provided` with all three fields empty; re-prompt issued (non-halting) |

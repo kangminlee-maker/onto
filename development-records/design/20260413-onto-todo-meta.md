@@ -1,8 +1,17 @@
-# 작업 목록 작성을 위한 Meta 작업 목록 (v3)
+# 작업 목록 작성을 위한 Meta 작업 목록 (v4)
 
 작성일: 2026-04-13
-상태: v2 9-lens review(`20260413-12eb28e0`) Immediate 5건 + Recommendations 2건 반영 (경로 α)
-이전 버전: v2 (review session `20260413-21695bbe` 반영. 경로 B 선택)
+상태: v3 9-lens review(`20260413-c0adc0af`) Immediate 7건 반영 (경로 α')
+이전 이력:
+- v3: v2 review(`20260413-12eb28e0`) Immediate 5 + Recommendations 2 반영 (경로 α)
+- v2: v1 review(`20260413-21695bbe`) 경로 B 선택
+
+## 경로 B와 경로 α/α' 관계
+
+- **경로 B** = v1→v2의 **구조 확장 방향** 선택 (7 → 9 meta task)
+- **경로 α** = v2→v3의 **Immediate + Recommendations 반영 방식** 선택
+- **경로 α'** = v3→v4의 **Immediate 7 반영** 선택. α의 연속
+- 세 경로는 서로 다른 결정 차원이며 상호 배타 아님
 
 ## 맥락
 
@@ -41,6 +50,18 @@
 | evolution-1 Activity/axis set 확장 프로토콜 부재 | 본 문서 말미 "Expansion Protocol" 신설 |
 | (recommendation) Canonicality decision rule 컴팩트화 | "Canonicality Gate" 섹션에 판정 기준 추가 |
 
+### v3 → v4 반영 (session `20260413-c0adc0af`)
+
+| Review 지적 | v4 반영 위치 |
+|---|---|
+| logic/dependency: M-07 revise escalation SSOT 분열 | 그래프·본문·순서 bullet 모두 M-03/M-04/M-05 reopen 일관 표시. M-03 reopen 허용 확정 |
+| semantics-1: "경로 B 권장 순서" 잔존 | "경로 α 실행 순서"로 수정 + 상단 "경로 관계" 섹션 신설 |
+| semantics-2: "8건" 수량 오류 | "9건"으로 정정 (M-00~M-08) |
+| pragmatics-1: M-00 PR materialization seat 부재 | M-00에 `PR source materialization rule` 추가 |
+| pragmatics-2: M-00 PR extraction unit 부재 | M-00 inclusion criteria에 `extraction unit + dedup rule` 추가 |
+| evolution-1: Expansion Protocol migration contract 부재 | Expansion Protocol에 `Migration Contract` subsection 추가 |
+| evolution-2: Expansion reopen 범위 과소 모델링 | Expansion Protocol에 `Change-type별 Mandatory Reopen Set` 추가 |
+
 ## 용어 정리
 
 | 용어 | 의미 | 대상 문서 |
@@ -69,7 +90,7 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
 
 ---
 
-## Meta task 8건 (필수)
+## Meta task 9건 (필수, M-00~M-08)
 
 ### M-00 Planning·Backlog Source Consolidation
 
@@ -81,12 +102,25 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
 3. Source: `MEMORY.md` entry **또는** Open PR **또는** `development-records/design/` 산출물 **또는** backlog 전용 memory 파일
 4. **제외**: 이미 merged되어 해결된 것 / 완전히 폐기된 제안 / 주체자 대화용 메모
 
+**PR Source Materialization Rule** (v4 추가):
+- **로컬 스냅샷 seat**: `.onto/temp/backlog-snapshots/pr-{number}.md`
+- **추출 방식**: `gh pr view <number> --json title,body,comments,labels,state,updatedAt > .onto/temp/backlog-snapshots/pr-{number}.json` 후 markdown 변환
+- **Source metadata 필수**: PR number, URL, 제목, 작성자, 최근 update 시점, labels, state (open/draft)
+- **재실행 시**: 기존 스냅샷이 있으면 `updatedAt` 비교. 변화 없으면 재추출 생략
+
+**PR Extraction Unit + Dedup Rule** (v4 추가):
+- **Extraction unit**: 기본 **1 PR = 1 includable item**. 예외: PR 본문에 명시적 체크리스트(`- [ ]`)가 있고 각 항목이 **다른 축·활동**에 속하면 체크리스트 항목별 분리
+- **Dedup rule**:
+  - 같은 기능 영역(review harness / build / lexicon 등) 내 **문제 설명 유사도 ≥ 70%**이면 최신 1건만 채택
+  - `MEMORY.md` entry와 Open PR이 동일 주제를 다루면 **PR이 우선** (실행 단계가 더 구체)
+  - merge된 PR이 남긴 잔여 backlog는 memory entry로만 포함 (중복 제거)
+
 **Source 후보**:
 - `MEMORY.md` 관련 entry (roles refactor v3 backlog, Build 8th Review Backlog, Principal Stage 3 Backlog, Design Spec v4 잔여 등)
 - Open PR (#20, #21, #22, #7)
 - `development-records/design/` 산출물
 
-**산출**: `backlog-consolidated.md` — raw backlog entries with source tag
+**산출**: `backlog-consolidated.md` — raw backlog entries with source tag + `.onto/temp/backlog-snapshots/` 하위 PR 스냅샷
 
 ### M-01 다섯 활동 구현 상태 Inventory
 
@@ -186,22 +220,25 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
 ```
   M-00 ──► M-01 ──┐
    │      M-02 ──┴──► M-03 ──┐
-   │                            │
-   └────────────────────────────┤   (M-00 → M-03 직접 입력)
-                                │
-          M-04 ──────────────────┤
-                                │
-          M-05 ──────────────────┤
-                                ▼
-                                M-06 ◄─┐◄─┐◄─┐
-                                │         │  │  │
-                                ▼         │  │  │
-                                M-07 ─────┘  │  │ (escalation)
-                                │  │         │  │
-                                │  └─ M-05 ──┘  │ (reopen)
-                                │  └─ M-04 ─────┘ (reopen)
-                                ▼
-                                M-08 ──► 완성
+   │                          │
+   └──────────────────────────┤   (M-00 → M-03 직접 입력)
+                              │
+          M-04 ────────────────┤
+                              │
+          M-05 ────────────────┤
+                              ▼
+                              M-06 ◄──────────────┐
+                              │                    │
+                              ▼                    │
+                              M-07 (escalation)    │
+                              │                    │
+                              ├─ reopen M-06 ──────┤
+                              ├─ reopen M-05 ──► M-06 재생성
+                              ├─ reopen M-04 ──► M-06 재생성
+                              └─ reopen M-03 ──► M-06 재생성
+                              │
+                              ▼
+                              M-08 ──► 완성
 ```
 
 - **M-00 선행**: consolidation이 inventory + gap 판정에 직접 입력
@@ -209,20 +246,20 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
 - **M-03**: M-00 + M-01 + M-02 모두 입력 (그래프 직접 반영)
 - **M-04·M-05 조기 시작 가능**: M-03 결과 필요 시 보완 (scope 제한 하에)
 - **M-06**: M-03+M-04+M-05 모두 완료 필요
-- **M-07 revise escalation**: defect 원인 단계로 reopen (M-04/M-05/M-06 선택적)
+- **M-07 revise escalation**: defect 원인 단계로 reopen (**M-03 / M-04 / M-05 / M-06** 네 단계 중 선택). M-03/M-04/M-05 reopen 시 반드시 **M-06 재생성** 후 M-07 재실행
 - **Revise cycle 최대 2회**, 이후 M-08 maintenance로 이관
 - **M-08**: 최종 단계. 이후 continuing maintenance
 
 ## 실행 방식
 
-경로 B 권장 순서:
-1. M-00 (backlog consolidation, inclusion criteria 적용)
+**경로 α 실행 순서** (v3에서 선택된 Immediate 반영 방식을 v4에서 완결):
+1. M-00 (backlog consolidation, inclusion criteria + PR materialization rule + extraction unit 적용)
 2. M-01 · M-02 병렬
 3. M-03
 4. M-04 · M-05 (M-03과 약간 overlap 가능)
 5. M-06
 6. M-07 (cluster + lifecycle balance + 필요 시 escalation)
-7. (M-07 escalation 시 해당 단계 reopen → M-06 재생성 → M-07 재실행. 최대 2회)
+7. (M-07 escalation 시 M-03/M-04/M-05 중 원인 단계 reopen → M-06 재생성 → M-07 재실행. 최대 2회)
 8. M-08 protocol 수립
 9. 완성 선언. 이후 M-08 protocol 하에 maintenance.
 
@@ -250,8 +287,36 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
 2. §1 재review 실행 (9-lens)
 3. Principal 승인
 4. §1 관련 섹션 수정 + lifecycle_status 관리
-5. work item schema versioning 적용 (기존 item migration rule 포함)
-6. M-06 재실행 (필요 시)
+5. Migration Contract 적용 (하위 섹션 참조)
+6. Change-type별 mandatory reopen (하위 섹션 참조)
+
+### Migration Contract (v4 신설)
+
+taxonomy(활동·축·schema) 변경 시 기존 work item의 continuity 보장 규칙.
+
+| 항목 | 규칙 |
+|---|---|
+| **ID continuity** | 축 변경 시 기존 `W-{구축}-{nn}`을 `W-{신축}-{nn}`으로 rename. number는 유지. 신축 내 충돌 시 가장 큰 nn+1로 reissue |
+| **Alias** | 제거되는 활동·축 ID는 `deprecated_aliases:` 필드에 보존 (검색·참조용) |
+| **Deprecation** | 폐기 시 work item status를 `deprecated`로. 삭제 아님. 6개월 후 archive |
+| **Reissue** | 완전히 새로운 item은 deprecated의 다음 번호로 reissue. 이력은 `previous_id:` 필드에 기록 |
+| **`deps` rewrite** | 기존 work item의 `deps` 필드에서 변경된 ID를 자동 교체. rewrite log 필수 |
+| **Mapping artifact seat** | `development-records/design/expansion-migration-{YYYYMMDD}.md`에 변환 테이블 저장 (old_id → new_id, 변경 유형, 이유) |
+
+### Change-type별 Mandatory Reopen Set (v4 신설)
+
+변경 유형에 따라 어느 M-* 단계를 반드시 reopen해야 하는지 명시.
+
+| 변경 유형 | Mandatory reopen | 선택 reopen |
+|---|---|---|
+| **활동 추가** | M-01 (inventory) → M-03 (disposition) → M-05 (dep) → M-06 → M-07 | M-04 (schema 보강 필요 시) |
+| **활동 삭제** | M-01 → M-03 → M-05 → M-06 → M-07 + 해당 activity work item을 deprecated로 전환 | M-04 |
+| **활동 병합** | 삭제+추가 조합. Migration Contract의 `deps rewrite` 필수 | M-04 |
+| **축 추가·변경** | M-04 (축별 섹션 재조직) → M-05 (dep graph 대폭 갱신) → M-06 → M-07 | M-03 (disposition 재분류 시) |
+| **Schema 변경** | M-04 (versioning 증가) → M-06 (기존 item migration) → M-07 | M-03 (분류 기준 바뀐 경우) |
+| **Canonicality 기준 변경** | M-03 (재분류) → M-06 (거부된 item 재검토) → M-07 | M-04 |
+
+모든 경우 M-06 재생성 후 M-07 재검증이 필수. M-08 maintenance protocol이 변경 결과를 catch-up.
 
 ### 제약
 

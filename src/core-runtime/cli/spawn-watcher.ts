@@ -15,9 +15,21 @@ export interface SpawnWatcherResult {
  * using the most appropriate terminal multiplexer detected from the environment.
  *
  * Detection priority (most universal first):
- *   1. tmux (any OS, via $TMUX env var)
- *   2. iTerm2 on macOS (via $TERM_PROGRAM === 'iTerm.app')
+ *   1. tmux (any OS, via $TMUX env var) — splits the pane identified by
+ *      `$TMUX_PANE` so the watcher stays beside the invoking pane even if
+ *      the user has switched panes during startReviewSession.
+ *   2. iTerm2 on macOS (via $TERM_PROGRAM === 'iTerm.app') — targets the
+ *      session identified by `$ITERM_SESSION_ID`, which is inherited from
+ *      the invoking session at process start, so splits land beside the
+ *      pane that actually launched onto:review.
  *   3. Apple Terminal on macOS (via $TERM_PROGRAM === 'Apple_Terminal')
+ *      — best effort; Terminal.app lacks a stable session identifier, so
+ *      the spawn opens a new tab rather than a tab-targeted split.
+ *
+ * `sessionRoot` is required. It is passed through to the watcher script as
+ * an explicit argument, which bypasses the `.onto/review/.latest-session`
+ * pointer and therefore avoids the cross-session race that the global
+ * pointer would otherwise create under concurrent review invocations.
  *
  * Returns silently with `spawned: false` if no supported mechanism is found.
  * The caller should print a fallback hint in that case.
@@ -27,7 +39,7 @@ export interface SpawnWatcherResult {
  */
 export function spawnWatcherPane(
   projectRoot: string,
-  sessionRoot?: string,
+  sessionRoot: string,
 ): SpawnWatcherResult {
   const watcherScript = path.join(projectRoot, "scripts", "onto-review-watch.sh");
 
@@ -35,21 +47,20 @@ export function spawnWatcherPane(
     return { spawned: false, reason: "watcher script not found" };
   }
 
-  // Build the watcher command. If sessionRoot is not yet known (spawn before
-  // session creation), call without args — the watcher script will wait for
-  // `.onto/review/.latest-session` to appear.
-  const watcherArgs = sessionRoot
-    ? `bash "${watcherScript}" "${sessionRoot}"`
-    : `bash "${watcherScript}"`;
+  const watcherArgs = `bash "${watcherScript}" "${sessionRoot}"`;
 
   // Priority 1: tmux (works on any OS, most universal)
   if (process.env.TMUX) {
     try {
-      const result = spawnSync(
-        "tmux",
-        ["split-window", "-h", "-l", "60", watcherArgs],
-        { stdio: "ignore" },
-      );
+      // Target the originating pane explicitly via $TMUX_PANE so the split
+      // does not land on whichever pane happens to be active at spawn time.
+      const tmuxArgs = ["split-window", "-h", "-l", "60"];
+      const originPane = process.env.TMUX_PANE;
+      if (originPane) {
+        tmuxArgs.push("-t", originPane);
+      }
+      tmuxArgs.push(watcherArgs);
+      const result = spawnSync("tmux", tmuxArgs, { stdio: "ignore" });
       if (result.status === 0) {
         // Refocus original pane so user keeps typing in Claude Code / shell
         spawnSync("tmux", ["select-pane", "-l"], { stdio: "ignore" });
@@ -61,22 +72,48 @@ export function spawnWatcherPane(
   }
 
   // Priority 2: iTerm2 on macOS
-  // Use `split vertically` (= left/right split in iTerm2 terminology)
-  // so Claude Code stays on the left and the watcher appears on the right.
+  // Target the originating session via $ITERM_SESSION_ID (inherited at
+  // process start), so the split lands beside the pane that launched
+  // onto:review even if the user has since switched tabs or windows.
+  // Falls back to `current session of current window` if the env var is
+  // not present (e.g. older iTerm2 builds that did not export it).
   if (
     process.platform === "darwin" &&
     process.env.TERM_PROGRAM === "iTerm.app"
   ) {
     try {
       const escapedCmd = watcherArgs.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-      const script =
-        `tell application "iTerm2"\n` +
-        `  tell current window\n` +
-        `    tell current session of current tab\n` +
-        `      split vertically with default profile command "${escapedCmd}"\n` +
-        `    end tell\n` +
-        `  end tell\n` +
-        `end tell`;
+      const iTermSessionId = process.env.ITERM_SESSION_ID;
+      let script: string;
+      if (iTermSessionId) {
+        const escapedSessionId = iTermSessionId
+          .replace(/\\/g, "\\\\")
+          .replace(/"/g, '\\"');
+        script =
+          `tell application "iTerm2"\n` +
+          `  repeat with w in windows\n` +
+          `    repeat with t in tabs of w\n` +
+          `      repeat with s in sessions of t\n` +
+          `        if id of s is "${escapedSessionId}" then\n` +
+          `          tell s\n` +
+          `            split vertically with default profile command "${escapedCmd}"\n` +
+          `          end tell\n` +
+          `          return\n` +
+          `        end if\n` +
+          `      end repeat\n` +
+          `    end repeat\n` +
+          `  end repeat\n` +
+          `end tell`;
+      } else {
+        script =
+          `tell application "iTerm2"\n` +
+          `  tell current window\n` +
+          `    tell current session of current tab\n` +
+          `      split vertically with default profile command "${escapedCmd}"\n` +
+          `    end tell\n` +
+          `  end tell\n` +
+          `end tell`;
+      }
       const result = spawnSync("osascript", ["-e", script], { stdio: "ignore" });
       if (result.status === 0) {
         return { spawned: true, mechanism: "iterm2" };

@@ -1571,7 +1571,6 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     }
   }
 
-  // Resolve project-root early — needed for watcher spawn before session creation.
   const resolvedProjectRoot = path.resolve(
     readSingleOptionValueFromArgv(setup.startArgv, "project-root") ?? ".",
   );
@@ -1612,7 +1611,7 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
       );
     } else {
       console.log(
-        `[review runner] live progress: open another terminal and run \`npm run review:watch -- ${sessionRoot}\`` +
+        `[review runner] live progress: open another terminal and run \`npm run review:watch -- "${sessionRoot}"\`` +
           (watcherResult.reason ? ` (${watcherResult.reason})` : ""),
       );
     }

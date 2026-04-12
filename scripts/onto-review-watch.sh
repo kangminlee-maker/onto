@@ -20,19 +20,45 @@ cd "$PROJECT_ROOT"
 
 # Resolve session-root
 #
-# NOTE on concurrent sessions: `.onto/review/.latest-session` and `ls -t` both
-# select the most recently touched session at the project level. With two or
-# more review sessions running in parallel, either fallback may snap onto the
-# OTHER session's root and render progress on the wrong pane. The auto-spawn
-# path in review-invoke.ts now always passes an explicit session-root, so this
-# zero-arg fallback is used only for manual `npm run review:watch` invocations.
-# Callers who are running multiple reviews in parallel should pass the specific
-# session-root: `npm run review:watch -- /path/to/.onto/review/<session-id>`.
+# The auto-spawn path in review-invoke.ts now always passes an explicit
+# session-root, so this zero-arg branch is only exercised by manual
+# `npm run review:watch` invocations. When multiple review sessions are
+# active concurrently the `.latest-session` pointer and `ls -t` heuristic
+# both point to whichever session was most recently touched — which may
+# not be the one the user wanted to watch. To avoid rendering the wrong
+# session's events, the zero-arg path refuses to guess when more than one
+# session has been active in the recent past; it lists the candidates and
+# exits so the caller can rerun with an explicit argument.
 if [ "${1:-}" != "" ]; then
   SESSION_ROOT="$1"
 else
-  # Wait for .latest-session to appear (session may not be created yet when
-  # watcher is spawned early — before startReviewSession completes).
+  # Detect sessions whose error-log.md was modified within the last 120s.
+  # If two or more qualify, the zero-arg heuristic is ambiguous; show the
+  # candidates and exit so the caller reruns with an explicit session-root.
+  RECENT_CANDIDATES=()
+  if [ -d ".onto/review" ]; then
+    while IFS= read -r d; do
+      RECENT_CANDIDATES+=("$d")
+    done < <(find ".onto/review" -mindepth 1 -maxdepth 1 -type d \
+      -not -name ".*" \
+      -newermt "$(date -v-120S '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || date -d '-120 seconds' '+%Y-%m-%dT%H:%M:%S' 2>/dev/null)" \
+      2>/dev/null)
+  fi
+
+  if [ "${#RECENT_CANDIDATES[@]}" -gt 1 ]; then
+    echo "${C_YELLOW:-}Ambiguous:${C_RESET:-} multiple review sessions have been active recently:" >&2
+    for cand in "${RECENT_CANDIDATES[@]}"; do
+      echo "  - ${cand}" >&2
+    done
+    echo "" >&2
+    echo "${C_DIM:-}Pass an explicit session-root to avoid picking the wrong one:${C_RESET:-}" >&2
+    echo "  npm run review:watch -- \"<session-root>\"" >&2
+    exit 2
+  fi
+
+  # Single-candidate path: wait for .latest-session to appear, fall back to
+  # newest session directory. This is the common manual-watch case where
+  # no concurrency exists.
   echo "${C_DIM:-}Waiting for review session to start (zero-arg mode; uses .latest-session pointer)...${C_RESET:-}"
   for i in {1..60}; do
     if [ -f ".onto/review/.latest-session" ]; then
@@ -42,7 +68,6 @@ else
     sleep 1
   done
 
-  # Fallback: pick most recently modified session directory
   if [ -z "${SESSION_ROOT:-}" ] || [ ! -d "${SESSION_ROOT:-}" ]; then
     LATEST_DIR="$(ls -t .onto/review/ 2>/dev/null | grep -v '^\.' | head -1)"
     if [ -n "$LATEST_DIR" ] && [ -d ".onto/review/$LATEST_DIR" ]; then
@@ -51,9 +76,8 @@ else
   fi
 
   if [ -n "${SESSION_ROOT:-}" ] && [ -d "${SESSION_ROOT:-}" ]; then
-    echo "${C_YELLOW:-}Note:${C_RESET:-} resolved to ${C_BOLD:-}${SESSION_ROOT}${C_RESET:-} via zero-arg lookup."
-    echo "${C_DIM:-}  If multiple reviews are running concurrently this may not be the session you intended.${C_RESET:-}"
-    echo "${C_DIM:-}  Pass an explicit path to target a specific session: npm run review:watch -- <session-root>${C_RESET:-}"
+    echo "${C_DIM:-}Resolved to ${SESSION_ROOT} via zero-arg lookup.${C_RESET:-}"
+    echo "${C_DIM:-}  For explicit targeting: npm run review:watch -- \"<session-root>\"${C_RESET:-}"
   fi
 fi
 

@@ -189,7 +189,7 @@ This is a current implementation-status difference, not a canonical hierarchy or
 | `axiology` | Purpose and value alignment verifier | Preventing purpose drift, surfacing value conflicts, checking mission alignment |
 | `synthesize` | Review synthesis stage | Organizing consensus, disagreement, and final review output from the lens set |
 
-> Legacy note: `philosopher` remains in some non-review prototype flows such as the current build prototype. The canonical review structure is now `9 lenses + synthesize`.
+> Legacy note: `philosopher` is archive-only. It has been fully retired from both review and build pipelines. The archival definition is preserved at `development-records/legacy/philosopher.md` for lineage reference. The canonical review structure is `9 lenses + synthesize`.
 
 ## Commands
 
@@ -396,7 +396,7 @@ onto/
 +-- golden/                  # Golden examples per schema + schema templates
 +-- development-records/     # Development history (배포 제외)
 |   +-- legacy/
-|   |   +-- philosopher.md   # Legacy build coordinator
+|   |   +-- philosopher.md   # Archive-only lineage reference (retired from review and build)
 |   +-- tracking/20260330-known-issues.md
 |   +-- tracking/20260406-discovered-enhancements.md
 |   +-- reference/20260327-philosophical-foundations-of-ontology.md

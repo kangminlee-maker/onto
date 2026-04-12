@@ -113,11 +113,9 @@
 
 ## 7. Legacy Note
 
-현재 `philosopher`라는 이름은 일부 non-review prototype flow, 특히 build prototype에 남아 있다.
+`philosopher`는 archive-only이며 review와 build 양쪽 파이프라인에서 완전히 은퇴했다. archival 정의는 `development-records/legacy/philosopher.md`에 lineage reference로 보존되어 있다.
 
-하지만 `review`의 canonical 구조는 이제 아래다.
+`review`의 canonical 구조는 아래다.
 
-- `philosopher` 중심 아님
 - `axiology` + `synthesize`
-
-즉 review productization에서 `philosopher`는 canonical role이 아니다.
+- `philosopher` 중심 아님; canonical role 아님

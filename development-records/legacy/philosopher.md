@@ -1,15 +1,15 @@
 # Philosopher (legacy coordinator)
 
-> **⚠ NON-CANONICAL**: This file is NOT part of the canonical 9-lens review pipeline.
-> It is preserved as a legacy reference for non-review prototype flows (e.g., build prototype).
+> **⚠ NON-CANONICAL (archive-only)**: This file is NOT part of any canonical pipeline.
+> It is preserved as an archival lineage reference only.
 > The canonical review lens set is defined in `authority/core-lens-registry.yaml`.
 >
 > Retirement verification (2026-04-13, PR #21 review session 20260413-47d49e1b):
-> Repository-wide search confirmed no live flow consumes roles/philosopher.md or development-records/legacy/philosopher.md. Remaining references are documentation/history only (development-records/tracking/, development-records/plan/, development-records/audit/, design-principles/productization-charter.md, commands/ask-philosopher.md, README.md, processes/review/lens-registry.md). The commands/ask-philosopher.md surface is itself a legacy entrypoint preserved for non-canonical use.
+> Repository-wide search confirmed no live flow consumes `roles/philosopher.md` or `development-records/legacy/philosopher.md`. Philosopher is fully retired from both review and build pipelines. Remaining documentation/history-only references: `development-records/tracking/`, `development-records/plan/`, `development-records/audit/`, `design-principles/productization-charter.md`, `README.md`, `processes/review/lens-registry.md`. Separately, `commands/ask-philosopher.md` is a live but non-canonical legacy compatibility entrypoint that routes questions to `axiology`; it is NOT a philosopher consumer.
 > This inventory is non-exhaustive by design; additional documentation/history references may exist. Live-flow consumer absence is the canonical retirement criterion.
 
 > Legacy note:
-> this role remains for non-review prototype flows, especially the current build prototype.
+> the Philosopher role is archive-only and no longer used by any pipeline (review or build).
 > The canonical review structure now uses:
 > - `axiology` for purpose/value alignment as an independent lens (formerly `onto_axiology`)
 > - `synthesize` for final review synthesis (formerly `onto_synthesize`)

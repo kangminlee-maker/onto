@@ -866,6 +866,10 @@ meta:
   # Consistency rule: if global_reply == "confirmed", conflict_decisions and certainty_decisions MAY still be populated
   # (user confirms globally AND addresses some items); unaddressed items default to user_deferred.
   # If global_reply == "adjustments_provided", at least one of conflict_decisions / certainty_decisions / other_adjustments MUST be non-empty.
+  # Violation handler: if the user submits global_reply == "adjustments_provided" with all three fields empty,
+  # Runtime does NOT write phase3_user_responses, logs `phase3_response_inconsistent` warning to session-log, and
+  # re-prompts Phase 3 with a clarifying message ("You indicated adjustments, but none were provided. Please specify,
+  # or reply 'confirmed' to proceed."). Phase 3 is interactive, so re-prompt is the natural recovery path (no halt).
 
   # Phase 4 runtime state — system-managed, NOT part of user response:
   phase4_runtime_state:
@@ -1506,6 +1510,7 @@ Fix the config file and re-run. No session state was written (halt fires before 
 | `adjudicator_failure` | warning | phase_1 or phase_2 | Axiology Adjudicator agent failed; fallback paths engaged |
 | `synthesize_failure` | warning | phase_1 | Synthesize agent failed; raw epsilons delivered to Explorer |
 | `degradation_threshold_warning` | info | phase_1 | 2 consecutive Adjudicator/Synthesize failures reached; user warned |
+| `phase3_response_inconsistent` | warning | phase_3 | User submitted `adjustments_provided` with all three fields empty; re-prompt issued (non-halting) |
 
 Adding a new error code requires adding a row to this table with level/phase/trigger specification.
 

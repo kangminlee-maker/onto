@@ -1576,24 +1576,7 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     readSingleOptionValueFromArgv(setup.startArgv, "project-root") ?? ".",
   );
 
-  // Auto-attach the live watcher pane BEFORE session creation.
-  // Spawning early ensures the split targets the correct iTerm2 tab even if
-  // the user switches tabs while startReviewSession runs. The watcher script
-  // will wait for `.onto/review/.latest-session` to appear before rendering.
   const noWatch = hasOptionFlag(argv, "no-watch");
-  if (!noWatch && !prepareOnly) {
-    const watcherResult = spawnWatcherPane(resolvedProjectRoot);
-    if (watcherResult.spawned) {
-      console.log(
-        `[review runner] live watcher attached via ${watcherResult.mechanism}`,
-      );
-    } else {
-      console.log(
-        `[review runner] live progress: open another terminal and run \`npm run review:watch\`` +
-          (watcherResult.reason ? ` (${watcherResult.reason})` : ""),
-      );
-    }
-  }
 
   const startResult = await startReviewSession(setup.startArgv);
 
@@ -1612,6 +1595,29 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   }
 
   const sessionRoot = path.resolve(startResult.session_root);
+
+  // Auto-attach the live watcher pane AFTER session creation so the watcher
+  // receives the exact session-root as an explicit argument. Prior behaviour
+  // spawned the watcher before startReviewSession and relied on the shared
+  // `.onto/review/.latest-session` pointer — but that pointer is a project-
+  // global single file, so concurrent review sessions (two or more
+  // `onto review --codex` invocations running in parallel) caused each
+  // watcher to latch onto whichever session wrote `.latest-session` last.
+  // Passing sessionRoot explicitly eliminates that race.
+  if (!noWatch) {
+    const watcherResult = spawnWatcherPane(resolvedProjectRoot, sessionRoot);
+    if (watcherResult.spawned) {
+      console.log(
+        `[review runner] live watcher attached via ${watcherResult.mechanism}`,
+      );
+    } else {
+      console.log(
+        `[review runner] live progress: open another terminal and run \`npm run review:watch -- ${sessionRoot}\`` +
+          (watcherResult.reason ? ` (${watcherResult.reason})` : ""),
+      );
+    }
+  }
+
   const resolvedRequestText = setup.resolvedInvokeInputs.requestText;
   const defaultExecutorConfig = resolveExecutorConfig(
     argv,

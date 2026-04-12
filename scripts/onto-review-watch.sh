@@ -19,12 +19,21 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # Resolve session-root
+#
+# NOTE on concurrent sessions: `.onto/review/.latest-session` and `ls -t` both
+# select the most recently touched session at the project level. With two or
+# more review sessions running in parallel, either fallback may snap onto the
+# OTHER session's root and render progress on the wrong pane. The auto-spawn
+# path in review-invoke.ts now always passes an explicit session-root, so this
+# zero-arg fallback is used only for manual `npm run review:watch` invocations.
+# Callers who are running multiple reviews in parallel should pass the specific
+# session-root: `npm run review:watch -- /path/to/.onto/review/<session-id>`.
 if [ "${1:-}" != "" ]; then
   SESSION_ROOT="$1"
 else
   # Wait for .latest-session to appear (session may not be created yet when
   # watcher is spawned early — before startReviewSession completes).
-  echo "${C_DIM:-}Waiting for review session to start...${C_RESET:-}"
+  echo "${C_DIM:-}Waiting for review session to start (zero-arg mode; uses .latest-session pointer)...${C_RESET:-}"
   for i in {1..60}; do
     if [ -f ".onto/review/.latest-session" ]; then
       SESSION_ROOT="$(cat .onto/review/.latest-session)"
@@ -39,6 +48,12 @@ else
     if [ -n "$LATEST_DIR" ] && [ -d ".onto/review/$LATEST_DIR" ]; then
       SESSION_ROOT=".onto/review/$LATEST_DIR"
     fi
+  fi
+
+  if [ -n "${SESSION_ROOT:-}" ] && [ -d "${SESSION_ROOT:-}" ]; then
+    echo "${C_YELLOW:-}Note:${C_RESET:-} resolved to ${C_BOLD:-}${SESSION_ROOT}${C_RESET:-} via zero-arg lookup."
+    echo "${C_DIM:-}  If multiple reviews are running concurrently this may not be the session you intended.${C_RESET:-}"
+    echo "${C_DIM:-}  Pass an explicit path to target a specific session: npm run review:watch -- <session-root>${C_RESET:-}"
   fi
 fi
 

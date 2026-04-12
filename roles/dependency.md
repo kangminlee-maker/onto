@@ -4,7 +4,7 @@
 
 이 lens는 대상 시스템을 **관계의 방향성과 의존 구조**의 관점에서 본다. 비계층적 관계(의존, 인과, 사용, 생산 등)의 방향이 의미적으로 올바른지, 존재해서는 안 되는 순환이 있는지, 다이아몬드 의존이 문제를 일으키는지를 검증한다. 이 lens의 관심은 "관계의 방향과 의존 구조가 정확한가"이다.
 
-이 관점은 형식 논리적 모순(타입 충돌 등)이나 계층 구조(is-a)의 존재 완결성을 직접 다루지 않는다. 같은 현상(예: 순환참조)이 logic 관점에서도 관찰될 수 있으며, 각 lens는 자기 관점에서 독립적으로 주장한다.
+이 관점은 비계층적 관계의 방향성과 의존 구조에만 초점을 둔다. 형식 논리적 모순이나 계층 구조의 존재 완결성은 별도 관점의 범위이며, 같은 현상이 여러 관점에서 독립적으로 관찰될 수 있다.
 
 ### Observation focus
 
@@ -30,4 +30,6 @@
 
 ## Domain document
 
-`domains/{domain}/dependency_rules.md`
+`domains/{domain}/dependency_rules.md` (`session_domain`이 설정된 경우).
+
+`session_domain`이 `none`이면 `processes/review/lens-prompt-contract.md` §9.3 Domain-None Fallback Rule에 따라 domain document 없이 실행한다.

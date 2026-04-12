@@ -4,7 +4,7 @@
 
 이 lens는 대상 시스템을 **간결성**의 관점에서 본다. 불필요한 중복, 과잉 명세, 실질적 차이를 만들지 않는 구분이 존재하는지를 검증한다. 다른 lens들이 "존재해야 할 것이 있는가"와 "있는 것이 올바른가"를 검증하는 반면, 이 lens는 "없어야 할 것이 있는가"를 식별한다.
 
-이 관점은 질의 실행 시 불필요한 정보로 인한 답 방해나, 도메인 영역의 누락 여부를 직접 다루지 않는다. 질의 경로 비효율은 pragmatics, 영역 누락은 coverage의 관점이다.
+이 관점은 불필요한 중복·과잉 명세의 존재에만 초점을 둔다. 질의 경로 비효율이나 도메인 영역 누락은 별도 관점의 범위이다.
 
 ### Observation focus
 
@@ -29,4 +29,6 @@
 
 ## Domain document
 
-`domains/{domain}/conciseness_rules.md`
+`domains/{domain}/conciseness_rules.md` (`session_domain`이 설정된 경우).
+
+`session_domain`이 `none`이면 `processes/review/lens-prompt-contract.md` §9.3 Domain-None Fallback Rule에 따라 domain document 없이 실행한다.

@@ -4,7 +4,7 @@
 
 이 lens는 대상 시스템을 **도메인 포괄 범위**의 관점에서 본다. 대상 도메인의 개념 공간을 시스템이 충분히 커버하는지, 누락된 하위 영역이 있는지, 참조 표준/프레임워크 대비 빈 영역이 있는지를 검증한다. 다른 lens들이 "존재하는 것의 정확성"을 검증하는 반면, 이 lens는 "존재해야 하는데 없는 것"을 체계적으로 식별한다.
 
-이 관점은 기존 요소 간의 내부 연결 완결성이나 불필요한 요소의 존재를 직접 다루지 않는다. 연결 완결성은 structure, 불필요 요소 식별은 conciseness의 관점이다.
+이 관점은 도메인 개념 공간의 포괄 범위에만 초점을 둔다. 기존 요소 간의 내부 연결 완결성이나 불필요한 요소 식별은 별도 관점의 범위이다.
 
 ### Observation focus
 
@@ -29,4 +29,6 @@
 
 ## Domain document
 
-`domains/{domain}/domain_scope.md`
+`domains/{domain}/domain_scope.md` (`session_domain`이 설정된 경우).
+
+`session_domain`이 `none`이면 `processes/review/lens-prompt-contract.md` §9.3 Domain-None Fallback Rule에 따라 domain document 없이 실행한다.

@@ -17,6 +17,8 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import type {
+  CoordinatorStateFile,
+  CoordinatorStateName,
   ReviewExecutionPlan,
   ReviewExecutionResultArtifact,
   ReviewExecutionStatus,
@@ -230,6 +232,30 @@ export async function runBuildSynthesizeRuntimePacket(argv: string[]): Promise<n
 // ─────────────────────────────────────────────
 // Subcommand: write-execution-result
 // ─────────────────────────────────────────────
+//
+// Per-unit timestamp provenance (coordinator path):
+// - started_at: derived from coordinator-state.yaml transition timestamps
+//   (awaiting_lens_dispatch / awaiting_synthesize_dispatch). Represents
+//   dispatch instruction time, which precedes actual agent execution start.
+//   Over-estimation bound: dispatch latency + agent boot + LLM execution +
+//   file-write. Typically tens of seconds to a few minutes for LLM agents;
+//   unsuitable for ms-scale SLA comparisons.
+// - completed_at: derived from fs.stat(output_path).mtime for participating
+//   units. Filesystem mtime precision is platform-dependent (e.g. HFS+ 1s).
+//   Post-write assumption: round1/*.md and synthesis.md must not be re-touched
+//   by any writer after the dispatched agent completes (deliberation writes
+//   to deliberation.md, render writes to final-output.md — no overlap).
+// - Non-participating / failed / skipped cases fall back to the batch
+//   `completedAt` for completed_at: those timestamps are NOT per-unit
+//   measurements and `duration_ms` for such units is batch wall-clock
+//   time, not per-unit execution time.
+// - TS runner path (run-review-prompt-execution.ts) uses process wall-clock
+//   measurements; both paths write to the same ReviewUnitExecutionResult
+//   interface but carry different semantic provenance. Consumers comparing
+//   `duration_ms` across realizations must account for this (see
+//   `execution_realization` field). A discriminator field at schema level is
+//   tracked as a follow-up (K2 of PR #25 re-review; session
+//   .onto/review/20260413-7880b48f).
 
 function deriveExecutionStatus(
   synthesisExecuted: boolean,
@@ -238,6 +264,113 @@ function deriveExecutionStatus(
   if (!synthesisExecuted) return "halted_partial";
   if (degradedLensCount > 0) return "completed_with_degradation";
   return "completed";
+}
+
+/**
+ * Coordinator state-file read outcome.
+ * - `"present"`: file existed and parsed; `state` is non-null.
+ * - `"missing"`: file did not exist (normal pre-coordinator or external runner case).
+ * - `"unreadable"`: file existed but YAML parse failed; `state` is null.
+ * The distinction lets callers emit a more precise `degradation_kind`
+ * without changing the fail-soft contract.
+ */
+type StateFileReadOutcome =
+  | { kind: "present"; state: CoordinatorStateFile }
+  | { kind: "missing"; state: null }
+  | { kind: "unreadable"; state: null };
+
+/**
+ * Read coordinator state file. Fails soft by returning a null `state`,
+ * but preserves the reason (missing vs unreadable) for observability.
+ */
+async function readCoordinatorStateFile(
+  sessionRoot: string,
+): Promise<StateFileReadOutcome> {
+  const stateFilePath = path.join(sessionRoot, "coordinator-state.yaml");
+  if (!(await fileExists(stateFilePath))) {
+    return { kind: "missing", state: null };
+  }
+  try {
+    const state = await readYamlDocument<CoordinatorStateFile>(stateFilePath);
+    return { kind: "present", state };
+  } catch {
+    return { kind: "unreadable", state: null };
+  }
+}
+
+/**
+ * Find the timestamp of the first transition with matching `to` state.
+ *
+ * Invariant (current state machine): each target state appears at most once in
+ * `transitions` per session, so "first match" is unambiguous. If future
+ * retry/resume flows allow re-entering the same state, the semantics of
+ * `started_at` would straddle cycles — switch to `findLast`-style lookup then.
+ *
+ * Fails soft by returning `null` when `stateFile` is absent or the
+ * `transitions` array is missing/malformed (runtime YAML shape is not
+ * compile-time guaranteed).
+ */
+function findTransitionAt(
+  stateFile: CoordinatorStateFile | null,
+  toState: CoordinatorStateName,
+): string | null {
+  if (!stateFile) return null;
+  if (!Array.isArray(stateFile.transitions)) return null;
+  const transition = stateFile.transitions.find((t) => t.to === toState);
+  return transition?.at ?? null;
+}
+
+/** Read file mtime as ISO string. Returns null on failure. */
+async function readFileMtimeIsoOrNull(filePath: string): Promise<string | null> {
+  try {
+    const stat = await fs.stat(filePath);
+    return stat.mtime.toISOString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Compute duration in ms, clamping negative deltas to 0.
+ *
+ * A negative delta indicates clock inversion (wall vs filesystem mtime, or
+ * state-transition timestamp ordering mismatch) and is typically a sign of
+ * clock skew or misconfigured NTP, not normal execution. We warn when
+ * `unitId` is provided so that clamping is not silent.
+ */
+function computeDurationMs(
+  startedAt: string,
+  completedAt: string,
+  unitId?: string,
+): number {
+  const delta =
+    new Date(completedAt).getTime() - new Date(startedAt).getTime();
+  if (delta < 0 && unitId) {
+    console.warn(
+      `[coordinator-helpers] negative duration clamped for ${unitId}: ` +
+        `started_at=${startedAt}, completed_at=${completedAt} (clock skew?)`,
+    );
+  }
+  return Math.max(0, delta);
+}
+
+/**
+ * Warn on stderr AND persist to error-log.md with a structured prefix.
+ * The `kind` discriminator lets post-session aggregators group degradation
+ * events without parsing the free-form message body.
+ */
+async function warnAndLogDegradation(
+  errorLogPath: string,
+  kind: string,
+  title: string,
+  message: string,
+): Promise<void> {
+  console.warn(`[coordinator-helpers] ${message}`);
+  await appendMarkdownLogEntry(
+    errorLogPath,
+    title,
+    `degradation_kind: ${kind}\n${message}`,
+  );
 }
 
 export interface WriteExecutionResultOutput {
@@ -305,26 +438,114 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
   }
 
   const completedAt = isoNow();
-  const startMs = new Date(executionStartedAt).getTime();
-  const endMs = new Date(completedAt).getTime();
 
-  const lensResults: ReviewUnitExecutionResult[] =
-    executionPlan.lens_prompt_packet_seats.map((seat) => ({
-      unit_id: seat.lens_id,
-      unit_kind: "lens" as const,
-      packet_path: seat.packet_path,
-      output_path: seat.output_path,
-      status: participating.includes(seat.lens_id) ? "completed" as const : "failed" as const,
-      started_at: executionStartedAt,
-      completed_at: completedAt,
-      duration_ms: Math.max(0, endMs - startMs),
-      failure_message: degraded.includes(seat.lens_id) ? "output file missing or empty" : null,
-    }));
+  // Per-unit timestamp precision: read coordinator state transitions + file mtime.
+  // On any failure, fall back to batch timestamps (executionStartedAt / completedAt)
+  // while emitting a warning so the degradation is not silent. Warnings are also
+  // persisted to error-log.md so that post-session inspection can reconstruct
+  // whether per-unit timing was degraded for this session.
+  const errorLogPath =
+    executionPlan.error_log_path ?? path.join(sessionRoot, "error-log.md");
+  const readOutcome = await readCoordinatorStateFile(sessionRoot);
+  const stateFile = readOutcome.state;
+  if (readOutcome.kind === "missing") {
+    await warnAndLogDegradation(
+      errorLogPath,
+      "state_file_missing",
+      "per-unit timestamp degraded",
+      "coordinator-state.yaml not found; falling back to batch timestamps for per-unit started_at.",
+    );
+  } else if (readOutcome.kind === "unreadable") {
+    await warnAndLogDegradation(
+      errorLogPath,
+      "state_file_unreadable",
+      "per-unit timestamp degraded",
+      "coordinator-state.yaml present but unreadable (YAML parse failed); falling back to batch timestamps for per-unit started_at.",
+    );
+  }
+
+  const lensDispatchAt = findTransitionAt(stateFile, "awaiting_lens_dispatch");
+  if (stateFile && !lensDispatchAt) {
+    await warnAndLogDegradation(
+      errorLogPath,
+      "transition_missing_lens",
+      "per-unit timestamp degraded (lens)",
+      "coordinator-state.yaml has no 'awaiting_lens_dispatch' transition; falling back to batch timestamp for lens started_at.",
+    );
+  }
+  const lensStartedAt = lensDispatchAt ?? executionStartedAt;
+
+  const lensResults: ReviewUnitExecutionResult[] = await Promise.all(
+    executionPlan.lens_prompt_packet_seats.map(async (seat) => {
+      const isParticipating = participating.includes(seat.lens_id);
+      const mtimeIso = isParticipating
+        ? await readFileMtimeIsoOrNull(seat.output_path)
+        : null;
+      if (isParticipating && mtimeIso === null) {
+        await warnAndLogDegradation(
+          errorLogPath,
+          "mtime_read_failed",
+          `per-unit timestamp degraded (lens:${seat.lens_id})`,
+          `fs.stat failed for ${seat.output_path}; falling back to batch completedAt.`,
+        );
+      }
+      const unitCompletedAt = mtimeIso ?? completedAt;
+      return {
+        unit_id: seat.lens_id,
+        unit_kind: "lens" as const,
+        packet_path: seat.packet_path,
+        output_path: seat.output_path,
+        status: isParticipating ? ("completed" as const) : ("failed" as const),
+        started_at: lensStartedAt,
+        completed_at: unitCompletedAt,
+        duration_ms: computeDurationMs(lensStartedAt, unitCompletedAt, `lens:${seat.lens_id}`),
+        failure_message: degraded.includes(seat.lens_id) ? "output file missing or empty" : null,
+      };
+    }),
+  );
+
+  // Per-PR #25 review NF-2: log any lens that ended up in `excluded` (neither
+  // participating nor degraded) so a post-session reader can reconstruct why
+  // the planned set did not fully resolve.
+  if (excluded.length > 0) {
+    await warnAndLogDegradation(
+      errorLogPath,
+      "lens_excluded",
+      "lens excluded from participating/degraded partition",
+      `excluded_lens_ids: ${excluded.join(", ")} (planned but neither participating nor degraded)`,
+    );
+  }
 
   const runtimePacketPath = path.join(
     executionPlan.prompt_packets_root ?? path.join(sessionRoot, "prompt-packets"),
     "synthesize.runtime.prompt.md",
   );
+
+  const synthesizeDispatchAt = findTransitionAt(
+    stateFile,
+    "awaiting_synthesize_dispatch",
+  );
+  if (synthesisExecuted && stateFile && !synthesizeDispatchAt) {
+    await warnAndLogDegradation(
+      errorLogPath,
+      "transition_missing_synthesize",
+      "per-unit timestamp degraded (synthesize)",
+      "coordinator-state.yaml has no 'awaiting_synthesize_dispatch' transition; falling back to batch timestamp for synthesize started_at.",
+    );
+  }
+  const synthesizeStartedAt = synthesizeDispatchAt ?? executionStartedAt;
+  const synthesizeMtimeIso = synthesisExecuted
+    ? await readFileMtimeIsoOrNull(synthesisPath)
+    : null;
+  if (synthesisExecuted && synthesizeMtimeIso === null) {
+    await warnAndLogDegradation(
+      errorLogPath,
+      "mtime_read_failed",
+      "per-unit timestamp degraded (synthesize)",
+      `fs.stat failed for ${synthesisPath}; falling back to batch completedAt.`,
+    );
+  }
+  const synthesizeCompletedAt = synthesizeMtimeIso ?? completedAt;
 
   const synthesizeResult: ReviewUnitExecutionResult | null = synthesisExecuted
     ? {
@@ -333,9 +554,9 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
         packet_path: runtimePacketPath,
         output_path: synthesisPath,
         status: (await fileExists(synthesisPath)) ? "completed" : "failed",
-        started_at: executionStartedAt,
-        completed_at: completedAt,
-        duration_ms: Math.max(0, endMs - startMs),
+        started_at: synthesizeStartedAt,
+        completed_at: synthesizeCompletedAt,
+        duration_ms: computeDurationMs(synthesizeStartedAt, synthesizeCompletedAt, "synthesize"),
         failure_message: null,
       }
     : null;
@@ -349,7 +570,7 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
     execution_status: deriveExecutionStatus(synthesisExecuted, degraded.length),
     execution_started_at: executionStartedAt,
     execution_completed_at: completedAt,
-    total_duration_ms: Math.max(0, endMs - startMs),
+    total_duration_ms: computeDurationMs(executionStartedAt, completedAt),
     planned_lens_ids: planned,
     participating_lens_ids: participating,
     degraded_lens_ids: degraded,
@@ -358,7 +579,7 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
     synthesis_executed: synthesisExecuted,
     deliberation_status: deliberationStatus as ReviewExecutionResultArtifact["deliberation_status"],
     halt_reason: haltReason,
-    error_log_path: executionPlan.error_log_path ?? path.join(sessionRoot, "error-log.md"),
+    error_log_path: errorLogPath,
     lens_execution_results: lensResults,
     synthesize_execution_result: synthesizeResult,
   };
@@ -384,22 +605,27 @@ export async function runWriteExecutionResult(argv: string[]): Promise<number> {
 // CLI dispatch
 // ─────────────────────────────────────────────
 
+/** SSOT for subcommand names: one map, used both by dispatch and the help text. */
+const SUBCOMMANDS = {
+  "init-log": runInitCoordinatorLog,
+  "build-synthesize-packet": runBuildSynthesizeRuntimePacket,
+  "write-execution-result": runWriteExecutionResult,
+} as const satisfies Record<string, (argv: string[]) => Promise<number>>;
+
 async function main(): Promise<number> {
   const subcommand = process.argv[2];
   const subArgv = process.argv.slice(3);
 
-  switch (subcommand) {
-    case "init-log":
-      return runInitCoordinatorLog(subArgv);
-    case "build-synthesize-packet":
-      return runBuildSynthesizeRuntimePacket(subArgv);
-    case "write-execution-result":
-      return runWriteExecutionResult(subArgv);
-    default:
-      console.error(`Unknown coordinator-helper subcommand: ${subcommand}`);
-      console.error("Available: init-log, build-synthesize-packet, write-execution-result");
-      return 1;
+  const handler =
+    subcommand && (subcommand in SUBCOMMANDS)
+      ? SUBCOMMANDS[subcommand as keyof typeof SUBCOMMANDS]
+      : null;
+  if (!handler) {
+    console.error(`Unknown coordinator-helper subcommand: ${subcommand}`);
+    console.error(`Available: ${Object.keys(SUBCOMMANDS).join(", ")}`);
+    return 1;
   }
+  return handler(subArgv);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -5,7 +5,8 @@
 > The canonical review lens set is defined in `authority/core-lens-registry.yaml`.
 >
 > Retirement verification (2026-04-13, PR #21 review session 20260413-47d49e1b):
-> Repository-wide search confirmed no live flow consumes roles/philosopher.md or development-records/legacy/philosopher.md. Remaining references are documentation/history only (development-records/tracking/, development-records/plan/, development-records/audit/, design-principles/productization-charter.md, commands/ask-philosopher.md). The commands/ask-philosopher.md surface is itself a legacy entrypoint preserved for non-canonical use.
+> Repository-wide search confirmed no live flow consumes roles/philosopher.md or development-records/legacy/philosopher.md. Remaining references are documentation/history only (development-records/tracking/, development-records/plan/, development-records/audit/, design-principles/productization-charter.md, commands/ask-philosopher.md, README.md, processes/review/lens-registry.md). The commands/ask-philosopher.md surface is itself a legacy entrypoint preserved for non-canonical use.
+> This inventory is non-exhaustive by design; additional documentation/history references may exist. Live-flow consumer absence is the canonical retirement criterion.
 
 > Legacy note:
 > this role remains for non-review prototype flows, especially the current build prototype.

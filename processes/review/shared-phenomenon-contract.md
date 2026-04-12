@@ -61,7 +61,7 @@ co-located claim들은 의미적으로 `corroboration`, `disagreement`, `partial
 
 **경계 원칙**: claim relation이 불확실하면 **별도 claim으로 분리 보존**이 기본값이다. 암묵적 병합을 금지한다.
 
-**3개 이상 claim의 경우**: N개 claim이 같은 shared phenomenon에 속하면, 모든 pairwise 조합을 분류하는 것이 아니라, per-claim basis로 가장 대표적인 relation을 하나 지정한다. synthesize는 participating lenses 전체를 phenomenon 단위로 묶되, 개별 claim의 severity/direction은 보존한다.
+**3개 이상 claim의 경우**: N개 claim이 같은 shared phenomenon에 속하면, synthesize는 participating lenses 전체를 phenomenon 단위로 묶고 **group 수준에서 하나의 대표 claim_relation을 지정**한다. 개별 claim의 세부 내용(severity, direction)은 원본 round1 output(`lens_result_refs.{lens-id}`)에 보존되며 `shared_phenomenon_summary` entry는 재서술하지 않는다. 대표 relation 선택은 §4 우선순위(`dedup` > `disagreement` > `partial overlap` > `corroboration`)를 따른다.
 
 ---
 

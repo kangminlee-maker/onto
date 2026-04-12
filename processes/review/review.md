@@ -406,8 +406,6 @@ Each Lens-Specific Finding must include the following fields:
 - `claim`
 - `lens_id`
 - `upstream_evidence_required`
-- `domain_constraints_used`
-- `domain_context_assumptions`
 For field semantics, see `processes/review/lens-prompt-contract.md` §8 Output Schema and `processes/review/shared-phenomenon-contract.md` §3, §5.
 Each finding body should retain the existing what/why/how to fix format.
 

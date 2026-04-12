@@ -30,20 +30,7 @@ lens 간 합의(consensus), 조건부 합의(conditional consensus), 이견(disa
 
 ## Output obligation
 
-아래를 포함하는 구조화된 최종 리뷰 결과를 생성한다:
-- consensus
-- conditional consensus
-- disagreement
-- overlooked premises
-- axiology-proposed additional perspectives (해당 시)
-- purpose alignment verification
-- immediate actions
-- recommendations
-- unique finding tagging
-- shared phenomenon summary
-- deliberation decision
-
-deliberation이 불가능하면 unresolved disagreement를 명시적으로 유지한다. 묵살 금지.
+output obligation, 출력 섹션 목록, frontmatter, deliberation rule은 모두 `processes/review/synthesize-prompt-contract.md` §5 Output Obligation이 단독 canonical seat이다. 본 role 문서는 해당 계약을 참조만 하며, 독자 enumerate하지 않는다.
 
 ## Build mode role shift
 

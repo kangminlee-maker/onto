@@ -73,7 +73,7 @@
 - **`domain_constraints_used`**: 해당 시 (durable provenance 형식)
 - **`domain_context_assumptions`**: 해당 시
 
-4필드의 의미와 identity rule은 `processes/review/shared-phenomenon-contract.md`가 정의한다.
+4필드의 의미와 co-location rule은 `processes/review/shared-phenomenon-contract.md`가 정의한다.
 이 계약은 수신 필수만 선언하며, 필드 의미를 재정의하지 않는다.
 
 ---

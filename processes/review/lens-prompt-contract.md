@@ -192,6 +192,7 @@ review_target_materialized_input:
    - `evidence_anchor`: evidence locus의 직렬화 (파일경로:라인, §번호 등)
    - `claim`: what + severity + direction
    - `lens_id`: 자동 부여
+   - `upstream_evidence_required`: 이 finding의 action이 다른 lens의 사전 판단에 조건부인지 여부 (`true`/`false`)
    - what (상세 설명)
    - why (문제 이유)
    - how to fix (수정 방향)
@@ -205,14 +206,14 @@ review_target_materialized_input:
 
 | 필드 | 설명 | 해당 lens |
 |---|---|---|
-| `upstream_evidence_required` | 이 finding의 action이 다른 lens의 사전 판단에 조건부인지 여부 (`true`/`false`) | conciseness (필수), 기타 (해당 시) |
+| `upstream_evidence_required` | 각 finding에 부여되는 conditionality flag. action이 다른 lens의 사전 판단에 조건부인지 여부 (`true`/`false`) | conciseness (필수), 기타 (해당 시) |
 | `domain_constraints_used` | 사용한 domain rule의 durable provenance 목록 | domain-document-backed lenses (axiology 제외) |
 | `domain_context_assumptions` | 사용한 비형식적 domain usage-context 가정 목록 | 모든 lens (해당 시) |
 
 ### 8.3 4-Field Claim Requirement
 
 모든 lens finding은 `{target, evidence_anchor, claim, lens_id}` 4필드를 필수로 포함해야 한다.
-4필드의 의미와 identity rule은 `processes/review/shared-phenomenon-contract.md`가 정의한다.
+4필드의 의미와 co-location rule은 `processes/review/shared-phenomenon-contract.md`가 정의한다.
 이 계약은 직렬화 형식만 소유한다.
 
 ### 8.4 Artifact Position

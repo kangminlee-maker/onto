@@ -148,7 +148,10 @@ later hardened implementation에서 identity policy가 바뀌더라도,
 - degraded case가 발생하면 later audit가 그 원인을 다시 읽을 수 있어야 한다
 - `error-log.md`가 boundary/conformance state만 담는 경우에는 `degradation_notes_ref`로 간주하지 않는다
 - `lens_output_schema_version`은 lens output의 schema version을 기록한다 (v2부터 적용)
-- `per_lens_provenance`는 각 lens의 `domain_constraints_used`, `domain_context_assumptions`, `upstream_evidence_required`를 보존한다. pre-v2 artifact에서는 해당 필드가 `null`일 수 있다
+- `per_lens_provenance`는 각 lens의 `domain_constraints_used`, `domain_context_assumptions`를 보존한다. pre-v2 artifact에서는 해당 필드가 `null`일 수 있다
+- `upstream_evidence_required`는 finding-level 속성이며 `round1/{lens-id}.md`의 각 finding에 기록한다
+- `per_lens_provenance`는 `upstream_evidence_required`를 저장하지 않는다. finding-level 보존은 `lens_result_refs.{lens-id}` 경로를 따라 원본 round1 markdown에서 추출한다
+- lens-level aggregate summary가 필요하면 별도 명시적 파생 필드로 정의한다
 
 예시:
 

@@ -57,7 +57,6 @@ prompt-backed reference path에서 실제로 생성되는 산출물은 대부분
 | `round1/{lens-id}.md` | `lens_result_refs.{lens-id}` |
 | `round1/{lens-id}.md` → `Domain Constraints Used` section | `per_lens_provenance.{lens-id}.domain_constraints_used` |
 | `round1/{lens-id}.md` → `Domain Context Assumptions` section | `per_lens_provenance.{lens-id}.domain_context_assumptions` |
-| `round1/{lens-id}.md` → `upstream_evidence_required` tag | `per_lens_provenance.{lens-id}.upstream_evidence_required` |
 | `synthesis.md` | `synthesis_result_ref` |
 | `synthesis.md` → shared phenomenon classification | `shared_phenomenon_summary` |
 | `deliberation.md` | `deliberation_result_ref` |
@@ -106,8 +105,14 @@ per_lens_provenance derive rule (schema_version 2 이후):
 
 - `per_lens_provenance.{lens-id}.domain_constraints_used`: 각 lens round1 output에서 `### Domain Constraints Used` 섹션에서 추출. durable provenance 형식 `{source_doc, source_version_or_snapshot_id, anchor}`
 - `per_lens_provenance.{lens-id}.domain_context_assumptions`: 각 lens round1 output에서 `### Domain Context Assumptions` 섹션에서 추출
-- `per_lens_provenance.{lens-id}.upstream_evidence_required`: conciseness 등 조건부 lens의 경우 `true`, 그 외 `false`
 - pre-v2 artifact에서 해당 필드가 없으면 `null`로 기록
+
+lens_output_schema_version derive rule:
+
+- `processes/review/lens-prompt-contract.md` §8 Output Schema의 `schema_version`이 단일 canonical source이다
+- 현재 값은 `2`로 고정되어 있으며, prompt-backed assembly 시 assembler가 `lens-prompt-contract.md`의 이 값을 직접 기록한다
+- 각 `round1/{lens-id}.md`가 독자적으로 declare할 필요는 없다
+- future schema bump 시 `lens-prompt-contract.md` §8만 수정하면 mapping이 자동 전파된다
 
 ### 4.3 From `execution-result.yaml`, `synthesis.md`, and `deliberation.md`
 

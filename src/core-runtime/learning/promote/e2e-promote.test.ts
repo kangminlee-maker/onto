@@ -385,19 +385,19 @@ async function main(): Promise<void> {
   });
 
   // E-P13 — panel composition produces 3-agent
-  await test("E-P13 composePanel returns 3-agent for non-philosopher origin", () => {
+  await test("E-P13 composePanel returns 3-agent for non-axiology origin", () => {
     const home = makeTmpDir("e-p13-home");
     const globalDir = path.join(home, ".onto", "learnings");
     fs.mkdirSync(globalDir, { recursive: true });
     fs.writeFileSync(path.join(globalDir, "structure.md"), "");
-    fs.writeFileSync(path.join(globalDir, "philosopher.md"), "");
+    fs.writeFileSync(path.join(globalDir, "axiology.md"), "");
     fs.writeFileSync(path.join(globalDir, "logic.md"), "");
     const item = syntheticItem({ agent_id: "structure" });
     const panel = composePanel(item, { ontoHome: home });
     assertEqual(panel.length, 3, "3 members");
     const roles = panel.map((m) => m.role).sort();
     assert(roles.includes("originator"), "has originator");
-    assert(roles.includes("philosopher"), "has philosopher");
+    assert(roles.includes("axiology"), "has axiology");
     assert(roles.includes("auto_selected"), "has auto_selected");
   });
 
@@ -779,10 +779,10 @@ async function main(): Promise<void> {
         "- [fact] [methodology] [foundation] e2e-30 (source: p, d, 2026-01-01) [impact:normal]",
       ].join("\n"),
     );
-    // Global: 11 judgment items in `philosopher` to trigger audit
+    // Global: 11 judgment items in `axiology` to trigger audit
     writeLearningFile(
       path.join(fakeOnto, ".onto", "learnings"),
-      "philosopher",
+      "axiology",
       [
         "<!-- format_version: 1 -->",
         ...Array.from({ length: 11 }, (_, i) =>
@@ -818,8 +818,8 @@ async function main(): Promise<void> {
         `expected unanimous promote consensus, got ${consensus}`,
       );
       assert(
-        result.report.audit_summary.execution.audited_agents.includes("philosopher"),
-        "philosopher audited",
+        result.report.audit_summary.execution.audited_agents.includes("axiology"),
+        "axiology audited",
       );
       assertEqual(
         result.report.audit_summary.outcomes.retain,
@@ -934,7 +934,7 @@ async function main(): Promise<void> {
     );
     writeLearningFile(
       path.join(fakeOnto, ".onto", "learnings"),
-      "philosopher",
+      "axiology",
       ["<!-- format_version: 1 -->"].join("\n"),
     );
 
@@ -1041,7 +1041,7 @@ async function main(): Promise<void> {
     );
     writeLearningFile(
       path.join(fakeOnto, ".onto", "learnings"),
-      "philosopher",
+      "axiology",
       ["<!-- format_version: 1 -->"].join("\n"),
     );
 
@@ -1432,7 +1432,7 @@ async function main(): Promise<void> {
     // 25 judgment items in one agent — should split into 3 batches (12+12+1)
     writeLearningFile(
       path.join(fakeOnto, ".onto", "learnings"),
-      "philosopher",
+      "axiology",
       [
         "<!-- format_version: 1 -->",
         ...Array.from({ length: 25 }, (_, i) =>
@@ -1490,7 +1490,7 @@ async function main(): Promise<void> {
     const fakeOnto = makeTmpDir("e-p39b-home");
     writeLearningFile(
       path.join(fakeOnto, ".onto", "learnings"),
-      "philosopher",
+      "axiology",
       [
         "<!-- format_version: 1 -->",
         ...Array.from({ length: 11 }, (_, i) =>
@@ -1512,11 +1512,11 @@ async function main(): Promise<void> {
       assertEqual(
         result.report.audit_summary.failed_agents.length,
         1,
-        "philosopher failure recorded in failed_agents",
+        "axiology failure recorded in failed_agents",
       );
       assertEqual(
         result.report.audit_summary.failed_agents[0]!.agent_id,
-        "philosopher",
+        "axiology",
         "failed agent id",
       );
       assertEqual(
@@ -1924,7 +1924,7 @@ async function main(): Promise<void> {
     const a = syntheticReview("promote");
     a.member = { agent_id: "structure", role: "originator", reachable: true };
     const b = syntheticReview("promote");
-    b.member = { agent_id: "philosopher", role: "philosopher", reachable: true };
+    b.member = { agent_id: "axiology", role: "axiology", reachable: true };
     assertEqual(aggregateConsensus([a, b]), "promote_2_3", "2-member unanimous → 2_3");
   });
 
@@ -1967,7 +1967,7 @@ async function main(): Promise<void> {
     // 25 items → 3 batches → all 3 fail (no LLM provider)
     writeLearningFile(
       path.join(fakeOnto, ".onto", "learnings"),
-      "philosopher",
+      "axiology",
       [
         "<!-- format_version: 1 -->",
         ...Array.from({ length: 25 }, (_, i) =>
@@ -1987,9 +1987,9 @@ async function main(): Promise<void> {
         skipPanel: true,
       });
       const failed = result.report.audit_summary.failed_agents.find(
-        (f) => f.agent_id === "philosopher",
+        (f) => f.agent_id === "axiology",
       );
-      assert(failed !== undefined, "philosopher in failed_agents");
+      assert(failed !== undefined, "axiology in failed_agents");
       assertEqual(failed!.judgment_count_total, 25, "total = 25");
       assert(failed!.failed_chunks_count >= 1, "at least 1 chunk failed");
     } finally {
@@ -2023,7 +2023,7 @@ async function main(): Promise<void> {
     );
     writeLearningFile(
       path.join(fakeOnto, ".onto", "learnings"),
-      "philosopher",
+      "axiology",
       ["<!-- format_version: 1 -->"].join("\n"),
     );
 
@@ -3548,7 +3548,7 @@ async function main(): Promise<void> {
       trigger_kind: "contradiction_threshold_exceeded",
       detected_at: "2026-04-09T00:00:00Z",
       detected_after_session: "sess-85a",
-      affected_agents: ["philosopher"],
+      affected_agents: ["axiology"],
       reason: "test",
       max_carry_forward: 5,
     });
@@ -4692,7 +4692,7 @@ async function main(): Promise<void> {
         content: "alpha beta gamma delta quux",
       }),
       syntheticItem({
-        agent_id: "philosopher",
+        agent_id: "axiology",
         // Zero overlap with the first item
         content: "zebra xray yankee whiskey vanilla",
       }),
@@ -4713,7 +4713,7 @@ async function main(): Promise<void> {
           "verify preconditions constraint validation before applying changes durable",
       }),
       syntheticItem({
-        agent_id: "philosopher",
+        agent_id: "axiology",
         // Shares: verify preconditions constraint validation applying changes
         content:
           "verify preconditions constraint validation while applying changes idempotent",
@@ -4734,8 +4734,8 @@ async function main(): Promise<void> {
       "structure item present",
     );
     assert(
-      shortlist.some((i: ParsedLearningItem) => i.agent_id === "philosopher"),
-      "philosopher item present",
+      shortlist.some((i: ParsedLearningItem) => i.agent_id === "axiology"),
+      "axiology item present",
     );
   });
 
@@ -4780,7 +4780,7 @@ async function main(): Promise<void> {
             "verify preconditions constraint validation before applying changes durable",
         }),
         syntheticItem({
-          agent_id: "philosopher",
+          agent_id: "axiology",
           content:
             "verify preconditions constraint validation while applying changes idempotent",
         }),
@@ -5222,7 +5222,7 @@ async function main(): Promise<void> {
           content: tokens,
         }),
         syntheticItem({
-          agent_id: "philosopher",
+          agent_id: "axiology",
           content: tokens,
         }),
       );
@@ -5261,7 +5261,7 @@ async function main(): Promise<void> {
     for (let i = 0; i < 15; i++) {
       items.push(
         syntheticItem({
-          agent_id: i % 2 === 0 ? "structure" : "philosopher",
+          agent_id: i % 2 === 0 ? "structure" : "axiology",
           // Append a per-item token so they're not identical but still
           // share the significant words above.
           content: `${sharedContent} marker${i}`,
@@ -5298,7 +5298,7 @@ async function main(): Promise<void> {
 
     const dir = makeTmpDir("e-p130");
     const fileA = path.join(dir, "structure.md");
-    const fileB = path.join(dir, "philosopher.md");
+    const fileB = path.join(dir, "axiology.md");
     const lineA =
       "- [fact] [methodology] [insight] alpha (source: p, d, 2026-01-01) [impact:normal]";
     const lineB =
@@ -5324,7 +5324,7 @@ async function main(): Promise<void> {
             llm_prompt_hash: "00000000",
           },
           {
-            agent_id: "philosopher",
+            agent_id: "axiology",
             source_path: fileB,
             line_number: 1,
             raw_line: lineB,
@@ -5481,7 +5481,7 @@ async function main(): Promise<void> {
     );
     writeLearningFile(
       path.join(projectRoot, ".onto", "learnings"),
-      "philosopher",
+      "axiology",
       "- [fact] [methodology] [foundation] verify preconditions constraint validation applying changes idempotent (source: p, d, 2026-01-02) [impact:normal]",
     );
 
@@ -5574,7 +5574,7 @@ async function main(): Promise<void> {
     const projectLearningsDir = path.join(projectRoot, ".onto", "learnings");
     fs.mkdirSync(projectLearningsDir, { recursive: true });
     fs.writeFileSync(
-      path.join(projectLearningsDir, "philosopher.md"),
+      path.join(projectLearningsDir, "axiology.md"),
       ["<!-- format_version: 1 -->", projectLine].join("\n"),
       "utf8",
     );
@@ -5599,11 +5599,11 @@ async function main(): Promise<void> {
     });
 
     // Manually construct the cluster: primary is structure (global), non-primary
-    // is philosopher (project). The applicator must mark the PROJECT file, not
-    // fakeOnto/learnings/philosopher.md (which doesn't exist).
-    const projectPhilosopherPath = path.join(
+    // is axiology (project). The applicator must mark the PROJECT file, not
+    // fakeOnto/learnings/axiology.md (which doesn't exist).
+    const projectAxiologyPath = path.join(
       projectLearningsDir,
-      "philosopher.md",
+      "axiology.md",
     );
     const globalStructurePath = path.join(
       fakeOnto,
@@ -5631,9 +5631,9 @@ async function main(): Promise<void> {
         },
         {
           ...syntheticItem({
-            agent_id: "philosopher",
+            agent_id: "axiology",
             scope: "project",
-            source_path: projectPhilosopherPath,
+            source_path: projectAxiologyPath,
           }),
           raw_line: projectLine,
           line_number: 2,
@@ -5678,16 +5678,16 @@ async function main(): Promise<void> {
     assertEqual(outcome.kind, "completed", "executor completed for mixed-scope");
     if (outcome.kind !== "completed") return;
 
-    // Verify the PROJECT philosopher.md was marked (not fakeOnto/learnings/philosopher.md)
-    const projectContent = fs.readFileSync(projectPhilosopherPath, "utf8");
+    // Verify the PROJECT axiology.md was marked (not fakeOnto/learnings/axiology.md)
+    const projectContent = fs.readFileSync(projectAxiologyPath, "utf8");
     assert(
       projectContent.includes("consolidated") &&
         projectContent.includes("mixed-scope-test"),
       "project-scope member marked consolidated in the PROJECT file",
     );
     assert(
-      !fs.existsSync(path.join(fakeOnto, "learnings", "philosopher.md")),
-      "global philosopher.md was NOT incorrectly created",
+      !fs.existsSync(path.join(fakeOnto, "learnings", "axiology.md")),
+      "global axiology.md was NOT incorrectly created",
     );
 
     // Verify the consolidated line went to the global structure.md (primary)
@@ -5721,7 +5721,7 @@ async function main(): Promise<void> {
           content: "unique alpha beta gamma delta epsilon zeta token",
         }),
         syntheticItem({
-          agent_id: "philosopher",
+          agent_id: "axiology",
           content: "unique alpha beta gamma delta epsilon zeta pathway",
         }),
       ];
@@ -5907,7 +5907,7 @@ async function main(): Promise<void> {
     // Full pipeline check: shortlist forms from cross-agent Korean items
     const items: ParsedLearningItem[] = [
       syntheticItem({ agent_id: "structure", content: contentA }),
-      syntheticItem({ agent_id: "philosopher", content: contentB }),
+      syntheticItem({ agent_id: "axiology", content: contentB }),
     ];
     const built = buildShortlists(items);
     assertEqual(
@@ -6036,7 +6036,7 @@ async function main(): Promise<void> {
             "invariant check constraint validation rollback guarantee durable",
         }),
         syntheticItem({
-          agent_id: "philosopher",
+          agent_id: "axiology",
           content:
             "invariant check constraint validation rollback guarantee idempotent",
         }),
@@ -6084,7 +6084,7 @@ async function main(): Promise<void> {
           content: "different notion alpha gamma tau sigma phi omega",
         }),
         syntheticItem({
-          agent_id: "philosopher",
+          agent_id: "axiology",
           content: "different notion alpha gamma tau sigma phi delta",
         }),
       ];
@@ -6136,7 +6136,7 @@ async function main(): Promise<void> {
     );
     writeLearningFile(
       path.join(projectRoot, ".onto", "learnings"),
-      "philosopher",
+      "axiology",
       "- [fact] [methodology] [foundation] verify constraint validation applying change idempotent (source: p, d, 2026-01-02) [impact:normal]",
     );
 
@@ -6189,14 +6189,14 @@ async function main(): Promise<void> {
     const fakeOnto = makeTmpDir("e-p144-home");
 
     // primary_owner_agent = structure. Shortlist has 2 structure members +
-    // 1 philosopher member. The primary member is structureLineA (earliest
+    // 1 axiology member. The primary member is structureLineA (earliest
     // source_date). structureLineB (later source_date) is a SIBLING that
     // must ALSO be marked consolidated.
     const structureLineA =
       "- [fact] [methodology] [foundation] same principle early (source: p, d, 2026-01-01) [impact:normal]";
     const structureLineB =
       "- [fact] [methodology] [foundation] same principle later (source: p, d, 2026-02-01) [impact:normal]";
-    const philosopherLine =
+    const axiologyLine =
       "- [fact] [methodology] [foundation] same principle philosophical (source: p, d, 2026-01-10) [impact:normal]";
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
@@ -6205,8 +6205,8 @@ async function main(): Promise<void> {
     );
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
-      "philosopher",
-      ["<!-- format_version: 1 -->", philosopherLine].join("\n"),
+      "axiology",
+      ["<!-- format_version: 1 -->", axiologyLine].join("\n"),
     );
 
     const promoter = await runPromoter({
@@ -6220,7 +6220,7 @@ async function main(): Promise<void> {
     });
 
     const structurePath = path.join(fakeOnto, "learnings", "structure.md");
-    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    const axiologyPath = path.join(fakeOnto, "learnings", "axiology.md");
     const consolidatedLine =
       "- [fact] [methodology] [foundation] consolidated transitive (source: cluster, d, 2026-04-09) [impact:normal]";
     const cluster = {
@@ -6253,12 +6253,12 @@ async function main(): Promise<void> {
         },
         {
           ...syntheticItem({
-            agent_id: "philosopher",
+            agent_id: "axiology",
             scope: "global",
-            source_path: philosopherPath,
+            source_path: axiologyPath,
             source_date: "2026-01-10",
           }),
-          raw_line: philosopherLine,
+          raw_line: axiologyLine,
           line_number: 2,
         },
       ],
@@ -6301,9 +6301,9 @@ async function main(): Promise<void> {
     assertEqual(outcome.kind, "completed", "executor completed");
 
     const structureContent = fs.readFileSync(structurePath, "utf8");
-    const philosopherContent = fs.readFileSync(philosopherPath, "utf8");
+    const axiologyContent = fs.readFileSync(axiologyPath, "utf8");
     const structureLines = structureContent.split("\n");
-    const philosopherLines = philosopherContent.split("\n");
+    const axiologyLines = axiologyContent.split("\n");
 
     // structureLineA (primary) stays as an exact line — it's absorbed into
     // the consolidated line semantically but the physical line is NOT
@@ -6329,19 +6329,19 @@ async function main(): Promise<void> {
       ),
       "structure file carries consolidated marker for sibling structureLineB",
     );
-    // philosopherLine must also be marked — exact line replaced.
+    // axiologyLine must also be marked — exact line replaced.
     assert(
-      !philosopherLines.includes(philosopherLine),
-      "philosopher member no longer present as raw line",
+      !axiologyLines.includes(axiologyLine),
+      "axiology member no longer present as raw line",
     );
     assert(
-      philosopherLines.some(
+      axiologyLines.some(
         (l: string) =>
           l.includes("consolidated") &&
           l.includes("transitive-test") &&
           l.includes("same principle philosophical"),
       ),
-      "philosopher file carries consolidated marker",
+      "axiology file carries consolidated marker",
     );
     // Consolidated line was appended to the primary file
     assert(
@@ -6363,11 +6363,11 @@ async function main(): Promise<void> {
     const fakeOnto = makeTmpDir("e-p145-home");
     const structureLine =
       "- [fact] [methodology] [foundation] primary alpha (source: p, d, 2026-01-01) [impact:normal]";
-    // Two verbatim duplicates of the philosopher line; line_number anchor
+    // Two verbatim duplicates of the axiology line; line_number anchor
     // points at a decoy line in the middle so neither anchor resolves cleanly.
-    const philosopherLine =
+    const axiologyLine =
       "- [fact] [methodology] [foundation] duplicate beta (source: p, d, 2026-01-01) [impact:normal]";
-    const philosopherFile = path.join(fakeOnto, "learnings", "philosopher.md");
+    const axiologyFile = path.join(fakeOnto, "learnings", "axiology.md");
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
       "structure",
@@ -6375,12 +6375,12 @@ async function main(): Promise<void> {
     );
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
-      "philosopher",
+      "axiology",
       [
         "<!-- format_version: 1 -->",
-        philosopherLine,
+        axiologyLine,
         "- [fact] [methodology] [foundation] decoy (source: p, d, 2026-01-01) [impact:normal]",
-        philosopherLine,
+        axiologyLine,
       ].join("\n"),
     );
 
@@ -6416,11 +6416,11 @@ async function main(): Promise<void> {
         },
         {
           ...syntheticItem({
-            agent_id: "philosopher",
+            agent_id: "axiology",
             scope: "global",
-            source_path: philosopherFile,
+            source_path: axiologyFile,
           }),
-          raw_line: philosopherLine,
+          raw_line: axiologyLine,
           // line_number=3 points at the decoy line, neither anchor resolves
           line_number: 3,
         },
@@ -6468,19 +6468,19 @@ async function main(): Promise<void> {
       outcome.kind === "failed_resumable",
       `expected failed_resumable (got ${outcome.kind})`,
     );
-    // Verify the philosopher file was NOT silently mutated
-    const philosopherContent = fs.readFileSync(philosopherFile, "utf8");
-    const matchCount = philosopherContent
+    // Verify the axiology file was NOT silently mutated
+    const axiologyContent = fs.readFileSync(axiologyFile, "utf8");
+    const matchCount = axiologyContent
       .split("\n")
-      .filter((l) => l === philosopherLine).length;
+      .filter((l) => l === axiologyLine).length;
     assertEqual(
       matchCount,
       2,
       "both duplicate raw_lines preserved (no silent mutation)",
     );
     assert(
-      !philosopherContent.includes("consolidated (") ||
-        !philosopherContent.includes("ambig-test"),
+      !axiologyContent.includes("consolidated (") ||
+        !axiologyContent.includes("ambig-test"),
       "no consolidated marker written for ambiguous member",
     );
   });
@@ -6644,13 +6644,13 @@ async function main(): Promise<void> {
       "structure",
       ["<!-- format_version: 1 -->", structureLine].join("\n"),
     );
-    // philosopher.md has TWO copies of duplicateLine. Anchor member.line_number=4
+    // axiology.md has TWO copies of duplicateLine. Anchor member.line_number=4
     // points at the SECOND copy. SYN-C2 fix: the mutation must target that
     // specific line, not fall back to first-verbatim-match scanning.
-    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    const axiologyPath = path.join(fakeOnto, "learnings", "axiology.md");
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
-      "philosopher",
+      "axiology",
       [
         "<!-- format_version: 1 -->",
         duplicateLine, // line 2 — first copy (must NOT be touched)
@@ -6691,9 +6691,9 @@ async function main(): Promise<void> {
         },
         {
           ...syntheticItem({
-            agent_id: "philosopher",
+            agent_id: "axiology",
             scope: "global",
-            source_path: philosopherPath,
+            source_path: axiologyPath,
           }),
           raw_line: duplicateLine,
           // Anchor the SECOND copy at file line 4 (index 3)
@@ -6737,18 +6737,18 @@ async function main(): Promise<void> {
     });
     assertEqual(outcome.kind, "completed", "executor completed");
 
-    const philosopherLines = fs
-      .readFileSync(philosopherPath, "utf8")
+    const axiologyLines = fs
+      .readFileSync(axiologyPath, "utf8")
       .split("\n");
     // The anchored (second) copy at index 3 must be replaced with the marker.
     assert(
-      philosopherLines[3]!.includes("consolidated") &&
-        philosopherLines[3]!.includes("anchor-auth-test"),
-      `line 4 (index 3) replaced with consolidated marker (got "${philosopherLines[3]}")`,
+      axiologyLines[3]!.includes("consolidated") &&
+        axiologyLines[3]!.includes("anchor-auth-test"),
+      `line 4 (index 3) replaced with consolidated marker (got "${axiologyLines[3]}")`,
     );
     // The FIRST copy at index 1 must remain untouched.
     assertEqual(
-      philosopherLines[1],
+      axiologyLines[1],
       duplicateLine,
       "line 2 (index 1) is unchanged — SYN-C2 fix prevents first-verbatim replacement",
     );
@@ -6769,13 +6769,13 @@ async function main(): Promise<void> {
       "structure",
       ["<!-- format_version: 1 -->", primaryLine].join("\n"),
     );
-    // philosopher file ALREADY has the consolidated marker for our cluster_id
+    // axiology file ALREADY has the consolidated marker for our cluster_id
     // but the PRIMARY file has NO cluster marker — simulating a crash that
     // left the apply mid-transition.
-    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    const axiologyPath = path.join(fakeOnto, "learnings", "axiology.md");
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
-      "philosopher",
+      "axiology",
       [
         "<!-- format_version: 1 -->",
         `<!-- consolidated (2026-04-08) into partial-apply-test: ${memberLine} -->`,
@@ -6812,9 +6812,9 @@ async function main(): Promise<void> {
         },
         {
           ...syntheticItem({
-            agent_id: "philosopher",
+            agent_id: "axiology",
             scope: "global",
-            source_path: philosopherPath,
+            source_path: axiologyPath,
           }),
           raw_line: memberLine,
           line_number: 2, // the line is now the marker — anchor says already_consolidated
@@ -6902,7 +6902,7 @@ async function main(): Promise<void> {
     // Case 1: single match — trivial
     const single = [
       syntheticItem({ agent_id: "structure", source_date: "2026-01-01" }),
-      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-02" }),
+      syntheticItem({ agent_id: "axiology", source_date: "2026-01-02" }),
     ];
     assertEqual(
       pickPrimaryMemberIndex(single, "structure"),
@@ -6913,7 +6913,7 @@ async function main(): Promise<void> {
     // Case 2: multi-match, earliest date wins
     const multi = [
       syntheticItem({ agent_id: "structure", source_date: "2026-02-01" }),
-      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-01" }),
+      syntheticItem({ agent_id: "axiology", source_date: "2026-01-01" }),
       syntheticItem({ agent_id: "structure", source_date: "2026-01-05" }),
     ];
     assertEqual(
@@ -6925,7 +6925,7 @@ async function main(): Promise<void> {
     // Case 3: equal source_dates — stable sort preserves original order
     const equalDates = [
       syntheticItem({ agent_id: "structure", source_date: "2026-01-01" }),
-      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-05" }),
+      syntheticItem({ agent_id: "axiology", source_date: "2026-01-05" }),
       syntheticItem({ agent_id: "structure", source_date: "2026-01-01" }),
     ];
     assertEqual(
@@ -6937,7 +6937,7 @@ async function main(): Promise<void> {
     // Case 4: null date AFTER dated — dated wins
     const nullAfter = [
       syntheticItem({ agent_id: "structure", source_date: null }),
-      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-05" }),
+      syntheticItem({ agent_id: "axiology", source_date: "2026-01-05" }),
       syntheticItem({ agent_id: "structure", source_date: "2026-01-01" }),
     ];
     assertEqual(
@@ -6949,7 +6949,7 @@ async function main(): Promise<void> {
     // Case 5: null date BEFORE dated — dated still wins
     const datedAfter = [
       syntheticItem({ agent_id: "structure", source_date: "2026-01-01" }),
-      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-05" }),
+      syntheticItem({ agent_id: "axiology", source_date: "2026-01-05" }),
       syntheticItem({ agent_id: "structure", source_date: null }),
     ];
     assertEqual(
@@ -6960,7 +6960,7 @@ async function main(): Promise<void> {
 
     // Case 6: all-null owners — first-encountered wins (stable sort)
     const allNull = [
-      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-05" }),
+      syntheticItem({ agent_id: "axiology", source_date: "2026-01-05" }),
       syntheticItem({ agent_id: "structure", source_date: null }),
       syntheticItem({ agent_id: "structure", source_date: null }),
     ];
@@ -6982,7 +6982,7 @@ async function main(): Promise<void> {
         source_date: "2026-02-01",
         raw_line: "same raw_line content",
       }),
-      syntheticItem({ agent_id: "philosopher", source_date: "2026-01-05" }),
+      syntheticItem({ agent_id: "axiology", source_date: "2026-01-05" }),
     ];
     assertEqual(
       pickPrimaryMemberIndex(dupContent, "structure"),
@@ -7010,7 +7010,7 @@ async function main(): Promise<void> {
     );
     writeLearningFile(
       path.join(projectRoot, ".onto", "learnings"),
-      "philosopher",
+      "axiology",
       "- [fact] [methodology] [foundation] overlapping constraint validation applying change idempotent (source: p, d, 2026-01-02) [impact:normal]",
     );
 
@@ -7251,13 +7251,13 @@ async function main(): Promise<void> {
 
     const structureLine =
       "- [fact] [methodology] [foundation] primary alpha (source: p, d, 2026-01-01) [impact:normal]";
-    // philosopher file: at line 2 (index 1) has ONE line, but we'll
+    // axiology file: at line 2 (index 1) has ONE line, but we'll
     // anchor member.line_number=5 which is OUT OF RANGE on purpose — this
     // exercises the "index out of bounds" branch of replaceLineAtIndex
     // through the preflight path.
-    const philosopherLine =
+    const axiologyLine =
       "- [fact] [methodology] [foundation] drift test line (source: p, d, 2026-01-01) [impact:normal]";
-    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    const axiologyPath = path.join(fakeOnto, "learnings", "axiology.md");
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
       "structure",
@@ -7265,8 +7265,8 @@ async function main(): Promise<void> {
     );
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
-      "philosopher",
-      ["<!-- format_version: 1 -->", philosopherLine].join("\n"),
+      "axiology",
+      ["<!-- format_version: 1 -->", axiologyLine].join("\n"),
     );
 
     const promoter = await runPromoter({
@@ -7299,11 +7299,11 @@ async function main(): Promise<void> {
         },
         {
           ...syntheticItem({
-            agent_id: "philosopher",
+            agent_id: "axiology",
             scope: "global",
-            source_path: philosopherPath,
+            source_path: axiologyPath,
           }),
-          raw_line: philosopherLine,
+          raw_line: axiologyLine,
           // line_number=5 is beyond the file (out of range) → anchor
           // fallback scan finds it (unique) → match_original. Then we
           // inject drift AFTER preflight by swapping the file content
@@ -7322,13 +7322,13 @@ async function main(): Promise<void> {
       JSON.stringify(promoter.report, null, 2),
     );
 
-    // Overwrite philosopher.md AFTER the promoter write but BEFORE the
+    // Overwrite axiology.md AFTER the promoter write but BEFORE the
     // executor runs — this simulates a race where the file drifted
     // between Phase A report generation and Phase B apply. The locked
     // re-read inside withFileLock should detect that the raw_line is
     // no longer present at any anchor position.
     fs.writeFileSync(
-      philosopherPath,
+      axiologyPath,
       [
         "<!-- format_version: 1 -->",
         "- [fact] [methodology] [foundation] a totally different line (source: p, d, 2026-01-01) [impact:normal]",
@@ -7397,10 +7397,10 @@ async function main(): Promise<void> {
       "structure",
       ["<!-- format_version: 1 -->", primaryLine].join("\n"),
     );
-    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    const axiologyPath = path.join(fakeOnto, "learnings", "axiology.md");
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
-      "philosopher",
+      "axiology",
       [
         "<!-- format_version: 1 -->",
         `<!-- consolidated (2026-04-08) into cc1-guidance-test: ${memberLine} -->`,
@@ -7437,9 +7437,9 @@ async function main(): Promise<void> {
         },
         {
           ...syntheticItem({
-            agent_id: "philosopher",
+            agent_id: "axiology",
             scope: "global",
-            source_path: philosopherPath,
+            source_path: axiologyPath,
           }),
           raw_line: memberLine,
           line_number: 2,
@@ -7634,21 +7634,21 @@ async function main(): Promise<void> {
 
     const structureLine =
       "- [fact] [methodology] [foundation] primary (source: p, d, 2026-01-01) [impact:normal]";
-    const philosopherLine =
+    const axiologyLine =
       "- [fact] [methodology] [foundation] member (source: p, d, 2026-01-01) [impact:normal]";
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
       "structure",
       ["<!-- format_version: 1 -->", structureLine].join("\n"),
     );
-    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    const axiologyPath = path.join(fakeOnto, "learnings", "axiology.md");
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
-      "philosopher",
-      ["<!-- format_version: 1 -->", philosopherLine].join("\n"),
+      "axiology",
+      ["<!-- format_version: 1 -->", axiologyLine].join("\n"),
     );
 
-    // Simulate a concurrent holder by creating philosopher.md.lock RIGHT NOW.
+    // Simulate a concurrent holder by creating axiology.md.lock RIGHT NOW.
     // Use THIS process's own PID so the PID-liveness reclaim check sees a
     // live holder and refuses to reclaim — the acquirer then waits out
     // the waitMs budget and fails closed with "could not acquire lock".
@@ -7656,10 +7656,10 @@ async function main(): Promise<void> {
     // was 5 minutes; the 5-RECLAIM fix shortened that to 2s AND requires
     // the holder PID to be demonstrably dead, so the test must now
     // provide a real live PID to stay locked.
-    const lockPath = `${philosopherPath}.lock`;
+    const lockPath = `${axiologyPath}.lock`;
     fs.writeFileSync(
       lockPath,
-      `${process.pid}\n${new Date().toISOString()}\n${philosopherPath}\n`,
+      `${process.pid}\n${new Date().toISOString()}\n${axiologyPath}\n`,
       "utf8",
     );
 
@@ -7693,11 +7693,11 @@ async function main(): Promise<void> {
         },
         {
           ...syntheticItem({
-            agent_id: "philosopher",
+            agent_id: "axiology",
             scope: "global",
-            source_path: philosopherPath,
+            source_path: axiologyPath,
           }),
-          raw_line: philosopherLine,
+          raw_line: axiologyLine,
           line_number: 2,
         },
       ],
@@ -7771,13 +7771,13 @@ async function main(): Promise<void> {
 
     // Neither file should have been mutated
     const structureContent = fs.readFileSync(structurePath, "utf8");
-    const philosopherContent = fs.readFileSync(philosopherPath, "utf8");
+    const axiologyContent = fs.readFileSync(axiologyPath, "utf8");
     assert(
       !structureContent.includes("consolidated lock test"),
       "primary untouched",
     );
     assert(
-      philosopherContent.includes(philosopherLine),
+      axiologyContent.includes(axiologyLine),
       "member unchanged (original raw_line preserved)",
     );
 
@@ -7815,7 +7815,7 @@ async function main(): Promise<void> {
     // Expected: the first slot with the earliest shared date wins.
     const tiedDates = [
       syntheticItem({ agent_id: "structure", source_date: "2026-03-01" }),
-      syntheticItem({ agent_id: "philosopher", source_date: "2026-02-01" }),
+      syntheticItem({ agent_id: "axiology", source_date: "2026-02-01" }),
       syntheticItem({ agent_id: "structure", source_date: "2026-01-15" }),
       syntheticItem({ agent_id: "structure", source_date: "2026-01-15" }),
     ];
@@ -7848,27 +7848,27 @@ async function main(): Promise<void> {
 
     const structureLine =
       "- [fact] [methodology] [foundation] primary reclaim (source: p, d, 2026-01-01) [impact:normal]";
-    const philosopherLine =
+    const axiologyLine =
       "- [fact] [methodology] [foundation] member reclaim (source: p, d, 2026-01-01) [impact:normal]";
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
       "structure",
       ["<!-- format_version: 1 -->", structureLine].join("\n"),
     );
-    const philosopherPath = path.join(fakeOnto, "learnings", "philosopher.md");
+    const axiologyPath = path.join(fakeOnto, "learnings", "axiology.md");
     writeLearningFile(
       path.join(fakeOnto, "learnings"),
-      "philosopher",
-      ["<!-- format_version: 1 -->", philosopherLine].join("\n"),
+      "axiology",
+      ["<!-- format_version: 1 -->", axiologyLine].join("\n"),
     );
 
     // Pre-create a stale lockfile with a PID that is definitely dead.
     // PID 999999 is out of range on every supported OS. Backdate mtime
     // via utimesSync so it's older than staleAfterMs (2s default).
-    const lockPath = `${philosopherPath}.lock`;
+    const lockPath = `${axiologyPath}.lock`;
     fs.writeFileSync(
       lockPath,
-      `999999\n2020-01-01T00:00:00Z\n${philosopherPath}\n`,
+      `999999\n2020-01-01T00:00:00Z\n${axiologyPath}\n`,
       "utf8",
     );
     const longAgo = new Date(Date.now() - 60 * 1000); // 1 minute ago
@@ -7904,11 +7904,11 @@ async function main(): Promise<void> {
         },
         {
           ...syntheticItem({
-            agent_id: "philosopher",
+            agent_id: "axiology",
             scope: "global",
-            source_path: philosopherPath,
+            source_path: axiologyPath,
           }),
-          raw_line: philosopherLine,
+          raw_line: axiologyLine,
           line_number: 2,
         },
       ],
@@ -7959,11 +7959,11 @@ async function main(): Promise<void> {
       !fs.existsSync(lockPath),
       "stale lockfile was removed (reclaimed, then released by successful apply)",
     );
-    // Philosopher file was successfully marked
-    const philoContent = fs.readFileSync(philosopherPath, "utf8");
+    // Axiology file was successfully marked
+    const philoContent = fs.readFileSync(axiologyPath, "utf8");
     assert(
       philoContent.includes("consolidated") && philoContent.includes("reclaim-test"),
-      "philosopher marked after reclaim",
+      "axiology marked after reclaim",
     );
   });
 
@@ -8025,7 +8025,7 @@ async function main(): Promise<void> {
     const missingMemberFile = path.join(
       fakeOnto,
       "learnings",
-      "philosopher-missing.md",
+      "axiology-missing.md",
     );
     const cluster = {
       cluster_id: "rerun-fidelity-test",
@@ -8046,7 +8046,7 @@ async function main(): Promise<void> {
         },
         {
           ...syntheticItem({
-            agent_id: "philosopher-missing",
+            agent_id: "axiology-missing",
             scope: "global",
             source_path: missingMemberFile, // does NOT exist
           }),

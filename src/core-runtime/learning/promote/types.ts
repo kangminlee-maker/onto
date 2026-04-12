@@ -150,7 +150,7 @@ export interface PreAnalysisResult {
 // Panel reviewer — DD-2, DD-7
 // ---------------------------------------------------------------------------
 
-export type PanelMemberRole = "originator" | "philosopher" | "auto_selected";
+export type PanelMemberRole = "originator" | "axiology" | "auto_selected";
 
 export interface PanelMember {
   agent_id: string;

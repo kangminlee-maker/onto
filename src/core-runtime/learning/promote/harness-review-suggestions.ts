@@ -12,9 +12,13 @@
  *     suggestions are warranted.
  *
  * Scope:
- *   - Pure function. No I/O. No mutation.
- *   - Consumes only the PromoteReport produced by Phase A.
+ *   - Read-only: consumes PromoteReport + verifies file existence only.
+ *   - Missing canonical seats (e.g., retired agents like `philosopher`) are
+ *     silently skipped rather than emitted as dead-path suggestions.
  */
+
+import fs from "node:fs";
+import path from "node:path";
 
 import type { PromoteReport, PanelVerdict, DegradedStateEntry } from "./types.js";
 
@@ -47,6 +51,7 @@ interface HarnessReviewSuggestion {
  */
 function detectVerdictSignals(
   panelVerdicts: PanelVerdict[],
+  projectRoot: string,
 ): HarnessReviewSuggestion[] {
   const suggestions: HarnessReviewSuggestion[] = [];
   const seenFiles = new Set<string>();
@@ -69,6 +74,9 @@ function detectVerdictSignals(
     if (seenFiles.has(file)) continue;
     seenFiles.add(file);
 
+    // Skip retired/legacy agents whose canonical role file no longer exists.
+    if (!fs.existsSync(path.join(projectRoot, file))) continue;
+
     suggestions.push({
       file,
       reason:
@@ -88,18 +96,28 @@ function detectVerdictSignals(
  */
 function detectContractSignals(
   degradedStates: DegradedStateEntry[],
+  projectRoot: string,
 ): HarnessReviewSuggestion[] {
-  const hasContractInvalid = degradedStates.some(
+  const contractInvalids = degradedStates.filter(
     (d) => d.kind === "panel_contract_invalid",
   );
-  if (!hasContractInvalid) return [];
+  if (contractInvalids.length === 0) return [];
+
+  const file = "processes/review/lens-prompt-contract.md";
+  if (!fs.existsSync(path.join(projectRoot, file))) return [];
+
+  // Include the first detail so the operator can distinguish true contract
+  // drift from transient LLM/network failures (which do not warrant harness
+  // changes).
+  const firstDetail = contractInvalids[0]?.detail ?? "(no detail captured)";
 
   return [
     {
-      file: "processes/review/lens-prompt-contract.md",
+      file,
       reason:
-        "Degraded state panel_contract_invalid detected. " +
-        "The lens prompt contract may be out of sync with the current panel structure.",
+        `${contractInvalids.length} panel_contract_invalid event(s). First detail: "${truncate(firstDetail, 200)}". ` +
+        `Review only if the detail indicates contract/prompt mismatch; ` +
+        `transient LLM/network failures do not warrant harness changes.`,
     },
   ];
 }
@@ -112,12 +130,16 @@ function detectContractSignals(
  */
 function detectCreationGateSignals(
   creationGateFailures: number,
+  projectRoot: string,
 ): HarnessReviewSuggestion[] {
   if (creationGateFailures <= 0) return [];
 
+  const file = "src/core-runtime/learning/prompt-sections.ts";
+  if (!fs.existsSync(path.join(projectRoot, file))) return [];
+
   return [
     {
-      file: "src/core-runtime/learning/prompt-sections.ts",
+      file,
       reason:
         `${creationGateFailures} creation gate failure(s). ` +
         `The prompt section that generates learning lines may produce malformed output.`,
@@ -134,6 +156,7 @@ function detectCreationGateSignals(
 function detectEventMarkerSignals(
   eventMarkerReviewCandidates: number,
   panelVerdicts: PanelVerdict[],
+  projectRoot: string,
 ): HarnessReviewSuggestion[] {
   if (eventMarkerReviewCandidates <= EVENT_MARKER_REVIEW_THRESHOLD) return [];
 
@@ -164,15 +187,28 @@ function detectEventMarkerSignals(
 
   if (!topAgent) return [];
 
+  const file = `roles/${topAgent}.md`;
+  // Skip retired/legacy agents whose canonical role file no longer exists.
+  if (!fs.existsSync(path.join(projectRoot, file))) return [];
+
   return [
     {
-      file: `roles/${topAgent}.md`,
+      file,
       reason:
         `${eventMarkerReviewCandidates} event marker review candidates (threshold: ${EVENT_MARKER_REVIEW_THRESHOLD}). ` +
         `Lens ${topAgent} has the most markers (${topCount}). ` +
         `Its role definition may be producing unstable judgments.`,
     },
   ];
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1) + "…";
 }
 
 // ---------------------------------------------------------------------------
@@ -187,14 +223,19 @@ function detectEventMarkerSignals(
  */
 export function generateHarnessReviewSuggestions(
   report: PromoteReport,
+  projectRoot: string,
 ): string {
   const suggestions: HarnessReviewSuggestion[] = [
-    ...detectVerdictSignals(report.panel_verdicts),
-    ...detectContractSignals(report.degraded_states),
-    ...detectCreationGateSignals(report.health_snapshot.creation_gate_failures),
+    ...detectVerdictSignals(report.panel_verdicts, projectRoot),
+    ...detectContractSignals(report.degraded_states, projectRoot),
+    ...detectCreationGateSignals(
+      report.health_snapshot.creation_gate_failures,
+      projectRoot,
+    ),
     ...detectEventMarkerSignals(
       report.health_snapshot.event_marker_review_candidates,
       report.panel_verdicts,
+      projectRoot,
     ),
   ];
 

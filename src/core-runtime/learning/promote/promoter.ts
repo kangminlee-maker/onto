@@ -380,9 +380,15 @@ export async function runPromoter(
   // -------------------------------------------------------------------------
   // Step 12: Harness review suggestions + health history
   // -------------------------------------------------------------------------
-  const harnessReviewMd = generateHarnessReviewSuggestions(report);
+  // stdout is reserved for the machine-readable JSON result. Harness
+  // suggestions go to stderr so operators see them interactively but pipe
+  // consumers still get clean JSON.
+  const harnessReviewMd = generateHarnessReviewSuggestions(
+    report,
+    config.projectRoot,
+  );
   if (harnessReviewMd) {
-    process.stdout.write(harnessReviewMd);
+    process.stderr.write(harnessReviewMd);
   }
   try {
     appendHealthHistory(config.projectRoot, report.session_id, report.health_snapshot);

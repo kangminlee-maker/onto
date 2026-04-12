@@ -66,6 +66,8 @@ import {
 import { identifyRetirementCandidates } from "./retirement.js";
 import { identifyDomainDocCandidates } from "./domain-doc-proposer.js";
 import { buildHealthSnapshot } from "./health-snapshot.js";
+import { generateHarnessReviewSuggestions } from "./harness-review-suggestions.js";
+import { appendHealthHistory } from "./health-history.js";
 import type {
   AuditPolicy,
   CollectorMode,
@@ -374,6 +376,19 @@ export async function runPromoter(
   // ledger lives outside the session root because it's the canonical
   // cross-session truth (DD-17 SYN-UF-03).
   saveAuditState(auditState, auditStatePath);
+
+  // -------------------------------------------------------------------------
+  // Step 12: Harness review suggestions + health history
+  // -------------------------------------------------------------------------
+  const harnessReviewMd = generateHarnessReviewSuggestions(report);
+  if (harnessReviewMd) {
+    process.stdout.write(harnessReviewMd);
+  }
+  try {
+    appendHealthHistory(config.projectRoot, report.session_id, report.health_snapshot);
+  } catch {
+    // Non-fatal: health history is observational, not load-bearing.
+  }
 
   return {
     report,

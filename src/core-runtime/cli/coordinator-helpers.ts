@@ -17,6 +17,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import type {
+  CoordinatorStateFile,
   ReviewExecutionPlan,
   ReviewExecutionResultArtifact,
   ReviewExecutionStatus,
@@ -230,6 +231,18 @@ export async function runBuildSynthesizeRuntimePacket(argv: string[]): Promise<n
 // ─────────────────────────────────────────────
 // Subcommand: write-execution-result
 // ─────────────────────────────────────────────
+//
+// Per-unit timestamp provenance (coordinator path):
+// - started_at: derived from coordinator-state.yaml transition timestamps
+//   (awaiting_lens_dispatch / awaiting_synthesize_dispatch). Represents
+//   dispatch instruction time, which precedes actual agent execution start,
+//   so duration_ms is systematically over-estimated.
+// - completed_at: derived from fs.stat(output_path).mtime. Assumes local
+//   same-machine direct file creation and no post-write modification.
+//   Filesystem mtime precision is platform-dependent (e.g. HFS+ 1s).
+// - TS runner path (run-review-prompt-execution.ts) uses process wall-clock
+//   measurements; both paths write to the same ReviewUnitExecutionResult
+//   interface but carry different semantic provenance.
 
 function deriveExecutionStatus(
   synthesisExecuted: boolean,
@@ -238,6 +251,48 @@ function deriveExecutionStatus(
   if (!synthesisExecuted) return "halted_partial";
   if (degradedLensCount > 0) return "completed_with_degradation";
   return "completed";
+}
+
+/** Read coordinator state file if present. Returns null on any failure. */
+async function readCoordinatorStateFileOrNull(
+  sessionRoot: string,
+): Promise<CoordinatorStateFile | null> {
+  const stateFilePath = path.join(sessionRoot, "coordinator-state.yaml");
+  if (!(await fileExists(stateFilePath))) {
+    return null;
+  }
+  try {
+    return await readYamlDocument<CoordinatorStateFile>(stateFilePath);
+  } catch {
+    return null;
+  }
+}
+
+/** Find the timestamp of the first transition with matching `to` state. */
+function findTransitionAt(
+  stateFile: CoordinatorStateFile | null,
+  toState: string,
+): string | null {
+  if (!stateFile) return null;
+  const transition = stateFile.transitions.find((t) => t.to === toState);
+  return transition?.at ?? null;
+}
+
+/** Read file mtime as ISO string. Returns null on failure. */
+async function readFileMtimeIsoOrNull(filePath: string): Promise<string | null> {
+  try {
+    const stat = await fs.stat(filePath);
+    return stat.mtime.toISOString();
+  } catch {
+    return null;
+  }
+}
+
+function computeDurationMs(startedAt: string, completedAt: string): number {
+  return Math.max(
+    0,
+    new Date(completedAt).getTime() - new Date(startedAt).getTime(),
+  );
 }
 
 export interface WriteExecutionResultOutput {
@@ -308,23 +363,64 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
   const startMs = new Date(executionStartedAt).getTime();
   const endMs = new Date(completedAt).getTime();
 
-  const lensResults: ReviewUnitExecutionResult[] =
-    executionPlan.lens_prompt_packet_seats.map((seat) => ({
-      unit_id: seat.lens_id,
-      unit_kind: "lens" as const,
-      packet_path: seat.packet_path,
-      output_path: seat.output_path,
-      status: participating.includes(seat.lens_id) ? "completed" as const : "failed" as const,
-      started_at: executionStartedAt,
-      completed_at: completedAt,
-      duration_ms: Math.max(0, endMs - startMs),
-      failure_message: degraded.includes(seat.lens_id) ? "output file missing or empty" : null,
-    }));
+  // Per-unit timestamp precision: read coordinator state transitions + file mtime.
+  // On any failure, fall back to batch timestamps (executionStartedAt / completedAt)
+  // while emitting a warning so the degradation is not silent.
+  const stateFile = await readCoordinatorStateFileOrNull(sessionRoot);
+  if (!stateFile) {
+    console.warn(
+      "[coordinator-helpers] coordinator-state.yaml missing or unreadable; falling back to batch timestamps for per-unit started_at.",
+    );
+  }
+
+  const lensDispatchAt = findTransitionAt(stateFile, "awaiting_lens_dispatch");
+  if (stateFile && !lensDispatchAt) {
+    console.warn(
+      "[coordinator-helpers] coordinator-state.yaml has no 'awaiting_lens_dispatch' transition; falling back to batch timestamp for lens started_at.",
+    );
+  }
+  const lensStartedAt = lensDispatchAt ?? executionStartedAt;
+
+  const lensResults: ReviewUnitExecutionResult[] = await Promise.all(
+    executionPlan.lens_prompt_packet_seats.map(async (seat) => {
+      const isParticipating = participating.includes(seat.lens_id);
+      const mtimeIso = isParticipating
+        ? await readFileMtimeIsoOrNull(seat.output_path)
+        : null;
+      const unitCompletedAt = mtimeIso ?? completedAt;
+      return {
+        unit_id: seat.lens_id,
+        unit_kind: "lens" as const,
+        packet_path: seat.packet_path,
+        output_path: seat.output_path,
+        status: isParticipating ? ("completed" as const) : ("failed" as const),
+        started_at: lensStartedAt,
+        completed_at: unitCompletedAt,
+        duration_ms: computeDurationMs(lensStartedAt, unitCompletedAt),
+        failure_message: degraded.includes(seat.lens_id) ? "output file missing or empty" : null,
+      };
+    }),
+  );
 
   const runtimePacketPath = path.join(
     executionPlan.prompt_packets_root ?? path.join(sessionRoot, "prompt-packets"),
     "synthesize.runtime.prompt.md",
   );
+
+  const synthesizeDispatchAt = findTransitionAt(
+    stateFile,
+    "awaiting_synthesize_dispatch",
+  );
+  if (synthesisExecuted && stateFile && !synthesizeDispatchAt) {
+    console.warn(
+      "[coordinator-helpers] coordinator-state.yaml has no 'awaiting_synthesize_dispatch' transition; falling back to batch timestamp for synthesize started_at.",
+    );
+  }
+  const synthesizeStartedAt = synthesizeDispatchAt ?? executionStartedAt;
+  const synthesizeMtimeIso = synthesisExecuted
+    ? await readFileMtimeIsoOrNull(synthesisPath)
+    : null;
+  const synthesizeCompletedAt = synthesizeMtimeIso ?? completedAt;
 
   const synthesizeResult: ReviewUnitExecutionResult | null = synthesisExecuted
     ? {
@@ -333,9 +429,9 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
         packet_path: runtimePacketPath,
         output_path: synthesisPath,
         status: (await fileExists(synthesisPath)) ? "completed" : "failed",
-        started_at: executionStartedAt,
-        completed_at: completedAt,
-        duration_ms: Math.max(0, endMs - startMs),
+        started_at: synthesizeStartedAt,
+        completed_at: synthesizeCompletedAt,
+        duration_ms: computeDurationMs(synthesizeStartedAt, synthesizeCompletedAt),
         failure_message: null,
       }
     : null;

@@ -137,6 +137,8 @@ later hardened implementation에서 identity policy가 바뀌더라도,
 - `excluded_lens_ids`
 - `degraded_lens_ids`
 - `degradation_notes_ref`
+- `lens_output_schema_version`
+- `per_lens_provenance`
 
 원칙:
 
@@ -145,6 +147,11 @@ later hardened implementation에서 identity policy가 바뀌더라도,
 - `axiology`는 canonical lens set에 항상 포함되어야 한다
 - degraded case가 발생하면 later audit가 그 원인을 다시 읽을 수 있어야 한다
 - `error-log.md`가 boundary/conformance state만 담는 경우에는 `degradation_notes_ref`로 간주하지 않는다
+- `lens_output_schema_version`은 lens output의 schema version을 기록한다 (v2부터 적용)
+- `per_lens_provenance`는 각 lens의 `domain_constraints_used`, `domain_context_assumptions`를 보존한다. pre-v2 artifact에서는 해당 필드가 `null`일 수 있다
+- `upstream_evidence_required`는 finding-level 속성이며 `round1/{lens-id}.md`의 각 finding에 기록한다
+- `per_lens_provenance`는 `upstream_evidence_required`를 저장하지 않는다. finding-level 보존은 `lens_result_refs.{lens-id}` 경로를 따라 원본 round1 markdown에서 추출한다
+- lens-level aggregate summary가 필요하면 별도 명시적 파생 필드로 정의한다
 
 예시:
 
@@ -170,6 +177,7 @@ degraded_lens_ids: []
 - `deliberation_status`
 - `deliberation_result_ref`
 - `final_output_ref`
+- `shared_phenomenon_summary`
 
 허용되는 `deliberation_status` 최소 값:
 
@@ -184,6 +192,7 @@ degraded_lens_ids: []
 - `synthesis.md`는 frontmatter로 `deliberation_status`를 선언해야 한다
 - `final_output_ref`는 주체자에게 보여주는 rendered output을 가리킨다
 - `ReviewRecord`가 primary artifact이고 `final-output.md`는 secondary human-readable output이다
+- `shared_phenomenon_summary`는 동일 phenomenon에 대한 다중 lens claim의 claim relation 분류를 보존한다. 분류가 없으면 (pre-v2 또는 shared phenomenon 미발생) 빈 배열이다
 
 ---
 
@@ -232,6 +241,7 @@ lens_result_refs:
   coverage: .onto/review/20260404-a1b2c3d4/round1/coverage.md
   conciseness: .onto/review/20260404-a1b2c3d4/round1/conciseness.md
   axiology: .onto/review/20260404-a1b2c3d4/round1/axiology.md
+lens_output_schema_version: 2
 participating_lens_ids:
   - logic
   - structure
@@ -246,10 +256,26 @@ excluded_lens_ids: []
 degraded_lens_ids: []
 degradation_notes_ref: null
 
+per_lens_provenance:
+  logic:
+    domain_constraints_used:
+      - source_doc: domains/software-engineering/logic_rules.md
+        source_version_or_snapshot_id: 'commit:abc1234'
+        anchor: '§3.2 — type-narrowing transitivity rule'
+    domain_context_assumptions:
+      - '해당 도메인에서 타입 호환성은 structural subtyping 기준'
+  axiology:
+    domain_constraints_used: []
+    domain_context_assumptions: []
 synthesis_result_ref: .onto/review/20260404-a1b2c3d4/synthesis.md
 deliberation_status: not_needed
 deliberation_result_ref: null
 final_output_ref: .onto/review/20260404-a1b2c3d4/final-output.md
+shared_phenomenon_summary:
+  - target: processes/review/record-contract.md
+    evidence_anchor: '§5'
+    participating_lens_ids: [logic, dependency]
+    claim_relation: corroboration
 ```
 
 ---

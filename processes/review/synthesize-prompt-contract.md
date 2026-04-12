@@ -63,6 +63,19 @@
    - project-level synthesize learnings
    - learning rules
 
+### 3.1 Input Expectations (Lens Output Fields)
+
+각 lens result file은 `lens-prompt-contract.md` §8 (schema_version: 2)에 따라
+최소 아래 필드를 포함해야 한다. synthesize는 이 필드들의 수신을 필수로 기대한다.
+
+- **4-field claim**: `{target, evidence_anchor, claim, lens_id}` — 각 finding별
+- **`upstream_evidence_required`**: 해당 시
+- **`domain_constraints_used`**: 해당 시 (durable provenance 형식)
+- **`domain_context_assumptions`**: 해당 시
+
+4필드의 의미와 co-location rule은 `processes/review/shared-phenomenon-contract.md`가 정의한다.
+이 계약은 수신 필수만 선언하며, 필드 의미를 재정의하지 않는다.
+
 ---
 
 ## 4. Mandatory Execution Rules
@@ -104,6 +117,7 @@ deliberation_status: not_needed | performed | required_but_unperformed
 9. unique finding tagging
 10. deliberation decision
 11. final review result
+12. shared phenomenon summary — 동일 phenomenon에 대한 다중 lens claim이 있는 경우, claim relation 분류 결과를 명시한다 (corroboration / disagreement / partial overlap / dedup). 분류 규칙은 `processes/review/shared-phenomenon-contract.md` §4를 따른다. 이 계약은 분류 규칙을 재정의하지 않는다
 
 즉 현재 prompt-backed reference path에서는
 `synthesis markdown`이 canonical prompt output이다.

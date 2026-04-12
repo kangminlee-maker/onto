@@ -54,9 +54,9 @@ The team lead (structure coordinator) delivers review directives to the 3 review
 If a review agent is non-responsive, exclude that agent and determine consensus with the remaining agents (adjusts the consensus denominator).
 
 **Review agent selection**:
-- The agent that originally generated the learning
-- `philosopher` (synthesis perspective)
-- One other agent most relevant to the learning content (auto-selected)
+- The lens that originally generated the learning
+- `axiology` (purpose/value alignment perspective)
+- One other lens most relevant to the learning content (auto-selected)
 
 Content to deliver to each review agent:
 
@@ -123,7 +123,7 @@ Please review whether the project-level learnings below should be promoted to gl
    통합 형식: criterion 5의 consolidated format을 준용.
    비주(non-owner) 파일의 원본은 `<!-- consolidated into: [principle] -->` 주석 처리.
 
-   실행 모델: 단일 주체(philosopher 또는 designated reviewer)가 순차 실행.
+   실행 모델: 단일 주체(`axiology` 또는 designated reviewer lens)가 순차 실행.
    Step 3의 다른 criteria는 3-agent 병렬이나, criterion 6만 단일 순차.
    양방향 삭제 위험을 방지하기 위함.
 

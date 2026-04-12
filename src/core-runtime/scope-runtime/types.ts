@@ -639,7 +639,7 @@ export interface PrdReviewCompletedPayload {
   verdict: PrdReviewVerdict;
   perspectives: PrdReviewPerspective[];
   findings: PrdReviewFinding[];
-  philosopher_synthesis?: string;
+  value_alignment_synthesis?: string;
   constraint_gap_id?: string;
   review_session_path?: string;
 }

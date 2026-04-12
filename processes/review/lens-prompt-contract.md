@@ -275,6 +275,17 @@ structured lens artifact의 source가 된다.
 
 ---
 
+## 9.3 Domain-None Fallback Rule
+
+`session_domain`이 `none`일 때:
+
+1. domain document가 있는 lens(`logic`, `structure`, `dependency`, `semantics`, `pragmatics`, `evolution`, `coverage`, `conciseness`)는 domain document 없이 실행한다
+2. domain-specific rule에 의존하는 판단은 해당 finding에 `no domain document available within boundary`로 명시한다
+3. 해당 finding의 `domain_constraints_used`는 빈 배열이다
+4. lens를 제외하지는 않는다. domain 없이도 관점 자체는 유효하다
+
+---
+
 ## 10. Example Prompt Skeleton
 
 ```text

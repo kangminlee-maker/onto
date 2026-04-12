@@ -56,13 +56,14 @@
 
 ---
 
-## 4. Boundary Rule
+## 4. Role Distinction
 
 ### 4.1 `axiology`
 
 - 목적/가치 정합을 보는 독립 lens
 - 자체 finding을 만든다
 - 다른 lens 전체를 요약하지 않는다
+- `New Perspectives` canonical slot을 소유한다 (axiology-exclusive)
 
 ### 4.2 `synthesize`
 
@@ -70,44 +71,27 @@
 - 새로운 독립 관점 행세를 하면 안 된다
 - unresolved disagreement를 묵살하지 않고 보존해야 한다
 
+### 4.3 Overlap-permitted lens claims
+
+여러 lens가 동일 현상에 대해 각자 lens-qualified claim을 내는 것이 허용된다. overlap 정책과 claim relation 분류의 normative seat는 `processes/review/shared-phenomenon-contract.md`이다.
+
 ---
 
 ## 5. Execution Separation Rule
+
+실행 분리 규칙의 normative seat는 `processes/review/lens-prompt-contract.md` §3 (Core Execution Rule)이다. 이 섹션은 개관만 제공한다.
 
 `review lens`는 개념적으로도 실행상으로도 서로 독립이어야 한다.
 
 여기서 canonical 개념은
 **맥락 격리 추론 단위 (ContextIsolatedReasoningUnit)** 다.
 
-즉 프롬프트 기준 경로에서는 아래가 허용된다.
-
-- Agent Teams teammate
-- subagent
-- `MCP`로 분리된 `LLM`
-- 독립 background agent
-- external model worker
-
-하지만 어떤 host realization을 쓰더라도 변하지 않는 canonical rule은 아래다.
+어떤 host realization을 쓰더라도 변하지 않는 canonical rule:
 
 1. 각 lens는 자기 전용 맥락에서 실행된다
 2. Round 1에서는 다른 lens의 결과를 보지 않는다
 3. `synthesize`는 lens finding이 나온 뒤에만 실행된다
 4. 메인 `LLM` 콘텍스트는 lens별 세부 reasoning을 직접 모두 담지 않는다
-
-즉 host-specific detail은 달라도,
-`lens별 맥락 분리`, `메인 콘텍스트 보존`, `독립 의미 검증` 자체는 canonical requirement다.
-
-### 5.1 Why Independent Execution Matters
-
-독립 실행 단위가 필요한 이유는 아래다.
-
-1. 각 lens의 specialization이 다른 lens 판단에 오염되지 않게 한다
-2. 메인 콘텍스트가 orchestration, binding, synthesis 판단을 유지할 수 있게 한다
-3. later runtimeization에서도 `lens execution unit`을 그대로 치환하기 쉽게 한다
-
-즉 `subagent`, teammate, `MCP` 분리 `LLM`, background agent, external worker는
-host-specific naming이나 realization일 수 있어도,
-그들이 보존하는 구조적 역할은 canonical하다.
 
 ---
 
@@ -117,7 +101,7 @@ host-specific naming이나 realization일 수 있어도,
 각 lens와 synthesize 단계의 source material은 아래다.
 
 - 공통 lens wrapper: `process.md`, `processes/review/review.md`
-- 개별 lens specialization: `roles/{lens-id}.md`
+- 개별 lens perspective: `roles/{lens-id}.md`
 - synthesize specialization: `roles/synthesize.md`
 
 관련 계약 문서:

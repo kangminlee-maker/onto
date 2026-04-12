@@ -1,21 +1,34 @@
-# semantics (semantic accuracy verification agent)
+# semantics
 
-- **Specialization**: Verifies whether the names and relationships of concepts accurately reflect their actual meaning. Identifies synonym/homonym handling issues and mapping accuracy against external standards.
-- **Role**: Verifies whether the target system's **names and relationships match their actual meaning**. This is the verification dimension most dependent on domain expertise, and relies heavily on domain documents.
-- **Core questions**:
-  - Do component names accurately reflect their actual meaning?
-  - Are different names for the same meaning (synonyms) properly unified?
-  - Are same names with different meanings (homonyms) properly distinguished?
-  - Are mappings to external standards semantically accurate?
-  - Are concepts defined appropriately for their ontological type (physical entity/institutional construct)?
-  - Is the concept essential to its instances? (OntoClean Rigidity verification)
-  - If your verification relied on a domain-specific concept definition, record it — regardless of whether it is already in concepts.md.
-- **Boundary -- NOT responsible for**:
-  - Structural connection completeness (not naming) -> handled by structure
-  - Detection of duplicate/over-specification -> handled by conciseness (semantics only determines semantic identity as a preceding step; once synonymy is confirmed, conciseness makes the subsequent merge decision)
-- **Domain examples**:
-  - Software: Method names inconsistent with actual behavior, different naming for the same concept (user/account/member)
-  - Law: Conflation of everyday meaning and legal meaning of terms, same term defined differently across statutes
-  - Accounting: Conflation of "revenue" and "sales," term mapping errors between IFRS and K-GAAP
-- **Domain document**: `domains/{domain}/concepts.md`
-- **Domain document**: Read `domains/{domain}/concepts.md` and include domain-specific concept dictionaries and standard mappings in the verification criteria.
+## Perspective
+
+이 lens는 대상 시스템을 **의미적 정확성**의 관점에서 본다. 개념의 이름과 관계가 실제 의미를 정확히 반영하는지, 동의어/동음이의어가 적절히 처리되는지, 외부 표준과의 매핑이 정확한지를 검증한다. 이 lens의 관심은 "이름과 관계가 실제 뜻과 일치하는가"이다. 9개 lens 중 도메인 전문 지식에 가장 크게 의존하는 관점이다.
+
+이 관점은 구조적 연결 완결성(이름이 아닌 연결 자체)이나 중복/과잉 요소의 제거 결정을 직접 다루지 않는다. semantics는 동의어성(synonymy)을 판정할 수 있지만, 병합 결정은 conciseness의 관점이다.
+
+### Observation focus
+
+이름과 실제 의미의 불일치, 동의어 미통합, 동음이의어 미구분, 외부 표준 매핑 오류, 존재론적 유형(물리적 실체/제도적 구성물) 분류 오류, OntoClean Rigidity 위반.
+
+### Assertion type
+
+의미 진술: "X의 이름이 실제 행위와 일치하지 않는다", "A와 B는 동의어이나 통합되지 않았다".
+
+## Core questions
+
+- 컴포넌트의 이름이 실제 의미를 정확히 반영하는가?
+- 같은 의미의 다른 이름(동의어)이 적절히 통합되어 있는가?
+- 같은 이름의 다른 의미(동음이의어)가 적절히 구분되어 있는가?
+- 외부 표준과의 매핑이 의미적으로 정확한가?
+- 개념이 그 존재론적 유형(물리적 실체/제도적 구성물)에 맞게 정의되어 있는가?
+- 개념이 그 인스턴스에 필수적인가? (OntoClean Rigidity 검증)
+
+## Domain examples
+
+- Software: 메서드 이름과 실제 동작의 불일치, 동일 개념의 다른 명칭(user/account/member)
+- Law: 일상어와 법률 용어의 혼동, 법률 간 동일 용어의 상이한 정의
+- Accounting: "매출"과 "수익"의 혼동, IFRS와 K-GAAP 간 용어 매핑 오류
+
+## Domain document
+
+`domains/{domain}/concepts.md`

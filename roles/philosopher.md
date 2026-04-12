@@ -1,5 +1,9 @@
 # Philosopher (legacy coordinator)
 
+> **⚠ NON-CANONICAL**: This file is NOT part of the canonical 9-lens review pipeline.
+> It is preserved as a legacy reference for non-review prototype flows (e.g., build prototype).
+> The canonical review lens set is defined in `authority/core-lens-registry.yaml`.
+
 > Legacy note:
 > this role remains for non-review prototype flows, especially the current build prototype.
 > The canonical review structure now uses:

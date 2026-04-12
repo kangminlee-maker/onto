@@ -55,7 +55,11 @@ prompt-backed reference path에서 실제로 생성되는 산출물은 대부분
 | `execution-preparation/materialized-input.md` | `materialized_input_ref` |
 | `execution-preparation/context-candidate-assembly.yaml` | `context_candidate_assembly_ref` |
 | `round1/{lens-id}.md` | `lens_result_refs.{lens-id}` |
+| `round1/{lens-id}.md` → `Domain Constraints Used` section | `per_lens_provenance.{lens-id}.domain_constraints_used` |
+| `round1/{lens-id}.md` → `Domain Context Assumptions` section | `per_lens_provenance.{lens-id}.domain_context_assumptions` |
+| `round1/{lens-id}.md` → `upstream_evidence_required` tag | `per_lens_provenance.{lens-id}.upstream_evidence_required` |
 | `synthesis.md` | `synthesis_result_ref` |
+| `synthesis.md` → shared phenomenon classification | `shared_phenomenon_summary` |
 | `deliberation.md` | `deliberation_result_ref` |
 | `final-output.md` | `final_output_ref` |
 | `error-log.md` | `degradation_notes_ref` |
@@ -85,6 +89,7 @@ prompt-backed reference path에서 실제로 생성되는 산출물은 대부분
 - `participating_lens_ids`
 - `excluded_lens_ids`
 - `degraded_lens_ids`
+- `per_lens_provenance` (schema_version 2 이후)
 
 원칙:
 
@@ -97,12 +102,20 @@ degraded case rule:
 - `resolved_lens_ids`에는 있었지만 결과 파일이 없고 `error-log.md` 또는 synthesize 전달 메시지에 제외 사실이 남은 lens는 `degraded_lens_ids`로 분류한다
 - `excluded_lens_ids`는 원래 실행 대상에서 빠진 lens만 뜻한다
 
+per_lens_provenance derive rule (schema_version 2 이후):
+
+- `per_lens_provenance.{lens-id}.domain_constraints_used`: 각 lens round1 output에서 `### Domain Constraints Used` 섹션에서 추출. durable provenance 형식 `{source_doc, source_version_or_snapshot_id, anchor}`
+- `per_lens_provenance.{lens-id}.domain_context_assumptions`: 각 lens round1 output에서 `### Domain Context Assumptions` 섹션에서 추출
+- `per_lens_provenance.{lens-id}.upstream_evidence_required`: conciseness 등 조건부 lens의 경우 `true`, 그 외 `false`
+- pre-v2 artifact에서 해당 필드가 없으면 `null`로 기록
+
 ### 4.3 From `execution-result.yaml`, `synthesis.md`, and `deliberation.md`
 
 아래는 종합 단계 artifact에서 derive된다.
 
 - `deliberation_status`
 - `deliberation_result_ref`
+- `shared_phenomenon_summary` (schema_version 2 이후: synthesis output에서 shared phenomenon 식별 및 claim relation 분류 결과를 구조화하여 추출. 분류가 없으면 빈 배열)
 
 우선순위:
 

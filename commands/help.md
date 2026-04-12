@@ -35,7 +35,12 @@ Display the command reference below in the configured language.
 /onto:ask-coverage {question}              Domain coverage
 /onto:ask-conciseness {question}           Conciseness
 /onto:ask-axiology {question}              Purpose and value alignment
-/onto:ask-philosopher {question}           Legacy alias for axiology
+```
+
+### Legacy Compatibility
+
+```
+/onto:ask-philosopher {question}           Legacy alias for /onto:ask-axiology (value-alignment only)
 ```
 
 ### Domain Document Management

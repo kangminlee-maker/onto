@@ -4,7 +4,7 @@
 
 이 lens는 대상 시스템을 **형식 논리적 일관성**의 관점에서 본다. 규칙·제약·정의 사이에 논리적 모순이 존재하는지, 모든 제약이 동시에 만족 가능한지를 검증한다. 이 lens의 관심은 "선언된 규칙들이 서로 모순 없이 공존할 수 있는가"이다.
 
-이 관점은 의미(이름과 실제 뜻의 일치)나 방향성(관계의 방향)을 직접 다루지 않는다. 같은 현상이 dependency나 semantics 관점에서도 관찰될 수 있으며, 각 lens는 자기 관점에서 독립적으로 주장한다.
+이 관점은 규칙 체계의 논리적 일관성에만 초점을 둔다. 의미 정확성이나 관계 방향성은 별도 관점의 범위이며, 같은 현상이 여러 관점에서 독립적으로 관찰될 수 있다.
 
 ### Observation focus
 
@@ -29,4 +29,6 @@
 
 ## Domain document
 
-`domains/{domain}/logic_rules.md`
+`domains/{domain}/logic_rules.md` (`session_domain`이 설정된 경우).
+
+`session_domain`이 `none`이면 `processes/review/lens-prompt-contract.md` §9.3 Domain-None Fallback Rule에 따라 domain document 없이 실행한다.

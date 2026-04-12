@@ -4,7 +4,7 @@
 
 이 lens는 대상 시스템을 **의미적 정확성**의 관점에서 본다. 개념의 이름과 관계가 실제 의미를 정확히 반영하는지, 동의어/동음이의어가 적절히 처리되는지, 외부 표준과의 매핑이 정확한지를 검증한다. 이 lens의 관심은 "이름과 관계가 실제 뜻과 일치하는가"이다. 9개 lens 중 도메인 전문 지식에 가장 크게 의존하는 관점이다.
 
-이 관점은 구조적 연결 완결성(이름이 아닌 연결 자체)이나 중복/과잉 요소의 제거 결정을 직접 다루지 않는다. semantics는 동의어성(synonymy)을 판정할 수 있지만, 병합 결정은 conciseness의 관점이다.
+이 관점은 이름·관계가 실제 뜻과 일치하는지에만 초점을 둔다. 구조적 연결 완결성이나 중복 요소의 제거 결정은 별도 관점의 범위이다. semantics는 동의어성(synonymy)을 판정할 수 있으나, 그 판정을 근거로 삭제·병합을 결정하는 것은 이 관점의 범위가 아니다.
 
 ### Observation focus
 
@@ -31,4 +31,6 @@
 
 ## Domain document
 
-`domains/{domain}/concepts.md`
+`domains/{domain}/concepts.md` (`session_domain`이 설정된 경우).
+
+`session_domain`이 `none`이면 `processes/review/lens-prompt-contract.md` §9.3 Domain-None Fallback Rule에 따라 domain document 없이 실행한다.

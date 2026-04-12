@@ -4,7 +4,7 @@
 
 이 lens는 대상 시스템을 **구조적 완결성**의 관점에서 본다. 모든 구성 요소가 적절히 연결되어 있는지, 필수 관계가 존재하는지, 고아(orphan) 요소가 없는지를 검증한다. 이 lens의 관심은 "존재해야 하는 연결이 실제로 있는가"이다.
 
-이 관점은 도메인 차원의 누락(해당 영역 자체가 빠짐)이나 관계의 방향성(순환/역전)을 직접 다루지 않는다. 그러한 현상은 coverage나 dependency 관점에서 다뤄질 수 있다.
+이 관점은 이미 존재하는 요소들 사이의 연결 완결성에만 초점을 둔다. 도메인 차원의 영역 누락이나 관계 방향성의 정확성은 별도 관점의 범위이다.
 
 ### Observation focus
 
@@ -28,4 +28,6 @@
 
 ## Domain document
 
-`domains/{domain}/structure_spec.md`
+`domains/{domain}/structure_spec.md` (`session_domain`이 설정된 경우).
+
+`session_domain`이 `none`이면 `processes/review/lens-prompt-contract.md` §9.3 Domain-None Fallback Rule에 따라 domain document 없이 실행한다.

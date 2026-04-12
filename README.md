@@ -189,7 +189,7 @@ This is a current implementation-status difference, not a canonical hierarchy or
 | `axiology` | Purpose and value alignment verifier | Preventing purpose drift, surfacing value conflicts, checking mission alignment |
 | `synthesize` | Review synthesis stage | Organizing consensus, disagreement, and final review output from the lens set |
 
-> Legacy note: `philosopher` is archive-only. It has been fully retired from both review and build pipelines. The archival definition is preserved at `development-records/legacy/philosopher.md` for lineage reference. The canonical review structure is `9 lenses + synthesize`.
+> Legacy note: `philosopher` has been retired as a canonical review/build pipeline role. The archival definition is preserved at `development-records/legacy/philosopher.md` for lineage reference. A legacy compatibility command alias `/onto:ask-philosopher` remains and routes questions to `axiology` (value-alignment perspective only). The canonical review structure is `9 lenses + synthesize`.
 
 ## Commands
 

@@ -89,7 +89,7 @@ When adding or removing a process, all of the following files must be updated:
 |---|---|
 | `synthesize` | Synthesizes review lens findings into consensus, disagreement, overlooked premises, and final review output |
 
-> `philosopher` is archive-only and fully retired from both review and build pipelines. Canonical review uses `axiology` + `synthesize`. The archival lineage is preserved at `development-records/legacy/philosopher.md`.
+> `philosopher` has been retired as a canonical review/build pipeline role. Canonical review uses `axiology` + `synthesize`. A legacy compatibility command alias `/onto:ask-philosopher` remains (routes to `axiology`). The archival lineage is preserved at `development-records/legacy/philosopher.md`.
 
 ### Domain Documents
 Each agent reads the corresponding domain documents at execution time (verified using general principles if no file exists):

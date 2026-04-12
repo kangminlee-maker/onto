@@ -1,19 +1,21 @@
-# 작업 목록 작성을 위한 Meta 작업 목록 (v5)
+# 작업 목록 작성을 위한 Meta 작업 목록 (v5.1)
 
 작성일: 2026-04-13
-상태: v4 9-lens review(`20260413-5f709c73`) Immediate 5건 반영 (경로 α'')
+상태: v5 9-lens review(`20260413-8857f4f3`) 핵심 2건 반영 후 M-00 착수 대기 (경로 β)
 이전 이력:
+- v5: v4 review(`20260413-5f709c73`) Immediate 5 반영 (경로 α'')
 - v4: v3 review(`20260413-c0adc0af`) Immediate 7 반영 (경로 α')
 - v3: v2 review(`20260413-12eb28e0`) Immediate 5 + Recommendations 2 반영 (경로 α)
 - v2: v1 review(`20260413-21695bbe`) 경로 B 선택
 
-## 경로 B와 경로 α/α'/α'' 관계
+## 경로 B·α/α'/α''/β 관계
 
 - **경로 B** = v1→v2의 **구조 확장 방향** 선택 (7 → 9 meta task)
 - **경로 α** = v2→v3의 **Immediate + Recommendations 반영 방식** 선택
 - **경로 α'** = v3→v4의 **Immediate 7 반영** 선택. α의 연속
 - **경로 α''** = v4→v5의 **Immediate 5 반영 (M-04 schema 완결)** 선택. α의 연속
-- 네 경로는 서로 다른 결정 차원이며 상호 배타 아님
+- **경로 β** = v5→v5.1의 **핵심 2건 반영 후 M-00 실행 진입** 선택. 나머지 상세화는 실행 중 자연 반영
+- 다섯 경로는 서로 다른 결정 차원이며 상호 배타 아님
 
 ## 맥락
 
@@ -74,6 +76,18 @@
 | pragmatics: M-00 dedup 실행 가능한 단일 경로 부재 | M-00 dedup rule에 `similarity basis` + `functional area 분류` + `tie-break` + `evidence seat` + `fallback` 절차화 |
 | semantics: migration 예시 "구축/신축" + "activity work item" 모호 + 다음 작업 v3 참조 | axis token 기반 예시로 교체. "활동에 속한 work items" 명시. 다음 작업 섹션 v5 참조로 update |
 
+### v5 → v5.1 반영 (session `20260413-8857f4f3`, 경로 β — 핵심 2건만)
+
+| Review 지적 | v5.1 반영 위치 |
+|---|---|
+| 9/9 consensus: `activity` 귀속 canonical seat 부재 | M-04 필드 스키마에 `activity` field 추가 (허용값 5 + 단일/복수 귀속 규칙) |
+| logic/structure/semantics/pragmatics 공통: M-00 dedup이 `files`(work item field) 요구 — paradox | M-00 functional area 분류에 **source-type별 fallback** 추가 (PR: changed files, design record: document path, memory: tag) |
+
+**미반영 3건 (실행 중 자연 반영 예정)**:
+- M-06/M-07/Expansion이 `activity` field를 canonical로 읽도록 문구 정렬 — **M-04 실행 중 처리**
+- dedup tie-break에 non-PR source용 공통 timestamp seat — **M-00 실행 중 실제 source 대면 시 확정**
+- dedup kept item 전 authority/lineage compatibility pre-gate — **M-00 실행 중 첫 dedup case에서 확정**
+
 ## 용어 정리
 
 | 용어 | 의미 | 대상 문서 |
@@ -131,7 +145,11 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
    - 영문 소문자·공백 정규화 후 비교
 2. **Functional area 분류** (한 item은 1개 영역에만 속함):
    - `review-harness` / `build` / `design-methodology` / `learn-lifecycle` / `govern-rules` / `lexicon-vocabulary` / `infra-runtime` / `docs-records`
-   - 분류 기준: 가장 많이 touch하는 경로 (files 필드 기준)
+   - 분류 기준: **Source-type별 fallback 순서** (v5.1 추가)
+     - **PR**: `gh pr view --json files`로 추출한 changed files 기준. 가장 많이 touch하는 경로의 상위 디렉토리가 영역 결정
+     - **design record**: 문서 path (예: `development-records/design/` 하위) + 명시 tag (frontmatter의 `functional_area` 또는 `axis`)
+     - **memory entry**: frontmatter의 `functional_area` tag 우선. 없으면 제목·본문 키워드 매칭 (`review`, `build`, `lexicon` 등)
+   - 3 fallback 모두 불명확하면 `unclassified`로 태그 후 M-03 disposition에서 재판단
 3. **Similarity 판정**:
    - 같은 functional area + similarity ≥ 70% → **dedup 후보**
    - 60~70% → **fallback**: separate 유지. M-03에서 disposition 시 재판단
@@ -197,6 +215,7 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
 | **deprecated_aliases** (v5 추가) | Migration Contract로 rename된 경우 이전 ID 목록. 검색·참조용. 기본 빈 list |
 | **previous_id** (v5 추가) | Migration 시 이전 ID 1개 (reissue 계보). 기본 null |
 | **rewrite_trace** (v5 추가) | `deps` 재작성 이력. Migration 발생 시에만 채워짐. {date, change_type, old_id, new_id} list |
+| **activity** (v5.1 추가) | work item이 대상으로 하는 onto 활동. 허용값: `review` / `design` / `reconstruct` / `learn` / `govern`. **기본 단일 귀속**. 활동 간 interface 성격이면 **복수 귀속** 허용 (list, 예: `[review, learn]`). M-07 lifecycle balance와 Expansion Protocol의 activity-기준 판정이 이 field를 canonical authority로 읽음 |
 
 **Canonical output spec**:
 - 저장 seat: `development-records/design/20260413-onto-todo.md`

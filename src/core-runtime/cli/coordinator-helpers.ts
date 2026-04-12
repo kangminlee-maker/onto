@@ -235,14 +235,25 @@ export async function runBuildSynthesizeRuntimePacket(argv: string[]): Promise<n
 // Per-unit timestamp provenance (coordinator path):
 // - started_at: derived from coordinator-state.yaml transition timestamps
 //   (awaiting_lens_dispatch / awaiting_synthesize_dispatch). Represents
-//   dispatch instruction time, which precedes actual agent execution start,
-//   so duration_ms is systematically over-estimated.
-// - completed_at: derived from fs.stat(output_path).mtime. Assumes local
-//   same-machine direct file creation and no post-write modification.
-//   Filesystem mtime precision is platform-dependent (e.g. HFS+ 1s).
+//   dispatch instruction time, which precedes actual agent execution start.
+//   Over-estimation bound: dispatch latency + agent boot + LLM execution +
+//   file-write. Typically tens of seconds to a few minutes for LLM agents;
+//   unsuitable for ms-scale SLA comparisons.
+// - completed_at: derived from fs.stat(output_path).mtime for participating
+//   units. Filesystem mtime precision is platform-dependent (e.g. HFS+ 1s).
+//   Post-write assumption: round1/*.md and synthesis.md must not be re-touched
+//   by any writer after the dispatched agent completes (deliberation writes
+//   to deliberation.md, render writes to final-output.md — no overlap).
+// - Non-participating / failed / skipped cases fall back to the batch
+//   `completedAt` for completed_at: those timestamps are NOT per-unit
+//   measurements and `duration_ms` for such units is batch wall-clock
+//   time, not per-unit execution time.
 // - TS runner path (run-review-prompt-execution.ts) uses process wall-clock
 //   measurements; both paths write to the same ReviewUnitExecutionResult
-//   interface but carry different semantic provenance.
+//   interface but carry different semantic provenance. Consumers comparing
+//   `duration_ms` across realizations must account for this (see
+//   `execution_realization` field). A discriminator field at schema level is
+//   tracked as a follow-up (K2 of PR #25 review).
 
 function deriveExecutionStatus(
   synthesisExecuted: boolean,
@@ -268,12 +279,24 @@ async function readCoordinatorStateFileOrNull(
   }
 }
 
-/** Find the timestamp of the first transition with matching `to` state. */
+/**
+ * Find the timestamp of the first transition with matching `to` state.
+ *
+ * Invariant (current state machine): each target state appears at most once in
+ * `transitions` per session, so "first match" is unambiguous. If future
+ * retry/resume flows allow re-entering the same state, the semantics of
+ * `started_at` would straddle cycles — switch to `findLast`-style lookup then.
+ *
+ * Fails soft by returning `null` when `stateFile` is absent or the
+ * `transitions` array is missing/malformed (runtime YAML shape is not
+ * compile-time guaranteed).
+ */
 function findTransitionAt(
   stateFile: CoordinatorStateFile | null,
   toState: string,
 ): string | null {
   if (!stateFile) return null;
+  if (!Array.isArray(stateFile.transitions)) return null;
   const transition = stateFile.transitions.find((t) => t.to === toState);
   return transition?.at ?? null;
 }
@@ -365,18 +388,32 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
 
   // Per-unit timestamp precision: read coordinator state transitions + file mtime.
   // On any failure, fall back to batch timestamps (executionStartedAt / completedAt)
-  // while emitting a warning so the degradation is not silent.
+  // while emitting a warning so the degradation is not silent. Warnings are also
+  // persisted to error-log.md so that post-session inspection can reconstruct
+  // whether per-unit timing was degraded for this session.
+  const errorLogPath =
+    executionPlan.error_log_path ?? path.join(sessionRoot, "error-log.md");
   const stateFile = await readCoordinatorStateFileOrNull(sessionRoot);
   if (!stateFile) {
-    console.warn(
-      "[coordinator-helpers] coordinator-state.yaml missing or unreadable; falling back to batch timestamps for per-unit started_at.",
+    const msg =
+      "coordinator-state.yaml missing or unreadable; falling back to batch timestamps for per-unit started_at.";
+    console.warn(`[coordinator-helpers] ${msg}`);
+    await appendMarkdownLogEntry(
+      errorLogPath,
+      "per-unit timestamp degraded",
+      msg,
     );
   }
 
   const lensDispatchAt = findTransitionAt(stateFile, "awaiting_lens_dispatch");
   if (stateFile && !lensDispatchAt) {
-    console.warn(
-      "[coordinator-helpers] coordinator-state.yaml has no 'awaiting_lens_dispatch' transition; falling back to batch timestamp for lens started_at.",
+    const msg =
+      "coordinator-state.yaml has no 'awaiting_lens_dispatch' transition; falling back to batch timestamp for lens started_at.";
+    console.warn(`[coordinator-helpers] ${msg}`);
+    await appendMarkdownLogEntry(
+      errorLogPath,
+      "per-unit timestamp degraded (lens)",
+      msg,
     );
   }
   const lensStartedAt = lensDispatchAt ?? executionStartedAt;
@@ -412,8 +449,13 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
     "awaiting_synthesize_dispatch",
   );
   if (synthesisExecuted && stateFile && !synthesizeDispatchAt) {
-    console.warn(
-      "[coordinator-helpers] coordinator-state.yaml has no 'awaiting_synthesize_dispatch' transition; falling back to batch timestamp for synthesize started_at.",
+    const msg =
+      "coordinator-state.yaml has no 'awaiting_synthesize_dispatch' transition; falling back to batch timestamp for synthesize started_at.";
+    console.warn(`[coordinator-helpers] ${msg}`);
+    await appendMarkdownLogEntry(
+      errorLogPath,
+      "per-unit timestamp degraded (synthesize)",
+      msg,
     );
   }
   const synthesizeStartedAt = synthesizeDispatchAt ?? executionStartedAt;
@@ -454,7 +496,7 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
     synthesis_executed: synthesisExecuted,
     deliberation_status: deliberationStatus as ReviewExecutionResultArtifact["deliberation_status"],
     halt_reason: haltReason,
-    error_log_path: executionPlan.error_log_path ?? path.join(sessionRoot, "error-log.md"),
+    error_log_path: errorLogPath,
     lens_execution_results: lensResults,
     synthesize_execution_result: synthesizeResult,
   };

@@ -68,6 +68,7 @@ When adding or removing an agent, all of the following files must be updated:
 | 8 | `BLUEPRINT.md` agent section | Add/delete description |
 | 9 | `README.md` directory tree | Add/delete filename |
 | 10 | learning-rules.md | Update if learning storage rules change |
+| 11 | `processes/build.md` Agent Configuration table + Phase 1.0 Team Composition + error handling "N lenses" prose | Update lens count references and lens list |
 
 ### Touch Point Checklist for Adding/Removing Processes
 

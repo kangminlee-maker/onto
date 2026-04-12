@@ -629,21 +629,31 @@ Information convergence = number of new facts in Explorer's reported delta = 0
 **Build-time configuration** (all keys resolved from `{project}/.onto/config.yml`):
 
 ```yaml
-# {project}/.onto/config.yml — build-specific section
+# {project}/.onto/config.yml — build-relevant keys
+output_language: en           # language for all agent prompts (referenced from Explorer/Lens/Synthesize prompts)
+
 semantic_identity:
   diagnostic_enabled: true    # default; when false, Tier 2 is skipped entirely
   diagnostic_threshold: 0.7   # Jaccard cutoff; pairs in [threshold, 1.0) forwarded to semantics lens
 
 build:
   underexplored_threshold:
-    # module is underexplored if fact count ≤ max(min_floor, ratio × median)
     min_floor: 2              # absolute minimum facts before considered underexplored
     ratio: 0.5                # fraction of per-Stage median
   degradation_warn_threshold: 2   # consecutive rounds before user warning
   max_rounds_per_stage: 5         # default max rounds per Stage
+  max_phase4_reentries: 2         # max Phase 4 bug-guard re-entries before halting with session error
 ```
 
-If `config.yml` is absent or a key is missing, defaults listed above apply. Unknown keys under `semantic_identity:` or `build:` are ignored (forward-compatibility for new runtime features).
+**Parser**: standard YAML 1.2. Config is read once at build start and snapshotted into session context; no mid-build reloads.
+
+**Error handling**:
+- **File absent**: all defaults apply silently.
+- **File present, malformed YAML** (parser throws): **halt** the build with error class `config_malformed` and return the parser message to the user. Do NOT silently fall back — a malformed config indicates user intent that cannot be resolved.
+- **Valid YAML, missing key**: default applies for that key (forward-compatibility with older configs).
+- **Valid YAML, type-invalid value** (e.g., `diagnostic_threshold: "high"` instead of a number): log warning `config_type_invalid: {key}` to the build session log, fall back to default for that key.
+- **Valid YAML, out-of-range numeric** (e.g., `diagnostic_threshold: 1.5` outside `[0, 1]`; `min_floor: -3`; negative counts): log warning `config_out_of_range: {key}`, fall back to default.
+- **Unknown keys** under `semantic_identity:` or `build:`: log `config_unknown_key_ignored: {path}` to the session log, then ignore (preserves forward-compatibility but surfaces typos for post-hoc diagnosis).
 
 If coverage is unsatisfied (facts=0 but unexplored modules exist), Runtime Coordinator force-generates epsilons targeting unexplored modules (step 3e).
 
@@ -676,7 +686,7 @@ Certainty of Stage 1 elements can change in Stage 2 via three policy classes. Op
 | Situation | Policy | Mechanism |
 |---|---|---|
 | Lens-initiated certainty transitions (demote, upgrade, nullify, reclassify-downgrade) | Allowed | Stage 2 lens reports `certainty_reclassification` issue with `requested_operation` — see Patch Format for operation semantics and validation |
-| Upgrade **to `observed`** (`pending → observed`, `inferred → observed`) | **Only via Explorer re-emission** | Lenses do not traverse the source (see Role Boundary). Requires a subsequent Explorer delta with a concrete source location; Runtime's dedup/merge logic detects the match (subject+statement after Tier 1 normalization) and upgrades `certainty`, appends to `source.locations`, and records `certainty_upgraded_at_round` + `upgrade_source: explorer_reconfirmation` for provenance |
+| Upgrade **to `observed`** (`pending → observed`, `inferred → observed`) | **Only via Explorer re-emission + Tier 1 exact match** | Lenses do not traverse the source (see Role Boundary). Requires a subsequent Explorer delta with a concrete source location; Runtime's dedup/merge logic detects the match **only via Tier 1 (normalized token multiset identity)** and upgrades `certainty`, appends to `source.locations`, records `certainty_upgraded_at_round` + `upgrade_source: explorer_reconfirmation` for provenance. **Tier 2 near-matches (Jaccard-flagged) do NOT trigger upgrade** — they create a new element and a `conflict` issue for Adjudicator resolution in a later round. This preserves Tier 1 as the sole deterministic identity gate |
 | Element **type change** (element_type) | Not allowed | If type change is needed, record in issues and present to user in Phase 3 |
 
 When Stage 1 terminates (convergence or maximum 5 rounds reached):
@@ -839,6 +849,23 @@ meta:
   synthesize_failures_streak: {int, resets on success or Stage transition}
   # Cross-round accumulation of unresolved conflicts (for Phase 2 Step 4 collation):
   cumulative_unresolved_conflicts: [{conflict_id, conflict_kind, subject, unresolved_since, position_a, position_b}]
+  # Phase 3 user response log — required for Phase 3.5 idempotent replay and crash recovery:
+  phase3_user_responses:
+    received_at: "{ISO timestamp when user submitted the Phase 3 reply}"
+    global_reply: confirmed | adjustments_provided
+    conflict_decisions:
+      - conflict_id: {id}
+        decision: position_a | position_b | user_resolved | user_deferred
+        resolution_text: "{only when decision == user_resolved}"
+    certainty_decisions:
+      - element_id: {id}
+        decision: confirmed | rejected | deferred
+        user_rationale: "{optional}"
+    other_adjustments: "{free-form text from user's Phase 3 global reply}"
+    phase4_reentry_count: 0   # incremented if Phase 4 bug-guard triggers re-entry
+  # Lifecycle: written once at Phase 3 response receipt, re-read on Phase 3.5 re-execution
+  # (crash recovery / Phase 4 bug-guard re-entry). Immutable within a single Phase 4 attempt
+  # except for phase4_reentry_count. Cleared when Phase 4 Save succeeds.
   # Lifecycle of cumulative_unresolved_conflicts (Runtime-managed):
   #   - Appended by Runtime at end of each round (from Synthesize's unresolved_for_user).
   #   - Clear-on-resolve: at each round's step 3 (after Runtime applies label patches) and step 4
@@ -1285,7 +1312,7 @@ After the user responds to Phase 3, Runtime Coordinator applies the user decisio
 
 4. **Atomicity and crash safety**:
    - Runtime applies all steps 1-3 as a single atomic wip.yml write (temp file + rename, or equivalent). Partial application is not exposed: either the full user-decision write-back is reflected in wip.yml or none of it is.
-   - If Runtime crashes mid-Phase-3.5, re-execution reads the pre-3.5 wip.yml and re-applies all decisions from the preserved Phase 3 response log. Phase 3.5 is **idempotent**: re-running with the same Phase 3 response produces identical wip.yml state.
+   - If Runtime crashes mid-Phase-3.5, re-execution reads the pre-3.5 wip.yml and re-applies all decisions from the preserved Phase 3 response log (persisted as `meta.phase3_user_responses` in wip.yml — written once at Phase 3 response receipt, before step 1 of Phase 3.5). Phase 3.5 is **idempotent**: re-running with the same `phase3_user_responses` produces identical wip.yml state.
 
 5. **Invariants after Phase 3.5**:
    - No element has `certainty: pending` (all resolved to a concrete level, or promoted to `not-in-source` per step 3.5 below).
@@ -1406,7 +1433,9 @@ issues:
 - Elements marked with `user_decision: deferred` at Phase 3.5 are saved with their pre-confirmation certainty.
 - If any conflict with `resolution: pending` remains at Phase 4 (should not occur per Phase 3.5 invariants, but defensively): halt save and return to Phase 3 for the user to address. This is a bug guard.
   - **Re-entry semantics**: On re-entry, Phase 3 re-renders only the remaining pending items (previously-resolved items are NOT re-shown). Phase 3.5 re-runs idempotently — prior decisions (resolved/user_resolved/user_deferred) are preserved; only the new decisions for previously-pending items are applied.
-  - **Re-entry bound**: maximum 2 re-entries per Phase 4 attempt. If pending still remains after 2 re-entries, halt the build with a session error and preserve wip.yml for manual inspection. This prevents infinite loops when the underlying Phase 3.5 defect cannot be resolved by user re-decision alone.
+  - **user_deferred is terminal**: The bug-guard triggers ONLY on `resolution: pending`. `user_deferred` is a valid terminal state and does not trigger re-entry.
+  - **Data-consistency escape hatch**: If on re-entry Phase 3's pending item count is 0 (no items to re-show) but the bug-guard still flags `resolution: pending` in wip.yml, halt immediately with error class `phase_3_5_defect_detected` — without consuming a re-entry slot. This distinguishes "user kept deferring" (consumes re-entries until bound) from "code bug writes pending despite no user input" (halts on first detection). The latter requires Runtime-level investigation, not more user decisions.
+  - **Re-entry bound**: `config.build.max_phase4_reentries` (default 2) re-entries per Phase 4 attempt. Counter stored as `meta.phase3_user_responses.phase4_reentry_count` (persists across Runtime restarts to prevent crash-restart loop bypass). If pending still remains after the bound is reached, halt the build with session error `phase_3_5_defect_unresolvable` and preserve wip.yml for manual inspection.
 - `meta.cumulative_unresolved_conflicts` is dropped at save (see its lifecycle comment in the wip.yml schema). User-deferred items persist via `raw.yml.issues[]` instead.
 
 ---

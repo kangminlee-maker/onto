@@ -19,32 +19,78 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # Resolve session-root
+#
+# The auto-spawn path in review-invoke.ts now always passes an explicit
+# session-root, so this zero-arg branch is only exercised by manual
+# `npm run review:watch` invocations. When multiple review sessions are
+# active concurrently the `.latest-session` pointer and `ls -t` heuristic
+# both point to whichever session was most recently touched — which may
+# not be the one the user wanted to watch. To avoid rendering the wrong
+# session's events, the zero-arg path refuses to guess when more than one
+# session has been active in the recent past; it lists the candidates and
+# exits so the caller can rerun with an explicit argument.
 if [ "${1:-}" != "" ]; then
   SESSION_ROOT="$1"
 else
-  # Wait for .latest-session to appear (session may not be created yet when
-  # watcher is spawned early — before startReviewSession completes).
-  echo "${C_DIM:-}Waiting for review session to start...${C_RESET:-}"
-  for i in {1..60}; do
-    if [ -f ".onto/review/.latest-session" ]; then
-      SESSION_ROOT="$(cat .onto/review/.latest-session)"
-      [ -d "$SESSION_ROOT" ] && break
-    fi
-    sleep 1
-  done
+  # Use each session's error-log.md mtime as the liveness marker.
+  # If two or more sessions have a recently updated error-log.md, the
+  # zero-arg heuristic is ambiguous; show the candidates and exit so the
+  # caller reruns with an explicit session-root.
+  RECENT_CANDIDATES=()
+  if [ -d ".onto/review" ]; then
+    while IFS= read -r error_log; do
+      RECENT_CANDIDATES+=("$(dirname "$error_log")")
+    done < <(find ".onto/review" -mindepth 2 -maxdepth 2 -type f \
+      -name "error-log.md" \
+      -newermt "$(date -v-120S '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || date -d '-120 seconds' '+%Y-%m-%dT%H:%M:%S' 2>/dev/null)" \
+      2>/dev/null)
+  fi
 
-  # Fallback: pick most recently modified session directory
-  if [ -z "${SESSION_ROOT:-}" ] || [ ! -d "${SESSION_ROOT:-}" ]; then
-    LATEST_DIR="$(ls -t .onto/review/ 2>/dev/null | grep -v '^\.' | head -1)"
-    if [ -n "$LATEST_DIR" ] && [ -d ".onto/review/$LATEST_DIR" ]; then
-      SESSION_ROOT=".onto/review/$LATEST_DIR"
+  if [ "${#RECENT_CANDIDATES[@]}" -gt 1 ]; then
+    echo "${C_YELLOW:-}Ambiguous:${C_RESET:-} multiple review sessions have been active recently:" >&2
+    for cand in "${RECENT_CANDIDATES[@]}"; do
+      echo "  - ${cand}" >&2
+    done
+    echo "" >&2
+    echo "${C_DIM:-}Pass an explicit session-root to avoid picking the wrong one:${C_RESET:-}" >&2
+    echo "  npm run review:watch -- \"<session-root>\"" >&2
+    exit 2
+  fi
+
+  if [ "${#RECENT_CANDIDATES[@]}" -eq 1 ]; then
+    SESSION_ROOT="${RECENT_CANDIDATES[0]}"
+    echo "${C_DIM:-}Resolved to ${SESSION_ROOT} via error-log liveness lookup.${C_RESET:-}"
+    echo "${C_DIM:-}  For explicit targeting: npm run review:watch -- \"<session-root>\"${C_RESET:-}"
+  else
+    # No live error-log marker yet; wait for .latest-session to appear, then
+    # fall back to the newest session directory. This covers sessions that
+    # are still starting and have not created or updated error-log.md.
+    echo "${C_DIM:-}Waiting for review session to start (zero-arg mode; no live error-log marker yet)...${C_RESET:-}"
+    for i in {1..60}; do
+      if [ -f ".onto/review/.latest-session" ]; then
+        SESSION_ROOT="$(cat .onto/review/.latest-session)"
+        [ -d "$SESSION_ROOT" ] && break
+      fi
+      sleep 1
+    done
+
+    if [ -z "${SESSION_ROOT:-}" ] || [ ! -d "${SESSION_ROOT:-}" ]; then
+      LATEST_DIR="$(ls -t .onto/review/ 2>/dev/null | grep -v '^\.' | head -1)"
+      if [ -n "$LATEST_DIR" ] && [ -d ".onto/review/$LATEST_DIR" ]; then
+        SESSION_ROOT=".onto/review/$LATEST_DIR"
+      fi
+    fi
+
+    if [ -n "${SESSION_ROOT:-}" ] && [ -d "${SESSION_ROOT:-}" ]; then
+      echo "${C_DIM:-}Resolved to ${SESSION_ROOT} via zero-arg lookup.${C_RESET:-}"
+      echo "${C_DIM:-}  For explicit targeting: npm run review:watch -- \"<session-root>\"${C_RESET:-}"
     fi
   fi
 fi
 
 if [ -z "${SESSION_ROOT:-}" ] || [ ! -d "$SESSION_ROOT" ]; then
   echo "Error: no review session found." >&2
-  echo "  Tried: \$1, .onto/review/.latest-session, ls .onto/review/" >&2
+  echo "  Tried: \$1, error-log liveness lookup, .onto/review/.latest-session, ls .onto/review/" >&2
   exit 1
 fi
 

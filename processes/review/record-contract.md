@@ -241,6 +241,7 @@ lens_result_refs:
   coverage: .onto/review/20260404-a1b2c3d4/round1/coverage.md
   conciseness: .onto/review/20260404-a1b2c3d4/round1/conciseness.md
   axiology: .onto/review/20260404-a1b2c3d4/round1/axiology.md
+lens_output_schema_version: 2
 participating_lens_ids:
   - logic
   - structure
@@ -255,10 +256,26 @@ excluded_lens_ids: []
 degraded_lens_ids: []
 degradation_notes_ref: null
 
+per_lens_provenance:
+  logic:
+    domain_constraints_used:
+      - source_doc: domains/software-engineering/logic_rules.md
+        source_version_or_snapshot_id: 'commit:abc1234'
+        anchor: '§3.2 — type-narrowing transitivity rule'
+    domain_context_assumptions:
+      - '해당 도메인에서 타입 호환성은 structural subtyping 기준'
+  axiology:
+    domain_constraints_used: []
+    domain_context_assumptions: []
 synthesis_result_ref: .onto/review/20260404-a1b2c3d4/synthesis.md
 deliberation_status: not_needed
 deliberation_result_ref: null
 final_output_ref: .onto/review/20260404-a1b2c3d4/final-output.md
+shared_phenomenon_summary:
+  - target: processes/review/record-contract.md
+    evidence_anchor: '§5'
+    participating_lens_ids: [logic, dependency]
+    claim_relation: corroboration
 ```
 
 ---

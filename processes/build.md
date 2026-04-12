@@ -651,9 +651,9 @@ build:
 - **File absent**: all defaults apply silently.
 - **File present, malformed YAML** (parser throws): **halt** the build with error class `config_malformed` and return the parser message to the user. Do NOT silently fall back — a malformed config indicates user intent that cannot be resolved.
 - **Valid YAML, missing key**: default applies for that key (forward-compatibility with older configs).
-- **Valid YAML, type-invalid value** (e.g., `diagnostic_threshold: "high"` instead of a number): log warning `config_type_invalid: {key}` to the build session log, fall back to default for that key.
+- **Valid YAML, type-invalid value** (e.g., `diagnostic_threshold: "high"` instead of a number): log warning `config_type_invalid: {key}` to the session log (see "Session Log & Error Handling Artifact"), fall back to default for that key.
 - **Valid YAML, out-of-range numeric** (e.g., `diagnostic_threshold: 1.5` outside `[0, 1]`; `min_floor: -3`; negative counts): log warning `config_out_of_range: {key}`, fall back to default.
-- **Unknown keys** under `semantic_identity:` or `build:`: log `config_unknown_key_ignored: {path}` to the session log, then ignore (preserves forward-compatibility but surfaces typos for post-hoc diagnosis).
+- **Unknown keys** at any level (top-level or under `semantic_identity:` / `build:`): log `config_unknown_key_ignored: {path}` to the session log, then ignore. Registered top-level keys for this document: `output_language`, `semantic_identity`, `build`. Any other top-level key (e.g., a typo like `output_langage`) is logged as unknown. Registered sub-keys are those shown in the schema example above; other sub-keys under `semantic_identity:` / `build:` are also logged as unknown. Preserves forward-compatibility while surfacing typos for post-hoc diagnosis.
 
 If coverage is unsatisfied (facts=0 but unexplored modules exist), Runtime Coordinator force-generates epsilons targeting unexplored modules (step 3e).
 
@@ -849,23 +849,29 @@ meta:
   synthesize_failures_streak: {int, resets on success or Stage transition}
   # Cross-round accumulation of unresolved conflicts (for Phase 2 Step 4 collation):
   cumulative_unresolved_conflicts: [{conflict_id, conflict_kind, subject, unresolved_since, position_a, position_b}]
-  # Phase 3 user response log — required for Phase 3.5 idempotent replay and crash recovery:
+  # Phase 3 user response log — required for Phase 3.5 idempotent replay and crash recovery.
+  # Write-once at Phase 3 response receipt; never mutated thereafter. Cleared when Phase 4 Save succeeds.
   phase3_user_responses:
-    received_at: "{ISO timestamp when user submitted the Phase 3 reply}"
+    received_at: "{ISO 8601 UTC timestamp when user submitted the Phase 3 reply}"
     global_reply: confirmed | adjustments_provided
     conflict_decisions:
-      - conflict_id: {id}
+      - conflict_id: "{string id matching Synthesize output conflict_id, case-sensitive exact match}"
         decision: position_a | position_b | user_resolved | user_deferred
-        resolution_text: "{only when decision == user_resolved}"
+        resolution_text: "{required when decision == user_resolved; free-form user text}"
     certainty_decisions:
-      - element_id: {id}
+      - element_id: "{string id matching wip.yml element id, case-sensitive exact match}"
         decision: confirmed | rejected | deferred
-        user_rationale: "{optional}"
-    other_adjustments: "{free-form text from user's Phase 3 global reply}"
-    phase4_reentry_count: 0   # incremented if Phase 4 bug-guard triggers re-entry
-  # Lifecycle: written once at Phase 3 response receipt, re-read on Phase 3.5 re-execution
-  # (crash recovery / Phase 4 bug-guard re-entry). Immutable within a single Phase 4 attempt
-  # except for phase4_reentry_count. Cleared when Phase 4 Save succeeds.
+        user_rationale: "{optional free-form text}"
+    other_adjustments: "{free-form text from user's Phase 3 global reply; advisory only — not applied deterministically by Runtime}"
+  # Consistency rule: if global_reply == "confirmed", conflict_decisions and certainty_decisions MAY still be populated
+  # (user confirms globally AND addresses some items); unaddressed items default to user_deferred.
+  # If global_reply == "adjustments_provided", at least one of conflict_decisions / certainty_decisions / other_adjustments MUST be non-empty.
+
+  # Phase 4 runtime state — system-managed, NOT part of user response:
+  phase4_runtime_state:
+    reentry_count: 0   # incremented by Phase 4 bug-guard on re-entry (see Phase 4 bug-guard rules)
+  # Lifecycle: reentry_count starts at 0 at first Phase 4 entry; incremented atomically with wip.yml fsync
+  # (must survive Runtime crash/restart to prevent crash-restart loop bypass); cleared with phase3_user_responses on Save success.
   # Lifecycle of cumulative_unresolved_conflicts (Runtime-managed):
   #   - Appended by Runtime at end of each round (from Synthesize's unresolved_for_user).
   #   - Clear-on-resolve: at each round's step 3 (after Runtime applies label patches) and step 4
@@ -1292,6 +1298,16 @@ After 4b, Runtime also prepares the Phase 3 Unresolved Conflicts table using the
 - If none, reply "confirmed."
 ```
 
+**User no-response handling**: Phase 3 is interactive and awaits user input indefinitely. Runtime does NOT auto-timeout. If the session is abandoned:
+- `phase3_user_responses` is never written to wip.yml.
+- Phase 3.5 never executes (no trigger event).
+- Phase 4 never triggers (Phase 3.5 is the only path into it).
+- wip.yml remains in its post-Phase-2 state, preserved indefinitely in `{project}/.onto/builds/{session ID}/`.
+- **Resumption**: the user re-runs `/onto:build` with the same session directory. Runtime detects existing `wip.yml` without `phase3_user_responses` and re-enters Phase 3 (re-renders the same summary from the existing wip.yml). No build work is lost; only the Phase 3 prompt is re-issued.
+- **Alternative abort**: user can manually delete the session directory to abort the build.
+
+No implicit timeout or silent-promotion occurs — user authority over the Phase 3 decision is absolute.
+
 ---
 
 ### Phase 3.5: User Decision Write-back (Runtime Coordinator)
@@ -1434,9 +1450,64 @@ issues:
 - If any conflict with `resolution: pending` remains at Phase 4 (should not occur per Phase 3.5 invariants, but defensively): halt save and return to Phase 3 for the user to address. This is a bug guard.
   - **Re-entry semantics**: On re-entry, Phase 3 re-renders only the remaining pending items (previously-resolved items are NOT re-shown). Phase 3.5 re-runs idempotently — prior decisions (resolved/user_resolved/user_deferred) are preserved; only the new decisions for previously-pending items are applied.
   - **user_deferred is terminal**: The bug-guard triggers ONLY on `resolution: pending`. `user_deferred` is a valid terminal state and does not trigger re-entry.
-  - **Data-consistency escape hatch**: If on re-entry Phase 3's pending item count is 0 (no items to re-show) but the bug-guard still flags `resolution: pending` in wip.yml, halt immediately with error class `phase_3_5_defect_detected` — without consuming a re-entry slot. This distinguishes "user kept deferring" (consumes re-entries until bound) from "code bug writes pending despite no user input" (halts on first detection). The latter requires Runtime-level investigation, not more user decisions.
-  - **Re-entry bound**: `config.build.max_phase4_reentries` (default 2) re-entries per Phase 4 attempt. Counter stored as `meta.phase3_user_responses.phase4_reentry_count` (persists across Runtime restarts to prevent crash-restart loop bypass). If pending still remains after the bound is reached, halt the build with session error `phase_3_5_defect_unresolvable` and preserve wip.yml for manual inspection.
+  - **Data-consistency escape hatch**: If on re-entry Phase 3's pending item count is 0 (no items to re-show) but the bug-guard still flags `resolution: pending` in wip.yml, halt immediately with error class `phase_3_5_invariant_violation` — without consuming a re-entry slot. This distinguishes "user kept deferring" (consumes re-entries until bound, see `phase_reentry_bound_exhausted` below) from "Runtime bug writes pending despite no user input" (halts on first detection as invariant violation). The latter requires Runtime-level investigation, not more user decisions.
+  - **Re-entry bound**: `config.build.max_phase4_reentries` (default 2) re-entries per Phase 4 attempt. Counter stored as `meta.phase4_runtime_state.reentry_count` (persists across Runtime restarts to prevent crash-restart loop bypass).
+  - **Counter increment timing**: Runtime increments `reentry_count` by 1 **immediately upon bug-guard detecting `resolution: pending`, atomically with a wip.yml fsync, BEFORE issuing the Phase 3 re-render prompt**. This ordering ensures that a crash between detection and re-render does not bypass the bound (after restart, the counter already reflects the detection).
+  - **Bound semantics**: `max_phase4_reentries: N` means the counter MAY reach N; at `reentry_count == N` with pending still remaining after the N-th re-entry's Phase 3.5 completes, halt with `phase_reentry_bound_exhausted` (renamed from `phase_3_5_defect_unresolvable` to avoid framing persistent user-deferral as a code defect). Default N=2 → up to 2 re-entries allowed; 3rd detection of pending halts.
 - `meta.cumulative_unresolved_conflicts` is dropped at save (see its lifecycle comment in the wip.yml schema). User-deferred items persist via `raw.yml.issues[]` instead.
+
+---
+
+### Session Log & Error Handling Artifact
+
+All runtime warnings, halt events, and error codes defined throughout this process flow to a single session log artifact:
+
+**Path**: `{project}/.onto/builds/{session ID}/session-log.yml`
+
+**Schema**:
+```yaml
+session_id: {session ID}
+entries:
+  - timestamp: "{ISO 8601 UTC}"
+    level: halt | error | warning | info
+    code: "{error/warning code}"   # e.g., config_malformed, phase_3_5_invariant_violation
+    phase: phase_0 | phase_0_5_1 | phase_1 | phase_2 | phase_3 | phase_3_5 | phase_4 | phase_5
+    context: "{free-form contextual detail, e.g., which lens, which round, which element}"
+    user_message: "{rendered user-facing message if level in {halt, error}; absent for warning/info}"
+```
+
+**Lifecycle**:
+- Created lazily on first write (not required if session has no events).
+- Appended to as events occur; never overwritten.
+- Preserved after Phase 4 Save (not deleted) — supports post-hoc debugging.
+
+**Halt event rendering**: When Runtime halts with an error code, the user-facing message combines the code, phase, wip.yml preservation path (if applicable), and next-step guidance. Example for `config_malformed`:
+
+```
+[HALT: config_malformed at phase_0]
+Config file /path/to/.onto/config.yml failed to parse.
+YAML error: {parser_message}
+Fix the config file and re-run. No session state was written (halt fires before Phase 1).
+```
+
+**Registered error/warning codes** (this document's canonical enumeration; extensible via additions to this list):
+
+| Code | Level | Phase | Trigger |
+|---|---|---|---|
+| `config_malformed` | halt | phase_0 | YAML parser throws on config.yml |
+| `config_type_invalid` | warning | phase_0 | Config key has wrong type; default substituted |
+| `config_out_of_range` | warning | phase_0 | Numeric config key outside valid range; default substituted |
+| `config_unknown_key_ignored` | warning | phase_0 | Unrecognized key in config.yml (any nesting level) |
+| `phase_3_5_invariant_violation` | halt | phase_4 | Bug-guard detects `resolution: pending` with no Phase 3 pending items to re-render (Runtime bug) |
+| `phase_reentry_bound_exhausted` | halt | phase_4 | Re-entry count reached `max_phase4_reentries` with pending still remaining (user kept deferring) |
+| `explorer_failure` | halt | phase_1 | Explorer fails (irreplaceable; see Error handling section) |
+| `runtime_coordinator_failure` | halt | phase_1 | Runtime Coordinator deterministic failure (indicates bug) |
+| `lens_partial_failure` | warning | phase_1 | One or more lenses failed; graceful degradation applied |
+| `adjudicator_failure` | warning | phase_1 or phase_2 | Axiology Adjudicator agent failed; fallback paths engaged |
+| `synthesize_failure` | warning | phase_1 | Synthesize agent failed; raw epsilons delivered to Explorer |
+| `degradation_threshold_warning` | info | phase_1 | 2 consecutive Adjudicator/Synthesize failures reached; user warned |
+
+Adding a new error code requires adding a row to this table with level/phase/trigger specification.
 
 ---
 

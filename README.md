@@ -215,7 +215,11 @@ This is a current implementation-status difference, not a canonical hierarchy or
 | `/onto:ask-coverage {question}` | Domain coverage perspective |
 | `/onto:ask-conciseness {question}` | Conciseness perspective |
 | `/onto:ask-axiology {question}` | Purpose and value alignment perspective |
-| `/onto:ask-philosopher {question}` | Legacy alias for axiology |
+
+#### Legacy Compatibility
+| Command | Description |
+|---|---|
+| `/onto:ask-philosopher {question}` | Legacy alias for `/onto:ask-axiology`. Preserves only value-alignment questioning behavior, not the former coordinator/synthesis role of 'philosopher'. New usage should use `/onto:ask-axiology`. |
 
 ### Ontology Build/Transform
 | Command | Description |

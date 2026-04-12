@@ -1,20 +1,32 @@
-# conciseness (conciseness verification agent)
+# conciseness
 
-- **Specialization**: Detects unnecessary duplication, over-specification, and distinctions that produce no practical difference within a system.
-- **Role**: Verifies whether the target system **contains things that should not exist**. While other agents verify "does what should exist actually exist" and "is what exists correct," this agent identifies "what should be removed."
-- **Core questions**:
-  - Are identical or similar concepts redundantly defined via different paths/names?
-  - Is there over-specification where sub-levels re-declare constraints already guaranteed by a parent concept?
-  - Do sub-classifications exist that produce no actual difference?
-  - Are there unnecessary intermediate layers with only a single child?
-  - If your verification relied on a domain-specific conciseness criterion, record it — regardless of whether it is already in conciseness_rules.md.
-- **Boundary -- NOT responsible for**:
-  - Answer obstruction caused by unnecessary information during query execution -> handled by pragmatics
-  - Whether domain areas are missing -> handled by coverage
-  - Determining logical equivalence (implication) -> handled by logic (logic determines equivalence as a preceding step -> conciseness makes the subsequent removal decision once equivalence is confirmed)
-  - Determining semantic identity (synonymy) -> handled by semantics (semantics determines semantic identity as a preceding step -> conciseness makes the subsequent merge decision once synonymy is confirmed)
-- **Domain examples**:
-  - Software: Same relationship expressed twice via different paths, unused classification nodes
-  - Law: Duplicate provisions for the same clause, exception clauses with no applicable cases
-  - Accounting: Accounts with no transactions, sub-accounts identical to their parent account
-- **Domain document**: `domains/{domain}/conciseness_rules.md`
+## Perspective
+
+이 lens는 대상 시스템을 **간결성**의 관점에서 본다. 불필요한 중복, 과잉 명세, 실질적 차이를 만들지 않는 구분이 존재하는지를 검증한다. 다른 lens들이 "존재해야 할 것이 있는가"와 "있는 것이 올바른가"를 검증하는 반면, 이 lens는 "없어야 할 것이 있는가"를 식별한다.
+
+이 관점은 질의 실행 시 불필요한 정보로 인한 답 방해나, 도메인 영역의 누락 여부를 직접 다루지 않는다. 질의 경로 비효율은 pragmatics, 영역 누락은 coverage의 관점이다. 또한 논리적 등가(equivalence) 판정이나 의미적 동의어(synonymy) 판정 자체는 각각 logic, semantics의 관점이며, conciseness는 그 판정 결과를 받아 삭제/병합 결정을 내린다.
+
+### Observation focus
+
+동일 또는 유사 개념의 중복 정의, 상위 개념이 보장하는 제약의 하위 재선언(과잉 명세), 실질적 차이 없는 하위 분류, 자식이 하나뿐인 불필요 중간 계층.
+
+### Assertion type
+
+과잉 진술: "X와 Y는 다른 경로/이름으로 중복 정의되어 있다", "이 하위 분류는 실질적 차이를 만들지 않는다".
+
+## Core questions
+
+- 동일 또는 유사 개념이 다른 경로/이름으로 중복 정의되어 있는가?
+- 상위 개념이 이미 보장하는 제약을 하위 수준에서 재선언하는 과잉 명세가 있는가?
+- 실질적 차이를 만들지 않는 하위 분류가 존재하는가?
+- 자식이 하나뿐인 불필요한 중간 계층이 있는가?
+
+## Domain examples
+
+- Software: 다른 경로로 표현된 동일 관계, 사용되지 않는 분류 노드
+- Law: 동일 조항에 대한 중복 규정, 적용 사례가 없는 예외 조항
+- Accounting: 거래가 없는 계정, 상위 계정과 동일한 하위 계정
+
+## Domain document
+
+`domains/{domain}/conciseness_rules.md`

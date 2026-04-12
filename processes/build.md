@@ -323,7 +323,7 @@ Creates a team (`onto-build`) via TeamCreate.
 - **Explorer failure**: Halt the process + inform the user (irreplaceable single point).
 - **Runtime Coordinator failure**: Halt the process + inform the user (irreplaceable; failure indicates a bug, not a transient error).
 - **Partial failure among N lenses**: Retry per process.md → graceful degradation. Adjust the denominator to the number of responding lenses when judging convergence.
-- **Axiology Adjudicator failure (Phase 1 round)**: Skip adjudication for this round. **Epsilon conflicts** of this round are preserved as `unresolved_for_user` and accumulated into `meta.cumulative_unresolved_epsilons` for Phase 2 Step 4 collation (eventually Phase 3). **Label conflicts** (patch operation `conflict`) already live in wip.yml issues with `resolution: pending` and continue to wait for Phase 2 Step 3 (not escalated early — Phase 2 Step 3 is their designated batch resolution point). The round continues with consensus + rule-resolved epsilons only.
+- **Axiology Adjudicator failure (Phase 1 round)**: Skip adjudication for this round. **Epsilon conflicts** of this round are preserved as `unresolved_for_user` and accumulated into `meta.cumulative_unresolved_conflicts` for Phase 2 Step 4 collation (eventually Phase 3). **Label conflicts** (patch operation `conflict`) already live in wip.yml issues with `resolution: pending` and continue to wait for Phase 2 Step 3 (not escalated early — Phase 2 Step 3 is their designated batch resolution point). The round continues with consensus + rule-resolved epsilons only.
 - **Synthesize failure**: Deliver raw epsilons directly to Explorer, sorted by priority. Specifically: consensus items pass through as-is; rule-resolved items pass through with their selected direction; adjudicator-resolved items pass through as the Adjudicator's selected position (not the raw conflict pair); forced_directions pass through as-is. Log degradation.
 - **Degradation accumulation threshold**: Runtime Coordinator maintains two per-Stage counters in `meta` (mirrored in `convergence_status`): `adjudicator_failures_streak` and `synthesize_failures_streak`. Counter rules:
   - Adjudicator counter increments only on **actual agent failure** during a round where Adjudicator was invoked (unresolvable conflicts existed). Resets to 0 on successful Adjudicator completion. **A round where Adjudicator was not invoked (no unresolvable conflicts) does NOT change the counter** — it is neither a success nor a failure for this role.
@@ -564,7 +564,7 @@ Loop:
   2. Lenses each report label + epsilon + issues
   2.5. (Optional) Tier 2 semantic identity diagnostic — see "Semantic identity matching" below:
      - Runtime Coordinator computes Jaccard candidate pairs from new facts vs existing facts
-     - If candidate pairs exist and diagnostic is enabled: team lead dispatches a focused lens query (`query_type: identity_match`) to the semantics lens
+     - If candidate pairs exist and diagnostic is enabled (`config.semantic_identity.diagnostic_enabled`, default `true`): team lead dispatches a focused lens query (`query_type: identity_match`) to the semantics lens
      - Results are logged as diagnostic warnings only; DO NOT affect step 3c convergence
      - If semantics lens unavailable: skip this step, log "advisory signal unavailable"
   3. Runtime Coordinator (deterministic):
@@ -609,7 +609,11 @@ Information convergence = number of new facts in Explorer's reported delta = 0
 >
 > **Convergence is determined solely by Tier 1.** This preserves the "No LLM judgment required" guarantee for termination: given the same source, the same normalized facts, the build terminates at the same round.
 >
-> **Tier 2 (non-gating signal, optional)**: As a diagnostic aid, Runtime Coordinator MAY compute token-level Jaccard similarity between each new fact and existing facts. Pairs with similarity in `[T_diag, 1.0)` — default `T_diag = 0.7`, tunable via `config.semantic_identity.diagnostic_threshold` — are forwarded to a focused lens query (semantics lens) which returns `same | different`. Pairs below `T_diag` are logged as "different without query."
+> **Tier 2 (non-gating diagnostic, operator-toggleable)**:
+> - **Non-gating** (invariant of the design): Tier 2 output never affects convergence, regardless of enable state or availability.
+> - **Operator-toggleable**: enabled via `config.semantic_identity.diagnostic_enabled` (default `true`). When `false`, Step 2.5 is skipped entirely and no candidate pairs are computed.
+>
+> When enabled, Runtime Coordinator computes token-level Jaccard similarity between each new fact and existing facts. Pairs with similarity in `[T_diag, 1.0)` — default `T_diag = 0.7`, tunable via `config.semantic_identity.diagnostic_threshold` — are forwarded to a focused lens query (semantics lens) which returns `same | different`. Pairs below `T_diag` are logged as "different without query."
 >
 > Tier 2 results are **logged as diagnostic warnings** (e.g., "potential duplicate — fact A and fact B judged same by semantics lens but kept as separate facts by Tier 1") and surfaced in Phase 3 issues if any, but DO NOT affect convergence, DO NOT change the new-fact count, and DO NOT trigger degradation counters.
 >
@@ -651,9 +655,11 @@ Certainty of elements confirmed in Stage 1 can change in Stage 2. This is becaus
 
 | Situation | Allowed | Action |
 |---|---|---|
-| **Demotion** of Stage 1 element's certainty in Stage 2 | Allowed | Stage 2 lens reports "certainty reclassification request" in issues. Runtime Coordinator applies demote patch |
-| **Upgrade** of Stage 1 element's certainty in Stage 2 (ambiguous→inferred) | Allowed | When Stage 2's additional evidence narrows the interpretation. Runtime Coordinator applies upgrade patch |
-| **Type change** of Stage 1 element in Stage 2 | Not allowed | If type change is needed, record in issues and present to user in Phase 3 |
+| **Demotion** of Stage 1 `inferred` element in Stage 2 (inferred → pending) | Allowed | Stage 2 lens reports issue with `requested_operation: demote`. Runtime applies demote patch |
+| **Upgrade** of Stage 1 `ambiguous` element in Stage 2 (ambiguous → inferred) | Allowed | Stage 2 lens reports issue with `requested_operation: upgrade`. Runtime applies upgrade patch |
+| **Nullify** of Stage 1 `ambiguous` element in Stage 2 (ambiguous → not-in-source) | Allowed | Stage 2 lens reports issue with `requested_operation: nullify`. Runtime applies nullify patch |
+| **Reclassify** of Stage 1 element in Stage 2 (any other cross-level transition — e.g., `observed → pending` for misidentification, `rationale-absent → pending` for refuted implementation, `pending → observed` for newly confirmed facts, `not-in-source → inferred` for resurrected elements) | Allowed | Stage 2 lens reports issue with `requested_operation: reclassify` and explicit `from_certainty` / `to_certainty`. Runtime applies reclassify patch |
+| **Type change** (element_type) of Stage 1 element in Stage 2 | Not allowed | If type change is needed, record in issues and present to user in Phase 3 |
 
 When Stage 1 terminates (convergence or maximum 5 rounds reached):
 1. The Runtime Coordinator finalizes Stage 1's wip.yml.
@@ -678,10 +684,9 @@ Reference Stage 1 wip.yml: {wip.yml path}
 5. At Stage transition, Runtime Coordinator:
    - Preserves Stage 1's module list as `meta.stage1_module_inventory` (original module list from Phase 0.5.1 / Round 0).
    - Preserves `meta.stage1_uncovered_modules` = stage1_module_inventory − modules with ≥1 fact after Stage 1.
-   - **Replaces** `meta.module_inventory` with the Entity list confirmed in Stage 1. From this point, `module_inventory` in Stage 2 semantically means "Entities to cover with behavior facts."
-   - Sets `meta.module_inventory_kind: entity_list` (Stage 2) vs `module_inventory_kind: source_module_list` (Stage 1).
+   - **Replaces** `meta.module_inventory` with the Entity list confirmed in Stage 1. From this point (determined by `meta.stage == 2`), `module_inventory` semantically means "Entities to cover with behavior facts."
 6. In Stage 2, an entity is "covered" when ≥1 fact of type `state_transition`, `command`, or `query` references it in `structured_data.entity` / `structured_data.target_entities`. `policy_constant` and `flow` facts do not count toward Stage 2 coverage (they're cross-cutting).
-7. The convergence formula's "Coverage satisfied" uses `module_inventory` under the current Stage's semantics (source modules in Stage 1, Entities in Stage 2). Only one definition is active per Stage.
+7. The convergence formula's "Coverage satisfied" uses `module_inventory` under the current Stage's semantics (source modules in Stage 1 when `meta.stage == 1`, Entities in Stage 2 when `meta.stage == 2`). `meta.stage` is the single source of truth for which semantics apply.
 
 #### 1.4 Cross-Round Ontology Accumulation
 
@@ -701,7 +706,9 @@ patch:
       type: {element_type}
       name: {name}
       definition: {definition}
-      certainty: {observed | rationale-absent | inferred | ambiguous | not-in-source}
+      certainty: {observed | pending | rationale-absent | inferred | ambiguous | not-in-source}
+      # `pending` is a transient state — elements enter it after a demote or reclassify
+      # operation and are re-adjudicated in a subsequent round or at Phase 2 Step 3.
       labeled_by: [{agents that assigned the label}]
       source_deltas: [{source delta IDs}]
       source_locations: [{source location list}]
@@ -717,11 +724,16 @@ patch:
       target_id: {existing element ID}
       conflicting_label: {conflicting label content}
       reported_by: {reporting agent}
-      resolution: pending | resolved | user_resolved
+      resolution: pending | resolved | user_resolved | user_deferred
+      resolved_position: a | b  # only when resolution: resolved
       resolution_text: "{only when resolution: user_resolved — user's free-form resolution}"
       # pending: stays in wip.yml issues across rounds. Resolved in Phase 2 Step 3 by Axiology Adjudicator.
-      # resolved: Adjudicator selected one of the conflicting labels (position_a or position_b).
+      #   By Phase 3.5 (Runtime Coordinator write-back), no conflict may remain `pending`.
+      # resolved: Adjudicator selected one of the conflicting labels (position_a or position_b);
+      #   `resolved_position` records the choice.
       # user_resolved: user provided a custom resolution at Phase 3 — stored in resolution_text.
+      # user_deferred: user did not address this conflict at Phase 3 (either explicit defer or
+      #   unaddressed with a global "confirmed"). Element remains in its pre-confirmation state.
       # Distinct from per-round epsilon conflicts (resolved in Phase 1.2 step 4).
 
     - operation: demote
@@ -747,9 +759,9 @@ patch:
       from_certainty: ambiguous
       to_certainty: not-in-source
       reason: "{rationale for excluding all interpretations}"
-      # Generated by Runtime Coordinator when a lens reports (via issue with
-      # issue_type: certainty_reclassification, subtype: all_interpretations_excluded)
-      # that all registered interpretations of an existing ambiguous element have been excluded.
+      # Generated by Runtime Coordinator when a lens reports an issue with
+      # issue_type: certainty_reclassification, requested_operation: nullify
+      # (all registered interpretations of an existing ambiguous element have been excluded).
 
     - operation: reclassify
       target_id: {existing element ID}
@@ -763,12 +775,14 @@ patch:
       #         any other cross-level reclassification a lens identifies.
 ```
 
-**Lens issue subtypes for certainty_reclassification**:
-Lenses reporting `issue_type: certainty_reclassification` MUST specify a `subtype` field so Runtime can deterministically route to the correct operation:
-- `subtype: refutation_of_inferred` → demote operation
-- `subtype: ambiguous_to_dominant` → upgrade operation
-- `subtype: all_interpretations_excluded` → nullify operation
-- `subtype: cross_level` → reclassify operation (used for observed misidentification, rationale-absent refutation, etc.)
+**Lens-requested operations for certainty_reclassification**:
+Lenses reporting `issue_type: certainty_reclassification` MUST specify a `requested_operation` field naming the patch operation Runtime should apply:
+- `requested_operation: demote` — refutation of an existing `inferred` fact (transitions to `pending`)
+- `requested_operation: upgrade` — dominant interpretation of an existing `ambiguous` fact (transitions to `inferred`)
+- `requested_operation: nullify` — all interpretations of an existing `ambiguous` fact excluded (transitions to `not-in-source`)
+- `requested_operation: reclassify` — any cross-level transition not covered by the three above (e.g., observed misidentification, rationale-absent refutation). Lens specifies `from_certainty` and `to_certainty` explicitly.
+
+Runtime routes each issue to the named operation directly — no translation step. If Runtime receives an unrecognized `requested_operation` value, it routes to `reclassify` and preserves the original value in the delta `reason` field (unknown-operation escape hatch).
 
 **Patch application rules**:
 - New element (add): add to wip.yml
@@ -791,16 +805,21 @@ meta:
   stage: {1 | 2}
   round: {current round}
   status: in_progress
-  module_inventory: [{current-stage inventory — source modules in Stage 1, Entity IDs in Stage 2}]
-  module_inventory_kind: source_module_list | entity_list
+  module_inventory: [{current-stage inventory — source modules in Stage 1, Entity IDs in Stage 2; semantic determined by `stage` field}]
   # Stage 2 only — preserved at Stage transition:
   stage1_module_inventory: [{original source module list from Stage 1 Round 0}]
   stage1_uncovered_modules: [{Stage 1 modules with 0 facts at Stage 1 termination}]
   # Per-role degradation counters (Phase 1.2 loop):
   adjudicator_failures_streak: {int, resets on success or Stage transition}
   synthesize_failures_streak: {int, resets on success or Stage transition}
-  # Cross-round accumulation of unresolved epsilons (for Phase 2 Step 4 collation):
-  cumulative_unresolved_epsilons: [{conflict_id, conflict_kind, subject, unresolved_since, max_priority, position_a, position_b}]
+  # Cross-round accumulation of unresolved conflicts (for Phase 2 Step 4 collation):
+  cumulative_unresolved_conflicts: [{conflict_id, conflict_kind, subject, unresolved_since, position_a, position_b}]
+  # Lifecycle of cumulative_unresolved_conflicts:
+  #   - Appended to by Runtime Coordinator at end of each round (from Synthesize's unresolved_for_user).
+  #   - When an earlier-round conflict is subsequently resolved (via consensus, rule-resolution, or
+  #     Adjudicator resolution in a later round), Runtime removes that conflict_id from the list.
+  #   - Carried across Stage transition (NOT reset) — Stage 1 unresolved epsilons may still need user attention at Phase 3.
+  #   - Dropped at Phase 4 Save (intermediate artifact). User-deferred items persist via raw.yml.issues[] instead.
 
 elements:
   - id: {element ID}
@@ -924,6 +943,11 @@ issues:
     severity: critical | warning | info
     issue_type: finding | certainty_reclassification
     justification: "{why this is a problem}"
+    # Required when issue_type == certainty_reclassification:
+    target_id: "{existing element ID being reclassified}"
+    requested_operation: demote | upgrade | nullify | reclassify
+    from_certainty: "{current certainty — required for reclassify}"
+    to_certainty: "{requested new certainty — required for reclassify}"
   # ... empty array [] if none
 
 learnings:
@@ -1021,7 +1045,7 @@ unresolved_for_user:
     conflict_kind: epsilon | label
     subject: "{from Runtime output}"
     unresolved_since: "{stage}.{round}"
-    max_priority: high | medium | low   # max(position_a.priority, position_b.priority)
+    # max_priority and min_priority are NOT stored — derived at display time from position priorities
     position_a:
       content: "{from Runtime output}"
       priority: "{from Runtime output}"
@@ -1030,9 +1054,17 @@ unresolved_for_user:
       content: "{from Runtime output}"
       priority: "{from Runtime output}"
       justification: "{from Runtime output}"
-    # Appended to wip.yml meta.cumulative_unresolved_epsilons each round.
-    # Phase 2 Step 4 reads from that field to collate with Phase 2 Step 3 results.
-    # Phase 3 display orders items by max_priority desc, then unresolved_since asc.
+    # Synthesize emits this list. Runtime Coordinator (sole writer of wip.yml) appends the items to
+    # meta.cumulative_unresolved_conflicts at the end of the round (between step 5 Synthesize completion
+    # and step 6 Explorer dispatch), consistent with Runtime's sole-writer authority over wip.yml.
+    # Phase 2 Step 4 reads from meta.cumulative_unresolved_conflicts to collate with Phase 2 Step 3 results.
+    # Phase 3 display ordering (three-level sort):
+    #   1. max(position_a.priority, position_b.priority) desc — symmetric-high > asymmetric-high > medium > low
+    #   2. min(position_a.priority, position_b.priority) desc — distinguishes high/high (both lenses agree)
+    #      from high/low (lop-sided) within the same max tier
+    #   3. unresolved_since asc — older conflicts first among same-priority pairs
+    # Invariant: meta.cumulative_unresolved_conflicts is NEVER included in lens input context across rounds
+    # (preserves lens independence — see Role Boundary Principles).
 ```
 
 ---
@@ -1055,13 +1087,19 @@ When the exploration loop terminates, finalization is performed in 4 steps. No s
    - Validate external_systems direction field values (upstream | downstream | bidirectional only)
    - Validate relations direction field values (forward | backward | bidirectional only)
 
-3. Exploration bias calculation:
-   - Compute: module_inventory set − modules with ≥1 fact in any delta
-   - Compute: per-module fact count distribution
-   - Compute: per-module `observation_aspect` distribution (structure / behavior / presentation fact counts per module)
-   - Define threshold: module is "underexplored" if fact count ≤ max(2, 0.5 × median per-module fact count). Tunable via `config.build.underexplored_threshold`.
-   - Output: underexplored_modules list (for Step 2b, passed with threshold value and per-module fact counts)
-   - Output: aspect_bias per module (for Phase 3 summary and Step 2b rationale)
+3. Exploration bias calculation (runs per Stage via Stage-specific semantics):
+   - **Stage 1 bias** (uses `meta.stage1_module_inventory` as denominator):
+     - Compute: stage1_module_inventory − modules with ≥1 fact in any Stage 1 delta → Stage 1 underexplored source modules
+     - Per-module fact count distribution (Stage 1 facts)
+   - **Stage 2 bias** (uses `meta.module_inventory` — Entity IDs — as denominator):
+     - Compute: entity_inventory − entities with ≥1 state_transition/command/query fact referencing them → Stage 2 underexplored entities
+     - Per-entity fact count distribution (Stage 2 behavior facts)
+   - **Combined** (both Stages):
+     - Per-module/per-entity `observation_aspect` distribution (structure / behavior / presentation fact counts)
+     - Threshold: underexplored if fact count ≤ max(2, 0.5 × median). Tunable via `config.build.underexplored_threshold`.
+   - Output: underexplored_modules list (combined Stage 1 source modules + Stage 2 entities, passed with threshold value and per-module fact counts) for Step 2b
+   - Output: aspect_bias per module (for Step 2b rationale)
+   - Output: aspect_totals global (for Phase 3 Observation Aspect Distribution table). Phase 3 renders one row per aspect value present in the totals
 ```
 
 #### Step 2: Focused lens queries (2a and 2b run in parallel, after Step 1 completes)
@@ -1106,7 +1144,7 @@ Integrates Step 1-3 results into the final wip.yml:
 - Applies Semantics' UL changes
 - Annotates Coverage's gap assessments in issues
 - Applies Adjudicator's conflict resolutions; carries `no_resolution` items to Phase 3 Unresolved Conflicts section
-- Collates Phase 1 round-level `unresolved_for_user` items (read from `meta.cumulative_unresolved_epsilons` in wip.yml) with Phase 2 Step 3 `no_resolution` items into the single Phase 3 Unresolved Conflicts table
+- Collates Phase 1 round-level `unresolved_for_user` items (read from `meta.cumulative_unresolved_conflicts` in wip.yml) with Phase 2 Step 3 `no_resolution` items into the single Phase 3 Unresolved Conflicts table
 - Converts finalized wip.yml → raw.yml format
 
 ---
@@ -1162,7 +1200,7 @@ Integrates Step 1-3 results into the final wip.yml:
 | # | Priority | Kind | Subject | Position A (priority) | Position B (priority) | Unresolved Since |
 |---|---|---|---|---|---|---|
 
-- Items ordered by `max_priority` descending, then by `unresolved_since` ascending (oldest first among same priority).
+- Items ordered by: (1) max(position_a.priority, position_b.priority) descending, (2) min(position_a.priority, position_b.priority) descending (distinguishes symmetric-high from asymmetric-high within same max tier), (3) `unresolved_since` ascending (oldest first).
 - `Kind` = `epsilon` (exploration direction conflict) or `label` (ontology type classification conflict)
 - These are lens perspective conflicts that neither runtime rules nor the Axiology Adjudicator could resolve.
 - Please choose one position, or provide your own resolution. If you provide a custom resolution, it is recorded as an issue with `resolution: user_resolved` and applied to the corresponding element.
@@ -1179,6 +1217,27 @@ Integrates Step 1-3 results into the final wip.yml:
 - Please let me know if there are any adjustments.
 - If none, reply "confirmed."
 ```
+
+---
+
+### Phase 3.5: User Decision Write-back (Runtime Coordinator)
+
+After the user responds to Phase 3, Runtime Coordinator applies the user decisions to wip.yml before Phase 4 Save:
+
+1. **Unresolved conflicts table** — for each row:
+   - If user selects **Position A** or **Position B**: update the corresponding `conflict` issue to `resolution: resolved`, record which position was chosen in `resolved_position: a | b`, and apply the chosen label to the target element via an `update` patch (no element mutation for epsilon conflicts — they do not correspond to elements).
+   - If user provides a **custom free-form resolution**: update the `conflict` issue to `resolution: user_resolved` with `resolution_text: {user's text}`. The target element itself is NOT mutated — the resolution_text is advisory context attached to the conflict issue only. Rationale: free-form text cannot be deterministically applied to a structured element field without re-invoking an LLM, which would reintroduce semantic judgment outside the build loop.
+   - If user **defers** (explicit `defer` response or if the conflict is unaddressed when the user replies `confirmed` globally): update the `conflict` issue to `resolution: user_deferred` and leave the target element in its pre-confirmation state.
+
+2. **User Decision Required Items (certainty-based)** — for each row:
+   - If user confirms the proposed action: update the element's `certainty` and note the rationale in `user_confirmed_rationale`.
+   - If user rejects or defers: update the element with `user_decision: deferred` and leave certainty unchanged.
+
+3. **Other user adjustments** (type changes, name corrections, etc. from Phase 3 global response): recorded as direct patches to wip.yml elements with `source: user_decision_phase3`.
+
+4. **Invariants after Phase 3.5**:
+   - No element has `certainty: pending` (all resolved to a concrete level or marked user_deferred → promoted to `not-in-source` for save).
+   - All conflict issues have `resolution ∈ {resolved, user_resolved, user_deferred}` (no `pending`).
 
 ---
 
@@ -1221,6 +1280,9 @@ elements:
     name: {name}
     definition: {definition}
     certainty: {observed | rationale-absent | inferred | ambiguous | not-in-source}
+    # `pending` is intra-build only and must be resolved before raw.yml save.
+    # Any element still at `pending` at Phase 4 is either escalated to the user
+    # (as an unresolved item) or treated as `not-in-source` if the user defers.
     added_in_round: {round}
     labeled_by: [{agents}]
     source:
@@ -1282,6 +1344,12 @@ issues:
 - If raw.yml already exists, confirm with the user before overwriting
 - Delete wip.yml and deltas/ directory after saving raw.yml
 - Retain context_brief.yml (for reference in future re-runs)
+
+**Unresolved-item handling at save time** (post Phase 3.5):
+- Conflict issues with `resolution: resolved | user_resolved | user_deferred` are persisted to `raw.yml.issues[]` with their resolution field intact. `user_deferred` items appear in raw.yml as open issues for future follow-up (not discarded).
+- Elements marked with `user_decision: deferred` at Phase 3.5 are saved with their pre-confirmation certainty.
+- If any conflict with `resolution: pending` remains at Phase 4 (should not occur per Phase 3.5 invariants, but defensively): halt save and return to Phase 3 for the user to address. This is a bug guard.
+- `meta.cumulative_unresolved_conflicts` is **not** copied to raw.yml (it was a Phase 2 Step 4 intermediate). Its final form lives in the rendered Phase 3 display and, for user-deferred items, in raw.yml.issues[].
 
 ---
 

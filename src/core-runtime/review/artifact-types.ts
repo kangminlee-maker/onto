@@ -220,6 +220,40 @@ export interface ContextCandidateAssembly {
   execution_rule_refs: string[];
 }
 
+/**
+ * Provenance of a ReviewUnitExecutionResult's `started_at`, `completed_at`,
+ * and `duration_ms` fields.
+ *
+ * Consumers comparing per-unit timing across execution realizations MUST
+ * consult this field — values from different provenances are NOT directly
+ * comparable (e.g. averaging `duration_ms` across a mix of wall-clock and
+ * dispatch-derived entries produces meaningless numbers).
+ *
+ * - `runner_wallclock`: process wall-clock measurement taken at execution
+ *   time. Both `started_at` and `completed_at` are exact within millisecond
+ *   precision. Source: run-review-prompt-execution.ts (TS runner path).
+ *
+ * - `coordinator_derived`: `started_at` from coordinator-state.yaml
+ *   transition timestamps (awaiting_lens_dispatch /
+ *   awaiting_synthesize_dispatch), `completed_at` from
+ *   fs.stat(output_path).mtime. Systematically over-estimates `duration_ms`
+ *   by dispatch latency + agent boot time. Platform-dependent mtime
+ *   precision (e.g. HFS+ 1s). Source: coordinator-helpers.ts when the
+ *   state-transition read AND the mtime read both succeed for a
+ *   participating unit.
+ *
+ * - `batch_fallback`: one or both timestamps fell back to the orchestrator's
+ *   batch start/end. NOT a per-unit measurement — `duration_ms` reflects the
+ *   enclosing session's wall-clock window. Source: coordinator-helpers.ts
+ *   when state file is missing/unreadable, a required transition is absent,
+ *   fs.stat fails for a participating unit, or the unit is non-participating
+ *   / failed / skipped.
+ */
+export type UnitTimestampProvenance =
+  | "runner_wallclock"
+  | "coordinator_derived"
+  | "batch_fallback";
+
 export interface ReviewUnitExecutionResult {
   unit_id: string;
   unit_kind: ReviewUnitKind;
@@ -229,6 +263,14 @@ export interface ReviewUnitExecutionResult {
   started_at: string;
   completed_at: string;
   duration_ms: number;
+  /**
+   * Provenance of `started_at` / `completed_at` / `duration_ms`. See
+   * `UnitTimestampProvenance` for the interpretation of each value.
+   * Required for all new writes; when reading older artifacts that predate
+   * this field, consumers should treat absence as `"batch_fallback"` (the
+   * most conservative reading).
+   */
+  timestamp_provenance: UnitTimestampProvenance;
   failure_message?: string | null;
 }
 

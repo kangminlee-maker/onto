@@ -23,6 +23,7 @@ import type {
   ReviewExecutionResultArtifact,
   ReviewExecutionStatus,
   ReviewUnitExecutionResult,
+  UnitTimestampProvenance,
 } from "../review/artifact-types.js";
 import {
   appendMarkdownLogEntry,
@@ -490,6 +491,17 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
         );
       }
       const unitCompletedAt = mtimeIso ?? completedAt;
+      // Provenance: both started_at and completed_at must come from per-unit
+      // sources (state transition + mtime) for the unit to count as
+      // `coordinator_derived`. If either falls back to batch, or the unit is
+      // non-participating, we mark it `batch_fallback` so consumers don't
+      // treat batch values as per-unit measurements.
+      const hasPerUnitStart = Boolean(lensDispatchAt);
+      const hasPerUnitEnd = isParticipating && mtimeIso !== null;
+      const provenance: UnitTimestampProvenance =
+        hasPerUnitStart && hasPerUnitEnd
+          ? "coordinator_derived"
+          : "batch_fallback";
       return {
         unit_id: seat.lens_id,
         unit_kind: "lens" as const,
@@ -499,6 +511,7 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
         started_at: lensStartedAt,
         completed_at: unitCompletedAt,
         duration_ms: computeDurationMs(lensStartedAt, unitCompletedAt, `lens:${seat.lens_id}`),
+        timestamp_provenance: provenance,
         failure_message: degraded.includes(seat.lens_id) ? "output file missing or empty" : null,
       };
     }),
@@ -546,6 +559,10 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
     );
   }
   const synthesizeCompletedAt = synthesizeMtimeIso ?? completedAt;
+  const synthesizeProvenance: UnitTimestampProvenance =
+    synthesizeDispatchAt && synthesizeMtimeIso
+      ? "coordinator_derived"
+      : "batch_fallback";
 
   const synthesizeResult: ReviewUnitExecutionResult | null = synthesisExecuted
     ? {
@@ -557,6 +574,7 @@ export async function writeExecutionResult(argv: string[]): Promise<WriteExecuti
         started_at: synthesizeStartedAt,
         completed_at: synthesizeCompletedAt,
         duration_ms: computeDurationMs(synthesizeStartedAt, synthesizeCompletedAt, "synthesize"),
+        timestamp_provenance: synthesizeProvenance,
         failure_message: null,
       }
     : null;

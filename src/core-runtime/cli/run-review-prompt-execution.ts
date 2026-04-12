@@ -290,6 +290,9 @@ function toUnitExecutionResult(
     started_at: isoFromTimestamp(outcome.startedAtMs),
     completed_at: isoFromTimestamp(outcome.completedAtMs),
     duration_ms: Math.max(0, outcome.completedAtMs - outcome.startedAtMs),
+    // TS runner measures process wall-clock via Date.now() around
+    // invokeExecutor; both ends are exact to millisecond precision.
+    timestamp_provenance: "runner_wallclock",
     failure_message: outcome.failure?.message ?? null,
   };
 }

@@ -220,6 +220,66 @@ export interface ContextCandidateAssembly {
   execution_rule_refs: string[];
 }
 
+/**
+ * Provenance of a ReviewUnitExecutionResult's `started_at`, `completed_at`,
+ * and `duration_ms` fields.
+ *
+ * Consumers comparing per-unit timing across execution realizations MUST
+ * consult this field — values from different provenances are NOT directly
+ * comparable (e.g. averaging `duration_ms` across a mix of wall-clock and
+ * dispatch-derived entries produces meaningless numbers). Use
+ * {@link isPerUnitComparableProvenance} before treating `duration_ms` as a
+ * per-unit measurement.
+ *
+ * - `runner_wallclock`: process wall-clock measurement taken at execution
+ *   time. Both `started_at` and `completed_at` are exact within millisecond
+ *   precision. Source: run-review-prompt-execution.ts (TS runner path).
+ *
+ * - `coordinator_derived`: `started_at` from coordinator-state.yaml
+ *   transition timestamps (awaiting_lens_dispatch /
+ *   awaiting_synthesize_dispatch), `completed_at` from
+ *   fs.stat(output_path).mtime. Systematically over-estimates `duration_ms`
+ *   by dispatch latency + agent boot time. Platform-dependent mtime
+ *   precision (e.g. HFS+ 1s). Source: coordinator-helpers.ts when the
+ *   state-transition read AND the mtime read both succeed for a
+ *   participating unit.
+ *
+ * - `batch_fallback`: one or both timestamps fell back to the orchestrator's
+ *   batch start/end. NOT a per-unit measurement — `duration_ms` reflects the
+ *   enclosing session's wall-clock window. Source: coordinator-helpers.ts
+ *   when state file is missing/unreadable, a required transition is absent,
+ *   fs.stat fails for a participating unit, or the unit is non-participating
+ *   / failed / skipped.
+ *
+ *   Note: `batch_fallback` intentionally collapses four coordinator degraded
+ *   states (start-only per-unit, end-only per-unit, both batch, and
+ *   non-participating) into a single value. Consumers needing finer-grained
+ *   root cause should parse the structured `degradation_kind:` entries in
+ *   `error-log.md` written alongside each fallback.
+ */
+export type UnitTimestampProvenance =
+  | "runner_wallclock"
+  | "coordinator_derived"
+  | "batch_fallback";
+
+/**
+ * Predicate for consumers: returns true when `duration_ms` is a real per-unit
+ * measurement safe to average / sort / SLA-compare. Returns false for
+ * `batch_fallback` and for absent values (older artifacts that predate this
+ * field are treated conservatively as non-comparable).
+ *
+ * As of PR #26 there are no in-repo consumers of per-unit `duration_ms` —
+ * this predicate is the recommended entry point for future aggregation,
+ * reporting, or health-snapshot code.
+ */
+export function isPerUnitComparableProvenance(
+  provenance: UnitTimestampProvenance | undefined | null,
+): boolean {
+  return (
+    provenance === "runner_wallclock" || provenance === "coordinator_derived"
+  );
+}
+
 export interface ReviewUnitExecutionResult {
   unit_id: string;
   unit_kind: ReviewUnitKind;
@@ -229,6 +289,18 @@ export interface ReviewUnitExecutionResult {
   started_at: string;
   completed_at: string;
   duration_ms: number;
+  /**
+   * Provenance of `started_at` / `completed_at` / `duration_ms`. See
+   * {@link UnitTimestampProvenance} for the interpretation of each value.
+   *
+   * Optional at the type level so that older artifacts (written before this
+   * field existed) can still be parsed. All new writes MUST populate the
+   * field. Consumers that care about measurability should either (a) use
+   * {@link isPerUnitComparableProvenance}, which treats absence as
+   * non-comparable, or (b) normalize absent values to `"batch_fallback"`
+   * before branching.
+   */
+  timestamp_provenance?: UnitTimestampProvenance;
   failure_message?: string | null;
 }
 
@@ -252,6 +324,12 @@ export interface ReviewExecutionResultArtifact {
   halt_reason?: string | null;
   error_log_path: string;
   lens_execution_results: ReviewUnitExecutionResult[];
+  /**
+   * Per-unit result for the synthesize stage. `null` when synthesis was not
+   * executed (typically `execution_status === "halted_partial"`). Consumers
+   * must NOT interpret absence as `duration_ms: 0`; prefer an explicit null
+   * check before including synthesize timing in any aggregation.
+   */
   synthesize_execution_result?: ReviewUnitExecutionResult | null;
 }
 

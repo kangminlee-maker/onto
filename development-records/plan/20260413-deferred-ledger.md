@@ -1,15 +1,17 @@
 ---
-as_of: 2026-04-13T12:30:00+09:00
+as_of: 2026-04-13T12:45:00+09:00
 supersedes: null
 status: active
-revision: v1
+revision: v1.1
 functional_area: deferred-ledger
 purpose: |
   M-00 ~ M-08 meta task 실행 중 deferred로 분류된 item의 **단일 추적 ledger**.
   각 item의 origin / severity / resolution_stage / status를 longitudinal로 관리.
 item_count: 28
+resolved_count: 3
+pending_count: 25
 resolution_stage_distribution:
-  M-01: 3
+  M-01: 3 (전원 resolved)
   M-03: 9
   M-04-A: 2
   M-05: 1
@@ -46,17 +48,27 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 
 ---
 
-## M-01 (다섯 활동 구현 상태 Inventory) resolution_stage — 3 items
+## M-01 (다섯 활동 구현 상태 Inventory) resolution_stage — 3 items (전원 resolved)
 
 **Rationale**: MINOR 수준 + M-01 inventory 작업 중 자연 재검증 가능.
 
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
-| DL-001 | v2-review | logic N-1 | MEDIUM | consolidated v2 Activity per-bucket 산술 off-by-one: E 76→75, G 39→40 (합계 invariant 123 유지). 어느 item이 miscategorize인지 특정 필요 | pending |
-| DL-002 | v2-review | structure S-4-v2 | MINOR | consolidated v2 L452 오타 "v1에서 로 포함했던" → "v1에서 C로 포함했던" | pending |
-| DL-003 | v2-review | dep N-DEP-03 | MINOR | BL-121 `commands/ask-*.md` primary tag. §1.2 ask 폐기 govern 결정 이미 완료 → BL-121은 **집행(E)** 성격. primary E 또는 E,G로 조정 | pending |
+| DL-001 | v2-review | logic N-1 | MEDIUM | consolidated v2 Activity per-bucket 산술 off-by-one: E 76→75, G 39→40 (합계 invariant 123 유지). 어느 item이 miscategorize인지 특정 필요 | **resolved** |
+| DL-002 | v2-review | structure S-4-v2 | MINOR | consolidated v2 L452 오타 "v1에서 로 포함했던" → "v1에서 C로 포함했던" | **resolved** |
+| DL-003 | v2-review | dep N-DEP-03 | MINOR | BL-121 `commands/ask-*.md` primary tag. §1.2 ask 폐기 govern 결정 이미 완료 → BL-121은 **집행(E)** 성격. primary E 또는 E,G로 조정 | **resolved** |
 
-**Note**: M-01은 이미 완료되었으므로 이 3건은 다음 기회(consolidated v3 작성 또는 M-03 입력 정규화 직전)에 즉시 처리 권고. 또는 Principal 판단.
+### 해소 기록 (DL-001/002/003, 2026-04-13T12:45, consolidated v2.1 patch)
+
+**DL-002 resolution_note**: L452 직접 수정. "v1에서 로 포함했던" → "v1에서 C로 포함했던".
+
+**DL-003 resolution_note**: BL-121 activity를 `G` → `E,G`로 변경. Notes에 "primary=E: §1.2 ask 폐기 govern 결정은 이미 완료됨 → 본 BL은 그 결정의 집행(파일 이동/제거). secondary=G: govern 결정의 실행이라는 성격" 기록.
+
+**DL-001 resolution_note**: 후보 식별 → **BL-035 (R-34: Phase 0.5.4 Schema reconfirmation check 단계 명시)**를 E → G로 재분류. 근거: 절차 규칙 추가는 BL-085~087 (SE domain process improvements P-1/2/3)와 동일 패턴이며 v2에서 이들은 G로 태깅됨. 일관성 확보.
+
+**산술 반영**: DL-001 (E→G 1건) + DL-003 (G→E 1건) 상쇄 → Activity 분포 E=76, G=39 표시값 불변. 버킷 멤버십만 교정. v2.1 revision_note에 명시.
+
+**Commit**: (pending push 후 기록)
 
 ---
 
@@ -141,19 +153,17 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 
 ## 해소 이력 (resolved items)
 
-(비어있음. 첫 해소 발생 시 아래 구조로 기록)
-
-```
-### DL-NNN (resolved at M-NN on YYYY-MM-DD)
-- 해소 근거: ...
-- commit: ...
-```
+### DL-001, DL-002, DL-003 (resolved 2026-04-13T12:45:00+09:00, via consolidated v2.1 patch)
+- 해소 근거: 위 "M-01 resolution_stage — 3 items" 섹션의 resolution_note 참조
+- commit: (pending push)
+- context: M-01은 이미 이전 commit(f248253 및 이전)에서 실행 완료. 본 3건은 ledger 수립 직후 M-01 incremental scope로 즉시 처리.
 
 ---
 
 ## 개정 이력
 
-- v1 (2026-04-13): 초판. 28 item 등재. M-00 v1 review 결과 + v2 review 결과 + v5.1 meta + QA v3 + M-01 inventory + M-02 inventory 통합.
+- v1 (2026-04-13T12:30): 초판. 28 item 등재. M-00 v1 review 결과 + v2 review 결과 + v5.1 meta + QA v3 + M-01 inventory + M-02 inventory 통합.
+- v1.1 (2026-04-13T12:45): DL-001/002/003 (M-01 resolution_stage 3건) 전원 resolved 처리. consolidated v2.1 patch와 연동.
 
 ## 참조
 

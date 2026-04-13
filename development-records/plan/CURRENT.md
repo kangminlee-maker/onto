@@ -20,10 +20,12 @@ Last updated: 2026-04-13
 ### Backlog Consolidation
 - **Current**: `20260413-backlog-consolidated.md`
 - **Status**: active
-- **Revision**: v2 (2026-04-13, 9-lens review CONDITIONAL 반영)
+- **Revision**: v2.1 (2026-04-13, deferred ledger DL-001/002/003 patch 반영)
 - **Item count**: 123
 - **Source 분포**: backlog_memory 87 / memory 29 / design 4 / onto_direction 3 / pr 0
+- **Activity 분포** (primary): E 76 / G 39 / D 4 / R 4 / L 0 — v2.1에서 BL-035/BL-121 버킷 교정
 - **v1 review session**: `.onto/review/20260413-30463d46/` (CONDITIONAL verdict, v2에서 BLOCKING 2 + MAJOR 2 해소)
+- **v2 review session**: `.onto/review/20260413-fd95ef08/` (PASS verdict, MINOR 3건 → v2.1 patch로 해소)
 
 ### Execution Log
 - **Current**: `20260413-execution-log.md`
@@ -37,7 +39,7 @@ Last updated: 2026-04-13
 ### Deferred Ledger
 - **Current**: `20260413-deferred-ledger.md`
 - **Status**: active
-- **Revision**: v1 (28 items, stage-assigned)
+- **Revision**: v1.1 (28 items 중 3 resolved / 25 pending)
 - **Policy**: DR-M00-06 (stage completion protocol)
 
 ### Prior (historical reference)

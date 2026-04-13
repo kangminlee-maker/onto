@@ -83,8 +83,18 @@ export function parseMarkdownFrontmatter<T>(
   const frontmatterText = markdownText.slice(4, closingIndex);
   const bodyStart = closingIndex + "\n---\n".length;
   const body = markdownText.slice(bodyStart);
+  // Treat malformed YAML as "frontmatter unavailable" rather than throwing.
+  // Callers (e.g. assembler / runner deliberation-status detection) decide
+  // how to fall back when metadata is null; surfacing a parse exception here
+  // would short-circuit those decisions.
+  let metadata: T | null;
+  try {
+    metadata = YAML.parse(frontmatterText) as T;
+  } catch {
+    metadata = null;
+  }
   return {
-    metadata: YAML.parse(frontmatterText) as T,
+    metadata,
     body,
   };
 }

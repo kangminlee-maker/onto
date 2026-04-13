@@ -146,8 +146,6 @@ Review 실행 realization은 deliberation 수행 경로에 따라 두 부류로 
 
 본 계약 §6.2는 in-process deliberation 경로의 절차를 고정한다. cross-process 경로는 `process.md`의 Agent Teams Step 4가 별도 authority다.
 
-> **후속 PR 범위**: subagent (Claude Code Agent tool fallback) 경로에서의 in-process deliberation 실제 배선은 후속 작업이다. 본 계약은 배선 없이도 성립하는 규칙 층을 고정한다. 해당 후속 PR이 머지되는 시점에 본 forward-reference 블록과 §8 표의 "wiring in follow-up PR" 표기를 함께 제거한다.
-
 ### 6.2 In-process deliberation 수행 절차
 
 synthesize는 in-process deliberation 경로에서 deliberation actor다. 수행 절차는 다음과 같다.
@@ -220,8 +218,8 @@ You are synthesize.
 | Realization | Deliberation 경로 |
 |---|---|
 | Agent Teams teammate | Cross-process (teammate SendMessage 활용) |
-| subagent (Claude Code Agent tool) | In-process (synthesize가 수행; 배선은 후속 PR) |
-| `subagent + codex` | In-process (synthesize가 수행; 본 PR 기준선) |
+| subagent (Claude Code Agent tool) | In-process (synthesize가 수행) |
+| `subagent + codex` | In-process (synthesize가 수행) |
 | `MCP`로 분리된 `LLM` | In-process (메시징 없는 경우) 또는 Cross-process (메시징 구현 시). 실행 시 결정 |
 | external model worker | In-process (메시징 없는 경우) 또는 Cross-process (메시징 구현 시). 실행 시 결정 |
 

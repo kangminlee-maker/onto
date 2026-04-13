@@ -511,7 +511,7 @@ Synthesize 단계의 dispatch 메커니즘은 `execution_realization` × `host_r
 | `subagent` (TeamCreate fallback) | `claude` | Agent tool with `subagent_type: "general-purpose"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 |
 | `subagent` | `codex` | Agent tool with `subagent_type: "codex:codex-rescue"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 |
 
-본 표의 discriminator는 binding artifact의 `resolved_execution_realization` + `resolved_host_runtime` 두 필드와 1:1 대응한다 (별도 enum이 아니다).
+본 표의 discriminator는 binding artifact의 `resolved_execution_realization` + `resolved_host_runtime` 두 필드와 1:1 대응한다 (별도 enum이 아니다). 2축의 카르테시안 곱 중 `agent-teams + codex` 조합은 현재 unsupported다 — `processes/review/productized-live-path.md` §3.6 참조.
 
 `subagent` 경로의 synthesize 프롬프트는 host_runtime별로 process.md의 **Subagent Fallback Synthesize Prompt Template** (claude) 또는 **Codex Review Synthesize Prompt Template** (codex)을 사용한다. 두 템플릿 모두 in-process deliberation directive를 포함한다.
 

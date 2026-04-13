@@ -57,3 +57,46 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
   - C-8 MODERATE (compound sequencing)
   - CC-1/2/3 Conditional (canonicality stance, axis D 정밀화, L/G 경계)
 - commit: 3d360ab
+
+### M-01 — 다섯 활동 구현 상태 Inventory
+
+- task_id: M-01
+- start_time: 2026-04-13T12:00:00+09:00
+- end_time: 2026-04-13T12:30:00+09:00
+- elapsed_minutes: 30
+- commit_hash: d48ac2d
+- subagent_count: 5 (m01-activity-surveyor × 1 coordinator + 5 parallel activity subagents)
+- notes: review/design/reconstruct/learn/govern 5 활동에 대한 구현 상태 inventory. Agent Teams subagent 경로 (v3 QA A2 허용). 출력: `.onto/temp/m01-activity-inventory/{review,design,reconstruct,learn,govern}.md` (5 파일)
+- result_summary:
+    activities_inventoried: 5
+    structural_gaps_surfaced: 7 (DL-016~022 deferred ledger 추가)
+
+### M-02 — 축 B 기반 인프라 Inventory
+
+- task_id: M-02
+- start_time: 2026-04-13T12:00:00+09:00
+- end_time: 2026-04-13T12:30:00+09:00
+- elapsed_minutes: 30
+- commit_hash: d48ac2d
+- subagent_count: 10 (m02-infra-surveyor × 1 coordinator + 10 parallel component subagents)
+- notes: 축 B 10 component inventory (authority/, design-principles/, processes/, commands/, roles/, scope-runtime, readers, data-seats, config, logger). M-01과 병렬. 출력: `.onto/temp/m02-infra-inventory/{10 components}.md`
+- result_summary:
+    components_inventoried: 10
+    structural_gaps_contributing: measurement infra (§1.4), state machine 3중 dedup 등 (DL-017/018 reflect)
+
+### M-03 — Gap 분석 + Disposition 분류
+
+- task_id: M-03
+- start_time: 2026-04-13T13:10:00+09:00
+- end_time: 2026-04-13T13:55:00+09:00
+- elapsed_minutes: 45
+- commit_hash: pending
+- subagent_count: 0 (메인 세션 단독, v3 QA A2 Principal 통합 판정)
+- notes: 123 BL 전원에 disposition(4) + canonicality(3) 할당. deferred ledger DL-004~012 9건 통합 해소. Open PR 재스캔 0건 (snapshot 유효). DR-M03-01/02/03/04 수립. Stage completion protocol (DR-M00-06) 첫 완결 적용.
+- result_summary:
+    disposition_distribution: { gap: 102, deferred: 20, already_covered: 1, n_a: 0 }
+    canonicality_distribution: { canonical_advancing: 8, supporting: 53, scaffolding: 62 }
+    gap_x_canonical_advancing: 7 (M-06 P1 후보)
+    pre_cutoff_priority: { P1: 1, P2: 18, P3: 18 }
+    deferred_ledger_resolved: 9 (DL-004~012)
+    m06_new_scope_items: 7 (DL-016~022, consolidated 미등재 구조적 gap)

@@ -1,6 +1,6 @@
 # Current Planning Artifacts
 
-Last updated: 2026-04-13
+Last updated: 2026-04-13 (M-03 완료 기준)
 
 이 파일은 `plan/` 디렉토리 각 artifact 계열의 최신 active 버전 경로를 명시한다. M-08 refresh protocol이 매 갱신 시 업데이트한다.
 
@@ -19,33 +19,39 @@ Last updated: 2026-04-13
 
 ### M-03 Startup Handoff
 - **Current**: `20260413-m03-startup.md`
-- **Status**: active (다음 세션에서 M-03 착수용)
+- **Status**: superseded (M-03 실행 완료)
 - **Scope**: /clear 후 새 Claude Code 세션에서 M-03 (Gap 분석 + Disposition 분류) 진입 경로
 
 ### Backlog Consolidation
 - **Current**: `20260413-backlog-consolidated.md`
 - **Status**: active
-- **Revision**: v2.1 (2026-04-13, deferred ledger DL-001/002/003 patch 반영)
+- **Revision**: v3 (2026-04-13, M-03 disposition + canonicality 할당 완료)
 - **Item count**: 123
 - **Source 분포**: backlog_memory 87 / memory 29 / design 4 / onto_direction 3 / pr 0
-- **Activity 분포** (primary): E 76 / G 39 / D 4 / R 4 / L 0 — v2.1에서 BL-035/BL-121 버킷 교정
+- **Activity 분포** (primary): E 76 / G 39 / D 4 / R 4 / L 0
+- **Disposition 분포** (M-03): gap 102 / deferred 20 / already covered 1 / n/a 0
+- **Canonicality 분포** (M-03): canonical-advancing 8 / supporting 53 / scaffolding 62
+- **gap × canonical-advancing**: 7 (M-06 P1 후보: BL-053/063/064/110/120/121/123)
 - **v1 review session**: `.onto/review/20260413-30463d46/` (CONDITIONAL verdict, v2에서 BLOCKING 2 + MAJOR 2 해소)
 - **v2 review session**: `.onto/review/20260413-fd95ef08/` (PASS verdict, MINOR 3건 → v2.1 patch로 해소)
 
 ### Execution Log
 - **Current**: `20260413-execution-log.md`
 - **Status**: active
-- **Scope**: Meta task 실행 경과 시간 (V1 점진성 측정 기준선)
+- **Scope**: Meta task 실행 경과 시간 (V1 점진성 측정 기준선). M-00/01/02/03 entries
 
 ### Decision Records
 - **M-00 decisions**: `20260413-m00-decisions.md` (active, DR-M00-01 ~ 06)
-- **M-04 decisions**: `20260413-m04-decisions.md` (M-04 실행 중 생성)
+- **M-03 decisions**: `20260413-m03-decisions.md` (active, DR-M03-01 ~ 04)
+- **M-04 decisions**: `20260413-m04-decisions.md` (M-04 실행 중 생성 예정)
 
 ### Deferred Ledger
 - **Current**: `20260413-deferred-ledger.md`
 - **Status**: active
-- **Revision**: v1.1 (28 items 중 3 resolved / 25 pending)
-- **Policy**: DR-M00-06 (stage completion protocol)
+- **Revision**: v1.2 (28 items 중 12 resolved / 16 pending)
+- **Resolved stages**: M-01 (3) + M-03 (9) = 12
+- **Pending stages**: M-04-A (2) / M-05 (1) / M-06 (7) / M-07 (2) / M-08 (4) = 16
+- **Policy**: DR-M00-06 (stage completion protocol) — M-03 에서 첫 완결 적용
 
 ### Prior (historical reference)
 - `20260404-prototype-to-service-productization-plan.md`

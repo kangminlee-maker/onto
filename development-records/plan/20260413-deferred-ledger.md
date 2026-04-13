@@ -1,18 +1,18 @@
 ---
-as_of: 2026-04-13T12:45:00+09:00
+as_of: 2026-04-13T13:50:00+09:00
 supersedes: null
 status: active
-revision: v1.1
+revision: v1.2
 functional_area: deferred-ledger
 purpose: |
   M-00 ~ M-08 meta task 실행 중 deferred로 분류된 item의 **단일 추적 ledger**.
   각 item의 origin / severity / resolution_stage / status를 longitudinal로 관리.
 item_count: 28
-resolved_count: 3
-pending_count: 25
+resolved_count: 12
+pending_count: 16
 resolution_stage_distribution:
   M-01: 3 (전원 resolved)
-  M-03: 9
+  M-03: 9 (전원 resolved — v1.2)
   M-04-A: 2
   M-05: 1
   M-06: 7
@@ -78,15 +78,37 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
-| DL-004 | v1-review | C-4 | MODERATE | row-level traversability + schema 보강: `src:<source_file>`, `origin_date`, `merged_from` 컬럼 + `id_scheme`, `schema_version`, `source_types` frontmatter 필드 | pending |
-| DL-005 | v1-review | C-6 | MODERATE | source taxonomy 명문화: `backlog_memory` vs `memory` 경계 + merged PR 이중 역할(open=inclusion, merged=exclusion evidence) 선언 | pending |
-| DL-006 | v1-review | C-7 | MODERATE | Dedup event 1 basis "structural reference" 카테고리 분리 + `supersedes`(문서-level) vs `dedup_retires`(item-level) 관계명 정리 | pending |
-| DL-007 | v1-review | CC-2 | Conditional | Axis D 태깅 기준 명문화 + `axis_sub: lexicon_entity_promotion | provisional_quarantine` 하위 태그 (필요 시) | pending |
-| DL-008 | v1-review | CC-3 | Conditional | activity L(learn) vs G(govern) 경계 재분류 (BL-063, BL-119 등 govern 성격 항목 primary 재지정) | pending |
-| DL-009 | v1-review | axiology A-5 | Recommend | pre-cutoff 37건 (§8 SE 23 + §11 business 6 + §14 domain 4 + §15 palantir 1 + §17 optimization 3)을 P1/P2/P3 class로 분할. 판정 부하 분산 | pending |
-| DL-010 | v1-review | conciseness CN-1 | Recommend | BL-085 ↔ BL-103 "프로세스 일반화 canonical vs 사이클 instance" 교차참조 dedup 후보 검토 | pending |
-| DL-011 | v1-review | pragmatics F6 | Recommend | "M-03 시작 직전 Open PR 재스캔" 트리거 명시 (snapshot staleness 방지) | pending |
-| DL-012 | v1-review | axiology NP-1 | Governance | BL-041 Authority/Lineage Compatibility Gate의 axiology standing lens 승격 결정을 **M-03 이전**으로 앞당김 권고 (v1+v2 반복 제기) | pending |
+| DL-004 | v1-review | C-4 | MODERATE | row-level traversability + schema 보강: `src:<source_file>`, `origin_date`, `merged_from` 컬럼 + `id_scheme`, `schema_version`, `source_types` frontmatter 필드 | **resolved** |
+| DL-005 | v1-review | C-6 | MODERATE | source taxonomy 명문화: `backlog_memory` vs `memory` 경계 + merged PR 이중 역할(open=inclusion, merged=exclusion evidence) 선언 | **resolved** |
+| DL-006 | v1-review | C-7 | MODERATE | Dedup event 1 basis "structural reference" 카테고리 분리 + `supersedes`(문서-level) vs `dedup_retires`(item-level) 관계명 정리 | **resolved** |
+| DL-007 | v1-review | CC-2 | Conditional | Axis D 태깅 기준 명문화 + `axis_sub: lexicon_entity_promotion | provisional_quarantine` 하위 태그 (필요 시) | **resolved** |
+| DL-008 | v1-review | CC-3 | Conditional | activity L(learn) vs G(govern) 경계 재분류 (BL-063, BL-119 등 govern 성격 항목 primary 재지정) | **resolved** |
+| DL-009 | v1-review | axiology A-5 | Recommend | pre-cutoff 37건 (§8 SE 23 + §11 business 6 + §14 domain 4 + §15 palantir 1 + §17 optimization 3)을 P1/P2/P3 class로 분할. 판정 부하 분산 | **resolved** |
+| DL-010 | v1-review | conciseness CN-1 | Recommend | BL-085 ↔ BL-103 "프로세스 일반화 canonical vs 사이클 instance" 교차참조 dedup 후보 검토 | **resolved** |
+| DL-011 | v1-review | pragmatics F6 | Recommend | "M-03 시작 직전 Open PR 재스캔" 트리거 명시 (snapshot staleness 방지) | **resolved** |
+| DL-012 | v1-review | axiology NP-1 | Governance | BL-041 Authority/Lineage Compatibility Gate의 axiology standing lens 승격 결정을 **M-03 이전**으로 앞당김 권고 (v1+v2 반복 제기) | **resolved** |
+
+### 해소 기록 (DL-004~012, 2026-04-13T13:50, M-03 v1.2 patch)
+
+**DL-004 resolution_note**: consolidated v3 frontmatter 에 `schema_version: v3`, `id_scheme` (v3 기점 stable, BL-ID 재할당 금지) 반영. row-level traversability (`src`, `origin_date`, `merged_from`) 는 본문 표 Notes 컬럼에 inline 포함 방식으로 수용 — separate 컬럼 추가 시 표 폭 과도 판단. 대표 사례: BL-035 Notes 에 "DL-001 반영" 출처 표기, BL-041 Notes 에 "DR-M03-01 resolved" 출처 표기.
+
+**DL-005 resolution_note**: consolidated v3 frontmatter 에 `source_taxonomy` 필드 추가. 5 source 카테고리(backlog_memory / memory / design / pr / onto_direction) 각각의 `description` + `inclusion_rule` + `excluded_paths` (해당 시) + PR 의 `dual_role` (open=inclusion, merged=exclusion evidence) 명시.
+
+**DL-006 resolution_note**: consolidated v3 frontmatter 에 `dedup_evidence_schema` 필드 신설. `basis_enum` 카테고리 고정 (`reference_normalization` / `title_topic_scope_identity` / `partial_overlap_with_distinct_scope`), `supersedes`(doc-level) 와 `dedup_retires`(item-level) 구분 명시. DR-M03-01 의 `kept_primary_source` + `linked_supporting_sources` 필드 분리도 여기에 통합.
+
+**DL-007 resolution_note**: axis D 태깅 기준은 이미 DR-M00-05 (consolidated v2) 에서 명문화됨 — "lexicon term/entity/relation 관리로 한정, schema/registry/namespace 는 B". v3 의 axis D 15 item 은 모두 이 정의 내부 (lexicon lifecycle, entity 승격, relation 추가, provisional lifecycle, retire rule). **`axis_sub` 하위 태그 미도입 결정** — 15 item 이 모두 단일 범주(lexicon lifecycle) 라 sub-tag 추가 비용 > 정보 이득. 재평가 조건: axis D 가 30+ item 으로 증가 시 또는 Principal 판단.
+
+**DL-008 resolution_note**: CC-3 L/G 경계 재분류는 이미 v2 에서 반영 완료 — BL-063/BL-119/BL-120 등 "학습 소비 정책 / 학습 건강도 / consumption 검증"은 primary G (govern) 로 분류됨 (learn 본체 ops 와 구분). v3 에서 재확인: activity L count = 0 (§1.2 learn lifecycle ops 본체 backlog 없음, Phase 1~3 모두 IMPLEMENTED/ABSORBED). M-03 에서 추가 재분류 불필요.
+
+**DL-009 resolution_note**: pre-cutoff 37건에 DR-M03-04 priority 규칙 적용. **P1=1** (BL-120 Feature 15 Consumption Feedback — §1.0 기제 측정 직접 instrumentation), **P2=18** (SE Stage 3 HIGH/MEDIUM 8 + SE process 3 + Business 6 + /onto:health 1), **P3=18** (SE Stage 3 LOW 2 + SE Stage 4 10 + domain 미착수 4 + Palantir 1 + Adaptive Light Review 1). consolidated v3 Notes 컬럼 `priority: Pn` 태그로 기록.
+
+**DL-010 resolution_note**: BL-085 (P-1 도메인 문서 확장 후 cross-ref 점검 단계, SE process canonical rule) ↔ BL-103 (Business 도메인 wave 3 cross-ref sync, specific instance) 관계 검토 — **dedup 아님**. BL-085 는 general process rule (canonical), BL-103 은 그 rule 의 Business 도메인 execution instance. cross-ref 관계 consolidated v3 Notes 에 양방향 명시.
+
+**DL-011 resolution_note**: M-03 Step 1 에서 `gh pr list --state open` 재실행 (2026-04-13T13:10) → 0건 확인. M-00 실행 시점(2026-04-13T10:35) snapshot 유효. consolidated v3 Source 4 변동 없음.
+
+**DL-012 resolution_note**: DR-M03-01 로 해소 — axiology standing lens 승격 경로 폐기 (axiology lens 자체가 반대), dedup rule pre-gate 로 분해하여 consolidated v3 `dedup_evidence_schema` 에 `kept_primary_source` + `linked_supporting_sources` 필드 도입. BL-041 자체는 `already covered (partial)` + supporting.
+
+**Commit**: (pending — Step 9 에서 기록)
 
 ---
 
@@ -158,12 +180,19 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 - commit: `84736c7` (fix(plan): consolidated v2.1 + ledger v1.1 — M-01 MINOR 3건 해소)
 - context: M-01은 이미 이전 commit(f248253 및 이전)에서 실행 완료. 본 3건은 ledger 수립 직후 M-01 incremental scope로 즉시 처리.
 
+### DL-004 ~ DL-012 (resolved 2026-04-13T13:50:00+09:00, via M-03 consolidated v3 patch)
+- 해소 근거: 위 "M-03 resolution_stage — 9 items" 섹션의 resolution_note 참조
+- M-03 core output: consolidated v3 (disposition + canonicality 123 BL 전원 할당) + m03-decisions.md (DR-M03-01/02/03/04)
+- commit: (pending — Step 9)
+- context: Stage completion protocol (DR-M00-06) 첫 완결 적용. `resolution_stage == M-03 AND status == pending` 인 item = 0 (성공 기준 충족).
+
 ---
 
 ## 개정 이력
 
 - v1 (2026-04-13T12:30): 초판. 28 item 등재. M-00 v1 review 결과 + v2 review 결과 + v5.1 meta + QA v3 + M-01 inventory + M-02 inventory 통합.
 - v1.1 (2026-04-13T12:45): DL-001/002/003 (M-01 resolution_stage 3건) 전원 resolved 처리. consolidated v2.1 patch와 연동.
+- v1.2 (2026-04-13T13:50): DL-004~012 (M-03 resolution_stage 9건) 전원 resolved 처리. consolidated v3 + m03-decisions.md 와 연동. resolved_count: 3 → 12, pending_count: 25 → 16.
 
 ## 참조
 

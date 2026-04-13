@@ -289,15 +289,16 @@ export function allowedTransitionEvents(
 // - Build session: BUILD_TRANSITIONS (8 states)
 // ═══════════════════════════════════════════════════════════════════
 
-// ─── Review coordinator (9 states) ───
+// ─── Review coordinator (10 states) ───
 // auto 3: preparing, validating_lenses, completing
-// await 3: awaiting_lens_dispatch, awaiting_synthesize_dispatch, awaiting_deliberation
+// await 4: awaiting_lens_dispatch, awaiting_adjudication, awaiting_synthesize_dispatch, awaiting_deliberation
 // terminal 3: completed, halted_partial, failed
 
 export const REVIEW_STATES = [
   "preparing",
   "awaiting_lens_dispatch",
   "validating_lenses",
+  "awaiting_adjudication",
   "awaiting_synthesize_dispatch",
   "awaiting_deliberation",
   "completing",
@@ -321,7 +322,8 @@ export const REVIEW_TRANSITIONS: Record<
   "(init)": ["preparing"],
   preparing: ["awaiting_lens_dispatch", "failed"],
   awaiting_lens_dispatch: ["validating_lenses"],
-  validating_lenses: ["awaiting_synthesize_dispatch", "halted_partial", "failed"],
+  validating_lenses: ["awaiting_adjudication", "awaiting_synthesize_dispatch", "halted_partial", "failed"],
+  awaiting_adjudication: ["awaiting_synthesize_dispatch", "failed"],
   awaiting_synthesize_dispatch: ["completing", "awaiting_deliberation"],
   awaiting_deliberation: ["completing"],
   completing: ["completed", "failed"],

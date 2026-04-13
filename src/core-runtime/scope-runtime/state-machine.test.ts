@@ -670,8 +670,9 @@ import {
 } from "./state-machine.js";
 
 describe("Review state machine (9-state, W-B-02 dedup)", () => {
-  it("9 states 정의", () => {
-    expect(REVIEW_STATES).toHaveLength(9);
+  it("10 states 정의 (awaiting_adjudication 포함)", () => {
+    expect(REVIEW_STATES).toHaveLength(10);
+    expect(REVIEW_STATES).toContain("awaiting_adjudication");
   });
 
   it("terminal states 에서 outgoing edge 없음", () => {
@@ -703,6 +704,12 @@ describe("Review state machine (9-state, W-B-02 dedup)", () => {
     for (const [from, to] of path) {
       expect(canReviewTransition(from as any, to as any)).toBe(true);
     }
+  });
+
+  it("adjudication path: validating_lenses → awaiting_adjudication → awaiting_synthesize_dispatch", () => {
+    expect(canReviewTransition("validating_lenses", "awaiting_adjudication")).toBe(true);
+    expect(canReviewTransition("awaiting_adjudication", "awaiting_synthesize_dispatch")).toBe(true);
+    expect(canReviewTransition("awaiting_adjudication", "failed")).toBe(true);
   });
 
   it("모든 non-terminal state 에서 최소 1개 outgoing edge 존재", () => {
@@ -770,7 +777,7 @@ describe("3중 SSOT 일관성 (W-B-02)", () => {
 
     // Review
     expect(typeof canReviewTransition).toBe("function");
-    expect(REVIEW_STATES.length).toBe(9);
+    expect(REVIEW_STATES.length).toBe(10);
 
     // Build
     expect(typeof canBuildTransition).toBe("function");

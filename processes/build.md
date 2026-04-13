@@ -2,6 +2,9 @@
 
 > The Explorer traverses the source, and lenses provide exploration directions in an iterative loop that incrementally builds the ontology.
 > Related: After build, transform via `/onto:transform`, verification via `/onto:review`.
+>
+> **State machine SSOT**: `src/core-runtime/scope-runtime/state-machine.ts` — `BUILD_TRANSITIONS` (W-B-02 dedup).
+> Build session 의 phase 전이(negotiating→gathering_context→build_exploring→adjudicating→awaiting_user_review→processing_responses→converting→converted)는 이 파일이 canonical definition.
 
 ## Generalization Scope
 

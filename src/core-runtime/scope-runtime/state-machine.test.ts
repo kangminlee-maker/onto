@@ -653,3 +653,146 @@ describe("state-machine — allowedTransitionEvents", () => {
     expect(events).toEqual(["scope.closed"]);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// Multi-domain consistency tests (W-B-02 dedup)
+// ═══════════════════════════════════════════════════════════════════
+
+import {
+  REVIEW_STATES,
+  REVIEW_TERMINAL_STATES,
+  REVIEW_TRANSITIONS,
+  canReviewTransition,
+  BUILD_STATES,
+  BUILD_TERMINAL_STATES,
+  BUILD_TRANSITIONS,
+  canBuildTransition,
+} from "./state-machine.js";
+
+describe("Review state machine (9-state, W-B-02 dedup)", () => {
+  it("9 states 정의", () => {
+    expect(REVIEW_STATES).toHaveLength(9);
+  });
+
+  it("terminal states 에서 outgoing edge 없음", () => {
+    for (const s of REVIEW_TERMINAL_STATES) {
+      expect(REVIEW_TRANSITIONS[s]).toEqual([]);
+    }
+  });
+
+  it("(init) → preparing 만 허용", () => {
+    expect(canReviewTransition("(init)", "preparing")).toBe(true);
+    expect(canReviewTransition("(init)", "completed")).toBe(false);
+  });
+
+  it("preparing → awaiting_lens_dispatch 또는 failed", () => {
+    expect(canReviewTransition("preparing", "awaiting_lens_dispatch")).toBe(true);
+    expect(canReviewTransition("preparing", "failed")).toBe(true);
+    expect(canReviewTransition("preparing", "completed")).toBe(false);
+  });
+
+  it("full happy path: (init)→preparing→awaiting_lens_dispatch→validating_lenses→awaiting_synthesize_dispatch→completing→completed", () => {
+    const path: Array<[string, string]> = [
+      ["(init)", "preparing"],
+      ["preparing", "awaiting_lens_dispatch"],
+      ["awaiting_lens_dispatch", "validating_lenses"],
+      ["validating_lenses", "awaiting_synthesize_dispatch"],
+      ["awaiting_synthesize_dispatch", "completing"],
+      ["completing", "completed"],
+    ];
+    for (const [from, to] of path) {
+      expect(canReviewTransition(from as any, to as any)).toBe(true);
+    }
+  });
+
+  it("모든 non-terminal state 에서 최소 1개 outgoing edge 존재", () => {
+    for (const s of REVIEW_STATES) {
+      if (REVIEW_TERMINAL_STATES.has(s)) continue;
+      expect(REVIEW_TRANSITIONS[s].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("artifact-types.ts ALLOWED_TRANSITIONS 와 동일 (dedup 검증)", async () => {
+    const { ALLOWED_TRANSITIONS } = await import("../review/artifact-types.js");
+    expect(ALLOWED_TRANSITIONS).toEqual(REVIEW_TRANSITIONS);
+  });
+});
+
+describe("Build state machine (W-B-02 dedup)", () => {
+  it("9 states 정의 (negotiating~build_failed)", () => {
+    expect(BUILD_STATES).toHaveLength(9);
+  });
+
+  it("terminal states 에서 outgoing edge 없음", () => {
+    for (const s of BUILD_TERMINAL_STATES) {
+      expect(BUILD_TRANSITIONS[s]).toEqual([]);
+    }
+  });
+
+  it("(init) → negotiating 만 허용", () => {
+    expect(canBuildTransition("(init)", "negotiating")).toBe(true);
+    expect(canBuildTransition("(init)", "converted")).toBe(false);
+  });
+
+  it("full happy path: (init)→negotiating→gathering_context→exploring→adjudicating→awaiting_user_review→processing_responses→converting→converted", () => {
+    const path: Array<[string, string]> = [
+      ["(init)", "negotiating"],
+      ["negotiating", "gathering_context"],
+      ["gathering_context", "build_exploring"],
+      ["build_exploring", "adjudicating"],
+      ["adjudicating", "awaiting_user_review"],
+      ["awaiting_user_review", "processing_responses"],
+      ["processing_responses", "converting"],
+      ["converting", "converted"],
+    ];
+    for (const [from, to] of path) {
+      expect(canBuildTransition(from as any, to as any)).toBe(true);
+    }
+  });
+
+  it("processing_responses → awaiting_user_review re-entry 가능", () => {
+    expect(canBuildTransition("processing_responses", "awaiting_user_review")).toBe(true);
+  });
+
+  it("모든 non-terminal state 에서 build_failed 전이 가능", () => {
+    for (const s of BUILD_STATES) {
+      if (BUILD_TERMINAL_STATES.has(s)) continue;
+      expect(canBuildTransition(s, "build_failed")).toBe(true);
+    }
+  });
+});
+
+describe("3중 SSOT 일관성 (W-B-02)", () => {
+  it("Design scope, Review, Build 모두 state-machine.ts 에서 export", () => {
+    // Design scope
+    expect(typeof canTransition).toBe("function");
+    expect(STATES.length).toBe(15);
+
+    // Review
+    expect(typeof canReviewTransition).toBe("function");
+    expect(REVIEW_STATES.length).toBe(9);
+
+    // Build
+    expect(typeof canBuildTransition).toBe("function");
+    expect(BUILD_STATES.length).toBe(9);
+  });
+
+  it("3 도메인의 state 이름이 서로 겹치지 않는다", () => {
+    const designSet = new Set<string>(STATES);
+    const reviewSet = new Set<string>(REVIEW_STATES);
+    const buildSet = new Set<string>(BUILD_STATES);
+
+    // Design ∩ Review
+    for (const s of reviewSet) {
+      expect(designSet.has(s as any)).toBe(false);
+    }
+    // Design ∩ Build
+    for (const s of buildSet) {
+      expect(designSet.has(s as any)).toBe(false);
+    }
+    // Review ∩ Build
+    for (const s of buildSet) {
+      expect(reviewSet.has(s as any)).toBe(false);
+    }
+  });
+});

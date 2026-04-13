@@ -22,6 +22,11 @@ Last updated: 2026-04-13 (M-03 완료 기준)
 - **Status**: superseded (M-03 실행 완료)
 - **Scope**: /clear 후 새 Claude Code 세션에서 M-03 (Gap 분석 + Disposition 분류) 진입 경로
 
+### M-04 Startup Handoff
+- **Current**: `20260413-m04-startup.md`
+- **Status**: active (다음 세션에서 M-04 Phase A 착수용)
+- **Scope**: /clear 후 새 Claude Code 세션에서 M-04 Phase A (Task Schema·Canonical Output 결정) 진입 경로. DL-013/014 통합 해소 + authority/core-lexicon.yaml §1.activity/§1.axis canonical seat 추가
+
 ### Backlog Consolidation
 - **Current**: `20260413-backlog-consolidated.md`
 - **Status**: active

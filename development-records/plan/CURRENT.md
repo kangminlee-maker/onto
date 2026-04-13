@@ -31,8 +31,14 @@ Last updated: 2026-04-13
 - **Scope**: Meta task 실행 경과 시간 (V1 점진성 측정 기준선)
 
 ### Decision Records
-- **M-00 decisions**: `20260413-m00-decisions.md` (active, DR-M00-01/02 골격)
+- **M-00 decisions**: `20260413-m00-decisions.md` (active, DR-M00-01 ~ 06)
 - **M-04 decisions**: `20260413-m04-decisions.md` (M-04 실행 중 생성)
+
+### Deferred Ledger
+- **Current**: `20260413-deferred-ledger.md`
+- **Status**: active
+- **Revision**: v1 (28 items, stage-assigned)
+- **Policy**: DR-M00-06 (stage completion protocol)
 
 ### Prior (historical reference)
 - `20260404-prototype-to-service-productization-plan.md`

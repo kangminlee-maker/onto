@@ -21,7 +21,12 @@ export interface SpawnWatcherResult {
  *   2. iTerm2 on macOS (via $TERM_PROGRAM === 'iTerm.app') — targets the
  *      session identified by `$ITERM_SESSION_ID`, which is inherited from
  *      the invoking session at process start, so splits land beside the
- *      pane that actually launched onto:review.
+ *      pane that actually launched onto:review. If the env var is missing
+ *      or no matching session is found, the spawn is refused (returns
+ *      spawned: false) rather than falling back to the currently-focused
+ *      tab — a fallback would land the watcher on whichever tab happens to
+ *      be frontmost at spawn time, which is the bug this path exists to
+ *      avoid.
  *   3. Apple Terminal on macOS (via $TERM_PROGRAM === 'Apple_Terminal')
  *      — best effort; Terminal.app lacks a stable session identifier, so
  *      the spawn opens a new tab rather than a tab-targeted split.
@@ -75,51 +80,59 @@ export function spawnWatcherPane(
   // Target the originating session via $ITERM_SESSION_ID (inherited at
   // process start), so the split lands beside the pane that launched
   // onto:review even if the user has since switched tabs or windows.
-  // Falls back to `current session of current window` if the env var is
-  // not present (e.g. older iTerm2 builds that did not export it).
+  //
+  // Format note: $ITERM_SESSION_ID is `wXtYpZ:UUID` but AppleScript's
+  // `id of session` returns the UUID only. We compare both forms to stay
+  // robust across iTerm2 builds, and require the script to print an
+  // explicit "matched" sentinel before reporting success. If no match
+  // (e.g. the originating tab has been closed, or the env var is absent),
+  // we return spawned: false and let the caller print the manual hint —
+  // splitting into `current session of current tab` would land on whatever
+  // tab happens to be focused at spawn time, which is not the intended UX.
   if (
     process.platform === "darwin" &&
     process.env.TERM_PROGRAM === "iTerm.app"
   ) {
-    try {
-      const escapedCmd = watcherArgs.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-      const iTermSessionId = process.env.ITERM_SESSION_ID;
-      let script: string;
-      if (iTermSessionId) {
-        const escapedSessionId = iTermSessionId
+    const rawSessionId = process.env.ITERM_SESSION_ID;
+    if (rawSessionId) {
+      try {
+        const sessionUuid = rawSessionId.includes(":")
+          ? (rawSessionId.split(":").pop() ?? rawSessionId)
+          : rawSessionId;
+        const escapedCmd = watcherArgs
           .replace(/\\/g, "\\\\")
           .replace(/"/g, '\\"');
-        script =
+        const escapedFull = rawSessionId
+          .replace(/\\/g, "\\\\")
+          .replace(/"/g, '\\"');
+        const escapedUuid = sessionUuid
+          .replace(/\\/g, "\\\\")
+          .replace(/"/g, '\\"');
+        const script =
           `tell application "iTerm2"\n` +
           `  repeat with w in windows\n` +
           `    repeat with t in tabs of w\n` +
           `      repeat with s in sessions of t\n` +
-          `        if id of s is "${escapedSessionId}" then\n` +
+          `        if (id of s is "${escapedUuid}") or (id of s is "${escapedFull}") then\n` +
           `          tell s\n` +
           `            split vertically with default profile command "${escapedCmd}"\n` +
           `          end tell\n` +
-          `          return\n` +
+          `          return "matched"\n` +
           `        end if\n` +
           `      end repeat\n` +
           `    end repeat\n` +
           `  end repeat\n` +
+          `  return "no-match"\n` +
           `end tell`;
-      } else {
-        script =
-          `tell application "iTerm2"\n` +
-          `  tell current window\n` +
-          `    tell current session of current tab\n` +
-          `      split vertically with default profile command "${escapedCmd}"\n` +
-          `    end tell\n` +
-          `  end tell\n` +
-          `end tell`;
+        const result = spawnSync("osascript", ["-e", script], {
+          encoding: "utf8",
+        });
+        if (result.status === 0 && result.stdout.trim() === "matched") {
+          return { spawned: true, mechanism: "iterm2" };
+        }
+      } catch {
+        // fall through
       }
-      const result = spawnSync("osascript", ["-e", script], { stdio: "ignore" });
-      if (result.status === 0) {
-        return { spawned: true, mechanism: "iterm2" };
-      }
-    } catch {
-      // fall through
     }
   }
 

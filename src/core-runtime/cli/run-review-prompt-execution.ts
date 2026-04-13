@@ -156,13 +156,7 @@ function defaultMaxConcurrentLensesForExecutorConfig(
   executorConfig: ReviewUnitExecutorConfig,
 ): number {
   if (executorConfig.bin === "npm" || executorConfig.bin.endsWith("npm.cmd")) {
-    if (executorConfig.args.includes("review:agent-teams-unit-executor")) {
-      return 9;
-    }
-    if (
-      executorConfig.args.includes("review:subagent-unit-executor") ||
-      executorConfig.args.includes("review:codex-unit-executor")
-    ) {
+    if (executorConfig.args.includes("review:codex-unit-executor")) {
       // 9 lenses can run concurrently with stagger + retry to mitigate
       // thundering herd and transient API rate-limit failures.
       return 9;
@@ -177,11 +171,10 @@ function defaultStaggerDelayMsForExecutorConfig(
   executorConfig: ReviewUnitExecutorConfig,
 ): number {
   if (executorConfig.bin === "npm" || executorConfig.bin.endsWith("npm.cmd")) {
-    if (executorConfig.args.includes("review:agent-teams-unit-executor")) {
-      return 0; // Agent tool is in-process, no external API burst concern
+    if (executorConfig.args.includes("review:codex-unit-executor")) {
+      // codex executor spawns an external process → API request per lens
+      return 1500;
     }
-    // subagent / codex executor: each spawns an external process → API request
-    return 1500;
   }
   return 0;
 }

@@ -208,7 +208,7 @@ transitions:
 
 ## 8. Agent Prompt Template
 
-lens와 synthesize 모두 동일 템플릿 사용. 출처: `agent-teams-review-unit-executor.ts:55-84`.
+lens와 synthesize 모두 동일 템플릿 사용. 출처: `src/core-runtime/cli/coordinator-state-machine.ts` (AGENT_PROMPT_TEMPLATE).
 
 ```
 You are a single bounded review unit executing as an Agent Teams-style ContextIsolatedReasoningUnit.

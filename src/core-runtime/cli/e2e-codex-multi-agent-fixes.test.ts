@@ -3,8 +3,7 @@
  *
  * Run: `npx tsx src/core-runtime/cli/e2e-codex-multi-agent-fixes.test.ts`
  *
- * Covers all 6 fixes:
- *   A. claude-child-env.ts shared module
+ * Covers:
  *   B. OntoConfig codex namespace (config-chain.ts)
  *   C. appendExecutorModelArgs codex fallback (review-invoke.ts)
  *   D. Synthesize retry (run-review-prompt-execution.ts)
@@ -159,154 +158,6 @@ const cleanupDirs: string[] = [];
 function trackCleanup(dir: string): string {
   cleanupDirs.push(dir);
   return dir;
-}
-
-// ---------------------------------------------------------------------------
-// A. claude-child-env.ts shared module
-// ---------------------------------------------------------------------------
-
-async function testClaudeChildEnv(): Promise<void> {
-  process.stdout.write("\n── A. claude-child-env shared module ──\n");
-
-  const { resolveSetupToken, buildClaudeChildEnv } = await import(
-    "./claude-child-env.js"
-  );
-
-  await test("A-1: resolveSetupToken finds token from CLAUDE_CONFIG_DIR", () => {
-    const tmpDir = trackCleanup(makeTmpDir("a1"));
-    const tokenPath = path.join(tmpDir, ".oauth-token");
-    fs.writeFileSync(tokenPath, "sk-ant-test-token-a1\n", "utf8");
-
-    const saved = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = tmpDir;
-    try {
-      const token = resolveSetupToken();
-      assertEqual(token, "sk-ant-test-token-a1", "token from CLAUDE_CONFIG_DIR");
-    } finally {
-      if (saved === undefined) delete process.env.CLAUDE_CONFIG_DIR;
-      else process.env.CLAUDE_CONFIG_DIR = saved;
-    }
-  });
-
-  await test("A-2: resolveSetupToken skips non-sk-ant tokens", () => {
-    const tmpDir = trackCleanup(makeTmpDir("a2"));
-    const tokenPath = path.join(tmpDir, ".oauth-token");
-    fs.writeFileSync(tokenPath, "not-a-valid-token\n", "utf8");
-
-    const saved = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = tmpDir;
-    try {
-      const token = resolveSetupToken();
-      // Should skip this invalid token and try remaining candidates
-      // (which won't exist in test env, so returns undefined)
-      assert(
-        token === undefined || token.startsWith("sk-ant-"),
-        "should skip non-sk-ant token",
-      );
-    } finally {
-      if (saved === undefined) delete process.env.CLAUDE_CONFIG_DIR;
-      else process.env.CLAUDE_CONFIG_DIR = saved;
-    }
-  });
-
-  await test("A-3: resolveSetupToken returns undefined when no token file exists", () => {
-    const saved = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = "/nonexistent/path/for/test";
-    try {
-      // Also clear HOME to prevent finding real tokens
-      const savedHome = process.env.HOME;
-      process.env.HOME = "/nonexistent/home/for/test";
-      try {
-        const token = resolveSetupToken();
-        assertEqual(token, undefined, "no token file → undefined");
-      } finally {
-        process.env.HOME = savedHome;
-      }
-    } finally {
-      if (saved === undefined) delete process.env.CLAUDE_CONFIG_DIR;
-      else process.env.CLAUDE_CONFIG_DIR = saved;
-    }
-  });
-
-  await test("A-4: buildClaudeChildEnv removes CLAUDECODE vars", () => {
-    const saved = {
-      CLAUDECODE: process.env.CLAUDECODE,
-      CLAUDE_CODE_ENTRYPOINT: process.env.CLAUDE_CODE_ENTRYPOINT,
-      CLAUDE_CODE_EXECPATH: process.env.CLAUDE_CODE_EXECPATH,
-    };
-    process.env.CLAUDECODE = "1";
-    process.env.CLAUDE_CODE_ENTRYPOINT = "/test";
-    process.env.CLAUDE_CODE_EXECPATH = "/test/bin";
-    try {
-      const env = buildClaudeChildEnv();
-      assertEqual(env.CLAUDECODE, undefined, "CLAUDECODE removed");
-      assertEqual(env.CLAUDE_CODE_ENTRYPOINT, undefined, "CLAUDE_CODE_ENTRYPOINT removed");
-      assertEqual(env.CLAUDE_CODE_EXECPATH, undefined, "CLAUDE_CODE_EXECPATH removed");
-    } finally {
-      for (const [key, value] of Object.entries(saved)) {
-        if (value === undefined) delete process.env[key];
-        else process.env[key] = value;
-      }
-    }
-  });
-
-  await test("A-5: buildClaudeChildEnv preserves existing CLAUDE_CODE_OAUTH_TOKEN", () => {
-    const saved = process.env.CLAUDE_CODE_OAUTH_TOKEN;
-    process.env.CLAUDE_CODE_OAUTH_TOKEN = "sk-ant-existing-token";
-    try {
-      const env = buildClaudeChildEnv();
-      assertEqual(
-        env.CLAUDE_CODE_OAUTH_TOKEN,
-        "sk-ant-existing-token",
-        "existing token preserved",
-      );
-    } finally {
-      if (saved === undefined) delete process.env.CLAUDE_CODE_OAUTH_TOKEN;
-      else process.env.CLAUDE_CODE_OAUTH_TOKEN = saved;
-    }
-  });
-
-  await test("A-6: buildClaudeChildEnv sets token from resolveSetupToken when not set", () => {
-    const tmpDir = trackCleanup(makeTmpDir("a6"));
-    const tokenPath = path.join(tmpDir, ".oauth-token");
-    fs.writeFileSync(tokenPath, "sk-ant-resolved-a6\n", "utf8");
-
-    const saved = {
-      CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR,
-      CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN,
-    };
-    process.env.CLAUDE_CONFIG_DIR = tmpDir;
-    delete process.env.CLAUDE_CODE_OAUTH_TOKEN;
-    try {
-      const env = buildClaudeChildEnv();
-      assertEqual(
-        env.CLAUDE_CODE_OAUTH_TOKEN,
-        "sk-ant-resolved-a6",
-        "token resolved and set",
-      );
-    } finally {
-      for (const [key, value] of Object.entries(saved)) {
-        if (value === undefined) delete process.env[key];
-        else process.env[key] = value;
-      }
-    }
-  });
-
-  await test("A-7: buildClaudeChildEnv inherits parent env vars", () => {
-    const saved = process.env._ONTO_TEST_INHERIT;
-    process.env._ONTO_TEST_INHERIT = "should-survive";
-    try {
-      const env = buildClaudeChildEnv();
-      assertEqual(
-        env._ONTO_TEST_INHERIT,
-        "should-survive",
-        "inherited var preserved",
-      );
-    } finally {
-      if (saved === undefined) delete process.env._ONTO_TEST_INHERIT;
-      else process.env._ONTO_TEST_INHERIT = saved;
-    }
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -963,84 +814,6 @@ async function testProcessMdToolSearch(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// G. Integration: subagent/agent-teams executors use shared module
-// ---------------------------------------------------------------------------
-
-async function testSharedModuleIntegration(): Promise<void> {
-  process.stdout.write("\n── G. Shared module integration ──\n");
-
-  await test("G-1: subagent executor imports from claude-child-env", () => {
-    const source = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/core-runtime/cli/subagent-review-unit-executor.ts",
-      ),
-      "utf8",
-    );
-    assertIncludes(
-      source,
-      'from "./claude-child-env.js"',
-      "subagent imports shared module",
-    );
-    assertNotIncludes(
-      source,
-      "function resolveSetupToken",
-      "no local resolveSetupToken",
-    );
-    assertNotIncludes(
-      source,
-      "function buildClaudeChildEnv",
-      "no local buildClaudeChildEnv",
-    );
-  });
-
-  await test("G-2: agent-teams executor imports from claude-child-env", () => {
-    const source = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/core-runtime/cli/agent-teams-review-unit-executor.ts",
-      ),
-      "utf8",
-    );
-    assertIncludes(
-      source,
-      'from "./claude-child-env.js"',
-      "agent-teams imports shared module",
-    );
-    assertNotIncludes(
-      source,
-      "function resolveSetupToken",
-      "no local resolveSetupToken",
-    );
-    assertNotIncludes(
-      source,
-      "function buildClaudeChildEnv",
-      "no local buildClaudeChildEnv",
-    );
-  });
-
-  await test("G-3: claude-child-env.ts exports both functions", () => {
-    const source = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/core-runtime/cli/claude-child-env.ts",
-      ),
-      "utf8",
-    );
-    assertIncludes(
-      source,
-      "export function resolveSetupToken",
-      "resolveSetupToken exported",
-    );
-    assertIncludes(
-      source,
-      "export function buildClaudeChildEnv",
-      "buildClaudeChildEnv exported",
-    );
-  });
-}
-
-// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -1048,13 +821,11 @@ async function main(): Promise<number> {
   process.stdout.write("Codex multi-agent fixes E2E\n");
   process.stdout.write("===========================\n");
 
-  await testClaudeChildEnv();
   await testConfigChainCodexNamespace();
   await testCodexConfigFallback();
   await testSynthesizeRetry();
   await testCoordinatorPrompt();
   await testProcessMdToolSearch();
-  await testSharedModuleIntegration();
 
   // Cleanup
   for (const dir of cleanupDirs) {

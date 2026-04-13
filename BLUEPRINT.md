@@ -717,35 +717,24 @@ Lens execution is configured by two independent axes. These are not "modes" — 
 
 ### 7.2 Supported Profiles
 
-Not all combinations are supported. The supported profiles and their properties:
+2026-04-13 정책 확정 이후 canonical 실행 경로는 **두 가지**뿐이다:
 
-| Profile | Lens self-loading | Deliberation | Claude token usage | Selection |
+| Profile | Entry | Lens self-loading | Deliberation | Claude token usage |
 |---|---|---|---|---|
-| `subagent` + `codex` ✅ | Hybrid (lens self-loads; learning-rules.md inlined) | Not available (by design) | Team lead only (~20%) | User-selectable via `--codex` |
-| `subagent` + `claude` ✅ | Team lead inlines all context | Not available (technical) | Full | Auto fallback when TeamCreate fails |
-| `agent-teams` + `claude` ✅ | Lens performs own self-loading | Available when contested points exist | Full | Default on claude host |
-| `agent-teams` + `codex` | — | — | — | **Not supported** |
+| `subagent` + `codex` ✅ | `onto review ... --codex` | Hybrid (lens self-loads; learning-rules.md inlined) | Not available (by design) | Team lead only (~20%) |
+| `agent-teams` + `claude` ✅ | `onto coordinator start ...` (Claude Code session) | Lens performs own self-loading | Available when contested points exist | Full |
+
+Claude CLI subagent (`subagent + claude`), API executor, and 3-Tier fallback have been removed — Claude CLI authentication is unstable in the current environment.
 
 ### 7.3 Resolution Order
 
-1. Command flag (`--codex` / `--claude`) → sets host_runtime, overrides config
-2. config.yml `host_runtime` + `execution_realization` → applies if no flag
-3. Neither specified → `host_runtime: claude`, `execution_realization: agent-teams`
-
-When `execution_realization` is not explicitly set, it defaults based on resolved host_runtime:
-- `codex` → `subagent`
-- `claude` → `agent-teams`
-
-When `agent-teams` + `claude` is selected but TeamCreate fails → automatic fallback to `subagent` + `claude`.
+1. `--codex` flag → Codex CLI path via `onto review`.
+2. Claude Code 세션 + `onto coordinator start` → Agent Teams nested spawn path.
+3. config.yml `host_runtime`/`execution_realization` is honored for artifact metadata but does not enable additional executor paths beyond the two above.
 
 ### 7.4 Parallel Execution
 
-All profiles dispatch lenses in parallel with bounded concurrency:
-
-| execution_realization | Default max_concurrent_lenses |
-|---|---|
-| `subagent` | 3 |
-| `agent-teams` | 9 |
+All profiles dispatch lenses in parallel with bounded concurrency. Default `max_concurrent_lenses` is `9` (all lenses concurrent). The Codex path uses a 1500ms stagger delay between successive lens dispatches to absorb thundering-herd and transient API rate-limit failures at this concurrency.
 
 Override: `--max-concurrent-lenses` flag.
 

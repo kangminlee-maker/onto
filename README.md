@@ -166,13 +166,11 @@ Canonical execution profile is:
 
 Legacy `execution_mode` is accepted as a compatibility alias.
 
-Current implementation status:
-- `execution_realization: subagent` + `host_runtime: codex` is wired into the TS bounded review path
-- `execution_realization: subagent` + `host_runtime: claude` is wired into the TS bounded review path
-- `execution_realization: agent-teams` + `host_runtime: claude` is wired into the TS bounded review path
-- `execution_realization: agent-teams` + `host_runtime: codex` is not supported
+Current supported execution paths (2026-04-13 정책 확정):
+- **Codex CLI**: `execution_realization: subagent` + `host_runtime: codex`, entered via `onto review ... --codex`. Spawns `codex` child process for each bounded review unit.
+- **Agent Teams nested spawn**: `execution_realization: agent-teams` + `host_runtime: claude`, entered via `onto coordinator start` from a Claude Code session. Uses TeamCreate + nested Agent tool spawn; does not go through the CLI runner.
 
-This is a current implementation-status difference, not a canonical hierarchy or quality ranking. Append `--codex` or `--claude` as host-runtime convenience aliases, or use canonical execution-profile flags directly.
+Claude CLI subagent, API executor, and 3-Tier fallback paths have been removed — Claude CLI authentication is unstable in the current environment, and only the two canonical paths above are supported.
 
 ## Agent Configuration
 
@@ -199,8 +197,7 @@ This is a current implementation-status difference, not a canonical hierarchy or
 | `/onto:review {target}` | 9-lens review + synthesize (interactive domain selection) |
 | `/onto:review {target} @{domain}` | Review with specified domain |
 | `/onto:review {target} @-` | Review without domain rules |
-| `/onto:review {target} --codex` | Use codex host runtime (defaults to subagent) |
-| `/onto:review {target} --claude` | Use claude host runtime (defaults to agent-teams) |
+| `/onto:review {target} --codex` | Use Codex CLI execution path |
 | `/onto:review --target-scope-kind bundle --primary-ref {root} --member-ref {path}` | Review an explicit bundle target |
 
 ### Individual Query
@@ -278,22 +275,14 @@ user request
 - deliberation은 contested point가 있을 때만 조건부로 추가된다
 - `review` core replacement는 TypeScript로 구현되며, artifact seat와 type name은 ontology-as-code 개념어와 직접 연결된다
 
-**Execution profile defaults**:
+**Execution paths** (2026-04-13 정책):
 
-| Resolved host runtime | Default execution realization | Supported user override |
-|------|---------|---------------|
-| `codex` | `subagent` | `subagent` |
-| `claude` | `agent-teams` | `agent-teams`, `subagent` |
+| Path | Entry | Execution |
+|---|---|---|
+| Codex CLI | `onto review ... --codex` | `codex` CLI child process per bounded unit |
+| Agent Teams nested spawn | `onto coordinator start ...` (from a Claude Code session) | TeamCreate + nested Agent tool spawn |
 
-Convenience aliases:
-- `--codex` means `host_runtime: codex`
-- `--claude` means `host_runtime: claude`
-
-If `execution_realization` is not explicitly set, the runtime defaults by resolved host runtime:
-- `codex` → `subagent`
-- `claude` → `agent-teams`
-
-These defaults are configuration behavior, not a quality hierarchy. Users can still choose `subagent` on `claude` when needed.
+Only these two paths are supported; other executor paths were removed due to Claude CLI authentication instability.
 
 ## Ontology Build (Integral Exploration)
 

@@ -20,9 +20,10 @@ Last updated: 2026-04-13
 ### Backlog Consolidation
 - **Current**: `20260413-backlog-consolidated.md`
 - **Status**: active
-- **Revision**: v1 (initial)
-- **Item count**: 120
-- **Source 분포**: backlog_memory 87 / memory 29 / design 4 / pr 0
+- **Revision**: v2 (2026-04-13, 9-lens review CONDITIONAL 반영)
+- **Item count**: 123
+- **Source 분포**: backlog_memory 87 / memory 29 / design 4 / onto_direction 3 / pr 0
+- **v1 review session**: `.onto/review/20260413-30463d46/` (CONDITIONAL verdict, v2에서 BLOCKING 2 + MAJOR 2 해소)
 
 ### Execution Log
 - **Current**: `20260413-execution-log.md`

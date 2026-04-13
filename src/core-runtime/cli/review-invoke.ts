@@ -143,7 +143,7 @@ const KNOWN_INVOKE_ONLY_OPTION_NAMES = [
   "reasoning-effort",
 ] as const;
 
-const KNOWN_INVOKE_ONLY_FLAG_NAMES = ["codex", "prepare-only"] as const;
+const KNOWN_INVOKE_ONLY_FLAG_NAMES = ["codex", "prepare-only", "no-watch"] as const;
 
 function requireString(
   value: string | undefined,

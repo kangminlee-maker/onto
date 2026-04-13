@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import type {
   DeliberationStatus,
   EffectiveBoundaryState,
+  ReviewExecutionRealization,
   ReviewExecutionResultArtifact,
   ReviewExecutionPlan,
   ReviewExecutionStatus,
@@ -306,24 +307,34 @@ function deriveExecutionStatus(params: {
 async function readStructuredDeliberationStatus(
   synthesizeOutputPath: string,
   deliberationOutputPath: string,
+  executionRealization: ReviewExecutionRealization,
 ): Promise<DeliberationStatus | null> {
-  if (await fileExists(deliberationOutputPath)) {
-    return "performed";
+  // Mirrors the precedence rule in `assemble-review-record.ts`
+  // (`detectDeliberationStatus`) per `processes/review/synthesize-prompt-contract.md`
+  // §6.4 and `processes/review/record-contract.md` §4.5:
+  //   1. synthesis.md frontmatter — primary for both realizations.
+  //   2. realization-aware fallback when frontmatter is unavailable:
+  //        - cross-process (agent-teams): deliberation.md presence ⇒ performed
+  //        - in-process (subagent): no fallback signal ⇒ null (defer to assembler)
+  if (await fileExists(synthesizeOutputPath)) {
+    const synthesizeText = await fs.readFile(synthesizeOutputPath, "utf8");
+    const parsed = parseMarkdownFrontmatter<{ deliberation_status?: string }>(
+      synthesizeText,
+    );
+    const frontmatterStatus = parsed.metadata?.deliberation_status;
+    if (
+      frontmatterStatus === "not_needed" ||
+      frontmatterStatus === "performed" ||
+      frontmatterStatus === "required_but_unperformed"
+    ) {
+      return frontmatterStatus;
+    }
   }
-  if (!(await fileExists(synthesizeOutputPath))) {
-    return null;
-  }
-  const synthesizeText = await fs.readFile(synthesizeOutputPath, "utf8");
-  const parsed = parseMarkdownFrontmatter<{ deliberation_status?: string }>(
-    synthesizeText,
-  );
-  const frontmatterStatus = parsed.metadata?.deliberation_status;
   if (
-    frontmatterStatus === "not_needed" ||
-    frontmatterStatus === "performed" ||
-    frontmatterStatus === "required_but_unperformed"
+    executionRealization === "agent-teams" &&
+    (await fileExists(deliberationOutputPath))
   ) {
-    return frontmatterStatus;
+    return "performed";
   }
   return null;
 }
@@ -803,6 +814,7 @@ export async function executeReviewPromptExecution(
   const deliberationStatus = await readStructuredDeliberationStatus(
     executionPlan.synthesis_output_path,
     executionPlan.deliberation_output_path,
+    executionPlan.execution_realization,
   );
   await writeExecutionResultArtifact(executionPlan, {
     session_id: executionPlan.session_id,

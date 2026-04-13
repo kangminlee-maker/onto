@@ -32,6 +32,11 @@ Last updated: 2026-04-13 (M-05 v1.1 patch 완료 기준 — codex review 383afe0
 - **Status**: superseded (M-05 실행 완료)
 - **Scope**: /clear 후 새 Claude Code 세션에서 M-05 (Pre-draft Dependency Modeling) 진입 경로. DL-015 (Compound sequencing) + DL-031 (Phase B sanity check) 처리 + 축·활동 의존 그래프 작성 + D bootstrap vs continuing 명문화
 
+### M-06 Startup Handoff
+- **Current**: `20260413-m06-startup.md`
+- **Status**: active (다음 세션에서 M-06 착수용)
+- **Scope**: /clear 후 새 Claude Code 세션에서 M-06 (축별 Work Item 초안) 진입 경로. ~132 W-ID 추정, Wave 1~4 (D → B → A → C) 분할 실행. compound 3 사례 N W-ID 분해 + DL-016~022/029 신규 도출 + delegated validation minimum surface 3 조건 + 각 W-ID 18 필드 채움.
+
 ### onto Dependency Graph (M-05 산출)
 - **Current**: `../design/20260413-onto-todo-dep-graph.md`
 - **Status**: active (v1.1)

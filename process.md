@@ -59,7 +59,7 @@ When adding or removing an agent, all of the following files must be updated:
 | # | File | Update Item |
 |---|------|----------|
 | 1 | `roles/{agent-id}.md` | Create/delete role definition |
-| 2 | `commands/ask-{dimension}.md` | Create/delete command file |
+| 2 | ~~`commands/ask-{dimension}.md`~~ | Retired (§1.2 ask 폐기). 단일 lens 질의는 review 경로 사용 |
 | 3 | `process.md` review lenses table | Add/delete row |
 | 4 | `process.md` domain document mapping | Add/delete row |
 | 5 | `process.md` teammate initial prompt mapping | Add/delete row |
@@ -89,7 +89,7 @@ When adding or removing a process, all of the following files must be updated:
 |---|---|
 | `synthesize` | Synthesizes review lens findings into consensus, disagreement, overlooked premises, and final review output |
 
-> `philosopher` has been retired as a canonical review/build pipeline role. Canonical review uses `axiology` + `synthesize`. A legacy compatibility command alias `/onto:ask-philosopher` remains (routes to `axiology`). The archival lineage is preserved at `development-records/legacy/philosopher.md`.
+> `philosopher` has been retired as a canonical review/build pipeline role. Canonical review uses `axiology` + `synthesize`. `ask` activity is retired (§1.2). The archival lineage is preserved at `development-records/legacy/philosopher.md`.
 
 ### Domain Documents
 Each agent reads the corresponding domain documents at execution time (verified using general principles if no file exists):

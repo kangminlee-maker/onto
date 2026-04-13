@@ -130,7 +130,6 @@ Usable without domain documents (verified using general principles). Domain docu
 /onto:review {target} @ontology      # Run with specific domain
 /onto:review {target} @-             # Run without domain rules
 /onto:review {target} --codex        # Use codex host runtime (defaults to subagent)
-/onto:ask-logic {question}           # Ask an individual agent
 /onto:build {path|GitHub URL}        # Build ontology from analysis target
 /onto:design {goal}                  # Design new areas for existing target (brownfield)
 ```
@@ -187,7 +186,7 @@ Claude CLI subagent, API executor, and 3-Tier fallback paths have been removed �
 | `axiology` | Purpose and value alignment verifier | Preventing purpose drift, surfacing value conflicts, checking mission alignment |
 | `synthesize` | Review synthesis stage | Organizing consensus, disagreement, and final review output from the lens set |
 
-> Legacy note: `philosopher` has been retired as a canonical review/build pipeline role. The archival definition is preserved at `development-records/legacy/philosopher.md` for lineage reference. A legacy compatibility command alias `/onto:ask-philosopher` remains and routes questions to `axiology` (value-alignment perspective only). The canonical review structure is `9 lenses + synthesize`.
+> Legacy note: `philosopher` has been retired as a canonical review/build pipeline role. The archival definition is preserved at `development-records/legacy/philosopher.md` for lineage reference. The canonical review structure is `9 lenses + synthesize`. `ask` activity is retired (§1.2) — single lens review로 대체.
 
 ## Commands
 
@@ -200,23 +199,9 @@ Claude CLI subagent, API executor, and 3-Tier fallback paths have been removed �
 | `/onto:review {target} --codex` | Use Codex CLI execution path |
 | `/onto:review --target-scope-kind bundle --primary-ref {root} --member-ref {path}` | Review an explicit bundle target |
 
-### Individual Query
-| Command | Description |
-|---|---|
-| `/onto:ask-logic {question}` | Logical consistency perspective |
-| `/onto:ask-structure {question}` | Structural completeness perspective |
-| `/onto:ask-dependency {question}` | Dependency integrity perspective |
-| `/onto:ask-semantics {question}` | Semantic accuracy perspective |
-| `/onto:ask-pragmatics {question}` | Pragmatic fitness perspective |
-| `/onto:ask-evolution {question}` | Evolution fitness perspective |
-| `/onto:ask-coverage {question}` | Domain coverage perspective |
-| `/onto:ask-conciseness {question}` | Conciseness perspective |
-| `/onto:ask-axiology {question}` | Purpose and value alignment perspective |
+### Individual Query (retired)
 
-#### Legacy Compatibility
-| Command | Description |
-|---|---|
-| `/onto:ask-philosopher {question}` | Legacy alias for `/onto:ask-axiology`. Preserves only value-alignment questioning behavior, not the former coordinator/synthesis role of 'philosopher'. New usage should use `/onto:ask-axiology`. |
+> `ask` activity는 §1.2에서 폐기되었습니다. 단일 lens에 질의가 필요하면 `/onto:review`를 사용하세요.
 
 ### Ontology Build/Transform
 | Command | Description |

@@ -22,26 +22,6 @@ Display the command reference below in the configured language.
 /onto:transform {file}                     Transform raw ontology to desired format
 ```
 
-### Individual Agent Query
-
-```
-/onto:ask-logic {question}                 Logical consistency
-/onto:ask-structure {question}             Structural completeness
-/onto:ask-dependency {question}            Dependency integrity
-/onto:ask-semantics {question}             Semantic accuracy
-/onto:ask-pragmatics {question}            Pragmatic fitness
-/onto:ask-evolution {question}             Evolution fitness
-/onto:ask-coverage {question}              Domain coverage
-/onto:ask-conciseness {question}           Conciseness
-/onto:ask-axiology {question}              Purpose and value alignment
-```
-
-### Legacy Compatibility
-
-```
-/onto:ask-philosopher {question}           Legacy alias for /onto:ask-axiology (value-alignment only)
-```
-
 ### Domain Document Management
 
 ```

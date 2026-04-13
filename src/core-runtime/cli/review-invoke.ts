@@ -29,8 +29,6 @@ import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.j
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 
 type ExecutorRealization = "codex" | "mock";
-type ExecutionRealization = "subagent" | "agent-teams";
-type HostRuntime = "codex" | "claude";
 type ReviewTargetScopeKind = "file" | "directory" | "bundle";
 type ReviewMode = "light" | "full";
 type BoundaryDecisionAction = "approve_external_boundary" | "rerun_target" | "cancel";
@@ -72,8 +70,8 @@ interface ResolvedReviewInvokeInputs {
 interface ReviewInvokeRouteSummary {
   combined_entrypoint: "review:invoke";
   bounded_invoke_steps: string[];
-  execution_realization: ExecutionRealization;
-  host_runtime: HostRuntime;
+  execution_realization: "subagent";
+  host_runtime: "codex";
   review_mode: ReviewMode;
   max_concurrent_lenses: number;
   concurrency_strategy: "bounded_parallel";
@@ -108,9 +106,6 @@ const KNOWN_PASSTHROUGH_OPTION_NAMES = [
   "resolved-target-ref",
   "domain-final-value",
   "domain-selection-mode",
-  "execution-realization",
-  "execution-mode",
-  "host-runtime",
   "review-mode",
   "lens-id",
   "binding-note",
@@ -131,13 +126,10 @@ const KNOWN_PASSTHROUGH_OPTION_NAMES = [
   "max-embed-lines",
 ] as const;
 
-const KNOWN_PASSTHROUGH_FLAG_NAMES = ["codex", "claude"] as const;
+const KNOWN_PASSTHROUGH_FLAG_NAMES = ["codex"] as const;
 
 const KNOWN_INVOKE_ONLY_OPTION_NAMES = [
   "request-text",
-  "execution-realization",
-  "execution-mode",
-  "host-runtime",
   "executor-realization",
   "executor-bin",
   "executor-arg",
@@ -151,7 +143,7 @@ const KNOWN_INVOKE_ONLY_OPTION_NAMES = [
   "reasoning-effort",
 ] as const;
 
-const KNOWN_INVOKE_ONLY_FLAG_NAMES = ["codex", "claude", "prepare-only"] as const;
+const KNOWN_INVOKE_ONLY_FLAG_NAMES = ["codex", "prepare-only"] as const;
 
 function requireString(
   value: string | undefined,
@@ -351,8 +343,6 @@ function appendExecutorModelArgs(
 
 function resolveExecutorConfig(
   argv: string[],
-  executionRealization: ExecutionRealization,
-  hostRuntime: HostRuntime,
   optionPrefix: "" | "synthesize-",
   ontoConfig?: OntoConfig,
   ontoHome?: string,
@@ -415,21 +405,10 @@ function resolveExecutorConfig(
     );
   }
 
-  if (executionRealization === "subagent" && hostRuntime === "codex") {
-    return appendExecutorModelArgs(
-      buildExecutorConfigFromRealization("codex", ontoHome),
-      argv,
-      ontoConfig,
-    );
-  }
-
-  throw new Error(
-    [
-      "No executor realization is available for the requested execution profile.",
-      `execution_realization=${executionRealization}, host_runtime=${hostRuntime}`,
-      "The `onto review` CLI supports only codex (via --codex). ",
-      "Claude runs are performed through `onto coordinator start` with Agent Teams nested spawn — not through this CLI.",
-    ].join(" "),
+  return appendExecutorModelArgs(
+    buildExecutorConfigFromRealization("codex", ontoHome),
+    argv,
+    ontoConfig,
   );
 }
 
@@ -1223,66 +1202,9 @@ async function readOptionalReviewSummary(
   };
 }
 
-function normalizeExecutionRealizationValue(
-  value: string | undefined,
-): ExecutionRealization | undefined {
-  if (value === undefined || value.length === 0) {
-    return undefined;
-  }
-  if (value === "subagent" || value === "agent-teams") {
-    return value;
-  }
-  if (value === "codex") {
-    return "subagent";
-  }
-  throw new Error(`Invalid execution realization: ${value}`);
-}
-
-function normalizeHostRuntimeValue(
-  value: string | undefined,
-): HostRuntime | undefined {
-  if (value === undefined || value.length === 0) {
-    return undefined;
-  }
-  if (value === "codex" || value === "claude") {
-    return value;
-  }
-  throw new Error(`Invalid host runtime: ${value}`);
-}
-
-function detectHostRuntimeFromEnvironment(): HostRuntime | undefined {
-  if (process.env.CODEX_THREAD_ID || process.env.CODEX_CI) {
-    return "codex";
-  }
-  if (
-    process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS ||
-    process.env.CLAUDE_PROJECT_DIR ||
-    process.env.CLAUDECODE
-  ) {
-    return "claude";
-  }
-  return undefined;
-}
-
-function defaultExecutionRealizationForHostRuntime(
-  hostRuntime: HostRuntime,
-): ExecutionRealization {
-  return hostRuntime === "codex" ? "subagent" : "agent-teams";
-}
-
-function defaultMaxConcurrentLensesForExecutionRealization(
-  executionRealization: ExecutionRealization,
-): number {
-  // Both subagent and agent-teams default to 9 (all lenses concurrent).
-  // Subagent uses stagger delay (1.5s between dispatches) + retry (10 attempts)
-  // to absorb thundering-herd and transient API failures at this concurrency.
-  return 9;
-}
-
 function resolveMaxConcurrentLenses(
   argv: string[],
   ontoConfig: OntoConfig,
-  executionRealization: ExecutionRealization,
 ): number {
   const explicitValue = readSingleOptionValueFromArgv(argv, "max-concurrent-lenses");
   if (typeof explicitValue === "string" && explicitValue.length > 0) {
@@ -1305,70 +1227,33 @@ function resolveMaxConcurrentLenses(
     return parsed;
   }
 
-  return defaultMaxConcurrentLensesForExecutionRealization(executionRealization);
+  return 9;
 }
 
-function resolveHostRuntimeAlias(argv: string[]): HostRuntime | undefined {
-  if (hasOptionFlag(argv, "codex")) {
-    return "codex";
-  }
+function rejectRemovedFlags(argv: string[]): void {
   if (hasOptionFlag(argv, "claude")) {
-    return "claude";
+    throw new Error(
+      "--claude is no longer accepted. The `onto review` CLI runs Codex only. " +
+        "For Claude execution, use `onto coordinator start` (Agent Teams nested spawn).",
+    );
   }
-  return undefined;
+  for (const removed of ["host-runtime", "execution-realization", "execution-mode"]) {
+    if (readSingleOptionValueFromArgv(argv, removed) !== undefined) {
+      throw new Error(
+        `--${removed} is no longer accepted. The \`onto review\` CLI is codex-only; ` +
+          "remove the flag.",
+      );
+    }
+  }
 }
 
-function resolveExecutionRealization(
-  argv: string[],
-  ontoConfig: OntoConfig,
-  hostRuntime: HostRuntime,
-): ExecutionRealization {
-  const explicitValue =
-    readSingleOptionValueFromArgv(argv, "execution-realization") ??
-    readSingleOptionValueFromArgv(argv, "execution-mode");
-  const explicitNormalized = normalizeExecutionRealizationValue(explicitValue);
-  if (explicitNormalized) {
-    return explicitNormalized;
-  }
-
-  const configNormalized = normalizeExecutionRealizationValue(
-    ontoConfig.execution_realization ?? ontoConfig.execution_mode,
-  );
-  return configNormalized ?? defaultExecutionRealizationForHostRuntime(hostRuntime);
-}
-
-function resolveHostRuntimeFromArgv(
-  argv: string[],
-  ontoConfig: OntoConfig,
-): HostRuntime {
-  const explicitNormalized = normalizeHostRuntimeValue(
-    readSingleOptionValueFromArgv(argv, "host-runtime"),
-  );
-  if (explicitNormalized) {
-    return explicitNormalized;
-  }
-  const aliasRuntime = resolveHostRuntimeAlias(argv);
-  if (aliasRuntime) {
-    return aliasRuntime;
-  }
-  const configNormalized = normalizeHostRuntimeValue(ontoConfig.host_runtime);
-  if (configNormalized) {
-    return configNormalized;
-  }
-  return detectHostRuntimeFromEnvironment() ?? "codex";
-}
-
-function appendCanonicalExecutionProfileArgs(
-  argv: string[],
-  executionRealization: ExecutionRealization,
-  hostRuntime: HostRuntime,
-): string[] {
+function appendCanonicalExecutionProfileArgs(argv: string[]): string[] {
   return [
     ...argv,
     "--execution-realization",
-    executionRealization,
+    "subagent",
     "--host-runtime",
-    hostRuntime,
+    "codex",
   ];
 }
 
@@ -1418,13 +1303,12 @@ interface ReviewInvokeSetup {
   projectRoot: string;
   ontoConfig: OntoConfig;
   resolvedInvokeInputs: ResolvedReviewInvokeInputs;
-  hostRuntime: HostRuntime;
-  executionRealization: ExecutionRealization;
   maxConcurrentLenses: number;
   startArgv: string[];
 }
 
 async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSetup> {
+  rejectRemovedFlags(argv);
   const ontoHomeFlag = readSingleOptionValueFromArgv(argv, "onto-home");
   let ontoHome: string | undefined;
   try {
@@ -1446,17 +1330,7 @@ async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSet
     ontoConfig,
     projectRoot,
   );
-  const hostRuntime = resolveHostRuntimeFromArgv(argv, ontoConfig);
-  const executionRealization = resolveExecutionRealization(
-    argv,
-    ontoConfig,
-    hostRuntime,
-  );
-  const maxConcurrentLenses = resolveMaxConcurrentLenses(
-    argv,
-    ontoConfig,
-    executionRealization,
-  );
+  const maxConcurrentLenses = resolveMaxConcurrentLenses(argv, ontoConfig);
 
   const { optionTokens: argvWithoutPositionals } = splitArgvIntoOptionsAndPositionals(
     argv,
@@ -1474,11 +1348,7 @@ async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSet
     ),
     resolvedInvokeInputs,
   );
-  const startArgvWithProfile = appendCanonicalExecutionProfileArgs(
-    normalizedStartArgv,
-    executionRealization,
-    hostRuntime,
-  );
+  const startArgvWithProfile = appendCanonicalExecutionProfileArgs(normalizedStartArgv);
   const startArgv = appendDirectoryListingConfigArgs(
     startArgvWithProfile,
     argv,
@@ -1489,8 +1359,6 @@ async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSet
     projectRoot,
     ontoConfig,
     resolvedInvokeInputs,
-    hostRuntime,
-    executionRealization,
     maxConcurrentLenses,
     startArgv,
   };
@@ -1508,8 +1376,8 @@ export async function reviewPrepareOnly(argv: string[]): Promise<PrepareOnlyResu
     prepare_only: true,
     session_root: sessionRoot,
     request_text: setup.resolvedInvokeInputs.requestText,
-    execution_realization: setup.executionRealization,
-    host_runtime: setup.hostRuntime,
+    execution_realization: "subagent",
+    host_runtime: "codex",
     review_mode: setup.resolvedInvokeInputs.reviewMode,
   };
 }
@@ -1533,8 +1401,8 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
       prepare_only: true,
       session_root: sessionRoot,
       request_text: setup.resolvedInvokeInputs.requestText,
-      execution_realization: setup.executionRealization,
-      host_runtime: setup.hostRuntime,
+      execution_realization: "subagent",
+      host_runtime: "codex",
       review_mode: setup.resolvedInvokeInputs.reviewMode,
     };
     console.log(JSON.stringify(result, null, 2));
@@ -1568,16 +1436,12 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   const resolvedRequestText = setup.resolvedInvokeInputs.requestText;
   const defaultExecutorConfig = resolveExecutorConfig(
     argv,
-    setup.executionRealization,
-    setup.hostRuntime,
     "",
     setup.ontoConfig,
     setup.ontoHome,
   );
   const synthesizeExecutorConfig = resolveExecutorConfig(
     argv,
-    setup.executionRealization,
-    setup.hostRuntime,
     "synthesize-",
     setup.ontoConfig,
     setup.ontoHome,
@@ -1612,8 +1476,8 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   const routeSummary: ReviewInvokeRouteSummary = {
     combined_entrypoint: "review:invoke",
     bounded_invoke_steps: [...boundedInvokeSteps],
-    execution_realization: setup.executionRealization,
-    host_runtime: setup.hostRuntime,
+    execution_realization: "subagent",
+    host_runtime: "codex",
     review_mode: setup.resolvedInvokeInputs.reviewMode,
     max_concurrent_lenses: setup.maxConcurrentLenses,
     concurrency_strategy: "bounded_parallel",

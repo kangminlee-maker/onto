@@ -53,11 +53,10 @@
 2. lens result file paths
 3. system purpose and principles
 4. resolved review mode
-5. deliberation availability
-6. optional deliberation outputs
-7. output_language
-8. `synthesis_output_path`
-9. self-loading context refs
+5. materialized input ref (deliberation 시 evidence 재읽기 대상)
+6. output_language
+7. `synthesis_output_path`
+8. self-loading context refs
    - synthesize learnings
    - communication learning
    - project-level synthesize learnings
@@ -85,7 +84,7 @@
 1. 새로운 독립 관점을 추가하지 않는다
 2. lens finding을 건너뛰고 ad hoc 결론을 만들지 않는다
 3. unresolved disagreement를 묵살하지 않는다
-4. deliberation이 불가능하면 disagreement를 그대로 final output에 남긴다
+4. lens 간 disagreement가 있으면 §6에 따라 synthesize가 직접 deliberation을 수행한다
 5. review의 primary output을 learning candidate로 정의하지 않는다
 6. `New Perspectives`를 스스로 invent하지 않는다
 7. `Purpose Alignment Verification`은 독립 판단으로 새로 만들지 않고, `axiology` finding을 보존적으로 반영한다
@@ -102,9 +101,15 @@
 
 ```yaml
 ---
-deliberation_status: not_needed | performed | required_but_unperformed
+deliberation_status: not_needed | performed
 ---
 ```
+
+`deliberation_status` 값 사용 규칙:
+
+- `not_needed`: lens 간 disagreement가 없는 경우.
+- `performed`: synthesize가 §6에 따라 in-process deliberation을 수행하고 resolution을 기록한 경우.
+- `required_but_unperformed`: synthesize 출력에서는 사용하지 않는다. 이 값은 runner가 synthesize task 자체의 실패를 감지했을 때만 record assembler가 부여하는 failure marker다.
 
 1. consensus
 2. conditional consensus
@@ -132,17 +137,48 @@ aggregate primary artifact는
 
 ## 6. Deliberation Rule
 
-deliberation이 가능한 경우:
+### 6.1 Deliberation의 두 경로
 
-- contested point를 relevant lens에 다시 돌릴 수 있다
-- 그 결과를 다시 읽고 final output을 갱신한다
+Review 실행 realization은 deliberation 수행 경로에 따라 두 부류로 나뉜다.
 
-deliberation이 불가능한 경우:
+- **Cross-process deliberation**: Agent Teams 계열. teammate 간 SendMessage 채널이 존재하므로 contested point를 relevant lens teammate에게 다시 돌려 cross-process deliberation을 수행한다. 결과는 별도 `deliberation.md`에 기록될 수 있다.
+- **In-process deliberation**: cross-process lens-to-lens 메시징 채널이 없는 realization (`subagent` fallback, `subagent + codex`). synthesize가 모든 lens 결과 + materialized input을 이미 scope에 쥐고 있으므로 synthesize 자신이 deliberation actor로 in-process 수행한다.
 
-- disagreement를 explicit하게 유지한다
-- final output에서 unresolved 상태를 숨기지 않는다
+본 계약 §6.2는 in-process deliberation 경로의 절차를 고정한다. cross-process 경로는 `process.md`의 Agent Teams Step 4가 별도 authority다.
 
-이 규칙은 특히 `subagent + codex` execution profile에서 중요하다.
+> **후속 PR 범위**: subagent (Claude Code Agent tool fallback) 경로에서의 in-process deliberation 실제 배선은 후속 작업이다. 본 계약은 배선 없이도 성립하는 규칙 층을 고정한다. 해당 후속 PR이 머지되는 시점에 본 forward-reference 블록과 §8 표의 "wiring in follow-up PR" 표기를 함께 제거한다.
+
+### 6.2 In-process deliberation 수행 절차
+
+synthesize는 in-process deliberation 경로에서 deliberation actor다. 수행 절차는 다음과 같다.
+
+1. lens 결과 전체에서 contested point를 식별한다. contested point 식별 기준은 `processes/review/shared-phenomenon-contract.md` §4의 `disagreement` 관계를 기본으로 한다. orthogonal predicate에 대한 상호 비모순 claim은 contested로 간주하지 않는다
+2. 각 contested point에 대해 contested된 lens 출력과 materialized input의 인용 evidence를 재읽는다
+3. evidence에 비추어 각 입장의 타당성을 평가하고 resolution을 도출한다
+4. resolution을 `Deliberation Decision` 섹션에 contested point별로 기록한다
+5. `Disagreement` 섹션은 원 입장을 보존한 채 유지하되, resolution이 있는 항목은 그 사실을 명시한다
+6. evidence가 부족하여 resolution을 도출할 수 없는 경우, 그 사유를 `Deliberation Decision`에 기록한다 (그 자체가 수행 결과로 간주된다 — `deliberation_status: performed`)
+7. 하나 이상의 lens 출력이 degraded 상태인 경우에도 나머지 입력으로 위 절차를 수행한다. 결여된 입력이 특정 contested point의 resolution에 핵심적이면 6단계(evidence 부족 기록)로 처리한다
+
+### 6.3 frontmatter `deliberation_status`
+
+§5가 `deliberation_status` 값 enum의 SSOT다. 본 §6.3은 그 enum의 사용 규칙(언제 어느 값을 emit하는가)만 다루며 enum을 재정의하지 않는다.
+
+- `not_needed`: lens 간 contested point가 식별되지 않은 경우. 이 케이스에서도 `Deliberation Decision` 섹션은 contract §5 item 10에 따라 필수 섹션이며, 최소 `"no contested points"` 또는 동등한 명시적 서술을 기록한다
+- `performed`: §6.2 절차를 수행한 경우 (resolution 도출 또는 명시적 evidence-부족 기록 포함)
+
+synthesize는 자신의 출력에서 `required_but_unperformed`를 emit하지 않는다. 이 값은 synthesize task 자체의 실패를 runner/record assembler가 감지했을 때만 부여되는 failure marker다.
+
+### 6.4 `deliberation.md` artifact 위상
+
+`{session_root}/deliberation.md`는 cross-process deliberation 경로 (Agent Teams Step 4)에서만 산출되는 artifact다. in-process deliberation 경로에서는 별도 파일을 산출하지 않으며, `synthesis.md` frontmatter와 Deliberation Decision 섹션이 유일한 authoritative source다. 따라서:
+
+- in-process 경로 실행 결과: `synthesis.md` frontmatter `deliberation_status` + `Deliberation Decision` 섹션이 primary
+- cross-process 경로 실행 결과: `deliberation.md` 존재가 `performed`의 primary signal이 될 수 있음
+
+cross-process 경로에서도 `synthesis.md` frontmatter는 §5에 따라 의무이며 `deliberation_status` 값은 `performed`로 설정한다 — `deliberation.md`는 그 위에 더해지는 supplementary primary signal이지 frontmatter 의무를 면제하는 대체 채널이 아니다.
+
+record assembler는 이 두 채널을 정합하게 해석해야 하며, 상세 규칙은 `processes/review/record-contract.md`가 정한다.
 
 ---
 
@@ -158,9 +194,10 @@ You are synthesize.
 {synthesize learnings / communication / project learnings / learning rules}
 
 [Task Directives]
-- Read all lens result files.
-- Preserve consensus, disagreement, and overlooked premises.
-- If deliberation is unavailable, do not collapse unresolved disagreement.
+- Read all lens result files and the materialized input.
+- Preserve consensus and original lens positions in Disagreement.
+- When lens findings disagree, perform in-process deliberation per §6 and record per-contested-point resolutions in Deliberation Decision.
+- Set frontmatter deliberation_status to `not_needed` (no contention) or `performed` (deliberation executed).
 - Write the final synthesis output to {synthesis_output_path}.
 ```
 
@@ -178,12 +215,15 @@ You are synthesize.
 즉 `synthesize`는
 새로운 검증자가 아니라 `구조 보존형 종합 단계`다.
 
-가능한 realization 예:
+가능한 realization 예와 deliberation 경로 (§6.1):
 
-- Agent Teams teammate
-- subagent
-- `MCP`로 분리된 `LLM`
-- external model worker
+| Realization | Deliberation 경로 |
+|---|---|
+| Agent Teams teammate | Cross-process (teammate SendMessage 활용) |
+| subagent (Claude Code Agent tool) | In-process (synthesize가 수행; 배선은 후속 PR) |
+| `subagent + codex` | In-process (synthesize가 수행; 본 PR 기준선) |
+| `MCP`로 분리된 `LLM` | In-process (메시징 없는 경우) 또는 Cross-process (메시징 구현 시). 실행 시 결정 |
+| external model worker | In-process (메시징 없는 경우) 또는 Cross-process (메시징 구현 시). 실행 시 결정 |
 
 ---
 

@@ -302,7 +302,7 @@ When TeamCreate fails, fall back to the Agent tool (subagent) approach. The **pu
 - Agent tool is used instead of TeamCreate/SendMessage.
 - Each Agent tool call includes the agent definition + context + task directives combined. (Since the teammate cannot self-load, the team lead includes the content directly.)
 - **File-based delivery applies identically**: Subagents also save results to files using the Write tool, and only return the path to the team lead. In review mode, `synthesize` also reads result files directly using the Read tool.
-- Deliberation (direct SendMessage) is skipped. Even if the final synthesis stage determines "deliberation needed," disagreement items are included as-is in the final report.
+- Cross-process lens-to-lens deliberation messaging is skipped (no SendMessage in this realization). `synthesize` still performs deliberation in-process per `processes/review/synthesize-prompt-contract.md` §6 — it re-reads contested lens outputs and the materialized input, then records resolutions in the Deliberation Decision section.
 - Content the team lead must include in each Agent tool call during fallback: agent definition + learning file (with axis tag filtering) + domain document + communication learning + task directives + **session path**. (All context must be included directly since self-loading is not possible.)
 
 ### Codex Execution Mode
@@ -316,7 +316,7 @@ When `execution_mode: codex` is set in config.yml or a `--codex` command flag is
 This scope will expand as Codex mode is validated in review.
 
 **Purpose and tradeoffs**:
-Codex mode delegates review passes to an external runtime (OpenAI Codex) to reduce Claude token consumption. The team lead coordination (~50-100k tokens) is the only Claude cost; all review lens passes and the synthesize stage run on Codex. The tradeoff: deliberation (Step 4, direct lens-to-lens exchange) is structurally not possible in Codex mode because Codex tasks are independent processes without inter-agent messaging. Contested points that would be resolved through deliberation in Agent Teams mode are instead reported as-is in the final output's "Disagreement" section. This is a **design choice** (not a technical limitation like Subagent fallback) — users selecting Codex mode accept this tradeoff in exchange for cost efficiency.
+Codex mode delegates review passes to an external runtime (OpenAI Codex) to reduce Claude token consumption. The team lead coordination (~50-100k tokens) is the only Claude cost; all review lens passes and the synthesize stage run on Codex. Direct lens-to-lens exchange (Step 4 messaging in Agent Teams mode) is unavailable because Codex tasks are independent processes — but deliberation itself is not skipped. `synthesize` performs deliberation in-process by re-reading contested lens outputs against the materialized input and recording resolutions in the Deliberation Decision section. See `processes/review/synthesize-prompt-contract.md` §6.
 
 **Prerequisites**:
 - Codex CLI must be installed and authenticated. Verify via `/codex:setup`.
@@ -354,7 +354,7 @@ Codex mode delegates review passes to an external runtime (OpenAI Codex) to redu
 - Note: The Agent tool's `model` parameter only accepts Claude model names (sonnet/opus/haiku) and cannot pass Codex model names. The prompt text is the only delivery path.
 - If either is absent → omit from `[Codex Configuration]` (Codex uses `~/.codex/config.toml` or its own default).
 
-**Deliberation**: Skipped (by design). The outcome is the same as Subagent fallback (disagreement items included as-is), but the cause differs — Subagent fallback skips due to technical limitation, Codex mode skips as a deliberate tradeoff for cost efficiency. See "Purpose and tradeoffs" above and the Comparison table's Deliberation row.
+**Deliberation**: Performed by `synthesize` in-process. Lens-to-lens cross-process messaging is unavailable in Codex mode, so `synthesize` resolves contested points itself by re-reading the relevant lens outputs and the materialized input, then recording resolutions in the Deliberation Decision section. `deliberation_status` ends up `not_needed` (no contention) or `performed`. See `processes/review/synthesize-prompt-contract.md` §6.
 
 **Error handling**: Same 4-category classification as Agent Teams (process-halting / process-halting-with-partial-result / transient retry / graceful degradation). Differences:
 - Retry: re-spawn a new `codex:codex-rescue` Agent (not SendMessage).
@@ -367,7 +367,7 @@ Codex mode delegates review passes to an external runtime (OpenAI Codex) to redu
 | Selection type | User-selectable (default) | Automatic (on TeamCreate failure) | User-selectable |
 | Runtime | Claude (TeamCreate) | Claude (Agent tool) | Codex (codex-rescue) |
 | Self-loading | Agent performs | Team lead inlines | Hybrid (agent performs; learning-rules.md inlined) |
-| Deliberation | Supported | Skipped (technical limitation) | Skipped (by design) |
+| Deliberation | Cross-process lens-to-lens via SendMessage | In-process by `synthesize` (no cross-process messaging) | In-process by `synthesize` (no cross-process messaging) |
 | File I/O | Read/Write tools | Read/Write tools | Bash |
 | Team lifecycle | TeamCreate/TeamDelete | N/A | N/A |
 | Claude token usage | Full | Full | Team lead only |
@@ -552,7 +552,7 @@ Used when execution_mode is `codex` for the review synthesize step. The team lea
 Differences from Codex Reviewer Prompt Template:
 - Role is `synthesize` (synthesis + adjudication), not a review lens.
 - Output path is `{session path}/synthesis.md`, not `round1/{agent-id}.md`.
-- Includes deliberation-not-possible directive.
+- Includes in-process deliberation directive (synthesize is the deliberation actor).
 - No domain document self-loading (`synthesize` has no dedicated domain document).
 
 ```
@@ -577,9 +577,11 @@ Read the files below using `cat`. Skip if file does not exist:
 {Review synthesize directives — lens result file paths,
  system purpose, synthesis format, adjudication rules}
 
-Codex 모드에서는 숙의(deliberation)를 수행할 수 없습니다.
-재검토 필요 여부 판정은 항상 '불필요'로 처리하고,
-모순 항목은 '미합의' 섹션에 포함하여 최종 출력을 직접 작성하세요.
+synthesize는 deliberation actor입니다. lens 결과 사이에 disagreement가 있으면
+contested된 lens 출력과 materialized input을 재읽어 직접 deliberation을 수행하고
+'Deliberation Decision' 섹션에 contested point별로 resolution을 기록하세요.
+frontmatter의 deliberation_status는 not_needed (논쟁 없음) 또는 performed (직접 수행)
+둘 중 하나만 사용하세요. required_but_unperformed는 synthesize 출력에서 사용하지 않습니다.
 
 [Output Rules]
 - Write the final output to {session path}/synthesis.md using shell redirect.

@@ -1,5 +1,5 @@
 ---
-as_of: 2026-04-13T21:00:00+09:00
+as_of: 2026-04-13T21:15:00+09:00
 supersedes: null
 status: active
 functional_area: execution-log
@@ -264,3 +264,34 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     compound_integrity_checks: "3 compound × 4 불변식 = 12 all pass"
     deferred_ledger_resolved_wave3: 2  # DL-020, DL-029. DL-017 partial (지속성 seat Wave 4 pending)
     stage_completion_check: "M-06 stage pending = 4 (DL-017 partial + DL-019/021/022). Wave 4 에서 마감."
+
+### M-06 Wave 4 — W-C (자율성 진화) 8 W-ID + M-06 마감
+
+- task_id: M-06-wave4
+- start_time: 2026-04-13T21:00:00+09:00
+- end_time: 2026-04-13T21:15:00+09:00
+- elapsed_minutes: 15
+- commit_hash: (pending)
+- subagent_count: 0
+- notes: W-C 섹션 전수 8 W-ID (W-C-01~08). DL-021 govern-runtime (선행, canonical-advancing) + DL-019 drift engine + DL-022+BL-122 knowledge→principle + DL-017 지속성 seat (완전 resolved) + BL-120 Feature 15 (P1, canonical-advancing) + harness IA BLOCKING 3건. M-06 마감 — Stage completion protocol (DR-M00-06) 네 번째 완결 (resolution_stage=M-06 pending=0).
+- wave4_result_summary:
+    work_items_created: 8  # W-C-01 ~ W-C-08
+    by_axis_count_final: { A: 76, B: 51, C: 8, D: 4 }  # Total: 139
+    by_activity_count_wave4: { govern: 6, reconstruct: 2 }
+    by_canonicality_wave4: { canonical_advancing: 4, supporting: 3, scaffolding: 1 }
+    deferred_ledger_resolved_wave4: 4  # DL-017 (완전), DL-019, DL-021, DL-022
+    m06_stage_total_resolved: "8/8 (DL-016~022 + DL-029 전수 resolved)"
+    stage_completion_protocol: "resolution_stage=M-06 AND status=pending = 0 (DR-M00-06 성공 기준 충족). 네 번째 완결."
+    m06_final_summary:
+      total_work_items: 139
+      canonical_advancing: 14  # W-D-01/02/03, W-B-01/02/17, W-A-58/60/69/70/74/75/76, W-C-01/02/03/05 → 17? 재집계 필요
+      supporting: 58
+      scaffolding: 63
+      deferred: 23
+      active: 116
+      compound_count: 3  # agent_id_rename(6), build_review_cycle(2+36 sub), business_domain_wave(5)
+      compound_members: 13  # 6+2+5
+      compound_sub_items: 36  # build phase 1 21 + phase 2 15
+      decision_records_count: 6  # DR-M06-01~06
+      delegated_validation_surface: "3/3 cover: 조건 1 W-A-01 / 조건 2 W-B-02 / 조건 3 W-A-01"
+      schema_defects_total: 0

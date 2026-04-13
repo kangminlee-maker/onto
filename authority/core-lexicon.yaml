@@ -1,4 +1,4 @@
-lexicon_version: "0.8.0"
+lexicon_version: "0.9.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
@@ -7,6 +7,7 @@ notes:
   - "Structure: authoring_rules → shared_attributes → entities → terms."
   - "v0.6.0 additive (M-04 Phase A, 2026-04-13): activity_enum + axis_enum terms added. §1 정본 §1.2 (5 활동) + §1.5 (4 축) canonical seat. DR-M04-01 (DL-013 resolved) owning."
   - "v0.6.1 additive (M-04 Phase A v1.1, 2026-04-13): 9-lens review `20260413-a9e93dd7` CONDITIONAL 해소. activity_enum.legacy_aliases 구조 확장 (retire_kind + canonical_replacement), E/D/R/L/G 단축 코드 alias, axis_enum.legacy_aliases slot 신설, entrypoint.instances.build/ask notes cross-ref (C-06/D-01/S-3)."
+  - "v0.9.0 additive (W-A-70, 2026-04-13): principal term → entity 승격. dispatches→entrypoint relation 추가. §1.1 주체자 core concept 정합. canonical-advancing."
   - "v0.8.0 additive (W-A-63, 2026-04-13): review_record term → entity 승격. lifecycle_status attribute 부여. review_process relation produces→creates 전환. lexicon Stage 3-3 merge."
   - "v0.7.0 additive (W-D-01+W-D-03, D0 Bootstrap, 2026-04-13): provisional_lifecycle section 신설 (W-D-01) — lexicon term 성숙도 전이 모델 (seed→candidate→provisional→promoted) + 전이 조건 + 소비 정책 + lifecycle_status 관리 위치 성문화. provisional_terms section 신설 (W-D-03) — dep graph §2.2.1 4 seat 구조 (recording seat + actor + consumer + promotion path) + entry schema + 빈 entries. §1 정본 '다음 작업 #2' + BL-123 대응."
 
@@ -321,6 +322,24 @@ entities:
       - alias: "review_record_term"
         context: "Pre-W-A-63 term entry. Entity 승격 전의 terms section 항목."
 
+  principal:
+    canonical_label: "principal"
+    korean_label: "주체자"
+    definition: "onto에 목적과 의도를 부여하고, 프로세스 결과의 가치를 판단하는 최종 권한 주체. entrypoint를 호출하여 실행을 개시한다"
+    core_value: "이 개념이 없으면 onto의 실행 체인에 목적 부여자가 부재하여, 프로세스 결과의 가치 판단과 승인 권한이 귀속되지 않는다"
+    relations:
+      - type: dispatches
+        target: entrypoint
+        note: "주체자가 entrypoint를 호출하여 onto 실행 체인을 개시한다. W-A-70 entity 승격 시 추가."
+    execution_rules_ref:
+      approval_authority: "processes/ 내 Principal 승인 요구 사항"
+    notes:
+      - "W-A-70에서 term → entity 승격. entrypoint와의 dispatches relation으로 실행 체인 추적 완성."
+      - "§1.1 주체자 core concept 정합."
+    legacy_aliases:
+      - alias: "designer"
+        context: "Retired design-context role name. Principal이 design entrypoint를 호출할 때 수행하던 역할의 구 명칭."
+
   entrypoint:
     canonical_label: "entrypoint"
     korean_label: "진입점"
@@ -620,19 +639,7 @@ terms:
     axis: "design"
     term_status: "active"
     definition: "The magnitude of difference between current state and Phase 1 outcomes within a given area. Qualitative 3-level: large / medium / small. Input to Phase 4 scenario ordering."
-  - term_id: "principal"
-    canonical_label: "principal"
-    korean_label: "주체자"
-    axis: "actor"
-    term_status: "active"
-    definition: "onto에 목적과 의도를 부여하고, 프로세스 결과의 가치를 판단하는 최종 권한 주체. entrypoint를 호출하여 실행을 개시한다."
-    legacy_aliases:
-      - alias: "designer"
-        context: "Retired design-context role name. Principal이 design entrypoint를 호출할 때 수행하던 역할의 구 명칭."
-    notes:
-      - >
-        entity 승격 조건: entrypoint와의 invokes relation이 onto 실행 체인에서 추적 필수가 되는 시점.
-        판단 기준은 "principal 부재 시 dispatch 체인이 불완전한가" 여부. Stage 3에서 결정.
+  # principal: W-A-70에서 entity로 승격됨. entities.principal 참조.
   - term_id: "activity_enum"
     canonical_label: "activity"
     korean_label: "활동"

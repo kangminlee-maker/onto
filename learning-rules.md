@@ -240,3 +240,49 @@ yes/no 관측이 유일한 직접 관측 경로이며, 소비 경로(집계·분
 
 If new communication entries have been added, notify the user:
 "N communication finding(s) have been recorded. Please review them at `~/.onto/communication/` and decide whether to reflect them in the global settings (`~/.claude/CLAUDE.md`)."
+
+---
+
+## Activity Graph Closure (W-A-69)
+
+§1.2 활동 간 경계 계약의 구현. review, design, reconstruct, learn, govern 5 활동이 learning artifact를 매개로 연결되는 관계 규칙.
+
+### 재진입 계약
+
+| 재진입 경로 | 조건 | 소유 |
+|---|---|---|
+| review → learn | review 실행 후 learning 생성 | review_process (core-lexicon.yaml) |
+| design → learn | design 프로세스에서 패턴 발견 시 learning 생성 | processes/design.md §6 |
+| reconstruct → learn | ontology 구축 중 learning 생성 | processes/build.md |
+| learn → review/design/reconstruct | promoted learning을 다음 활동에 소비 | loader.ts (promoted only) |
+| govern → learn | learning promotion 기준 정의 | §1.2 경계 계약 "govern이 기준, learn이 실행" |
+
+재진입 규칙: 활동 A가 활동 B의 산출물을 입력으로 사용할 때, B의 산출물은 **해당 활동의 완료 후** 생성된다. 실행 중에 다른 활동의 산출물을 직접 생성하지 않는다.
+
+### Promotion Edge
+
+learning artifact의 lifecycle에 따른 소비 가능 범위:
+
+| lifecycle_status | 소비 가능 여부 | 근거 |
+|---|---|---|
+| seed | 소비 불가 | provisional_lifecycle §seed.consumption_policy |
+| candidate | 소비 불가 | provisional_lifecycle §candidate.consumption_policy |
+| provisional | 소비 불가 | provisional_lifecycle §provisional.consumption_policy |
+| promoted | **소비 가능** | loader.ts user scope 로드 |
+
+promotion edge: `learn(promote) → promoted learning → review/design/reconstruct(consume)`. 이 edge는 promote 프로세스 완료 시점에만 활성화된다.
+
+### Owner-Key 모델
+
+각 활동이 생산하는 artifact의 소유권 책임:
+
+| artifact 유형 | owner 활동 | key (식별) | 소유 의미 |
+|---|---|---|---|
+| learning (project scope) | learn | `{project}/.onto/learnings/{agent}.md` | 생성·저장·퇴역 책임 |
+| learning (user scope) | learn (promote) | `~/.onto/learnings/{agent}.md` | promotion 후 소비 가능 상태 관리 |
+| review_record | review | `{session}/review-record.yaml` | 검증 결과 + learning 생성 trigger |
+| scope artifacts | design | `{scope}/events.ndjson` + materialized views | scope lifecycle 관리 |
+| ontology | reconstruct | `{project}/.onto/builds/{session}/` | 도메인 지식 구조화 산출물 |
+| normative artifact | govern | `authority/`, `design-principles/`, `processes/` | 규범 등재·갱신·폐기 |
+
+cross-ref: `authority/core-lexicon.yaml#provisional_lifecycle` (W-D-01), `design-principles/project-locality-principle.md` §2.2.

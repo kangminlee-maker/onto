@@ -484,10 +484,11 @@ Round 1에서 에이전트 에러 발생 시:
 1. **감지**: 다른 에이전트가 전원 응답을 완료한 시점에 아직 응답하지 않은 에이전트,
    또는 에러를 보고한 에이전트를 감지한다.
 
-2. **재시도**:
-   - Agent Teams / Subagent: 해당 에이전트에 SendMessage로 재실행을 요청한다.
-   - Codex 모드: 새로운 `codex:codex-rescue` Agent를 동일 프롬프트로 re-spawn한다.
-   메시지에 원래 Task Directives + 파일 경로를 포함한다.
+2. **재시도** (`execution_realization`별 분기):
+   - `agent-teams`: 해당 teammate에 SendMessage로 재실행을 요청한다.
+   - `subagent` (TeamCreate fallback): 동일 프롬프트로 Agent tool (`subagent_type: "general-purpose"`)을 re-spawn한다 (cross-process messaging이 없으므로 SendMessage 불가).
+   - `subagent + codex` (host_runtime: codex): 동일 프롬프트로 Agent tool (`subagent_type: "codex:codex-rescue"`)을 re-spawn한다.
+   메시지/프롬프트에 원래 Task Directives + 파일 경로를 포함한다.
 
 3. **종료 조건**: 2회 재시도 후에도 실패하면 graceful degradation 적용.
    해당 에이전트를 제외하고 합의 분모를 조정.
@@ -502,15 +503,17 @@ Round 1에서 에이전트 에러 발생 시:
 
 ### 3. Reference Execution — Synthesize
 
-Synthesize 단계의 dispatch 메커니즘은 `execution_realization` 값에 따라 분기한다. 어느 경로든 lens 결과 + execution-preparation artifacts를 그대로 전달한다는 본질은 동일하며, 차이는 전달 메커니즘과 deliberation 처리 위치다.
+Synthesize 단계의 dispatch 메커니즘은 `execution_realization` × `host_runtime` 두 축의 조합으로 분기한다. 어느 경로든 lens 결과 + execution-preparation artifacts를 그대로 전달한다는 본질은 동일하며, 차이는 전달 메커니즘과 deliberation 처리 위치다.
 
-| `execution_realization` | Dispatch 메커니즘 | Deliberation 처리 |
-|---|---|---|
-| `agent-teams` | SendMessage to `synthesize` teammate | "needed" 판정 시 §4 cross-process Step 4 실행 |
-| `subagent` (TeamCreate fallback) | Agent tool with `subagent_type: "general-purpose"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 |
-| `subagent + codex` | Agent tool with `subagent_type: "codex:codex-rescue"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 |
+| `execution_realization` | `host_runtime` | Dispatch 메커니즘 | Deliberation 처리 |
+|---|---|---|---|
+| `agent-teams` | `claude` | SendMessage to `synthesize` teammate | "needed" 판정 시 §4 cross-process Step 4 실행 |
+| `subagent` (TeamCreate fallback) | `claude` | Agent tool with `subagent_type: "general-purpose"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 |
+| `subagent` | `codex` | Agent tool with `subagent_type: "codex:codex-rescue"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 |
 
-`subagent` 및 `subagent + codex` 경로의 synthesize 프롬프트는 process.md의 **Subagent Fallback Synthesize Prompt Template** / **Codex Review Synthesize Prompt Template**을 사용한다. 이 두 템플릿은 in-process deliberation directive를 이미 포함한다.
+본 표의 discriminator는 binding artifact의 `resolved_execution_realization` + `resolved_host_runtime` 두 필드와 1:1 대응한다 (별도 enum이 아니다).
+
+`subagent` 경로의 synthesize 프롬프트는 host_runtime별로 process.md의 **Subagent Fallback Synthesize Prompt Template** (claude) 또는 **Codex Review Synthesize Prompt Template** (codex)을 사용한다. 두 템플릿 모두 in-process deliberation directive를 포함한다.
 
 이하 본 절은 `agent-teams` 경로의 SendMessage 전달 콘텐츠를 정의한다. **Since the original text is preserved in the files, the team lead does not include the original text in the message.**
 

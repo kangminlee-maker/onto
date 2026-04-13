@@ -14,8 +14,7 @@ Display the command reference below in the configured language.
 /onto:review {target}                      9-lens review + synthesize
 /onto:review {target} @{domain}            Review with specific domain
 /onto:review {target} @-                   Review without domain rules
-/onto:review {target} --codex              Use codex host runtime (defaults to subagent)
-/onto:review {target} --claude             Use claude host runtime (defaults to agent-teams)
+/onto:review {target} --codex              Use codex host runtime (Codex CLI path)
 /onto:build {path|URL}                     Build ontology from analysis target
 /onto:design {goal}                        Design new areas for existing target (brownfield)
 /onto:design {goal} @{domain}              Design with specific domain
@@ -35,7 +34,12 @@ Display the command reference below in the configured language.
 /onto:ask-coverage {question}              Domain coverage
 /onto:ask-conciseness {question}           Conciseness
 /onto:ask-axiology {question}              Purpose and value alignment
-/onto:ask-philosopher {question}           Legacy alias for axiology
+```
+
+### Legacy Compatibility
+
+```
+/onto:ask-philosopher {question}           Legacy alias for /onto:ask-axiology (value-alignment only)
 ```
 
 ### Domain Document Management
@@ -71,29 +75,16 @@ Each review/build/question selects a single **session domain**:
 | No-domain | `@-` | No domain rules applied |
 | Interactive | (omit) | Suggests domain, user confirms |
 
-### Execution Profile
+### Execution Path
 
-Review resolves an execution profile from two axes:
+Onto review has **two canonical execution paths** (2026-04-13 policy):
 
-- `execution_realization`: `subagent` | `agent-teams`
-- `host_runtime`: `codex` | `claude`
+| Path | Entrypoint | Executor |
+|---|---|---|
+| Codex CLI | `onto review ... --codex` | `codex` child process |
+| Agent Teams nested spawn | `onto coordinator start ...` in a Claude Code session | Agent tool (nested) |
 
-Host-runtime convenience aliases:
-- `--codex` → `host_runtime: codex`
-- `--claude` → `host_runtime: claude`
-
-Default realization by host runtime:
-
-| Host runtime | Default realization | Optional override |
-|------|--------------|-------------|
-| `codex` | `subagent` | none |
-| `claude` | `agent-teams` | `subagent` or `agent-teams` |
-
-Legacy `execution_mode` is accepted as a compatibility alias. Example:
-```yaml
-execution_realization: subagent
-host_runtime: codex
-```
+Claude CLI subagent, API executor, and 3-Tier fallback paths have been removed — Claude CLI authentication is unstable in the current environment, and only these two paths are supported.
 
 ### Domain Document Lifecycle
 

@@ -654,6 +654,7 @@ build:
 - **Valid YAML, type-invalid value** (e.g., `diagnostic_threshold: "high"` instead of a number): log warning `config_type_invalid: {key}` to the session log (see "Session Log & Error Handling Artifact"), fall back to default for that key.
 - **Valid YAML, out-of-range numeric** (e.g., `diagnostic_threshold: 1.5` outside `[0, 1]`; `min_floor: -3`; negative counts): log warning `config_out_of_range: {key}`, fall back to default.
 - **Unknown keys** at any level (top-level or under `semantic_identity:` / `build:`): log `config_unknown_key_ignored: {path}` to the session log, then ignore. Registered top-level keys for this document: `output_language`, `semantic_identity`, `build`. Any other top-level key (e.g., a typo like `output_langage`) is logged as unknown. Registered sub-keys are those shown in the schema example above; other sub-keys under `semantic_identity:` / `build:` are also logged as unknown. Preserves forward-compatibility while surfacing typos for post-hoc diagnosis.
+- **User-extension namespace**: keys matching `x-*` at any level, or nested under a top-level `custom:` block, are reserved for user/tool extensions. Runtime ignores them silently (no `config_unknown_key_ignored` warning), so integrators can annotate config without triggering forward-compat diagnostics.
 
 If coverage is unsatisfied (facts=0 but unexplored modules exist), Runtime Coordinator force-generates epsilons targeting unexplored modules (step 3e).
 
@@ -851,6 +852,8 @@ meta:
   cumulative_unresolved_conflicts: [{conflict_id, conflict_kind, subject, unresolved_since, position_a, position_b}]
   # Phase 3 user response log — required for Phase 3.5 idempotent replay and crash recovery.
   # Write-once at Phase 3 response receipt; never mutated thereafter. Cleared when Phase 4 Save succeeds.
+  # Absence of this field after Phase 3 prompt was rendered = resumption trigger: Runtime re-enters Phase 3
+  # and re-renders the same summary from existing wip.yml (see Phase 3 "Resumption" bullet).
   phase3_user_responses:
     received_at: "{ISO 8601 UTC timestamp when user submitted the Phase 3 reply}"
     global_reply: confirmed | adjustments_provided
@@ -876,6 +879,9 @@ meta:
     reentry_count: 0   # incremented by Phase 4 bug-guard on re-entry (see Phase 4 bug-guard rules)
   # Lifecycle: reentry_count starts at 0 at first Phase 4 entry; incremented atomically with wip.yml fsync
   # (must survive Runtime crash/restart to prevent crash-restart loop bypass); cleared with phase3_user_responses on Save success.
+  # Atomic-clear invariant: phase3_user_responses and phase4_runtime_state MUST be cleared in the same wip.yml
+  # rewrite that marks Save success. Partial clear (one but not the other) leaves the next /onto:build invocation
+  # unable to distinguish completion from resumption; Runtime enforces this via a single atomic write.
   # Lifecycle of cumulative_unresolved_conflicts (Runtime-managed):
   #   - Appended by Runtime at end of each round (from Synthesize's unresolved_for_user).
   #   - Clear-on-resolve: at each round's step 3 (after Runtime applies label patches) and step 4
@@ -1302,12 +1308,15 @@ After 4b, Runtime also prepares the Phase 3 Unresolved Conflicts table using the
 - If none, reply "confirmed."
 ```
 
+**Runtime action after user reply**: On a valid user submission, Runtime Coordinator writes `meta.phase3_user_responses` to wip.yml atomically (single fsync), populating `received_at`, `global_reply`, and any `conflict_decisions` / `certainty_decisions` / `other_adjustments` the user provided. This write is the sole trigger for Phase 3.5 and occurs before any Phase 3.5 step. Invalid submissions (see the `global_reply` vs decisions consistency rule in the wip.yml `phase3_user_responses` schema comment) do NOT write the field; Runtime re-prompts Phase 3 instead, and the absence of `phase3_user_responses` preserves the resumption-trigger semantics.
+
 **User no-response handling**: Phase 3 is interactive and awaits user input indefinitely. Runtime does NOT auto-timeout. If the session is abandoned:
 - `phase3_user_responses` is never written to wip.yml.
 - Phase 3.5 never executes (no trigger event).
 - Phase 4 never triggers (Phase 3.5 is the only path into it).
 - wip.yml remains in its post-Phase-2 state, preserved indefinitely in `{project}/.onto/builds/{session ID}/`.
 - **Resumption**: the user re-runs `/onto:build` with the same session directory. Runtime detects existing `wip.yml` without `phase3_user_responses` and re-enters Phase 3 (re-renders the same summary from the existing wip.yml). No build work is lost; only the Phase 3 prompt is re-issued.
+- **Resumption integrity check**: before re-entering any phase, Runtime reads and validates four artifacts — `schema.yml` (structural spec), `wip.yml` (build state, YAML-parse + meta presence), `deltas/` directory (non-empty, matches `meta.deltas` references), `session-log.yml` (YAML-parse if present). Any failure halts with `session_state_corrupt` (see registered codes table) and preserves the session directory untouched so the user can repair or discard.
 - **Alternative abort**: user can manually delete the session directory to abort the build.
 
 No implicit timeout or silent-promotion occurs — user authority over the Phase 3 decision is absolute.
@@ -1454,10 +1463,10 @@ issues:
 - If any conflict with `resolution: pending` remains at Phase 4 (should not occur per Phase 3.5 invariants, but defensively): halt save and return to Phase 3 for the user to address. This is a bug guard.
   - **Re-entry semantics**: On re-entry, Phase 3 re-renders only the remaining pending items (previously-resolved items are NOT re-shown). Phase 3.5 re-runs idempotently — prior decisions (resolved/user_resolved/user_deferred) are preserved; only the new decisions for previously-pending items are applied.
   - **user_deferred is terminal**: The bug-guard triggers ONLY on `resolution: pending`. `user_deferred` is a valid terminal state and does not trigger re-entry.
-  - **Data-consistency escape hatch**: If on re-entry Phase 3's pending item count is 0 (no items to re-show) but the bug-guard still flags `resolution: pending` in wip.yml, halt immediately with error class `phase_3_5_invariant_violation` — without consuming a re-entry slot. This distinguishes "user kept deferring" (consumes re-entries until bound, see `phase_reentry_bound_exhausted` below) from "Runtime bug writes pending despite no user input" (halts on first detection as invariant violation). The latter requires Runtime-level investigation, not more user decisions.
+  - **Data-consistency escape hatch**: If on re-entry Phase 3's pending item count is 0 (no items to re-show) but the bug-guard still flags `resolution: pending` in wip.yml, halt immediately with error class `phase_3_5_invariant_violation` — without consuming a re-entry slot. Under current Phase 3.5 step 5 invariants, surviving `pending` always indicates a Runtime defect. This escape hatch distinguishes two defect patterns: "pending without any Phase 3 queue item" (halts on first detection as invariant violation) vs "pending persists across re-entries despite Phase 3.5 terminalization" (consumes re-entries until bound, see `phase_reentry_bound_exhausted` below). Both require Runtime-level investigation, not additional user input.
   - **Re-entry bound**: `config.build.max_phase4_reentries` (default 2) re-entries per Phase 4 attempt. Counter stored as `meta.phase4_runtime_state.reentry_count` (persists across Runtime restarts to prevent crash-restart loop bypass).
   - **Counter increment timing**: Runtime increments `reentry_count` by 1 **immediately upon bug-guard detecting `resolution: pending`, atomically with a wip.yml fsync, BEFORE issuing the Phase 3 re-render prompt**. This ordering ensures that a crash between detection and re-render does not bypass the bound (after restart, the counter already reflects the detection).
-  - **Bound semantics**: `max_phase4_reentries: N` means the counter MAY reach N; at `reentry_count == N` with pending still remaining after the N-th re-entry's Phase 3.5 completes, halt with `phase_reentry_bound_exhausted` (renamed from `phase_3_5_defect_unresolvable` to avoid framing persistent user-deferral as a code defect). Default N=2 → up to 2 re-entries allowed; 3rd detection of pending halts.
+  - **Bound semantics**: `max_phase4_reentries: N` means the counter MAY reach N; at `reentry_count == N` with pending still remaining after the N-th re-entry's Phase 3.5 completes, halt with `phase_reentry_bound_exhausted`. Per Phase 3.5 step 5 invariants, surviving `pending` after a full Phase 3.5 pass indicates a Runtime defect; the bound exists to prevent infinite re-entry loops while surfacing the defect for investigation. Default N=2 → up to 2 re-entries allowed; 3rd detection of pending halts. (Prior name `phase_3_5_defect_unresolvable` was retired when the registry consolidated on `phase_reentry_bound_exhausted`.)
 - `meta.cumulative_unresolved_conflicts` is dropped at save (see its lifecycle comment in the wip.yml schema). User-deferred items persist via `raw.yml.issues[]` instead.
 
 ---
@@ -1484,14 +1493,58 @@ entries:
 - Created lazily on first write (not required if session has no events).
 - Appended to as events occur; never overwritten.
 - Preserved after Phase 4 Save (not deleted) — supports post-hoc debugging.
+- **Single-writer**: Runtime Coordinator is the sole writer. All other agents (Explorer, lenses, Synthesize, Adjudicator) surface events through Runtime rather than writing directly, preserving chronological ordering and preventing concurrent-write corruption.
+- **Atomic append**: each entry is serialized as a complete YAML record and written with an fsync'd append (append-then-flush). A crash mid-append MUST NOT leave a partial record that breaks the next session's log replay.
 
-**Halt event rendering**: When Runtime halts with an error code, the user-facing message combines the code, phase, wip.yml preservation path (if applicable), and next-step guidance. Example for `config_malformed`:
+**Halt event rendering**: When Runtime halts with an error code, the user-facing message follows a per-code template. Each template renders code + phase tag, cause line(s), preserved-state paths (if applicable), and next-step guidance. Curly-braced tokens below are slot fills resolved at halt time.
 
+`config_malformed` (phase_0):
 ```
 [HALT: config_malformed at phase_0]
 Config file /path/to/.onto/config.yml failed to parse.
 YAML error: {parser_message}
 Fix the config file and re-run. No session state was written (halt fires before Phase 1).
+```
+
+`phase_3_5_invariant_violation` (phase_4):
+```
+[HALT: phase_3_5_invariant_violation at phase_4]
+Runtime bug: Phase 3.5 reported `resolution: pending` with no Phase 3 pending items to re-render.
+Preserved: wip.yml at {wip_path}, session-log.yml at {log_path}.
+Report this bug with the session directory attached. Do not re-run /onto:build on this session — state is inconsistent.
+```
+
+`phase_reentry_bound_exhausted` (phase_4):
+```
+[HALT: phase_reentry_bound_exhausted at phase_4]
+Phase 4 bug-guard detected `resolution: pending` on {reentry_count}/{max_phase4_reentries} re-entries; the re-entry bound is exhausted with pending still remaining.
+Preserved: wip.yml at {wip_path} (pre-Save state; raw.yml is NOT written by this halt), session-log.yml at {log_path}.
+Per Phase 3.5 step 5 invariants, surviving `pending` indicates a Runtime defect (Phase 3.5 did not terminalize as expected). Report the session directory as a bug and start a new /onto:build session; do not resume this one.
+```
+
+`explorer_failure` (phase_1):
+```
+[HALT: explorer_failure at phase_1]
+Explorer failed mid-exploration (stage {stage}, round {round}): {explorer_error}
+Preserved: session directory at {session_dir} (partial wip.yml retained for debugging).
+Start a new /onto:build session on the same target; the partial session is not resumable.
+```
+
+`runtime_coordinator_failure` (phase_1):
+```
+[HALT: runtime_coordinator_failure at phase_1]
+Runtime Coordinator deterministic failure — indicates a bug in Runtime implementation: {coordinator_error}
+Preserved: session directory at {session_dir}.
+Report this bug with the session directory; investigate Runtime implementation before re-running.
+```
+
+`session_state_corrupt` (phase_0):
+```
+[HALT: session_state_corrupt at phase_0]
+Session state at {session_dir} failed integrity check on resumption.
+Cause: {wip_malformed | deltas_missing | session_log_corrupt | schema_missing}
+Preserved: session directory (not modified by this halt).
+Either delete the session directory and start a new build, or repair the affected file manually and re-run.
 ```
 
 **Registered error/warning codes** (this document's canonical enumeration; extensible via additions to this list):
@@ -1501,15 +1554,17 @@ Fix the config file and re-run. No session state was written (halt fires before 
 | `config_malformed` | halt | phase_0 | YAML parser throws on config.yml |
 | `config_type_invalid` | warning | phase_0 | Config key has wrong type; default substituted |
 | `config_out_of_range` | warning | phase_0 | Numeric config key outside valid range; default substituted |
-| `config_unknown_key_ignored` | warning | phase_0 | Unrecognized key in config.yml (any nesting level) |
+| `config_unknown_key_ignored` | warning | phase_0 | Unrecognized key in config.yml (any nesting level), excluding reserved user-extension namespaces (`x-*` keys at any level, or nested under top-level `custom:`) which are ignored silently without warning |
 | `phase_3_5_invariant_violation` | halt | phase_4 | Bug-guard detects `resolution: pending` with no Phase 3 pending items to re-render (Runtime bug) |
-| `phase_reentry_bound_exhausted` | halt | phase_4 | Re-entry count reached `max_phase4_reentries` with pending still remaining (user kept deferring) |
+| `phase_reentry_bound_exhausted` | halt | phase_4 | Re-entry count reached `max_phase4_reentries` with `resolution: pending` still remaining (Runtime defect — Phase 3.5 failed to terminalize across N re-entries) |
 | `explorer_failure` | halt | phase_1 | Explorer fails (irreplaceable; see Error handling section) |
 | `runtime_coordinator_failure` | halt | phase_1 | Runtime Coordinator deterministic failure (indicates bug) |
+| `session_state_corrupt` | halt | phase_0 | Resumption integrity check detects any of: malformed `wip.yml`, missing `deltas/`, corrupt `session-log.yml`, or missing `schema.yml` — any of which prevents deterministic replay |
 | `lens_partial_failure` | warning | phase_1 | One or more lenses failed; graceful degradation applied |
-| `adjudicator_failure` | warning | phase_1 or phase_2 | Axiology Adjudicator agent failed; fallback paths engaged |
+| `adjudicator_failure` | warning | phase_1 | Axiology Adjudicator agent failed during Phase 1 lens-loop; fallback paths engaged |
+| `adjudicator_failure` | warning | phase_2 | Axiology Adjudicator agent failed during Phase 2 cross-Stage collation; fallback paths engaged |
 | `synthesize_failure` | warning | phase_1 | Synthesize agent failed; raw epsilons delivered to Explorer |
-| `degradation_threshold_warning` | info | phase_1 | 2 consecutive Adjudicator/Synthesize failures reached; user warned |
+| `degradation_threshold_warning` | warning | phase_1 | 2 consecutive Adjudicator/Synthesize failures reached; user warned |
 | `phase3_response_inconsistent` | warning | phase_3 | User submitted `adjustments_provided` with all three fields empty; re-prompt issued (non-halting) |
 
 Adding a new error code requires adding a row to this table with level/phase/trigger specification.
@@ -1572,5 +1627,5 @@ When modifying this file (build.md), the following documents must be synchronize
 | `BLUEPRINT.md` | Section 2 (term definitions), Section 3.6 (Explorer), Section 4.3 (build), certainty table, directory structure, MCP interface |
 | `process.md` | Certainty-related content in Teammate prompt template, agent-domain document mapping, "verification agent" → "lens" terminology |
 | `explorers/*.md` | Source-type profiles — if certainty level names/formats in build.md change, synchronize the examples in the profiles |
-| `roles/philosopher.md` | Update legacy note — now legacy for both review and build |
+| `development-records/legacy/philosopher.md` | Update legacy note — now legacy for both review and build |
 | `src/core-runtime/cli/coordinator-state-machine.ts` | Add `awaiting_adjudication` state for build mode pipeline |

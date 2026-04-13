@@ -400,6 +400,15 @@ Read `{session path}/execution-preparation/materialized-input.md` and treat it a
 [Report Format]
 Include the following section at the end of the review finding:
 
+Each Lens-Specific Finding must include the following fields:
+- `target`
+- `evidence_anchor`
+- `claim`
+- `lens_id`
+- `upstream_evidence_required`
+For field semantics, see `processes/review/lens-prompt-contract.md` §8 Output Schema and `processes/review/shared-phenomenon-contract.md` §3, §5.
+Each finding body should retain the existing what/why/how to fix format.
+
 ### Newly Learned
 For each learning, determine:
 1. **Purpose type**: per learning-rules.md
@@ -429,6 +438,14 @@ List learnings from your learning file that influenced your review judgment:
   `<!-- applied-then-found-invalid: {date}, {session_id}, {reason} -->`
   (Event marker attachment is agent-autonomous — no approval needed.)
 Mark "none" if no learnings were applied.
+
+### Domain Constraints Used
+List each durable provenance entry in `{source_doc, source_version_or_snapshot_id, anchor}` format.
+If `session_domain=none`, write `[]`.
+
+### Domain Context Assumptions
+List informal usage-context assumptions used during the review.
+Write `[]` if none.
 ```
 
 **[Task Directives]** section to include in the synthesize initial prompt:
@@ -517,11 +534,14 @@ Step 1 — Synthesis:
 
 ## Review Synthesis
 
-### Consensus Items
-- (Judgments agreed upon by a majority of participating review lenses)
+### Consensus
+- (Judgments shared across participating review lenses. Frame this as common judgment, not simple majority.)
 
-### Contradicting Opinions
-- (Conflicting judgments + summary of each rationale)
+### Conditional Consensus
+- (Judgments that align under explicit conditions, scope limits, or reservations)
+
+### Disagreement
+- (Conflicting judgments + summary of each rationale. Preserve unresolved tension explicitly.)
 
 ### Overlooked Premises
 - (Items not mentioned by any lens but requiring examination given the system purpose/principles)
@@ -531,27 +551,40 @@ Step 1 — Synthesis:
 - (Include only perspectives explicitly proposed by `axiology`)
 - Do not invent a new independent perspective here.
 
+### Purpose Alignment Verification
+- (Preserve and summarize the purpose/value alignment judgment provided by `axiology`)
+
+### Immediate Actions Required
+- (Items that should be applied immediately based on preserved lens evidence)
+
+### Recommendations
+- (Follow-up recommendations that are not immediate actions)
+
 Step 3 — Unique Finding Tagging:
-Classify each lens's findings as "unique finding / shared finding / cross-verified finding." Include in the "Unique Finding Tagging" section of the final output.
+
+### Unique Finding Tagging
+Classify at the lens-qualified claim unit, not by per-lens majority buckets. Mark whether each claim remains unique to one lens or belongs to a shared phenomenon observed by multiple lenses.
+
+### Deliberation Decision
+- (`needed` / `not needed` with rationale aligned to the deliberation rule)
+
+### Final Review Result
+- (Conservative synthesized review result that preserves lens evidence and system purpose)
+
+### Shared Phenomenon Summary
+- Group lens-qualified claims by co-location (`target` + `evidence_anchor`).
+- For each co-located group, classify claim relation per `processes/review/shared-phenomenon-contract.md` §4: `corroboration`, `disagreement`, `partial overlap`, or `dedup`.
 
 Step 4 — Adjudication:
-
-### Judgment Conflict Resolution Rules
-
-Judgment conflicts between review lenses are resolved by the following rules:
-
-**General rule**: Judgment conflicts are used as error detection signals. If multiple lenses render opposing judgments on the same target, mark it as a "high-probability error point" and the synthesize stage adjudicates while preserving system purpose.
-
-**Special rule — removal vs. retention conflict**: If conciseness judges "removal needed" and another lens judges "retention needed":
-1. The synthesize stage compares both sides' rationale.
-2. Adjudicates in light of the system's purpose (improving the quality of the review target).
-3. Does not decide by simple majority — since the conciseness "removal" perspective is structurally in the minority, majority rule would always result in "retention," neutralizing the function of conciseness.
+Follow `processes/review/synthesize-prompt-contract.md` §4 Mandatory Execution Rules and §6 Deliberation Rule as the canonical adjudication rule.
+Do not use simple majority as a substitute for reasoning.
+In removal vs. retention conflicts, especially when `conciseness` is involved, compare the rationales against system purpose and preserve unresolved disagreement when it cannot be closed.
 
 ### Deliberation Necessity
 If any of the following conditions are met, answer "needed":
-- Do contradicting opinions exist?
+- Do disagreement items exist?
 - Were overlooked premises discovered?
-- Do new perspectives require additional examination?
+- Do axiology-proposed additional perspectives require additional examination?
 
 If none apply, answer "not needed" — in this case, write the final output directly:
 
@@ -576,19 +609,22 @@ date: {YYYY-MM-DD}
 
 ### Consensus (N/{participating agent count})
 ※ 합의 분모는 실제 참여한 review lens 수 (고정값 9가 아님). 경량 모드 및 에러 제외를 반영.
-- (List of judgments with full consensus)
+- (List of judgments shared across participating review lenses)
 
 ### Conditional Consensus
-- (Majority consensus + minority reservations. Reservation reasons specified)
+- (Judgments that align only under explicit conditions, scope limits, or reservations)
 
 ### Disagreement
 (Include only when deliberation was not performed — Codex mode, Subagent fallback.)
-Map Contradicting Opinions that were not resolved through deliberation to this section.
+Map unresolved disagreements that were not closed through deliberation to this section.
 Tag each disagreement item with a type:
 - **[Factual discrepancy]** — verifiable via external reference (code, documents). PO action: gather additional information
 - **[Criteria discrepancy]** — resolvable by applying a higher-level principle. PO action: confirm/decide on the higher-level principle
 - **[Value discrepancy]** — no conditions for reaching consensus, unresolvable through repetition. PO action: make a direct value judgment
 (When deliberation was performed, this section appears in the deliberation output format instead.)
+
+### Overlooked Premises
+- (Premises not directly raised by any participating lens but still requiring examination)
 
 ### Axiology-Proposed Additional Perspectives
 - (Only if explicitly proposed by `axiology`)
@@ -603,15 +639,24 @@ Tag each disagreement item with a type:
 - (Among consensus items, those that can be applied later)
 
 ### Unique Finding Tagging
-Classify each lens's findings into the 3 categories below. A "unique finding" is an issue that no other lens discovered, detectable only from that lens's verification dimension.
+Classify at the lens-qualified claim unit rather than by per-lens majority buckets.
 
-| Lens | Unique Finding | Shared Finding | Cross-Verified Finding |
-|---------|----------|----------|----------|
-| (Record the count and one representative case per lens) | | | |
+| Target + Evidence Anchor | Classification | Participating Lenses | Notes |
+|---|---|---|---|
+| (Record representative claim units or co-located groups) | unique claim / shared phenomenon | | |
 
-- **Unique finding**: an issue discovered only by that lens (no other lens reported the same issue)
-- **Shared finding**: an issue independently reported by 2 or more lenses from their respective perspectives
-- **Cross-verified finding**: a case where one lens's finding combines with another lens's finding to produce a new insight
+### Deliberation Decision
+- (`needed` / `not needed` / unresolved reason)
+
+### Final Review Result
+- (Conservative synthesized review result that preserves lens evidence and system purpose)
+
+### Shared Phenomenon Summary
+Classify co-located claim groups per `processes/review/shared-phenomenon-contract.md` §4.
+
+| Target | Evidence Anchor | Participating Lenses | Claim Relation | Notes |
+|---|---|---|---|---|
+| | | | corroboration / disagreement / partial overlap / dedup | |
 ```
 
 **If the synthesize stage judges "not needed"** → the final output has already been written. Proceed directly to Step 5.

@@ -220,7 +220,7 @@ else
   UNEXPECTED_COUNT=$((UNEXPECTED_COUNT + 1))
 fi
 
-run_expect_fail "E3: api-key-missing" \
+run_expect_fail "E3: unsupported-executor-realization-api" \
   src/ "test" \
   --executor-realization api --review-mode light
 
@@ -325,7 +325,7 @@ run_expect_pass "E22: explicit-no-domain" \
   --executor-realization mock --review-mode light \
   --requested-domain-token "@-"
 
-run_expect_pass "E23: unknown-executor-fallback" \
+run_expect_fail "E23: unknown-executor-rejected" \
   src/ "test" \
   --executor-realization banana --review-mode light
 

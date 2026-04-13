@@ -89,7 +89,7 @@ When adding or removing a process, all of the following files must be updated:
 |---|---|
 | `synthesize` | Synthesizes review lens findings into consensus, disagreement, overlooked premises, and final review output |
 
-> `philosopher` remains a legacy coordinator term in non-review prototype flows such as the current build prototype. New review productization work uses `axiology` + `synthesize` instead of `philosopher`.
+> `philosopher` has been retired as a canonical review/build pipeline role. Canonical review uses `axiology` + `synthesize`. A legacy compatibility command alias `/onto:ask-philosopher` remains (routes to `axiology`). The archival lineage is preserved at `development-records/legacy/philosopher.md`.
 
 ### Domain Documents
 Each agent reads the corresponding domain documents at execution time (verified using general principles if no file exists):
@@ -248,7 +248,7 @@ codex:
 ```
 
 `execution_mode` and `codex` fields:
-- `execution_mode`: `agent-teams` (default if absent) or `codex`. Command flags `--codex` / `--claude` override this.
+- `execution_mode`: `agent-teams` (default if absent) or `codex`. Command flag `--codex` overrides this.
 - `codex.model`: Codex model to use. If omitted, falls back to `~/.codex/config.toml` `model` field. If that is also absent, uses Codex CLI default.
 - `codex.effort`: Reasoning effort level (`none` | `minimal` | `low` | `medium` | `high` | `xhigh`). Same fallback chain as `codex.model`.
 
@@ -320,12 +320,12 @@ Codex mode delegates review passes to an external runtime (OpenAI Codex) to redu
 
 **Prerequisites**:
 - Codex CLI must be installed and authenticated. Verify via `/codex:setup`.
-- If Codex is unavailable at execution time → process-halting. Inform the user: "Codex CLI가 설정되지 않았습니다. `/codex:setup`을 실행하거나 `--claude` 플래그로 Agent Teams 모드를 사용하세요."
+- If Codex is unavailable at execution time → process-halting. Inform the user: "Codex CLI가 설정되지 않았습니다. `/codex:setup`을 실행하거나 Claude Code 세션에서 `onto coordinator start`로 Agent Teams 모드를 사용하세요."
 
 **Mode selection priority**:
-1. Command flag (`--codex` / `--claude`) → overrides config
+1. Command flag (`--codex`) → overrides config
 2. config.yml `execution_mode` → applies if no flag
-3. Neither specified → `agent-teams` (default), with Subagent fallback on TeamCreate failure
+3. Neither specified → `agent-teams` (default) via `onto coordinator start`
 
 **Execution model**:
 - Team lead (Claude): Context Gathering, Complexity Assessment, prompt construction, result collection, learning storage, final output delivery.

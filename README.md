@@ -166,13 +166,11 @@ Canonical execution profile is:
 
 Legacy `execution_mode` is accepted as a compatibility alias.
 
-Current implementation status:
-- `execution_realization: subagent` + `host_runtime: codex` is wired into the TS bounded review path
-- `execution_realization: subagent` + `host_runtime: claude` is wired into the TS bounded review path
-- `execution_realization: agent-teams` + `host_runtime: claude` is wired into the TS bounded review path
-- `execution_realization: agent-teams` + `host_runtime: codex` is not supported
+Current supported execution paths (2026-04-13 정책 확정):
+- **Codex CLI**: `execution_realization: subagent` + `host_runtime: codex`, entered via `onto review ... --codex`. Spawns `codex` child process for each bounded review unit.
+- **Agent Teams nested spawn**: `execution_realization: agent-teams` + `host_runtime: claude`, entered via `onto coordinator start` from a Claude Code session. Uses TeamCreate + nested Agent tool spawn; does not go through the CLI runner.
 
-This is a current implementation-status difference, not a canonical hierarchy or quality ranking. Append `--codex` or `--claude` as host-runtime convenience aliases, or use canonical execution-profile flags directly.
+Claude CLI subagent, API executor, and 3-Tier fallback paths have been removed — Claude CLI authentication is unstable in the current environment, and only the two canonical paths above are supported.
 
 ## Agent Configuration
 
@@ -189,7 +187,7 @@ This is a current implementation-status difference, not a canonical hierarchy or
 | `axiology` | Purpose and value alignment verifier | Preventing purpose drift, surfacing value conflicts, checking mission alignment |
 | `synthesize` | Review synthesis stage | Organizing consensus, disagreement, and final review output from the lens set |
 
-> Legacy note: `philosopher` remains in some non-review prototype flows such as the current build prototype. The canonical review structure is now `9 lenses + synthesize`.
+> Legacy note: `philosopher` has been retired as a canonical review/build pipeline role. The archival definition is preserved at `development-records/legacy/philosopher.md` for lineage reference. A legacy compatibility command alias `/onto:ask-philosopher` remains and routes questions to `axiology` (value-alignment perspective only). The canonical review structure is `9 lenses + synthesize`.
 
 ## Commands
 
@@ -199,8 +197,7 @@ This is a current implementation-status difference, not a canonical hierarchy or
 | `/onto:review {target}` | 9-lens review + synthesize (interactive domain selection) |
 | `/onto:review {target} @{domain}` | Review with specified domain |
 | `/onto:review {target} @-` | Review without domain rules |
-| `/onto:review {target} --codex` | Use codex host runtime (defaults to subagent) |
-| `/onto:review {target} --claude` | Use claude host runtime (defaults to agent-teams) |
+| `/onto:review {target} --codex` | Use Codex CLI execution path |
 | `/onto:review --target-scope-kind bundle --primary-ref {root} --member-ref {path}` | Review an explicit bundle target |
 
 ### Individual Query
@@ -215,7 +212,11 @@ This is a current implementation-status difference, not a canonical hierarchy or
 | `/onto:ask-coverage {question}` | Domain coverage perspective |
 | `/onto:ask-conciseness {question}` | Conciseness perspective |
 | `/onto:ask-axiology {question}` | Purpose and value alignment perspective |
-| `/onto:ask-philosopher {question}` | Legacy alias for axiology |
+
+#### Legacy Compatibility
+| Command | Description |
+|---|---|
+| `/onto:ask-philosopher {question}` | Legacy alias for `/onto:ask-axiology`. Preserves only value-alignment questioning behavior, not the former coordinator/synthesis role of 'philosopher'. New usage should use `/onto:ask-axiology`. |
 
 ### Ontology Build/Transform
 | Command | Description |
@@ -274,22 +275,14 @@ user request
 - deliberation은 contested point가 있을 때만 조건부로 추가된다
 - `review` core replacement는 TypeScript로 구현되며, artifact seat와 type name은 ontology-as-code 개념어와 직접 연결된다
 
-**Execution profile defaults**:
+**Execution paths** (2026-04-13 정책):
 
-| Resolved host runtime | Default execution realization | Supported user override |
-|------|---------|---------------|
-| `codex` | `subagent` | `subagent` |
-| `claude` | `agent-teams` | `agent-teams`, `subagent` |
+| Path | Entry | Execution |
+|---|---|---|
+| Codex CLI | `onto review ... --codex` | `codex` CLI child process per bounded unit |
+| Agent Teams nested spawn | `onto coordinator start ...` (from a Claude Code session) | TeamCreate + nested Agent tool spawn |
 
-Convenience aliases:
-- `--codex` means `host_runtime: codex`
-- `--claude` means `host_runtime: claude`
-
-If `execution_realization` is not explicitly set, the runtime defaults by resolved host runtime:
-- `codex` → `subagent`
-- `claude` → `agent-teams`
-
-These defaults are configuration behavior, not a quality hierarchy. Users can still choose `subagent` on `claude` when needed.
+Only these two paths are supported; other executor paths were removed due to Claude CLI authentication instability.
 
 ## Ontology Build (Integral Exploration)
 
@@ -387,11 +380,12 @@ onto/
 |   +-- conciseness.md  # Conciseness
 |   +-- axiology.md     # Purpose and value alignment
 |   +-- synthesize.md   # Review synthesis
-|   +-- philosopher.md       # Legacy build coordinator
 +-- explorers/               # Explorer profiles for build process
 +-- domains/                 # Domain base documents (8 per domain)
 +-- golden/                  # Golden examples per schema + schema templates
 +-- development-records/     # Development history (배포 제외)
+|   +-- legacy/
+|   |   +-- philosopher.md   # Archive-only lineage reference (retired from review and build)
 |   +-- tracking/20260330-known-issues.md
 |   +-- tracking/20260406-discovered-enhancements.md
 |   +-- reference/20260327-philosophical-foundations-of-ontology.md
@@ -480,7 +474,7 @@ During reviews and queries, if a domain-specific fact (data format, industry rul
 `/onto:promote` (or the `onto promote` CLI subcommand) runs two deduplication passes:
 
 1. **Criterion 5 — candidate-vs-global same-principle test**: identifies domain variants of existing global learnings (e.g., a [domain/finance] learning that restates a [domain/accounting] principle after removing domain-specific terms). Same-principle entries are consolidated into a single entry with representative cases from diverse domains.
-2. **Criterion 6 — cross-agent same-principle test**: identifies the same principle appearing under different agent-specific framings across multiple lens files (e.g., `structure` and `philosopher` both writing the same underlying rule with different vocabulary). LLM-driven, cost-bounded discovery with a deterministic primary-owner selection rule (earliest `source_date` among shortlist members).
+2. **Criterion 6 — cross-agent same-principle test**: identifies the same principle appearing under different agent-specific framings across multiple lens files (e.g., `structure` and `coverage` both writing the same underlying rule with different vocabulary). LLM-driven, cost-bounded discovery with a deterministic primary-owner selection rule (earliest `source_date` among shortlist members).
 
 Both passes surface their findings in the `PromoteReport` for operator approval before any file mutation. Phase B (apply) runs under a best-effort advisory file lock and fails-closed on partial-apply detection.
 

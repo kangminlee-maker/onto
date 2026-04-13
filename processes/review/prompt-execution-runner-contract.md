@@ -120,24 +120,21 @@ npm run review:run-prompt-execution -- \
   --session-root {session_root} \
   --executor-bin npm \
   --executor-arg=run \
-  --executor-arg=review:subagent-unit-executor \
-  --executor-arg=-- \
-  --executor-arg=--host-runtime \
-  --executor-arg=codex
+  --executor-arg=review:codex-unit-executor \
+  --executor-arg=--
 ```
 
-현재 구현에서는 아래 execution profile이 wired 되어 있다.
+2026-04-13 정책 확정 이후 CLI executor로 wired된 경로는 `codex`만이다. Claude CLI 기반 subagent 및 API executor 경로는 전부 제거되었다. Claude runtime 경로는 `onto coordinator start`를 통한 Agent Teams nested spawn으로만 실행되며, 이는 `review:run-prompt-execution`을 거치지 않는다.
 
-- `subagent + codex`
-- `subagent + claude`
-- `agent-teams + claude`
+현재 구현에서 CLI runner를 통해 실행되는 execution profile:
 
-즉 canonical realization name과 host runtime은 분리해서 본다.
+- `subagent + codex` (Codex CLI 경로)
+
+`agent-teams + claude`는 coordinator state machine이 직접 Agent tool로 dispatch하며, CLI runner를 호출하지 않는다.
 
 현재 기본 병렬성:
 
-- `subagent` → `3`
-- `agent-teams` → `9`
+- CLI runner (codex) → `9`
 
 원칙:
 

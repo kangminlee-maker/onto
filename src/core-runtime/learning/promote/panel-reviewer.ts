@@ -10,7 +10,7 @@
  *   - processes/promote.md Step 3 (criteria 1~6 definitions)
  *
  * Responsibility:
- *   - DD-2 Panel composition: originator + philosopher + auto_selected
+ *   - DD-2 Panel composition: originator + axiology + auto_selected
  *     (축소 규칙: 관련 agent 부재 / 원본==auto_selected → 2-agent)
  *   - Per-member LLM call (1 batch for all candidates per member) via
  *     shared/llm-caller.ts. 1회 retry on validator failure.
@@ -55,11 +55,11 @@ import type {
 // ---------------------------------------------------------------------------
 
 /**
- * Canonical philosopher agent id. Mirrors the philosopher learning file at
- * `~/.onto/learnings/philosopher.md` and the `philosopher` lens in the review
+ * Canonical axiology agent id. Mirrors the axiology learning file at
+ * `~/.onto/learnings/axiology.md` and the `axiology` lens in the review
  * runtime. Exported so tests and higher-level helpers can reference it.
  */
-export const PHILOSOPHER_AGENT_ID = "philosopher";
+export const AXIOLOGY_AGENT_ID = "axiology";
 
 export interface PanelCompositionConfig {
   /** Override the home directory during tests. */
@@ -67,7 +67,7 @@ export interface PanelCompositionConfig {
   /**
    * When true, auto_selected member must not equal originator. When no
    * distinct auto_selected agent can be chosen the panel degrades to
-   * 2-agent (originator + philosopher) per DD-2 축소 규칙.
+   * 2-agent (originator + axiology) per DD-2 축소 규칙.
    */
   allowAutoSelectedDegradation?: boolean;
 }
@@ -97,9 +97,9 @@ function listKnownAgents(ontoHome?: string): string[] {
  *
  * DD-2 rules:
  *   1. Panel member 1: originator (candidate.agent_id)
- *   2. Panel member 2: philosopher (always)
+ *   2. Panel member 2: axiology (always)
  *   3. Panel member 3: auto_selected (first known agent that is neither
- *      originator nor philosopher). If none can be selected, degrade to
+ *      originator nor axiology). If none can be selected, degrade to
  *      2-agent.
  */
 export function composePanel(
@@ -114,18 +114,18 @@ export function composePanel(
     reachable: true,
   });
 
-  const philosopherSelf = candidate.agent_id === PHILOSOPHER_AGENT_ID;
-  if (!philosopherSelf) {
+  const axiologySelf = candidate.agent_id === AXIOLOGY_AGENT_ID;
+  if (!axiologySelf) {
     members.push({
-      agent_id: PHILOSOPHER_AGENT_ID,
-      role: "philosopher",
+      agent_id: AXIOLOGY_AGENT_ID,
+      role: "axiology",
       reachable: true,
     });
   }
 
-  // Auto-selected: first known agent that isn't originator or philosopher.
+  // Auto-selected: first known lens that isn't originator or axiology.
   const candidates = listKnownAgents(config.ontoHome).filter(
-    (id) => id !== candidate.agent_id && id !== PHILOSOPHER_AGENT_ID,
+    (id) => id !== candidate.agent_id && id !== AXIOLOGY_AGENT_ID,
   );
   if (candidates.length > 0) {
     members.push({
@@ -135,7 +135,7 @@ export function composePanel(
     });
   }
   // If no auto_selected agent exists we degrade gracefully to 2-agent.
-  // If the originator IS philosopher we also naturally fall back.
+  // If the originator IS axiology we also naturally fall back.
 
   return members;
 }
@@ -763,7 +763,7 @@ export interface ReviewPanelResult {
  * anyway, so there's no cost saving from merging here.
  *
  * Future optimization: group candidates by originator and issue one LLM call
- * per (originator, philosopher, auto_selected) tuple to save N×3 calls. The
+ * per (originator, axiology, auto_selected) tuple to save N×3 calls. The
  * current shape correctly implements criterion 1~5 per candidate; batching
  * is a cost improvement, not a correctness gap.
  */
@@ -920,7 +920,7 @@ const CROSS_AGENT_DEDUP_SYSTEM_PROMPT = `You are detecting cross-agent principle
 
 You will receive 2 or more learnings from DIFFERENT agents. Apply the same-principle test to decide whether they express the same underlying principle once agent-specific framing is removed:
 
-(a) Remove agent-specific framing (e.g. "the philosopher asks...", "structurally...") from both items.
+(a) Remove agent-specific framing (e.g. "the axiology lens asks...", "structurally...") from both items.
 (b) Do the remaining sentences prescribe the same action?
 (c) Can you identify a situation where one applies but the other does not? If yes, they are different principles.
 

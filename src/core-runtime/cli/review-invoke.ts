@@ -28,7 +28,7 @@ import { resolveOntoHome } from "../discovery/onto-home.js";
 import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.js";
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 
-type ExecutorRealization = "subagent" | "agent-teams" | "codex" | "api" | "mock";
+type ExecutorRealization = "codex" | "mock";
 type ExecutionRealization = "subagent" | "agent-teams";
 type HostRuntime = "codex" | "claude";
 type ReviewTargetScopeKind = "file" | "directory" | "bundle";
@@ -169,18 +169,12 @@ function packageManagerBin(): string {
 
 // Single source for executor script names. Used by both npm-run and direct-path resolution.
 const EXECUTOR_SCRIPT_FILENAMES: Record<ExecutorRealization, string> = {
-  subagent: "subagent-review-unit-executor",
-  "agent-teams": "agent-teams-review-unit-executor",
   codex: "codex-review-unit-executor",
-  api: "api-review-unit-executor",
   mock: "mock-review-unit-executor",
 };
 
 const EXECUTOR_NPM_SCRIPTS: Record<ExecutorRealization, string> = {
-  subagent: "review:subagent-unit-executor",
-  "agent-teams": "review:agent-teams-unit-executor",
   codex: "review:codex-unit-executor",
-  api: "review:api-unit-executor",
   mock: "review:mock-unit-executor",
 };
 
@@ -217,7 +211,6 @@ function resolveDirectExecutorPath(
 
 function buildExecutorConfigFromRealization(
   realization: ExecutorRealization,
-  hostRuntime?: HostRuntime,
   ontoHome?: string,
 ): ReviewUnitExecutorConfig {
   // When ontoHome is available, use direct script paths (global CLI path)
@@ -229,25 +222,14 @@ function buildExecutorConfigFromRealization(
       // tsx/node invocation, "--" would be interpreted by parseArgs as
       // end-of-options, causing all subsequent args to be treated as
       // positional — triggering "Unexpected argument" errors.
-      const args = [direct.scriptPath];
-      if ((realization === "subagent" || realization === "agent-teams") && hostRuntime) {
-        args.push("--host-runtime", hostRuntime);
-      }
-      return { bin: direct.bin, args };
+      return { bin: direct.bin, args: [direct.scriptPath] };
     }
   }
 
   // Legacy npm run fallback (when invoked via npm run from onto repo)
-  const args = ["run", resolveExecutorScript(realization), "--"];
-  if (realization === "subagent" && hostRuntime) {
-    args.push("--host-runtime", hostRuntime);
-  }
-  if (realization === "agent-teams" && hostRuntime) {
-    args.push("--host-runtime", hostRuntime);
-  }
   return {
     bin: packageManagerBin(),
-    args,
+    args: ["run", resolveExecutorScript(realization), "--"],
   };
 }
 
@@ -395,70 +377,59 @@ function resolveExecutorConfig(
   // Read the prefixed flag first, then fall back to the non-prefixed flag
   // when running in synthesize mode. The test suite (and most operators)
   // pass `--executor-realization mock` and expect both lens AND synthesize
-  // to honor it; previously synthesize ignored that and dropped to the
-  // subagent+codex default, which silently hangs when codex is unavailable.
+  // to honor it.
   const explicitRealization =
     readSingleOptionValueFromArgv(argv, `${optionPrefixLabel}executor-realization`) ??
     (optionPrefixLabel.length > 0
       ? readSingleOptionValueFromArgv(argv, "executor-realization")
       : undefined);
-  if (
-    explicitRealization === "subagent" ||
-    explicitRealization === "agent-teams" ||
-    explicitRealization === "codex" ||
-    explicitRealization === "api" ||
-    explicitRealization === "mock"
-  ) {
+  if (explicitRealization === "codex" || explicitRealization === "mock") {
     return appendExecutorModelArgs(
-      buildExecutorConfigFromRealization(explicitRealization, hostRuntime, ontoHome),
+      buildExecutorConfigFromRealization(explicitRealization, ontoHome),
       argv,
       ontoConfig,
     );
   }
+  if (
+    typeof explicitRealization === "string" &&
+    explicitRealization.length > 0
+  ) {
+    throw new Error(
+      `Unsupported --${optionPrefixLabel}executor-realization: ${explicitRealization}. ` +
+        `Only codex and mock are supported. Claude runs use \`onto coordinator start\` (Agent Teams nested spawn).`,
+    );
+  }
 
   const configRealization = ontoConfig?.executor_realization;
-  if (
-    configRealization === "subagent" ||
-    configRealization === "agent-teams" ||
-    configRealization === "codex" ||
-    configRealization === "api" ||
-    configRealization === "mock"
-  ) {
+  if (configRealization === "codex" || configRealization === "mock") {
     return appendExecutorModelArgs(
-      buildExecutorConfigFromRealization(configRealization as ExecutorRealization, hostRuntime, ontoHome),
+      buildExecutorConfigFromRealization(configRealization as ExecutorRealization, ontoHome),
       argv,
       ontoConfig,
+    );
+  }
+  if (typeof configRealization === "string" && configRealization.length > 0) {
+    throw new Error(
+      `Unsupported executor_realization in config: ${configRealization}. ` +
+        `Only codex and mock are supported. Claude runs use \`onto coordinator start\` (Agent Teams nested spawn).`,
     );
   }
 
   if (executionRealization === "subagent" && hostRuntime === "codex") {
     return appendExecutorModelArgs(
-      buildExecutorConfigFromRealization("subagent", "codex", ontoHome),
-      argv,
-      ontoConfig,
-    );
-  }
-
-  if (executionRealization === "subagent" && hostRuntime === "claude") {
-    return appendExecutorModelArgs(
-      buildExecutorConfigFromRealization("subagent", "claude", ontoHome),
-      argv,
-      ontoConfig,
-    );
-  }
-
-  if (executionRealization === "agent-teams" && hostRuntime === "claude") {
-    return appendExecutorModelArgs(
-      buildExecutorConfigFromRealization("agent-teams", "claude", ontoHome),
+      buildExecutorConfigFromRealization("codex", ontoHome),
       argv,
       ontoConfig,
     );
   }
 
   throw new Error(
-    optionPrefix === "synthesize-"
-      ? "No synthesize executor realization is available for the requested execution profile. Pass --synthesize-executor-realization, --synthesize-executor-bin, or choose a supported profile."
-      : "No executor realization is available for the requested execution profile. Pass --executor-realization, --executor-bin, or choose a supported profile.",
+    [
+      "No executor realization is available for the requested execution profile.",
+      `execution_realization=${executionRealization}, host_runtime=${hostRuntime}`,
+      "The `onto review` CLI supports only codex (via --codex). ",
+      "Claude runs are performed through `onto coordinator start` with Agent Teams nested spawn — not through this CLI.",
+    ].join(" "),
   );
 }
 
@@ -1451,7 +1422,6 @@ interface ReviewInvokeSetup {
   executionRealization: ExecutionRealization;
   maxConcurrentLenses: number;
   startArgv: string[];
-  resolvedExecutorRealization: string | undefined;
 }
 
 async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSetup> {
@@ -1514,10 +1484,6 @@ async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSet
     argv,
     ontoConfig,
   );
-  const resolvedExecutorRealization =
-    readSingleOptionValueFromArgv(argv, "executor-realization") ??
-    ontoConfig.executor_realization;
-
   return {
     ontoHome,
     projectRoot,
@@ -1527,7 +1493,6 @@ async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSet
     executionRealization,
     maxConcurrentLenses,
     startArgv,
-    resolvedExecutorRealization,
   };
 }
 
@@ -1554,46 +1519,11 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
 
   const setup = await resolveReviewInvokeSetup(argv);
 
-  // Skip API key validation when --prepare-only: no executor runs in that mode.
-  // Precondition: startReviewSession() does not call any external API.
-  if (!prepareOnly && setup.resolvedExecutorRealization === "api") {
-    const apiProvider = readSingleOptionValueFromArgv(argv, "api-provider") ??
-      setup.ontoConfig.api_provider ?? "anthropic";
-    if (apiProvider === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
-      throw new Error(
-        "ANTHROPIC_API_KEY environment variable is required for --executor-realization api with anthropic provider.",
-      );
-    }
-    if (apiProvider === "openai" && !process.env.OPENAI_API_KEY) {
-      throw new Error(
-        "OPENAI_API_KEY environment variable is required for --executor-realization api with openai provider.",
-      );
-    }
-  }
-
-  // Resolve project-root early — needed for watcher spawn before session creation.
   const resolvedProjectRoot = path.resolve(
     readSingleOptionValueFromArgv(setup.startArgv, "project-root") ?? ".",
   );
 
-  // Auto-attach the live watcher pane BEFORE session creation.
-  // Spawning early ensures the split targets the correct iTerm2 tab even if
-  // the user switches tabs while startReviewSession runs. The watcher script
-  // will wait for `.onto/review/.latest-session` to appear before rendering.
   const noWatch = hasOptionFlag(argv, "no-watch");
-  if (!noWatch && !prepareOnly) {
-    const watcherResult = spawnWatcherPane(resolvedProjectRoot);
-    if (watcherResult.spawned) {
-      console.log(
-        `[review runner] live watcher attached via ${watcherResult.mechanism}`,
-      );
-    } else {
-      console.log(
-        `[review runner] live progress: open another terminal and run \`npm run review:watch\`` +
-          (watcherResult.reason ? ` (${watcherResult.reason})` : ""),
-      );
-    }
-  }
 
   const startResult = await startReviewSession(setup.startArgv);
 
@@ -1612,6 +1542,29 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   }
 
   const sessionRoot = path.resolve(startResult.session_root);
+
+  // Auto-attach the live watcher pane AFTER session creation so the watcher
+  // receives the exact session-root as an explicit argument. Prior behaviour
+  // spawned the watcher before startReviewSession and relied on the shared
+  // `.onto/review/.latest-session` pointer — but that pointer is a project-
+  // global single file, so concurrent review sessions (two or more
+  // `onto review --codex` invocations running in parallel) caused each
+  // watcher to latch onto whichever session wrote `.latest-session` last.
+  // Passing sessionRoot explicitly eliminates that race.
+  if (!noWatch) {
+    const watcherResult = spawnWatcherPane(resolvedProjectRoot, sessionRoot);
+    if (watcherResult.spawned) {
+      console.log(
+        `[review runner] live watcher attached via ${watcherResult.mechanism}`,
+      );
+    } else {
+      console.log(
+        `[review runner] live progress: open another terminal and run \`npm run review:watch -- "${sessionRoot}"\`` +
+          (watcherResult.reason ? ` (${watcherResult.reason})` : ""),
+      );
+    }
+  }
+
   const resolvedRequestText = setup.resolvedInvokeInputs.requestText;
   const defaultExecutorConfig = resolveExecutorConfig(
     argv,
@@ -1714,9 +1667,7 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
         max_concurrent_lenses: setup.maxConcurrentLenses,
         executor_realization:
           defaultExecutorConfig.bin === packageManagerBin()
-            ? defaultExecutorConfig.args[1] === "review:subagent-unit-executor"
-              ? "subagent"
-              : defaultExecutorConfig.args[1] === "review:codex-unit-executor"
+            ? defaultExecutorConfig.args[1] === "review:codex-unit-executor"
               ? "codex"
               : defaultExecutorConfig.args[1] === "review:mock-unit-executor"
                 ? "mock"

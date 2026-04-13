@@ -1,5 +1,5 @@
 ---
-as_of: 2026-04-13T16:25:00+09:00
+as_of: 2026-04-13T19:20:00+09:00
 supersedes: null
 status: active
 functional_area: execution-log
@@ -136,3 +136,31 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
         executor: "subagent + codex (v1.1 회복 검증)"
         verdict: "PASS-with-residuals (BLOCKING 0 + MAJOR 0 + MODERATE 0 + Consensus 3 follow-up + Disagreement 0 — D-01/02/03/05 all in-process resolved by synthesize, deliberation_status=not_needed)"
         patch_applied: "v1.2 (Immediate 1/2/4 + Recommendation 2/3 — Option C per Principal). Immediate 3 (Phase B sample 강화) 는 DL-031 처리 시 M-05 startup 으로 이관."
+
+### M-05 — Pre-draft Dependency Modeling
+
+- task_id: M-05
+- start_time: 2026-04-13T19:00:00+09:00
+- end_time: 2026-04-13T19:30:00+09:00
+- elapsed_minutes: 30
+- commit_hash: (M-05 commit hash 는 push 완료 후 업데이트)
+- subagent_count: 0 (메인 세션 단독, v3 QA A2 Principal 통합 판정 — M-05 는 Principal 판정 필수 단계)
+- notes: DL-015 + DL-031 (M-05 resolution_stage 2건) 전원 해소. 축 순서 재정립 (`D0→B→A→C + D continuing`) + Compound sequencing 표기 규약 수립 (compound_id + depends_on 체인 + Notes compound_member 3종) + D bootstrap vs continuing 구분 명문화 (BL-123 분할) + Phase B skip-by-delegation 확정 (Principal Option C 선택). core output = `20260413-onto-todo-dep-graph.md` v1 (별도 design record seat, handoff Step 6 옵션 (i) 적용). onto-todo.md v1.2 → v1.3 (§4.2 skip-by-delegation exit row 추가). DR-M05-01/02/03 수립. Stage completion protocol DR-M00-06 **세 번째** 완결 적용 (resolution_stage=M-05 pending=0 성공 기준 충족).
+- pr_rescan_evidence:
+    command: "gh pr list --state open --json number,title,updatedAt,url --limit 20"
+    timestamp: 2026-04-13T19:05:00+09:00
+    result: "[] (0 건). M-04 Phase A v1.2 완료 시점 (16:25) 이후 신규 open PR 없음. M-05 dep graph 작업과 독립."
+- result_summary:
+    axis_order_finalized: "D0 → B → A → C + D continuing (cross-cutting lane)"
+    activity_dep_edges: 5  # review/design/reconstruct → learn, govern → learn, govern → review/design/reconstruct
+    axis_activity_matrix_decided: true  # W-A 5 활동, W-B reconstruct+learn, W-C govern, W-D govern
+    compound_pre_identified: 3  # agent_id_rename, build_review_cycle, business_domain_wave
+    d_bootstrap_vs_continuing: "BL-123 분할 (D0 = lifecycle 성문화 + 인용 금지 도구 / D continuing = cross-cutting lane 별도 W-ID 없음)"
+    decision_records_new: [DR-M05-01, DR-M05-02, DR-M05-03]
+    deferred_ledger_resolved: 2  # DL-015, DL-031
+    deferred_ledger_new: 0
+    stage_completion_check: "resolution_stage=M-05 pending=0 (DR-M00-06 충족). 세 번째 완결 적용."
+    phase_b_status: "skipped-by-delegation"
+    phase_b_skip_rationale: "Principal Option C 선택 (2026-04-13T19:08). 근거: (1) 현 schema v1.2 가 2 라운드 review (claude a9e93dd7 CONDITIONAL + codex de95c971 PASS-with-residuals) 로 수렴, (2) 현 schema 는 프로그램 validator 부재 — sample 1~4건이 M-06 전수 검증과 방식 동일, marginal value 작음, (3) M-06 결함 발견 시 reopen 비용 (추정 1h 미만) < Phase B 실행 비용 기대값. Option A (현 후보 2 sample) + Option B (4 sample 확장) 는 모두 축 C/D schema 약한 지점 (enum_ref anchor / Migration Contract change_type / cluster algorithm) 을 활성 검증하지 못함. Escalation trigger (DR-M05-03): M-06 실행 중 schema 결함 3회 이상 누적 시 skip 결정 재검토."
+    output_seat_decision: "별도 design record (development-records/design/20260413-onto-todo-dep-graph.md v1). handoff Step 6 추천 옵션 (i) 적용 — onto-todo.md 는 work item canonical seat, dep graph 는 M-05 산출로 분리."
+    onto_todo_v1_3_patch: "§4.2 Exit 경로 table 에 `skipped-by-delegation` row 추가. schema 17 필드·불변식 변경 없음 (M-04 reopen 회피). patch 대상: 개정 이력 v1.3 row."

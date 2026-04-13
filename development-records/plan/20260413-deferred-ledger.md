@@ -1,20 +1,20 @@
 ---
-as_of: 2026-04-13T16:10:00+09:00
+as_of: 2026-04-13T19:20:00+09:00
 supersedes: null
 status: active
-revision: v1.6
+revision: v1.7
 functional_area: deferred-ledger
 purpose: |
   M-00 ~ M-08 meta task 실행 중 deferred로 분류된 item의 **단일 추적 ledger**.
   각 item의 origin / severity / resolution_stage / status를 longitudinal로 관리.
 item_count: 31
-resolved_count: 14
-pending_count: 17
+resolved_count: 16
+pending_count: 15
 resolution_stage_distribution:
   M-01: 3 (전원 resolved)
   M-03: 9 (전원 resolved — v1.2)
   M-04-A: 2 (전원 resolved — v1.5)
-  M-05: 2  # DL-031 신규 추가 (v1.6, M-04-A v1.1 patch C-02 해소)
+  M-05: 2 (전원 resolved — v1.7)  # DL-015 + DL-031 resolved (DR-M05-02 + DR-M05-03)
   M-06: 8  # DL-029 신규 추가 (v1.4)
   M-07: 2
   M-08: 5  # DL-030 신규 추가 (v1.4, NP-1 lens proposal)
@@ -138,8 +138,16 @@ relation_names:
 
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
-| DL-015 | v1-review | C-8 | MODERATE | Compound/Phase sequencing 구조 승격. agent_id_rename Phase 0→5 (BL-104~109), §2(3차) → §1(8차) build 선행, Wave 1-3 compound expansion. `depends_on` 컬럼 또는 Notes 표준 문구. `item_granularity: consolidation-row (not work-item)` | pending |
-| DL-031 | m04-a-review-C2 | review-cf964039 C-02 | MAJOR | **Phase B sanity check tracking** — M-04 Phase A v1 에서 Phase B 가 "skipped (M-05 착수 직전 이관)" 으로 표시됐으나 재호출 contract 부재. v1.1 patch 에서 (1) onto-todo.md §4 에 PASS/FAIL/FAIL-boundary exit 경로 명시, (2) execution-log 에 phase_b_skip_rationale 등재, (3) 본 DL 로 M-05 dep graph 작성 직전 실행 의무 추적. 대상: BL-123→W-D-01, BL-120→W-C-01 (또는 M-05 직전 후보 재평가 결과). 축 A/B sanity 는 M-06 전수 검증에 위임. 현 sample 이 schema 의 약한 지점(depends_on 의미 구분/cluster 알고리즘/Migration Contract change_type/enum_ref resolution) 을 촉발하지 않으므로 후보 확장 또는 Migration Contract sanity case 추가 (evolution E-09 제안) 도 옵션. | pending |
+| DL-015 | v1-review | C-8 | MODERATE | Compound/Phase sequencing 구조 승격. agent_id_rename Phase 0→5 (BL-104~109), §2(3차) → §1(8차) build 선행, Wave 1-3 compound expansion. `depends_on` 컬럼 또는 Notes 표준 문구. `item_granularity: consolidation-row (not work-item)` | **resolved** |
+| DL-031 | m04-a-review-C2 | review-cf964039 C-02 | MAJOR | **Phase B sanity check tracking** — M-04 Phase A v1 에서 Phase B 가 "skipped (M-05 착수 직전 이관)" 으로 표시됐으나 재호출 contract 부재. v1.1 patch 에서 (1) onto-todo.md §4 에 PASS/FAIL/FAIL-boundary exit 경로 명시, (2) execution-log 에 phase_b_skip_rationale 등재, (3) 본 DL 로 M-05 dep graph 작성 직전 실행 의무 추적. 대상: BL-123→W-D-01, BL-120→W-C-01 (또는 M-05 직전 후보 재평가 결과). 축 A/B sanity 는 M-06 전수 검증에 위임. 현 sample 이 schema 의 약한 지점(depends_on 의미 구분/cluster 알고리즘/Migration Contract change_type/enum_ref resolution) 을 촉발하지 않으므로 후보 확장 또는 Migration Contract sanity case 추가 (evolution E-09 제안) 도 옵션. | **resolved** |
+
+### 해소 기록 (DL-015, DL-031, 2026-04-13T19:20, M-05)
+
+**DL-015 resolution_note**: DR-M05-02 로 해소. Compound sequencing 표기 규약 수립 — `compound_id` metadata + `depends_on` 체인 (실행 DAG edge, onto-todo.md §1.3 C-04 의 W-[ABCD]-NN 원소 의미) + Notes `compound_member: <compound_id> phase_<n> of <N>` 3종 표기. Granularity 전환 규약: consolidation v3.x row 1건 → onto-todo.md N W-ID (M-06 책임). Pre-identified compound 3 사례: `agent_id_rename` (BL-104~109, 6 Phase), `build_review_cycle` (§2 build_3rd → §1 build_8th, 2 단계), `business_domain_wave` (BL-101~103, 3 단계 + BL-101 nested Wave 1/2/3). `rewrite_trace.change_type` enum 에 `compound_expansion` 추가 필요 시 schema v1.3 minor bump (M-06 에서 처음 사용 시 trigger). 본 규약은 `development-records/design/20260413-onto-todo-dep-graph.md` §5 에 owning_artifact 로 성문화.
+
+**DL-031 resolution_note**: DR-M05-03 로 해소-by-delegation. Principal 이 3 옵션 (A 현 후보 유지 / B 후보 확장 / C 전체 위임) 중 **Option C (skip 확정)** 선택. 근거: (1) 현 schema v1.2 가 2 라운드 review (claude a9e93dd7 CONDITIONAL + codex de95c971 PASS-with-residuals) 로 수렴, (2) 현 schema 는 프로그램 validator 부재 — sample 1~4건이 M-06 전수 검증과 방식 동일, marginal value 작음, (3) M-06 결함 발견 시 reopen 비용 (추정 1h 미만) < Phase B 실행 비용 기대값. onto-todo.md v1.3 §4.2 Exit 경로 에 `skipped-by-delegation` row 추가. execution-log M-05 entry 에 `phase_b_status: "skipped-by-delegation"` 기록. Escalation trigger (DR-M05-03): M-06 실행 중 schema 결함 3회 이상 누적 시 skip 결정 재검토.
+
+**Commit**: (M-05 commit hash 는 산출 완료 후 기록)
 
 ---
 
@@ -204,6 +212,12 @@ relation_names:
 - commit: `15d1e56`
 - context: Stage completion protocol (DR-M00-06) 두 번째 완결 적용. `resolution_stage == M-04-A AND status == pending` 인 item = 0 (성공 기준 충족).
 
+### DL-015, DL-031 (resolved 2026-04-13T19:20:00+09:00, via M-05)
+- 해소 근거: 위 "M-05 (Pre-draft Dependency Modeling) resolution_stage — 2 items" 섹션의 resolution_note 참조
+- M-05 core output: `development-records/design/20260413-onto-todo-dep-graph.md` v1 (축·활동 dep graph + Compound sequencing 규약 + D bootstrap/continuing) + `development-records/plan/20260413-m05-decisions.md` v1 (DR-M05-01/02/03) + `development-records/design/20260413-onto-todo.md` v1.3 (§4.2 skip-by-delegation exit 경로 추가)
+- commit: (M-05 commit hash 는 push 완료 후 업데이트)
+- context: Stage completion protocol (DR-M00-06) 세 번째 완결 적용. `resolution_stage == M-05 AND status == pending` 인 item = 0 (성공 기준 충족). Principal 판단 Option C (Phase B skip-by-delegation) 적용.
+
 ---
 
 ## 개정 이력
@@ -216,6 +230,7 @@ relation_names:
 - v1.5 (2026-04-13T15:30): DL-013 + DL-014 (M-04-A resolution_stage 2건) 전원 resolved 처리. M-04 Phase A core output (core-lexicon.yaml v0.6.0 activity_enum/axis_enum + onto-todo.md v1 schema + m04-decisions DR-M04-01/02) 와 연동. resolved_count: 12 → 14, pending_count: 18 → 16. Stage completion protocol 두 번째 완결 적용 (resolution_stage=M-04-A pending=0 성공 기준 충족).
 - v1.6 (2026-04-13T16:10): M-04 Phase A v1.1 patch (9-lens review session `20260413-a9e93dd7` CONDITIONAL 해소). DL-031 신규 (Phase B sanity check tracking, M-05 resolution_stage, MAJOR — C-02 해소). M-05 stage item count 1 → 2. item_count: 30 → 31, pending_count: 16 → 17. 새 resolved 없음. 본 v1.1 patch 의 다른 변경 (lexicon v0.6.1, onto-todo v1.1, m04-decisions v1.1) 은 DR-M04-01/02 의 applied_cases 갱신으로 흡수 — 신규 DL 미발생.
 - v1.6 micro-update (2026-04-13T16:25): M-04 Phase A v1.2 follow-up (codex review session `20260413-de95c971` PASS-with-residuals 후속). DL-024 의 "13필드" 표기 → "17필드" 로 정정 (잔재 표기 주석). 새 DL 미발생, count 변화 없음. 본 micro-update 는 v1.6 sub-revision (revision 번호 유지, 본문만 정정).
+- v1.7 (2026-04-13T19:20): DL-015 + DL-031 (M-05 resolution_stage 2건) 전원 resolved 처리. M-05 core output (onto-todo-dep-graph.md v1 + m05-decisions.md v1 + onto-todo.md v1.3) 와 연동. resolved_count: 14 → 16, pending_count: 17 → 15. Stage completion protocol 세 번째 완결 적용 (resolution_stage=M-05 pending=0 성공 기준 충족). Principal 판단 Option C (Phase B skip-by-delegation) 적용 — DL-031 이 skip-by-delegation 경로로 resolved.
 
 ## 참조
 

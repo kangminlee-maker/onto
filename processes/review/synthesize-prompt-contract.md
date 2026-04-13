@@ -85,7 +85,7 @@
 1. 새로운 독립 관점을 추가하지 않는다
 2. lens finding을 건너뛰고 ad hoc 결론을 만들지 않는다
 3. unresolved disagreement를 묵살하지 않는다
-4. deliberation이 불가능하면 disagreement를 그대로 final output에 남긴다
+4. lens 간 disagreement가 있으면 §6에 따라 synthesize가 직접 deliberation을 수행한다
 5. review의 primary output을 learning candidate로 정의하지 않는다
 6. `New Perspectives`를 스스로 invent하지 않는다
 7. `Purpose Alignment Verification`은 독립 판단으로 새로 만들지 않고, `axiology` finding을 보존적으로 반영한다
@@ -102,9 +102,15 @@
 
 ```yaml
 ---
-deliberation_status: not_needed | performed | required_but_unperformed
+deliberation_status: not_needed | performed
 ---
 ```
+
+`deliberation_status` 값 사용 규칙:
+
+- `not_needed`: lens 간 disagreement가 없는 경우.
+- `performed`: synthesize가 §6에 따라 in-process deliberation을 수행하고 resolution을 기록한 경우.
+- `required_but_unperformed`: synthesize 출력에서는 사용하지 않는다. 이 값은 runner가 synthesize task 자체의 실패를 감지했을 때만 record assembler가 부여하는 failure marker다.
 
 1. consensus
 2. conditional consensus
@@ -132,17 +138,23 @@ aggregate primary artifact는
 
 ## 6. Deliberation Rule
 
-deliberation이 가능한 경우:
+synthesize는 deliberation actor다. 모든 lens 결과와 materialized input이 이미 scope에 있으므로, lens-to-lens 메시징 채널이 없는 execution profile (예: `subagent + codex`)에서도 deliberation은 synthesize의 책임으로 in-process 수행한다.
 
-- contested point를 relevant lens에 다시 돌릴 수 있다
-- 그 결과를 다시 읽고 final output을 갱신한다
+수행 절차:
 
-deliberation이 불가능한 경우:
+1. lens 결과 전체에서 contested point를 식별한다
+2. 각 contested point에 대해 contested된 lens 출력과 materialized input의 인용 evidence를 재읽는다
+3. evidence에 비추어 각 입장의 타당성을 평가하고 resolution을 도출한다
+4. resolution을 `Deliberation Decision` 섹션에 contested point별로 기록한다
+5. `Disagreement` 섹션은 원 입장을 보존한 채 유지하되, resolution이 있는 항목은 그 사실을 명시한다
+6. evidence가 부족하여 resolution을 도출할 수 없는 경우, 그 사유를 `Deliberation Decision`에 기록한다 (그 자체가 수행 결과로 간주된다 — `deliberation_status: performed`)
 
-- disagreement를 explicit하게 유지한다
-- final output에서 unresolved 상태를 숨기지 않는다
+frontmatter `deliberation_status`:
 
-이 규칙은 특히 `subagent + codex` execution profile에서 중요하다.
+- `not_needed`: lens 간 disagreement가 없는 경우
+- `performed`: 위 절차를 수행한 경우 (resolution 도출 또는 명시적 evidence-부족 기록 포함)
+
+synthesize는 자신의 출력에서 `required_but_unperformed`를 emit하지 않는다.
 
 ---
 

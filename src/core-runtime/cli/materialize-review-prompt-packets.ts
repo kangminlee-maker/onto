@@ -522,11 +522,14 @@ ${(executionPlan.lens_execution_seats ?? binding.resolved_lens_set.map((lensId) 
 - Prefer the smallest sufficient set of files.
 - Only read optional context inputs if the materialized input and lens outputs are not enough.
 - Do not recursively chase additional document links or reference chains found inside the target text or lens outputs.
-- Preserve consensus, disagreement, overlooked premises, and axiology-proposed additional perspectives.
+- Preserve consensus, axiology-proposed additional perspectives, and overlooked premises.
 - Do not invent New Perspectives yourself.
-- If deliberation is unavailable, preserve unresolved disagreement explicitly.
+- You are the deliberation actor. When lens findings disagree, perform the deliberation in-process: re-read the contested lens outputs and the materialized input, weigh each side against the cited evidence, and render a resolved judgment in the Disagreement section. Cross-process lens-to-lens messaging is not part of this contract — synthesize itself resolves disagreement using the artifacts already in scope.
 - Start the output with YAML frontmatter using this exact field:
-  - \`deliberation_status: not_needed | performed | required_but_unperformed\`
+  - \`deliberation_status: not_needed | performed\`
+  - Use \`not_needed\` when no lens disagreement exists.
+  - Use \`performed\` when you executed the deliberation above and recorded the resolution.
+  - Do not emit \`required_but_unperformed\`; that value is reserved for synthesize-task failure detected by the runner.
 - Write your result to: ${toRelativePath(executionPlan.synthesis_output_path, projectRoot)}
 
 ## Required Output Sections
@@ -536,12 +539,15 @@ Use exactly these heading names in your output. The downstream renderer extracts
 ## Consensus
 ## Conditional Consensus
 ## Disagreement
+## Deliberation Decision
 ## Axiology-Proposed Additional Perspectives
 ## Purpose Alignment Verification
 ## Immediate Actions Required
 ## Recommendations
 ## Unique Finding Tagging
 \`\`\`
+
+The Deliberation Decision section records, per contested point, the resolution you reached (or "no contested points" when none exist). When \`deliberation_status: performed\`, every disagreement listed in the Disagreement section must have a corresponding entry here.
 
 ## Tagging Completeness Rule
 Every finding from the participating lens outputs must be accounted for in exactly one of these four classification sections: Consensus, Conditional Consensus, Disagreement, or Unique Finding Tagging. A finding may additionally appear in other sections (Recommendations, Immediate Actions, etc.), but it must have a primary classification in one of the four. If a finding is part of a cross-lens consensus, classify it under Consensus or Conditional Consensus. If it is unique to a single lens, classify it under Unique Finding Tagging.

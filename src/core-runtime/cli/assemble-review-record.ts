@@ -63,13 +63,6 @@ async function detectDeliberationStatus(
   ) {
     return frontmatterStatus;
   }
-  const loweredBody = parsed.body.toLowerCase();
-  if (loweredBody.includes("not needed") || loweredBody.includes("불필요")) {
-    return "not_needed";
-  }
-  if (loweredBody.includes("needed") || loweredBody.includes("필요")) {
-    return "required_but_unperformed";
-  }
   return "not_needed";
 }
 

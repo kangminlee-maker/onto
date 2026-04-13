@@ -34,7 +34,17 @@ async function detectDeliberationStatus(
   executionResult: ReviewExecutionResultArtifact | null,
   synthesisPath: string,
   deliberationPath: string,
+  binding: InvocationBindingArtifact,
 ): Promise<ReviewRecord["deliberation_status"]> {
+  // Precedence per `processes/review/synthesize-prompt-contract.md` §6.4
+  // and `processes/review/record-contract.md` §4.5:
+  //
+  //   1. execution-result.yaml (runner-owned, highest authority)
+  //   2. synthesis.md frontmatter (synthesize-owned, primary source for
+  //      both in-process and cross-process realizations)
+  //   3. realization-aware fallback when frontmatter is unavailable:
+  //        - cross-process (agent-teams): deliberation.md presence ⇒ performed
+  //        - in-process (subagent + *): no fallback signal ⇒ failure marker
   if (
     executionResult?.deliberation_status === "not_needed" ||
     executionResult?.deliberation_status === "performed" ||
@@ -43,26 +53,24 @@ async function detectDeliberationStatus(
     return executionResult.deliberation_status;
   }
 
-  if (await fileExists(deliberationPath)) {
+  if (await fileExists(synthesisPath)) {
+    const synthesisText = await fs.readFile(synthesisPath, "utf8");
+    const parsed = parseMarkdownFrontmatter<{ deliberation_status?: string }>(
+      synthesisText,
+    );
+    const frontmatterStatus = parsed.metadata?.deliberation_status;
+    if (frontmatterStatus === "not_needed" || frontmatterStatus === "performed") {
+      return frontmatterStatus;
+    }
+    // Frontmatter is malformed/missing or carries the failure-only marker
+    // `required_but_unperformed`. Fall through to realization-aware fallback.
+  }
+
+  const isCrossProcess = binding.resolved_execution_realization === "agent-teams";
+  if (isCrossProcess && (await fileExists(deliberationPath))) {
     return "performed";
   }
 
-  if (!(await fileExists(synthesisPath))) {
-    return "required_but_unperformed";
-  }
-
-  const synthesisText = await fs.readFile(synthesisPath, "utf8");
-  const parsed = parseMarkdownFrontmatter<{ deliberation_status?: string }>(
-    synthesisText,
-  );
-  const frontmatterStatus = parsed.metadata?.deliberation_status;
-  if (frontmatterStatus === "not_needed" || frontmatterStatus === "performed") {
-    return frontmatterStatus;
-  }
-  // Anything else (malformed/missing frontmatter, or the failure-only marker
-  // `required_but_unperformed` written by a non-conforming synthesize) is
-  // treated as a failure surface rather than being silently downgraded to
-  // `not_needed`.
   return "required_but_unperformed";
 }
 
@@ -271,6 +279,7 @@ export async function runAssembleReviewRecordCli(
       executionResult,
       synthesisPath,
       deliberationPath,
+      invocationBindingArtifact,
     ),
     deliberation_result_ref: (await fileExists(deliberationPath))
       ? toRelativePath(deliberationPath, projectRoot)

@@ -484,15 +484,12 @@ Round 1에서 에이전트 에러 발생 시:
 1. **감지**: 다른 에이전트가 전원 응답을 완료한 시점에 아직 응답하지 않은 에이전트,
    또는 에러를 보고한 에이전트를 감지한다.
 
-2. **재시도** (`execution_realization`별 분기):
-   - `agent-teams`: 해당 teammate에 SendMessage로 재실행을 요청한다.
-   - `subagent` (TeamCreate fallback): 동일 프롬프트로 Agent tool (`subagent_type: "general-purpose"`)을 re-spawn한다 (cross-process messaging이 없으므로 SendMessage 불가).
-   - `subagent + codex` (host_runtime: codex): 동일 프롬프트로 Agent tool (`subagent_type: "codex:codex-rescue"`)을 re-spawn한다.
-   메시지/프롬프트에 원래 Task Directives + 파일 경로를 포함한다.
+2. **재시도**: §3 dispatch 표 (Synthesize 단계)의 dispatch 메커니즘과 동일한 채널을 사용한다. agent-teams는 SendMessage 재요청, subagent 계열은 동일 프롬프트로 Agent tool re-spawn. `subagent_type` 값은 §3 표가 단일 source다 (drift 방지를 위해 본 단계에서 재나열하지 않는다). 재시도 메시지/프롬프트에 원래 Task Directives + 파일 경로를 포함한다.
 
 3. **종료 조건**: 2회 재시도 후에도 실패하면 graceful degradation 적용.
    해당 에이전트를 제외하고 합의 분모를 조정.
    synthesize 전달 시: "※ {agent-id}: 에러로 제외됨" 명시.
+   ※ 본 2회 상한은 모든 realization에 공통으로 적용된다 — 새 realization 추가 시 본 값의 적정성을 재평가한다.
 
 4. **로깅**: {session path}/error-log.md에 에러 이력 기록.
    (디버깅 참조용. 자동 소비 경로 없음.)
@@ -595,7 +592,7 @@ In removal vs. retention conflicts, especially when `conciseness` is involved, c
 
 ### Deliberation Necessity
 
-본 외부 결정 트리는 `execution_realization: agent-teams` 경로에만 적용된다. `subagent` 및 `subagent + codex` 경로에서는 synthesize가 §6.3에 따라 자기 출력의 frontmatter `deliberation_status`를 직접 emit하며 (`not_needed` 또는 `performed`), 외부 "needed/not needed" 결정 단계가 없다.
+본 외부 결정 트리는 `execution_realization: agent-teams` 경로에만 적용된다. `subagent` 및 `subagent + codex` 경로에서는 synthesize가 §6.3에 따라 자기 출력의 frontmatter `deliberation_status`를 직접 emit하며 (`not_needed` 또는 `performed`), 외부 "needed/not needed" 결정 단계가 없다. deliberation 트리거 조건의 canonical enumeration은 `processes/review/synthesize-prompt-contract.md` §6.1 / §6.2가 단일 source이며 두 경로 모두 동일 조건을 공유한다.
 
 Agent Teams 경로 기준, 다음 조건 중 하나라도 만족하면 "needed"로 답한다:
 - Do disagreement items exist?
@@ -685,9 +682,7 @@ Codex 모드에서는 `synthesize`도 `codex:codex-rescue` Agent로 실행한다
 - 프롬프트: `process.md`의 **Codex Review Synthesize Prompt Template** 사용.
 - 프롬프트에 review lens의 결과 파일 경로를 포함한다. Codex가 파일을 직접 읽고 종합한다.
 - 결과를 `{session path}/synthesis.md`에 저장하도록 지시한다.
-- **In-process deliberation 지시**: Codex 모드에서는 cross-process lens-to-lens 메시징이 불가하므로 synthesize 프롬프트에 다음 지시를 추가한다:
-  "synthesize는 deliberation actor입니다. lens 결과 사이에 disagreement가 있으면 contested된 lens 출력과 materialized input을 재읽어 직접 deliberation을 수행하고 'Deliberation Decision' 섹션에 contested point별로 resolution을 기록하세요. Disagreement 섹션은 원 입장을 보존합니다. frontmatter의 deliberation_status는 not_needed 또는 performed 둘 중 하나만 사용합니다."
-  상세 규칙은 `processes/review/synthesize-prompt-contract.md` §6 참조.
+- **In-process deliberation 지시**: process.md의 **Codex Review Synthesize Prompt Template**이 in-process deliberation directive 본문을 포함한다 — 별도 문구를 본 절에서 재나열하지 않는다. 의미 규칙은 `processes/review/synthesize-prompt-contract.md` §6이 단일 source다.
 - `synthesize` 실패 시: 1회 재시도 후에도 실패하면 `process-halting-with-partial-result`를 적용한다 (process.md Error Handling Rules 참조).
 
 ---

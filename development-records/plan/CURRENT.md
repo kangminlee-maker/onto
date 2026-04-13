@@ -17,6 +17,11 @@ Last updated: 2026-04-13
 - **Status**: superseded (M-00 실행 완료)
 - **Scope**: 새 세션 착수 가이드
 
+### M-03 Startup Handoff
+- **Current**: `20260413-m03-startup.md`
+- **Status**: active (다음 세션에서 M-03 착수용)
+- **Scope**: /clear 후 새 Claude Code 세션에서 M-03 (Gap 분석 + Disposition 분류) 진입 경로
+
 ### Backlog Consolidation
 - **Current**: `20260413-backlog-consolidated.md`
 - **Status**: active

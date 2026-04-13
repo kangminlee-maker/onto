@@ -25,11 +25,12 @@ Last updated: 2026-04-13 (M-03 완료 기준)
 ### Backlog Consolidation
 - **Current**: `20260413-backlog-consolidated.md`
 - **Status**: active
-- **Revision**: v3 (2026-04-13, M-03 disposition + canonicality 할당 완료)
+- **Revision**: v3.1 (2026-04-13, 9-lens review CONDITIONAL verdict 의 BLOCKING 1 + MAJOR 4 + MODERATE 5 해소)
+- **Review session**: `.onto/review/20260413-cf964039/` (CONDITIONAL verdict, Agent Teams nested spawn)
 - **Item count**: 123
 - **Source 분포**: backlog_memory 87 / memory 29 / design 4 / onto_direction 3 / pr 0
 - **Activity 분포** (primary): E 76 / G 39 / D 4 / R 4 / L 0
-- **Disposition 분포** (M-03): gap 102 / deferred 20 / already covered 1 / n/a 0
+- **Disposition 분포** (M-03): gap 101 / deferred 21 / already covered 1 / n/a 0 (합계 123, 본문 표가 canonical)
 - **Canonicality 분포** (M-03): canonical-advancing 8 / supporting 53 / scaffolding 62
 - **gap × canonical-advancing**: 7 (M-06 P1 후보: BL-053/063/064/110/120/121/123)
 - **v1 review session**: `.onto/review/20260413-30463d46/` (CONDITIONAL verdict, v2에서 BLOCKING 2 + MAJOR 2 해소)

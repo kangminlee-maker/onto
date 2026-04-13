@@ -1,8 +1,8 @@
 ---
-as_of: 2026-04-13T13:50:00+09:00
+as_of: 2026-04-13T14:30:00+09:00
 supersedes: null
 status: active
-revision: v1.2
+revision: v1.3
 functional_area: deferred-ledger
 purpose: |
   M-00 ~ M-08 meta task 실행 중 deferred로 분류된 item의 **단일 추적 ledger**.
@@ -90,11 +90,11 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 
 ### 해소 기록 (DL-004~012, 2026-04-13T13:50, M-03 v1.2 patch)
 
-**DL-004 resolution_note**: consolidated v3 frontmatter 에 `schema_version: v3`, `id_scheme` (v3 기점 stable, BL-ID 재할당 금지) 반영. row-level traversability (`src`, `origin_date`, `merged_from`) 는 본문 표 Notes 컬럼에 inline 포함 방식으로 수용 — separate 컬럼 추가 시 표 폭 과도 판단. 대표 사례: BL-035 Notes 에 "DL-001 반영" 출처 표기, BL-041 Notes 에 "DR-M03-01 resolved" 출처 표기.
+**DL-004 resolution_note**: consolidated v3 frontmatter 에 `schema_version: v3`, `id_scheme` (v3 기점 stable, BL-ID 재할당 금지) 반영. row-level traversability (`src`, `origin_date`, `merged_from`) 는 본문 표 Notes 컬럼에 inline 포함 방식으로 수용 — separate 컬럼 추가 시 표 폭 과도 판단. **Scope: 대표 사례 부착** (전수 적용 아님). 적용 대상: (i) DR 또는 DL 로 source/disposition/canonicality 가 변동된 BL 에 한해 Notes 에 출처 token inline. 적용례: BL-035 ("DL-001 반영"), BL-041 ("DR-M03-01 resolved (disposition_basis)"), 기타 Notes 에 명시된 BL. **전수 row-level 출처 필드 (src/origin_date/merged_from)** 가 필요하면 M-04 Phase A 의 task schema 재설계 또는 M-08 refresh 시 별도 DL 로 재정의. 본 DL 은 "출처 token inline" scope 로 한정 완결.
 
 **DL-005 resolution_note**: consolidated v3 frontmatter 에 `source_taxonomy` 필드 추가. 5 source 카테고리(backlog_memory / memory / design / pr / onto_direction) 각각의 `description` + `inclusion_rule` + `excluded_paths` (해당 시) + PR 의 `dual_role` (open=inclusion, merged=exclusion evidence) 명시.
 
-**DL-006 resolution_note**: consolidated v3 frontmatter 에 `dedup_evidence_schema` 필드 신설. `basis_enum` 카테고리 고정 (`reference_normalization` / `title_topic_scope_identity` / `partial_overlap_with_distinct_scope`), `supersedes`(doc-level) 와 `dedup_retires`(item-level) 구분 명시. DR-M03-01 의 `kept_primary_source` + `linked_supporting_sources` 필드 분리도 여기에 통합.
+**DL-006 resolution_note**: consolidated v3 frontmatter 에 `dedup_evidence_schema` 필드 신설. `basis_enum` 카테고리 고정 (`reference_normalization` / `title_topic_scope_identity` / `partial_overlap_with_distinct_scope`), `supersedes`(doc-level) 와 `dedup_retires`(item-level) 구분 명시. `kept_primary_source` + `linked_supporting_sources` 필드는 **DR-M03-01 의 schema instantiation 을 수용** 한 것 — DR-M03-01 이 primary owning_decision, 본 DL 은 schema 을 ledger 기록 관점에서 서술. 양방향 링크: BL-041 Notes (disposition_basis: DR-M03-01, schema 반영 DL-006).
 
 **DL-007 resolution_note**: axis D 태깅 기준은 이미 DR-M00-05 (consolidated v2) 에서 명문화됨 — "lexicon term/entity/relation 관리로 한정, schema/registry/namespace 는 B". v3 의 axis D 15 item 은 모두 이 정의 내부 (lexicon lifecycle, entity 승격, relation 추가, provisional lifecycle, retire rule). **`axis_sub` 하위 태그 미도입 결정** — 15 item 이 모두 단일 범주(lexicon lifecycle) 라 sub-tag 추가 비용 > 정보 이득. 재평가 조건: axis D 가 30+ item 으로 증가 시 또는 Principal 판단.
 
@@ -140,7 +140,7 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
 | DL-016 | m02-inv | A0-framework | Gap | A0 (scope-runtime framework 추출) work item 신규 도출. §1.5 "A0 = 축 A 선행" 원칙 consolidated v2 미등재. 축 A 전체의 선행 조건 | pending |
-| DL-017 | m01-inv + m02-inv | measurement-infra | Gap | §1.4 측정 인프라 3지표 (점진성 / 지속성 / 기제) 계측 seat 구축. 전 활동 0건. `data-seats` component에서 M-02가 0 primary 확인 | pending |
+| DL-017 | m01-inv + m02-inv | measurement-infra | Gap | §1.4 측정 인프라 3지표 (점진성 / 지속성 / 기제) 계측 seat 구축. 전 활동 0건. `data-seats` component에서 M-02가 0 primary 확인. **M-06 분할 요구 (CC-A)**: 본 DL 을 3 지표 전수 work item 으로 분할 필수 (점진성 seat + 지속성 seat + 기제 seat 독립). BL-120 (gap × canonical-advancing, P1) 이 측면 3 기제 proxy — 측면 1/2 는 BL-120 같은 직접 advance 항목 0건이라 DL-017 분할이 유일 seed. superset 관계 (DL-017 ⊃ BL-120) 명시하여 중복 seat risk 회피. | pending |
 | DL-018 | m02-inv | state-machine-dedup | Gap | State machine 3중 구현 통합 (review 9-state coordinator / scope-runtime 15-state / build.md spec). A0 framework 추출의 핵심 대상 | pending |
 | DL-019 | m01-inv + v2-review | drift-engine | Gap | drift 정책 engine·큐·승인 흐름 구축. §1.3 수준 0→1 도달 조건. 현 축 C 4건(BL-088~090, BL-120)은 harness 수습·검증 정책 수준이며 engine 자체 부재. axiology A-3도 동일 지적 | pending |
 | DL-020 | m01-inv | reconstruct-cli | Gap | reconstruct 활동 전용 CLI bounded path 구축. review의 3-step bounded path 수준 비대칭. build-runtime 40 BL cluster의 근본 원인 | pending |
@@ -155,7 +155,7 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
-| DL-023 | qa-v3 | Q10 | Defer | lifecycle 분포 (buildout/migration/validation/maintenance/adoption) balance check | pending |
+| DL-023 | qa-v3 | Q10 | Defer | lifecycle 분포 (buildout/migration/validation/maintenance/adoption) balance check. **M-03 CC-B 반영**: `scaffolding_ratio_trend` health metric 포함 — cycle 별 scaffolding 비중 (현 v3 = 50.4%) 추적하여 감소 방향성 검증. post-PR 잔여 결함 수습 비중이 canonical-advancing 진입 속도를 drain 하지 않는지 모니터. | pending |
 | DL-024 | qa-v3 | Q9-extended | Defer | M-07 시점 consistency check 3 지점 실행 (M-00→M-03 entry count 일치, M-03→M-06 gap count ≥ work item count, M-06 schema 13필드 전부 채움) | pending |
 
 ---
@@ -193,6 +193,7 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 - v1 (2026-04-13T12:30): 초판. 28 item 등재. M-00 v1 review 결과 + v2 review 결과 + v5.1 meta + QA v3 + M-01 inventory + M-02 inventory 통합.
 - v1.1 (2026-04-13T12:45): DL-001/002/003 (M-01 resolution_stage 3건) 전원 resolved 처리. consolidated v2.1 patch와 연동.
 - v1.2 (2026-04-13T13:50): DL-004~012 (M-03 resolution_stage 9건) 전원 resolved 처리. consolidated v3 + m03-decisions.md 와 연동. resolved_count: 3 → 12, pending_count: 25 → 16.
+- v1.3 (2026-04-13T14:30): 9-lens review `20260413-cf964039` feedback 반영. DL-004 resolution_note 에 Scope="대표 사례 부착" 명시 (C-F 해소). DL-006 resolution_note 에 "DR-M03-01 schema instantiation 수용" downgrade (CC-D 해소). DL-017 context 에 M-06 3 지표 분할 + BL-120 superset 관계 명시 (CC-A 반영). DL-023 context 에 `scaffolding_ratio_trend` metric 추가 (CC-B 반영). 새 resolved 없음.
 
 ## 참조
 

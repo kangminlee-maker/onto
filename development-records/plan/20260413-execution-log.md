@@ -94,9 +94,11 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - subagent_count: 0 (메인 세션 단독, v3 QA A2 Principal 통합 판정)
 - notes: 123 BL 전원에 disposition(4) + canonicality(3) 할당. deferred ledger DL-004~012 9건 통합 해소. Open PR 재스캔 0건 (snapshot 유효). DR-M03-01/02/03/04 수립. Stage completion protocol (DR-M00-06) 첫 완결 적용.
 - result_summary:
-    disposition_distribution: { gap: 102, deferred: 20, already_covered: 1, n_a: 0 }
+    disposition_distribution: { gap: 101, deferred: 21, already_covered: 1, n_a: 0 }  # 합계 123, 본문 표 canonical
     canonicality_distribution: { canonical_advancing: 8, supporting: 53, scaffolding: 62 }
     gap_x_canonical_advancing: 7 (M-06 P1 후보)
     pre_cutoff_priority: { P1: 1, P2: 18, P3: 18 }
     deferred_ledger_resolved: 9 (DL-004~012)
     m06_new_scope_items: 7 (DL-016~022, consolidated 미등재 구조적 gap)
+    review_verdict: CONDITIONAL (9-lens session 20260413-cf964039, BLOCKING 1 + MAJOR 4 + MODERATE 5)
+    review_patch: v3.1 (BLOCKING C-A + MAJOR 4 + MODERATE 5 해소)

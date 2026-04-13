@@ -109,7 +109,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - start_time: 2026-04-13T15:30:00+09:00
 - end_time: 2026-04-13T15:50:00+09:00
 - elapsed_minutes: 20
-- commit_hash: (pending)
+- commit_hash: 15d1e56
 - subagent_count: 0 (메인 세션 단독, v3 QA A2 Principal 통합 판정)
 - notes: DL-013/014 통합 해소. 17 필드 task schema 완전 명세 (v5.1 meta 17 필드 기준, 일부 문건의 "15 필드" 표기는 버전 차이 혼선 — v1 schema 가 canonical). `development-records/design/20260413-onto-todo.md` canonical output seat 초판 (frontmatter + 축별 빈 섹션). authority/core-lexicon.yaml v0.5.0→v0.6.0 additive bump (activity_enum + axis_enum term 추가, §1 정본 §1.2/§1.5 동기화, 기존 entrypoint entity 미변경 — Stage 3 scope 보호). DR-M04-01/02 수립. Stage completion protocol DR-M00-06 두 번째 완결 적용 (resolution_stage=M-04-A pending = 0 충족).
 - pr_rescan_evidence:

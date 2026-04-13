@@ -1,22 +1,22 @@
 ---
-as_of: 2026-04-13T21:15:00+09:00
+as_of: 2026-04-13T22:00:00+09:00
 supersedes: null
 status: active
-revision: v1.11
+revision: v1.12
 functional_area: deferred-ledger
 purpose: |
   M-00 ~ M-08 meta task 실행 중 deferred로 분류된 item의 **단일 추적 ledger**.
   각 item의 origin / severity / resolution_stage / status를 longitudinal로 관리.
 item_count: 31
-resolved_count: 24
-pending_count: 7
+resolved_count: 26
+pending_count: 5
 resolution_stage_distribution:
   M-01: 3 (전원 resolved)
   M-03: 9 (전원 resolved — v1.2)
   M-04-A: 2 (전원 resolved — v1.5)
   M-05: 2 (전원 resolved — v1.7)  # DL-015 + DL-031 resolved (DR-M05-02 + DR-M05-03)
   M-06: 8 (전원 resolved — v1.11)  # DL-016/018 (v1.9) + DL-020/029 (v1.10) + DL-017(완전)/019/021/022 (v1.11 Wave 4). Stage completion: pending=0
-  M-07: 2
+  M-07: 2 (전원 resolved — v1.12)  # DL-023 lifecycle balance + DL-024 consistency check. Stage completion: pending=0
   M-08: 5  # DL-030 신규 추가 (v1.4, NP-1 lens proposal)
 id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 ledger 내에서 불변"
 stage_id_scheme: "M-NN 또는 M-NN-X (M-04-A, M-04-B 등 sub-stage 허용. ledger resolution_stage 값은 이 scheme 을 준수)"
@@ -174,8 +174,8 @@ relation_names:
 
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
-| DL-023 | qa-v3 | Q10 | Defer | lifecycle 분포 (buildout/migration/validation/maintenance/adoption) balance check. **M-03 CC-B 반영**: `scaffolding_ratio_trend` health metric 포함 — cycle 별 scaffolding 비중 (현 v3 = 50.4%) 추적하여 감소 방향성 검증. post-PR 잔여 결함 수습 비중이 canonical-advancing 진입 속도를 drain 하지 않는지 모니터. | pending |
-| DL-024 | qa-v3 | Q9-extended | Defer | M-07 시점 consistency check 3 지점 실행 (M-00→M-03 entry count 일치, M-03→M-06 gap count ≥ work item count, M-06 schema 17필드 전부 채움 — `20260413-onto-todo.md` v1.x §1.1 canonical 기준; 이전 "13필드" 표기는 v4 meta 잔재) | pending |
+| DL-023 | qa-v3 | Q10 | Defer | lifecycle 분포 (buildout/migration/validation/maintenance/adoption) balance check. **M-03 CC-B 반영**: `scaffolding_ratio_trend` health metric 포함 — cycle 별 scaffolding 비중 (현 v3 = 50.4%) 추적하여 감소 방향성 검증. post-PR 잔여 결함 수습 비중이 canonical-advancing 진입 속도를 drain 하지 않는지 모니터. | **resolved** |
+| DL-024 | qa-v3 | Q9-extended | Defer | M-07 시점 consistency check 3 지점 실행 (M-00→M-03 entry count 일치, M-03→M-06 gap count ≥ work item count, M-06 schema 17필드 전부 채움 — `20260413-onto-todo.md` v1.x §1.1 canonical 기준; 이전 "13필드" 표기는 v4 meta 잔재) | **resolved** |
 
 ---
 
@@ -245,8 +245,18 @@ relation_names:
   - **DL-021 resolution_note**: W-C-01 (govern 전용 runtime, canonical-advancing). depends_on=[DL-021, W-B-01]. §1.4 govern 완료 기준 충족 경로. DR-M06-05 선행 역할 확정.
   - **DL-022 resolution_note**: W-C-03 (knowledge→principle 승격 경로, canonical-advancing). depends_on=[DL-022, BL-122, W-C-01]. §1.2 "보류 중" 해소. BL-122 resolves edge.
 
+### DL-023, DL-024 (resolved 2026-04-13T22:00:00+09:00, via M-07)
+- 해소 근거: M-07 5개 검증 항목 전수 수행. DR-M07-01 (revise escalation PASS) + DR-M07-04 (lifecycle balance 확인).
+- **DL-023 resolution_note**: lifecycle balance check 완료. 축×활동×lifecycle_status 교차표 작성. canonical-advancing 17건 4축 모두 존재 (A:7, B:3, C:4, D:3). scaffolding_ratio_trend: M-03 50.4% → M-07 46.0% (감소 방향 = 건전). deferred 20건 중 축 B 19건(95%) 집중 — 구조적 문제 아님 (P3 저우선순위 + scale-trigger). DR-M07-04 에서 상세 기록.
+- **DL-024 resolution_note**: consistency check 3지점 PASS. (a) 123 ≥ 101 ✓, (b) 101 ≤ 139 ✓, (c) 139 W-ID × 11 required 필드 전수 채움 ✓. 부수 발견: M-06 execution log W-B lifecycle 오집계 3건 (DR-M07-03 으로 정정).
+- context: Stage completion protocol (DR-M00-06) 다섯 번째 완결 적용. `resolution_stage == M-07 AND status == pending` 인 item = 0 (성공 기준 충족).
+
 ## 참조
 
 - `development-records/plan/20260413-backlog-consolidated.md` (v2) — 본 ledger와 분리. Ledger는 backlog item이 아닌 **작업 방식·schema·구조·gap에 대한 defer**
 - `development-records/plan/20260413-m00-decisions.md` — DR-M00-06 (본 ledger 수립 결정) 추가 예정
 - `development-records/plan/20260413-execution-log.md` — 각 stage 완료 시 ledger 갱신 이벤트 기록
+
+## 개정 이력 (v1.12)
+
+- v1.12 (2026-04-13T22:00): DL-023 + DL-024 (M-07 resolution_stage 2건) 전원 resolved 처리. M-07 5개 검증 항목 전수 PASS (DAG acyclic + Cluster 판정 + Compound 무결성 12/12 + Lifecycle balance + Consistency check 3지점). resolved_count 24 → 26, pending_count 7 → 5. M-06 execution log W-B lifecycle 오집계 3건 부수 발견 및 정정 (DR-M07-03). Stage completion protocol (DR-M00-06) 다섯 번째 완결 적용 (resolution_stage=M-07 AND status=pending = 0 성공 기준 충족). Revise escalation 판정: PASS — M-08 진입 허용.

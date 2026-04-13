@@ -230,7 +230,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     by_axis_count_cumulative: { A: 1, B: 51, C: 0, D: 3 }  # Wave 1 + Wave 2
     by_activity_count_wave2: { reconstruct: 34, govern: 13, review: 2, design: 2 }
     by_canonicality_wave2: { canonical_advancing: 2, supporting: 32, scaffolding: 17 }
-    by_lifecycle_wave2: { active: 29, deferred: 22 }
+    by_lifecycle_wave2: { active: 32, deferred: 19 }  # M-07 검증 정정 (DR-M07-03): 원래 active:29/deferred:22 → 실측 active:32/deferred:19
     minimum_surface_progress:
       condition_1_compound_member_nonnull: "cover — W-A-01 (Wave 1)"
       condition_2_depends_on_3kinds_edge: "cover — W-B-02 depends_on=[W-B-01, BL-095, DL-018]"
@@ -284,14 +284,47 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     stage_completion_protocol: "resolution_stage=M-06 AND status=pending = 0 (DR-M00-06 성공 기준 충족). 네 번째 완결."
     m06_final_summary:
       total_work_items: 139
-      canonical_advancing: 14  # W-D-01/02/03, W-B-01/02/17, W-A-58/60/69/70/74/75/76, W-C-01/02/03/05 → 17? 재집계 필요
+      canonical_advancing: 17  # M-07 검증 실측 (DR-M07-04). 원래 14 기재, 재집계 필요 주석 있었음
       supporting: 58
-      scaffolding: 63
-      deferred: 23
-      active: 116
+      scaffolding: 64  # M-07 검증 실측 (원래 63)
+      deferred: 20  # M-07 검증 정정 (DR-M07-03): 원래 23 → 실측 20
+      active: 119  # M-07 검증 정정 (DR-M07-03): 원래 116 → 실측 119
       compound_count: 3  # agent_id_rename(6), build_review_cycle(2+36 sub), business_domain_wave(5)
       compound_members: 13  # 6+2+5
       compound_sub_items: 36  # build phase 1 21 + phase 2 15
       decision_records_count: 6  # DR-M06-01~06
       delegated_validation_surface: "3/3 cover: 조건 1 W-A-01 / 조건 2 W-B-02 / 조건 3 W-A-01"
       schema_defects_total: 0
+
+### M-07 — Post-draft Cluster 검증 + Lifecycle Balance + Revise Escalation
+
+- task_id: M-07
+- start_time: 2026-04-13T21:30:00+09:00
+- end_time: 2026-04-13T22:00:00+09:00
+- elapsed_minutes: 30
+- commit_hash: 91c60af
+- subagent_count: 2 (dag-cluster-verifier + compound-lifecycle-consistency)
+- notes: M-06 산출 onto-todo.md v2 (139 W-ID) 대상 5개 검증 항목 수행. (1) DAG acyclic, (2) Cluster 판정, (3) Compound 무결성 재검증, (4) Lifecycle balance (DL-023), (5) Consistency check 3지점 (DL-024). **전수 PASS**. Revise escalation 판정: M-08 진입 허용. minor defect 1건 (execution log W-B lifecycle 오집계, DR-M07-03 으로 정정).
+- m07_result_summary:
+    dag_acyclic: "PASS — 80 W→W edges, 79 노드, cycle 0건"
+    cluster_judgment:
+      singletons: 9  # 완전 독립 실행 가능
+      super_connectors: 5  # 매우 넓은 glob
+      focused_cluster_1: 120  # processes/build.md 52개 공유가 핵심 binding
+      focused_cluster_2: 4  # roles/*.md glob 공유
+      max_overlap_file: "processes/build.md (52 W-ID)"
+    compound_integrity: "12/12 PASS (3 compound × 4 불변식)"
+    lifecycle_balance:
+      canonical_advancing: 17  # 4축 모두 존재 (A:7, B:3, C:4, D:3)
+      supporting: 58
+      scaffolding: 64  # 46.0% (M-03 50.4% 대비 감소 = 건전)
+      active: 119
+      deferred: 20  # 축 B 19건(95%) 집중. SE Stage 4 P3 + 미착수 도메인 + scale-trigger
+    consistency_check:
+      point_a: "PASS — 123 ≥ 101"
+      point_b: "PASS — 101 ≤ 139"
+      point_c: "PASS — 139/139 required 11 필드 전수 채움"
+    revise_escalation: "PASS — M-08 진입 허용. reopen 불요."
+    decision_records_count: 4  # DR-M07-01~04
+    deferred_ledger_resolved: 2  # DL-023 + DL-024
+    stage_completion_protocol: "resolution_stage=M-07 AND status=pending = 0 (DR-M00-06 성공 기준 충족). 다섯 번째 완결."

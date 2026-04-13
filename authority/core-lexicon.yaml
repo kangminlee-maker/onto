@@ -203,7 +203,23 @@ provisional_terms:
     required_fields: [term_id, lifecycle_status, registered_by, registered_date, definition_draft]
     optional_fields: [evidence, notes]
     note: "entry key = term_id. entries 내부에 직접 기록."
-  entries: {}
+  entries:
+    review_execution_log:
+      term_id: review_execution_log
+      lifecycle_status: seed
+      registered_by: "W-A-71"
+      registered_date: "2026-04-14"
+      definition_draft: >
+        review 활동의 실행 로그 수집 seat.
+        세션별 타이밍 데이터(전체 소요 시간, per-lens 소요 시간, provenance)를
+        구조적으로 읽어 점진성(progressiveness) metric 을 산출한다.
+        없으면 반복 review 의 비용·시간 변화를 계량할 수 없다.
+      evidence:
+        - "src/core-runtime/readers/review-log.ts (reader 구현)"
+        - "processes/review/review-log-contract.md (계약 문서)"
+      notes:
+        - "DL-017 점진성 seat 3건 중 review 담당"
+        - "W-A-75/76 (review-r+/r−) 의 선행 의존"
 
 # ---------------------------------------------------------------------------
 # Entities

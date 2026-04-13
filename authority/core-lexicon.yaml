@@ -1,4 +1,4 @@
-lexicon_version: "0.6.1"
+lexicon_version: "0.7.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
@@ -7,6 +7,7 @@ notes:
   - "Structure: authoring_rules → shared_attributes → entities → terms."
   - "v0.6.0 additive (M-04 Phase A, 2026-04-13): activity_enum + axis_enum terms added. §1 정본 §1.2 (5 활동) + §1.5 (4 축) canonical seat. DR-M04-01 (DL-013 resolved) owning."
   - "v0.6.1 additive (M-04 Phase A v1.1, 2026-04-13): 9-lens review `20260413-a9e93dd7` CONDITIONAL 해소. activity_enum.legacy_aliases 구조 확장 (retire_kind + canonical_replacement), E/D/R/L/G 단축 코드 alias, axis_enum.legacy_aliases slot 신설, entrypoint.instances.build/ask notes cross-ref (C-06/D-01/S-3)."
+  - "v0.7.0 additive (W-D-01+W-D-03, D0 Bootstrap, 2026-04-13): provisional_lifecycle section 신설 (W-D-01) — lexicon term 성숙도 전이 모델 (seed→candidate→provisional→promoted) + 전이 조건 + 소비 정책 + lifecycle_status 관리 위치 성문화. provisional_terms section 신설 (W-D-03) — dep graph §2.2.1 4 seat 구조 (recording seat + actor + consumer + promotion path) + entry schema + 빈 entries. §1 정본 '다음 작업 #2' + BL-123 대응."
 
 # ---------------------------------------------------------------------------
 # Governance (preserved from v0.1.0)
@@ -104,6 +105,103 @@ shared_attributes:
       - >
         scope.values의 식별자(user, project, domain)는 저장 경계 레이블이며 실행 주체(principal)와 별개 개념이다.
         user scope는 OS home directory 관례를 따르는 저장 경로일 뿐, principal을 가리키지 않는다.
+
+# ---------------------------------------------------------------------------
+# Provisional Lifecycle (W-D-01, D0 Bootstrap)
+# ---------------------------------------------------------------------------
+# 새 lexicon term 의 성숙도 전이 모델.
+# shared_attributes.lifecycle_status 의 4 전이 상태를 lexicon term 에 적용하는 규칙.
+# 본 section 은 개념 식별(상태 정의 + 전이 조건)을 소유.
+# 실행 강제(인용 금지 검증)는 W-D-02 (lexicon-citation-check.ts) 에 위임.
+
+provisional_lifecycle:
+  position: >
+    lexicon term 이 core-lexicon.yaml 의 terms section 에 정식 등록(term_status=active)되기 전,
+    성숙도를 관리하는 전이 모델. shared_attributes.lifecycle_status 의 subset 을 사용.
+  states:
+    seed:
+      definition: "새 term 이 처음 식별됨. 검증 전 상태."
+      entry_condition: "work item 실행 중 기존 term 으로 표현할 수 없는 새 개념이 등장"
+      consumption_policy: "인용 금지. authority file (core-lexicon.yaml) 내 참조만 허용"
+    candidate:
+      definition: "승격 후보로 식별됨. 최소 1건의 사용 증거 확보."
+      entry_condition: "seed term 이 1개 이상의 active work item 에서 실제 사용됨"
+      evidence_required: "사용 work item ID + 사용 위치 (파일 경로)"
+      consumption_policy: "인용 금지. authority file 내 참조만 허용"
+    provisional:
+      definition: "패널 리뷰 통과. 주체자 승인 대기."
+      entry_condition: "candidate term 을 포함한 문서·코드가 9-lens review 에서 PASS 또는 CONDITIONAL PASS"
+      evidence_required: "review session ref (review_session_metadata ID)"
+      consumption_policy: "인용 금지. authority file 내 참조만 허용"
+    promoted:
+      definition: "주체자 승인 완료. 정식 소비 가능."
+      entry_condition: "주체자(principal) 명시적 승인"
+      evidence_required: "승인 일시"
+      consumption_policy: "소비 가능. terms section 에 term_status=active 로 정식 등록"
+  transitions:
+    - from: seed
+      to: candidate
+      trigger: "1개 이상의 active work item 에서 실제 사용"
+    - from: candidate
+      to: provisional
+      trigger: "9-lens review PASS 또는 CONDITIONAL PASS"
+    - from: provisional
+      to: promoted
+      trigger: "주체자(principal) 명시적 승인"
+    - from: seed
+      to: deprecated
+      trigger: "등록 사유 소멸 또는 동의어 발견"
+    - from: candidate
+      to: deprecated
+      trigger: "리뷰에서 불필요 판정 또는 기존 term 으로 대체 가능"
+  lifecycle_status_management:
+    primary_seat: "authority/core-lexicon.yaml provisional_terms section (W-D-03 에서 구조 확정)"
+    recording_actor: "해당 term 을 등장시킨 work item 의 ownership_boundary role"
+    refresh_responsibility: "M-08 refresh protocol 주기적 scan (20260413-refresh-protocol.md §3)"
+    promotion_execution: "promoted 전이 시 provisional_terms → terms section 이동 + term_status=active 설정"
+  cross_references:
+    shared_attributes_lifecycle_status: "shared_attributes.lifecycle_status — 상태 값 정의 원천"
+    term_status_vocabulary: "authoring_rules.term_status_vocabulary — promoted 후 정식 등록 시 적용"
+    citation_check_tool: "W-D-02 — seed/candidate/provisional 인용 금지 검증 도구"
+    recording_seat_structure: "W-D-03 — provisional_terms section 4 seat 구조 확정"
+    refresh_protocol: "development-records/plan/20260413-refresh-protocol.md"
+
+# ---------------------------------------------------------------------------
+# Provisional Terms (W-D-03, D0 Bootstrap)
+# ---------------------------------------------------------------------------
+# 새 lexicon term 이 정식 등록(terms section, term_status=active) 되기 전
+# 성숙도를 추적하는 recording seat. dep graph §2.2.1 의 4 seat 구조.
+
+provisional_terms:
+  position: >
+    terms section 정식 등록 전 단계의 term 을 기록하는 seat.
+    provisional_lifecycle section 의 전이 모델에 따라 lifecycle_status 가 관리된다.
+  seat_structure:
+    recording_seat:
+      location: "authority/core-lexicon.yaml#provisional_terms.entries"
+      authority_rank: 1
+      note: "rank 1 authority file 내 section. 파일 분리는 partition_trigger (50KB) 초과 시 검토."
+    recording_actor:
+      responsibility: "해당 term 을 등장시킨 work item 의 ownership_boundary role"
+      escalation: "등록 누락 시 M-07 lifecycle balance check 가 gap 으로 flag"
+    downstream_consumer:
+      - id: refresh_protocol
+        role: "M-08 refresh protocol 주기적 scan — lifecycle_status 승격·폐기 판정"
+        ref: "development-records/plan/20260413-refresh-protocol.md §3"
+      - id: citation_check
+        role: "seed/candidate/provisional term 인용 금지 검증"
+        ref: "src/core-runtime/readers/lexicon-citation-check.ts (W-D-02)"
+      - id: work_item_author
+        role: "다른 축 work item 작성자 — provisional term 존재 확인 후 인용 회피"
+    promotion_path:
+      ref: "provisional_lifecycle section (W-D-01)"
+      stages: ["seed", "candidate", "provisional", "promoted"]
+      promotion_execution: "promoted 전이 시 본 entries 에서 제거 + terms section 에 term_status=active 로 이동"
+  entry_schema:
+    required_fields: [term_id, lifecycle_status, registered_by, registered_date, definition_draft]
+    optional_fields: [evidence, notes]
+    note: "entry key = term_id. entries 내부에 직접 기록."
+  entries: {}
 
 # ---------------------------------------------------------------------------
 # Entities

@@ -211,7 +211,6 @@ function resolveDirectExecutorPath(
 
 function buildExecutorConfigFromRealization(
   realization: ExecutorRealization,
-  _hostRuntime?: HostRuntime,
   ontoHome?: string,
 ): ReviewUnitExecutorConfig {
   // When ontoHome is available, use direct script paths (global CLI path)
@@ -386,7 +385,7 @@ function resolveExecutorConfig(
       : undefined);
   if (explicitRealization === "codex" || explicitRealization === "mock") {
     return appendExecutorModelArgs(
-      buildExecutorConfigFromRealization(explicitRealization, hostRuntime, ontoHome),
+      buildExecutorConfigFromRealization(explicitRealization, ontoHome),
       argv,
       ontoConfig,
     );
@@ -404,7 +403,7 @@ function resolveExecutorConfig(
   const configRealization = ontoConfig?.executor_realization;
   if (configRealization === "codex" || configRealization === "mock") {
     return appendExecutorModelArgs(
-      buildExecutorConfigFromRealization(configRealization as ExecutorRealization, hostRuntime, ontoHome),
+      buildExecutorConfigFromRealization(configRealization as ExecutorRealization, ontoHome),
       argv,
       ontoConfig,
     );
@@ -418,7 +417,7 @@ function resolveExecutorConfig(
 
   if (executionRealization === "subagent" && hostRuntime === "codex") {
     return appendExecutorModelArgs(
-      buildExecutorConfigFromRealization("codex", "codex", ontoHome),
+      buildExecutorConfigFromRealization("codex", ontoHome),
       argv,
       ontoConfig,
     );

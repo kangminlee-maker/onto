@@ -1,4 +1,4 @@
-lexicon_version: "0.7.0"
+lexicon_version: "0.8.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
@@ -7,6 +7,7 @@ notes:
   - "Structure: authoring_rules → shared_attributes → entities → terms."
   - "v0.6.0 additive (M-04 Phase A, 2026-04-13): activity_enum + axis_enum terms added. §1 정본 §1.2 (5 활동) + §1.5 (4 축) canonical seat. DR-M04-01 (DL-013 resolved) owning."
   - "v0.6.1 additive (M-04 Phase A v1.1, 2026-04-13): 9-lens review `20260413-a9e93dd7` CONDITIONAL 해소. activity_enum.legacy_aliases 구조 확장 (retire_kind + canonical_replacement), E/D/R/L/G 단축 코드 alias, axis_enum.legacy_aliases slot 신설, entrypoint.instances.build/ask notes cross-ref (C-06/D-01/S-3)."
+  - "v0.8.0 additive (W-A-63, 2026-04-13): review_record term → entity 승격. lifecycle_status attribute 부여. review_process relation produces→creates 전환. lexicon Stage 3-3 merge."
   - "v0.7.0 additive (W-D-01+W-D-03, D0 Bootstrap, 2026-04-13): provisional_lifecycle section 신설 (W-D-01) — lexicon term 성숙도 전이 모델 (seed→candidate→provisional→promoted) + 전이 조건 + 소비 정책 + lifecycle_status 관리 위치 성문화. provisional_terms section 신설 (W-D-03) — dep graph §2.2.1 4 seat 구조 (recording seat + actor + consumer + promotion path) + entry schema + 빈 entries. §1 정본 '다음 작업 #2' + BL-123 대응."
 
 # ---------------------------------------------------------------------------
@@ -284,9 +285,9 @@ entities:
       - type: references
         target: domain_document
         note: "resolution order는 domain_document.execution_rules_ref.resolution_order 참조"
-      - type: produces
+      - type: creates
         target: review_record
-        note: "synthesis + record assembly를 거쳐 산출"
+        note: "synthesis + record assembly를 거쳐 산출. W-A-63 entity 승격 시 produces → creates 전환 (lifecycle 관리 대상)"
     execution_rules_ref:
       execution_flow: "processes/review/productized-live-path.md"
 
@@ -302,6 +303,23 @@ entities:
       lifecycle_transition: "processes/promote-domain.md"
     notes:
       - "도메인 귀속은 파일 경로 규약({domain}/ 디렉토리)에 의해 결정됨"
+
+  review_record:
+    canonical_label: "ReviewRecord"
+    korean_label: "리뷰 기록"
+    definition: "review 활동의 canonical 산출물. 검증 결과의 구조화된 계보(lineage) 기록. 이후 learning 생성 및 governance의 입력"
+    core_value: "이 개념이 없으면 검증 결과가 비구조적으로 흩어져, 학습 축적과 거버넌스 추적이 불가능하다"
+    attributes:
+      shared: [lifecycle_status]
+    execution_rules_ref:
+      record_contract: "processes/review/record-contract.md"
+      lifecycle_transition: "review_process 완료 시 seed → promote pipeline 진입"
+    notes:
+      - "W-A-63에서 term → entity 승격. lifecycle_status 부여."
+      - "review_process.relations의 produces → creates 전환 완료."
+    legacy_aliases:
+      - alias: "review_record_term"
+        context: "Pre-W-A-63 term entry. Entity 승격 전의 terms section 항목."
 
   entrypoint:
     canonical_label: "entrypoint"
@@ -392,15 +410,7 @@ terms:
       - "certainty_candidate"
     notes:
       - "Referenced by ontology-as-code-naming-charter.md §2.6."
-  - term_id: "review_record"
-    canonical_label: "ReviewRecord"
-    korean_label: "리뷰 기록"
-    axis: "review_output"
-    term_status: "active"
-    definition: "Canonical output of review; structured lineage record consumed by later learning/governance."
-    contract_ref: "processes/review/record-contract.md"
-    notes:
-      - "Stage 3에서 entity 승격 여부를 검토한다. lifecycle 부여 시 relation type을 produces → creates로 변경 필요."
+  # review_record: W-A-63에서 entity로 승격됨. entities.review_record 참조.
   - term_id: "review_target_scope"
     canonical_label: "review_target_scope"
     korean_label: "검토 대상 범위"

@@ -124,6 +124,8 @@ deliberation_status: not_needed | performed
 11. final review result
 12. shared phenomenon summary — 동일 phenomenon에 대한 다중 lens claim이 있는 경우, claim relation 분류 결과를 명시한다 (corroboration / disagreement / partial overlap / dedup). 분류 규칙은 `processes/review/shared-phenomenon-contract.md` §4를 따른다. 이 계약은 분류 규칙을 재정의하지 않는다
 
+**Runtime packet과의 정합성**: 위 12개 항목 중 4 (overlooked premises), 11 (final review result), 12 (shared phenomenon summary)는 현 runtime packet (`materialize-review-prompt-packets.ts`)이 별도 heading으로 강제하지 않는다. 4와 12는 9개 분류 섹션 (Consensus / Conditional Consensus / Disagreement / Unique Finding Tagging)이 적용하는 Tagging Completeness Rule에 흡수되며, 11은 synthesis output 자체와 등가다. 이 3개 항목을 별도 heading으로 부활시킬지 또는 이 contract에서 제거할지는 packet 갱신 PR이 단일 결정 seat이며, 본 contract는 그 결정 시점까지 12개 enumeration을 conceptual reference로 보존한다.
+
 즉 현재 prompt-backed reference path에서는
 `synthesis markdown`이 canonical prompt output이다.
 

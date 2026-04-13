@@ -217,6 +217,8 @@ You are synthesize.
 
 가능한 realization 예와 deliberation 경로 (§6.1):
 
+<!-- derived-from: processes/review/binding-contract.md, resolved_execution_realization × resolved_host_runtime -->
+
 | Realization | Deliberation 경로 |
 |---|---|
 | Agent Teams teammate | Cross-process (teammate SendMessage 활용) |

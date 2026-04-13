@@ -475,6 +475,24 @@ Codex 모드에서는 TeamCreate를 생략한다. 대신 각 review lens를 `cod
 
 Task Directives는 Agent Teams 모드와 **동일한 내용**을 사용한다. 차이점은 프롬프트 래핑(Codex Reviewer Prompt Template)과 실행 런타임뿐이다.
 
+#### Step 2 — Example realization: Subagent Fallback Variation (claude)
+
+`execution_realization: subagent` + `host_runtime: claude` 경로다. TeamCreate가 사용 불가하거나 실패한 경우의 비상 경로 — 각 review lens를 `general-purpose` subagent_type의 Agent tool로 생성한다. canonical requirement는 `ContextIsolatedReasoningUnit` 유지다.
+
+**Sub-step 2.3 — Team creation**: 생략. TeamCreate/TeamDelete를 사용하지 않는다.
+
+**Sub-step 2.4 — Create all reviewer Agents**: 모든 review lens Agent를 **단일 메시지에서 동시에** 호출하되, 각각 `run_in_background: true`로 설정한다.
+- 각 Agent의 `subagent_type`: `"general-purpose"`
+- 각 Agent의 프롬프트: `process.md`의 **Teammate Initial Prompt Template**을 baseline으로 사용하되, self-loading이 불가하므로 팀 리드가 agent definition + learning file + domain document + communication learning + task directives + session path를 직접 inline한다 (process.md Fallback Rules 참조)
+- 경량 모드(light): 선택된 2-3명의 review lens + `axiology`만 생성
+- 전원 모드(full): 8명 전원 생성
+- `synthesize`는 이 단계에서 생성하지 않는다 (메인 프로세스 Step 3에서 별도 실행)
+- 세션 메타데이터에 `execution_realization: subagent`, `host_runtime: claude` 기록
+
+`synthesize`의 초기 prompt 대신: 팀 리드가 모든 백그라운드 task 완료를 대기한다.
+
+Task Directives는 Agent Teams 모드와 **동일한 내용**을 사용한다. 차이점은 self-loading 메커니즘(직접 inline)과 dispatch 채널(Agent tool)뿐이다. 재시도 정책은 Codex Mode Variation과 동일하게 §3 dispatch 표를 따른다.
+
 #### Error Recovery (Round 1)
 
 > process.md Error Handling Rules의 Retry Protocol을 적용한다.
@@ -502,13 +520,19 @@ Round 1에서 에이전트 에러 발생 시:
 
 Synthesize 단계의 dispatch 메커니즘은 `execution_realization` × `host_runtime` 두 축의 조합으로 분기한다. 어느 경로든 lens 결과 + execution-preparation artifacts를 그대로 전달한다는 본질은 동일하며, 차이는 전달 메커니즘과 deliberation 처리 위치다.
 
-| `execution_realization` | `host_runtime` | Dispatch 메커니즘 | Deliberation 처리 |
-|---|---|---|---|
-| `agent-teams` | `claude` | SendMessage to `synthesize` teammate | "needed" 판정 시 §4 cross-process Step 4 실행 |
-| `subagent` (TeamCreate fallback) | `claude` | Agent tool with `subagent_type: "general-purpose"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 |
-| `subagent` | `codex` | Agent tool with `subagent_type: "codex:codex-rescue"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 |
+<!-- derived-from: processes/review/binding-contract.md, resolved_execution_realization × resolved_host_runtime -->
+
+| `execution_realization` | `host_runtime` | Dispatch 메커니즘 | Deliberation 처리 | Synthesize 실패 정책 |
+|---|---|---|---|---|
+| `agent-teams` | `claude` | SendMessage to `synthesize` teammate | "needed" 판정 시 §4 cross-process Step 4 실행 | 1회 SendMessage 재요청; 실패 시 `process-halting-with-partial-result` |
+| `subagent` | `claude` | Agent tool with `subagent_type: "general-purpose"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 | 1회 동일 프롬프트로 Agent re-spawn; 실패 시 `process-halting-with-partial-result` |
+| `subagent` | `codex` | Agent tool with `subagent_type: "codex:codex-rescue"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 | 1회 동일 프롬프트로 Agent re-spawn; 실패 시 `process-halting-with-partial-result` |
 
 본 표의 discriminator는 binding artifact의 `resolved_execution_realization` + `resolved_host_runtime` 두 필드와 1:1 대응한다 (별도 enum이 아니다). 2축의 카르테시안 곱 중 `agent-teams + codex` 조합은 현재 unsupported다 — `processes/review/productized-live-path.md` §3.6 참조.
+
+**Audit observability tradeoff**: cross-process 경로 (`agent-teams + claude`)는 deliberation을 별도 `deliberation.md` 파일로 산출하여 deliberation 자체의 감사 가능성이 높다. in-process 경로 (`subagent + *`)는 deliberation을 `synthesis.md`의 `Deliberation Decision` 섹션에 통합하여 감사 가능성이 상대적으로 낮다. 두 경로 간 audit observability 비대칭은 의도된 트레이드오프이며, 둘 다 contract §6.4의 single-source 규칙을 만족한다.
+
+**용어 주의 — "fallback"**: 본 문서에서 `subagent + claude` 경로의 "TeamCreate fallback" 표기는 현 시점에서 Agent Teams가 1차 선택이고 subagent가 비상 경로라는 *현재 상태*를 반영한다. 향후 `subagent + claude`가 1차 경로로 승격되면 본 용어를 재평가한다.
 
 `subagent` 경로의 synthesize 프롬프트는 host_runtime별로 process.md의 **Subagent Fallback Synthesize Prompt Template** (claude) 또는 **Codex Review Synthesize Prompt Template** (codex)을 사용한다. 두 템플릿 모두 in-process deliberation directive를 포함한다.
 

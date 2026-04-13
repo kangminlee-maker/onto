@@ -119,10 +119,14 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - result_summary:
     schema_fields_defined: 17  # v5.1 meta 17 필드 기준 (활동 포함)
     enum_seats_added: 2  # activity_enum + axis_enum
-    lexicon_version_bump: "v0.5.0 → v0.6.0 (additive minor)"
-    canonical_output_seat: "development-records/design/20260413-onto-todo.md v1 (item_count=0, 축별 빈 섹션)"
+    lexicon_version_bump: "v0.5.0 → v0.6.0 (initial M-04-A) → v0.6.1 (v1.1 patch additive minor)"
+    canonical_output_seat: "development-records/design/20260413-onto-todo.md v1.1 (item_count=0, 축별 빈 섹션)"
     decision_records_new: [DR-M04-01, DR-M04-02]
     deferred_ledger_resolved: 2  # DL-013, DL-014
-    deferred_ledger_new: 0
-    stage_completion_check: "resolution_stage=M-04-A pending=0 (DR-M00-06 충족)"
-    phase_b_status: "skipped (M-05 착수 직전 sanity check 용으로 이관)"
+    deferred_ledger_new: 1  # DL-031 (v1.1 patch — Phase B sanity check tracking)
+    stage_completion_check: "resolution_stage=M-04-A pending=0 (DR-M00-06 충족). DL-031 은 resolution_stage=M-05 로 forward."
+    phase_b_status: "skipped (M-05 dep graph 작성 직전 sanity check 용으로 이관)"
+    phase_b_skip_rationale: "현 후보 2건(BL-123→W-D-01, BL-120→W-C-01)은 schema 의 약한 지점(depends_on regex 확장성, Migration Contract change_type, enum_ref resolution, files glob/cluster 알고리즘)을 촉발하지 않아 v1.1 patch 시점 효용 < 비용. 축 A/B sanity 는 M-06 전수 검증에 위임. M-05 dep graph 작성 직전 후보 재평가 (ledger DL-031 추적). v1.1 patch 에서 onto-todo.md §4 에 PASS/FAIL/FAIL-boundary exit 경로 명시 + ledger DL-031 신설로 추적 contract 완결."
+    review_session: ".onto/review/20260413-a9e93dd7"
+    review_verdict_initial: "CONDITIONAL (BLOCKING 1 + MAJOR 4 + MODERATE 5 + MINOR 20+, deliberation_status=required_but_unperformed for D-01)"
+    review_patch: "v1.1 (Immediate 5 + MODERATE 5 해소 — Option 2 per Principal). MINOR 20+ 는 M-06 자연 해소 또는 M-08 refresh 에 위임."

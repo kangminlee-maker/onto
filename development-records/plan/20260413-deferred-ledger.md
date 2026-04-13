@@ -1,20 +1,20 @@
 ---
-as_of: 2026-04-13T15:30:00+09:00
+as_of: 2026-04-13T16:10:00+09:00
 supersedes: null
 status: active
-revision: v1.5
+revision: v1.6
 functional_area: deferred-ledger
 purpose: |
   M-00 ~ M-08 meta task 실행 중 deferred로 분류된 item의 **단일 추적 ledger**.
   각 item의 origin / severity / resolution_stage / status를 longitudinal로 관리.
-item_count: 30
+item_count: 31
 resolved_count: 14
-pending_count: 16
+pending_count: 17
 resolution_stage_distribution:
   M-01: 3 (전원 resolved)
   M-03: 9 (전원 resolved — v1.2)
   M-04-A: 2 (전원 resolved — v1.5)
-  M-05: 1
+  M-05: 2  # DL-031 신규 추가 (v1.6, M-04-A v1.1 patch C-02 해소)
   M-06: 8  # DL-029 신규 추가 (v1.4)
   M-07: 2
   M-08: 5  # DL-030 신규 추가 (v1.4, NP-1 lens proposal)
@@ -132,13 +132,14 @@ relation_names:
 
 ---
 
-## M-05 (Pre-draft Dependency Modeling) resolution_stage — 1 item
+## M-05 (Pre-draft Dependency Modeling) resolution_stage — 2 items
 
-**Rationale**: Compound/Phase sequencing은 의존성 모델의 영역.
+**Rationale**: Compound/Phase sequencing은 의존성 모델의 영역. Phase B sanity check 는 M-05 dep graph 작성 직전 schema 수용성 검증 단계.
 
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
 | DL-015 | v1-review | C-8 | MODERATE | Compound/Phase sequencing 구조 승격. agent_id_rename Phase 0→5 (BL-104~109), §2(3차) → §1(8차) build 선행, Wave 1-3 compound expansion. `depends_on` 컬럼 또는 Notes 표준 문구. `item_granularity: consolidation-row (not work-item)` | pending |
+| DL-031 | m04-a-review-C2 | review-cf964039 C-02 | MAJOR | **Phase B sanity check tracking** — M-04 Phase A v1 에서 Phase B 가 "skipped (M-05 착수 직전 이관)" 으로 표시됐으나 재호출 contract 부재. v1.1 patch 에서 (1) onto-todo.md §4 에 PASS/FAIL/FAIL-boundary exit 경로 명시, (2) execution-log 에 phase_b_skip_rationale 등재, (3) 본 DL 로 M-05 dep graph 작성 직전 실행 의무 추적. 대상: BL-123→W-D-01, BL-120→W-C-01 (또는 M-05 직전 후보 재평가 결과). 축 A/B sanity 는 M-06 전수 검증에 위임. 현 sample 이 schema 의 약한 지점(depends_on 의미 구분/cluster 알고리즘/Migration Contract change_type/enum_ref resolution) 을 촉발하지 않으므로 후보 확장 또는 Migration Contract sanity case 추가 (evolution E-09 제안) 도 옵션. | pending |
 
 ---
 
@@ -213,6 +214,7 @@ relation_names:
 - v1.3 (2026-04-13T14:30): 9-lens review `20260413-cf964039` feedback 반영. DL-004 resolution_note 에 Scope="대표 사례 부착" 명시 (C-F 해소). DL-006 resolution_note 에 "DR-M03-01 schema instantiation 수용" downgrade (CC-D 해소). DL-017 context 에 M-06 3 지표 분할 + BL-120 superset 관계 명시 (CC-A 반영). DL-023 context 에 `scaffolding_ratio_trend` metric 추가 (CC-B 반영). 새 resolved 없음.
 - v1.4 (2026-04-13T15:00): 9-lens review MINOR 20+ 반영. DL-029 신규 (review ontology 경로 분기, M-06 resolution_stage, C-1 ghost). DL-030 신규 (NP-1 Aggregate Prioritization Coherence Lens 제안, M-08 resolution_stage governance). frontmatter: stage_id_scheme + relation_names 선언. DL-007/010/011/013/022/025/027 context note 보강. §"관리 정책" 을 DR-M00-06 SSOT 참조로 축약 (CN-5). item_count: 28 → 30, pending_count: 16 → 18. 새 resolved 없음.
 - v1.5 (2026-04-13T15:30): DL-013 + DL-014 (M-04-A resolution_stage 2건) 전원 resolved 처리. M-04 Phase A core output (core-lexicon.yaml v0.6.0 activity_enum/axis_enum + onto-todo.md v1 schema + m04-decisions DR-M04-01/02) 와 연동. resolved_count: 12 → 14, pending_count: 18 → 16. Stage completion protocol 두 번째 완결 적용 (resolution_stage=M-04-A pending=0 성공 기준 충족).
+- v1.6 (2026-04-13T16:10): M-04 Phase A v1.1 patch (9-lens review session `20260413-a9e93dd7` CONDITIONAL 해소). DL-031 신규 (Phase B sanity check tracking, M-05 resolution_stage, MAJOR — C-02 해소). M-05 stage item count 1 → 2. item_count: 30 → 31, pending_count: 16 → 17. 새 resolved 없음. 본 v1.1 patch 의 다른 변경 (lexicon v0.6.1, onto-todo v1.1, m04-decisions v1.1) 은 DR-M04-01/02 의 applied_cases 갱신으로 흡수 — 신규 DL 미발생.
 
 ## 참조
 

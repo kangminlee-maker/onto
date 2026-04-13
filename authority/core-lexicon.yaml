@@ -1,4 +1,4 @@
-lexicon_version: "0.6.0"
+lexicon_version: "0.6.1"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
@@ -6,6 +6,7 @@ notes:
   - "This file owns the concept INVENTORY. Naming RULES are owned by ontology-as-code-naming-charter.md."
   - "Structure: authoring_rules → shared_attributes → entities → terms."
   - "v0.6.0 additive (M-04 Phase A, 2026-04-13): activity_enum + axis_enum terms added. §1 정본 §1.2 (5 활동) + §1.5 (4 축) canonical seat. DR-M04-01 (DL-013 resolved) owning."
+  - "v0.6.1 additive (M-04 Phase A v1.1, 2026-04-13): 9-lens review `20260413-a9e93dd7` CONDITIONAL 해소. activity_enum.legacy_aliases 구조 확장 (retire_kind + canonical_replacement), E/D/R/L/G 단축 코드 alias, axis_enum.legacy_aliases slot 신설, entrypoint.instances.build/ask notes cross-ref (C-06/D-01/S-3)."
 
 # ---------------------------------------------------------------------------
 # Governance (preserved from v0.1.0)
@@ -221,10 +222,14 @@ entities:
           - { type: dispatches, target: review_process }
       build:
         definition: "지식을 구조화된 artifact로 구축"
-        notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
+        notes:
+          - "dispatch target: deferred to Stage 3 (intentional, not modeling omission)"
+          - "activity_enum cross-ref (v0.6.1): `build` 는 activity_enum.legacy_aliases 에서 retire_kind=renamed, canonical_replacement=reconstruct. 본 instance 의 Stage 3 align 시 definition 은 reconstruct 로 이관 예정 (§1.2 정본 정렬). 현재는 entrypoint.instances 고정 scope 보호."
       ask:
         definition: "특정 관점에서 질의에 답변"
-        notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
+        notes:
+          - "dispatch target: deferred to Stage 3 (intentional, not modeling omission)"
+          - "activity_enum cross-ref (v0.6.1): `ask` 는 activity_enum.legacy_aliases 에서 retire_kind=retired, canonical_replacement=null (§1.2 폐기 선언). 본 instance 는 Stage 3 에서 제거 예정 (BL-121 review 계열 이동/제거 집행 이후). 현재는 entrypoint.instances 고정 scope 보호."
       learn:
         definition: "학습 축적·승격·큐레이션·감사"
         notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
@@ -534,19 +539,51 @@ terms:
       - "govern"
     legacy_aliases:
       - alias: "build"
+        retire_kind: "renamed"
+        canonical_replacement: "reconstruct"
+        retire_date: "2026-04-13"
         context: >
-          Legacy activity name retired 2026-04-13. Canonical replacement: reconstruct (DR-M00-04).
+          Legacy activity name retired 2026-04-13 via DR-M00-04 homonym mapping.
           Scope: (1) activity 분류 시 build→reconstruct 로 계산, (2) 파일명·명령명 (processes/build.md, commands/build.md, npm build:*) 은 legacy 병존 허용 — rename phase 는 M-06 이후 별도 work item,
-          (3) 관용 표현 ("build 프로세스") 은 legacy 명칭 유지 가능.
+          (3) 관용 표현 ("build 프로세스") 은 legacy 명칭 유지 가능, (4) promoted learning artifact 의 source token 은 retire 이후에도 historical record 로 보존.
       - alias: "ask"
+        retire_kind: "retired"
+        canonical_replacement: null
+        retire_date: "2026-04-13"
         context: >
           §1.2 에서 폐기 선언 (2026-04-13). 대체 없음 — 필요 시 단일 lens review 로 대체.
           commands/ask-*.md 파일은 BL-121 에서 review 계열 이동 또는 제거 예정.
+      - alias: "E"
+        retire_kind: "shortcode"
+        canonical_replacement: "reconstruct"
+        retire_date: null
+        context: "Single-letter shortcode used in consolidated.md Activity column (DR-M00-03). Decoded at read time. legacy_aliases 에 등재하여 validator 가 unknown value 거부하지 않도록 함."
+      - alias: "D"
+        retire_kind: "shortcode"
+        canonical_replacement: "design"
+        retire_date: null
+        context: "Single-letter shortcode. Decoded at read time."
+      - alias: "R"
+        retire_kind: "shortcode"
+        canonical_replacement: "review"
+        retire_date: null
+        context: "Single-letter shortcode. Decoded at read time."
+      - alias: "L"
+        retire_kind: "shortcode"
+        canonical_replacement: "learn"
+        retire_date: null
+        context: "Single-letter shortcode. Decoded at read time."
+      - alias: "G"
+        retire_kind: "shortcode"
+        canonical_replacement: "govern"
+        retire_date: null
+        context: "Single-letter shortcode. Decoded at read time."
     notes:
       - "Canonical definition source: development-records/design/20260413-onto-direction.md#§1.2 (as_of=2026-04-13)."
       - "Consumers: M-05/M-06/M-07/M-08 work items (activity field), consolidated.md frontmatter activity_enum_ref, Expansion Protocol."
-      - "Reference format: `authority/core-lexicon.yaml#activity_enum.v0.6.0` (DR-M04-02). lexicon_version bump 시 reader 재파싱."
+      - "Reference format: `authority/core-lexicon.yaml#activity_enum.v<lexicon_version>` (DR-M04-02). lexicon_version bump 시 reader 재파싱."
       - "Homonym caution: 본 enum 의 'activity' 는 onto taxonomy 단위이며, 일반 한국어 '활동' 과 혼동하지 않도록 consumer 는 canonical_label 인 'activity' 를 taxonomy 문맥에서만 사용."
+      - "legacy_aliases.retire_kind 분류 (v0.6.1 추가): `renamed` = canonical replacement 가 있는 rename, `retired` = 대체 없는 폐기, `shortcode` = 단축 표기 형식 (의미 동일, 표기만 축약)."
   - term_id: "axis_enum"
     canonical_label: "axis"
     korean_label: "축"
@@ -558,6 +595,7 @@ terms:
       - "B"
       - "C"
       - "D"
+    legacy_aliases: []  # v0.6.1 slot 신설 (E-05). 현재 empty. 축 rename·retire 발생 시 activity_enum 과 동일 구조로 기록.
     notes:
       - "A = entrypoint 구현 (활동별). 다섯 활동의 command·process·calling convention."
       - "B = 기반 인프라 (공통). product·ontology·learning 저장·처리 공통 인프라 (scope-runtime, readers, middleware)."
@@ -566,4 +604,4 @@ terms:
       - "Axis 간 의존 (§1.5 derived): A→B (활동 구현은 인프라 위에서 작동, A0=scope-runtime framework 추출은 A 선행), C→{A,B} (자율성은 A·B 최소 1사이클 운영 후 설계), D→{A,B,C} (모든 축 교차)."
       - "Canonical definition source: development-records/design/20260413-onto-direction.md#§1.5 (as_of=2026-04-13)."
       - "Consumers: M-05/M-06/M-07/M-08 work items (axis field + W-ID token), consolidated.md frontmatter axis_enum_ref, Expansion Protocol 축 추가·삭제·병합 trigger."
-      - "Reference format: `authority/core-lexicon.yaml#axis_enum.v0.6.0` (DR-M04-02)."
+      - "Reference format: `authority/core-lexicon.yaml#axis_enum.v<lexicon_version>` (DR-M04-02)."

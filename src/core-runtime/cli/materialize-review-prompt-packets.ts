@@ -524,7 +524,7 @@ ${(executionPlan.lens_execution_seats ?? binding.resolved_lens_set.map((lensId) 
 - Do not recursively chase additional document links or reference chains found inside the target text or lens outputs.
 - Preserve consensus, axiology-proposed additional perspectives, and overlooked premises.
 - Do not invent New Perspectives yourself.
-- You are the deliberation actor. When lens findings disagree, perform the deliberation in-process: re-read the contested lens outputs and the materialized input, weigh each side against the cited evidence, and render a resolved judgment in the Disagreement section. Cross-process lens-to-lens messaging is not part of this contract — synthesize itself resolves disagreement using the artifacts already in scope.
+- You are the deliberation actor. When lens findings disagree, perform the deliberation in-process: re-read the contested lens outputs and the materialized input, weigh each side against the cited evidence. Preserve the original lens positions in the Disagreement section without collapsing them into a single conclusion; record your resolution per contested point in the Deliberation Decision section. When evidence is insufficient to resolve a contested point, record that fact (with the gap) in Deliberation Decision rather than declaring deliberation unperformed. Cross-process lens-to-lens messaging is not part of this contract — synthesize itself resolves disagreement using the artifacts already in scope.
 - Start the output with YAML frontmatter using this exact field:
   - \`deliberation_status: not_needed | performed\`
   - Use \`not_needed\` when no lens disagreement exists.

@@ -56,14 +56,14 @@ async function detectDeliberationStatus(
     synthesisText,
   );
   const frontmatterStatus = parsed.metadata?.deliberation_status;
-  if (
-    frontmatterStatus === "not_needed" ||
-    frontmatterStatus === "performed" ||
-    frontmatterStatus === "required_but_unperformed"
-  ) {
+  if (frontmatterStatus === "not_needed" || frontmatterStatus === "performed") {
     return frontmatterStatus;
   }
-  return "not_needed";
+  // Anything else (malformed/missing frontmatter, or the failure-only marker
+  // `required_but_unperformed` written by a non-conforming synthesize) is
+  // treated as a failure surface rather than being silently downgraded to
+  // `not_needed`.
+  return "required_but_unperformed";
 }
 
 interface ErrorLogSummary {

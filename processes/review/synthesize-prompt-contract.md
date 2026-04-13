@@ -53,11 +53,10 @@
 2. lens result file paths
 3. system purpose and principles
 4. resolved review mode
-5. deliberation availability
-6. optional deliberation outputs
-7. output_language
-8. `synthesis_output_path`
-9. self-loading context refs
+5. materialized input ref (deliberation 시 evidence 재읽기 대상)
+6. output_language
+7. `synthesis_output_path`
+8. self-loading context refs
    - synthesize learnings
    - communication learning
    - project-level synthesize learnings
@@ -170,9 +169,10 @@ You are synthesize.
 {synthesize learnings / communication / project learnings / learning rules}
 
 [Task Directives]
-- Read all lens result files.
-- Preserve consensus, disagreement, and overlooked premises.
-- If deliberation is unavailable, do not collapse unresolved disagreement.
+- Read all lens result files and the materialized input.
+- Preserve consensus and original lens positions in Disagreement.
+- When lens findings disagree, perform in-process deliberation per §6 and record per-contested-point resolutions in Deliberation Decision.
+- Set frontmatter deliberation_status to `not_needed` (no contention) or `performed` (deliberation executed).
 - Write the final synthesis output to {synthesis_output_path}.
 ```
 

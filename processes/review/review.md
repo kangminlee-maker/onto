@@ -615,8 +615,7 @@ date: {YYYY-MM-DD}
 - (Judgments that align only under explicit conditions, scope limits, or reservations)
 
 ### Disagreement
-(Include only when deliberation was not performed — Codex mode, Subagent fallback.)
-Map unresolved disagreements that were not closed through deliberation to this section.
+원 lens 입장을 보존하는 섹션이다. Codex/Subagent 경로에서는 cross-process lens-to-lens 메시징이 없으므로 synthesize가 in-process deliberation을 수행하고 그 resolution은 별도의 `Deliberation Decision` 섹션에 기록한다. Agent Teams 경로에서 cross-process deliberation이 수행된 경우에는 deliberation output format에 따라 resolution이 표출된다.
 Tag each disagreement item with a type:
 - **[Factual discrepancy]** — verifiable via external reference (code, documents). PO action: gather additional information
 - **[Criteria discrepancy]** — resolvable by applying a higher-level principle. PO action: confirm/decide on the higher-level principle
@@ -670,8 +669,9 @@ Codex 모드에서는 `synthesize`도 `codex:codex-rescue` Agent로 실행한다
 - 프롬프트: `process.md`의 **Codex Review Synthesize Prompt Template** 사용.
 - 프롬프트에 review lens의 결과 파일 경로를 포함한다. Codex가 파일을 직접 읽고 종합한다.
 - 결과를 `{session path}/synthesis.md`에 저장하도록 지시한다.
-- **숙의 불가 지시**: Codex 모드에서는 synthesize 프롬프트에 다음 지시를 추가한다:
-  "Codex 모드에서는 숙의(deliberation)를 수행할 수 없습니다. 재검토 필요 여부 판정은 항상 '불필요'로 처리하고, 모순 항목은 '미합의' 섹션에 포함하여 최종 출력을 직접 작성하세요."
+- **In-process deliberation 지시**: Codex 모드에서는 cross-process lens-to-lens 메시징이 불가하므로 synthesize 프롬프트에 다음 지시를 추가한다:
+  "synthesize는 deliberation actor입니다. lens 결과 사이에 disagreement가 있으면 contested된 lens 출력과 materialized input을 재읽어 직접 deliberation을 수행하고 'Deliberation Decision' 섹션에 contested point별로 resolution을 기록하세요. Disagreement 섹션은 원 입장을 보존합니다. frontmatter의 deliberation_status는 not_needed 또는 performed 둘 중 하나만 사용합니다."
+  상세 규칙은 `processes/review/synthesize-prompt-contract.md` §6 참조.
 - `synthesize` 실패 시: 1회 재시도 후에도 실패하면 `process-halting-with-partial-result`를 적용한다 (process.md Error Handling Rules 참조).
 
 ---

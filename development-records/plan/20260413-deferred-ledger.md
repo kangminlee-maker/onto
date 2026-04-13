@@ -167,7 +167,7 @@ relation_names:
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
 | DL-023 | qa-v3 | Q10 | Defer | lifecycle 분포 (buildout/migration/validation/maintenance/adoption) balance check. **M-03 CC-B 반영**: `scaffolding_ratio_trend` health metric 포함 — cycle 별 scaffolding 비중 (현 v3 = 50.4%) 추적하여 감소 방향성 검증. post-PR 잔여 결함 수습 비중이 canonical-advancing 진입 속도를 drain 하지 않는지 모니터. | pending |
-| DL-024 | qa-v3 | Q9-extended | Defer | M-07 시점 consistency check 3 지점 실행 (M-00→M-03 entry count 일치, M-03→M-06 gap count ≥ work item count, M-06 schema 13필드 전부 채움) | pending |
+| DL-024 | qa-v3 | Q9-extended | Defer | M-07 시점 consistency check 3 지점 실행 (M-00→M-03 entry count 일치, M-03→M-06 gap count ≥ work item count, M-06 schema 17필드 전부 채움 — `20260413-onto-todo.md` v1.x §1.1 canonical 기준; 이전 "13필드" 표기는 v4 meta 잔재) | pending |
 
 ---
 
@@ -215,6 +215,7 @@ relation_names:
 - v1.4 (2026-04-13T15:00): 9-lens review MINOR 20+ 반영. DL-029 신규 (review ontology 경로 분기, M-06 resolution_stage, C-1 ghost). DL-030 신규 (NP-1 Aggregate Prioritization Coherence Lens 제안, M-08 resolution_stage governance). frontmatter: stage_id_scheme + relation_names 선언. DL-007/010/011/013/022/025/027 context note 보강. §"관리 정책" 을 DR-M00-06 SSOT 참조로 축약 (CN-5). item_count: 28 → 30, pending_count: 16 → 18. 새 resolved 없음.
 - v1.5 (2026-04-13T15:30): DL-013 + DL-014 (M-04-A resolution_stage 2건) 전원 resolved 처리. M-04 Phase A core output (core-lexicon.yaml v0.6.0 activity_enum/axis_enum + onto-todo.md v1 schema + m04-decisions DR-M04-01/02) 와 연동. resolved_count: 12 → 14, pending_count: 18 → 16. Stage completion protocol 두 번째 완결 적용 (resolution_stage=M-04-A pending=0 성공 기준 충족).
 - v1.6 (2026-04-13T16:10): M-04 Phase A v1.1 patch (9-lens review session `20260413-a9e93dd7` CONDITIONAL 해소). DL-031 신규 (Phase B sanity check tracking, M-05 resolution_stage, MAJOR — C-02 해소). M-05 stage item count 1 → 2. item_count: 30 → 31, pending_count: 16 → 17. 새 resolved 없음. 본 v1.1 patch 의 다른 변경 (lexicon v0.6.1, onto-todo v1.1, m04-decisions v1.1) 은 DR-M04-01/02 의 applied_cases 갱신으로 흡수 — 신규 DL 미발생.
+- v1.6 micro-update (2026-04-13T16:25): M-04 Phase A v1.2 follow-up (codex review session `20260413-de95c971` PASS-with-residuals 후속). DL-024 의 "13필드" 표기 → "17필드" 로 정정 (잔재 표기 주석). 새 DL 미발생, count 변화 없음. 본 micro-update 는 v1.6 sub-revision (revision 번호 유지, 본문만 정정).
 
 ## 참조
 

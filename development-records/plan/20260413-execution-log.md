@@ -1,5 +1,5 @@
 ---
-as_of: 2026-04-13T15:30:00+09:00
+as_of: 2026-04-13T16:25:00+09:00
 supersedes: null
 status: active
 functional_area: execution-log
@@ -125,8 +125,14 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     deferred_ledger_resolved: 2  # DL-013, DL-014
     deferred_ledger_new: 1  # DL-031 (v1.1 patch — Phase B sanity check tracking)
     stage_completion_check: "resolution_stage=M-04-A pending=0 (DR-M00-06 충족). DL-031 은 resolution_stage=M-05 로 forward."
-    phase_b_status: "skipped (M-05 dep graph 작성 직전 sanity check 용으로 이관)"
-    phase_b_skip_rationale: "현 후보 2건(BL-123→W-D-01, BL-120→W-C-01)은 schema 의 약한 지점(depends_on regex 확장성, Migration Contract change_type, enum_ref resolution, files glob/cluster 알고리즘)을 촉발하지 않아 v1.1 patch 시점 효용 < 비용. 축 A/B sanity 는 M-06 전수 검증에 위임. M-05 dep graph 작성 직전 후보 재평가 (ledger DL-031 추적). v1.1 patch 에서 onto-todo.md §4 에 PASS/FAIL/FAIL-boundary exit 경로 명시 + ledger DL-031 신설로 추적 contract 완결."
-    review_session: ".onto/review/20260413-a9e93dd7"
-    review_verdict_initial: "CONDITIONAL (BLOCKING 1 + MAJOR 4 + MODERATE 5 + MINOR 20+, deliberation_status=required_but_unperformed for D-01)"
-    review_patch: "v1.1 (Immediate 5 + MODERATE 5 해소 — Option 2 per Principal). MINOR 20+ 는 M-06 자연 해소 또는 M-08 refresh 에 위임."
+    phase_b_status: "deferred-to-M05-entry"  # v1.2 rename (이전 'skipped' 는 wording imprecision — DL-031 추적 contract 가 명시되어 있음)
+    phase_b_skip_rationale: "현 후보 2건(BL-123→W-D-01, BL-120→W-C-01)은 schema 의 약한 지점(depends_on regex 확장성, Migration Contract change_type, enum_ref resolution, files glob/cluster 알고리즘)을 촉발하지 않아 v1.1 patch 시점 효용 < 비용. 축 A/B sanity 는 M-06 전수 검증에 위임. M-05 dep graph 작성 직전 후보 재평가 (ledger DL-031 추적). v1.1 patch 에서 onto-todo.md §4 에 PASS/FAIL/FAIL-boundary exit 경로 명시 + ledger DL-031 신설로 추적 contract 완결. v1.2 (codex review 후속) 에서 wording 'skipped'→'deferred-to-M05-entry' 정정."
+    review_sessions:
+      - id: ".onto/review/20260413-a9e93dd7"
+        executor: "agent-teams + claude (v1 review)"
+        verdict: "CONDITIONAL (BLOCKING 1 + MAJOR 4 + MODERATE 5 + MINOR 20+, deliberation_status=required_but_unperformed for D-01)"
+        patch_applied: "v1.1 (Immediate 5 + MODERATE 5 해소 — Option 2 per Principal). MINOR 20+ 는 M-06 자연 해소 또는 M-08 refresh 에 위임."
+      - id: ".onto/review/20260413-de95c971"
+        executor: "subagent + codex (v1.1 회복 검증)"
+        verdict: "PASS-with-residuals (BLOCKING 0 + MAJOR 0 + MODERATE 0 + Consensus 3 follow-up + Disagreement 0 — D-01/02/03/05 all in-process resolved by synthesize, deliberation_status=not_needed)"
+        patch_applied: "v1.2 (Immediate 1/2/4 + Recommendation 2/3 — Option C per Principal). Immediate 3 (Phase B sample 강화) 는 DL-031 처리 시 M-05 startup 으로 이관."

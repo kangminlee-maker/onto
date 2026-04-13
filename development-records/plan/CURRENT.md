@@ -1,6 +1,6 @@
 # Current Planning Artifacts
 
-Last updated: 2026-04-13 (M-04 Phase A v1.1 완료 기준 — 9-lens review CONDITIONAL Option 2 해소)
+Last updated: 2026-04-13 (M-04 Phase A v1.2 완료 기준 — codex review PASS-with-residuals follow-up. M-05 진입 준비)
 
 이 파일은 `plan/` 디렉토리 각 artifact 계열의 최신 active 버전 경로를 명시한다. M-08 refresh protocol이 매 갱신 시 업데이트한다.
 
@@ -29,10 +29,12 @@ Last updated: 2026-04-13 (M-04 Phase A v1.1 완료 기준 — 9-lens review COND
 
 ### onto Work Item Canonical Output
 - **Current**: `../design/20260413-onto-todo.md`
-- **Status**: active (v1.1 patch, item_count=0, M-06 에서 채움)
-- **Scope**: 축 A/B/C/D work item canonical output seat. 17 필드 schema + append/revise 규약 + W-{axis}-{nn:02d} 명명 + Phase B exit 경로 + cluster 알고리즘
-- **Revision**: v1.1 (2026-04-13, 9-lens review `20260413-a9e93dd7` CONDITIONAL 해소: BLOCKING 1 + MAJOR 4 + MODERATE 5)
-- **Review session**: `.onto/review/20260413-a9e93dd7/` (Option 2 patch — Immediate 5 + MODERATE 5)
+- **Status**: active (v1.2 patch, item_count=0, M-06 에서 채움)
+- **Scope**: 축 A/B/C/D work item canonical output seat. 17 필드 schema + append/revise 규약 + W-{axis}-{nn:02d} 명명 + Phase B exit 경로 + cluster 알고리즘 + A0 ownership clarity
+- **Revision**: v1.2 (2026-04-13, codex review `20260413-de95c971` PASS-with-residuals follow-up: Immediate 1/2/4 + Rec 2/3)
+- **Review sessions** (2 라운드):
+  - `.onto/review/20260413-a9e93dd7/` (claude/agent-teams) — CONDITIONAL → v1.1 해소 (BLOCKING 1 + MAJOR 4 + MODERATE 5)
+  - `.onto/review/20260413-de95c971/` (codex/subagent, deliberation in-process) — PASS-with-residuals → v1.2 해소 (4 follow-up)
 
 ### Backlog Consolidation
 - **Current**: `20260413-backlog-consolidated.md`

@@ -27,6 +27,11 @@ Last updated: 2026-04-13 (M-04 Phase A v1.2 완료 기준 — codex review PASS-
 - **Status**: superseded (M-04 Phase A 실행 완료)
 - **Scope**: /clear 후 새 Claude Code 세션에서 M-04 Phase A (Task Schema·Canonical Output 결정) 진입 경로
 
+### M-05 Startup Handoff
+- **Current**: `20260413-m05-startup.md`
+- **Status**: active (다음 세션에서 M-05 착수용)
+- **Scope**: /clear 후 새 Claude Code 세션에서 M-05 (Pre-draft Dependency Modeling) 진입 경로. DL-015 (Compound sequencing) + DL-031 (Phase B sanity check) 처리 + 축·활동 의존 그래프 작성 + D bootstrap vs continuing 명문화
+
 ### onto Work Item Canonical Output
 - **Current**: `../design/20260413-onto-todo.md`
 - **Status**: active (v1.2 patch, item_count=0, M-06 에서 채움)

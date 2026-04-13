@@ -56,4 +56,4 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
   - C-7 MODERATE (dedup event 1 basis)
   - C-8 MODERATE (compound sequencing)
   - CC-1/2/3 Conditional (canonicality stance, axis D 정밀화, L/G 경계)
-- commit: (pending)
+- commit: 3d360ab

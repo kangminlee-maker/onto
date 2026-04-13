@@ -734,12 +734,7 @@ Claude CLI subagent (`subagent + claude`), API executor, and 3-Tier fallback hav
 
 ### 7.4 Parallel Execution
 
-All profiles dispatch lenses in parallel with bounded concurrency:
-
-| execution_realization | Default max_concurrent_lenses |
-|---|---|
-| `subagent` | 3 |
-| `agent-teams` | 9 |
+All profiles dispatch lenses in parallel with bounded concurrency. Default `max_concurrent_lenses` is `9` (all lenses concurrent). The Codex path uses a 1500ms stagger delay between successive lens dispatches to absorb thundering-herd and transient API rate-limit failures at this concurrency.
 
 Override: `--max-concurrent-lenses` flag.
 

@@ -198,7 +198,7 @@ export async function runCodexReviewUnitExecutorCli(
         unit_kind: unitKind,
         packet_path: packetPath,
         output_path: outputPath,
-        realization: "codex",
+        realization: "subagent",
         host_runtime: "codex",
       },
       null,

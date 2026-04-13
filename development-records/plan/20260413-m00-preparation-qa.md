@@ -1,15 +1,28 @@
 ---
-as_of: 2026-04-13T00:00:00+09:00
+as_of: 2026-04-13T10:15:00+09:00
 supersedes: null
 status: active
 functional_area: planning-preparation
+revision: v3
 ---
 
-# 작업 목록 순서 점검 5문항 답변 (v2)
+# 작업 목록 순서 점검 5문항 답변 (v3)
 
 작성일: 2026-04-13
-상태: 두 9-lens review(`20260413-bafeda01` Codex, `20260413-0f67e320` Claude Agent) Immediate + BLOCKING + Claude 추가 지적 반영
-맥락: `20260413-onto-todo-meta.md` v5.1 확정 후 M-00 착수 직전 작업 순서 5개 점검 질문 답변. v1은 `.onto/temp/m00-order-qa.md` 첫 버전.
+상태: 6차 9-lens review(`20260413-1af00ea8`, nested spawn) PASS 판정 + Conditional Consensus 1(CC1) 4항 반영
+이전 이력:
+- v2: 5차 양 review(`20260413-bafeda01` Codex, `20260413-0f67e320` Claude Agent) Immediate + BLOCKING + Claude 추가 지적 반영
+- v1: `.onto/temp/m00-order-qa.md` 첫 버전 (삭제됨)
+맥락: `20260413-onto-todo-meta.md` v5.1 확정 후 M-00 착수 직전 작업 순서 5개 점검 질문 답변.
+
+## v2 → v3 CC1 반영 매핑
+
+| CC1 항목 | v3 반영 위치 |
+|---|---|
+| (a) 누락 3건 (codex F3 lifecycle 매트릭스, claude C-7 M-00 source 전수, C-11 M-07 상한 pre-briefing) | "v1 → v2 반영 매핑 보정" 섹션 추가 |
+| (b) M-01/M-02 subagent 산출물 seat + M-03 입력 경로 | A2 표 하단에 "Subagent 산출물 seat" subsection 추가 |
+| (c) Q6·Q9 최소 골격 | "Q6~Q10 최소 골격" 섹션 신설 (Q6 실패 복구 체크포인트 1줄, Q9 M-03 consistency check 3 item) |
+| (d) execution log seat 1줄 | "Execution log seat" subsection 신설 |
 
 ## v1 → v2 반영 매핑
 
@@ -44,6 +57,16 @@ functional_area: planning-preparation
 - A1 4중 중복 서술 → 판정문 + 조건부 요약 1회
 - A5 3행 옵션 → 2단계 결정(추적 여부 × 서브디렉토리)으로 재구성
 - 검토 요청 질문 괄호 라벨 제거
+
+### v1 → v2 반영 매핑 보정 (v3 CC1-a 추가)
+
+v2 시점에 누락된 3건 명시:
+
+| 지적 | v2/v3 반영 |
+|---|---|
+| codex F3: lifecycle 매트릭스 미커버 (Q4 답변의 2차원 한계) | v2 A4에서 축 × 활동 매트릭스 도입, lifecycle 축은 M-07 lifecycle balance check로 이관 (Q10으로 defer) |
+| claude C-7: M-00 source 전수 검사 (development-records/ 하위 8개 디렉토리 전체 inclusion rule) | v3 A5 admission rule로 보강: `development-records/plan/` 명시 포함, `design/` 제외, 나머지 6개 디렉토리(absorptions/audit/bug/handoff/reference/research/tracking)는 M-00 inclusion criteria에 "functional_area tag 또는 주제 키워드 매칭 시 포함"으로 해석 |
+| claude C-11: M-07 revise cycle 2회 상한 도달 시 pre-briefing 범주 누락 | v3 A3 DR-M07-01 추가 예정 (M-04 실행 시점에 정식 정의. 지금은 개념만 예약) |
 
 ---
 
@@ -115,6 +138,23 @@ Q1 답은 "병렬"이 아니라 **"pipeline with barrier"**이다. M-04를 Phase
 **동시 감독 부담 (Claude NP1 축소 반영)**:
 - Principal 동시 감독 가능 subagent 최대 4개 (경험치 기준)
 - subagent 결과 review 시간이 병렬 절약 시간보다 크면 순차 실행으로 전환
+
+### Subagent 산출물 seat (v3 CC1-b 추가)
+
+M-01/M-02/M-06 subagent가 병렬 실행될 때 산출물 저장 경로 및 merge owner 명시.
+
+| 단계 | Subagent 산출물 seat | Merge owner | M-03/M-07 입력 경로 |
+|---|---|---|---|
+| **M-01 (활동별 inventory)** | `.onto/temp/m01-activity-inventory/{activity}.md` (예: review.md, design.md, reconstruct.md, learn.md, govern.md 5개 파일) | 메인 세션 | M-03이 5개 파일을 직접 read |
+| **M-02 (축 B 인프라 inventory)** | `.onto/temp/m02-infra-inventory/{component}.md` (예: scope-runtime.md, readers.md, middleware.md 등) | 메인 세션 | M-03이 모든 파일을 직접 read |
+| **M-06 (축별 work item 초안)** | `.onto/temp/m06-axis-draft/{axis}.md` (A.md, B.md, C.md, D.md 4개 파일) | 메인 세션 (central merge gate) | M-07이 4개 파일을 단일 `development-records/design/20260413-onto-todo.md`로 통합 |
+
+**Merge 절차**:
+1. Subagent가 자기 seat에 write
+2. 메인 세션이 모든 seat 파일 read + 정합 검증 (cross-axis/cross-activity 중복, schema 준수)
+3. 정합 문제 발견 시 해당 subagent reopen (M-07 escalation 경로와 동일 규약)
+4. 최종 merged artifact는 `development-records/` 하위 tracked seat로 이동
+5. `.onto/temp/` 하위는 작업 후 정리 (M-08 refresh protocol에 포함)
 
 ## Q3. 실행 중 결정 3건 Principal 개입 시점
 
@@ -263,17 +303,45 @@ status: active     # active / superseded / archived
 
 ---
 
-## Coverage 보강 — M-00 전후 누락 관심 범주 (Claude C-1)
+## Coverage 보강 — M-00 전후 누락 관심 범주 (Claude C-1 + v3 CC1-c 최소 골격)
 
-본 5개 Q는 "M-00 실행 경로"를 커버하나, "실행 중/후 안전성" 관심 범주가 부분 누락. 아래 Q6~Q10를 **선택적 보강**으로 추가 검토 권장 (즉시 답변 불필요):
+본 5개 Q는 "M-00 실행 경로"를 커버하나, "실행 중/후 안전성" 관심 범주가 부분 누락. Q6~Q10을 아래에 최소 골격으로 선언하고, 상세 규약은 M-08 refresh protocol 또는 M-00 실행 중 경험 축적 후 확정.
 
-- **Q6**: M-00 실행 중 실패·중단 시 복구 경로 (세션 crash, 네트워크 오류 등)
-- **Q7**: 진행률·비용·토큰 예산 모니터링 방법
-- **Q8**: Principal 개입 trigger 임계값 (얼마나 애매해야 개입)
-- **Q9**: 산출물 간 consistency 검사 지점 (M-00 산출 vs M-03 disposition vs M-06 schema)
-- **Q10**: lifecycle 단계별 선제 분포 (buildout vs validation vs migration 편향)
+### Q6 최소 규약 (실패·복구, v3 필수)
 
-Q6~Q10은 M-08 refresh protocol에 포함하거나 M-00 실행 중 경험 축적 후 확정 권장.
+**M-00 세션 crash·네트워크 오류·subagent 실패 시**: Principal 개입으로 복구. 부분 산출(`.onto/temp/backlog-snapshots/` 하위 + `.onto/temp/m01-*`, `m02-*` 등)은 폐기 후 재실행. `development-records/plan/{YYYYMMDD}-m00-decisions.md`에 실패 사유·재개 지점 기록.
+
+### Q7 (모니터링, defer)
+
+진행률·비용·토큰 예산 모니터링 방법. M-08 refresh protocol에서 처리.
+
+### Q8 (개입 trigger 임계값, defer)
+
+Principal 개입 trigger 임계값. M-00 실행 중 `DR-M00-*` escalation trigger 사례 누적 후 확정.
+
+### Q9 최소 규약 (consistency check, v3 필수)
+
+M-00 → M-03 → M-06 간 산출물 정합성 검사 지점 3건:
+
+1. **M-00 → M-03 consistency**: backlog-consolidated.md의 각 entry가 M-03 disposition에서 4분류(gap/already covered/n/a/deferred) 중 하나로 분류되었는가 (entry 수 일치)
+2. **M-03 → M-06 consistency**: `gap` + canonicality tag가 있는 disposition entry가 M-06 work item으로 진입했는가 (gap count ≥ work item count, 단 1:N 분할 가능)
+3. **M-06 schema consistency**: 각 work item이 M-04 schema 13필드(또는 migration 적용 후 필드 수) 전부 채움. 누락 필드 허용 안 됨
+
+세 check point는 M-07 lifecycle balance check 직전 실행.
+
+### Q10 (lifecycle 분포, defer)
+
+lifecycle 단계별 선제 분포(buildout/migration/validation/maintenance/adoption). M-07 lifecycle balance check에서 처리.
+
+## Execution log seat (v3 CC1-d 추가)
+
+**V1 점진성 측정 기준선**: 각 meta task 실행 시 경과 시간·비용을 다음 경로에 기록.
+
+- **Seat**: `development-records/plan/{YYYYMMDD}-execution-log.md`
+- **필수 기록 필드**: `task_id`, `start_time`, `end_time`, `elapsed_minutes`, `commit_hash` (있으면), `subagent_count` (해당 단계)
+- **용도**: 이후 같은 종류 작업의 2번째·3번째 실행 시 시간 비율 계산(§1.0 점진성 지표) 기준선
+
+기록 시점: 각 meta task 시작 시점 (entry 생성) + 종료 시점 (end_time·elapsed 채움). 실행 중 자연 수정 대상.
 
 ---
 
@@ -310,8 +378,16 @@ v2 보정:
 
 ## 다음 단계
 
-Principal 확정 시:
-1. 본 v2 commit + push
-2. (선택) 6차 9-lens review로 v2 검증
-3. `development-records/plan/README.md` + `CURRENT.md` 선행 생성
-4. M-00 착수
+v3 확정 완료. Principal 지시한 순서 X (v3 → Claude CLI cleanup → M-00) 진행:
+
+1. ✅ 본 v3 commit + push (CC1 4항 반영)
+2. 🔄 Claude CLI cleanup 작업을 `cowork/onto-3`에서 별도 세션으로 준비 (handoff 문서)
+3. M-00 착수 (현 onto-4 세션에서)
+4. `.onto/review/` 하위 6 review session 모두 reference로 보존
+   - `20260413-21695bbe/` (1차)
+   - `20260413-12eb28e0/` (2차)
+   - `20260413-c0adc0af/` (3차)
+   - `20260413-5f709c73/` (4차)
+   - `20260413-bafeda01/` (5차 Codex)
+   - `20260413-0f67e320/` (5차 Claude Agent)
+   - `20260413-1af00ea8/` (6차 nested spawn, v3 근거)

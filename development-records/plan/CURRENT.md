@@ -9,7 +9,8 @@ Last updated: 2026-04-13
 ### M-00 실행 준비 답변서
 - **Current**: `20260413-m00-preparation-qa.md`
 - **Status**: active
-- **Scope**: M-00 착수 직전 5개 점검 질문에 대한 답변 (v2, 2 review 반영)
+- **Revision**: v3
+- **Scope**: M-00 착수 직전 5개 점검 질문 답변 + CC1 4항 반영 (6차 review PASS)
 
 ### Backlog Consolidation
 - **Current**: 아직 생성 안 됨 (M-00 실행 후 생성 예정)

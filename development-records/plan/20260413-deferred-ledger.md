@@ -68,7 +68,7 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 
 **산술 반영**: DL-001 (E→G 1건) + DL-003 (G→E 1건) 상쇄 → Activity 분포 E=76, G=39 표시값 불변. 버킷 멤버십만 교정. v2.1 revision_note에 명시.
 
-**Commit**: (pending push 후 기록)
+**Commit**: `84736c7`
 
 ---
 
@@ -155,7 +155,7 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 
 ### DL-001, DL-002, DL-003 (resolved 2026-04-13T12:45:00+09:00, via consolidated v2.1 patch)
 - 해소 근거: 위 "M-01 resolution_stage — 3 items" 섹션의 resolution_note 참조
-- commit: (pending push)
+- commit: `84736c7` (fix(plan): consolidated v2.1 + ledger v1.1 — M-01 MINOR 3건 해소)
 - context: M-01은 이미 이전 commit(f248253 및 이전)에서 실행 완료. 본 3건은 ledger 수립 직후 M-01 incremental scope로 즉시 처리.
 
 ---

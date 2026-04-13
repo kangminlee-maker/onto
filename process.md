@@ -545,6 +545,51 @@ Skip if file does not exist:
 - Do not use metaphors or analogies.
 ```
 
+### Subagent Fallback Synthesize Prompt Template
+
+Used when TeamCreate is unavailable and execution falls back to the Agent tool. The team lead resolves variables and passes this as the Agent tool's `prompt` parameter with `subagent_type: "general-purpose"` in **foreground** (not background). The dispatched subagent performs in-process deliberation per `processes/review/synthesize-prompt-contract.md` §6 — there is no cross-process Step 4 in this path.
+
+Differences from the Codex Review Synthesize Prompt Template:
+- Self-loading uses the Read tool instead of Bash (`cat`).
+- File write uses the Write tool instead of shell redirect.
+- No `[Codex Configuration]` block.
+- learning-rules.md is inlined by the team lead (subagents cannot self-load it reliably during fallback).
+
+```
+You are synthesize (review synthesis stage).
+
+[Your Definition]
+{Content of roles/synthesize.md}
+
+[Context Self-Loading]
+Read the files below using the Read tool. Skip if file does not exist:
+1. Learnings: ~/.onto/learnings/synthesize.md (promoted only)
+2. Communication learning: ~/.onto/communication/common.md
+
+[Learning Rules]
+{Content of learning-rules.md — inlined by the team lead}
+
+[Task Directives]
+{Review synthesize directives — lens result file paths,
+ system purpose, synthesis format, adjudication rules}
+
+synthesize는 deliberation actor입니다. lens 결과 사이에 disagreement가 있으면
+contested된 lens 출력과 materialized input을 재읽어 직접 deliberation을 수행하고
+'Deliberation Decision' 섹션에 contested point별로 resolution을 기록하세요.
+Disagreement 섹션은 원 lens 입장을 보존합니다. frontmatter의 deliberation_status는
+not_needed (논쟁 없음) 또는 performed (직접 수행) 둘 중 하나만 사용하세요.
+required_but_unperformed는 synthesize 출력에서 사용하지 않습니다. 본 경로에서는
+cross-process Step 4 deliberation이 실행되지 않습니다 — synthesize의 in-process
+판단이 deliberation 결과의 유일한 authoritative source입니다.
+
+[Output Rules]
+- Write the final output to {session path}/synthesis.md using the Write tool.
+- Read `{session path}/interpretation.yaml`, `{session path}/binding.yaml`, and `execution-preparation/*` before synthesizing.
+- If file write fails, return the full synthesis text as your response.
+- Respond in {output_language}. (resolved from config.yml, default: en)
+- Do not use metaphors or analogies.
+```
+
 ### Codex Review Synthesize Prompt Template
 
 Used when execution_mode is `codex` for the review synthesize step. The team lead resolves variables and passes this as the Agent tool's `prompt` parameter with `subagent_type: "codex:codex-rescue"` in **foreground** (not background).

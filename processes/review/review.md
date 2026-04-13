@@ -502,7 +502,17 @@ Round 1에서 에이전트 에러 발생 시:
 
 ### 3. Reference Execution — Synthesize
 
-The team lead delivers the review lenses' review finding file paths to the `synthesize` teammate via SendMessage. **Since the original text is preserved in the files, the team lead does not include the original text in the message.**
+Synthesize 단계의 dispatch 메커니즘은 `execution_realization` 값에 따라 분기한다. 어느 경로든 lens 결과 + execution-preparation artifacts를 그대로 전달한다는 본질은 동일하며, 차이는 전달 메커니즘과 deliberation 처리 위치다.
+
+| `execution_realization` | Dispatch 메커니즘 | Deliberation 처리 |
+|---|---|---|
+| `agent-teams` | SendMessage to `synthesize` teammate | "needed" 판정 시 §4 cross-process Step 4 실행 |
+| `subagent` (TeamCreate fallback) | Agent tool with `subagent_type: "general-purpose"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 |
+| `subagent + codex` | Agent tool with `subagent_type: "codex:codex-rescue"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 |
+
+`subagent` 및 `subagent + codex` 경로의 synthesize 프롬프트는 process.md의 **Subagent Fallback Synthesize Prompt Template** / **Codex Review Synthesize Prompt Template**을 사용한다. 이 두 템플릿은 in-process deliberation directive를 이미 포함한다.
+
+이하 본 절은 `agent-teams` 경로의 SendMessage 전달 콘텐츠를 정의한다. **Since the original text is preserved in the files, the team lead does not include the original text in the message.**
 
 SendMessage content to deliver to the synthesize stage:
 
@@ -581,7 +591,10 @@ Do not use simple majority as a substitute for reasoning.
 In removal vs. retention conflicts, especially when `conciseness` is involved, compare the rationales against system purpose and preserve unresolved disagreement when it cannot be closed.
 
 ### Deliberation Necessity
-If any of the following conditions are met, answer "needed":
+
+본 외부 결정 트리는 `execution_realization: agent-teams` 경로에만 적용된다. `subagent` 및 `subagent + codex` 경로에서는 synthesize가 §6.3에 따라 자기 출력의 frontmatter `deliberation_status`를 직접 emit하며 (`not_needed` 또는 `performed`), 외부 "needed/not needed" 결정 단계가 없다.
+
+Agent Teams 경로 기준, 다음 조건 중 하나라도 만족하면 "needed"로 답한다:
 - Do disagreement items exist?
 - Were overlooked premises discovered?
 - Do axiology-proposed additional perspectives require additional examination?
@@ -676,10 +689,11 @@ Codex 모드에서는 `synthesize`도 `codex:codex-rescue` Agent로 실행한다
 
 ---
 
-### 4. Reference Execution — Deliberation (Conditional)
+### 4. Reference Execution — Deliberation (Conditional, Agent Teams 전용)
 
-Executed only if the synthesize stage judges "deliberation needed."
-경량 모드에서는 `synthesize`에게 'deliberation not needed' 지시를 포함한다.
+본 단계는 `execution_realization: agent-teams` 경로에서만 실행한다. `subagent` 및 `subagent + codex` 경로에서는 cross-process lens-to-lens 메시징 채널이 없으므로 `synthesize`가 §3 단계에서 `processes/review/synthesize-prompt-contract.md` §6의 in-process deliberation 절차를 이미 수행했다 — 본 §4를 실행하지 않고 §5로 진행한다.
+
+Agent Teams 경로에서도 본 단계는 synthesize의 §3 출력이 "deliberation needed"로 판정한 경우에만 실행한다. 경량 모드에서는 `synthesize`에게 'deliberation not needed' 지시를 포함한다.
 
 In this step, **direct SendMessage between teammates is permitted**.
 The team lead notifies the relevant lenses (including `synthesize`) of deliberation commencement:

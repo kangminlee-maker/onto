@@ -1,5 +1,5 @@
 ---
-as_of: 2026-04-13T10:35:00+09:00
+as_of: 2026-04-13T15:30:00+09:00
 supersedes: null
 status: active
 functional_area: execution-log
@@ -102,3 +102,27 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     m06_new_scope_items: 7 (DL-016~022, consolidated 미등재 구조적 gap)
     review_verdict: CONDITIONAL (9-lens session 20260413-cf964039, BLOCKING 1 + MAJOR 4 + MODERATE 5 + MINOR 20+)
     review_patch: v3.1 (BLOCKING C-A + MAJOR 4 + MODERATE 5 해소) → v3.2 (MINOR 20+ 전수 해소, DL-029/030 신규 도출)
+
+### M-04 Phase A — Task Schema·Canonical Output 결정
+
+- task_id: M-04-A
+- start_time: 2026-04-13T15:30:00+09:00
+- end_time: 2026-04-13T15:50:00+09:00
+- elapsed_minutes: 20
+- commit_hash: (pending)
+- subagent_count: 0 (메인 세션 단독, v3 QA A2 Principal 통합 판정)
+- notes: DL-013/014 통합 해소. 17 필드 task schema 완전 명세 (v5.1 meta 17 필드 기준, 일부 문건의 "15 필드" 표기는 버전 차이 혼선 — v1 schema 가 canonical). `development-records/design/20260413-onto-todo.md` canonical output seat 초판 (frontmatter + 축별 빈 섹션). authority/core-lexicon.yaml v0.5.0→v0.6.0 additive bump (activity_enum + axis_enum term 추가, §1 정본 §1.2/§1.5 동기화, 기존 entrypoint entity 미변경 — Stage 3 scope 보호). DR-M04-01/02 수립. Stage completion protocol DR-M00-06 두 번째 완결 적용 (resolution_stage=M-04-A pending = 0 충족).
+- pr_rescan_evidence:
+    command: "gh pr list --state open --json number,title,updatedAt,url --limit 20"
+    timestamp: 2026-04-13T15:30:00+09:00
+    result: "PR #30 (feat(review): synthesize performs deliberation in-process, updated 2026-04-13T05:28:34Z) 1건. M-03 snapshot(2026-04-13T13:10) 이후 신규. 내용: review synthesize 구현 변경 — M-04 task schema 작업과 독립. Source 4(pr) 영향 없음 (work item schema 자체는 process change 비관련). consolidated v3.3 재revision 시 ref 로만 등재 (M-06 이후)."
+- result_summary:
+    schema_fields_defined: 17  # v5.1 meta 17 필드 기준 (활동 포함)
+    enum_seats_added: 2  # activity_enum + axis_enum
+    lexicon_version_bump: "v0.5.0 → v0.6.0 (additive minor)"
+    canonical_output_seat: "development-records/design/20260413-onto-todo.md v1 (item_count=0, 축별 빈 섹션)"
+    decision_records_new: [DR-M04-01, DR-M04-02]
+    deferred_ledger_resolved: 2  # DL-013, DL-014
+    deferred_ledger_new: 0
+    stage_completion_check: "resolution_stage=M-04-A pending=0 (DR-M00-06 충족)"
+    phase_b_status: "skipped (M-05 착수 직전 sanity check 용으로 이관)"

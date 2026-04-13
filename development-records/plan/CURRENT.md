@@ -1,6 +1,6 @@
 # Current Planning Artifacts
 
-Last updated: 2026-04-13 (M-03 완료 기준)
+Last updated: 2026-04-13 (M-04 Phase A 완료 기준)
 
 이 파일은 `plan/` 디렉토리 각 artifact 계열의 최신 active 버전 경로를 명시한다. M-08 refresh protocol이 매 갱신 시 업데이트한다.
 
@@ -24,8 +24,14 @@ Last updated: 2026-04-13 (M-03 완료 기준)
 
 ### M-04 Startup Handoff
 - **Current**: `20260413-m04-startup.md`
-- **Status**: active (다음 세션에서 M-04 Phase A 착수용)
-- **Scope**: /clear 후 새 Claude Code 세션에서 M-04 Phase A (Task Schema·Canonical Output 결정) 진입 경로. DL-013/014 통합 해소 + authority/core-lexicon.yaml §1.activity/§1.axis canonical seat 추가
+- **Status**: superseded (M-04 Phase A 실행 완료)
+- **Scope**: /clear 후 새 Claude Code 세션에서 M-04 Phase A (Task Schema·Canonical Output 결정) 진입 경로
+
+### onto Work Item Canonical Output
+- **Current**: `../design/20260413-onto-todo.md`
+- **Status**: active (v1 초판, item_count=0, M-06 에서 채움)
+- **Scope**: 축 A/B/C/D work item canonical output seat. 17 필드 schema + append/revise 규약 + W-{axis}-{nn:02d} 명명
+- **Revision**: v1 (2026-04-13, schema + 빈 섹션 확정)
 
 ### Backlog Consolidation
 - **Current**: `20260413-backlog-consolidated.md`
@@ -44,20 +50,20 @@ Last updated: 2026-04-13 (M-03 완료 기준)
 ### Execution Log
 - **Current**: `20260413-execution-log.md`
 - **Status**: active
-- **Scope**: Meta task 실행 경과 시간 (V1 점진성 측정 기준선). M-00/01/02/03 entries
+- **Scope**: Meta task 실행 경과 시간 (V1 점진성 측정 기준선). M-00/01/02/03/04-A entries
 
 ### Decision Records
 - **M-00 decisions**: `20260413-m00-decisions.md` (active, DR-M00-01 ~ 06)
 - **M-03 decisions**: `20260413-m03-decisions.md` (active, DR-M03-01 ~ 04)
-- **M-04 decisions**: `20260413-m04-decisions.md` (M-04 실행 중 생성 예정)
+- **M-04 decisions**: `20260413-m04-decisions.md` (active v1, DR-M04-01 ~ 02 applied)
 
 ### Deferred Ledger
 - **Current**: `20260413-deferred-ledger.md`
 - **Status**: active
-- **Revision**: v1.4 (30 items 중 12 resolved / 18 pending)
-- **Resolved stages**: M-01 (3) + M-03 (9) = 12
-- **Pending stages**: M-04-A (2) / M-05 (1) / M-06 (8, DL-029 추가) / M-07 (2) / M-08 (5, DL-030 추가) = 18
-- **Policy**: DR-M00-06 (stage completion protocol) — M-03 에서 첫 완결 적용. 본 ledger §"관리 정책" 은 m00-decisions.md DR-M00-06 을 SSOT 로 참조 (CN-5 축약)
+- **Revision**: v1.5 (30 items 중 14 resolved / 16 pending)
+- **Resolved stages**: M-01 (3) + M-03 (9) + M-04-A (2) = 14
+- **Pending stages**: M-05 (1) / M-06 (8, DL-029 추가) / M-07 (2) / M-08 (5, DL-030 추가) = 16
+- **Policy**: DR-M00-06 (stage completion protocol) — M-03 에서 첫 완결, M-04-A 에서 두 번째 완결 적용. 본 ledger §"관리 정책" 은 m00-decisions.md DR-M00-06 을 SSOT 로 참조 (CN-5 축약)
 
 ### Prior (historical reference)
 - `20260404-prototype-to-service-productization-plan.md`

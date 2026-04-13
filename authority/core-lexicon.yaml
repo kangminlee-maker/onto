@@ -1,10 +1,11 @@
-lexicon_version: "0.5.0"
+lexicon_version: "0.6.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
   - "This lexicon is the concept SSOT for the productization track."
   - "This file owns the concept INVENTORY. Naming RULES are owned by ontology-as-code-naming-charter.md."
   - "Structure: authoring_rules → shared_attributes → entities → terms."
+  - "v0.6.0 additive (M-04 Phase A, 2026-04-13): activity_enum + axis_enum terms added. §1 정본 §1.2 (5 활동) + §1.5 (4 축) canonical seat. DR-M04-01 (DL-013 resolved) owning."
 
 # ---------------------------------------------------------------------------
 # Governance (preserved from v0.1.0)
@@ -107,6 +108,9 @@ shared_attributes:
 # Entities
 # ---------------------------------------------------------------------------
 # Stage 2 scope: review_process entity + principal term 추가.
+# M-04-A 추가(2026-04-13): activity_enum + axis_enum taxonomy term.
+# §1 정본 §1.2/§1.5 동기화 목적 — 기존 entrypoint entity (review instance 만 상세) 는 유지.
+# entrypoint.instances 를 §1.2 5 활동 (reconstruct 추가, ask 폐기) 에 정렬하는 작업은 Stage 3 scope.
 # build, ask, learn, govern, design의 고유 개념(process entity, dispatch target 등)은
 # Stage 3에서 추가. 이 scope 경계는 의도적이며, 비-review 개념의 부재는 누락이 아님.
 
@@ -516,3 +520,50 @@ terms:
       - >
         entity 승격 조건: entrypoint와의 invokes relation이 onto 실행 체인에서 추적 필수가 되는 시점.
         판단 기준은 "principal 부재 시 dispatch 체인이 불완전한가" 여부. Stage 3에서 결정.
+  - term_id: "activity_enum"
+    canonical_label: "activity"
+    korean_label: "활동"
+    axis: "onto_taxonomy"
+    term_status: "active"
+    definition: "§1.2 에 정의된 onto 의 다섯 활동. work item / consolidated / inventory / ledger 의 activity field canonical enum. 본 term 이 enum 의 authority SSOT."
+    allowed_values:
+      - "review"
+      - "design"
+      - "reconstruct"
+      - "learn"
+      - "govern"
+    legacy_aliases:
+      - alias: "build"
+        context: >
+          Legacy activity name retired 2026-04-13. Canonical replacement: reconstruct (DR-M00-04).
+          Scope: (1) activity 분류 시 build→reconstruct 로 계산, (2) 파일명·명령명 (processes/build.md, commands/build.md, npm build:*) 은 legacy 병존 허용 — rename phase 는 M-06 이후 별도 work item,
+          (3) 관용 표현 ("build 프로세스") 은 legacy 명칭 유지 가능.
+      - alias: "ask"
+        context: >
+          §1.2 에서 폐기 선언 (2026-04-13). 대체 없음 — 필요 시 단일 lens review 로 대체.
+          commands/ask-*.md 파일은 BL-121 에서 review 계열 이동 또는 제거 예정.
+    notes:
+      - "Canonical definition source: development-records/design/20260413-onto-direction.md#§1.2 (as_of=2026-04-13)."
+      - "Consumers: M-05/M-06/M-07/M-08 work items (activity field), consolidated.md frontmatter activity_enum_ref, Expansion Protocol."
+      - "Reference format: `authority/core-lexicon.yaml#activity_enum.v0.6.0` (DR-M04-02). lexicon_version bump 시 reader 재파싱."
+      - "Homonym caution: 본 enum 의 'activity' 는 onto taxonomy 단위이며, 일반 한국어 '활동' 과 혼동하지 않도록 consumer 는 canonical_label 인 'activity' 를 taxonomy 문맥에서만 사용."
+  - term_id: "axis_enum"
+    canonical_label: "axis"
+    korean_label: "축"
+    axis: "onto_taxonomy"
+    term_status: "active"
+    definition: "§1.5 에 정의된 onto 의 네 축. work item ID (W-{axis}-{nn:02d}) 의 axis 토큰 canonical enum. 본 term 이 enum 의 authority SSOT."
+    allowed_values:
+      - "A"
+      - "B"
+      - "C"
+      - "D"
+    notes:
+      - "A = entrypoint 구현 (활동별). 다섯 활동의 command·process·calling convention."
+      - "B = 기반 인프라 (공통). product·ontology·learning 저장·처리 공통 인프라 (scope-runtime, readers, middleware)."
+      - "C = 자율성 진화 (메타). self-application 메커니즘 + drift 판정 + 큐·승인 흐름 + 수준 0→1→2 엔진."
+      - "D = 상시 원칙 (교차). lexicon provisional lifecycle. 모든 축 교차 원칙, 독립 축 아님."
+      - "Axis 간 의존 (§1.5 derived): A→B (활동 구현은 인프라 위에서 작동, A0=scope-runtime framework 추출은 A 선행), C→{A,B} (자율성은 A·B 최소 1사이클 운영 후 설계), D→{A,B,C} (모든 축 교차)."
+      - "Canonical definition source: development-records/design/20260413-onto-direction.md#§1.5 (as_of=2026-04-13)."
+      - "Consumers: M-05/M-06/M-07/M-08 work items (axis field + W-ID token), consolidated.md frontmatter axis_enum_ref, Expansion Protocol 축 추가·삭제·병합 trigger."
+      - "Reference format: `authority/core-lexicon.yaml#axis_enum.v0.6.0` (DR-M04-02)."

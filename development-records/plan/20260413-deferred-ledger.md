@@ -1,19 +1,19 @@
 ---
-as_of: 2026-04-13T14:30:00+09:00
+as_of: 2026-04-13T15:30:00+09:00
 supersedes: null
 status: active
-revision: v1.3
+revision: v1.5
 functional_area: deferred-ledger
 purpose: |
   M-00 ~ M-08 meta task 실행 중 deferred로 분류된 item의 **단일 추적 ledger**.
   각 item의 origin / severity / resolution_stage / status를 longitudinal로 관리.
 item_count: 30
-resolved_count: 12
-pending_count: 18
+resolved_count: 14
+pending_count: 16
 resolution_stage_distribution:
   M-01: 3 (전원 resolved)
   M-03: 9 (전원 resolved — v1.2)
-  M-04-A: 2
+  M-04-A: 2 (전원 resolved — v1.5)
   M-05: 1
   M-06: 8  # DL-029 신규 추가 (v1.4)
   M-07: 2
@@ -113,14 +113,22 @@ relation_names:
 
 ---
 
-## M-04 Phase A (Task Schema·Canonical Output 결정) resolution_stage — 2 items
+## M-04 Phase A (Task Schema·Canonical Output 결정) resolution_stage — 2 items (전원 resolved)
 
 **Rationale**: Phase A는 activity vocabulary + canonical seat + binding rule 확정. activity/enum 관련 defer를 본 단계에 집약.
 
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
-| DL-013 | v5.1-meta | DR-M04-01 | DR | M-06/M-07/Expansion의 `activity` field canonical 참조 정렬. M-04 Phase A에서 활성화. **S-4/D-3 반영**: M-04 Phase A task schema 에 `depends_on: [BL-NNN | DL-NNN]` 필드 슬롯 예약 — M-05 Pre-draft Dependency Modeling 에서 값 채움. | pending |
-| DL-014 | v2-review | evolution F2 | Recommend | `activity_enum_ref: authority/core-lexicon.yaml#§1.activity.v2026-04-13` frontmatter 필드 도입 (enum 진화 hook) | pending |
+| DL-013 | v5.1-meta | DR-M04-01 | DR | M-06/M-07/Expansion의 `activity` field canonical 참조 정렬. M-04 Phase A에서 활성화. **S-4/D-3 반영**: M-04 Phase A task schema 에 `depends_on: [BL-NNN | DL-NNN]` 필드 슬롯 예약 — M-05 Pre-draft Dependency Modeling 에서 값 채움. | **resolved** |
+| DL-014 | v2-review | evolution F2 | Recommend | `activity_enum_ref: authority/core-lexicon.yaml#§1.activity.v2026-04-13` frontmatter 필드 도입 (enum 진화 hook) | **resolved** |
+
+### 해소 기록 (DL-013/014, 2026-04-13T15:30, M-04 Phase A)
+
+**DL-013 resolution_note**: DR-M04-01 으로 해소. `authority/core-lexicon.yaml` v0.6.0 에 `activity_enum` term 추가 (`allowed_values: [review, design, reconstruct, learn, govern]` + legacy_aliases `build→reconstruct`, `ask→retired`) + `axis_enum` term 추가 (`allowed_values: [A, B, C, D]` + 축 간 의존 notes). M-04 Phase A task schema 의 `depends_on` 필드는 `20260413-onto-todo.md#§1.1` 에 slot 예약 완료 — 각 원소 regex `^(W-[ABCD]-\d{2}|BL-\d{3}|DL-\d{3})$`, 값은 M-05 Pre-draft Dependency Modeling 에서 채움. 본 DL 의 "canonical 참조 정렬" 은 DR-M04-01 + `20260413-onto-todo.md` frontmatter `activity_enum_ref` + `axis_enum_ref` 의 3지점 정렬로 완결.
+
+**DL-014 resolution_note**: DR-M04-02 로 해소. frontmatter 필드 `activity_enum_ref` + `axis_enum_ref` 의무화 규약 수립. 값 형식: `authority/core-lexicon.yaml#<term_id>.v<lexicon_version>`. `20260413-onto-todo.md` 초판 frontmatter 에 신규 형식으로 반영 완료. 기존 consolidated v3.2 의 `#§1.2` / `#§1.5` 형식 은 legacy 호환 기간 (v3.3 재revision 또는 M-08 일괄 교체) 까지 병존 허용. lexicon_version bump 규약 (additive=minor, breaking=major) + Expansion Protocol Migration Contract (v5.1 meta) 연계.
+
+**Commit**: (pending)
 
 ---
 
@@ -189,6 +197,12 @@ relation_names:
 - commit: `a53981b`
 - context: Stage completion protocol (DR-M00-06) 첫 완결 적용. `resolution_stage == M-03 AND status == pending` 인 item = 0 (성공 기준 충족).
 
+### DL-013 ~ DL-014 (resolved 2026-04-13T15:30:00+09:00, via M-04 Phase A)
+- 해소 근거: 위 "M-04 Phase A (Task Schema·Canonical Output 결정) resolution_stage — 2 items" 섹션의 resolution_note 참조
+- M-04 Phase A core output: `authority/core-lexicon.yaml` v0.6.0 (activity_enum + axis_enum canonical seat) + `development-records/design/20260413-onto-todo.md` v1 (schema + 축별 빈 섹션) + m04-decisions.md (DR-M04-01/02)
+- commit: (pending)
+- context: Stage completion protocol (DR-M00-06) 두 번째 완결 적용. `resolution_stage == M-04-A AND status == pending` 인 item = 0 (성공 기준 충족).
+
 ---
 
 ## 개정 이력
@@ -198,6 +212,7 @@ relation_names:
 - v1.2 (2026-04-13T13:50): DL-004~012 (M-03 resolution_stage 9건) 전원 resolved 처리. consolidated v3 + m03-decisions.md 와 연동. resolved_count: 3 → 12, pending_count: 25 → 16.
 - v1.3 (2026-04-13T14:30): 9-lens review `20260413-cf964039` feedback 반영. DL-004 resolution_note 에 Scope="대표 사례 부착" 명시 (C-F 해소). DL-006 resolution_note 에 "DR-M03-01 schema instantiation 수용" downgrade (CC-D 해소). DL-017 context 에 M-06 3 지표 분할 + BL-120 superset 관계 명시 (CC-A 반영). DL-023 context 에 `scaffolding_ratio_trend` metric 추가 (CC-B 반영). 새 resolved 없음.
 - v1.4 (2026-04-13T15:00): 9-lens review MINOR 20+ 반영. DL-029 신규 (review ontology 경로 분기, M-06 resolution_stage, C-1 ghost). DL-030 신규 (NP-1 Aggregate Prioritization Coherence Lens 제안, M-08 resolution_stage governance). frontmatter: stage_id_scheme + relation_names 선언. DL-007/010/011/013/022/025/027 context note 보강. §"관리 정책" 을 DR-M00-06 SSOT 참조로 축약 (CN-5). item_count: 28 → 30, pending_count: 16 → 18. 새 resolved 없음.
+- v1.5 (2026-04-13T15:30): DL-013 + DL-014 (M-04-A resolution_stage 2건) 전원 resolved 처리. M-04 Phase A core output (core-lexicon.yaml v0.6.0 activity_enum/axis_enum + onto-todo.md v1 schema + m04-decisions DR-M04-01/02) 와 연동. resolved_count: 12 → 14, pending_count: 18 → 16. Stage completion protocol 두 번째 완결 적용 (resolution_stage=M-04-A pending=0 성공 기준 충족).
 
 ## 참조
 

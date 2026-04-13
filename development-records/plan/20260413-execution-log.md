@@ -328,3 +328,27 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     decision_records_count: 4  # DR-M07-01~04
     deferred_ledger_resolved: 2  # DL-023 + DL-024
     stage_completion_protocol: "resolution_stage=M-07 AND status=pending = 0 (DR-M00-06 성공 기준 충족). 다섯 번째 완결."
+
+### M-08 — Refresh·Maintenance Protocol (마지막 meta task)
+
+- task_id: M-08
+- start_time: 2026-04-13T22:10:00+09:00
+- end_time: 2026-04-13T22:20:00+09:00
+- elapsed_minutes: 10
+- commit_hash: 8fd8c46
+- subagent_count: 0
+- notes: meta task list v5.1 마지막 단계. M-07 PASS 후 이관 defect 0건. DL-025~028+030 (5건) 해소 + maintenance protocol 문서 작성.
+- m08_result_summary:
+    protocol_document: "20260413-refresh-protocol.md v1 (10 섹션)"
+    protocol_sections: ["§1 신규 항목 처리", "§2 생애주기 전이", "§3 정기 재검토", "§4 진행률 모니터링", "§5 Principal 개입 trigger", "§6 audit 인프라 지연", "§7 primary_tag_convention", "§8 NP-1 lens 보류", "§9 M-07 이관 0건", "§10 체크리스트"]
+    deferred_ledger_resolved: 5  # DL-025~028 + DL-030
+    decision_records_count: 5  # DR-M08-01~05
+    stage_completion_protocol: "resolution_stage=M-08 AND status=pending = 0 (DR-M00-06 성공 기준 충족). 여섯 번째 (최종) 완결."
+    meta_task_completion: "9/9 (M-00~M-08) 전수 완료. Ledger 31/31 전원 resolved. DR 32건 누적."
+    refresh_cycle_baseline:
+      done_count: 0
+      active_count: 119
+      deferred_count: 20
+      scaffolding_ratio: "46.0% (64/139)"
+      canonical_advancing_done: "0/17"
+      total_elapsed_minutes: "(M-00~M-08 합산 필요)"

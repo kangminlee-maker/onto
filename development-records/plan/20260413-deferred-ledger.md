@@ -1,15 +1,16 @@
 ---
-as_of: 2026-04-13T22:00:00+09:00
+as_of: 2026-04-13T22:20:00+09:00
 supersedes: null
 status: active
-revision: v1.12
+revision: v1.13
 functional_area: deferred-ledger
 purpose: |
   M-00 ~ M-08 meta task 실행 중 deferred로 분류된 item의 **단일 추적 ledger**.
   각 item의 origin / severity / resolution_stage / status를 longitudinal로 관리.
+  **v1.13: 전원 resolved (31/31). Meta task 9/9 완료.**
 item_count: 31
-resolved_count: 26
-pending_count: 5
+resolved_count: 31
+pending_count: 0
 resolution_stage_distribution:
   M-01: 3 (전원 resolved)
   M-03: 9 (전원 resolved — v1.2)
@@ -17,7 +18,7 @@ resolution_stage_distribution:
   M-05: 2 (전원 resolved — v1.7)  # DL-015 + DL-031 resolved (DR-M05-02 + DR-M05-03)
   M-06: 8 (전원 resolved — v1.11)  # DL-016/018 (v1.9) + DL-020/029 (v1.10) + DL-017(완전)/019/021/022 (v1.11 Wave 4). Stage completion: pending=0
   M-07: 2 (전원 resolved — v1.12)  # DL-023 lifecycle balance + DL-024 consistency check. Stage completion: pending=0
-  M-08: 5  # DL-030 신규 추가 (v1.4, NP-1 lens proposal)
+  M-08: 5 (전원 resolved — v1.13)  # DL-025/026/027/028/030. Stage completion: pending=0. 여섯 번째(최종) 완결.
 id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 ledger 내에서 불변"
 stage_id_scheme: "M-NN 또는 M-NN-X (M-04-A, M-04-B 등 sub-stage 허용. ledger resolution_stage 값은 이 scheme 을 준수)"
 relation_names:
@@ -185,11 +186,11 @@ relation_names:
 
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
-| DL-025 | qa-v3 | Q7 | Defer | 진행률·비용·토큰 예산 모니터링 방법 수립. M-08 refresh protocol에 포함. **CN-4 반영**: `deferred` sub-source 3종 (PRODUCTION PHASE / pre-cutoff P3 / §1.2 "보류 중") 을 deferred_reason enum 으로 승격 검토 포함. | pending |
-| DL-026 | qa-v3 | Q8 | Defer | Principal 개입 trigger 임계값 확정. M-00~M-07 실행 중 누적 사례 후 | pending |
-| DL-027 | v2-review | evolution F5/F7/F10 | Recommend | longitudinal replay/audit 인프라: `dedup_rule_set_ref`, `verification_status` enum, `dr_registry_ref`. **E-6 흡수**: axis D 30+ 재평가 trigger monitoring seat 통합. **E-7 반영**: schema_version migration logic 선언 (v2→v3 변경 fields, rollback policy, downstream reader 재파싱 요건) 포함. | pending |
-| DL-028 | v2-review | pragmatics N1 | Recommend | `primary_tag_convention` SSOT 단일화 (frontmatter canonical 선언, 본문은 참조) | pending |
-| DL-030 | m03-review-NP1 | aggregate-prioritization-lens | Governance | **NP-1 Aggregate Prioritization Coherence Lens** 제안 preserve (axiology 제안). canonical-advancing 집합의 축 분포가 §1.5 축 중요도·의존 관계와 정합하는지 평가하는 집합 level lens. 현 9 lens 는 item-level 또는 개별 가치 위주. M-08 refresh (또는 M-07 재검토) 시 lens set 확장 여부 결정. 현재는 보존만. | pending |
+| DL-025 | qa-v3 | Q7 | Defer | 진행률·비용·토큰 예산 모니터링 방법 수립. M-08 refresh protocol에 포함. **CN-4 반영**: `deferred` sub-source 3종 (PRODUCTION PHASE / pre-cutoff P3 / §1.2 "보류 중") 을 deferred_reason enum 으로 승격 검토 포함. | **resolved** |
+| DL-026 | qa-v3 | Q8 | Defer | Principal 개입 trigger 임계값 확정. M-00~M-07 실행 중 누적 사례 후 | **resolved** |
+| DL-027 | v2-review | evolution F5/F7/F10 | Recommend | longitudinal replay/audit 인프라: `dedup_rule_set_ref`, `verification_status` enum, `dr_registry_ref`. **E-6 흡수**: axis D 30+ 재평가 trigger monitoring seat 통합. **E-7 반영**: schema_version migration logic 선언 (v2→v3 변경 fields, rollback policy, downstream reader 재파싱 요건) 포함. | **resolved** |
+| DL-028 | v2-review | pragmatics N1 | Recommend | `primary_tag_convention` SSOT 단일화 (frontmatter canonical 선언, 본문은 참조) | **resolved** |
+| DL-030 | m03-review-NP1 | aggregate-prioritization-lens | Governance | **NP-1 Aggregate Prioritization Coherence Lens** 제안 preserve (axiology 제안). canonical-advancing 집합의 축 분포가 §1.5 축 중요도·의존 관계와 정합하는지 평가하는 집합 level lens. 현 9 lens 는 item-level 또는 개별 가치 위주. M-08 refresh (또는 M-07 재검토) 시 lens set 확장 여부 결정. 현재는 보존만. | **resolved** |
 
 ---
 
@@ -251,12 +252,23 @@ relation_names:
 - **DL-024 resolution_note**: consistency check 3지점 PASS. (a) 123 ≥ 101 ✓, (b) 101 ≤ 139 ✓, (c) 139 W-ID × 11 required 필드 전수 채움 ✓. 부수 발견: M-06 execution log W-B lifecycle 오집계 3건 (DR-M07-03 으로 정정).
 - context: Stage completion protocol (DR-M00-06) 다섯 번째 완결 적용. `resolution_stage == M-07 AND status == pending` 인 item = 0 (성공 기준 충족).
 
+### DL-025, DL-026, DL-027, DL-028, DL-030 (resolved 2026-04-13T22:20:00+09:00, via M-08)
+- 해소 근거: M-08 refresh-protocol.md v1 작성. DR-M08-01~05.
+- **DL-025 resolution_note**: refresh-protocol.md §4 에서 6개 추적 지표 확정 (done_count, active_count, deferred_count, scaffolding_ratio, canonical_advancing_done, elapsed_minutes). deferred_reason enum 은 schema formal 추가 않고 blockers free-text 분류로 권장 (DR-M08-02).
+- **DL-026 resolution_note**: refresh-protocol.md §5 에서 7개 Principal 개입 trigger 확정. M-00~M-07 실행 중 4건 사례 기반 (DR-M08-03).
+- **DL-027 resolution_note**: refresh-protocol.md §6 에서 구현 지연 결정. 실행 데이터 0건 시점에 인프라 선행 구축은 premature. 진입 조건 3개 명시 (DR-M08-04).
+- **DL-028 resolution_note**: refresh-protocol.md §7 에서 frontmatter canonical 선언 원칙 이미 적용 중 확인. 추가 구현 불요 (DR-M08-05).
+- **DL-030 resolution_note**: refresh-protocol.md §8 에서 NP-1 lens 보류 결정 (preserved, not adopted). 현 canonical-advancing 축 분포 정합. 재검토 조건 명시 (DR-M08-05).
+- context: Stage completion protocol (DR-M00-06) **여섯 번째 (최종) 완결** 적용. `resolution_stage == M-08 AND status == pending` 인 item = 0 (성공 기준 충족). **전 ledger 31/31 resolved. Meta task 9/9 완료.**
+
 ## 참조
 
 - `development-records/plan/20260413-backlog-consolidated.md` (v2) — 본 ledger와 분리. Ledger는 backlog item이 아닌 **작업 방식·schema·구조·gap에 대한 defer**
-- `development-records/plan/20260413-m00-decisions.md` — DR-M00-06 (본 ledger 수립 결정) 추가 예정
+- `development-records/plan/20260413-m00-decisions.md` — DR-M00-06 (본 ledger 수립 결정)
 - `development-records/plan/20260413-execution-log.md` — 각 stage 완료 시 ledger 갱신 이벤트 기록
+- `development-records/plan/20260413-refresh-protocol.md` — M-08 산출 (maintenance protocol)
 
-## 개정 이력 (v1.12)
+## 개정 이력 (v1.12 ~ v1.13)
 
-- v1.12 (2026-04-13T22:00): DL-023 + DL-024 (M-07 resolution_stage 2건) 전원 resolved 처리. M-07 5개 검증 항목 전수 PASS (DAG acyclic + Cluster 판정 + Compound 무결성 12/12 + Lifecycle balance + Consistency check 3지점). resolved_count 24 → 26, pending_count 7 → 5. M-06 execution log W-B lifecycle 오집계 3건 부수 발견 및 정정 (DR-M07-03). Stage completion protocol (DR-M00-06) 다섯 번째 완결 적용 (resolution_stage=M-07 AND status=pending = 0 성공 기준 충족). Revise escalation 판정: PASS — M-08 진입 허용.
+- v1.12 (2026-04-13T22:00): DL-023 + DL-024 (M-07 resolution_stage 2건) 전원 resolved 처리. M-07 5개 검증 항목 전수 PASS. resolved_count 24 → 26, pending_count 7 → 5. Stage completion protocol 다섯 번째 완결.
+- v1.13 (2026-04-13T22:20): DL-025/026/027/028/030 (M-08 resolution_stage 5건) 전원 resolved 처리. refresh-protocol.md v1 + m08-decisions DR-M08-01~05 와 연동. resolved_count 26 → 31, pending_count 5 → 0. **전 ledger 31/31 전원 resolved. Stage completion protocol 여섯 번째 (최종) 완결.** Meta task 9/9 (M-00~M-08) 전수 완료.

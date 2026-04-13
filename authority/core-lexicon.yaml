@@ -220,6 +220,36 @@ provisional_terms:
       notes:
         - "DL-017 점진성 seat 3건 중 review 담당"
         - "W-A-75/76 (review-r+/r−) 의 선행 의존"
+    learning_usage_hitrate:
+      term_id: learning_usage_hitrate
+      lifecycle_status: seed
+      registered_by: "W-A-72"
+      registered_date: "2026-04-14"
+      definition_draft: >
+        promoted learning 의 활용 히트율 계측 seat.
+        세션별 learning-manifest.yaml 에서 공급량(loaded), 필터링률(parsed→loaded),
+        토큰 효율, tier/role 분포를 수집하여 학습 기제 신뢰도 proxy 를 산출한다.
+        없으면 학습 축적이 실제로 활동 비용을 줄이는지 판단할 수 없다.
+      evidence:
+        - "src/core-runtime/learning/usage-tracker.ts (tracker 구현)"
+      notes:
+        - "DL-017 기제 seat 3건 중 learn 담당"
+        - "§1.4 측면 3 — 기제 신뢰도"
+    domain_validation_accuracy:
+      term_id: domain_validation_accuracy
+      lifecycle_status: seed
+      registered_by: "W-A-73"
+      registered_date: "2026-04-14"
+      definition_draft: >
+        reconstruct 활동에서 domain knowledge 추정의 적중률 계측 seat.
+        certainty 분류(inferred)에 대한 후속 검증 결과(validated/invalidated/revised)를
+        기록하고 정확도 비율을 산출한다.
+        없으면 domain assumption 의 신뢰성을 판단할 수 없다.
+      evidence:
+        - "src/core-runtime/scope-runtime/domain-validation-log.ts (tracker 구현)"
+      notes:
+        - "DL-017 기제 seat 3건 중 reconstruct 담당"
+        - "W-A-74 (reconstruct-cli) 에서 파이프라인 연동 예정"
 
 # ---------------------------------------------------------------------------
 # Entities

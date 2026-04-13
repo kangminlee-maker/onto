@@ -1,5 +1,5 @@
 ---
-as_of: 2026-04-13T20:10:00+09:00
+as_of: 2026-04-13T20:40:00+09:00
 supersedes: null
 status: active
 functional_area: execution-log
@@ -211,3 +211,35 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     m06_decisions_new: "20260413-m06-decisions.md v1 신설 (6 DR applied)"
     stage_completion_check: "Wave 1 commit 시점: resolution_stage=M-06 pending=8 (DL-016~022, DL-029 미해소). DR-M00-06 Stage completion protocol 은 Wave 4 마감 시점 적용."
     schema_defects_detected: 0  # blocking-schema / weak-class-defect / minor-clarification 모두 0 (DR-M05-03 v1.1 escalation trigger 미발동)
+
+### M-06 Wave 2 — W-B (기반 인프라) 51 W-ID 전수 작성
+
+- task_id: M-06-wave2
+- start_time: 2026-04-13T20:15:00+09:00
+- end_time: (pending — Wave 2 commit 시점)
+- elapsed_minutes: (pending)
+- commit_hash: (pending)
+- subagent_count: 0 (메인 세션 단독, v3 QA A2 Principal 통합 판정)
+- notes: W-B 섹션 전수 51 W-ID 작성. canonical-advancing 2건 (W-B-01 A0 framework via DL-016 + W-B-02 state machine 3중 dedup via DL-018), minimum surface 조건 2 (depends_on 3종 edge) W-B-02 에서 cover 완료. build_coordinator_redesign cluster 3 (순서 의존 BL-097 → BL-095 → BL-096), DR-M06-02 재배치 1 (BL-033 axis=D→B), design/principal/SE/business infra 전수. deferred BL 22건 compact YAML + `(deferred)` placeholder. Compound 3건 (build_review_cycle 37, agent_id_rename 나머지 5, business_domain_wave 5) 는 Wave 3 전담 — Wave 2 불포함.
+- pr_rescan_evidence:
+    command: "gh pr list --state open --json number,title,updatedAt,url --limit 20"
+    timestamp: 2026-04-13T20:15:00+09:00
+    result: "[] (0 건). Wave 1 commit 9a96fc4 이후 신규 open PR 없음."
+- wave2_result_summary:
+    work_items_created: 51  # W-B-01 ~ W-B-51
+    by_axis_count_cumulative: { A: 1, B: 51, C: 0, D: 3 }  # Wave 1 + Wave 2
+    by_activity_count_wave2: { reconstruct: 34, govern: 13, review: 2, design: 2 }
+    by_canonicality_wave2: { canonical_advancing: 2, supporting: 32, scaffolding: 17 }
+    by_lifecycle_wave2: { active: 29, deferred: 22 }
+    minimum_surface_progress:
+      condition_1_compound_member_nonnull: "cover — W-A-01 (Wave 1)"
+      condition_2_depends_on_3kinds_edge: "cover — W-B-02 depends_on=[W-B-01, BL-095, DL-018]"
+      condition_3_compound_expansion_first_use: "cover — W-A-01 rewrite_trace (Wave 1)"
+      first_10_items_covered: true  # Wave 1 4건 + Wave 2 첫 2건 (W-B-01/02) = 6건째까지 3 조건 모두 cover
+    decision_records_new: []  # Wave 2 진행 중 신규 DR 없음 (DR-M06-01~06 로 충분)
+    deferred_ledger_resolved: 2  # DL-016 (W-B-01), DL-018 (W-B-02)
+    onto_todo_patch: "v2-wave1 → v2-wave2 (§2 W-B placeholder 교체, Summary table 51 row + 51 canonical YAML, item_count 4 → 55, by_axis_count {A:1,B:51,C:0,D:3})"
+    compound_excluded_wave2: "build_review_cycle (37) + agent_id_rename 잔여 5 + business_domain_wave (5) = Wave 3 전담"
+    stage_completion_check: "Wave 2 commit 시점: resolution_stage=M-06 pending=6 (DL-017, DL-019, DL-020, DL-021, DL-022, DL-029 미해소). Wave 3~4 에서 순차 해소."
+    schema_defects_detected: 0
+    schema_defect_pre_emption_note: "Wave 2 초고에서 46 W-ID 을 Summary table 만으로 기술하려다 required 11 필드 중 5 누락 (blocking-schema defect 접근) — 즉시 재작성으로 compact YAML 전수 추가하여 schema 준수. Wave 2 완결 전 self-correction 으로 escalation trigger 미발동."

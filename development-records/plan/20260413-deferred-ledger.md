@@ -1,21 +1,21 @@
 ---
-as_of: 2026-04-13T19:45:00+09:00
+as_of: 2026-04-13T20:40:00+09:00
 supersedes: null
 status: active
-revision: v1.8
+revision: v1.9
 functional_area: deferred-ledger
 purpose: |
   M-00 ~ M-08 meta task 실행 중 deferred로 분류된 item의 **단일 추적 ledger**.
   각 item의 origin / severity / resolution_stage / status를 longitudinal로 관리.
 item_count: 31
-resolved_count: 16
-pending_count: 15
+resolved_count: 18
+pending_count: 13
 resolution_stage_distribution:
   M-01: 3 (전원 resolved)
   M-03: 9 (전원 resolved — v1.2)
   M-04-A: 2 (전원 resolved — v1.5)
   M-05: 2 (전원 resolved — v1.7)  # DL-015 + DL-031 resolved (DR-M05-02 + DR-M05-03)
-  M-06: 8  # DL-029 신규 추가 (v1.4)
+  M-06: 8  # DL-016/018 resolved (v1.9 Wave 2). 잔여 pending 6: DL-017/019/020/021/022/029
   M-07: 2
   M-08: 5  # DL-030 신규 추가 (v1.4, NP-1 lens proposal)
 id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 ledger 내에서 불변"
@@ -151,15 +151,15 @@ relation_names:
 
 ---
 
-## M-06 (축별 Work Item 초안) resolution_stage — 7 items
+## M-06 (축별 Work Item 초안) resolution_stage — 8 items (Wave 2 완료 시점: 2 resolved / 6 pending)
 
 **Rationale**: M-06은 축별 work item 생성 단계. 현 backlog에 미등재되었으나 §1 정본·§1.5 축 정의·M-01/M-02 inventory에서 drive된 **신규 work item 도출** 대상.
 
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
-| DL-016 | m02-inv | A0-framework | Gap | A0 (scope-runtime framework 추출) work item 신규 도출. §1.5 "A0 = 축 A 선행" 원칙 consolidated v2 미등재. 축 A 전체의 선행 조건 | pending |
+| DL-016 | m02-inv | A0-framework | Gap | A0 (scope-runtime framework 추출) work item 신규 도출. §1.5 "A0 = 축 A 선행" 원칙 consolidated v2 미등재. 축 A 전체의 선행 조건 | **resolved** |
 | DL-017 | m01-inv + m02-inv | measurement-infra | Gap | §1.4 측정 인프라 3지표 (점진성 / 지속성 / 기제) 계측 seat 구축. 전 활동 0건. `data-seats` component에서 M-02가 0 primary 확인. **M-06 분할 요구 (CC-A)**: 본 DL 을 3 지표 전수 work item 으로 분할 필수 (점진성 seat + 지속성 seat + 기제 seat 독립). BL-120 (gap × canonical-advancing, P1) 이 측면 3 기제 proxy — 측면 1/2 는 BL-120 같은 직접 advance 항목 0건이라 DL-017 분할이 유일 seed. superset 관계 (DL-017 ⊃ BL-120) 명시하여 중복 seat risk 회피. | pending |
-| DL-018 | m02-inv | state-machine-dedup | Gap | State machine 3중 구현 통합 (review 9-state coordinator / scope-runtime 15-state / build.md spec). A0 framework 추출의 핵심 대상 | pending |
+| DL-018 | m02-inv | state-machine-dedup | Gap | State machine 3중 구현 통합 (review 9-state coordinator / scope-runtime 15-state / build.md spec). A0 framework 추출의 핵심 대상 | **resolved** |
 | DL-019 | m01-inv + v2-review | drift-engine | Gap | drift 정책 engine·큐·승인 흐름 구축. §1.3 수준 0→1 도달 조건. 현 축 C 4건(BL-088~090, BL-120)은 harness 수습·검증 정책 수준이며 engine 자체 부재. axiology A-3도 동일 지적 | pending |
 | DL-020 | m01-inv | reconstruct-cli | Gap | reconstruct 활동 전용 CLI bounded path 구축. review의 3-step bounded path 수준 비대칭. build-runtime 40 BL cluster의 근본 원인 | pending |
 | DL-021 | m01-inv | govern-runtime | Gap | govern 전용 runtime (command / process / registry) 도입. artifact 풍부(authority/, design-principles/)하나 실행 주체 없음. §1.4 govern 완료 기준 "규범 등재·갱신·폐기 추적 + drift 정책 명시 + 자기 변경 시 Principal 승인 강제" 충족 경로 | pending |
@@ -232,6 +232,10 @@ relation_names:
 - v1.6 micro-update (2026-04-13T16:25): M-04 Phase A v1.2 follow-up (codex review session `20260413-de95c971` PASS-with-residuals 후속). DL-024 의 "13필드" 표기 → "17필드" 로 정정 (잔재 표기 주석). 새 DL 미발생, count 변화 없음. 본 micro-update 는 v1.6 sub-revision (revision 번호 유지, 본문만 정정).
 - v1.7 (2026-04-13T19:20): DL-015 + DL-031 (M-05 resolution_stage 2건) 전원 resolved 처리. M-05 core output (onto-todo-dep-graph.md v1 + m05-decisions.md v1 + onto-todo.md v1.3) 와 연동. resolved_count: 14 → 16, pending_count: 17 → 15. Stage completion protocol 세 번째 완결 적용 (resolution_stage=M-05 pending=0 성공 기준 충족). Principal 판단 Option C (Phase B skip-by-delegation) 적용 — DL-031 이 skip-by-delegation 경로로 resolved.
 - v1.8 (2026-04-13T19:45): M-05 codex 9-lens review session `20260413-383afe00` CONDITIONAL 해소 (Option B consolidated patch per Principal). 새 DL 미발생, resolved/pending count 변화 없음 (resolved 16 / pending 15 유지). DL-015 resolution_note 및 DL-031 resolution_note 에 v1.1 patch (DR-M04-03 schema 확장, DR-M05-02 canonical seat 확정, DR-M05-03 escalation tighten + defect taxonomy + minimum validation surface, DR-M05-04 책임 경계 재정의, dep graph §0.1 + §2.2.1 + §2.2.2 + §4 + §5 patch) 반영 기록 통합. Artifact revision: onto-todo.md v1.3 → v1.4, m04-decisions v1.1 → v1.2, m05-decisions v1 → v1.1, dep graph v1 → v1.1.
+- v1.9 (2026-04-13T20:40): M-06 Wave 2 — DL-016 (A0 framework via W-B-01) + DL-018 (state machine 3중 dedup via W-B-02) 2건 resolved. resolved_count 16 → 18, pending_count 15 → 13. M-06 stage pending 8 → 6 (DL-017/019/020/021/022/029 잔여).
+  - **DL-016 resolution_note**: onto-todo.md v2-wave2 §2 W-B 섹션에 W-B-01 (A0 framework 추출, scope-runtime kernel 구축, 축 A 전체 선행) 작성. canonical-advancing, activity=reconstruct, depends_on=[DL-016, DL-018] (양방향 연계), completion_criterion 에 sprint-kit 흡수 stable + 5 활동 entrypoint 선행 + 1 활동 E2E pass 명시. files=[src/core-runtime/scope-runtime/**, processes/build.md]. M-06 Wave 2 commit 으로 resolved 확정.
+  - **DL-018 resolution_note**: onto-todo.md v2-wave2 §2 W-B 섹션에 W-B-02 (state machine 3중 구현 dedup — review 9-state + scope-runtime 15-state + build.md spec) 작성. canonical-advancing, activity=reconstruct, depends_on=[W-B-01, BL-095, DL-018] (3종 edge — **DR-M05-03 v1.1 minimum surface 조건 2 cover anchor**). completion_criterion 에 3 source 간 일관성 검증 + build.md spec 단일 SSOT 명시. M-06 Wave 2 commit 으로 resolved 확정.
+  - **M-06 stage resolved 진행률**: 2/8 = 25% (Wave 2 완료 시점). Wave 3 에서 DL-017/020/029 해소 + Wave 4 에서 DL-019/021/022 해소 예정.
 
 ## 참조
 

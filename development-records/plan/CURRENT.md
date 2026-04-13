@@ -12,12 +12,25 @@ Last updated: 2026-04-13
 - **Revision**: v3
 - **Scope**: M-00 착수 직전 5개 점검 질문 답변 + CC1 4항 반영 (6차 review PASS)
 
+### M-00 Startup Handoff
+- **Current**: `20260413-m00-startup.md`
+- **Status**: superseded (M-00 실행 완료)
+- **Scope**: 새 세션 착수 가이드
+
 ### Backlog Consolidation
-- **Current**: 아직 생성 안 됨 (M-00 실행 후 생성 예정)
-- **Expected path**: `20260413-backlog-consolidated.md`
+- **Current**: `20260413-backlog-consolidated.md`
+- **Status**: active
+- **Revision**: v1 (initial)
+- **Item count**: 120
+- **Source 분포**: backlog_memory 87 / memory 29 / design 4 / pr 0
+
+### Execution Log
+- **Current**: `20260413-execution-log.md`
+- **Status**: active
+- **Scope**: Meta task 실행 경과 시간 (V1 점진성 측정 기준선)
 
 ### Decision Records
-- **M-00 decisions**: `20260413-m00-decisions.md` (M-00 실행 중 생성)
+- **M-00 decisions**: `20260413-m00-decisions.md` (active, DR-M00-01/02 골격)
 - **M-04 decisions**: `20260413-m04-decisions.md` (M-04 실행 중 생성)
 
 ### Prior (historical reference)

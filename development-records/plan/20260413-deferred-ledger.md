@@ -1,21 +1,21 @@
 ---
-as_of: 2026-04-13T20:40:00+09:00
+as_of: 2026-04-13T21:00:00+09:00
 supersedes: null
 status: active
-revision: v1.9
+revision: v1.10
 functional_area: deferred-ledger
 purpose: |
   M-00 ~ M-08 meta task 실행 중 deferred로 분류된 item의 **단일 추적 ledger**.
   각 item의 origin / severity / resolution_stage / status를 longitudinal로 관리.
 item_count: 31
-resolved_count: 18
-pending_count: 13
+resolved_count: 20
+pending_count: 11
 resolution_stage_distribution:
   M-01: 3 (전원 resolved)
   M-03: 9 (전원 resolved — v1.2)
   M-04-A: 2 (전원 resolved — v1.5)
   M-05: 2 (전원 resolved — v1.7)  # DL-015 + DL-031 resolved (DR-M05-02 + DR-M05-03)
-  M-06: 8  # DL-016/018 resolved (v1.9 Wave 2). 잔여 pending 6: DL-017/019/020/021/022/029
+  M-06: 8  # DL-016/018 resolved (v1.9) + DL-020/029 resolved (v1.10 Wave 3). DL-017 partial (지속성 seat Wave 4). 잔여 pending 4: DL-017(partial)/019/021/022
   M-07: 2
   M-08: 5  # DL-030 신규 추가 (v1.4, NP-1 lens proposal)
 id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 ledger 내에서 불변"
@@ -161,10 +161,10 @@ relation_names:
 | DL-017 | m01-inv + m02-inv | measurement-infra | Gap | §1.4 측정 인프라 3지표 (점진성 / 지속성 / 기제) 계측 seat 구축. 전 활동 0건. `data-seats` component에서 M-02가 0 primary 확인. **M-06 분할 요구 (CC-A)**: 본 DL 을 3 지표 전수 work item 으로 분할 필수 (점진성 seat + 지속성 seat + 기제 seat 독립). BL-120 (gap × canonical-advancing, P1) 이 측면 3 기제 proxy — 측면 1/2 는 BL-120 같은 직접 advance 항목 0건이라 DL-017 분할이 유일 seed. superset 관계 (DL-017 ⊃ BL-120) 명시하여 중복 seat risk 회피. | pending |
 | DL-018 | m02-inv | state-machine-dedup | Gap | State machine 3중 구현 통합 (review 9-state coordinator / scope-runtime 15-state / build.md spec). A0 framework 추출의 핵심 대상 | **resolved** |
 | DL-019 | m01-inv + v2-review | drift-engine | Gap | drift 정책 engine·큐·승인 흐름 구축. §1.3 수준 0→1 도달 조건. 현 축 C 4건(BL-088~090, BL-120)은 harness 수습·검증 정책 수준이며 engine 자체 부재. axiology A-3도 동일 지적 | pending |
-| DL-020 | m01-inv | reconstruct-cli | Gap | reconstruct 활동 전용 CLI bounded path 구축. review의 3-step bounded path 수준 비대칭. build-runtime 40 BL cluster의 근본 원인 | pending |
+| DL-020 | m01-inv | reconstruct-cli | Gap | reconstruct 활동 전용 CLI bounded path 구축. review의 3-step bounded path 수준 비대칭. build-runtime 40 BL cluster의 근본 원인 | **resolved** |
 | DL-021 | m01-inv | govern-runtime | Gap | govern 전용 runtime (command / process / registry) 도입. artifact 풍부(authority/, design-principles/)하나 실행 주체 없음. §1.4 govern 완료 기준 "규범 등재·갱신·폐기 추적 + drift 정책 명시 + 자기 변경 시 Principal 승인 강제" 충족 경로 | pending |
 | DL-022 | v1-review + m01-inv | knowledge-principle-path | Gap | knowledge → principle 승격 경로 runtime 설계 + 구현. **BL-122 와 양방향 연계** (structure S-3 반영): BL-122 resolution_path=DL-022, reactivation_trigger=govern runtime DL-021 design 착수. 본 DL 은 BL-122 의 M-06 resolution seat. §1.2 "보류 중" 선언 상태. govern 개발 시 결정. | pending |
-| DL-029 | m03-review-C1 | review-ontology-path-分岐 | Gap | review §1.4 완료 기준 3 "ontology 유무 경로 분기" 의 명시적 work item 도출. M-01 review inventory 가 "PARTIAL" 로 기록 (ontology 있음/없음 시 review 품질 차이 측정 seat 부재). DL-017 measurement-infra 는 §1.4 3 지표 (점진성/지속성/기제) 범위이며, "경로 분기" 자체는 별도 review runtime 결정 — 본 DL 로 분리. M-06 신규 도출 (C-1 ghost 해소 coverage review). | pending |
+| DL-029 | m03-review-C1 | review-ontology-path-分岐 | Gap | review §1.4 완료 기준 3 "ontology 유무 경로 분기" 의 명시적 work item 도출. M-01 review inventory 가 "PARTIAL" 로 기록 (ontology 있음/없음 시 review 품질 차이 측정 seat 부재). DL-017 measurement-infra 는 §1.4 3 지표 (점진성/지속성/기제) 범위이며, "경로 분기" 자체는 별도 review runtime 결정 — 본 DL 로 분리. M-06 신규 도출 (C-1 ghost 해소 coverage review). | **resolved** |
 
 ---
 
@@ -236,6 +236,9 @@ relation_names:
   - **DL-016 resolution_note**: onto-todo.md v2-wave2 §2 W-B 섹션에 W-B-01 (A0 framework 추출, scope-runtime kernel 구축, 축 A 전체 선행) 작성. canonical-advancing, activity=reconstruct, depends_on=[DL-016, DL-018] (양방향 연계), completion_criterion 에 sprint-kit 흡수 stable + 5 활동 entrypoint 선행 + 1 활동 E2E pass 명시. files=[src/core-runtime/scope-runtime/**, processes/build.md]. M-06 Wave 2 commit 으로 resolved 확정.
   - **DL-018 resolution_note**: onto-todo.md v2-wave2 §2 W-B 섹션에 W-B-02 (state machine 3중 구현 dedup — review 9-state + scope-runtime 15-state + build.md spec) 작성. canonical-advancing, activity=reconstruct, depends_on=[W-B-01, BL-095, DL-018] (3종 edge — **DR-M05-03 v1.1 minimum surface 조건 2 cover anchor**). completion_criterion 에 3 source 간 일관성 검증 + build.md spec 단일 SSOT 명시. M-06 Wave 2 commit 으로 resolved 확정.
   - **M-06 stage resolved 진행률**: 2/8 = 25% (Wave 2 완료 시점). Wave 3 에서 DL-017/020/029 해소 + Wave 4 에서 DL-019/021/022 해소 예정.
+- v1.10 (2026-04-13T21:00): M-06 Wave 3 — DL-020 (reconstruct-cli via W-A-74) + DL-029 (review ontology path via W-A-75/76) 2건 resolved. DL-017 partial (점진성 W-A-71 + 기제 learn/reconstruct W-A-72/73 resolved, 지속성 seat 은 Wave 4 W-C 에서 처리). resolved_count 18 → 20, pending_count 13 → 11. M-06 stage pending 6 → 4 (DL-017 partial + DL-019/021/022).
+  - **DL-020 resolution_note**: onto-todo.md v2-wave3 §2 W-A 섹션에 W-A-74 (reconstruct-cli bounded path, activity=reconstruct, canonical-advancing) 작성. depends_on=[DL-020, W-B-01, W-A-58]. review 3-step bounded path 수준 대비 reconstruct 비대칭 해소 + build-runtime 40 BL cluster 근본 원인 대응.
+  - **DL-029 resolution_note**: onto-todo.md v2-wave3 §2 W-A 섹션에 W-A-75 (review-r+ ontology-present path, canonical-advancing) + W-A-76 (review-r− ontology-absent path, canonical-advancing) 2 W-ID 작성. DR-M06-04 Option A (2 W-ID 분리) 적용. depends_on=[DL-029, W-B-01, W-A-71]. §1.4 review 완료 기준 3 "ontology 유무 경로 분기" 해소.
 
 ## 참조
 

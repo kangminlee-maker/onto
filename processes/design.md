@@ -27,10 +27,7 @@
 | 도메인 문서 | `~/.onto/domains/{domain}/` | 선택 (주체자 명시 지정) |
 | 기존 설계 | 주체자 지정 이전 버전 | 선택 (반복 설계) |
 
-학습 소비 규칙: promoted global 학습만 로드. project-level 학습(promote 전)은
-로드하지 않음. 학습의 핵심 가치는 시간/비용 절감이며, 검증 전 소비는
-잘못된 사실에 의한 drift risk가 절감 효과를 초과하므로 promote gate를 거쳐야 함.
-저장/소비/promote 상세 규칙은 `learning-rules.md`를 따른다.
+학습 소비·저장·promote 규칙은 `learning-rules.md`가 단일 소유한다.
 
 brownfield 경로 분기:
 

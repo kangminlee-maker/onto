@@ -1630,5 +1630,7 @@ When modifying this file (build.md), the following documents must be synchronize
 | `BLUEPRINT.md` | Section 2 (term definitions), Section 3.6 (Explorer), Section 4.3 (build), certainty table, directory structure, MCP interface |
 | `process.md` | Certainty-related content in Teammate prompt template, agent-domain document mapping, "verification agent" → "lens" terminology |
 | `explorers/*.md` | Source-type profiles — if certainty level names/formats in build.md change, synchronize the examples in the profiles |
-| `development-records/legacy/philosopher.md` | Update legacy note — now legacy for both review and build |
 | `src/core-runtime/cli/coordinator-state-machine.ts` | Add `awaiting_adjudication` state for build mode pipeline |
+| `.sprint-kit.yaml` / config | Schema negotiation (Phase 0) 변경 시 config 파일의 schema 옵션·기본값 동기화 |
+| `golden/schema-*.yml` | Schema 구조(필드, 타입, 필수값) 변경 시 golden fixture 의 스키마 정합 확인 |
+| `authority/core-lexicon.yaml` | 용어 정의(certainty level, fact_type 등) 변경 시 lexicon term 동기화 (W-D-01 provisional_lifecycle 참조) |

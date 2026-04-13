@@ -220,8 +220,15 @@ You are synthesize.
 | Agent Teams teammate | Cross-process (teammate SendMessage 활용) |
 | subagent (Claude Code Agent tool) | In-process (synthesize가 수행) |
 | `subagent + codex` | In-process (synthesize가 수행) |
-| `MCP`로 분리된 `LLM` | In-process (메시징 없는 경우) 또는 Cross-process (메시징 구현 시). 실행 시 결정 |
-| external model worker | In-process (메시징 없는 경우) 또는 Cross-process (메시징 구현 시). 실행 시 결정 |
+| `MCP`로 분리된 `LLM` | 해당 realization adapter 배선 시점에 결정 (아래 결정 규칙) |
+| external model worker | 해당 realization adapter 배선 시점에 결정 (아래 결정 규칙) |
+
+**Realization adapter 배선 시 deliberation 경로 결정 규칙** (위 표의 마지막 두 행에 적용):
+
+- **결정 주체**: 해당 realization을 review pipeline에 연결하는 adapter 구현자 (PR author).
+- **판정 시점**: adapter PR의 binding/dispatch 코드를 작성하는 시점 — runtime 실행 중에는 결정하지 않는다.
+- **판정 signal**: realization이 lens 단위 간 inter-agent messaging primitive를 제공하면 Cross-process, 그렇지 않으면 In-process. "messaging primitive"는 lens A가 lens B에 시점-동기화된 응답 요청을 보내고 그 응답을 받을 수 있는 채널을 의미한다 (예: Agent Teams의 SendMessage). 단순 파일/큐 기반 비동기 통신은 messaging primitive로 간주하지 않는다.
+- **결정 기록 위치**: adapter PR이 본 §8 표의 해당 행을 확정 값 (Cross-process 또는 In-process)으로 갱신한다.
 
 ---
 

@@ -28,7 +28,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - start_time: 2026-04-13T10:35:00+09:00
 - end_time: 2026-04-13T10:50:00+09:00
 - elapsed_minutes: 15
-- commit_hash: (pending, step 7에서 기록)
+- commit_hash: 69fcdc4
 - subagent_count: 0 (메인 세션 단독)
 - notes: Backlog consolidation 초판. §1 확정 후 첫 실행이므로 비교 기준선 없음. 이후 refresh 실행 시 본 entry의 elapsed_minutes를 기준선으로 사용. Source 수집 주력 시간, dedup 비교적 짧음 (3 overlap만).
 - result_summary:

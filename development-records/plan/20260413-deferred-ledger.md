@@ -147,7 +147,7 @@ relation_names:
 
 **DL-031 resolution_note**: DR-M05-03 로 해소-by-delegation. Principal 이 3 옵션 (A 현 후보 유지 / B 후보 확장 / C 전체 위임) 중 **Option C (skip 확정)** 선택. 근거: (1) 현 schema v1.2 가 2 라운드 review (claude a9e93dd7 CONDITIONAL + codex de95c971 PASS-with-residuals) 로 수렴, (2) 현 schema 는 프로그램 validator 부재 — sample 1~4건이 M-06 전수 검증과 방식 동일, marginal value 작음, (3) M-06 결함 발견 시 reopen 비용 (추정 1h 미만) < Phase B 실행 비용 기대값. onto-todo.md v1.3 §4.2 Exit 경로 에 `skipped-by-delegation` row 추가. execution-log M-05 entry 에 `phase_b_status: "skipped-by-delegation"` 기록. Escalation trigger (DR-M05-03): M-06 실행 중 schema 결함 3회 이상 누적 시 skip 결정 재검토.
 
-**Commit**: (M-05 commit hash 는 산출 완료 후 기록)
+**Commit**: `da61adf`
 
 ---
 
@@ -215,7 +215,7 @@ relation_names:
 ### DL-015, DL-031 (resolved 2026-04-13T19:20:00+09:00, via M-05)
 - 해소 근거: 위 "M-05 (Pre-draft Dependency Modeling) resolution_stage — 2 items" 섹션의 resolution_note 참조
 - M-05 core output: `development-records/design/20260413-onto-todo-dep-graph.md` v1 (축·활동 dep graph + Compound sequencing 규약 + D bootstrap/continuing) + `development-records/plan/20260413-m05-decisions.md` v1 (DR-M05-01/02/03) + `development-records/design/20260413-onto-todo.md` v1.3 (§4.2 skip-by-delegation exit 경로 추가)
-- commit: (M-05 commit hash 는 push 완료 후 업데이트)
+- commit: `da61adf`
 - context: Stage completion protocol (DR-M00-06) 세 번째 완결 적용. `resolution_stage == M-05 AND status == pending` 인 item = 0 (성공 기준 충족). Principal 판단 Option C (Phase B skip-by-delegation) 적용.
 
 ---

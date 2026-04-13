@@ -143,7 +143,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - start_time: 2026-04-13T19:00:00+09:00
 - end_time: 2026-04-13T19:30:00+09:00
 - elapsed_minutes: 30
-- commit_hash: (M-05 commit hash 는 push 완료 후 업데이트)
+- commit_hash: da61adf
 - subagent_count: 0 (메인 세션 단독, v3 QA A2 Principal 통합 판정 — M-05 는 Principal 판정 필수 단계)
 - notes: DL-015 + DL-031 (M-05 resolution_stage 2건) 전원 해소. 축 순서 재정립 (`D0→B→A→C + D continuing`) + Compound sequencing 표기 규약 수립 (compound_id + depends_on 체인 + Notes compound_member 3종) + D bootstrap vs continuing 구분 명문화 (BL-123 분할) + Phase B skip-by-delegation 확정 (Principal Option C 선택). core output = `20260413-onto-todo-dep-graph.md` v1 (별도 design record seat, handoff Step 6 옵션 (i) 적용). onto-todo.md v1.2 → v1.3 (§4.2 skip-by-delegation exit row 추가). DR-M05-01/02/03 수립. Stage completion protocol DR-M00-06 **세 번째** 완결 적용 (resolution_stage=M-05 pending=0 성공 기준 충족).
 - pr_rescan_evidence:

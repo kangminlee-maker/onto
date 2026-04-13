@@ -100,5 +100,5 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     pre_cutoff_priority: { P1: 1, P2: 18, P3: 18 }
     deferred_ledger_resolved: 9 (DL-004~012)
     m06_new_scope_items: 7 (DL-016~022, consolidated 미등재 구조적 gap)
-    review_verdict: CONDITIONAL (9-lens session 20260413-cf964039, BLOCKING 1 + MAJOR 4 + MODERATE 5)
-    review_patch: v3.1 (BLOCKING C-A + MAJOR 4 + MODERATE 5 해소)
+    review_verdict: CONDITIONAL (9-lens session 20260413-cf964039, BLOCKING 1 + MAJOR 4 + MODERATE 5 + MINOR 20+)
+    review_patch: v3.1 (BLOCKING C-A + MAJOR 4 + MODERATE 5 해소) → v3.2 (MINOR 20+ 전수 해소, DL-029/030 신규 도출)

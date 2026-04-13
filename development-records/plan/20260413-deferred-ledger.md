@@ -7,33 +7,34 @@ functional_area: deferred-ledger
 purpose: |
   M-00 ~ M-08 meta task 실행 중 deferred로 분류된 item의 **단일 추적 ledger**.
   각 item의 origin / severity / resolution_stage / status를 longitudinal로 관리.
-item_count: 28
+item_count: 30
 resolved_count: 12
-pending_count: 16
+pending_count: 18
 resolution_stage_distribution:
   M-01: 3 (전원 resolved)
   M-03: 9 (전원 resolved — v1.2)
   M-04-A: 2
   M-05: 1
-  M-06: 7
+  M-06: 8  # DL-029 신규 추가 (v1.4)
   M-07: 2
-  M-08: 4
+  M-08: 5  # DL-030 신규 추가 (v1.4, NP-1 lens proposal)
 id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 ledger 내에서 불변"
+stage_id_scheme: "M-NN 또는 M-NN-X (M-04-A, M-04-B 등 sub-stage 허용. ledger resolution_stage 값은 이 scheme 을 준수)"
+relation_names:
+  rule_to_instance: "general process rule (canonical) 이 specific execution instance 에 적용되는 관계. 예: BL-085 (SE P-1 rule) → BL-103 (Business 도메인 wave 3 instance)"
+  instance_to_rule: "역방향 — instance 가 canonical rule 을 참조"
+  superset_subset: "한 DL 이 다른 DL/BL 을 포괄. 예: DL-017 (measurement-infra) ⊃ BL-120 (기제 측정 proxy)"
 ---
 
 # Deferred Item Ledger (2026-04-13)
 
 본 문서는 M-00 ~ M-08 실행 과정에서 **즉시 해소하지 않고 후속 stage로 연기**된 item의 단일 관리 ledger.
 
-## 관리 정책 (DR-M00-06)
+## 관리 정책
 
-**Stage completion protocol**: 매 meta task(M-NN) 완료 시점에 다음 3단계 수행:
+**SSOT**: `development-records/plan/20260413-m00-decisions.md` §DR-M00-06 (Deferred Item Ledger 수립 + stage completion protocol). 본 ledger 는 그 DR 의 implementation seat — 정책 세부 (단계·성공 기준·escalation) 은 m00-decisions.md 를 참조 (CN-5 conciseness review 반영).
 
-1. **신규 deferred 식별 + stage 할당**: 해당 stage 실행 중 발견된 defer 대상 item을 본 ledger에 추가. 각 item에 `resolution_stage` 할당.
-2. **현 stage item 해소**: `resolution_stage == 현재 완료 중인 stage`인 item 전원 status를 `resolved`로 변경. 해소 근거 `resolution_note`에 기록.
-3. **미해소 시 재defer**: 해소 못한 item은 다음 stage로 이동 + 이유 기록. 연속 2회 defer 시 Principal escalation.
-
-**성공 기준**: M-NN 완료 시점에 `resolution_stage == M-NN` AND `status == pending`인 item = 0.
+간단 요약: 매 M-NN 완료 시점에 (1) 신규 deferred 식별 + `resolution_stage` 할당, (2) 현 stage item 전원 resolved 처리, (3) 미해소 시 재defer (연속 2회 defer 시 Principal escalation). 성공 기준: `resolution_stage == M-NN` AND `status == pending` = 0.
 
 ## 필드 정의
 
@@ -81,7 +82,7 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 | DL-004 | v1-review | C-4 | MODERATE | row-level traversability + schema 보강: `src:<source_file>`, `origin_date`, `merged_from` 컬럼 + `id_scheme`, `schema_version`, `source_types` frontmatter 필드 | **resolved** |
 | DL-005 | v1-review | C-6 | MODERATE | source taxonomy 명문화: `backlog_memory` vs `memory` 경계 + merged PR 이중 역할(open=inclusion, merged=exclusion evidence) 선언 | **resolved** |
 | DL-006 | v1-review | C-7 | MODERATE | Dedup event 1 basis "structural reference" 카테고리 분리 + `supersedes`(문서-level) vs `dedup_retires`(item-level) 관계명 정리 | **resolved** |
-| DL-007 | v1-review | CC-2 | Conditional | Axis D 태깅 기준 명문화 + `axis_sub: lexicon_entity_promotion | provisional_quarantine` 하위 태그 (필요 시) | **resolved** |
+| DL-007 | v1-review | CC-2 | Conditional | Axis D 태깅 기준 명문화 + `axis_sub: lexicon_entity_promotion | provisional_quarantine` 하위 태그 (필요 시). **E-6**: axis D 30+ 재평가 trigger 의 monitoring seat 은 DL-027 longitudinal replay/audit 에 흡수. | **resolved** |
 | DL-008 | v1-review | CC-3 | Conditional | activity L(learn) vs G(govern) 경계 재분류 (BL-063, BL-119 등 govern 성격 항목 primary 재지정) | **resolved** |
 | DL-009 | v1-review | axiology A-5 | Recommend | pre-cutoff 37건 (§8 SE 23 + §11 business 6 + §14 domain 4 + §15 palantir 1 + §17 optimization 3)을 P1/P2/P3 class로 분할. 판정 부하 분산 | **resolved** |
 | DL-010 | v1-review | conciseness CN-1 | Recommend | BL-085 ↔ BL-103 "프로세스 일반화 canonical vs 사이클 instance" 교차참조 dedup 후보 검토 | **resolved** |
@@ -102,9 +103,9 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 
 **DL-009 resolution_note**: pre-cutoff 37건에 DR-M03-04 priority 규칙 적용. **P1=1** (BL-120 Feature 15 Consumption Feedback — §1.0 기제 측정 직접 instrumentation), **P2=18** (SE Stage 3 HIGH/MEDIUM 8 + SE process 3 + Business 6 + /onto:health 1), **P3=18** (SE Stage 3 LOW 2 + SE Stage 4 10 + domain 미착수 4 + Palantir 1 + Adaptive Light Review 1). consolidated v3 Notes 컬럼 `priority: Pn` 태그로 기록.
 
-**DL-010 resolution_note**: BL-085 (P-1 도메인 문서 확장 후 cross-ref 점검 단계, SE process canonical rule) ↔ BL-103 (Business 도메인 wave 3 cross-ref sync, specific instance) 관계 검토 — **dedup 아님**. BL-085 는 general process rule (canonical), BL-103 은 그 rule 의 Business 도메인 execution instance. cross-ref 관계 consolidated v3 Notes 에 양방향 명시.
+**DL-010 resolution_note**: BL-085 (P-1 도메인 문서 확장 후 cross-ref 점검 단계, SE process canonical rule) ↔ BL-103 (Business 도메인 wave 3 cross-ref sync, specific instance) 관계 검토 — **dedup 아님**. 관계명 정규화 (D-4 반영): `rule_to_instance` (frontmatter `relation_names` 에 선언). BL-085 는 general process rule (canonical, role=rule), BL-103 은 그 rule 의 Business 도메인 execution instance (role=instance). consolidated v3 Notes 에 양방향 명시 (BL-085 Notes 에 "**DL-010 cross-ref**: BL-085=canonical process rule, BL-103=Business 도메인 wave 3 instance", BL-103 Notes 에 "**DL-010 cross-ref with BL-085**: 본 BL = Business wave 3 instance, BL-085 = general process rule").
 
-**DL-011 resolution_note**: M-03 Step 1 에서 `gh pr list --state open` 재실행 (2026-04-13T13:10) → 0건 확인. M-00 실행 시점(2026-04-13T10:35) snapshot 유효. consolidated v3 Source 4 변동 없음.
+**DL-011 resolution_note**: M-03 Step 1 에서 `gh pr list --state open` 재실행 (2026-04-13T13:10) → 0건 확인. M-00 실행 시점(2026-04-13T10:35) snapshot 유효. consolidated v3 Source 4 변동 없음. **evidence_ref (P-1 반영)**: execution-log.md M-03 entry `start_time: 2026-04-13T13:10:00+09:00` (명령 실행 timestamp). 스캔 명령: `gh pr list --state open --json number,title,updatedAt,url --limit 20` → `[]` (stdout). 재현: 동일 명령을 해당 timestamp 이후 재실행 시 결과 다를 수 있음 (open PR 변동 가능).
 
 **DL-012 resolution_note**: DR-M03-01 로 해소 — axiology standing lens 승격 경로 폐기 (axiology lens 자체가 반대), dedup rule pre-gate 로 분해하여 consolidated v3 `dedup_evidence_schema` 에 `kept_primary_source` + `linked_supporting_sources` 필드 도입. BL-041 자체는 `already covered (partial)` + supporting.
 
@@ -118,7 +119,7 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
-| DL-013 | v5.1-meta | DR-M04-01 | DR | M-06/M-07/Expansion의 `activity` field canonical 참조 정렬. M-04 Phase A에서 활성화 | pending |
+| DL-013 | v5.1-meta | DR-M04-01 | DR | M-06/M-07/Expansion의 `activity` field canonical 참조 정렬. M-04 Phase A에서 활성화. **S-4/D-3 반영**: M-04 Phase A task schema 에 `depends_on: [BL-NNN | DL-NNN]` 필드 슬롯 예약 — M-05 Pre-draft Dependency Modeling 에서 값 채움. | pending |
 | DL-014 | v2-review | evolution F2 | Recommend | `activity_enum_ref: authority/core-lexicon.yaml#§1.activity.v2026-04-13` frontmatter 필드 도입 (enum 진화 hook) | pending |
 
 ---
@@ -145,7 +146,8 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 | DL-019 | m01-inv + v2-review | drift-engine | Gap | drift 정책 engine·큐·승인 흐름 구축. §1.3 수준 0→1 도달 조건. 현 축 C 4건(BL-088~090, BL-120)은 harness 수습·검증 정책 수준이며 engine 자체 부재. axiology A-3도 동일 지적 | pending |
 | DL-020 | m01-inv | reconstruct-cli | Gap | reconstruct 활동 전용 CLI bounded path 구축. review의 3-step bounded path 수준 비대칭. build-runtime 40 BL cluster의 근본 원인 | pending |
 | DL-021 | m01-inv | govern-runtime | Gap | govern 전용 runtime (command / process / registry) 도입. artifact 풍부(authority/, design-principles/)하나 실행 주체 없음. §1.4 govern 완료 기준 "규범 등재·갱신·폐기 추적 + drift 정책 명시 + 자기 변경 시 Principal 승인 강제" 충족 경로 | pending |
-| DL-022 | v1-review + m01-inv | knowledge-principle-path | Gap | knowledge → principle 승격 경로 runtime 설계 + 구현. BL-122와 연계. §1.2 "보류 중" 선언 상태. govern 개발 시 결정 | pending |
+| DL-022 | v1-review + m01-inv | knowledge-principle-path | Gap | knowledge → principle 승격 경로 runtime 설계 + 구현. **BL-122 와 양방향 연계** (structure S-3 반영): BL-122 resolution_path=DL-022, reactivation_trigger=govern runtime DL-021 design 착수. 본 DL 은 BL-122 의 M-06 resolution seat. §1.2 "보류 중" 선언 상태. govern 개발 시 결정. | pending |
+| DL-029 | m03-review-C1 | review-ontology-path-分岐 | Gap | review §1.4 완료 기준 3 "ontology 유무 경로 분기" 의 명시적 work item 도출. M-01 review inventory 가 "PARTIAL" 로 기록 (ontology 있음/없음 시 review 품질 차이 측정 seat 부재). DL-017 measurement-infra 는 §1.4 3 지표 (점진성/지속성/기제) 범위이며, "경로 분기" 자체는 별도 review runtime 결정 — 본 DL 로 분리. M-06 신규 도출 (C-1 ghost 해소 coverage review). | pending |
 
 ---
 
@@ -166,10 +168,11 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 
 | ID | Origin | Ref | Severity | Summary | Status |
 |---|---|---|---|---|---|
-| DL-025 | qa-v3 | Q7 | Defer | 진행률·비용·토큰 예산 모니터링 방법 수립. M-08 refresh protocol에 포함 | pending |
+| DL-025 | qa-v3 | Q7 | Defer | 진행률·비용·토큰 예산 모니터링 방법 수립. M-08 refresh protocol에 포함. **CN-4 반영**: `deferred` sub-source 3종 (PRODUCTION PHASE / pre-cutoff P3 / §1.2 "보류 중") 을 deferred_reason enum 으로 승격 검토 포함. | pending |
 | DL-026 | qa-v3 | Q8 | Defer | Principal 개입 trigger 임계값 확정. M-00~M-07 실행 중 누적 사례 후 | pending |
-| DL-027 | v2-review | evolution F5/F7/F10 | Recommend | longitudinal replay/audit 인프라: `dedup_rule_set_ref`, `verification_status` enum, `dr_registry_ref` | pending |
+| DL-027 | v2-review | evolution F5/F7/F10 | Recommend | longitudinal replay/audit 인프라: `dedup_rule_set_ref`, `verification_status` enum, `dr_registry_ref`. **E-6 흡수**: axis D 30+ 재평가 trigger monitoring seat 통합. **E-7 반영**: schema_version migration logic 선언 (v2→v3 변경 fields, rollback policy, downstream reader 재파싱 요건) 포함. | pending |
 | DL-028 | v2-review | pragmatics N1 | Recommend | `primary_tag_convention` SSOT 단일화 (frontmatter canonical 선언, 본문은 참조) | pending |
+| DL-030 | m03-review-NP1 | aggregate-prioritization-lens | Governance | **NP-1 Aggregate Prioritization Coherence Lens** 제안 preserve (axiology 제안). canonical-advancing 집합의 축 분포가 §1.5 축 중요도·의존 관계와 정합하는지 평가하는 집합 level lens. 현 9 lens 는 item-level 또는 개별 가치 위주. M-08 refresh (또는 M-07 재검토) 시 lens set 확장 여부 결정. 현재는 보존만. | pending |
 
 ---
 
@@ -194,6 +197,7 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 - v1.1 (2026-04-13T12:45): DL-001/002/003 (M-01 resolution_stage 3건) 전원 resolved 처리. consolidated v2.1 patch와 연동.
 - v1.2 (2026-04-13T13:50): DL-004~012 (M-03 resolution_stage 9건) 전원 resolved 처리. consolidated v3 + m03-decisions.md 와 연동. resolved_count: 3 → 12, pending_count: 25 → 16.
 - v1.3 (2026-04-13T14:30): 9-lens review `20260413-cf964039` feedback 반영. DL-004 resolution_note 에 Scope="대표 사례 부착" 명시 (C-F 해소). DL-006 resolution_note 에 "DR-M03-01 schema instantiation 수용" downgrade (CC-D 해소). DL-017 context 에 M-06 3 지표 분할 + BL-120 superset 관계 명시 (CC-A 반영). DL-023 context 에 `scaffolding_ratio_trend` metric 추가 (CC-B 반영). 새 resolved 없음.
+- v1.4 (2026-04-13T15:00): 9-lens review MINOR 20+ 반영. DL-029 신규 (review ontology 경로 분기, M-06 resolution_stage, C-1 ghost). DL-030 신규 (NP-1 Aggregate Prioritization Coherence Lens 제안, M-08 resolution_stage governance). frontmatter: stage_id_scheme + relation_names 선언. DL-007/010/011/013/022/025/027 context note 보강. §"관리 정책" 을 DR-M00-06 SSOT 참조로 축약 (CN-5). item_count: 28 → 30, pending_count: 16 → 18. 새 resolved 없음.
 
 ## 참조
 

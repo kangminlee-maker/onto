@@ -25,8 +25,8 @@ Last updated: 2026-04-13 (M-03 완료 기준)
 ### Backlog Consolidation
 - **Current**: `20260413-backlog-consolidated.md`
 - **Status**: active
-- **Revision**: v3.1 (2026-04-13, 9-lens review CONDITIONAL verdict 의 BLOCKING 1 + MAJOR 4 + MODERATE 5 해소)
-- **Review session**: `.onto/review/20260413-cf964039/` (CONDITIONAL verdict, Agent Teams nested spawn)
+- **Revision**: v3.2 (2026-04-13, 9-lens review MINOR 20+ 전수 해소 + DL-029/030 신규 도출)
+- **Review session**: `.onto/review/20260413-cf964039/` (CONDITIONAL verdict, Agent Teams nested spawn; v3.1 BLOCKING+MAJOR+MODERATE 10건 + v3.2 MINOR 20+ 전수 해소)
 - **Item count**: 123
 - **Source 분포**: backlog_memory 87 / memory 29 / design 4 / onto_direction 3 / pr 0
 - **Activity 분포** (primary): E 76 / G 39 / D 4 / R 4 / L 0
@@ -49,10 +49,10 @@ Last updated: 2026-04-13 (M-03 완료 기준)
 ### Deferred Ledger
 - **Current**: `20260413-deferred-ledger.md`
 - **Status**: active
-- **Revision**: v1.2 (28 items 중 12 resolved / 16 pending)
+- **Revision**: v1.4 (30 items 중 12 resolved / 18 pending)
 - **Resolved stages**: M-01 (3) + M-03 (9) = 12
-- **Pending stages**: M-04-A (2) / M-05 (1) / M-06 (7) / M-07 (2) / M-08 (4) = 16
-- **Policy**: DR-M00-06 (stage completion protocol) — M-03 에서 첫 완결 적용
+- **Pending stages**: M-04-A (2) / M-05 (1) / M-06 (8, DL-029 추가) / M-07 (2) / M-08 (5, DL-030 추가) = 18
+- **Policy**: DR-M00-06 (stage completion protocol) — M-03 에서 첫 완결 적용. 본 ledger §"관리 정책" 은 m00-decisions.md DR-M00-06 을 SSOT 로 참조 (CN-5 축약)
 
 ### Prior (historical reference)
 - `20260404-prototype-to-service-productization-plan.md`

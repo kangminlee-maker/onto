@@ -1,5 +1,5 @@
 ---
-as_of: 2026-04-13T19:45:00+09:00
+as_of: 2026-04-13T20:10:00+09:00
 supersedes: null
 status: active
 functional_area: execution-log
@@ -180,3 +180,34 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - subagent_count: 0 (메인 세션 단독 + codex review 1 session)
 - notes: Option B consolidated patch 적용. 5 artifact 변경. schema additive minor bump (v1.1→v1.2) + 18번째 필드 compound_member + compound_expansion change_type + Compound 무결성 불변식 4건. M-05 decisions 에 DR-M05-04 신규 (책임 경계). dep graph 에 §0.1 / §2.2.1 / §2.2.2 / §4 재구성 / §5 SSOT 선언.
 - v1_1_rationale: "codex review 383afe00 Consensus 2건 (compound sequencing not execution-stable / Phase B guardrails too weak) + 6 Immediate + 6 unique findings. Option A (staged 2 cycles) 대비 Option B (consolidated 1 cycle) 선택 — schema 변경이 additive minor 로 작음 + A1 과 A2/A3 의미 연결 (compound_expansion first-use = A3 minimum surface 조건 3)."
+
+### M-06 Wave 1 — W-D (D0 bootstrap) + W-A-01 anchor
+
+- task_id: M-06-wave1
+- start_time: 2026-04-13T20:05:00+09:00
+- end_time: (pending — Wave 1 commit 시점)
+- elapsed_minutes: (pending)
+- commit_hash: (pending)
+- subagent_count: 0 (메인 세션 단독, v3 QA A2 Principal 통합 판정)
+- notes: M-06 startup handoff (`20260413-m06-startup.md`, commit `1fb4d98`) Wave 1 실행. W-D 섹션 = BL-123 3-분할 (W-D-01 lifecycle 성문화 + W-D-02 인용 금지 도구 + W-D-03 recording seat 구조) + W-A 섹션 anchor = W-A-01 agent_id_rename Phase 0 (compound_member id=agent_id_rename, ordinal=1, total=6). DR-M06-01~06 수립 (m06-decisions.md v1 신설). onto-todo.md v1.4 → v2-wave1 patch (schema 변경 없음 — item 채움만, v1.2 유지). Principal 승인 (2026-04-13T20:05 — 8개 default 세트 채택).
+- pr_rescan_evidence:
+    command: "gh pr list --state open --json number,title,updatedAt,url --limit 20"
+    timestamp: 2026-04-13T20:00:00+09:00
+    result: "[] (0 건). M-05 v1.1 patch 이후 신규 open PR 없음."
+- wave1_result_summary:
+    work_items_created: 4  # W-D-01, W-D-02, W-D-03, W-A-01
+    by_axis_count: { A: 1, B: 0, C: 0, D: 3 }
+    by_activity_count: { govern: 3, reconstruct: 1 }
+    by_canonicality: { canonical_advancing: 3, supporting: 0, scaffolding: 1 }
+    compound_members_created: 1  # W-A-01 (agent_id_rename, ordinal 1/6)
+    compound_expansion_first_use: true  # W-A-01 rewrite_trace entry
+    minimum_surface_progress:
+      condition_1_compound_member_nonnull: "cover — W-A-01"
+      condition_2_depends_on_3kinds_edge: "pending — Wave 2 W-B-02 예정"
+      condition_3_compound_expansion_first_use: "cover — W-A-01 rewrite_trace"
+    decision_records_new: [DR-M06-01, DR-M06-02, DR-M06-03, DR-M06-04, DR-M06-05, DR-M06-06]  # Wave 1 진입 시점에 6 DR 모두 applied
+    deferred_ledger_resolved: 0  # DL-016~022 + DL-029 resolved 는 각 Wave 또는 Wave 4 commit 시점
+    onto_todo_patch: "v1.4 → v2-wave1 (schema 변경 없음 — item_count 0 → 4, by_axis_count, m06_decisions_applied 블록 신설, §2 W-D + W-A 섹션 placeholder 교체)"
+    m06_decisions_new: "20260413-m06-decisions.md v1 신설 (6 DR applied)"
+    stage_completion_check: "Wave 1 commit 시점: resolution_stage=M-06 pending=8 (DL-016~022, DL-029 미해소). DR-M00-06 Stage completion protocol 은 Wave 4 마감 시점 적용."
+    schema_defects_detected: 0  # blocking-schema / weak-class-defect / minor-clarification 모두 0 (DR-M05-03 v1.1 escalation trigger 미발동)

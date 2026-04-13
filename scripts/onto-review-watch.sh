@@ -121,11 +121,42 @@ else
   C_CYAN=""
 fi
 
+# Extract a top-level scalar YAML field. Handles both bare and quoted values.
+# Returns empty string when the file or key is missing, so callers can branch
+# on presence without tripping `set -u`.
+read_yaml_scalar() {
+  local file="$1" key="$2"
+  [ -f "$file" ] || { echo ""; return; }
+  sed -n "s/^${key}: *//p" "$file" | head -n 1 | sed 's/^"\(.*\)"$/\1/'
+}
+
 print_header() {
+  local metadata="$SESSION_ROOT/session-metadata.yaml"
+  local interpretation="$SESSION_ROOT/interpretation.yaml"
+  local target domain intent realization host_runtime review_mode profile
+  target="$(read_yaml_scalar "$metadata" "requested_target")"
+  domain="$(read_yaml_scalar "$metadata" "requested_domain_token")"
+  realization="$(read_yaml_scalar "$metadata" "execution_realization")"
+  host_runtime="$(read_yaml_scalar "$metadata" "host_runtime")"
+  review_mode="$(read_yaml_scalar "$metadata" "review_mode")"
+  intent="$(read_yaml_scalar "$interpretation" "intent_summary")"
+
+  if [ -n "$realization" ] && [ -n "$host_runtime" ]; then
+    profile="${realization} + ${host_runtime}"
+    [ -n "$review_mode" ] && profile="${profile} (${review_mode})"
+  fi
+
   echo "${C_CYAN}════════════════════════════════════════════════════════════════${C_RESET}"
   echo "${C_BOLD}  onto:review live watcher${C_RESET}"
   echo "  Session: ${C_BOLD}${SESSION_ID}${C_RESET}"
   echo "  ${C_DIM}${SESSION_ROOT}${C_RESET}"
+  if [ -n "$target" ] || [ -n "$intent" ] || [ -n "${profile:-}" ]; then
+    echo "${C_CYAN}────────────────────────────────────────────────────────────────${C_RESET}"
+    [ -n "$target" ]         && echo "  Target:  ${target}"
+    [ -n "$domain" ]         && echo "  Domain:  ${domain}"
+    [ -n "$intent" ]         && echo "  Intent:  ${intent}"
+    [ -n "${profile:-}" ]    && echo "  Profile: ${C_DIM}${profile}${C_RESET}"
+  fi
   echo "${C_CYAN}════════════════════════════════════════════════════════════════${C_RESET}"
   echo ""
 }

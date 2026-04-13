@@ -1,6 +1,6 @@
 # Current Planning Artifacts
 
-Last updated: 2026-04-13 (M-05 Pre-draft Dependency Modeling 완료 기준 — DL-015 + DL-031 resolved. M-06 진입 준비)
+Last updated: 2026-04-13 (M-05 v1.1 patch 완료 기준 — codex review 383afe00 CONDITIONAL consolidated 해소. M-06 진입 준비)
 
 이 파일은 `plan/` 디렉토리 각 artifact 계열의 최신 active 버전 경로를 명시한다. M-08 refresh protocol이 매 갱신 시 업데이트한다.
 
@@ -34,18 +34,19 @@ Last updated: 2026-04-13 (M-05 Pre-draft Dependency Modeling 완료 기준 — D
 
 ### onto Dependency Graph (M-05 산출)
 - **Current**: `../design/20260413-onto-todo-dep-graph.md`
-- **Status**: active (v1)
-- **Scope**: 축 (A/B/C/D) 간 의존 그래프 + 활동 (review/design/reconstruct/learn/govern) 간 의존 + 축×활동 매트릭스 + D bootstrap/continuing 구분 + Compound sequencing 표기 규약. M-06 work item 분배 입력 계약.
-- **Revision**: v1 (2026-04-13, DR-M05-01/02/03 applied)
+- **Status**: active (v1.1)
+- **Scope**: 축 (A/B/C/D) 간 의존 그래프 + 활동 간 의존 + 축×활동 매트릭스 (review split + W-D bootstrap-only) + D bootstrap/continuing (accumulation structure 마감) + Compound sequencing rule SSOT + M-05/M-06/M-07 책임 경계. M-06 work item 분배 입력 계약.
+- **Revision**: v1.1 (2026-04-13, DR-M05-01/02/03/04 + DR-M04-03 applied. codex review `20260413-383afe00` CONDITIONAL 해소)
 
 ### onto Work Item Canonical Output
 - **Current**: `../design/20260413-onto-todo.md`
-- **Status**: active (v1.3 patch, item_count=0, M-06 에서 채움)
-- **Scope**: 축 A/B/C/D work item canonical output seat. 17 필드 schema + append/revise 규약 + W-{axis}-{nn:02d} 명명 + Phase B exit 경로 (PASS/FAIL/FAIL-boundary/skipped-by-delegation) + cluster 알고리즘 + A0 ownership clarity
-- **Revision**: v1.3 (2026-04-13, M-05 DR-M05-03 적용 — §4.2 skip-by-delegation exit row 추가. schema 17 필드·불변식 변경 없음)
-- **Review sessions** (2 라운드):
+- **Status**: active (v1.4 patch, item_count=0, M-06 에서 채움)
+- **Scope**: 축 A/B/C/D work item canonical output seat. **18 필드 schema** (v1.4 compound_member 추가) + append/revise 규약 + W-{axis}-{nn:02d} 명명 + Phase B exit 경로 (PASS/FAIL/FAIL-boundary/skipped-by-delegation) + cluster 알고리즘 + A0 ownership clarity + **Compound 무결성 불변식 4건**
+- **Revision**: v1.4 (2026-04-13, DR-M04-03 적용 — schema_version v1.1→v1.2 additive minor bump. compound_member field + compound_expansion change_type + Compound 무결성 불변식 4건)
+- **Review sessions** (3 라운드):
   - `.onto/review/20260413-a9e93dd7/` (claude/agent-teams) — CONDITIONAL → v1.1 해소 (BLOCKING 1 + MAJOR 4 + MODERATE 5)
   - `.onto/review/20260413-de95c971/` (codex/subagent, deliberation in-process) — PASS-with-residuals → v1.2 해소 (4 follow-up)
+  - `.onto/review/20260413-383afe00/` (codex/subagent, M-05 review) — CONDITIONAL → v1.4 해소 (Immediate A1 schema 확장)
 
 ### Backlog Consolidation
 - **Current**: `20260413-backlog-consolidated.md`
@@ -69,13 +70,13 @@ Last updated: 2026-04-13 (M-05 Pre-draft Dependency Modeling 완료 기준 — D
 ### Decision Records
 - **M-00 decisions**: `20260413-m00-decisions.md` (active, DR-M00-01 ~ 06)
 - **M-03 decisions**: `20260413-m03-decisions.md` (active, DR-M03-01 ~ 04)
-- **M-04 decisions**: `20260413-m04-decisions.md` (active v1.1, DR-M04-01 ~ 02 applied with v1.1 patch — anchor reject trigger, legacy 호환 상한, halt 주체, M-08 consumer, Stage 3 monitor)
-- **M-05 decisions**: `20260413-m05-decisions.md` (active v1, DR-M05-01 ~ 03 — 축 순서 D0→B→A→C+D continuing / Compound sequencing 규약 / Phase B skip-by-delegation)
+- **M-04 decisions**: `20260413-m04-decisions.md` (active v1.2, DR-M04-01 ~ 03 — v1.2 에서 DR-M04-03 신규: compound_member schema seat + compound_expansion change_type)
+- **M-05 decisions**: `20260413-m05-decisions.md` (active v1.1, DR-M05-01 ~ 04 — 축 순서 / Compound sequencing 규약 + canonical seat / Phase B skip-by-delegation + escalation tighten + minimum validation surface / 책임 경계 재정의)
 
 ### Deferred Ledger
 - **Current**: `20260413-deferred-ledger.md`
 - **Status**: active
-- **Revision**: v1.7 (31 items 중 16 resolved / 15 pending)
+- **Revision**: v1.8 (31 items 중 16 resolved / 15 pending. v1.8 에서 DL-015/031 resolution_note 에 v1.1 patch 반영)
 - **Resolved stages**: M-01 (3) + M-03 (9) + M-04-A (2) + M-05 (2) = 16
 - **Pending stages**: M-06 (8, DL-029 추가) / M-07 (2) / M-08 (5, DL-030 추가) = 15
 - **Policy**: DR-M00-06 (stage completion protocol) — M-03 (첫 완결), M-04-A (두 번째), M-05 (세 번째) 완결 적용. 본 ledger §"관리 정책" 은 m00-decisions.md DR-M00-06 을 SSOT 로 참조 (CN-5 축약)

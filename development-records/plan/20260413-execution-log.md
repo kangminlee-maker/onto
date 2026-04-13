@@ -1,5 +1,5 @@
 ---
-as_of: 2026-04-13T19:20:00+09:00
+as_of: 2026-04-13T19:45:00+09:00
 supersedes: null
 status: active
 functional_area: execution-log
@@ -164,3 +164,19 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     phase_b_skip_rationale: "Principal Option C 선택 (2026-04-13T19:08). 근거: (1) 현 schema v1.2 가 2 라운드 review (claude a9e93dd7 CONDITIONAL + codex de95c971 PASS-with-residuals) 로 수렴, (2) 현 schema 는 프로그램 validator 부재 — sample 1~4건이 M-06 전수 검증과 방식 동일, marginal value 작음, (3) M-06 결함 발견 시 reopen 비용 (추정 1h 미만) < Phase B 실행 비용 기대값. Option A (현 후보 2 sample) + Option B (4 sample 확장) 는 모두 축 C/D schema 약한 지점 (enum_ref anchor / Migration Contract change_type / cluster algorithm) 을 활성 검증하지 못함. Escalation trigger (DR-M05-03): M-06 실행 중 schema 결함 3회 이상 누적 시 skip 결정 재검토."
     output_seat_decision: "별도 design record (development-records/design/20260413-onto-todo-dep-graph.md v1). handoff Step 6 추천 옵션 (i) 적용 — onto-todo.md 는 work item canonical seat, dep graph 는 M-05 산출로 분리."
     onto_todo_v1_3_patch: "§4.2 Exit 경로 table 에 `skipped-by-delegation` row 추가. schema 17 필드·불변식 변경 없음 (M-04 reopen 회피). patch 대상: 개정 이력 v1.3 row."
+    review_sessions:
+      - id: ".onto/review/20260413-383afe00"
+        executor: "codex/subagent (M-05 9-lens review)"
+        verdict: "CONDITIONAL (Partial pass — Consensus 2 negative + Conditional 1 + 6 Immediate + 6 unique findings + Disagreement 0)"
+        patch_applied: "v1.1 consolidated patch per Principal Option B. 5 artifact 변경 (onto-todo.md v1.3→v1.4, m04-decisions v1.1→v1.2, m05-decisions v1→v1.1, dep graph v1→v1.1, ledger v1.7→v1.8). DR-M04-03 신규 (compound_member schema seat) + DR-M05-04 신규 (책임 경계). DR-M05-02/03 patch. A1~A6 + logic-01/structure-01/semantics-01/coverage-01/conciseness-01/02 전수 해소."
+
+### M-05 v1.1 patch — codex review 383afe00 consolidated 해소
+
+- task_id: M-05-v1.1-patch
+- start_time: 2026-04-13T19:30:00+09:00
+- end_time: 2026-04-13T19:50:00+09:00
+- elapsed_minutes: 20
+- commit_hash: (v1.1 patch commit hash 는 push 완료 후 업데이트)
+- subagent_count: 0 (메인 세션 단독 + codex review 1 session)
+- notes: Option B consolidated patch 적용. 5 artifact 변경. schema additive minor bump (v1.1→v1.2) + 18번째 필드 compound_member + compound_expansion change_type + Compound 무결성 불변식 4건. M-05 decisions 에 DR-M05-04 신규 (책임 경계). dep graph 에 §0.1 / §2.2.1 / §2.2.2 / §4 재구성 / §5 SSOT 선언.
+- v1_1_rationale: "codex review 383afe00 Consensus 2건 (compound sequencing not execution-stable / Phase B guardrails too weak) + 6 Immediate + 6 unique findings. Option A (staged 2 cycles) 대비 Option B (consolidated 1 cycle) 선택 — schema 변경이 additive minor 로 작음 + A1 과 A2/A3 의미 연결 (compound_expansion first-use = A3 minimum surface 조건 3)."

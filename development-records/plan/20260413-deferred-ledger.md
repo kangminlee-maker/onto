@@ -147,7 +147,7 @@ relation_names:
 
 **DL-031 resolution_note** (v1 + v1.1 통합): DR-M05-03 로 해소-by-delegation. Principal 이 3 옵션 (A 현 후보 유지 / B 후보 확장 / C 전체 위임) 중 **Option C (skip 확정)** 선택 (v1, 2026-04-13T19:20). onto-todo.md v1.3 §4.2 Exit 경로 에 `skipped-by-delegation` row 추가. **v1.1 (2026-04-13T19:45, codex review 383afe00 Immediate A2/A3 해소)**: escalation 전면 개정 — 기존 "3회 누적" trigger 폐기, "첫 blocking-schema 또는 첫 weak-class-defect" 로 강화. Defect taxonomy 3종 신규 (blocking-schema / weak-class-defect / minor-clarification). M-06 delegated validation minimum surface 3 조건 (compound_member / depends_on 3종 / compound_expansion first-use) 신규 요구. v1.1 escalation 개정으로 Phase B 미실행 이어도 M-06 초기에 known weak class 가 강제 활성 검증됨 (codex review Consensus 2 "guardrails too weak" 해소).
 
-**Commit**: `da61adf` (v1) + (v1.1 commit hash TBD)
+**Commit**: `da61adf` (v1) + `e3e588b` (v1.1)
 
 ---
 

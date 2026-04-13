@@ -176,7 +176,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - start_time: 2026-04-13T19:30:00+09:00
 - end_time: 2026-04-13T19:50:00+09:00
 - elapsed_minutes: 20
-- commit_hash: (v1.1 patch commit hash 는 push 완료 후 업데이트)
+- commit_hash: e3e588b
 - subagent_count: 0 (메인 세션 단독 + codex review 1 session)
 - notes: Option B consolidated patch 적용. 5 artifact 변경. schema additive minor bump (v1.1→v1.2) + 18번째 필드 compound_member + compound_expansion change_type + Compound 무결성 불변식 4건. M-05 decisions 에 DR-M05-04 신규 (책임 경계). dep graph 에 §0.1 / §2.2.1 / §2.2.2 / §4 재구성 / §5 SSOT 선언.
 - v1_1_rationale: "codex review 383afe00 Consensus 2건 (compound sequencing not execution-stable / Phase B guardrails too weak) + 6 Immediate + 6 unique findings. Option A (staged 2 cycles) 대비 Option B (consolidated 1 cycle) 선택 — schema 변경이 additive minor 로 작음 + A1 과 A2/A3 의미 연결 (compound_expansion first-use = A3 minimum surface 조건 3)."

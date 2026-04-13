@@ -108,7 +108,7 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 
 **DL-012 resolution_note**: DR-M03-01 로 해소 — axiology standing lens 승격 경로 폐기 (axiology lens 자체가 반대), dedup rule pre-gate 로 분해하여 consolidated v3 `dedup_evidence_schema` 에 `kept_primary_source` + `linked_supporting_sources` 필드 도입. BL-041 자체는 `already covered (partial)` + supporting.
 
-**Commit**: (pending — Step 9 에서 기록)
+**Commit**: `a53981b` (feat(plan): M-03 disposition + canonicality 분류 (102 gaps, 8 canonical-advancing, DL-004~012 resolved))
 
 ---
 
@@ -183,7 +183,7 @@ id_scheme: "DL-NNN (sequential, stable across revisions). BL-ID 와 달리 본 l
 ### DL-004 ~ DL-012 (resolved 2026-04-13T13:50:00+09:00, via M-03 consolidated v3 patch)
 - 해소 근거: 위 "M-03 resolution_stage — 9 items" 섹션의 resolution_note 참조
 - M-03 core output: consolidated v3 (disposition + canonicality 123 BL 전원 할당) + m03-decisions.md (DR-M03-01/02/03/04)
-- commit: (pending — Step 9)
+- commit: `a53981b`
 - context: Stage completion protocol (DR-M00-06) 첫 완결 적용. `resolution_stage == M-03 AND status == pending` 인 item = 0 (성공 기준 충족).
 
 ---

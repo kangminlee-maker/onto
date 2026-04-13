@@ -1238,7 +1238,11 @@ function rejectRemovedFlags(argv: string[]): void {
     );
   }
   for (const removed of ["host-runtime", "execution-realization", "execution-mode"]) {
-    if (readSingleOptionValueFromArgv(argv, removed) !== undefined) {
+    const optionToken = `--${removed}`;
+    const present =
+      hasOptionFlag(argv, removed) ||
+      argv.some((token) => token.startsWith(`${optionToken}=`));
+    if (present) {
       throw new Error(
         `--${removed} is no longer accepted. The \`onto review\` CLI is codex-only; ` +
           "remove the flag.",

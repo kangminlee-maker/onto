@@ -660,6 +660,13 @@ async function main(): Promise<number> {
       return handleDesignCli(ontoHome, subcommandArgv);
     }
 
+    case "reconstruct": {
+      const { handleReconstructCli } = await import(
+        "./core-runtime/design/commands/reconstruct.js"
+      );
+      return handleReconstructCli(ontoHome, subcommandArgv);
+    }
+
     case "learn":
     case "govern":
     case "build":
@@ -683,6 +690,7 @@ async function main(): Promise<number> {
           "",
           "Subcommands:",
           "  design start <description>  Start a design scope",
+          "  reconstruct <subcommand>    Reconstruct activity CLI (start/explore/complete)",
           "  review <target> <intent>   Run 9-lens review",
           "  review --complete-session   Complete a prepared session",
           "  coordinator start|next|status  State machine coordinated review",

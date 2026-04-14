@@ -6,6 +6,33 @@
 > **State machine SSOT**: `src/core-runtime/scope-runtime/state-machine.ts` — `BUILD_TRANSITIONS` (W-B-02 dedup).
 > Build session 의 phase 전이(negotiating→gathering_context→build_exploring→adjudicating→awaiting_user_review→processing_responses→converting→converted)는 이 파일이 canonical definition.
 
+## Naming: reconstruct (activity) vs build (process)
+
+DL-013 activity taxonomy (2026-04-13) 이후 public activity name 은 **reconstruct** 로 통일되었다. 본 process document 의 파일명 `build.md` 는 legacy 명명으로 유지되며, 내용상의 "build" 호명도 그대로 남아 있다. 신규 참조는 activity name `reconstruct` 를 사용한다.
+
+- **Activity name**: `reconstruct` (canonical, DL-013)
+- **Process filename**: `processes/build.md` (legacy, canonical 유지)
+- **CLI entry**: `commands/reconstruct.md` (W-A-74 DL-020 해소, 2026-04-14)
+- **CLI handler**: `src/core-runtime/design/commands/reconstruct.ts`
+
+### Bounded path (review 3-step 대응, W-A-74)
+
+W-A-74 에서 reconstruct CLI 의 3-step bounded path 를 확보했다. 이는 본 process document 의 BUILD_TRANSITIONS 전체 상태 머신과는 구분되는 **CLI 관찰 가능 minimum surface** 다:
+
+| Step | CLI | Bounded state 전이 | process document 과의 관계 |
+|---|---|---|---|
+| 1 | `onto reconstruct start` | → `gathering_context` | negotiating~gathering_context phase 의 CLI face |
+| 2 | `onto reconstruct explore` | → `exploring` (반복 가능) | build_exploring~adjudicating~awaiting_user_review~processing_responses loop 의 bounded invocation |
+| 3 | `onto reconstruct complete` | → `converted` | converting~converted phase + Principal 검증 요청 |
+
+본 document 의 상세 phase 구조 (Phase 0.5 ~ Phase 4) 는 CLI 호출 내부에서 build runtime 이 실행하는 방법론이다. CLI 는 방법론의 public surface 만 노출한다.
+
+§1.4 정본의 reconstruct 완료 기준 3축 (ontology 초안 산출 + domain knowledge 기반 "왜" 추정 + Principal 검증 경로) 은 CLI 3-step 과 다음과 같이 매핑된다:
+
+- **초안 산출** ← `complete` 가 `ontology-draft.md` 생성
+- **"왜" 추정** ← `explore` 가 build runtime 의 certainty classification 호출
+- **Principal 검증 경로** ← `complete` 가 `principal_review_status=requested` 로 검증 대기 명시
+
 ## Generalization Scope
 
 This process is an **extensible design**. Currently supported source types are codebase, spreadsheet, database, and document. New source types are supported by adding an `explorers/{source_type}.md` profile file and Phase 0.5 context questions. This is not a fully generalized abstraction for all source types.

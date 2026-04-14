@@ -1,4 +1,4 @@
-lexicon_version: "0.9.2"
+lexicon_version: "0.9.3"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
@@ -10,6 +10,7 @@ notes:
   - "v0.9.0 additive (W-A-70, 2026-04-13): principal term → entity 승격. dispatches→entrypoint relation 추가. §1.1 주체자 core concept 정합. canonical-advancing."
   - "v0.9.1 additive (W-A-75, 2026-04-14): provisional_terms 에 review_ontology_present_path + review_path_label 2 seed 등재. DL-029 review-r+ path 성문화. canonical-advancing."
   - "v0.9.2 additive (W-A-76, 2026-04-14): provisional_terms 에 review_ontology_absent_path seed 등재. DL-029 review-r− fallback path 성문화 + classifier session_overrides hook. canonical-advancing."
+  - "v0.9.3 additive (W-A-74, 2026-04-14): provisional_terms 에 reconstruct_bounded_path seed 등재. DL-020 reconstruct-cli 3-step bounded path 성문화 (review 3-step 대비 비대칭 해소). canonical-advancing."
   - "v0.8.0 additive (W-A-63, 2026-04-13): review_record term → entity 승격. lifecycle_status attribute 부여. review_process relation produces→creates 전환. lexicon Stage 3-3 merge."
   - "v0.7.0 additive (W-D-01+W-D-03, D0 Bootstrap, 2026-04-13): provisional_lifecycle section 신설 (W-D-01) — lexicon term 성숙도 전이 모델 (seed→candidate→provisional→promoted) + 전이 조건 + 소비 정책 + lifecycle_status 관리 위치 성문화. provisional_terms section 신설 (W-D-03) — dep graph §2.2.1 4 seat 구조 (recording seat + actor + consumer + promotion path) + entry schema + 빈 entries. §1 정본 '다음 작업 #2' + BL-123 대응."
 
@@ -301,6 +302,26 @@ provisional_terms:
         - "DL-029 해소 2-path split 중 r− 담당"
         - "쌍: review_ontology_present_path (W-A-75)"
         - "r+ 대비 품질 저하는 PathDeltaMetric.degraded_ratio_delta 로 관측"
+    reconstruct_bounded_path:
+      term_id: reconstruct_bounded_path
+      lifecycle_status: seed
+      registered_by: "W-A-74"
+      registered_date: "2026-04-14"
+      definition_draft: >
+        reconstruct 활동의 CLI 관찰 가능 3-step bounded path (start → explore → complete).
+        review 3-step 과 대응하며, build runtime 의 BUILD_TRANSITIONS 전체 상태 머신과는
+        구별되는 public surface. session-level state 는 reconstruct-state.json 단일 파일로 관리한다.
+        없으면 build runtime 방법론 호출 경로가 ad-hoc 이어서 post-PR 결함 cluster (build-runtime 40 BL) 의
+        구조적 원인이 유지된다.
+      evidence:
+        - "commands/reconstruct.md (CLI entry 문서)"
+        - "src/core-runtime/design/commands/reconstruct.ts (handler)"
+        - "src/core-runtime/design/commands/reconstruct.test.ts (17 tests)"
+        - "processes/build.md §'Naming: reconstruct (activity) vs build (process)' 섹션"
+      notes:
+        - "DL-020 해소"
+        - "§1.4 reconstruct 완료 기준 3축 (초안·why 추정·Principal 검증) 이 3-step 에 매핑됨"
+        - "build runtime 의 실제 Explorer/lens loop 은 후속 W-ID 범위"
 
 # ---------------------------------------------------------------------------
 # Entities

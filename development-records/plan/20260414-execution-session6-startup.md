@@ -161,7 +161,7 @@ W-A-12 는 `blockers: ["Phase 1 completion"]` — Phase 1 전원 done 후에만 
 
 | Cluster | W-ID 범위 | 건수 | 성격 |
 |---|---|---|---|
-| SE 도메인 잔여 | W-B-26~28 (P-1/P-2/P-3 process rule) | 3 | processes/build.md 편집. 22b0904 이 해당 파일도 touch 했는지 검증 선행 |
+| SE 도메인 잔여 | W-B-26~28 (P-1/P-2/P-3 process rule) | 3 | processes/reconstruct.md 편집. 22b0904 이 해당 파일도 touch 했는지 검증 선행 |
 | Business Scale Tier | W-B-41~43 | 3 | Principal 승인 필요 |
 | 기타 | W-B-07/45/51 (deferred) 제외 | ~19 | 단건 |
 

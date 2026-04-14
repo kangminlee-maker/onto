@@ -18,7 +18,7 @@ Common definitions referenced by each process file (`processes/`).
 | Onboarding | `processes/onboard.md` | Set up onto environment for a project | -> Review, Query |
 | Individual Query | `processes/question.md` | Ask a question to a single agent | Learning -> Promotion |
 | Team Review | `processes/review.md` | Agent panel review (Agent Teams) | Learning -> Promotion |
-| Ontology Build | `processes/build.md` | Build ontology from analysis target (Agent Teams) | -> Transform, Review |
+| Ontology Build | `processes/reconstruct.md` | Build ontology from analysis target (Agent Teams) | -> Transform, Review |
 | Transform | `processes/transform.md` | Raw Ontology format conversion | Build -> |
 | Learning Promotion | `processes/promote.md` | Learning Quality Assurance — 승격, 큐레이션, 감사. Canonical entrypoints: `onto promote` (Phase A analyze), `onto promote --apply <session>` (Phase B mutations), `onto reclassify-insights [--apply]` (insight role reclassification), `onto migrate-session-roots` (legacy layout migration). Slash command `/onto:promote` is the prompt-backed reference path. | Review/Query -> |
 | Domain Creation | `processes/create-domain.md` | Generate seed domain documents from minimal input | -> Feedback, Review |
@@ -68,7 +68,7 @@ When adding or removing an agent, all of the following files must be updated:
 | 8 | `BLUEPRINT.md` agent section | Add/delete description |
 | 9 | `README.md` directory tree | Add/delete filename |
 | 10 | learning-rules.md | Update if learning storage rules change |
-| 11 | `processes/build.md` Agent Configuration table + Phase 1.0 Team Composition + error handling "N lenses" prose | Update lens count references and lens list |
+| 11 | `processes/reconstruct.md` Agent Configuration table + Phase 1.0 Team Composition + error handling "N lenses" prose | Update lens count references and lens list |
 
 ### Touch Point Checklist for Adding/Removing Processes
 
@@ -450,7 +450,7 @@ The team lead is a **structure coordinator**. It manages the relationships betwe
 - Do not modify or summarize content when relaying collected results.
 - Do not inject own judgment into the review.
 - Do not cross-share results between teammates (to ensure independence).
-  - **Build mode exception**: For build process anonymized WIP sharing rules, refer to `processes/build.md`.
+  - **Build mode exception**: For build process anonymized WIP sharing rules, refer to `processes/reconstruct.md`.
 
 **Lifecycle management**: Creation -> task assignment -> error handling -> **full-member shutdown confirmation** -> shutdown.
 
@@ -482,7 +482,7 @@ Read the files below and construct your own context. Skip if file does not exist
 
 [Task Directives]
 {Per-process task directives — review target, system purpose, specific instructions}
-{For build process: The definitions of certainty levels (observed, rationale-absent, inferred, ambiguous, not-in-source) are defined in the "Certainty Classification (2-Stage Adjudication)" section of processes/build.md as the SSOT.}
+{For build process: The definitions of certainty levels (observed, rationale-absent, inferred, ambiguous, not-in-source) are defined in the "Certainty Classification (2-Stage Adjudication)" section of processes/reconstruct.md as the SSOT.}
 
 [Team Rules]
 - Save your review finding to {session path}/round1/{agent-id}.md using the Write tool.

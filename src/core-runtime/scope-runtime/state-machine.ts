@@ -286,7 +286,7 @@ export function allowedTransitionEvents(
 // 본 파일이 모든 onto 프로세스 state machine 의 단일 SSOT.
 // - Design scope: 위의 MATRIX (15 states)
 // - Review coordinator: REVIEW_TRANSITIONS (9 states)
-// - Build session: BUILD_TRANSITIONS (8 states)
+// - Reconstruct session: RECONSTRUCT_TRANSITIONS (8 states)
 // ═══════════════════════════════════════════════════════════════════
 
 // ─── Review coordinator (10 states) ───
@@ -343,54 +343,54 @@ export function canReviewTransition(
   return allowed != null && allowed.includes(to);
 }
 
-// ─── Build session (8 states) ───
+// ─── Reconstruct session (8 states) ───
 // build.md 의 Phase 0~4 를 형식화한 상태 모델.
 // auto 4: negotiating, gathering_context, exploring, adjudicating
 // await 2: awaiting_user_review, processing_responses
-// terminal 2: converted, build_failed
+// terminal 2: converted, reconstruct_failed
 
-export const BUILD_STATES = [
+export const RECONSTRUCT_STATES = [
   "negotiating",
   "gathering_context",
-  "build_exploring",
+  "reconstruct_exploring",
   "adjudicating",
   "awaiting_user_review",
   "processing_responses",
   "converting",
   "converted",
-  "build_failed",
+  "reconstruct_failed",
 ] as const;
 
-export type BuildState = (typeof BUILD_STATES)[number];
+export type ReconstructState = (typeof RECONSTRUCT_STATES)[number];
 
-export const BUILD_TERMINAL_STATES: ReadonlySet<BuildState> = new Set([
+export const RECONSTRUCT_TERMINAL_STATES: ReadonlySet<ReconstructState> = new Set([
   "converted",
-  "build_failed",
+  "reconstruct_failed",
 ]);
 
-export const BUILD_TRANSITIONS: Record<
-  BuildState | "(init)",
-  readonly BuildState[]
+export const RECONSTRUCT_TRANSITIONS: Record<
+  ReconstructState | "(init)",
+  readonly ReconstructState[]
 > = {
   "(init)": ["negotiating"],
-  negotiating: ["gathering_context", "build_failed"],           // Phase 0
-  gathering_context: ["build_exploring", "build_failed"],        // Phase 0.5
-  build_exploring: ["adjudicating", "build_failed"],            // Phase 1 (Stage 1+2)
-  adjudicating: ["awaiting_user_review", "build_failed"],       // Phase 2
-  awaiting_user_review: ["processing_responses", "build_failed"], // Phase 3
-  processing_responses: ["converting", "awaiting_user_review", "build_failed"], // Phase 3.5 (re-entry 가능)
-  converting: ["converted", "build_failed"],                    // Phase 4
+  negotiating: ["gathering_context", "reconstruct_failed"],           // Phase 0
+  gathering_context: ["reconstruct_exploring", "reconstruct_failed"],        // Phase 0.5
+  reconstruct_exploring: ["adjudicating", "reconstruct_failed"],            // Phase 1 (Stage 1+2)
+  adjudicating: ["awaiting_user_review", "reconstruct_failed"],       // Phase 2
+  awaiting_user_review: ["processing_responses", "reconstruct_failed"], // Phase 3
+  processing_responses: ["converting", "awaiting_user_review", "reconstruct_failed"], // Phase 3.5 (re-entry 가능)
+  converting: ["converted", "reconstruct_failed"],                    // Phase 4
   converted: [],
-  build_failed: [],
+  reconstruct_failed: [],
 };
 
 /**
- * Build session 전이 검증.
+ * Reconstruct session 전이 검증.
  */
-export function canBuildTransition(
-  from: BuildState | "(init)",
-  to: BuildState,
+export function canReconstructTransition(
+  from: ReconstructState | "(init)",
+  to: ReconstructState,
 ): boolean {
-  const allowed = BUILD_TRANSITIONS[from];
+  const allowed = RECONSTRUCT_TRANSITIONS[from];
   return allowed != null && allowed.includes(to);
 }

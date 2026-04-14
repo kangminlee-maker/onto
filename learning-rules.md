@@ -253,7 +253,7 @@ If new communication entries have been added, notify the user:
 |---|---|---|
 | review → learn | review 실행 후 learning 생성 | review_process (core-lexicon.yaml) |
 | design → learn | design 프로세스에서 패턴 발견 시 learning 생성 | processes/design.md §6 |
-| reconstruct → learn | ontology 구축 중 learning 생성 | processes/build.md |
+| reconstruct → learn | ontology 구축 중 learning 생성 | processes/reconstruct.md |
 | learn → review/design/reconstruct | promoted learning을 다음 활동에 소비 | loader.ts (promoted only) |
 | govern → learn | learning promotion 기준 정의 | §1.2 경계 계약 "govern이 기준, learn이 실행" |
 

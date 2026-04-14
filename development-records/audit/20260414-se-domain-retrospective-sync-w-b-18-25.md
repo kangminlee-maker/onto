@@ -52,7 +52,7 @@ purpose: W-B-18~25 (SE 도메인 Stage 3 HIGH/MEDIUM 8건) 을 active → done �
 
 ## 7. Residual
 
-- **W-B-26/27/28 (P-1/P-2/P-3 processes/build.md 편집)**: 본 audit 범위 아님. processes/build.md 는 domain asset 아닌 process rule 이고, 22b0904 이 해당 파일을 수정했는지 별도 검증 필요. 다음 세션 주제.
+- **W-B-26/27/28 (P-1/P-2/P-3 processes/reconstruct.md 편집)**: 본 audit 범위 아님. processes/reconstruct.md 는 domain asset 아닌 process rule 이고, 22b0904 이 해당 파일을 수정했는지 별도 검증 필요. 다음 세션 주제.
 - **Session 3·4 완료 W-ID 의 seat 반영 누락**: 본 audit 발견. 별도 동기화 작업 필요 (주체자 결정 대기).
 
 ## 8. 관련 SSOT

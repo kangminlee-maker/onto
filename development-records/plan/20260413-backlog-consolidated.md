@@ -70,7 +70,7 @@ primary_tag_convention: "comma-list의 첫 태그 = primary. primary-only 집계
 activity_enum_ref: "development-records/design/20260413-onto-direction.md#§1.2 (E/D/R/L/G 5 활동). DL-014 에서 authority/core-lexicon.yaml canonical seat 으로 이관 예정 (M-04 Phase A)"
 axis_enum_ref: "development-records/design/20260413-onto-direction.md#§1.5 (A/B/C/D 4 축). DL-014 연계"
 legacy_name_mapping:
-  build: reconstruct  # §1.2 기준. scope: (1) activity 분류 시 build→reconstruct (E) 로 계산, (2) 파일명·명령명 (processes/build.md, commands/build.md, npm build:*) 은 legacy 유지 — BL-121 agent_id_rename 유사 Phase 이전까지 병존 허용, (3) 관용 표현 ("build 프로세스", "build 명령") 은 legacy 명칭 유지 가능. rename/retire 는 M-06 신규 도출 또는 향후 Phase 로 위임.
+  build: reconstruct  # §1.2 기준. scope: (1) activity 분류 시 build→reconstruct (E) 로 계산, (2) 파일명·명령명 (processes/reconstruct.md, commands/reconstruct.md, npm build:*) 은 legacy 유지 — BL-121 agent_id_rename 유사 Phase 이전까지 병존 허용, (3) 관용 표현 ("build 프로세스", "build 명령") 은 legacy 명칭 유지 가능. rename/retire 는 M-06 신규 도출 또는 향후 Phase 로 위임.
 source_counts:
   memory: 29
   backlog_memory: 87
@@ -174,7 +174,7 @@ decision_records_applied:
     note: "v2 Activity/Axis primary-only 집계 규약 확정. 첫 태그 = primary."
   - id: DR-M00-04
     status: "applied"
-    note: "v2 build↔reconstruct homonym 매핑 확정. processes/build.md, commands/build.md 등은 legacy 명칭; activity는 reconstruct(E)"
+    note: "v2 build↔reconstruct homonym 매핑 확정. processes/reconstruct.md, commands/reconstruct.md 등은 legacy 명칭; activity는 reconstruct(E)"
   - id: DR-M00-05
     status: "applied"
     note: "v2 axis D 태깅 기준 명문화. lexicon term/entity/relation 관리로 한정. schema/registry/namespace는 B."
@@ -224,7 +224,7 @@ decision_records_applied:
 
 ### §1. project_build_8th_review_backlog.md (15 items) — updatedAt: 2026-04-12
 
-Target: `processes/build.md` (= reconstruct 프로세스 spec, legacy 명칭 "build") post-PR#17 잔여. fix/build-post-merge 브랜치로 일괄 처리 예정.
+Target: `processes/reconstruct.md` (= reconstruct 프로세스 spec, legacy 명칭 "build") post-PR#17 잔여. fix/build-post-merge 브랜치로 일괄 처리 예정.
 
 **cluster**: `processes-build-md-residuals` (§1+§2 통합 37건, single-target single-writer 계약 고려 필요)
 
@@ -248,7 +248,7 @@ Target: `processes/build.md` (= reconstruct 프로세스 spec, legacy 명칭 "bu
 
 ### §2. project_build_3rd_review_backlog.md (22 items) — updatedAt: 2026-04-12
 
-Target: `processes/build.md` (40411d3 기준). **선행 권장**: PR #16 merged 기반이므로 §1 (8차) 작업 전에 본 §2 (3차) 항목부터 처리 권장 (C-8 대응).
+Target: `processes/reconstruct.md` (40411d3 기준). **선행 권장**: PR #16 merged 기반이므로 §1 (8차) 작업 전에 본 §2 (3차) 항목부터 처리 권장 (C-8 대응).
 
 **cluster**: `processes-build-md-residuals` (§1 공유, 37건 단일 target single-writer)
 

@@ -46,7 +46,7 @@ describe("lexicon-citation-check", () => {
     const content = "drift_detector 를 사용합니다.";
 
     const violations = checkFileCitations(
-      "processes/build.md",
+      "processes/reconstruct.md",
       content,
       TERMS,
       { severity: "reject" },

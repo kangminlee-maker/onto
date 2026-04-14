@@ -9,9 +9,9 @@
  *              loop 는 build runtime 확장과 함께 채운다)
  *   complete — ontology 초안 산출 + converted 상태 기록
  *
- * 본 handler 는 build runtime (processes/build.md) 의 public CLI face 다.
+ * 본 handler 는 build runtime (processes/reconstruct.md) 의 public CLI face 다.
  * Bounded state 는 `{session_root}/reconstruct-state.json` 단일 파일로 관리한다 —
- * 이는 build runtime 의 완전한 state machine (BUILD_TRANSITIONS) 과 구별되는
+ * 이는 build runtime 의 완전한 state machine (RECONSTRUCT_TRANSITIONS) 과 구별되는
  * **CLI 관찰 가능 minimum surface**.
  */
 
@@ -225,7 +225,7 @@ export function executeReconstructComplete(
       `- intent: ${state.intent}`,
       `- explore invocations: ${state.explore_invocations}`,
       "",
-      "> Placeholder draft. build runtime (processes/build.md) 이 채울 영역.",
+      "> Placeholder draft. build runtime (processes/reconstruct.md) 이 채울 영역.",
       "> §1.4 reconstruct 완료 기준 충족 판단은 Principal 검증 경로에서 이뤄진다.",
       "",
     ].join("\n"),
@@ -394,7 +394,7 @@ export async function handleReconstructCli(
           "  start → explore (1+ times) → complete",
           "",
           "State is persisted at {session_root}/reconstruct-state.json.",
-          "The process contract is processes/build.md (activity=reconstruct, process_name=build).",
+          "The process contract is processes/reconstruct.md (activity=reconstruct, process_name=build).",
         ].join("\n"),
       );
       return 0;

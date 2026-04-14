@@ -169,7 +169,7 @@ concepts:
     relations:
       - input: "non-ontology source"
       - executed_by: "agent panel (build mode)"
-      - defined_at: "processes/build.md"
+      - defined_at: "processes/reconstruct.md"
       - produces: "Raw Ontology (raw.yml)"
       - followed_by: "transform"
     disambiguation: >
@@ -920,7 +920,7 @@ concepts:
     relations:
       - assigned_by: "Explorer (stage 1) + verification agent (stage 2)"
       - levels: "observed, rationale-absent, inferred, ambiguous, not-in-source"
-      - defined_at: "processes/build.md (SSOT)"
+      - defined_at: "processes/reconstruct.md (SSOT)"
     disambiguation: >
       Not 'confidence' (implies probabilistic scoring).
       'Certainty' is categorical, not continuous.

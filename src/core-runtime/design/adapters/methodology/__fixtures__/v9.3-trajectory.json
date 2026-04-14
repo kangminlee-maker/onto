@@ -34,7 +34,7 @@
       ]
     },
     {
-      "source": "processes/build.md",
+      "source": "processes/reconstruct.md",
       "rank": 8,
       "relevant_rules": [
         "Phase 5에서 learn에 write (검증 에이전트 자동 저장)"

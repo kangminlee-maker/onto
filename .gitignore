@@ -1,6 +1,7 @@
 # onto runtime data (sessions, build outputs, learnings)
 .onto/
 .onto-review/
+.claude-plugin/
 .DS_Store
 __pycache__/
 *.pyc

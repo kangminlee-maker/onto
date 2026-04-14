@@ -81,6 +81,17 @@ export interface ClassifierOptions {
    * node_modules, .git, .onto 는 자동 제외.
    */
   search_roots?: string[];
+  /**
+   * session_id → ReviewPathLabel 수동 override.
+   *
+   * 환경 수준 분기의 한계(ontology-path.md §5)를 해소하기 위한 확장 hook.
+   * 제공되면 해당 세션은 환경 판정 대신 override 라벨을 사용한다.
+   * 향후 review artifact 가 per-session `ontology_consulted` 필드를 기록하게 되면
+   * 그 값을 읽어 본 옵션을 채운다.
+   *
+   * 소비자: W-A-76 ontology-absent-path 계약 — r+/r− 혼합 cohort delta 측정에 사용.
+   */
+  session_overrides?: Record<string, ReviewPathLabel>;
 }
 
 // ─── Internal constants ───
@@ -121,15 +132,22 @@ export function classifyReviewPaths(
   const seatPaths = detectOntologySeats(absProjectRoot, searchRoots, seatFilenames);
   const seatDetected = seatPaths.length > 0;
   const envLabel: ReviewPathLabel = seatDetected ? "r+" : "r-";
+  const overrides = options.session_overrides ?? {};
 
-  const sessions: LabeledReviewSession[] = entries.map((e) => ({
-    session_id: e.session_id,
-    label: envLabel,
-    ontology_seat_evidence: seatDetected ? seatPaths : [],
-    total_duration_ms: e.total_duration_ms,
-    degraded_lens_ratio: computeDegradedRatio(e),
-    review_target_refs: e.review_target_refs,
-  }));
+  const sessions: LabeledReviewSession[] = entries.map((e) => {
+    const override = overrides[e.session_id];
+    const label: ReviewPathLabel = override ?? envLabel;
+    // evidence 는 label=r+ 일 때만 의미 있음. override 로 r+ 지정됐는데 환경에 seat 이 있으면 그 seat 을 evidence 로 연결.
+    const evidence = label === "r+" ? seatPaths : [];
+    return {
+      session_id: e.session_id,
+      label,
+      ontology_seat_evidence: evidence,
+      total_duration_ms: e.total_duration_ms,
+      degraded_lens_ratio: computeDegradedRatio(e),
+      review_target_refs: e.review_target_refs,
+    };
+  });
 
   const rPlus = sessions.filter((s) => s.label === "r+");
   const rMinus = sessions.filter((s) => s.label === "r-");

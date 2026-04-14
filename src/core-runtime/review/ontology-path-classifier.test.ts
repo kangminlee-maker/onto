@@ -201,6 +201,55 @@ describe("classifyReviewPaths", () => {
       expect(result.delta.duration_ratio).toBeNull();
       expect(result.delta.degraded_ratio_delta).toBeNull();
     });
+
+    it("혼합 cohort (session_overrides 로 r+/r- 분배): duration_delta·ratio 산출", () => {
+      // session_overrides 로 per-session 분배 — r+ 2세션 (빠름) vs r- 2세션 (느림)
+      const entries = [
+        makeEntry({ session_id: "rp1", total_duration_ms: 80000, lens_count: 3, degraded_lens_ids: [] }),
+        makeEntry({ session_id: "rp2", total_duration_ms: 70000, lens_count: 3, degraded_lens_ids: [] }),
+        makeEntry({ session_id: "rm1", total_duration_ms: 120000, lens_count: 3, degraded_lens_ids: ["logic"] }),
+        makeEntry({ session_id: "rm2", total_duration_ms: 130000, lens_count: 3, degraded_lens_ids: ["logic"] }),
+      ];
+      const result = classifyReviewPaths(entries, tmpRoot, {
+        session_overrides: {
+          rp1: "r+",
+          rp2: "r+",
+          rm1: "r-",
+          rm2: "r-",
+        },
+      });
+
+      expect(result.cohort_r_plus.session_count).toBe(2);
+      expect(result.cohort_r_plus.avg_duration_ms).toBe(75000);
+      expect(result.cohort_r_plus.avg_degraded_lens_ratio).toBe(0);
+
+      expect(result.cohort_r_minus.session_count).toBe(2);
+      expect(result.cohort_r_minus.avg_duration_ms).toBe(125000);
+      expect(result.cohort_r_minus.avg_degraded_lens_ratio).toBeCloseTo(0.333, 2);
+
+      // r+ 가 r- 보다 50000ms 빠름 → 음수 delta = 개선
+      expect(result.delta.duration_delta_ms).toBe(-50000);
+      // 75000 / 125000 = 0.6
+      expect(result.delta.duration_ratio).toBe(0.6);
+      // r+ 품질 저하 ratio (0) - r- 품질 저하 ratio (0.333) = -0.333 → r+ 가 품질 저하 적음
+      expect(result.delta.degraded_ratio_delta).toBeCloseTo(-0.333, 2);
+    });
+
+    it("session_overrides 미지정 세션은 환경 수준 라벨을 따른다 (partial override)", () => {
+      // 환경: seat 없음 → 기본 r-. override 로 한 세션만 r+ 강제.
+      const entries = [
+        makeEntry({ session_id: "forced-plus", total_duration_ms: 60000 }),
+        makeEntry({ session_id: "default-minus", total_duration_ms: 100000 }),
+      ];
+      const result = classifyReviewPaths(entries, tmpRoot, {
+        session_overrides: { "forced-plus": "r+" },
+      });
+
+      const forced = result.sessions.find((s) => s.session_id === "forced-plus");
+      const defaulted = result.sessions.find((s) => s.session_id === "default-minus");
+      expect(forced!.label).toBe("r+");
+      expect(defaulted!.label).toBe("r-");
+    });
   });
 
   describe("session-level fields", () => {

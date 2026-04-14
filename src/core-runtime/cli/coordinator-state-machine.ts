@@ -501,6 +501,12 @@ export async function coordinatorNext(
       }
     }
 
+    case "awaiting_adjudication": {
+      throw new Error(
+        "Adjudication dispatch is not yet implemented. Build-mode pipeline extension (W-B-05).",
+      );
+    }
+
     case "awaiting_deliberation": {
       throw new Error(
         "Deliberation is not yet implemented. This state should not be reached.",

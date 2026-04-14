@@ -47,7 +47,7 @@ export async function handleDesignCli(
           "  --project-name <name>       Project name for scope ID generation",
           "  --scope-id <id>             Target scope ID (required for align/draft/apply/close)",
           "  --entry-mode <mode>         'experience', 'interface', or 'process' (default: experience)",
-          "  --verdict <verdict>         Align verdict: approve/revise/reject/rescan",
+          "  --verdict <verdict>         Align verdict: approve/revise/reject/redirect",
         ].join("\n"),
       );
       return 0;

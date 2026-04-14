@@ -64,6 +64,12 @@ function validate(state: ScopeState, content: DraftPacketContent): void {
         `renderDraftPacket: decision_owner mismatch for ${d.constraint_id} — pool: "${entry.decision_owner}", content: "${d.decision_owner}". ${fix}`,
       );
     }
+    // W-B-09: constraint source 일치 가드 — pool에 source_refs가 없는 constraint reject
+    if (!entry.source_refs || entry.source_refs.length === 0) {
+      throw new Error(
+        `renderDraftPacket: constraint ${d.constraint_id} has no source_refs in pool. constraint.discovered 이벤트에 source_refs를 포함하세요.`,
+      );
+    }
   }
 }
 

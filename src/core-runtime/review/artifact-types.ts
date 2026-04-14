@@ -375,16 +375,10 @@ export interface ReviewRecord {
 // Coordinator State Machine types
 // ─────────────────────────────────────────────
 
-export type CoordinatorStateName =
-  | "preparing"
-  | "awaiting_lens_dispatch"
-  | "validating_lenses"
-  | "awaiting_synthesize_dispatch"
-  | "awaiting_deliberation"
-  | "completing"
-  | "completed"
-  | "halted_partial"
-  | "failed";
+// CoordinatorStateName: canonical definition is in scope-runtime/state-machine.ts (REVIEW_STATES).
+// Imported and re-exported here for backward compatibility. W-B-02 dedup.
+import type { ReviewState } from "../scope-runtime/state-machine.js";
+export type CoordinatorStateName = ReviewState;
 
 export interface CoordinatorStateTransition {
   from: CoordinatorStateName | "(init)";
@@ -432,21 +426,9 @@ export interface CoordinatorNextResult {
   degraded_lens_ids?: string[] | undefined;
 }
 
-export const ALLOWED_TRANSITIONS: Record<
-  CoordinatorStateName | "(init)",
-  CoordinatorStateName[]
-> = {
-  "(init)": ["preparing"],
-  preparing: ["awaiting_lens_dispatch", "failed"],
-  awaiting_lens_dispatch: ["validating_lenses"],
-  validating_lenses: ["awaiting_synthesize_dispatch", "halted_partial", "failed"],
-  awaiting_synthesize_dispatch: ["completing", "awaiting_deliberation"],
-  awaiting_deliberation: ["completing"],
-  completing: ["completed", "failed"],
-  completed: [],
-  halted_partial: [],
-  failed: [],
-};
+// ALLOWED_TRANSITIONS: canonical definition is in scope-runtime/state-machine.ts (REVIEW_TRANSITIONS).
+// Re-exported here for backward compatibility. W-B-02 dedup.
+export { REVIEW_TRANSITIONS as ALLOWED_TRANSITIONS } from "../scope-runtime/state-machine.js";
 
 /**
  * Output of `review:invoke --prepare-only`.

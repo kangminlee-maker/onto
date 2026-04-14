@@ -278,12 +278,31 @@ structured lens artifact의 source가 된다.
 
 ## 9.3 Domain-None Fallback Rule
 
-`session_domain`이 `none`일 때:
+`session_domain`이 `none`일 때 lens는 계속 실행되며, 산출 finding은 §8.3 4-field schema를 그대로 유지한다. 즉 fallback 경로는 self-contained이며, 다음 두 층으로 규정한다.
+
+### 9.3.1 절차 규칙
 
 1. domain document가 있는 lens(`logic`, `structure`, `dependency`, `semantics`, `pragmatics`, `evolution`, `coverage`, `conciseness`)는 domain document 없이 실행한다
 2. domain-specific rule에 의존하는 판단은 해당 finding에 `no domain document available within boundary`로 명시한다
 3. 해당 finding의 `domain_constraints_used`는 빈 배열이다
 4. lens를 제외하지는 않는다. domain 없이도 관점 자체는 유효하다
+
+### 9.3.2 4요소 self-containedness (symptom/evidence/remediation/ownership)
+
+fallback mode에서도 각 finding은 4요소를 모두 채운다. 각 요소는 §8.3 4-field schema 와 §8.1 issue fields 에 다음과 같이 매핑된다.
+
+| 요소 | 정의 | fallback mode 에서의 원천 |
+|---|---|---|
+| **symptom** | 관찰된 현상의 식별 | `target` + `claim` (what + severity + direction). domain rule 없이 lens perspective 만으로 관찰 가능한 수준으로 기술 |
+| **evidence** | 현상을 증거로 묶는 anchor | `evidence_anchor` (파일경로:라인, §번호 등). domain snapshot 이 없어도 항상 product 원문 기반으로 기록 |
+| **remediation** | 제안 action 혹은 insufficient-evidence 선언 | §8.1 "how to fix" + `upstream_evidence_required`. domain rule 없이 결정 불가한 action 은 `insufficient evidence within boundary` 로 explicit 하게 남기고 `upstream_evidence_required=true` 로 표시 |
+| **ownership** | finding 을 생산한 관점 주체 | `lens_id` (자동 부여). fallback mode 여부와 무관하게 항상 기록 |
+
+네 요소 중 remediation 만 fallback mode 에서 형태가 달라진다 — action 이 도출 불가능하면 explicit non-judgment 로 선언한다 (§9.3.1 #2 참조). 나머지 세 요소(symptom/evidence/ownership)는 domain 유무와 독립적이다.
+
+### 9.3.3 Role-level 위임
+
+각 lens role 파일(`roles/<lens>.md`)은 본 절에 대한 포인터만 유지한다. 즉 §9.3 은 shared fallback mini-contract 의 유일한 canonical seat 이며, role-local 재진술은 금지한다 (CONS-1 지적 대응).
 
 ---
 

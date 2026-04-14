@@ -1,5 +1,5 @@
 /**
- * onto design — CLI entry point.
+ * onto evolve — CLI entry point.
  *
  * Routes design subcommands to the appropriate command handler.
  */
@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
 import { resolveScopePaths, type ScopePaths } from "../scope-runtime/scope-manager.js";
 
-export async function handleDesignCli(
+export async function handleEvolveCli(
   ontoHome: string,
   argv: string[],
 ): Promise<number> {
@@ -17,24 +17,24 @@ export async function handleDesignCli(
 
   switch (subcommand) {
     case "start":
-      return handleDesignStart(ontoHome, subArgv);
+      return handleEvolveStart(ontoHome, subArgv);
     case "align":
-      return handleDesignAlign(subArgv);
+      return handleEvolveAlign(subArgv);
     case "draft":
-      return handleDesignDraft(subArgv);
+      return handleEvolveDraft(subArgv);
     case "apply":
-      return handleDesignApply(subArgv);
+      return handleEvolveApply(subArgv);
     case "close":
-      return handleDesignClose(subArgv);
+      return handleEvolveClose(subArgv);
     case "defer":
-      return handleDesignDefer(subArgv);
+      return handleEvolveDefer(subArgv);
 
     case "--help":
     case "-h":
     case undefined:
       console.log(
         [
-          "Usage: onto design <subcommand> [options]",
+          "Usage: onto evolve <subcommand> [options]",
           "",
           "Subcommands:",
           "  start <description>         Start or resume a design scope",
@@ -59,7 +59,7 @@ export async function handleDesignCli(
 
     default:
       console.error(`[onto] Unknown design subcommand: ${subcommand}`);
-      console.error("Run 'onto design --help' for usage.");
+      console.error("Run 'onto evolve --help' for usage.");
       return 1;
   }
 }
@@ -87,7 +87,7 @@ function resolveScopePathsFromArgv(argv: string[]): ScopePaths | null {
 
 // ─── start ───
 
-async function handleDesignStart(
+async function handleEvolveStart(
   _ontoHome: string,
   argv: string[],
 ): Promise<number> {
@@ -137,7 +137,7 @@ async function handleDesignStart(
           status: "initialized",
           scope_id: result.scopeId,
           brief_path: result.briefPath,
-          message: "Scope initialized. Fill in the brief, then run 'onto design start' again.",
+          message: "Scope initialized. Fill in the brief, then run 'onto evolve start' again.",
         }, null, 2),
       );
       return 0;
@@ -188,7 +188,7 @@ async function handleDesignStart(
 
 // ─── align ───
 
-async function handleDesignAlign(argv: string[]): Promise<number> {
+async function handleEvolveAlign(argv: string[]): Promise<number> {
   const paths = resolveScopePathsFromArgv(argv);
   if (!paths) return 1;
 
@@ -208,7 +208,7 @@ async function handleDesignAlign(argv: string[]): Promise<number> {
 
 // ─── draft ───
 
-async function handleDesignDraft(argv: string[]): Promise<number> {
+async function handleEvolveDraft(argv: string[]): Promise<number> {
   const paths = resolveScopePathsFromArgv(argv);
   if (!paths) return 1;
 
@@ -228,7 +228,7 @@ async function handleDesignDraft(argv: string[]): Promise<number> {
 
 // ─── apply ───
 
-async function handleDesignApply(argv: string[]): Promise<number> {
+async function handleEvolveApply(argv: string[]): Promise<number> {
   const paths = resolveScopePathsFromArgv(argv);
   if (!paths) return 1;
 
@@ -249,7 +249,7 @@ async function handleDesignApply(argv: string[]): Promise<number> {
 
 // ─── close ───
 
-async function handleDesignClose(argv: string[]): Promise<number> {
+async function handleEvolveClose(argv: string[]): Promise<number> {
   const paths = resolveScopePathsFromArgv(argv);
   if (!paths) return 1;
 
@@ -261,7 +261,7 @@ async function handleDesignClose(argv: string[]): Promise<number> {
 
 // ─── defer ───
 
-async function handleDesignDefer(argv: string[]): Promise<number> {
+async function handleEvolveDefer(argv: string[]): Promise<number> {
   const paths = resolveScopePathsFromArgv(argv);
   if (!paths) return 1;
 

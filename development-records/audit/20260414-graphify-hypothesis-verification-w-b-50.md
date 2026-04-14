@@ -1,6 +1,6 @@
 ---
 as_of: 2026-04-14
-audit_target: development-records/design/20260409-graphify-adoption-hypothesis.md
+audit_target: development-records/evolve/20260409-graphify-adoption-hypothesis.md
 target_version: v7 (2026-04-10)
 w_id: W-B-50
 provenance: BL-117
@@ -76,7 +76,7 @@ approval 요구") and §4 boundary rules.
 
 ### 5.2 Ownership boundary
 
-- File lives under `development-records/design/` — this remains its physical location.
+- File lives under `development-records/evolve/` — this remains its physical location.
 - Canonical authority for Part I is **claimed by this document itself** until a dedicated build-architecture seat in `processes/build/` absorbs §2-§7. Absorption is optional and scheduled by build-activity work (no W-ID assigned here; deferred to post-W-C concrete build implementation).
 - Part II continues to serve as **consultation input** only. No downstream code or contract may treat Part II decisions as load-bearing without re-review at consumption time.
 
@@ -97,7 +97,7 @@ owner 결정 기록") is met:
 
 ## 7. References
 
-- Target: `development-records/design/20260409-graphify-adoption-hypothesis.md` (v7, 2371 lines)
+- Target: `development-records/evolve/20260409-graphify-adoption-hypothesis.md` (v7, 2371 lines)
 - Memory seat: `project_graphify_adoption_hypothesis.md` (`~/.claude-2/projects/.../memory/`)
-- W-ID seat: `development-records/design/20260413-onto-todo.md` line 3085 (W-B-50)
+- W-ID seat: `development-records/evolve/20260413-onto-todo.md` line 3085 (W-B-50)
 - Backlog source: `development-records/plan/20260413-backlog-consolidated.md` BL-117

@@ -111,7 +111,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - elapsed_minutes: 20
 - commit_hash: 15d1e56
 - subagent_count: 0 (메인 세션 단독, v3 QA A2 Principal 통합 판정)
-- notes: DL-013/014 통합 해소. 17 필드 task schema 완전 명세 (v5.1 meta 17 필드 기준, 일부 문건의 "15 필드" 표기는 버전 차이 혼선 — v1 schema 가 canonical). `development-records/design/20260413-onto-todo.md` canonical output seat 초판 (frontmatter + 축별 빈 섹션). authority/core-lexicon.yaml v0.5.0→v0.6.0 additive bump (activity_enum + axis_enum term 추가, §1 정본 §1.2/§1.5 동기화, 기존 entrypoint entity 미변경 — Stage 3 scope 보호). DR-M04-01/02 수립. Stage completion protocol DR-M00-06 두 번째 완결 적용 (resolution_stage=M-04-A pending = 0 충족).
+- notes: DL-013/014 통합 해소. 17 필드 task schema 완전 명세 (v5.1 meta 17 필드 기준, 일부 문건의 "15 필드" 표기는 버전 차이 혼선 — v1 schema 가 canonical). `development-records/evolve/20260413-onto-todo.md` canonical output seat 초판 (frontmatter + 축별 빈 섹션). authority/core-lexicon.yaml v0.5.0→v0.6.0 additive bump (activity_enum + axis_enum term 추가, §1 정본 §1.2/§1.5 동기화, 기존 entrypoint entity 미변경 — Stage 3 scope 보호). DR-M04-01/02 수립. Stage completion protocol DR-M00-06 두 번째 완결 적용 (resolution_stage=M-04-A pending = 0 충족).
 - pr_rescan_evidence:
     command: "gh pr list --state open --json number,title,updatedAt,url --limit 20"
     timestamp: 2026-04-13T15:30:00+09:00
@@ -120,7 +120,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     schema_fields_defined: 17  # v5.1 meta 17 필드 기준 (활동 포함)
     enum_seats_added: 2  # activity_enum + axis_enum
     lexicon_version_bump: "v0.5.0 → v0.6.0 (initial M-04-A) → v0.6.1 (v1.1 patch additive minor)"
-    canonical_output_seat: "development-records/design/20260413-onto-todo.md v1.1 (item_count=0, 축별 빈 섹션)"
+    canonical_output_seat: "development-records/evolve/20260413-onto-todo.md v1.1 (item_count=0, 축별 빈 섹션)"
     decision_records_new: [DR-M04-01, DR-M04-02]
     deferred_ledger_resolved: 2  # DL-013, DL-014
     deferred_ledger_new: 1  # DL-031 (v1.1 patch — Phase B sanity check tracking)
@@ -162,7 +162,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     stage_completion_check: "resolution_stage=M-05 pending=0 (DR-M00-06 충족). 세 번째 완결 적용."
     phase_b_status: "skipped-by-delegation"
     phase_b_skip_rationale: "Principal Option C 선택 (2026-04-13T19:08). 근거: (1) 현 schema v1.2 가 2 라운드 review (claude a9e93dd7 CONDITIONAL + codex de95c971 PASS-with-residuals) 로 수렴, (2) 현 schema 는 프로그램 validator 부재 — sample 1~4건이 M-06 전수 검증과 방식 동일, marginal value 작음, (3) M-06 결함 발견 시 reopen 비용 (추정 1h 미만) < Phase B 실행 비용 기대값. Option A (현 후보 2 sample) + Option B (4 sample 확장) 는 모두 축 C/D schema 약한 지점 (enum_ref anchor / Migration Contract change_type / cluster algorithm) 을 활성 검증하지 못함. Escalation trigger (DR-M05-03): M-06 실행 중 schema 결함 3회 이상 누적 시 skip 결정 재검토."
-    output_seat_decision: "별도 design record (development-records/design/20260413-onto-todo-dep-graph.md v1). handoff Step 6 추천 옵션 (i) 적용 — onto-todo.md 는 work item canonical seat, dep graph 는 M-05 산출로 분리."
+    output_seat_decision: "별도 design record (development-records/evolve/20260413-onto-todo-dep-graph.md v1). handoff Step 6 추천 옵션 (i) 적용 — onto-todo.md 는 work item canonical seat, dep graph 는 M-05 산출로 분리."
     onto_todo_v1_3_patch: "§4.2 Exit 경로 table 에 `skipped-by-delegation` row 추가. schema 17 필드·불변식 변경 없음 (M-04 reopen 회피). patch 대상: 개정 이력 v1.3 row."
     review_sessions:
       - id: ".onto/review/20260413-383afe00"

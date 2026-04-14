@@ -27,7 +27,7 @@ Common definitions referenced by each process file (`processes/`).
 | Data Backup | `processes/backup.md` | Snapshot onto user data for rollback | -> Restore |
 | Data Restore | `processes/restore.md` | Restore user data from backup | Backup -> |
 | Health Dashboard | `processes/health.md` | Show learning pool health metrics | Standalone |
-| Design | `processes/design.md` | 온톨로지 기반 설계 — 기존 설계 대상에 새 영역 추가 (brownfield) | Build ->, -> Review |
+| Design | `processes/evolve.md` | 온톨로지 기반 설계 — 기존 설계 대상에 새 영역 추가 (brownfield) | Build ->, -> Review |
 
 ---
 
@@ -141,7 +141,7 @@ Seed documents have the same 8-file structure as established domain documents bu
 2. `drafts/` 내 문서는 에이전트의 검증 기준(standard)으로 참조되지 않는다
 3. `drafts/` 내 문서는 리뷰 대상(target)으로 참조 가능하다
 
-Design reference: `development-records/design/20260329-domain-document-creation.md`
+Design reference: `development-records/evolve/20260329-domain-document-creation.md`
 
 #### Feedback Log
 
@@ -275,7 +275,7 @@ When a target spans multiple domains, **run a separate review for each relevant 
 
 #### Edge cases
 
-For the complete edge case table, refer to Section 4 of `development-records/design/20260328-per-session-domain-selection.md`. Key behaviors:
+For the complete edge case table, refer to Section 4 of `development-records/evolve/20260328-per-session-domain-selection.md`. Key behaviors:
 - Non-existent `@{domain}` → warn + re-ask (no auto-fallback)
 - No config.yml + no global domains → skip selection, no-domain mode
 - Domain directory exists but 0 files → listed with "(empty — no rules)" marker

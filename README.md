@@ -131,7 +131,7 @@ Usable without domain documents (verified using general principles). Domain docu
 /onto:review {target} @-             # Run without domain rules
 /onto:review {target} --codex        # Use codex host runtime (defaults to subagent)
 /onto:build {path|GitHub URL}        # Build ontology from analysis target
-/onto:design {goal}                  # Design new areas for existing target (brownfield)
+/onto:evolve {goal}                  # Design new areas for existing target (brownfield)
 ```
 
 ### Domain Selection
@@ -212,9 +212,9 @@ Claude CLI subagent, API executor, and 3-Tier fallback paths have been removed �
 ### Design
 | Command | Description |
 |---|---|
-| `/onto:design {goal}` | 온톨로지 기반 설계 — 기존 설계 대상에 새 영역 추가 (brownfield) |
-| `/onto:design {goal} @{domain}` | Design with specific domain |
-| `/onto:design {goal} @-` | Design without domain rules |
+| `/onto:evolve {goal}` | 온톨로지 기반 설계 — 기존 설계 대상에 새 영역 추가 (brownfield) |
+| `/onto:evolve {goal} @{domain}` | Design with specific domain |
+| `/onto:evolve {goal} @-` | Design without domain rules |
 
 ### Environment Management
 | Command | Description |

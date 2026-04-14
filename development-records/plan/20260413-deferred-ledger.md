@@ -209,13 +209,13 @@ relation_names:
 
 ### DL-013 ~ DL-014 (resolved 2026-04-13T15:30:00+09:00, via M-04 Phase A)
 - 해소 근거: 위 "M-04 Phase A (Task Schema·Canonical Output 결정) resolution_stage — 2 items" 섹션의 resolution_note 참조
-- M-04 Phase A core output: `authority/core-lexicon.yaml` v0.6.0 (activity_enum + axis_enum canonical seat) + `development-records/design/20260413-onto-todo.md` v1 (schema + 축별 빈 섹션) + m04-decisions.md (DR-M04-01/02)
+- M-04 Phase A core output: `authority/core-lexicon.yaml` v0.6.0 (activity_enum + axis_enum canonical seat) + `development-records/evolve/20260413-onto-todo.md` v1 (schema + 축별 빈 섹션) + m04-decisions.md (DR-M04-01/02)
 - commit: `15d1e56`
 - context: Stage completion protocol (DR-M00-06) 두 번째 완결 적용. `resolution_stage == M-04-A AND status == pending` 인 item = 0 (성공 기준 충족).
 
 ### DL-015, DL-031 (resolved 2026-04-13T19:20:00+09:00, via M-05)
 - 해소 근거: 위 "M-05 (Pre-draft Dependency Modeling) resolution_stage — 2 items" 섹션의 resolution_note 참조
-- M-05 core output: `development-records/design/20260413-onto-todo-dep-graph.md` v1 (축·활동 dep graph + Compound sequencing 규약 + D bootstrap/continuing) + `development-records/plan/20260413-m05-decisions.md` v1 (DR-M05-01/02/03) + `development-records/design/20260413-onto-todo.md` v1.3 (§4.2 skip-by-delegation exit 경로 추가)
+- M-05 core output: `development-records/evolve/20260413-onto-todo-dep-graph.md` v1 (축·활동 dep graph + Compound sequencing 규약 + D bootstrap/continuing) + `development-records/plan/20260413-m05-decisions.md` v1 (DR-M05-01/02/03) + `development-records/evolve/20260413-onto-todo.md` v1.3 (§4.2 skip-by-delegation exit 경로 추가)
 - commit: `da61adf`
 - context: Stage completion protocol (DR-M00-06) 세 번째 완결 적용. `resolution_stage == M-05 AND status == pending` 인 item = 0 (성공 기준 충족). Principal 판단 Option C (Phase B skip-by-delegation) 적용.
 

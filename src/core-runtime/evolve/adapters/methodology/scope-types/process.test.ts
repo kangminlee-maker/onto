@@ -18,7 +18,7 @@ describe("process scope type", () => {
         { path: "authority/core-lexicon.yaml", rank: 1, description: "Core concepts" },
         { path: "design-principles/ontology-as-code-guideline.md", rank: 2, description: "OaC principles" },
       ],
-      target_document: "processes/design.md",
+      target_document: "processes/evolve.md",
       perspectives: ["authority-consistency"],
     };
 
@@ -30,7 +30,7 @@ describe("process scope type", () => {
   it("rejects config with no authority sources", () => {
     const config: ProcessScopeConfig = {
       authority_sources: [],
-      target_document: "processes/design.md",
+      target_document: "processes/evolve.md",
       perspectives: ["authority-consistency"],
     };
 
@@ -45,7 +45,7 @@ describe("process scope type", () => {
         { path: "design-principles/oac.md", rank: 2, description: "OaC" },
         { path: "design-principles/llm-native.md", rank: 2, description: "LLM-Native" },
       ],
-      target_document: "processes/design.md",
+      target_document: "processes/evolve.md",
       perspectives: ["authority-consistency"],
     };
 
@@ -58,7 +58,7 @@ describe("process scope type", () => {
       authority_sources: [
         { path: "a.md", rank: 0, description: "A" },
       ],
-      target_document: "processes/design.md",
+      target_document: "processes/evolve.md",
       perspectives: ["authority-consistency"],
     };
 
@@ -80,7 +80,7 @@ describe("process scope type", () => {
   it("rejects config with no perspectives", () => {
     const config: ProcessScopeConfig = {
       authority_sources: [{ path: "a.md", rank: 1, description: "A" }],
-      target_document: "processes/design.md",
+      target_document: "processes/evolve.md",
       perspectives: [],
     };
 

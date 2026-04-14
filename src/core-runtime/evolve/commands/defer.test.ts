@@ -8,7 +8,7 @@ import { createScope } from "../../scope-runtime/scope-manager.js";
 import { appendScopeEvent } from "../../scope-runtime/event-pipeline.js";
 import { readEvents } from "../../scope-runtime/event-store.js";
 import { reduce } from "../../scope-runtime/reducer.js";
-import { handleDesignCli } from "../cli.js";
+import { handleEvolveCli } from "../cli.js";
 
 let tmpDir: string;
 
@@ -73,7 +73,7 @@ describe("executeDefer", () => {
   });
 });
 
-describe("onto design defer — CLI surface", () => {
+describe("onto evolve defer — CLI surface", () => {
   let logs: string[];
   let errors: string[];
   let logSpy: ReturnType<typeof vi.spyOn>;
@@ -100,7 +100,7 @@ describe("onto design defer — CLI surface", () => {
     const paths = createScope(scopesDir, "SC-CLI-DEFER-001");
     appendScopeEvent(paths, { type: "scope.created", actor: "user", payload: { title: "T", description: "d", entry_mode: "experience" } });
 
-    const code = await handleDesignCli(tmpDir, [
+    const code = await handleEvolveCli(tmpDir, [
       "defer",
       "--scope-id", "SC-CLI-DEFER-001",
       "--scopes-dir", scopesDir,
@@ -121,7 +121,7 @@ describe("onto design defer — CLI surface", () => {
     const scopesDir = join(tmpDir, "scopes");
     createScope(scopesDir, "SC-CLI-DEFER-002");
 
-    const code = await handleDesignCli(tmpDir, [
+    const code = await handleEvolveCli(tmpDir, [
       "defer",
       "--scope-id", "SC-CLI-DEFER-002",
       "--scopes-dir", scopesDir,
@@ -133,7 +133,7 @@ describe("onto design defer — CLI surface", () => {
   });
 
   it("rejects defer when --scope-id missing", async () => {
-    const code = await handleDesignCli(tmpDir, [
+    const code = await handleEvolveCli(tmpDir, [
       "defer",
       "--reason", "r",
       "--resume-condition", "c",
@@ -143,7 +143,7 @@ describe("onto design defer — CLI surface", () => {
   });
 
   it("lists defer in --help output", async () => {
-    const code = await handleDesignCli(tmpDir, ["--help"]);
+    const code = await handleEvolveCli(tmpDir, ["--help"]);
     expect(code).toBe(0);
     const output = logs.join("\n");
     expect(output).toContain("defer --scope-id");

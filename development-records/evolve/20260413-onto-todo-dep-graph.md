@@ -8,13 +8,13 @@ purpose: M-05 (Pre-draft Dependency Modeling) 산출 — 축 간·활동 간 의
 authority_stance: non-authoritative-design-surface
 canonicality: canonical-advancing  # M-06 이 본 그래프를 기반으로 work item 분배를 결정
 source_refs:
-  onto_direction: "development-records/design/20260413-onto-direction.md (§1.5 축 정의 + §1.2 활동 정의 정본, as_of=2026-04-13)"
-  onto_todo: "development-records/design/20260413-onto-todo.md v1.4 (schema + §1.1 row 18 compound_member + §1.3 Compound 무결성 불변식 + §1.3 depends_on 3종 의미 구분)"
+  onto_direction: "development-records/evolve/20260413-onto-direction.md (§1.5 축 정의 + §1.2 활동 정의 정본, as_of=2026-04-13)"
+  onto_todo: "development-records/evolve/20260413-onto-todo.md v1.4 (schema + §1.1 row 18 compound_member + §1.3 Compound 무결성 불변식 + §1.3 depends_on 3종 의미 구분)"
   m04_decisions: "development-records/plan/20260413-m04-decisions.md v1.2 (DR-M04-03 compound_member schema seat)"
   m05_decisions: "development-records/plan/20260413-m05-decisions.md v1.1 (DR-M05-01/02/03/04)"
   deferred_ledger: "development-records/plan/20260413-deferred-ledger.md v1.7 (DL-015 + DL-031 resolved)"
   consolidated: "development-records/plan/20260413-backlog-consolidated.md v3.2 (123 BL, compound 3 사례 식별)"
-  meta: "development-records/design/20260413-onto-todo-meta.md v5.1 (§M-05 spec)"
+  meta: "development-records/evolve/20260413-onto-todo-meta.md v5.1 (§M-05 spec)"
 decision_records_applied:
   - id: DR-M05-01
     status: applied
@@ -44,7 +44,7 @@ review_session_refs:
 ## 0. 위상·경계
 
 - **canonicality**: canonical-advancing. M-06 이 본 그래프를 읽어 축별 work item 분배를 결정.
-- **authority_stance**: non-authoritative-design-surface. rank 1 authority 아님. authority SSOT 는 `authority/core-lexicon.yaml` (axis_enum / activity_enum) + `development-records/design/20260413-onto-direction.md` §1.5 / §1.2.
+- **authority_stance**: non-authoritative-design-surface. rank 1 authority 아님. authority SSOT 는 `authority/core-lexicon.yaml` (axis_enum / activity_enum) + `development-records/evolve/20260413-onto-direction.md` §1.5 / §1.2.
 - **소비 제약**: 본 문서 참조는 **M-06 이후** 허용. M-05 종료 (DR-M05-01/02/03/04 applied + ledger v1.7 + execution-log M-05 entry) 후 활성화.
 
 ### 0.1 M-05 / M-06 / M-07 책임 경계 (v1.1 추가, DR-M05-04 — logic-01 해소)
@@ -316,12 +316,12 @@ onto-todo.md v1.2 §1.3 에서 depends_on 의 3종 의미를 이미 확정. 본 
 
 ## 8. 참조
 
-- `development-records/design/20260413-onto-direction.md` §1.5 (축 정의) + §1.2 (활동 정의)
-- `development-records/design/20260413-onto-todo.md` v1.3 (schema + §1.3 depends_on 의미 구분 + §4 Phase B exit 경로 skip-by-delegation 추가)
+- `development-records/evolve/20260413-onto-direction.md` §1.5 (축 정의) + §1.2 (활동 정의)
+- `development-records/evolve/20260413-onto-todo.md` v1.3 (schema + §1.3 depends_on 의미 구분 + §4 Phase B exit 경로 skip-by-delegation 추가)
 - `development-records/plan/20260413-m05-decisions.md` (DR-M05-01/02/03)
 - `development-records/plan/20260413-deferred-ledger.md` v1.7 (DL-015 + DL-031 resolved)
 - `development-records/plan/20260413-backlog-consolidated.md` v3.2 (123 BL — compound 3 사례 식별 근거)
-- `development-records/design/20260413-onto-todo-meta.md` v5.1 (§M-05 spec — 축 순서 D0→B→A→C+D continuing)
+- `development-records/evolve/20260413-onto-todo-meta.md` v5.1 (§M-05 spec — 축 순서 D0→B→A→C+D continuing)
 
 ## 9. 개정 이력
 

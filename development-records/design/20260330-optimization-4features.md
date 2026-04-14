@@ -168,7 +168,7 @@ Round 1에서 에이전트 에러 발생 시:
 |------|--------|
 | `processes/review.md` | Step 2 하단에 Error Recovery 섹션 추가 (process.md SSOT 참조 + review 고유 사항만) |
 | `processes/promote.md` | Step 3 하단에 process.md Error Handling Rules 참조 + promote 고유 사항만 기술 |
-| `processes/build.md` | process.md Error Handling Rules 참조 + build 고유 사항(Explorer = irreplaceable role) 기술 |
+| `processes/reconstruct.md` | process.md Error Handling Rules 참조 + build 고유 사항(Explorer = irreplaceable role) 기술 |
 
 ---
 

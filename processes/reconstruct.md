@@ -1,17 +1,17 @@
-# Ontology Build Process (Integral Exploration)
+# Ontology Reconstruct Process (Integral Exploration)
 
-> The Explorer traverses the source, and lenses provide exploration directions in an iterative loop that incrementally builds the ontology.
-> Related: After build, transform via `/onto:transform`, verification via `/onto:review`.
+> The Explorer traverses the source, and lenses provide exploration directions in an iterative loop that incrementally reconstructs the ontology.
+> Related: After reconstruct, transform via `/onto:transform`, verification via `/onto:review`.
 >
-> **State machine SSOT**: `src/core-runtime/scope-runtime/state-machine.ts` — `BUILD_TRANSITIONS` (W-B-02 dedup).
-> Build session 의 phase 전이(negotiating→gathering_context→build_exploring→adjudicating→awaiting_user_review→processing_responses→converting→converted)는 이 파일이 canonical definition.
+> **State machine SSOT**: `src/core-runtime/scope-runtime/state-machine.ts` — `BUILD_TRANSITIONS` (W-B-02 dedup, 상수명은 코드 식별자로 유지).
+> Reconstruct session 의 phase 전이(negotiating→gathering_context→build_exploring→adjudicating→awaiting_user_review→processing_responses→converting→converted)는 이 파일이 canonical definition. 상태 라벨 중 `build_exploring` 은 legacy 식별자 (rename 시 scope 폭증 회피).
 
-## Naming: reconstruct (activity) vs build (process)
+## Naming: reconstruct (activity + process)
 
-DL-013 activity taxonomy (2026-04-13) 이후 public activity name 은 **reconstruct** 로 통일되었다. 본 process document 의 파일명 `build.md` 는 legacy 명명으로 유지되며, 내용상의 "build" 호명도 그대로 남아 있다. 신규 참조는 activity name `reconstruct` 를 사용한다.
+DL-013 activity taxonomy (2026-04-13) 이후 public activity name 은 **reconstruct** 로 통일되었고, W-A-77 (2026-04-14) rename 으로 process filename 역시 `reconstruct.md` 로 정렬되었다. 본문 내 잔여 "build" 호명은 state-machine 상수 (`BUILD_TRANSITIONS`) 및 phase label (`build_exploring`) 등 코드 접점에만 남아 있으며, 외부 참조는 activity name `reconstruct` 를 사용한다.
 
 - **Activity name**: `reconstruct` (canonical, DL-013)
-- **Process filename**: `processes/build.md` (legacy, canonical 유지)
+- **Process filename**: `processes/reconstruct.md` (W-A-77 rename 완료, 2026-04-14)
 - **CLI entry**: `commands/reconstruct.md` (W-A-74 DL-020 해소, 2026-04-14)
 - **CLI handler**: `src/core-runtime/design/commands/reconstruct.ts`
 

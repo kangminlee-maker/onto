@@ -45,7 +45,7 @@
 > |---|---|---|
 > | §3 Review Lenses | Derived | `authority/core-lens-registry.yaml`, `roles/*.md` |
 > | §4.1 Review flow | Derived | `processes/review/productized-live-path.md` |
-> | §4.3 Build flow | Surface summary | `processes/build.md` |
+> | §4.3 Build flow | Surface summary | `processes/reconstruct.md` |
 > | §5 Domain System | Derived | `process.md` Domain Documents section |
 > | §6 Learning System | Derived | `learning-rules.md` |
 > | §7 Execution Profile | Derived | `process.md` Agent Teams Execution section |

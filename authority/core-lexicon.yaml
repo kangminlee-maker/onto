@@ -318,7 +318,7 @@ provisional_terms:
         - "commands/reconstruct.md (CLI entry 문서)"
         - "src/core-runtime/design/commands/reconstruct.ts (handler)"
         - "src/core-runtime/design/commands/reconstruct.test.ts (17 tests)"
-        - "processes/build.md §'Naming: reconstruct (activity) vs build (process)' 섹션"
+        - "processes/reconstruct.md §'Naming: reconstruct (activity) vs build (process)' 섹션"
       notes:
         - "DL-020 해소"
         - "§1.4 reconstruct 완료 기준 3축 (초안·why 추정·Principal 검증) 이 3-step 에 매핑됨"
@@ -816,8 +816,8 @@ terms:
         retire_date: "2026-04-13"
         context: >
           Legacy activity name retired 2026-04-13 via DR-M00-04 homonym mapping.
-          Scope: (1) activity 분류 시 build→reconstruct 로 계산, (2) 파일명·명령명 (processes/build.md, commands/build.md, npm build:*) 은 legacy 병존 허용 — rename phase 는 M-06 이후 별도 work item,
-          (3) 관용 표현 ("build 프로세스") 은 legacy 명칭 유지 가능, (4) promoted learning artifact 의 source token 은 retire 이후에도 historical record 로 보존.
+          Scope: (1) activity 분류 시 build→reconstruct 로 계산, (2) 파일명·명령명 rename 은 W-A-77 (2026-04-14) 에서 집행 완료 — 현재 canonical 은 `processes/reconstruct.md`, `commands/reconstruct.md`, slash `/onto:reconstruct`; `npm run build:ts-core` 는 TypeScript 컴파일 명령으로 activity 와 무관하며 유지,
+          (3) 관용 표현 ("build 프로세스") 은 legacy 명칭 유지 가능, (4) promoted learning artifact 의 source token 은 retire 이후에도 historical record 로 보존, (5) state-machine 코드 상수 (`BUILD_TRANSITIONS`) 및 phase label (`build_exploring`) 은 rename 시 scope 폭증으로 legacy 식별자 유지.
       - alias: "ask"
         retire_kind: "retired"
         canonical_replacement: null

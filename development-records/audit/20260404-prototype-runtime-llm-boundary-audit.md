@@ -75,9 +75,9 @@
 
 | 자산 그룹 | 현재 역할 | 현재 분류 | 이유 | 대표 파일 |
 |---|---|---|---|---|
-| `commands/` | host-facing 호출 표면 | 혼합 | 사용자(=주체자)가 보는 진입점이지만, 현재는 프롬프트 지시와 실행 규칙이 뒤섞여 있다 | `commands/review.md`, `commands/build.md` |
+| `commands/` | host-facing 호출 표면 | 혼합 | 사용자(=주체자)가 보는 진입점이지만, 현재는 프롬프트 지시와 실행 규칙이 뒤섞여 있다 | `commands/review.md`, `commands/reconstruct.md` |
 | `process.md` | 공통 실행 규칙, 에이전트 정의, 도메인 규칙 | 혼합 | 개념 SSOT와 실행 규칙이 함께 있다. 일부는 runtime화 가능, 일부는 `LLM` 지시다 | `process.md` |
-| `processes/` | 실제 작업 절차 정의 | 대부분 혼합 | 절차 안에 의미 판단과 파일시스템 조작이 모두 섞여 있다 | `processes/review.md`, `processes/build.md`, `processes/promote.md` |
+| `processes/` | 실제 작업 절차 정의 | 대부분 혼합 | 절차 안에 의미 판단과 파일시스템 조작이 모두 섞여 있다 | `processes/review.md`, `processes/reconstruct.md`, `processes/promote.md` |
 | `roles/` | 관점별 전문성 정의 | `LLM` 소유 | 전문 관점과 핵심 질문은 의미 판단 그 자체다 | `roles/onto_logic.md`, `roles/onto_axiology.md`, `roles/onto_synthesize.md` |
 | 도메인 문서 및 학습 파일 | 검토/구축의 기준 지식 | 혼합 | 내용은 `LLM`이 읽고 판단하지만, 저장 위치/승격/보존은 runtime화 가능하다 | `~/.onto/domains/*`, `~/.onto/learnings/*` |
 | backup/restore/health 류 프로세스 | 운영 보조 기능 | runtime 소유 | 의미 판단보다 파일시스템/집계/보존이 핵심이다 | `processes/backup.md`, `processes/restore.md`, `processes/health.md` |
@@ -101,7 +101,7 @@
 | 파일/그룹 | 현재 분류 | 판단 |
 |---|---|---|
 | `commands/review.md` | 혼합 | 명령 표면은 유지 가치가 있지만, 현재는 `--codex` 해석, config fallback, readiness check, 프로세스 지시가 한 문서에 섞여 있다 |
-| `commands/build.md` | 혼합 | 자연어 설명과 process handoff가 함께 있다 |
+| `commands/reconstruct.md` | 혼합 | 자연어 설명과 process handoff가 함께 있다 |
 | `commands/ask-*.md` | 혼합 | 진입점 surface는 유지하되, 에이전트 선택/도메인 해석은 분리 필요 |
 | `commands/help.md` | runtime 소유에 가까운 혼합 | 도움말 자체는 runtime/host 표면으로 옮기기 쉽지만, 현재는 prompt 문서 형식이다 |
 
@@ -149,9 +149,9 @@
 
 | 파일 | 현재 분류 | 판단 |
 |---|---|---|
-| `processes/build.md` | 혼합 | source exploration과 ontologyization이 함께 있는 핵심 mixed flow |
+| `processes/reconstruct.md` | 혼합 | source exploration과 ontologyization이 함께 있는 핵심 mixed flow |
 
-`processes/build.md` 세부 분류:
+`processes/reconstruct.md` 세부 분류:
 
 | 단계 | 현재 분류 | 이유 |
 |---|---|---|

@@ -36,7 +36,7 @@ purpose: Meta task 9/9 완료 후 실행 단계 진입을 위한 새 세션 hand
 | Ledger | 31/31 전원 resolved |
 | Decision Records | 32건 누적 (DR-M00~M08) |
 | Compound | 3개 (agent_id_rename 6, build_review_cycle 2+36, business_domain_wave 5) |
-| Cluster | 9 singleton + 2 focused (120+4). `processes/build.md` 52개 최대 충돌점 |
+| Cluster | 9 singleton + 2 focused (120+4). `processes/reconstruct.md` 52개 최대 충돌점 |
 
 ---
 
@@ -98,7 +98,7 @@ W-B 51건 중 active 32건, deferred 19건 (SE Stage 4 + 도메인 P3 + scale-tr
 ### 3.3 Cluster 규칙
 
 - 같은 cluster 내 W-ID 순차 실행 (동일 파일 동시 수정 금지)
-- `processes/build.md` 수정 시 52개 W-ID 직렬화 필요 — 단일 PR 또는 순차 PR
+- `processes/reconstruct.md` 수정 시 52개 W-ID 직렬화 필요 — 단일 PR 또는 순차 PR
 
 ---
 

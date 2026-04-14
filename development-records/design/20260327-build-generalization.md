@@ -160,11 +160,11 @@ labels:
 
 | File | Change type |
 |---|---|
-| `processes/build.md` | **Full rewrite** |
+| `processes/reconstruct.md` | **Full rewrite** |
 | `process.md` | Partial modification (certainty terminology, Teammate prompt) |
 | `README.md` | Partial modification (commands, certainty) |
 | `BLUEPRINT.md` | Partial modification (terminology, certainty, Explorer) |
-| `commands/build.md` | Completed |
+| `commands/reconstruct.md` | Completed |
 
 ### What Does NOT Change
 

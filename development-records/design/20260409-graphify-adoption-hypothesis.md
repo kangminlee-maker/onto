@@ -1666,7 +1666,7 @@ v6에서 정정한 onto-side 사실들 (1차 review C5/C6/C8 결과):
 
 | 항목 | v1 오기 | 정확한 상태 |
 |---|---|---|
-| **Certainty 단계 수** | "4단계 discrete" | **5 final levels** + **Stage 1 intermediate `pending`**. SSOT: `processes/build.md:40-58` |
+| **Certainty 단계 수** | "4단계 discrete" | **5 final levels** + **Stage 1 intermediate `pending`**. SSOT: `processes/reconstruct.md:40-58` |
 | **Explorer 도구** | "LLM 단일 패스로 모든 구조 인식" | 이미 **`Glob/Grep/Read` 결정론 도구** 사용 (`explorers/code.md:3`). 결손은 **"parser-backed AST prepass 부재"** |
 | **Rationale 처리** | "rationale 추출 없음" | 이미 있는 것: `lens: rationale`, `label: rationale`, `rationale-absent` certainty. 결손: **standalone canonical `fact_type: rationale` artifact seat 부재** |
 | **Hyperedge** | "saga/domain_flow이 동일 역할" | `domain_flows`(Schema B)와 `sagas`(Schema D)는 `steps`/`involved_*`를 가진 **workflow aggregate**. **generic N-ary primitive 아님** |

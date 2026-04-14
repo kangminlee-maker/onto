@@ -2,6 +2,11 @@
 
 `reconstruct` activity 의 CLI entry. 소스 (codebase / spreadsheet / database / document) 를 분석하여 domain ontology 초안을 산출한다.
 
+Slash command 진입점 (`/onto:reconstruct $ARGUMENTS`): `$ARGUMENTS` 는 분석 대상 경로. `@{domain}` / `@-` 로 도메인 지정 또는 no-domain 모드 선택.
+
+Read `~/.claude/plugins/onto/process.md` (common definitions) and
+`~/.claude/plugins/onto/processes/reconstruct.md`, then execute.
+
 ## Repo-local canonical bounded path
 
 Preferred entrypoint:
@@ -47,13 +52,13 @@ Internal bounded path (review 의 3-step 에 대응, W-A-74 DL-020 해소):
 
 ## Authority
 
-- **Process contract**: `processes/build.md` (activity=reconstruct, process filename=build 은 legacy 명명 — DL-013 activity taxonomy 에서 build → reconstruct rename)
+- **Process contract**: `processes/reconstruct.md` (activity=reconstruct, 파일명 2026-04-14 W-A-77 rename 완료)
 - **Handler**: `src/core-runtime/design/commands/reconstruct.ts` (`handleReconstructCli`)
 - **State**: `{session_root}/reconstruct-state.json` 단일 파일 (bounded minimum surface)
 
 ## Non-goals (현재 W-A-74 범위)
 
-- build runtime 의 Explorer/lens/Synthesize loop 실제 구현 — `processes/build.md` 1636줄 방법론을 건드리지 않는다
+- reconstruct runtime 의 Explorer/lens/Synthesize loop 실제 구현 — `processes/reconstruct.md` 1636줄 방법론을 건드리지 않는다
 - 다수 source type (DB, spreadsheet 등) 의 profile 확장 — `explorers/` 소관
 - 인증·권한·Principal UI 표면 — 별도 W-C 시리즈
 

@@ -310,9 +310,9 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     cluster_judgment:
       singletons: 9  # 완전 독립 실행 가능
       super_connectors: 5  # 매우 넓은 glob
-      focused_cluster_1: 120  # processes/build.md 52개 공유가 핵심 binding
+      focused_cluster_1: 120  # processes/reconstruct.md 52개 공유가 핵심 binding
       focused_cluster_2: 4  # roles/*.md glob 공유
-      max_overlap_file: "processes/build.md (52 W-ID)"
+      max_overlap_file: "processes/reconstruct.md (52 W-ID)"
     compound_integrity: "12/12 PASS (3 compound × 4 불변식)"
     lifecycle_balance:
       canonical_advancing: 17  # 4축 모두 존재 (A:7, B:3, C:4, D:3)

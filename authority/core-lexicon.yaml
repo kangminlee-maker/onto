@@ -1,4 +1,4 @@
-lexicon_version: "0.9.4"
+lexicon_version: "0.9.5"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
@@ -403,12 +403,16 @@ entities:
     instances:
       logic: { definition: "명제 간 모순, 전제-결론 비약, 조건 누락 검증" }
       structure: { definition: "구성 요소의 완전성, 참조 연결, 구조적 대칭 검증" }
-      dependency: { definition: "의존 방향, 순환, 버전 정합성 검증" }
+      dependency:
+        definition: "non-hierarchical directed relations (의존·인과·사용·생산·트리거 등) 의 방향·순환·다이아몬드 구조 검증. 파일 import 그래프 같은 코드-중심 dependency 에 국한되지 않으며, 비계층적 관계 일반의 방향성·구조를 다룬다"
+        notes: ["UF-1 (W-A-61, 2026-04-14): lens 이름이 코드 dependency 그래프로 오독되지 않도록 umbrella scope 명시"]
       semantics: { definition: "용어 정확성, 동의어 통일, 정의-사용 일치 검증" }
       pragmatics: { definition: "실제 사용 시나리오 추적, 실용성 검증" }
       evolution: { definition: "변경 내성, 확장성, 하위 호환성 검증" }
       coverage: { definition: "개념 공간 커버리지, 누락 영역 식별" }
-      conciseness: { definition: "불필요한 중복, 과잉 명세, 사용되지 않는 요소 식별" }
+      conciseness:
+        definition: "ontology-level parsimony — 중복 정의, 과잉 명세, 실질적 차이 없는 하위 분류 식별. prose brevity (문장을 짧게 쓰기) 가 아니라 개념 공간의 parsimony 이다"
+        notes: ["UF-2 (W-A-61, 2026-04-14): lens 이름이 prose 간결성으로 오독되지 않도록 ontology-level parsimony scope 명시"]
       axiology:
         definition: "목적/가치 정합성, 숨겨진 tradeoff, 이해관계자 영향 검증"
         notes: ["New Perspectives proposal 책임 (productization-charter §10.2)"]

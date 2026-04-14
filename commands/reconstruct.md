@@ -53,7 +53,7 @@ Internal bounded path (review 의 3-step 에 대응, W-A-74 DL-020 해소):
 ## Authority
 
 - **Process contract**: `processes/reconstruct.md` (activity=reconstruct, 파일명 2026-04-14 W-A-77 rename 완료)
-- **Handler**: `src/core-runtime/design/commands/reconstruct.ts` (`handleReconstructCli`)
+- **Handler**: `src/core-runtime/evolve/commands/reconstruct.ts` (`handleReconstructCli`)
 - **State**: `{session_root}/reconstruct-state.json` 단일 파일 (bounded minimum surface)
 
 ## Non-goals (현재 W-A-74 범위)
@@ -79,6 +79,6 @@ onto reconstruct complete --session-id 20260414-abcd1234
 
 ## 참조
 
-- Design principle: `development-records/design/20260413-onto-direction.md §1.4 reconstruct 완료 기준`
+- Design principle: `development-records/evolve/20260413-onto-direction.md §1.4 reconstruct 완료 기준`
 - DL 해소: `authority/delegated-decisions-ledger.md DL-020` (reconstruct-cli bounded path)
-- 쌍 CLI: `commands/review.md`, `commands/design.md`
+- 쌍 CLI: `commands/review.md`, `commands/evolve.md`

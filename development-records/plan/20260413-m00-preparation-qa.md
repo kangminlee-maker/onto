@@ -147,7 +147,7 @@ M-01/M-02/M-06 subagent가 병렬 실행될 때 산출물 저장 경로 및 merg
 |---|---|---|---|
 | **M-01 (활동별 inventory)** | `.onto/temp/m01-activity-inventory/{activity}.md` (예: review.md, design.md, reconstruct.md, learn.md, govern.md 5개 파일) | 메인 세션 | M-03이 5개 파일을 직접 read |
 | **M-02 (축 B 인프라 inventory)** | `.onto/temp/m02-infra-inventory/{component}.md` (예: scope-runtime.md, readers.md, middleware.md 등) | 메인 세션 | M-03이 모든 파일을 직접 read |
-| **M-06 (축별 work item 초안)** | `.onto/temp/m06-axis-draft/{axis}.md` (A.md, B.md, C.md, D.md 4개 파일) | 메인 세션 (central merge gate) | M-07이 4개 파일을 단일 `development-records/design/20260413-onto-todo.md`로 통합 |
+| **M-06 (축별 work item 초안)** | `.onto/temp/m06-axis-draft/{axis}.md` (A.md, B.md, C.md, D.md 4개 파일) | 메인 세션 (central merge gate) | M-07이 4개 파일을 단일 `development-records/evolve/20260413-onto-todo.md`로 통합 |
 
 **Merge 절차**:
 1. Subagent가 자기 seat에 write
@@ -251,7 +251,7 @@ pre-briefing은 v5.1 "실행 중 자연 반영" 원칙에 선택적으로 추가
 - `development-records/plan/` 이미 존재, 2 파일 보유:
   - `20260404-prototype-to-service-productization-plan.md`
   - `20260404-review-prototype-to-product-mapping.md`
-- `development-records/design/`는 설계 결정 (v5.1, §1 등)
+- `development-records/evolve/`는 설계 결정 (v5.1, §1 등)
 - 둘 다 추적 대상, git 관리
 
 **결정: 기존 `plan/` 재사용**
@@ -352,7 +352,7 @@ lifecycle 단계별 선제 분포(buildout/migration/validation/maintenance/adop
 | A1 ↔ A3 | Phase A pre-briefing과 PB-3(M-04 Phase A 직전)이 겹칠 수 있음. **해소**: pre-briefing은 선택적, default rule로 자동 처리. |
 | A2 ↔ A3 | Subagent 사용 시 Principal 개입 경로 명시. **해소**: governance artifact 형식이 subagent에도 적용. |
 | A2 ↔ A4 | 축별 부하 편차가 subagent 배분 효율 저해. **해소**: 축 C·D는 병렬 제외, 축 A·B만 병렬. |
-| A1 ↔ A5 | Phase A 산출물 seat와 backlog consolidated seat 구분. **해소**: Phase A 산출물은 `development-records/design/` (설계 결정 성격), backlog는 `plan/`. |
+| A1 ↔ A5 | Phase A 산출물 seat와 backlog consolidated seat 구분. **해소**: Phase A 산출물은 `development-records/evolve/` (설계 결정 성격), backlog는 `plan/`. |
 | A3 ↔ A5 | governance artifact seat가 `plan/` 하위. **해소**: `development-records/plan/20260413-m00-decisions.md`, `20260413-m04-decisions.md`로 일관. |
 
 ---

@@ -207,7 +207,7 @@ W-A-12 는 `blockers: ["Phase 1 completion"]` — Phase 1 전원 done 후에만 
 
 **리스크**:
 - 1~2h 소요. 세션 6 budget 대부분 소모
-- `commands/onto-health.md` + `src/core-runtime/design/commands/health.ts` + test 3 파일 신규
+- `commands/onto-health.md` + `src/core-runtime/evolve/commands/health.ts` + test 3 파일 신규
 
 ### 5.4 **비추천 세션 6**:
 
@@ -237,10 +237,10 @@ W-A-12 는 `blockers: ["Phase 1 completion"]` — Phase 1 전원 done 후에만 
 
 ```bash
 cat development-records/plan/20260414-execution-session6-startup.md  # 본 파일
-cat development-records/design/20260413-onto-todo.md                  # W-ID canonical seat
-cat development-records/design/20260413-onto-todo-dep-graph.md         # 의존 그래프
+cat development-records/evolve/20260413-onto-todo.md                  # W-ID canonical seat
+cat development-records/evolve/20260413-onto-todo-dep-graph.md         # 의존 그래프
 cat development-records/plan/20260413-refresh-protocol.md              # Refresh protocol
-cat development-records/design/20260413-onto-direction.md              # §1 정본 (가치 축 원전)
+cat development-records/evolve/20260413-onto-direction.md              # §1 정본 (가치 축 원전)
 cat authority/core-lexicon.yaml                                        # v0.9.4
 cat development-records/audit/20260414-se-domain-retrospective-sync-w-b-18-25.md  # sync v1
 cat development-records/audit/20260414-sessions-1-4-retrospective-sync.md          # sync v2

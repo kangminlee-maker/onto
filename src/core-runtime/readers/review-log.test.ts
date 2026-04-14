@@ -96,7 +96,7 @@ function makeReviewRecord(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeBinding(refs: string[] = ["/mock/project/processes/design.md"]) {
+function makeBinding(refs: string[] = ["/mock/project/processes/evolve.md"]) {
   return {
     resolved_target_scope: {
       kind: "file",
@@ -126,7 +126,7 @@ function createSession(
   sessionId: string,
   execOverrides: Record<string, unknown> = {},
   recordOverrides: Record<string, unknown> = {},
-  bindingRefs: string[] = ["/mock/project/processes/design.md"],
+  bindingRefs: string[] = ["/mock/project/processes/evolve.md"],
 ) {
   const sessionDir = join(reviewRoot, sessionId);
   mkdirSync(sessionDir, { recursive: true });
@@ -250,11 +250,11 @@ describe("review-log", () => {
         "20260413-aaa00001",
         {},
         {},
-        ["/mock/project/processes/design.md"],
+        ["/mock/project/processes/evolve.md"],
       );
 
       const result = collectReviewLogs(testDir, "/mock/project");
-      expect(result.entries[0]!.review_target_refs).toEqual(["processes/design.md"]);
+      expect(result.entries[0]!.review_target_refs).toEqual(["processes/evolve.md"]);
     });
 
     it("execution-result.yaml 없는 세션은 건너뛴다", () => {

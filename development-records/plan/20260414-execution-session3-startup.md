@@ -93,8 +93,8 @@ W-B-08 (diagnostic registry), W-B-16 (figma-mcp skeleton), W-B-18~28 (SE 도메�
 ## 4. 핵심 입력 파일
 
 ```bash
-cat development-records/design/20260413-onto-todo.md       # W-ID canonical seat
-cat development-records/design/20260413-onto-todo-dep-graph.md  # 의존 그래프
+cat development-records/evolve/20260413-onto-todo.md       # W-ID canonical seat
+cat development-records/evolve/20260413-onto-todo-dep-graph.md  # 의존 그래프
 cat development-records/plan/20260413-refresh-protocol.md   # Refresh protocol
 cat authority/core-lexicon.yaml                            # lexicon v0.9.0 + 3 seed terms
 ```

@@ -47,8 +47,8 @@ let cachedRegistry: Registry | null = null;
 
 function resolveRegistryPath(): string {
   // authority/diagnostic-codes.yaml — dist / src 양쪽에서 작동
-  // src: src/core-runtime/design/commands/error-messages.ts
-  // dist: dist/core-runtime/design/commands/error-messages.js
+  // src: src/core-runtime/evolve/commands/error-messages.ts
+  // dist: dist/core-runtime/evolve/commands/error-messages.js
   // 양쪽 모두 4 단계 위가 repo root.
   const here = dirname(fileURLToPath(import.meta.url));
   const repoRoot = join(here, "..", "..", "..", "..");

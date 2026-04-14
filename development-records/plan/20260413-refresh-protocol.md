@@ -11,9 +11,9 @@ purpose: |
 authority_stance: non-authoritative-design-surface
 canonicality: canonical-advancing  # refresh protocol 자체가 onto-todo lifecycle 관리의 canonical seat
 source_refs:
-  meta: "development-records/design/20260413-onto-todo-meta.md v5.1 §M-08"
-  onto_todo: "development-records/design/20260413-onto-todo.md v2 (139 W-ID, §3 갱신 규칙)"
-  onto_direction: "development-records/design/20260413-onto-direction.md (§1 정본)"
+  meta: "development-records/evolve/20260413-onto-todo-meta.md v5.1 §M-08"
+  onto_todo: "development-records/evolve/20260413-onto-todo.md v2 (139 W-ID, §3 갱신 규칙)"
+  onto_direction: "development-records/evolve/20260413-onto-direction.md (§1 정본)"
   deferred_ledger: "development-records/plan/20260413-deferred-ledger.md v1.12"
   m07_decisions: "development-records/plan/20260413-m07-decisions.md v1 (DR-M07-01~04)"
   m00_decisions: "development-records/plan/20260413-m00-decisions.md (DR-M00-06 stage completion protocol)"
@@ -101,7 +101,7 @@ active ─► deprecated ─► archived ─► (6개월 후 expansion-migration
 
 - **삭제 금지** (onto-todo.md §3 원칙). 행 자체를 제거하지 않음.
 - **done**: 행 유지. evidence_seat 의 검증 증거가 참조 가능한 상태로 보존.
-- **archived → expansion-migration**: `development-records/design/expansion-migration-{YYYYMMDD}.md` 에 이관. 원 행에는 `notes: "archived → expansion-migration-{YYYYMMDD}.md 이관"` 기록.
+- **archived → expansion-migration**: `development-records/evolve/expansion-migration-{YYYYMMDD}.md` 에 이관. 원 행에는 `notes: "archived → expansion-migration-{YYYYMMDD}.md 이관"` 기록.
 
 ### 2.3 Defer 전환·복귀 규칙
 

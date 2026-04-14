@@ -653,16 +653,16 @@ async function main(): Promise<number> {
     case "migrate-session-roots":
       return handleMigrateSessionRoots(subcommandArgv);
 
-    case "design": {
-      const { handleDesignCli } = await import(
-        "./core-runtime/design/cli.js"
+    case "evolve": {
+      const { handleEvolveCli } = await import(
+        "./core-runtime/evolve/cli.js"
       );
-      return handleDesignCli(ontoHome, subcommandArgv);
+      return handleEvolveCli(ontoHome, subcommandArgv);
     }
 
     case "reconstruct": {
       const { handleReconstructCli } = await import(
-        "./core-runtime/design/commands/reconstruct.js"
+        "./core-runtime/evolve/commands/reconstruct.js"
       );
       return handleReconstructCli(ontoHome, subcommandArgv);
     }
@@ -694,7 +694,7 @@ async function main(): Promise<number> {
           "Usage: onto <subcommand> [options]",
           "",
           "Subcommands:",
-          "  design start <description>  Start a design scope",
+          "  evolve start <description>   Start an evolve scope",
           "  reconstruct <subcommand>    Reconstruct activity CLI (start/explore/complete)",
           "  review <target> <intent>   Run 9-lens review",
           "  review --complete-session   Complete a prepared session",

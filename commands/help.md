@@ -16,9 +16,9 @@ Display the command reference below in the configured language.
 /onto:review {target} @-                   Review without domain rules
 /onto:review {target} --codex              Use codex host runtime (Codex CLI path)
 /onto:build {path|URL}                     Build ontology from analysis target
-/onto:design {goal}                        Design new areas for existing target (brownfield)
-/onto:design {goal} @{domain}              Design with specific domain
-/onto:design {goal} @-                     Design without domain rules
+/onto:evolve {goal}                        Design new areas for existing target (brownfield)
+/onto:evolve {goal} @{domain}              Design with specific domain
+/onto:evolve {goal} @-                     Design without domain rules
 /onto:transform {file}                     Transform raw ontology to desired format
 ```
 

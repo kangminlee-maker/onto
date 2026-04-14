@@ -43,8 +43,8 @@ purpose: 실행 단계 세션 4 완료 후, 세션 5 진입을 위한 handoff. d
 | 32 | W-B-50 | B | supporting | graphify hypothesis v7 verification + authority owner 결정 기록 | BL-117 | `84981cc` |
 | 33 | W-A-53 | A | scaffolding | defer CLI 서브커맨드 노출 + defer.ts 분리 (+7 test) | BL-061 | `8706dcb` |
 | 34 | W-A-49 | A | supporting | §9.3 domain=none fallback 4요소 self-containedness | BL-038 CONS-1 | `31adf72` |
-| 35 | W-A-51 | A | supporting | processes/design.md §8 entrypoint reference surfaces | BL-058 R-3 | `7f2f7c2` |
-| 36 | W-A-52 | A | supporting | processes/design.md §9 install-surface authority alignment + lexicon seed | BL-059 R-4 | `1a8666b` |
+| 35 | W-A-51 | A | supporting | processes/evolve.md §8 entrypoint reference surfaces | BL-058 R-3 | `7f2f7c2` |
+| 36 | W-A-52 | A | supporting | processes/evolve.md §9 install-surface authority alignment + lexicon seed | BL-059 R-4 | `1a8666b` |
 
 ### 세션 4 주요 산출물
 
@@ -52,11 +52,11 @@ purpose: 실행 단계 세션 4 완료 후, 세션 5 진입을 위한 handoff. d
 |---|---|
 | `src/core-runtime/readers/mcp-figma.ts` | figma-mcp 스켈레톤 (scan + grounding + hash helper) |
 | `src/core-runtime/readers/mcp-generic.ts` | generic mcp (type:"mcp") 스켈레톤 |
-| `src/core-runtime/design/commands/defer.ts` | executeDefer close.ts 에서 분리 |
-| `src/core-runtime/design/commands/defer.test.ts` | executeDefer 단위 + CLI surface integration 7 test |
+| `src/core-runtime/evolve/commands/defer.ts` | executeDefer close.ts 에서 분리 |
+| `src/core-runtime/evolve/commands/defer.test.ts` | executeDefer 단위 + CLI surface integration 7 test |
 | `development-records/audit/20260414-graphify-hypothesis-verification-w-b-50.md` | Phase 0 ARCH 6건 + BT-E5/E6 split + Promotion gate presence + authority owner 결정 |
 | `processes/review/lens-prompt-contract.md` v2 | §9.3 하위 3 subsection (절차·4요소·role 위임) |
-| `processes/design.md` | §8 entrypoint reference surfaces + §9 install-surface alignment 4 불변식 |
+| `processes/evolve.md` | §8 entrypoint reference surfaces + §9 install-surface alignment 4 불변식 |
 | `authority/core-lexicon.yaml` v0.9.4 | +invoke_surface, +install_surface 2 seed |
 
 ### 테스트 지표
@@ -165,10 +165,10 @@ receiving seat 결정 (lens-navigation-matrix 이력 참조). 3 옵션 제시 �
 
 ```bash
 cat development-records/plan/20260414-execution-session5-startup.md  # 본 파일
-cat development-records/design/20260413-onto-todo.md                  # W-ID canonical seat
-cat development-records/design/20260413-onto-todo-dep-graph.md         # 의존 그래프
+cat development-records/evolve/20260413-onto-todo.md                  # W-ID canonical seat
+cat development-records/evolve/20260413-onto-todo-dep-graph.md         # 의존 그래프
 cat development-records/plan/20260413-refresh-protocol.md              # Refresh protocol
-cat development-records/design/20260413-onto-direction.md              # §1 정본 (가치 축 원전)
+cat development-records/evolve/20260413-onto-direction.md              # §1 정본 (가치 축 원전)
 cat authority/core-lexicon.yaml                                        # v0.9.4
 ```
 

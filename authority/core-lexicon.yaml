@@ -11,7 +11,7 @@ notes:
   - "v0.9.1 additive (W-A-75, 2026-04-14): provisional_terms 에 review_ontology_present_path + review_path_label 2 seed 등재. DL-029 review-r+ path 성문화. canonical-advancing."
   - "v0.9.2 additive (W-A-76, 2026-04-14): provisional_terms 에 review_ontology_absent_path seed 등재. DL-029 review-r− fallback path 성문화 + classifier session_overrides hook. canonical-advancing."
   - "v0.9.3 additive (W-A-74, 2026-04-14): provisional_terms 에 reconstruct_bounded_path seed 등재. DL-020 reconstruct-cli 3-step bounded path 성문화 (review 3-step 대비 비대칭 해소). canonical-advancing."
-  - "v0.9.4 additive (W-A-52, 2026-04-14): provisional_terms 에 invoke_surface + install_surface 2 seed 등재. R-4 install-surface authority alignment 성문화 (processes/design.md §9). supporting."
+  - "v0.9.4 additive (W-A-52, 2026-04-14): provisional_terms 에 invoke_surface + install_surface 2 seed 등재. R-4 install-surface authority alignment 성문화 (processes/evolve.md §9). supporting."
   - "v0.8.0 additive (W-A-63, 2026-04-13): review_record term → entity 승격. lifecycle_status attribute 부여. review_process relation produces→creates 전환. lexicon Stage 3-3 merge."
   - "v0.7.0 additive (W-D-01+W-D-03, D0 Bootstrap, 2026-04-13): provisional_lifecycle section 신설 (W-D-01) — lexicon term 성숙도 전이 모델 (seed→candidate→provisional→promoted) + 전이 조건 + 소비 정책 + lifecycle_status 관리 위치 성문화. provisional_terms section 신설 (W-D-03) — dep graph §2.2.1 4 seat 구조 (recording seat + actor + consumer + promotion path) + entry schema + 빈 entries. §1 정본 '다음 작업 #2' + BL-123 대응."
 
@@ -316,8 +316,8 @@ provisional_terms:
         구조적 원인이 유지된다.
       evidence:
         - "commands/reconstruct.md (CLI entry 문서)"
-        - "src/core-runtime/design/commands/reconstruct.ts (handler)"
-        - "src/core-runtime/design/commands/reconstruct.test.ts (17 tests)"
+        - "src/core-runtime/evolve/commands/reconstruct.ts (handler)"
+        - "src/core-runtime/evolve/commands/reconstruct.test.ts (17 tests)"
         - "processes/reconstruct.md §'Naming: reconstruct (activity) vs build (process)' 섹션"
       notes:
         - "DL-020 해소"
@@ -329,14 +329,14 @@ provisional_terms:
       registered_by: "W-A-52"
       registered_date: "2026-04-14"
       definition_draft: >
-        entrypoint 호출 시 주체자가 진입하는 표면 파일. design 활동에서는 commands/design.md
-        (repo) 또는 그 install 경로 ~/.claude/plugins/onto/commands/design.md 를 가리킨다.
-        authority seat (processes/design.md) 을 참조하는 citation 의 출발점이며,
+        entrypoint 호출 시 주체자가 진입하는 표면 파일. design 활동에서는 commands/evolve.md
+        (repo) 또는 그 install 경로 ~/.claude/plugins/onto/commands/evolve.md 를 가리킨다.
+        authority seat (processes/evolve.md) 을 참조하는 citation 의 출발점이며,
         install_surface 가 deterministic snapshot 으로 mirror 된다.
         없으면 repo 경로와 install 경로 어느 쪽이 실제 호출 대상인지 모호해진다.
       evidence:
-        - "commands/design.md (invoke surface 실체)"
-        - "processes/design.md §9 (Install-Surface Authority Alignment)"
+        - "commands/evolve.md (invoke surface 실체)"
+        - "processes/evolve.md §9 (Install-Surface Authority Alignment)"
       notes:
         - "R-4 성문화 seed. authority seat 는 기존 rank 1 authority 파일 개념이므로 별도 seed 없음."
         - "§8 command surface 와 동일 실체를 가리키며 §9 alignment 불변식의 참조점."
@@ -352,8 +352,8 @@ provisional_terms:
         independent authority 를 갖지 않는다 (non-mutation). drift 는 재설치로만 보정된다.
         없으면 install tree 에 대한 현장 수정이 authority seat 를 우회할 수 있다.
       evidence:
-        - "processes/design.md §9.2 (4 불변식)"
-        - "commands/design.md 의 ~/.claude/plugins/onto/ 상대 경로 citation"
+        - "processes/evolve.md §9.2 (4 불변식)"
+        - "commands/evolve.md 의 ~/.claude/plugins/onto/ 상대 경로 citation"
       notes:
         - "R-4 성문화 seed. invoke_surface 와 한 쌍으로 alignment 모델의 축을 형성."
         - "runtime-bound 경로에서도 동일 불변식 적용 (§9.4)."
@@ -805,7 +805,7 @@ terms:
     definition: "§1.2 에 정의된 onto 의 다섯 활동. work item / consolidated / inventory / ledger 의 activity field canonical enum. 본 term 이 enum 의 authority SSOT."
     allowed_values:
       - "review"
-      - "design"
+      - "evolve"
       - "reconstruct"
       - "learn"
       - "govern"
@@ -819,6 +819,16 @@ terms:
           Scope: (1) activity 분류 시 build→reconstruct 로 계산, (2) 파일명·명령명·slash command rename 은 W-A-77 (2026-04-14) 에서 집행 완료 — 현재 canonical 은 `processes/reconstruct.md`, `commands/reconstruct.md`, slash `/onto:reconstruct`; `npm run build:ts-core` 는 TypeScript 컴파일 명령으로 activity 와 무관하며 유지,
           (3) state-machine 코드 식별자 (`RECONSTRUCT_TRANSITIONS` / `ReconstructState` / `reconstruct_exploring` / `reconstruct_failed` 등) 도 W-A-77 에서 전수 rename 완료 — legacy `BUILD_*` / `build_*` 식별자는 제거됨,
           (4) 관용 표현 ("build 프로세스") 은 legacy 명칭 유지 가능, (5) promoted learning artifact 의 source token 은 retire 이후에도 historical record 로 보존.
+      - alias: "design"
+        retire_kind: "renamed"
+        canonical_replacement: "evolve"
+        retire_date: "2026-04-15"
+        context: >
+          Legacy activity name retired 2026-04-15 via W-A-78 (entrypoint-only rename).
+          Scope: (1) entrypoint (파일·디렉토리·slash·CLI·activity_enum·W-ID activity field·TS handler) 는 W-A-78 에서 `evolve` 로 전수 치환 — current canonical: `processes/evolve.md`, `commands/evolve.md`, `src/core-runtime/evolve/`, `development-records/evolve/`, slash `/onto:evolve`, `onto evolve <subcommand>`, `handleEvolve*`,
+          (2) 방법론 term (`design_target`, `design_area`, `design_constraint`, `design_gap`) 은 entrypoint 가 아닌 lexicon entity 이므로 legacy 명칭 유지 — Perl word boundary (`\b`) 매칭에서 `_` 가 word char 이므로 자동 보존,
+          (3) 한국어 자연어 "설계" (e.g., "설계 대상", "설계 방식") 는 자연어 번역어로 보존. entrypoint 지칭 맥락의 한국어 "설계" 는 향후 Phase B 에서 영문 "evolve" 로 통일 예정,
+          (4) 관용 표현 ("design 프로세스") 은 legacy 명칭 유지 가능, (5) promoted learning artifact 의 source token 은 retire 이후에도 historical record 로 보존.
       - alias: "ask"
         retire_kind: "retired"
         canonical_replacement: null
@@ -833,7 +843,7 @@ terms:
         context: "Single-letter shortcode used in consolidated.md Activity column (DR-M00-03). Decoded at read time. legacy_aliases 에 등재하여 validator 가 unknown value 거부하지 않도록 함."
       - alias: "D"
         retire_kind: "shortcode"
-        canonical_replacement: "design"
+        canonical_replacement: "evolve"
         retire_date: null
         context: "Single-letter shortcode. Decoded at read time."
       - alias: "R"
@@ -852,7 +862,7 @@ terms:
         retire_date: null
         context: "Single-letter shortcode. Decoded at read time."
     notes:
-      - "Canonical definition source: development-records/design/20260413-onto-direction.md#§1.2 (as_of=2026-04-13)."
+      - "Canonical definition source: development-records/evolve/20260413-onto-direction.md#§1.2 (as_of=2026-04-13)."
       - "Consumers: M-05/M-06/M-07/M-08 work items (activity field), consolidated.md frontmatter activity_enum_ref, Expansion Protocol."
       - "Reference format: `authority/core-lexicon.yaml#activity_enum.v<lexicon_version>` (DR-M04-02). lexicon_version bump 시 reader 재파싱."
       - "Homonym caution: 본 enum 의 'activity' 는 onto taxonomy 단위이며, 일반 한국어 '활동' 과 혼동하지 않도록 consumer 는 canonical_label 인 'activity' 를 taxonomy 문맥에서만 사용."
@@ -875,6 +885,6 @@ terms:
       - "C = 자율성 진화 (메타). self-application 메커니즘 + drift 판정 + 큐·승인 흐름 + 수준 0→1→2 엔진."
       - "D = 상시 원칙 (교차). lexicon provisional lifecycle. 모든 축 교차 원칙, 독립 축 아님."
       - "Axis 간 의존 (§1.5 derived): A→B (활동 구현은 인프라 위에서 작동, A0=scope-runtime framework 추출은 A 선행), C→{A,B} (자율성은 A·B 최소 1사이클 운영 후 설계), D→{A,B,C} (모든 축 교차)."
-      - "Canonical definition source: development-records/design/20260413-onto-direction.md#§1.5 (as_of=2026-04-13)."
+      - "Canonical definition source: development-records/evolve/20260413-onto-direction.md#§1.5 (as_of=2026-04-13)."
       - "Consumers: M-05/M-06/M-07/M-08 work items (axis field + W-ID token), consolidated.md frontmatter axis_enum_ref, Expansion Protocol 축 추가·삭제·병합 trigger."
       - "Reference format: `authority/core-lexicon.yaml#axis_enum.v<lexicon_version>` (DR-M04-02)."

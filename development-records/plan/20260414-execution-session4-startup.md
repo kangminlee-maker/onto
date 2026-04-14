@@ -53,7 +53,7 @@ purpose: 실행 단계 세션 3 완료 후, 세션 4 진입을 위한 handoff. d
 | `processes/review/ontology-absent-path.md` | r− 경로 계약 + r+ 대비 품질 저하 측정 |
 | `src/core-runtime/review/ontology-path-classifier.ts` | r+/r− 라벨링 + cohort delta + per-session override hook |
 | `commands/reconstruct.md` | reconstruct CLI entry 문서 |
-| `src/core-runtime/design/commands/reconstruct.ts` | `handleReconstructCli` start/explore/complete |
+| `src/core-runtime/evolve/commands/reconstruct.ts` | `handleReconstructCli` start/explore/complete |
 | `authority/diagnostic-codes.yaml` | 12 diagnostic entry registry |
 | `development-records/prototype/20260414-design-prototype-w-a-58.md` | 프로토타입 관찰 기록 |
 | `development-records/prototype/20260414-design-prototype-r10-verification-w-b-44.md` | R10 4 카테고리 판정 |
@@ -171,10 +171,10 @@ W-A-59 (/onto:health 대시보드) 같은 supporting 단건 먼저. 이후 build
 
 ```bash
 cat development-records/plan/20260414-execution-session4-startup.md  # 본 파일
-cat development-records/design/20260413-onto-todo.md                  # W-ID canonical seat
-cat development-records/design/20260413-onto-todo-dep-graph.md         # 의존 그래프
+cat development-records/evolve/20260413-onto-todo.md                  # W-ID canonical seat
+cat development-records/evolve/20260413-onto-todo-dep-graph.md         # 의존 그래프
 cat development-records/plan/20260413-refresh-protocol.md              # Refresh protocol
-cat development-records/design/20260413-onto-direction.md              # §1 정본 (가치 축 원전)
+cat development-records/evolve/20260413-onto-direction.md              # §1 정본 (가치 축 원전)
 cat authority/core-lexicon.yaml                                        # v0.9.3 + 6 seed terms
 ```
 

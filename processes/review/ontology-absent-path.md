@@ -10,7 +10,7 @@ authority_stance: non-authoritative-design-surface
 canonicality: canonical-advancing
 source_refs:
   w_id: "W-A-76 (DL-029 review-r− — ontology-absent path)"
-  onto_direction: "development-records/design/20260413-onto-direction.md §1.4 — review 완료 기준 3: ontology 유무 경로 분기"
+  onto_direction: "development-records/evolve/20260413-onto-direction.md §1.4 — review 완료 기준 3: ontology 유무 경로 분기"
   dl_provenance: "DL-029 (DR-M06-04 Option A — r+/r− 2-path split)"
   paired_contract: "processes/review/ontology-path.md (W-A-75, r+ path)"
   classifier_impl: "src/core-runtime/review/ontology-path-classifier.ts"

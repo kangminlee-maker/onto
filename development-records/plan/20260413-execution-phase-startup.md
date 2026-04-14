@@ -110,16 +110,16 @@ cd /Users/kangmin/cowork/onto-4
 git branch --show-current
 
 # W-ID canonical seat
-cat development-records/design/20260413-onto-todo.md
+cat development-records/evolve/20260413-onto-todo.md
 
 # 의존 그래프
-cat development-records/design/20260413-onto-todo-dep-graph.md
+cat development-records/evolve/20260413-onto-todo-dep-graph.md
 
 # Refresh protocol
 cat development-records/plan/20260413-refresh-protocol.md
 
 # §1 정본
-cat development-records/design/20260413-onto-direction.md
+cat development-records/evolve/20260413-onto-direction.md
 
 # core-lexicon (W-D-01~03 대상)
 cat authority/core-lexicon.yaml

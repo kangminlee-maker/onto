@@ -58,38 +58,5 @@ export function executeClose(paths: ScopePaths): CloseOutput {
   };
 }
 
-// ─── Defer ───
-
-export function executeDefer(
-  paths: ScopePaths,
-  reason: string,
-  resumeCondition: string,
-): CloseOutput {
-  const events = readEvents(paths.events);
-  const state = reduce(events);
-
-  const terminalStates = ["closed", "deferred", "rejected"];
-  if (terminalStates.includes(state.current_state)) {
-    return {
-      success: false,
-      reason: `현재 상태가 ${state.current_state}입니다. 이미 종료된 scope는 보류할 수 없습니다.`,
-    };
-  }
-
-  const result = appendScopeEvent(paths, {
-    type: "scope.deferred",
-    actor: "user",
-    payload: { reason, resume_condition: resumeCondition },
-  });
-
-  if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
-  refreshScopeMd(paths, result.state);
-
-  return {
-    success: true,
-    nextState: "deferred",
-    message: "Scope가 보류되었습니다.",
-  };
-}
-
 // refreshScopeMd is imported from ./shared.ts (UF-CONCISENESS-SCOPE-MD consolidated)
+// executeDefer lives in ./defer.ts so that deferral has its own CLI surface.

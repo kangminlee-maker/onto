@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { executeClose, executeDefer } from "./close.js";
+import { executeClose } from "./close.js";
 import { createScope } from "../../scope-runtime/scope-manager.js";
 import { appendScopeEvent } from "../../scope-runtime/event-pipeline.js";
 import { readEvents } from "../../scope-runtime/event-store.js";
@@ -105,25 +105,4 @@ describe("executeClose", () => {
   });
 });
 
-describe("executeDefer", () => {
-  it("defers from any non-terminal state", () => {
-    const paths = createScope(tmpDir, "SC-DEFER-001");
-    appendScopeEvent(paths, { type: "scope.created", actor: "user", payload: { title: "T", description: "d", entry_mode: "experience" } });
-
-    const result = executeDefer(paths, "방향 재정립 필요", "다음 분기 재개");
-    expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.nextState).toBe("deferred");
-
-    const state = reduce(readEvents(paths.events));
-    expect(state.current_state).toBe("deferred");
-  });
-
-  it("fails from terminal state", () => {
-    const paths = setupValidated();
-    executeClose(paths); // → closed
-
-    const result = executeDefer(paths, "test", "test");
-    expect(result.success).toBe(false);
-  });
-});
+// executeDefer tests have moved to ./defer.test.ts

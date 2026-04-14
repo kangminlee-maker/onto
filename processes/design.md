@@ -276,3 +276,31 @@ design 프로세스의 데이터 구조(scope event, config, adapter output)가 
 |---|---|---|
 | code-product | experience, interface | 런타임 경로 구현 완료 |
 | methodology | process | 스켈레톤. CLI command에서 분기하지 않음. 런타임 경로 미구현 |
+
+---
+
+## 8. Entrypoint Reference Surfaces (prompt-backed path)
+
+prompt-backed reference 경로에서 design 진입은 **세 surface** 를 순차로 읽은 뒤 실행된다. 각 surface 는 고정된 authority 역할을 갖는다.
+
+| Surface | 파일 | 실행 형태 (prompt-backed) | authority 역할 |
+|---|---|---|---|
+| **command** | `commands/design.md` | 주체자가 호출 문장으로 참조. 호출 인자·옵션·authority seat 포인터를 담는다 | 호출 계약 — 인자 형식과 default 경로 |
+| **process** | `processes/design.md` | 호출 직후 LLM 이 context 로 로드. 6-Phase 계약·adapter 분기·4절 반복 설계·5절 대상 중립성 등 활동 전반 규칙 | 프로세스 계약 (이 문서) — design 의 canonical rule seat |
+| **overview** | `process.md` (repo 루트) | 세 번째로 로드. activity_enum, invocation_interpretation/binding, entrypoint 공통 정의 등 활동 간 공통 개념 | 공통 정의 — 복수 활동이 공유하는 개념 seat |
+
+### 8.1 실행 순서
+
+1. command surface 가 호출 진입을 고정한다 (commands/design.md)
+2. LLM 은 command surface 의 "Read ... then execute" 지시에 따라 overview → process → learning-rules.md 순으로 로드한다
+3. 세 surface 로드 완료 후 6-Phase 실행이 시작된다
+
+### 8.2 추가 read-target 과의 경계
+
+`learning-rules.md` 는 3 surface 에 포함되지 않는다. 학습 저장 규칙(§6) 의 단일 소유 seat 일 뿐이며, entrypoint surface 는 아니다. command surface 는 `learning-rules.md` 를 entrypoint surface 와 동등한 자격이 아닌 **storage rule pointer** 로 명시해야 한다.
+
+### 8.3 Non-prompt-backed 경로
+
+runtime-bound adapter (code-product) 는 prompt-backed reference 경로가 아니다. runtime 은 commands/design.md 의 CLI 인자만 해석하고 6-Phase 를 runtime 상태 머신으로 구동한다. 이 경우 overview surface 의 활동 간 공통 정의는 `src/core-runtime/scope-runtime/types.ts` 가 적용되는 구현으로 해석한다.
+
+---

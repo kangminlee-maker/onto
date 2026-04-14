@@ -6,4 +6,11 @@ Shows learning pool health dashboard. No agent spawning required.
 - (empty): Global learnings health
 - "project": Project learnings health
 
-Read `~/.claude/plugins/onto/processes/health.md`, then execute.
+**Deterministic CLI path (preferred)**:
+```
+onto health          # Global learnings
+onto health project  # Project learnings
+```
+CLI implementation: `src/core-runtime/cli/health.ts`. Rule owner: `processes/health.md`.
+
+**Prompt-backed fallback**: If CLI is unavailable, read `~/.claude/plugins/onto/processes/health.md` and execute per spec.

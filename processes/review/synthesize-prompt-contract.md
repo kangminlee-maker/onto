@@ -102,14 +102,31 @@
 ```yaml
 ---
 deliberation_status: not_needed | performed
+participation:
+  expected_lenses: [<lens_id>, ...]         # binding 이 active 로 선언한 lens id 목록
+  received_lenses: [<lens_id>, ...]         # output 을 성공적으로 산출한 lens id
+  missing_or_failed_lenses:                 # expected 에 있으나 received 에 없는 lens
+    - { lens_id: <id>, reason: missing | failed | abstained }
+  run_status: full | degraded | insufficient
 ---
 ```
 
-`deliberation_status` 값 사용 규칙:
+### 5.1 `deliberation_status` 값 규칙
 
 - `not_needed`: lens 간 disagreement가 없는 경우.
 - `performed`: synthesize가 §6에 따라 in-process deliberation을 수행하고 resolution을 기록한 경우.
 - `required_but_unperformed`: synthesize 출력에서는 사용하지 않는다. 이 값은 runner가 synthesize task 자체의 실패를 감지했을 때만 record assembler가 부여하는 failure marker다.
+
+### 5.2 Participation completeness (IA-2)
+
+- `expected_lenses` / `received_lenses` / `missing_or_failed_lenses` / `run_status` 는 `roles/synthesize.md` §Participation completeness 가 요구하는 측정 결과의 직렬화다
+- `run_status` 매핑: `full` = expected == received. `degraded` = received 가 expected 의 non-empty 부분집합. `insufficient` = received 가 비어있거나 `axiology` 단독
+- `run_status=insufficient` 이면 consensus / disagreement 섹션은 "data insufficient" marker 로 남기고 합의 claim 을 produce 하지 않는다
+- 이 frontmatter 는 degraded run 을 full consensus 로 오독하는 것을 방지하는 audit 근거다
+
+### 5.3 Section list (canonical taxonomy)
+
+아래는 이 contract 가 정하는 **단독 canonical section 명칭** 이다. 동의어 / legacy alias 는 §5.4 alias map 을 따르며 이 list 로 정규화한다.
 
 1. consensus
 2. conditional consensus
@@ -123,6 +140,49 @@ deliberation_status: not_needed | performed
 10. deliberation decision
 11. final review result
 12. shared phenomenon summary — 동일 phenomenon에 대한 다중 lens claim이 있는 경우, claim relation 분류 결과를 명시한다 (corroboration / disagreement / partial overlap / dedup). 분류 규칙은 `processes/review/shared-phenomenon-contract.md` §4를 따른다. 이 계약은 분류 규칙을 재정의하지 않는다
+
+### 5.4 Alias map (IA-3)
+
+canonical label 과 자주 drift 되는 legacy alias 쌍. synthesis output 은 canonical label 만 사용한다.
+
+| Canonical | Legacy alias (금지) |
+|---|---|
+| `disagreement` | `contradiction`, `conflict` (lens 간 의견 차이 의미일 때) |
+| `conditional consensus` | `conditional agreement`, `conditional agreement (with stipulation)` |
+| `immediate actions` | `recommended actions (urgent)`, `required actions` |
+| `recommendations` | `recommended actions (non-urgent)`, `suggestions` |
+| `axiology-proposed additional perspectives` | `axiology-proposed new perspectives`, `new perspectives` (role header 제외) |
+
+legacy alias 발견 시 synthesis output 은 canonical 로 정규화한다. prompt packet materializer 는 §5.3 label 만 emit 한다.
+
+### 5.5 Per-item provenance (IA-4)
+
+sections 1–12 의 각 item 은 아래 provenance 필드를 갖는다. 명시 형식은 markdown 내 bullet 로 기술한다 (직렬 예시 §5.5.1).
+
+- **supporting_lenses** — 이 item 의 claim 을 지지한 lens id 목록
+- **contesting_lenses** — 이 item 에 대해 반대 claim 을 제기한 lens id 목록. 없으면 빈 배열
+- **adjudication_basis** — 이견이 해소된 경우 `roles/synthesize.md` §Adjudication boundary 의 3 경로 중 어느 것 (`cited_lens_output` / `declared_rule_resolved_artifact` / `deliberation_artifact`) + 해당 근거 anchor (파일 경로 / lens output 위치). 미해소 시 `unresolved`
+- **evidence_gaps** — 해소에 부족한 증거 영역 (있는 경우, 1~2 문장)
+
+#### 5.5.1 직렬 예시
+
+```markdown
+- **consensus-1**: 모든 lens 가 X 접근이 목적 정렬에 부합한다고 판단한다.
+  - supporting_lenses: [logic, structure, semantics, dependency, pragmatics, evolution, coverage, conciseness, axiology]
+  - contesting_lenses: []
+  - adjudication_basis: cited_lens_output (round1/logic.md §3, round1/structure.md §2, ...)
+  - evidence_gaps: null
+```
+
+### 5.6 Immediate actions priority rule (IA-1)
+
+§5.3 item 7 `immediate actions` 에 부여되는 priority 는 아래 중 하나의 declared source 에 근거해야 한다.
+
+- cited lens output 이 "immediate" 또는 "blocking" 으로 표기한 finding
+- declared rule-resolved artifact (예: `shared-phenomenon-contract` 가 blocking 으로 분류) 
+- deliberation artifact 가 priority 를 명시
+
+위 source 중 어느 것도 없는 action 은 `recommendations` (§5.3 item 8) 로 분류하거나 priority 없이 `immediate actions` 에 unprioritized marker 와 함께 유지한다. synthesize 가 "합리적 판단" 으로 priority 를 부여하는 것은 §Adjudication boundary 금지 경로다.
 
 **Runtime packet과의 정합성**: 위 12개 항목 중 4 (overlooked premises), 11 (final review result), 12 (shared phenomenon summary)는 현 runtime packet (`materialize-review-prompt-packets.ts`)이 별도 heading으로 강제하지 않는다. 4와 12는 9개 분류 섹션 (Consensus / Conditional Consensus / Disagreement / Unique Finding Tagging)이 적용하는 Tagging Completeness Rule에 흡수되며, 11은 synthesis output 자체와 등가다. 이 3개 항목을 별도 heading으로 부활시킬지 또는 이 contract에서 제거할지는 packet 갱신 PR이 단일 결정 seat이며, 본 contract는 그 결정 시점까지 12개 enumeration을 conceptual reference로 보존한다.
 

@@ -667,6 +667,11 @@ async function main(): Promise<number> {
       return handleReconstructCli(ontoHome, subcommandArgv);
     }
 
+    case "health": {
+      const { handleHealth } = await import("./core-runtime/cli/health.js");
+      return handleHealth(ontoHome, subcommandArgv);
+    }
+
     case "learn":
     case "govern":
     case "build":
@@ -701,6 +706,7 @@ async function main(): Promise<number> {
           "  promote --status <id>        Inspect ApplyExecutionState",
           "  reclassify-insights         Reclassify [insight] role tags",
           "  migrate-session-roots       Move pre-v3 sessions under review/",
+          "  health [project]            Learning pool health dashboard (default: global)",
           "",
           "Options:",
           "  --onto-home <path>         Override onto installation directory",

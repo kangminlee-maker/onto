@@ -181,39 +181,36 @@ review_target_materialized_input:
 
 현재 프로토타입 기준의 lens output은 markdown 파일이다.
 
-### 8.1 Output Schema (schema_version: 2)
+### 8.1 Output Structure (schema_version: 2)
 
-최소 아래를 포함해야 한다.
+Lens markdown output 은 아래 section 구조를 따른다. Section 수준 구조만 본 절이 소유하며, **field 수준의 필수 규약은 §8.2/§8.3 이 소유한다** (중복 서술 금지).
 
 1. structural inspection 결과
-2. lens-specific finding
-3. issue별 설명 — 각 finding은 아래 필수 필드를 포함한다:
-   - `target`: 검토 대상 식별자
-   - `evidence_anchor`: evidence locus의 직렬화 (파일경로:라인, §번호 등)
-   - `claim`: what + severity + direction
-   - `lens_id`: 자동 부여
-   - `upstream_evidence_required`: 이 finding의 action이 다른 lens의 사전 판단에 조건부인지 여부 (`true`/`false`)
-   - what (상세 설명)
-   - why (문제 이유)
-   - how to fix (수정 방향)
-4. no-issue case라면 rationale
-5. `### Newly Learned`
-6. `### Applied Learnings`
-7. `### Domain Constraints Used` — 검증에 사용한 domain rule의 durable provenance 기록 (domain-document-backed lenses만 해당, axiology 제외). 각 항목은 `{source_doc, source_version_or_snapshot_id, anchor}` 형식이다
-8. `### Domain Context Assumptions` — 검증에 사용한 비형식적 domain usage-context 가정 기록 (해당 시)
+2. lens-specific finding — issue 가 있는 경우, finding 당 다음을 포함한다:
+   - **4-Field Claim** (§8.3 참조): `{target, evidence_anchor, claim, lens_id}`
+   - **Enforced Fields** (§8.2 참조): 해당되는 enforced field
+   - **Human-readable sections**: `what` (상세 설명) / `why` (문제 이유) / `how to fix` (수정 방향)
+3. no-issue case 라면 rationale
+4. `### Newly Learned`
+5. `### Applied Learnings`
+6. `### Domain Constraints Used` — 검증에 사용한 domain rule 의 durable provenance 기록 (domain-document-backed lenses 만 해당, axiology 제외). 각 항목은 `{source_doc, source_version_or_snapshot_id, anchor}` 형식이다
+7. `### Domain Context Assumptions` — 검증에 사용한 비형식적 domain usage-context 가정 기록 (해당 시)
 
 ### 8.2 Enforced Fields
 
+Field-level 필수 규약의 유일 seat 이다. §8.1 output structure 는 본 절을 참조만 한다.
+
 | 필드 | 설명 | 해당 lens |
 |---|---|---|
-| `upstream_evidence_required` | 각 finding에 부여되는 conditionality flag. action이 다른 lens의 사전 판단에 조건부인지 여부 (`true`/`false`) | conciseness (필수), 기타 (해당 시) |
-| `domain_constraints_used` | 사용한 domain rule의 durable provenance 목록 | domain-document-backed lenses (axiology 제외) |
+| `upstream_evidence_required` | 각 finding 에 부여되는 conditionality flag. action 이 다른 lens 의 사전 판단 또는 boundary-外 탐색 결과에 조건부인지 여부 (`true`/`false`) | conciseness (필수), §9.2 #4 경로 진입 시 (필수), 기타 (해당 시) |
+| `domain_constraints_used` | 사용한 domain rule 의 durable provenance 목록 | domain-document-backed lenses (axiology 제외) |
 | `domain_context_assumptions` | 사용한 비형식적 domain usage-context 가정 목록 | 모든 lens (해당 시) |
+| `exploration_trigger` | boundary 밖 탐색이 필요하다고 판정한 근거. 어느 observation 이 boundary 초과를 가리키는지의 원문 anchor (파일경로:라인 또는 §번호) | §9.2 #4 경로 진입 finding 만 (필수) |
 
 ### 8.3 4-Field Claim Requirement
 
-모든 lens finding은 `{target, evidence_anchor, claim, lens_id}` 4필드를 필수로 포함해야 한다.
-4필드의 의미와 co-location rule은 `processes/review/shared-phenomenon-contract.md`가 정의한다.
+모든 lens finding 은 `{target, evidence_anchor, claim, lens_id}` 4필드를 필수로 포함해야 한다.
+4필드의 의미와 co-location rule 은 `processes/review/shared-phenomenon-contract.md` 가 정의한다.
 이 계약은 직렬화 형식만 소유한다.
 
 ### 8.4 Artifact Position
@@ -269,10 +266,24 @@ structured lens artifact의 source가 된다.
 
 모든 lens는 아래 공통 경계 규율을 따른다.
 
-1. 자기 perspective의 observation focus 내에서만 finding을 제기한다
-2. 다른 lens의 perspective에 해당하는 finding도 자기 관점에서 독립적으로 제기할 수 있다 (overlap-permitted lens claims). overlap 정책과 claim relation 분류는 `processes/review/shared-phenomenon-contract.md`가 정의한다
-3. 검증에 사용한 domain rule이나 usage-context 가정은 §8.1의 enforced field에 기록한다
-4. 경계 밖 탐색이 필요하다고 판단되면, finding에 "boundary 밖 탐색이 필요함"을 명시하되 실제 탐색은 수행하지 않는다
+1. 자기 perspective 의 observation focus 내에서만 finding 을 제기한다
+2. 다른 lens 의 perspective 에 해당하는 finding 도 자기 관점에서 독립적으로 제기할 수 있다 (overlap-permitted lens claims). overlap 정책과 claim relation 분류는 `processes/review/shared-phenomenon-contract.md` 가 정의한다
+3. 검증에 사용한 domain rule 이나 usage-context 가정은 §8.2 Enforced Fields 에 기록한다
+4. **경계 밖 탐색이 필요하다고 판단되면**, 다음을 모두 수행한다:
+   a. finding 에 `"boundary 밖 탐색이 필요함"` 을 명시한다
+   b. 판정 근거 — 어느 observation 이 boundary 초과를 가리키는가 — 를 `exploration_trigger` 필드(§8.2)에 원문 anchor 형식으로 기록한다
+   c. 실제 탐색은 수행하지 않는다
+   d. `upstream_evidence_required` 를 `true` 로 표시한다. action 이 미래 탐색 결과에 조건부이기 때문이다
+
+### 9.2.1 Fail-close for Boundary Signal
+
+§9.2 #4 경로로 marking 된 finding 은 downstream 에서 silent 하게 정상 action 으로 승격되지 않는다. 구체 규약은 다음과 같다.
+
+1. `upstream_evidence_required=true` 로 고정된 finding 은 synthesize 에서 **conditional** 상태를 유지한다 (§9.1 Decision Preconditions 의 conditional 메커니즘과 동일)
+2. `exploration_trigger` provenance 는 synthesis output 에 보존되어야 한다. 제거·요약은 허용되지 않는다
+3. 향후 세션에서 exploration 결과가 실제로 공급되면 conditional → final 전환은 별도 재판정에서 이루어진다. 본 계약은 그 전환의 lens-side 입력 규약만 소유한다
+
+synthesis 측 강제 (conditional 보존, 병합 금지) 는 `synthesize-prompt-contract.md` 가 소유한다. 본 절은 lens output 측 의무만 규정한다.
 
 ---
 

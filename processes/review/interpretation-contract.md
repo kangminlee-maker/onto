@@ -76,7 +76,11 @@
 6. `review_mode_recommendation`
    - `light` 또는 `full`
 7. `lens_selection_plan`
-   - 특히 중요하게 보아야 할 lens와 recommended lens set
+   - 특히 중요하게 보아야 할 lens 와 recommended lens set
+   - shape: `always_include`, `recommended_lenses`, `rationale`
+   - **`always_include`** 는 `[axiology]` 를 포함해야 한다. 목적·가치 정합 검증은 모든 리뷰의 필수 구성이며, 그 어떤 리뷰 대상에서도 제외 불가하다. 이 원칙의 판정 규칙 층 seat 는 `processes/review/shared-phenomenon-contract.md §7.3 Axiology 제외 불가` 이다
+   - **`recommended_lenses`** 는 `processes/review/shared-phenomenon-contract.md §7.1 Reverse 적용 규칙` 에 따라 도출한다. 즉 target 본문 sampling → phenomenon 추출 → 각 lens perspective 와의 co-location 판정의 결과이다. 본 절은 이 결과의 output schema 만 소유하며, 판정 규칙은 §7 을 참조만 한다
+   - **`rationale`** 은 각 lens 선택이 어느 phenomenon 과의 co-location 에 근거하는지 명시한다
 8. `ambiguity_notes`
    - 모호한 점이 있으면 기록
 

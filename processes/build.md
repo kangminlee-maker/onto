@@ -1647,6 +1647,59 @@ Save path:
 
 ---
 
+## Domain Document Integrity Rules
+
+본 절은 build process 가 domain document 를 input 으로 소비하거나, domain document 확장 작업 (생성, Stage 3 coverage expansion, Stage 4 protocol extension 등) 을 수행할 때 적용되는 canonical process rule seat 이다. 구체 domain (software-engineering, business, ui-design 등) 적용은 이 규칙의 instance 이며, 규칙 자체는 domain 중립이다.
+
+### P-1. Cross-Reference Integrity Check (교차 참조 무결성 점검 단계)
+
+도메인 문서 확장 (생성 또는 Stage 3 coverage expansion) 직후에 다음을 수행한다.
+
+1. 각 domain document 의 `Related Documents` 섹션이 참조하는 대상 파일이 실제 존재하는지 확인한다
+2. 각 cross-reference (§번호, 섹션명, anchor) 가 대상 파일 내에서 실제 존재하는 섹션/anchor 를 가리키는지 확인한다
+3. 팬텀 참조 (존재하지 않는 섹션 참조) 는 HIGH severity 로 기록하고 확장 완료 처리를 보류한다
+
+적용 근거: domain 확장 직후 panel review 의 HIGH finding 중 다수가 교차 참조 무결성 갭에서 기인한다 (BL-085 의 SE domain Stage 3 리뷰 evidence).
+
+본 규칙은 domain-중립 canonical rule 이다. 구체 instance: BL-103 (Business 도메인 wave 3 교차 참조 + 글로벌 동기화). DL-010 `rule_to_instance` relation 이 BL-085(본 규칙) ↔ BL-103(instance) 의 연결을 유지한다.
+
+초기 생성 단계의 부분 검증은 `processes/create-domain.md §2 Reference Graph Validation` 이 소유한다. 본 규칙은 확장·후속 변경의 canonical seat 이다.
+
+### P-2. Structural Inspection Checklist Self-Referential Verification (자기 참조 검증)
+
+domain document 확장 직후 또는 domain document 변경 시, review 단계의 Structural Inspection Checklist (`processes/review/lens-prompt-contract.md §7`) 가 다음 3 점검 축을 포함함을 본 계약이 규정한다.
+
+1. **분류 축 선언** (classification axis declaration) — 모든 domain document 가 분류 축을 명시하는가. 기존 SIC 항목 `axis explicitness` 가 이 점검을 수행한다
+2. **선언-실체 대응** (declaration-substance correspondence) — `domain_scope.md` 의 모든 sub-area 가 다른 domain document 에 실체 (rule, CQ, concept, extension case 등) 를 가지는가. 기존 SIC 항목 `ghost sub-area check` 가 이 점검을 수행한다
+3. **참조 무결성** (referential integrity) — cross-reference 가 실제 존재하는 섹션을 가리키는가. 기존 SIC 항목 `domain cross-reference validity` 가 이 점검을 수행한다
+
+본 규칙은 점검 **축** 의 canonical seat 이며, checklist 의 owner seat 는 `processes/review/lens-prompt-contract.md §7` 이다. 동일 점검 축이 다른 문서에 normative 로 존재하면 authority violation 이다.
+
+실행 시점: domain document 변경 시 (매 build 세션 이 아님).
+
+P-2 와 P-1 의 역할 분리: P-1 은 build/extend 직후의 process gate (생산 시점), P-2 는 review-time 의 lens 공통 점검 (소비 시점). 두 gate 가 동일 cross-ref 점검을 중복 수행하지 않도록 실행 시점이 분리된다.
+
+근거: BL-086, philosopher_synthesis CC-3 (4/4 합의).
+
+### P-3. Inter-Stage File Overlap Pre-check (Stage 1↔Stage 2 영향 파일 겹침 사전 확인)
+
+domain document refactoring 을 두 편집 축 (간결성 cleanup — 제거/병합, 그리고 참조 무결성 수정 — 리네이밍) 으로 분리 수행하는 경우, 개시 전에 다음을 확인한다.
+
+1. 각 편집 축의 대상 파일 집합을 산출한다
+2. 두 집합의 교집합에 속하는 파일이 있는지 확인한다
+3. 교집합이 있으면 동일 파일 내 편집 위치 (섹션·줄 범위) 가 중복되는지 확인한다
+   - 중복 있음 → 두 축의 순서 (간결성 우선 또는 참조 우선) 를 disagreement 로 기록하고 사전 판정한다. 판정 근거는 각 축의 안전성·효율성 기준이다
+   - 중복 없음 → 두 축의 atomic 병렬 실행이 가능하다
+4. 판정 결과는 해당 domain 의 refactoring plan 에 provenance 로 기록한다
+
+적용 근거: 편집 축 순서 선택이 "제거 → 참조 수정" (효율성 기준) vs "참조 수정 → 제거" (안전성 기준) 로 갈릴 때, 영향 파일의 겹침 여부가 선택의 결정 기준이다 (BL-087 의 SE 리뷰 disagreement resolution evidence).
+
+**용어 주의**: 본 규칙에서 "Stage 1/Stage 2" 는 domain document refactoring 의 두 편집 축을 의미한다. Phase 1 Integral Exploration Loop 의 Stage 1 (entity exploration) / Stage 2 (behavior exploration) 와 맥락이 다르며 혼동하지 않는다.
+
+근거: BL-087.
+
+---
+
 ## Change Propagation Checklist
 
 When modifying this file (build.md), the following documents must be synchronized:

@@ -304,3 +304,40 @@ prompt-backed reference 경로에서 design 진입은 **세 surface** 를 순차
 runtime-bound adapter (code-product) 는 prompt-backed reference 경로가 아니다. runtime 은 commands/design.md 의 CLI 인자만 해석하고 6-Phase 를 runtime 상태 머신으로 구동한다. 이 경우 overview surface 의 활동 간 공통 정의는 `src/core-runtime/scope-runtime/types.ts` 가 적용되는 구현으로 해석한다.
 
 ---
+
+## 9. Install-Surface Authority Alignment
+
+entrypoint 가 호출될 때, 주체자가 실제로 접근하는 파일(`invoke_surface`) 과 repo 의 authority seat(`processes/design.md` canonical 본문) 이 동일 artifact truth 를 보도록 보장하는 규칙.
+
+### 9.1 세 경로의 구분
+
+| 개념 | 실체 | 역할 |
+|---|---|---|
+| **authority seat** | repo 의 `processes/design.md` (이 파일) | canonical rule 의 원천. 모든 버전 기준의 진실 |
+| **invoke surface** | `commands/design.md` (repo) 또는 `~/.claude/plugins/onto/commands/design.md` (installed) | 주체자가 호출로 진입하는 표면. §8 command surface 와 동일 |
+| **install surface** | `~/.claude/plugins/onto/` 하위 설치 트리 | 활성 실행 시 invoke surface 가 읽는 실제 파일 위치 |
+
+### 9.2 Alignment 불변식
+
+1. **Mirror requirement**: install surface 는 authority seat 의 deterministic snapshot 이다. 설치 시점 이후 authority seat 가 개정되면 install surface 는 재설치 전까지 stale 이다.
+2. **Single-truth citation**: invoke surface (`commands/design.md`) 의 `Read ... then execute` 블록이 참조하는 경로는 install surface 상대 경로(`~/.claude/plugins/onto/...`) 로 통일한다. repo 상대 경로와 install 상대 경로가 한 블록 안에서 혼용되면 artifact truth 가 이원화된다.
+3. **Version parity**: install surface 와 authority seat 버전 차이는 재설치(또는 plugin update) 로만 해소된다. runtime 은 mismatch 를 감지할 책임이 없다 — 주체자가 install 절차로 보정한다.
+4. **Non-mutation**: install surface 에 대한 현장 수정은 금지한다. 실험은 repo 에서 수행하고 재설치로 반영한다. install surface 의 파일은 authority seat 의 materialization 일 뿐이며, 독립적 authority 를 갖지 않는다.
+
+### 9.3 Drift 탐지 기준
+
+runtime 은 install/authority drift 를 자동으로 탐지하지 않는다. 다음 경로로 주체자 또는 거버넌스 프로세스가 보정한다.
+
+- **명시적 재설치**: plugin install 스크립트 실행 → authority seat 의 현재 snapshot 이 install surface 로 복제.
+- **Version 문자열 점검**: `authority/core-lexicon.yaml` 의 `lexicon_version` 과 install tree 의 동일 파일의 `lexicon_version` 을 비교하여 drift 를 수동 확인. 불일치 시 재설치.
+- **Governance 통과 시점**: §1 정본 개정이 merge 된 시점에 install surface 는 잠정 stale 로 간주. 다음 실행 전 재설치가 권장 경로.
+
+### 9.4 Runtime-bound 경로와의 관계
+
+runtime-bound adapter (code-product) 는 invoke surface 의 CLI 인자만 해석하므로 install-surface drift 가 prompt-backed 경로만큼 직접적으로 노출되지는 않는다. 그러나 runtime 도 repo 외부의 packaged binary 로 배포될 때 동일 불변식이 적용된다 — binary 버전과 authority seat 버전의 mirror requirement.
+
+### 9.5 용어
+
+`invoke_surface`, `install_surface` 는 `authority/core-lexicon.yaml#provisional_terms` 에 seed 로 등재된다 (W-A-52). authority seat 는 기존 rank 1 authority 파일 개념과 동일하며 별도 seed 가 아니다.
+
+---

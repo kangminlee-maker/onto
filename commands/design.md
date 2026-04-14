@@ -23,3 +23,5 @@ Read `~/.claude/plugins/onto/process.md` (common definitions — overview surfac
 `~/.claude/plugins/onto/learning-rules.md` (learning storage rules — *not* an entrypoint surface), then execute.
 
 Three entrypoint reference surfaces for the prompt-backed path are defined in `processes/design.md` §8 — command (this file) / process / overview. `learning-rules.md` is a storage-rule pointer, not one of the three surfaces.
+
+**Install-surface alignment**: the `~/.claude/plugins/onto/` paths above resolve to the *install surface* (a deterministic snapshot of the authority seat `processes/design.md`). Repo-path and install-path citations must not be mixed within the Read block; drift is boundary-managed per `processes/design.md` §9 and is resolved by re-installing the plugin, not by editing the install tree directly.

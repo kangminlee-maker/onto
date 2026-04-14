@@ -26,6 +26,8 @@ export async function handleDesignCli(
       return handleDesignApply(subArgv);
     case "close":
       return handleDesignClose(subArgv);
+    case "defer":
+      return handleDesignDefer(subArgv);
 
     case "--help":
     case "-h":
@@ -40,6 +42,7 @@ export async function handleDesignCli(
           "  draft --scope-id <id>       Generate draft packet / confirm surface / decide constraints",
           "  apply --scope-id <id>       Apply design to implementation",
           "  close --scope-id <id>       Close a validated scope",
+          "  defer --scope-id <id>       Defer a non-terminal scope",
           "",
           "Options:",
           "  --project-root <path>       Project root (default: cwd)",
@@ -48,6 +51,8 @@ export async function handleDesignCli(
           "  --scope-id <id>             Target scope ID (required for align/draft/apply/close)",
           "  --entry-mode <mode>         'experience', 'interface', or 'process' (default: experience)",
           "  --verdict <verdict>         Align verdict: approve/revise/reject/redirect",
+          "  --reason <text>             Defer reason (required for defer)",
+          "  --resume-condition <text>   Condition under which scope resumes (required for defer)",
         ].join("\n"),
       );
       return 0;
@@ -250,6 +255,25 @@ async function handleDesignClose(argv: string[]): Promise<number> {
 
   const { executeClose } = await import("./commands/close.js");
   const result = executeClose(paths);
+  console.log(JSON.stringify(result, null, 2));
+  return result.success ? 0 : 1;
+}
+
+// ─── defer ───
+
+async function handleDesignDefer(argv: string[]): Promise<number> {
+  const paths = resolveScopePathsFromArgv(argv);
+  if (!paths) return 1;
+
+  const reason = readOption(argv, "reason");
+  const resumeCondition = readOption(argv, "resume-condition");
+  if (!reason || !resumeCondition) {
+    console.error("[onto] design defer requires --reason and --resume-condition.");
+    return 1;
+  }
+
+  const { executeDefer } = await import("./commands/defer.js");
+  const result = executeDefer(paths, reason, resumeCondition);
   console.log(JSON.stringify(result, null, 2));
   return result.success ? 0 : 1;
 }

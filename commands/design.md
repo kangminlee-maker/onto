@@ -18,6 +18,10 @@ design <goal> [@{domain} | @-] [--ontology <path>] [--source <path>] [--prior-de
 
 **design_target binding**: `--source`가 가리키는 경로가 설계 대상(design_target)이다. 생략 시 프로젝트 루트. 이 경로의 파일이 Phase 2~5의 탐색 범위이며, Phase 1 outcome의 대상이다.
 
-Read `~/.claude/plugins/onto/process.md` (common definitions),
-`~/.claude/plugins/onto/processes/design.md` (process contract), and
-`~/.claude/plugins/onto/learning-rules.md` (learning storage rules), then execute.
+Read `~/.claude/plugins/onto/process.md` (common definitions — overview surface),
+`~/.claude/plugins/onto/processes/design.md` (process contract — process surface), and
+`~/.claude/plugins/onto/learning-rules.md` (learning storage rules — *not* an entrypoint surface), then execute.
+
+Three entrypoint reference surfaces for the prompt-backed path are defined in `processes/design.md` §8 — command (this file) / process / overview. `learning-rules.md` is a storage-rule pointer, not one of the three surfaces.
+
+**Install-surface alignment**: the `~/.claude/plugins/onto/` paths above resolve to the *install surface* (a deterministic snapshot of the authority seat `processes/design.md`). Repo-path and install-path citations must not be mixed within the Read block; drift is boundary-managed per `processes/design.md` §9 and is resolved by re-installing the plugin, not by editing the install tree directly.

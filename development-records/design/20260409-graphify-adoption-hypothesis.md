@@ -15,6 +15,7 @@
 | 6차 review session | `.onto/review/20260409-57d2f40a/` |
 | revision trigger (v6→v7) | 사용자(=주체자) 결정 (2026-04-10): (1) Two-Layer Architecture 원칙 확정, (2) BT-E5/E6 split, (3) Promotion gate 메커니즘, (4) Phase 0 ARCH 6건 전체 진행, (5) v6 major revision in place |
 | **추적 메커니즘** | §19 Prior-Finding Crosswalk가 1차~6차 finding + v7 architectural decisions를 추적 |
+| W-B-50 verification | `development-records/audit/20260414-graphify-hypothesis-verification-w-b-50.md` — Phase 0 ARCH 6건 + BT-E5/E6 split + Promotion gate presence check + authority owner 결정 기록 (2026-04-14) |
 
 ## 1. Source Materialization (Evidence Basis for Part II)
 

@@ -58,7 +58,7 @@ export function checkStale(paths: ScopePaths): StaleCheckResult {
     // github-tarball: requires network access — not checked here.
     // figma-mcp: requires MCP calls — delegated to agent protocol.
     //   Agent calls get_metadata, compares lastModified, and records
-    //   snapshot.marked_stale if changed. See: scanners/figma-adapter.ts
+    //   snapshot.marked_stale if changed. See: readers/mcp-figma.ts
     if (source.type !== "add-dir" && source.type !== "obsidian-vault") {
       continue;
     }

@@ -1072,7 +1072,7 @@ Step 6: Execution
 Step 7: Cleanup
   - Inference entries marked, not deleted
   - GT entries appended
-  - Build session metadata updated
+  - Reconstruct session metadata updated
 
 Step 8: Completion Report
   - Promoted count

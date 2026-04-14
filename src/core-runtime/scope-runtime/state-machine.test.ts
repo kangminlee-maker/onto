@@ -663,10 +663,10 @@ import {
   REVIEW_TERMINAL_STATES,
   REVIEW_TRANSITIONS,
   canReviewTransition,
-  BUILD_STATES,
-  BUILD_TERMINAL_STATES,
-  BUILD_TRANSITIONS,
-  canBuildTransition,
+  RECONSTRUCT_STATES,
+  RECONSTRUCT_TERMINAL_STATES,
+  RECONSTRUCT_TRANSITIONS,
+  canReconstructTransition,
 } from "./state-machine.js";
 
 describe("Review state machine (9-state, W-B-02 dedup)", () => {
@@ -726,45 +726,45 @@ describe("Review state machine (9-state, W-B-02 dedup)", () => {
 });
 
 describe("Build state machine (W-B-02 dedup)", () => {
-  it("9 states 정의 (negotiating~build_failed)", () => {
-    expect(BUILD_STATES).toHaveLength(9);
+  it("9 states 정의 (negotiating~reconstruct_failed)", () => {
+    expect(RECONSTRUCT_STATES).toHaveLength(9);
   });
 
   it("terminal states 에서 outgoing edge 없음", () => {
-    for (const s of BUILD_TERMINAL_STATES) {
-      expect(BUILD_TRANSITIONS[s]).toEqual([]);
+    for (const s of RECONSTRUCT_TERMINAL_STATES) {
+      expect(RECONSTRUCT_TRANSITIONS[s]).toEqual([]);
     }
   });
 
   it("(init) → negotiating 만 허용", () => {
-    expect(canBuildTransition("(init)", "negotiating")).toBe(true);
-    expect(canBuildTransition("(init)", "converted")).toBe(false);
+    expect(canReconstructTransition("(init)", "negotiating")).toBe(true);
+    expect(canReconstructTransition("(init)", "converted")).toBe(false);
   });
 
   it("full happy path: (init)→negotiating→gathering_context→exploring→adjudicating→awaiting_user_review→processing_responses→converting→converted", () => {
     const path: Array<[string, string]> = [
       ["(init)", "negotiating"],
       ["negotiating", "gathering_context"],
-      ["gathering_context", "build_exploring"],
-      ["build_exploring", "adjudicating"],
+      ["gathering_context", "reconstruct_exploring"],
+      ["reconstruct_exploring", "adjudicating"],
       ["adjudicating", "awaiting_user_review"],
       ["awaiting_user_review", "processing_responses"],
       ["processing_responses", "converting"],
       ["converting", "converted"],
     ];
     for (const [from, to] of path) {
-      expect(canBuildTransition(from as any, to as any)).toBe(true);
+      expect(canReconstructTransition(from as any, to as any)).toBe(true);
     }
   });
 
   it("processing_responses → awaiting_user_review re-entry 가능", () => {
-    expect(canBuildTransition("processing_responses", "awaiting_user_review")).toBe(true);
+    expect(canReconstructTransition("processing_responses", "awaiting_user_review")).toBe(true);
   });
 
-  it("모든 non-terminal state 에서 build_failed 전이 가능", () => {
-    for (const s of BUILD_STATES) {
-      if (BUILD_TERMINAL_STATES.has(s)) continue;
-      expect(canBuildTransition(s, "build_failed")).toBe(true);
+  it("모든 non-terminal state 에서 reconstruct_failed 전이 가능", () => {
+    for (const s of RECONSTRUCT_STATES) {
+      if (RECONSTRUCT_TERMINAL_STATES.has(s)) continue;
+      expect(canReconstructTransition(s, "reconstruct_failed")).toBe(true);
     }
   });
 });
@@ -780,14 +780,14 @@ describe("3중 SSOT 일관성 (W-B-02)", () => {
     expect(REVIEW_STATES.length).toBe(10);
 
     // Build
-    expect(typeof canBuildTransition).toBe("function");
-    expect(BUILD_STATES.length).toBe(9);
+    expect(typeof canReconstructTransition).toBe("function");
+    expect(RECONSTRUCT_STATES.length).toBe(9);
   });
 
   it("3 도메인의 state 이름이 서로 겹치지 않는다", () => {
     const designSet = new Set<string>(STATES);
     const reviewSet = new Set<string>(REVIEW_STATES);
-    const buildSet = new Set<string>(BUILD_STATES);
+    const buildSet = new Set<string>(RECONSTRUCT_STATES);
 
     // Design ∩ Review
     for (const s of reviewSet) {

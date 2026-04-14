@@ -11,7 +11,7 @@
  *
  * 본 handler 는 build runtime (processes/reconstruct.md) 의 public CLI face 다.
  * Bounded state 는 `{session_root}/reconstruct-state.json` 단일 파일로 관리한다 —
- * 이는 build runtime 의 완전한 state machine (BUILD_TRANSITIONS) 과 구별되는
+ * 이는 build runtime 의 완전한 state machine (RECONSTRUCT_TRANSITIONS) 과 구별되는
  * **CLI 관찰 가능 minimum surface**.
  */
 

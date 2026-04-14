@@ -860,7 +860,7 @@ onto/
 │   ├── final-output.md
 │   ├── execution-result.yaml
 │   └── review-record.yaml
-├── builds/{session-id}/            # Build session
+├── builds/{session-id}/            # Reconstruct session
 │   ├── schema.yml, context_brief.yml
 │   ├── round0~N/
 │   └── raw.yml

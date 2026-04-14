@@ -3,12 +3,12 @@
 > The Explorer traverses the source, and lenses provide exploration directions in an iterative loop that incrementally reconstructs the ontology.
 > Related: After reconstruct, transform via `/onto:transform`, verification via `/onto:review`.
 >
-> **State machine SSOT**: `src/core-runtime/scope-runtime/state-machine.ts` — `BUILD_TRANSITIONS` (W-B-02 dedup, 상수명은 코드 식별자로 유지).
-> Reconstruct session 의 phase 전이(negotiating→gathering_context→build_exploring→adjudicating→awaiting_user_review→processing_responses→converting→converted)는 이 파일이 canonical definition. 상태 라벨 중 `build_exploring` 은 legacy 식별자 (rename 시 scope 폭증 회피).
+> **State machine SSOT**: `src/core-runtime/scope-runtime/state-machine.ts` — `RECONSTRUCT_TRANSITIONS` (W-B-02 dedup).
+> Reconstruct session 의 phase 전이(negotiating→gathering_context→reconstruct_exploring→adjudicating→awaiting_user_review→processing_responses→converting→converted)는 이 파일이 canonical definition.
 
-## Naming: reconstruct (activity + process)
+## Naming: reconstruct (activity + process + code)
 
-DL-013 activity taxonomy (2026-04-13) 이후 public activity name 은 **reconstruct** 로 통일되었고, W-A-77 (2026-04-14) rename 으로 process filename 역시 `reconstruct.md` 로 정렬되었다. 본문 내 잔여 "build" 호명은 state-machine 상수 (`BUILD_TRANSITIONS`) 및 phase label (`build_exploring`) 등 코드 접점에만 남아 있으며, 외부 참조는 activity name `reconstruct` 를 사용한다.
+DL-013 activity taxonomy (2026-04-13) 이후 public activity name 은 **reconstruct** 로 통일되었고, W-A-77 (2026-04-14) rename 으로 process filename (`processes/reconstruct.md`) + slash command (`/onto:reconstruct`) + state machine 상수/타입/phase label (`RECONSTRUCT_TRANSITIONS` / `ReconstructState` / `reconstruct_exploring` / `reconstruct_failed` 등) 이 전수 정렬되었다. legacy `build` 토큰은 activity_enum.legacy_aliases 에만 alias 로 보존된다.
 
 - **Activity name**: `reconstruct` (canonical, DL-013)
 - **Process filename**: `processes/reconstruct.md` (W-A-77 rename 완료, 2026-04-14)
@@ -17,12 +17,12 @@ DL-013 activity taxonomy (2026-04-13) 이후 public activity name 은 **reconstr
 
 ### Bounded path (review 3-step 대응, W-A-74)
 
-W-A-74 에서 reconstruct CLI 의 3-step bounded path 를 확보했다. 이는 본 process document 의 BUILD_TRANSITIONS 전체 상태 머신과는 구분되는 **CLI 관찰 가능 minimum surface** 다:
+W-A-74 에서 reconstruct CLI 의 3-step bounded path 를 확보했다. 이는 본 process document 의 RECONSTRUCT_TRANSITIONS 전체 상태 머신과는 구분되는 **CLI 관찰 가능 minimum surface** 다:
 
 | Step | CLI | Bounded state 전이 | process document 과의 관계 |
 |---|---|---|---|
 | 1 | `onto reconstruct start` | → `gathering_context` | negotiating~gathering_context phase 의 CLI face |
-| 2 | `onto reconstruct explore` | → `exploring` (반복 가능) | build_exploring~adjudicating~awaiting_user_review~processing_responses loop 의 bounded invocation |
+| 2 | `onto reconstruct explore` | → `exploring` (반복 가능) | reconstruct_exploring~adjudicating~awaiting_user_review~processing_responses loop 의 bounded invocation |
 | 3 | `onto reconstruct complete` | → `converted` | converting~converted phase + Principal 검증 요청 |
 
 본 document 의 상세 phase 구조 (Phase 0.5 ~ Phase 4) 는 CLI 호출 내부에서 build runtime 이 실행하는 방법론이다. CLI 는 방법론의 public surface 만 노출한다.

@@ -101,73 +101,98 @@ The team lead collects only the items below. Per-agent learnings/domain document
 Legacy source material for `검토 해석 (InvocationInterpretation)`.
 Productized live path에서는 이 semantic 판단이 live review pass 바깥에서 한 번만 수행된다.
 
-Step 1에서 수집한 리뷰 대상을 분석하여 복잡도를 평가한다.
-3개 질문에 모두 "경량 가능"으로 답해야 경량 리뷰를 제안한다.
-하나라도 아니면 전원 리뷰로 진행한다.
+Step 1에서 수집한 리뷰 대상과 주체자(Principal)의 요청 형태에 따라, 경량 리뷰 제안 절차는 두 경로로 분기한다.
 
-**Q1: 관련 검증 차원이 4개 이하 `(= ⌊검증 차원 수 / 2⌋)` 인가?**
-리뷰 대상이 9개 review lens 차원(논리, 구조, 의존, 의미, 실용, 진화, 커버리지, 간결성, 가치/목적 정합) 중
-몇 개와 관련되는지 평가.
-→ 4개 이하: 경량 가능 / 5개 이상: 전원 필요
+**경로 1 — Principal 이 경량 리뷰를 명시 요청한 경우:**
+사전 trigger (Q2/Q3) 는 건너뛴다. 곧바로 semantic lens relevance 판정을 수행한다.
 
-**Q2: 에이전트 간 교차 검증이 부차적인가?**
+- 판정 규칙: `processes/review/shared-phenomenon-contract.md §7 Reverse Application` 을 따른다
+- 출력: `interpretation-contract.md §4.7 lens_selection_plan` shape
+- `axiology` 는 `always_include` 로 고정 (목적·가치 정합 검증은 모든 리뷰 필수). 이유는 `interpretation-contract.md §4.7` 소유
+- 결과를 주체자에게 제시하고 확인 후 경량 리뷰 실행
+
+**경로 2 — Principal 이 경량을 명시 요청하지 않은 경우 (default):**
+먼저 cheap trigger 로 "경량 리뷰 제안할 가치가 있는가" 를 판정한다. trigger 는 target 본문을 읽지 않는 metadata/intent 수준의 heuristic 이며, 최종 lens 선택 판단이 아니라 **주체자에게 질문할지** 만 결정한다.
+
+**Q2 (trigger): 에이전트 간 교차 검증이 부차적인가?**
 교차 검증이 핵심인 경우: 시스템 전체 설계 변경, 다중 파일 수정, 새 개념 도입
 교차 검증이 부차적인 경우: 단일 관점 판단, 기존 설계 내 수정, 문서 정확성 확인
-→ 부차적: 경량 가능 / 핵심: 전원 필요
+→ 부차적: 경량 제안 trigger 성립
 
-**Q3: 놓칠 수 있는 발견의 위험도가 수용 가능한가?**
+**Q3 (trigger): 놓칠 수 있는 발견의 위험도가 수용 가능한가?**
 위험도 높음: 구현 직전 최종 검증, 안전장치 설계, 기존 주체자 영향 변경
 위험도 낮음: 탐색적 질문, 초기 방향, 내부 문서, 이미 리뷰 거친 후속 확인
-→ 수용 가능: 경량 가능 / 수용 불가: 전원 필요
+→ 수용 가능: 경량 제안 trigger 성립
 
-**경량 가능 판단 시:**
-주체자에게 사유와 함께 선택지를 제시한다.
+- Q2 · Q3 모두 trigger 성립: 주체자에게 경량/전원 선택지 제시 (아래 포맷). 주체자가 경량을 선택하면 경로 1 의 semantic 판정을 수행한 뒤 실행
+- 하나라도 trigger 불성립: 9 lens 전원 직행. 주체자에게 질문하지 않고 간단 사유만 기록
+
+> Trigger 는 "물어볼 가치가 있는가" 의 binary 결정에만 쓰인다. 실제 lens 선택 판단은 `shared-phenomenon-contract.md §7` 이 단독 소유한다. Q1 (관련 차원 수 counting) 은 §7 의 semantic 판정 결과로 자연스럽게 재현되므로 본 절에서 삭제됨.
+
+**경량 제안 시 주체자에게 제시하는 포맷 (trigger 통과 직후, §7 판정 수행 전):**
+
+이 포맷은 경량/전원 binary 선택만 요청한다. 권장 lens 구성은 포함하지 않는다. Principal 이 "전원" 선택 시 §7 semantic 판정(b)이 수행되지 않으므로 불필요한 비용을 피한다.
 
 ```
-## Review Complexity Assessment
+## Review Mode Suggestion
 
 **대상**: {리뷰 대상 요약}
-**판단**: 경량 리뷰 가능
-**사유**:
-- Q1: {관련 차원과 수}
+**경량 리뷰 제안 사유**:
 - Q2: {교차 검증이 부차적인 근거}
 - Q3: {놓칠 위험이 수용 가능한 근거}
 
-**권장 구성** ({N}명):
-  [a] {agent-id} — {이 대상에서 필요한 이유}
-  [b] {agent-id} — {이유}
-  [c] {agent-id} — {이유}
-  [d] axiology — 목적 및 가치 정합 검증 (항상 포함)
-
-**전원 리뷰와의 차이**:
-  제외되는 관점: {제외 에이전트 목록}
-  놓칠 수 있는 것: {구체적 설명}
-
-[a] 경량 리뷰 ({N}개 lens + synthesize, ~{토큰}k 토큰)
+[a] 경량 리뷰 — 본 리뷰에 관련된 lens 만 선별 (axiology 포함)
 [b] 전원 리뷰 (9개 lens + synthesize, ~550k 토큰)
 
 Select [a]:
 ```
 
-**전원 필요 판단 시:**
+**전원 필요 판단 시 (Q2/Q3 trigger 불성립):**
 별도 안내 없이 기존 프로세스대로 9개 lens + synthesize로 진행한다.
 리뷰 시작 시 "9개 lens 전원 + synthesize로 진행합니다"를 표시.
 
+**경량 선택 확정 후 — Lens Selection Plan 제시 포맷:**
+
+경로 1 (Principal 경량 명시) 또는 경로 2 에서 주체자가 `[a] 경량 리뷰` 를 선택한 직후 수행한다.
+
+1. `shared-phenomenon-contract.md §7 Reverse Application` 에 따라 target 본문 sampling → phenomenon 추출 → 각 lens perspective 와의 co-location 판정 → relevant lens set 도출
+2. `interpretation-contract.md §4.7 lens_selection_plan` shape 로 정리 (`always_include: [axiology]` 고정)
+3. 주체자에게 최종 구성을 제시하고 확정을 요청한다
+
+```
+## Lens Selection
+
+**대상**: {리뷰 대상 요약}
+**관련성 판정**: shared-phenomenon-contract §7 reverse application 도출
+
+**권장 구성** ({N}명):
+  [a] {agent-id} — {이 대상의 어떤 phenomenon 과 co-locate 되는지}
+  [b] {agent-id} — {근거}
+  [c] {agent-id} — {근거}
+  [d] axiology — 목적 및 가치 정합 검증 (always_include, §7.3 Axiology 제외 불가)
+
+**전원 리뷰와의 차이**:
+  제외되는 관점: {제외 에이전트 목록}
+  놓칠 수 있는 것: {구체적 설명}
+
+진행? [Y/n]:
+```
+
 **에이전트 선택 규칙:**
 
-1. **axiology**: 항상 포함
-2. **나머지 2-3명**: 리뷰 대상의 성격에 따라 팀 리드가 선택
+1. **axiology**: 항상 포함. 이 원칙의 normative seat 는 `shared-phenomenon-contract.md §7.3` 이며 output schema 표현은 `interpretation-contract.md §4.7`.
+2. **나머지 lens**: `shared-phenomenon-contract.md §7.1 Reverse 적용 규칙` 으로 도출. 팀 리드의 free-text 선택 아님.
 
-참고 테이블 (팀 리드 판단 보조):
-| 대상 성격 | 권장 3명 |
-|-----------|---------|
+참고 테이블 (팀 리드 판단 보조, target 성격별 경험적 출발점 — §7 판정의 대체는 아님):
+| 대상 성격 | 자주 관련되는 lens |
+|-----------|------------------|
 | 설계 결정/프로세스 | logic + pragmatics + evolution |
 | 용어/명명/정의 | semantics + logic + pragmatics |
 | 구조/파일 분리 | structure + dependency + conciseness |
 | 도메인 커버리지 | coverage + semantics + pragmatics |
 | 코드/구현 | logic + structure + evolution |
 
-주체자에게는 선택한 에이전트와 그 이유를 함께 제시한다.
+이 표는 §7 판정의 근거가 아니다. 각 리뷰 실제 lens set 은 §7.1 의 target 본문 sampling 기반 판정을 따른다.
 
 ---
 

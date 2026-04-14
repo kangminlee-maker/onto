@@ -88,3 +88,42 @@ co-located claim들은 의미적으로 `corroboration`, `disagreement`, `partial
 - `lens-prompt-contract.md`는 4필드 직렬화 형식을 소유하되, co-location 규칙은 이 문서를 참조만 한다
 - `synthesize-prompt-contract.md`는 claim relation 분류를 출력에 표출하되, 분류 규칙은 이 문서를 참조만 한다
 - 동일 규칙이 다른 문서에 normative로 존재하면 authority violation이다
+
+---
+
+## 7. Reverse Application — Pre-review Lens Relevance Derivation
+
+§2–§3 이 정의한 co-location 규칙은 양방향으로 소비된다. 본 절은 그 중 reverse 방향의 소비 규약만 규정한다.
+
+- **Forward** (§3 기본 방향): 주어진 두 claim → 같은 shared phenomenon 인지 판정. 소비 시점: review-time synthesis.
+- **Reverse** (본 절): 주어진 target 으로부터 관찰 가능한 phenomenon 을 추출하고, 각 lens perspective 가 그 phenomenon 과 co-locate 될 수 있는지를 역판정. 소비 시점: pre-review lens relevance 판단.
+
+### 7.1 Reverse 적용 규칙
+
+Reverse application 은 §2–§3 규칙을 새로 만들지 않고 동일 규칙을 방향만 바꿔 사용한다.
+
+1. target 본문을 sampling 하여 관찰 가능한 phenomenon 을 §2 Phenomenon 단위로 추출한다
+2. 각 lens 의 perspective 정의(`roles/<lens>.md`)를 읽는다
+3. 추출된 phenomenon 중 하나 이상이 해당 lens perspective 의 observation focus 와 §3 기준으로 co-locate 가능한지 판정한다
+4. 판정 결과가 긍정이면 그 lens 는 target 에 "relevant" 이다
+
+### 7.2 Input Scope 규약
+
+- target 본문 기반의 semantic 판단이다. target metadata (파일 경로·크기·kind) 만으로 수행하는 판정은 drift 위험이 커 본 절의 reverse application 대상이 아니다
+- phenomenon 추출은 target 의 대표 샘플에 한정한다. 전체 본문 완독은 사전 판단 비용을 review 본 실행과 동급으로 만들어 원래 목적(비용 절감)을 훼손한다
+
+### 7.3 Axiology 제외 불가
+
+`axiology` lens 는 §7.1 relevance 판정에서 제외되지 않는다. 목적·가치 정합 검증은 모든 리뷰의 필수 구성이며, 본 판정의 대상이 아니다. 이 원칙의 output schema 수준 표현은 `interpretation-contract.md §4.7` 이 소유한다.
+
+### 7.4 Consumer 분리
+
+- 본 절은 판정 규칙만 소유한다. 판정을 언제 실행할지의 orchestration (Principal option, pre-trigger 절차) 은 `review.md §1.5` 가 소유한다
+- 판정 결과의 output schema (`lens_selection_plan`) 는 `interpretation-contract.md §4.7` 이 소유한다
+- 본 절은 세 소유자 중 **판단 규칙** 층의 단일 normative seat 이다
+
+### 7.5 Authority
+
+- 본 절은 pre-review lens relevance 판정 규칙의 **유일한 normative seat** 이다
+- `review.md §1.5` 와 `interpretation-contract.md §4.7` 은 본 절을 참조만 한다
+- 동일 판정 규칙이 다른 문서에 normative 로 존재하면 authority violation 이다

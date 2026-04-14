@@ -1,7 +1,7 @@
 /**
- * Design full cycle E2E test (W-B-01).
+ * Evolve full cycle E2E test (W-B-01).
  *
- * scope-runtime kernel 위에서 design 활동의 전체 lifecycle 을 검증한다:
+ * scope-runtime kernel 위에서 evolve 활동의 전체 lifecycle 을 검증한다:
  *   draft → grounded → align_proposed → align_locked → surface_iterating →
  *   surface_confirmed → constraints_resolved → target_locked → compiled →
  *   applied → validated → closed
@@ -25,10 +25,10 @@ import { executeClose } from "./close.js";
 
 let tmpDir: string;
 
-beforeEach(() => { tmpDir = mkdtempSync(join(tmpdir(), "e2e-design-")); });
+beforeEach(() => { tmpDir = mkdtempSync(join(tmpdir(), "e2e-evolve-")); });
 afterEach(() => { rmSync(tmpDir, { recursive: true, force: true }); });
 
-describe("design full cycle E2E", () => {
+describe("evolve full cycle E2E", () => {
   it("draft → closed: 전체 lifecycle 을 command 함수로 통과한다", () => {
     // ── Phase 0: Scope 생성 + Grounding ──
     writeFileSync(join(tmpDir, ".sprint-kit.yaml"), "apply_enabled: true\ndefault_sources: []\n", "utf-8");
@@ -37,7 +37,7 @@ describe("design full cycle E2E", () => {
     appendScopeEvent(paths, {
       type: "scope.created",
       actor: "user",
-      payload: { title: "E2E Full Cycle", description: "design full cycle test", entry_mode: "experience" },
+      payload: { title: "E2E Full Cycle", description: "evolve full cycle test", entry_mode: "experience" },
     });
     appendScopeEvent(paths, {
       type: "grounding.started",

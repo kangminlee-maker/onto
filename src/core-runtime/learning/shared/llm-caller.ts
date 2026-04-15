@@ -1,36 +1,31 @@
 /**
- * Learning extraction LLM call wrapper — Phase 2.
+ * Background task (learn/govern/promote) LLM call wrapper.
  *
- * Supports multiple providers with automatic fallback:
- *   1. ONTO_LLM_MOCK=1 → in-process mock provider (test only)
- *   2. ANTHROPIC_API_KEY env var → Anthropic API
- *   3. OPENAI_API_KEY env var → OpenAI API
- *   4. ~/.codex/auth.json (`OPENAI_API_KEY` field) → OpenAI API
- *      (only the API-key mode of codex CLI auth is supported. The chatgpt
- *      OAuth mode is intentionally NOT honored — see "Why no OAuth fallback"
- *      below.)
+ * Cost-order provider resolution ladder (lower priority number = higher priority):
+ *   1. Caller-explicit: callLlm(..., { provider }) — overrides any auto-resolution
+ *   2. Config-explicit: OntoConfig.api_provider — user override, wins over cost-order
+ *   3. codex CLI OAuth subscription (declared_billing_mode=subscription)
+ *      Requires ~/.codex/auth.json chatgpt mode + codex binary on PATH.
+ *      Invokes `codex exec --ephemeral -` as subprocess; OAuth token goes to
+ *      chatgpt.com backend, which cannot be reached via the OpenAI SDK.
+ *   4. LiteLLM (declared_billing_mode=per_token, cost_order_rank=variable)
+ *      Requires llm_base_url resolved via CLI flag / env LITELLM_BASE_URL /
+ *      project config / onto-home config.
+ *   5. Anthropic API key — ANTHROPIC_API_KEY env (per-token)
+ *   6. OpenAI per-token — OPENAI_API_KEY env, or ~/.codex/auth.json OPENAI_API_KEY field
  *
- * model_id fixed per provider (no floating alias — U2).
+ *   Priority 0 (special): ONTO_LLM_MOCK=1 → in-process mock (test only)
  *
- * Why no OAuth fallback:
- *   Production validation B-1 (2026-04-08) found that the chatgpt OAuth
- *   `tokens.access_token` from ~/.codex/auth.json fails when used as an
- *   OpenAI API key against api.openai.com:
+ *   Credential 전무 시 fail-fast with cost-order guidance. Host main-model
+ *   delegation ("fall through to host-spawned subagent") is an execution
+ *   realization axis concept and NOT part of this ladder — see
+ *   development-records/plan/20260415-litellm-provider-design.md §1.0.
  *
- *     401 You have insufficient permissions for this operation.
- *     Missing scopes: model.request.
- *
- *   The chatgpt OAuth token authenticates against chatgpt.com's backend
- *   (which uses a different wire format and endpoint set than the public
- *   OpenAI API). Treating it as an OpenAI API key is structurally wrong:
- *   the codex CLI uses it via its own backend, but onto's llm-caller calls
- *   the public OpenAI SDK, which only accepts proper sk-... API keys.
- *
- *   Previously this fallback was present and silently broken — operators
- *   discovered the failure only at first LLM call. Now the resolver fails
- *   fast with a clear instruction to set ANTHROPIC_API_KEY or a real
- *   OPENAI_API_KEY (or run `codex login` with API key mode rather than
- *   chatgpt mode).
+ * Graceful fallback (§3.7 c):
+ *   When codex OAuth is detected but the codex binary is absent, the resolver
+ *   falls back to the next cost-order path and emits a one-time STDERR install
+ *   notice. Suppressible via ONTO_SUPPRESS_CODEX_INSTALL_NOTICE=1 env or
+ *   .onto/config.yml suppress_codex_install_notice: true.
  *
  * Mock provider:
  *   When ONTO_LLM_MOCK=1 is set, callLlm() routes to an in-process mock that
@@ -39,6 +34,8 @@
  *   deterministic JSON. This unblocks E2E tests that need to exercise the
  *   full LLM call path without real API credentials. NEVER ship with this
  *   env var set in production — there's no real reasoning happening.
+ *
+ * Design: development-records/plan/20260415-litellm-provider-design.md
  */
 
 import crypto from "node:crypto";
@@ -47,9 +44,137 @@ import path from "node:path";
 import os from "node:os";
 
 export interface LlmCallConfig {
-  provider: "anthropic" | "openai";
+  provider: "anthropic" | "openai" | "litellm" | "codex";
   model_id: string;
   max_tokens: number;
+  /** Optional base URL for litellm (OpenAI-compatible proxy) or openai custom endpoint. Ignored by codex/anthropic. */
+  base_url?: string;
+  /** codex-only: reasoning effort passed as `model_reasoning_effort`. Ignored by other providers. */
+  reasoning_effort?: string;
+  /**
+   * Per-provider model overrides. Consumed by dispatch AFTER resolveProvider
+   * determines the actual provider, so these apply to both explicit and
+   * auto-resolved providers. Precedence in dispatch (higher first):
+   *   model_id (explicit / bridge-resolved) > models_per_provider[resolved] > fail-fast(api-key paths)
+   *
+   * Populated by resolveLearningProviderConfig from OntoConfig.{provider}.model.
+   */
+  models_per_provider?: {
+    anthropic?: string;
+    openai?: string;
+    litellm?: string;
+    codex?: string;
+  };
+}
+
+/**
+ * Minimal subset of OntoConfig that resolveLearningProviderConfig reads.
+ * Kept narrow to avoid learning→discovery coupling; callers pass a shape-compatible object.
+ */
+export interface LearningProviderConfigInputs {
+  api_provider?: string;
+  model?: string;
+  llm_base_url?: string;
+  codex?: { model?: string; effort?: string };
+  anthropic?: { model?: string };
+  openai?: { model?: string };
+  litellm?: { model?: string };
+}
+
+/**
+ * CLI flag overrides that win over OntoConfig values.
+ * Maps to the CLI-flag > env > project-config > onto-home-config precedence (D3).
+ */
+export interface LearningProviderCliOverrides {
+  provider?: "anthropic" | "openai" | "litellm" | "codex";
+  llm_base_url?: string;
+  model?: string;
+  reasoning_effort?: string;
+}
+
+/**
+ * Bridge: OntoConfig + CLI overrides → Partial<LlmCallConfig> that callLlm consumes.
+ *
+ * Callers (learning/promote panel-reviewer, promote-executor, judgment-auditor,
+ * insight-reclassifier, extractor, semantic-classifier) should:
+ *
+ *   const partial = resolveLearningProviderConfig({ config: ontoConfig, cliOverrides });
+ *   const result = await callLlm(system, user, { ...partial, max_tokens: 2048 });
+ *
+ * This replaces the pattern of callers building Partial<LlmCallConfig> ad-hoc, and is
+ * the canonical seat where OntoConfig translates to provider resolution input.
+ *
+ * Design: development-records/plan/20260415-litellm-provider-design.md §3.6a
+ */
+export function resolveLearningProviderConfig(args: {
+  config?: LearningProviderConfigInputs;
+  cliOverrides?: LearningProviderCliOverrides;
+}): Partial<LlmCallConfig> {
+  const config = args.config ?? {};
+  const cli = args.cliOverrides ?? {};
+
+  // provider: CLI > config.api_provider (narrowed to valid enum)
+  const configProvider = narrowProvider(config.api_provider);
+  const provider = cli.provider ?? configProvider;
+
+  // model: CLI > config.{provider}.model (when provider is known) > config.model.
+  // When provider is auto-resolved (neither CLI nor config explicit), model_id is
+  // left as config.model (or undefined). The dispatch layer then looks up
+  // models_per_provider[resolved.provider] before failing fast.
+  const providerSpecific = pickProviderModel(config, provider);
+  const model_id = cli.model ?? providerSpecific ?? config.model;
+
+  // base_url: CLI > env LITELLM_BASE_URL > config.llm_base_url
+  const base_url =
+    cli.llm_base_url ?? process.env.LITELLM_BASE_URL ?? config.llm_base_url;
+
+  // reasoning_effort: CLI > config.codex.effort. codex is the only consumer so this
+  // is safe to pass through regardless of explicit-vs-auto provider path.
+  const reasoning_effort = cli.reasoning_effort ?? config.codex?.effort;
+
+  // models_per_provider: all per-provider model overrides, consumed by dispatch
+  // AFTER resolveProvider picks. This keeps OntoConfig.anthropic.model etc.
+  // working under auto-resolution too, not just explicit api_provider paths.
+  const models_per_provider: NonNullable<LlmCallConfig["models_per_provider"]> = {};
+  if (config.anthropic?.model) models_per_provider.anthropic = config.anthropic.model;
+  if (config.openai?.model) models_per_provider.openai = config.openai.model;
+  if (config.litellm?.model) models_per_provider.litellm = config.litellm.model;
+  if (config.codex?.model) models_per_provider.codex = config.codex.model;
+
+  const out: Partial<LlmCallConfig> = {};
+  if (provider) out.provider = provider;
+  if (model_id) out.model_id = model_id;
+  if (base_url) out.base_url = base_url;
+  if (reasoning_effort) out.reasoning_effort = reasoning_effort;
+  if (Object.keys(models_per_provider).length > 0) {
+    out.models_per_provider = models_per_provider;
+  }
+  return out;
+}
+
+function pickProviderModel(
+  config: LearningProviderConfigInputs,
+  provider: LlmCallConfig["provider"] | undefined,
+): string | undefined {
+  switch (provider) {
+    case "codex":
+      return config.codex?.model;
+    case "anthropic":
+      return config.anthropic?.model;
+    case "openai":
+      return config.openai?.model;
+    case "litellm":
+      return config.litellm?.model;
+    default:
+      return undefined;
+  }
+}
+
+function narrowProvider(value: string | undefined): LlmCallConfig["provider"] | undefined {
+  if (value === "anthropic" || value === "openai" || value === "litellm" || value === "codex") {
+    return value;
+  }
+  return undefined;
 }
 
 export interface LlmCallResult {
@@ -57,10 +182,17 @@ export interface LlmCallResult {
   input_tokens: number;
   output_tokens: number;
   model_id: string;
+  /** Actual endpoint hit (audit trail). SDK/subprocess providers each fill their own sentinel. */
+  effective_base_url?: string;
+  /**
+   * Declarative billing classification used by onto's cost-order ladder.
+   * NOT a measured billing truth — e.g. LiteLLM downstream is opaque so it's
+   * recorded conservatively as per_token even if the backend is a free local
+   * model. Authority concept: authority/core-lexicon.yaml entities.LlmBillingMode.
+   */
+  declared_billing_mode?: "subscription" | "per_token";
 }
 
-const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
-const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 // Phase 3 production found 30s too tight for large audit batches (philosopher
 // 37 items was timing out then SDK-retrying for 90s total). 120s is generous
 // enough for ~50-item single-batch audits while still failing fast on real
@@ -72,86 +204,301 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_RETRIES = 1;
 
 // ---------------------------------------------------------------------------
-// Provider resolution
+// Provider resolution (cost-order)
 // ---------------------------------------------------------------------------
+//
+// Priority (lower number = higher priority):
+//   1. Caller-explicit (config.provider argument to callLlm — handled in callLlm itself)
+//   2. Config-explicit api_provider (via Partial<LlmCallConfig>.provider — handled in callLlm)
+//   3. codex CLI OAuth subscription — ~/.codex/auth.json chatgpt mode + codex binary on PATH
+//   4. LiteLLM — llm_base_url resolved via config/env
+//   5. Anthropic API key — ANTHROPIC_API_KEY env
+//   6. OpenAI per-token — OPENAI_API_KEY env OR ~/.codex/auth.json OPENAI_API_KEY field
+//
+// Credential 전무 시 fail-fast. Host main-model delegation is execution realization axis,
+// not part of this ladder (see development-records/plan/20260415-litellm-provider-design.md §1.0).
 
 interface ResolvedProvider {
-  provider: "anthropic" | "openai";
-  apiKey: string;
-  defaultModel: string;
+  provider: "anthropic" | "openai" | "litellm" | "codex";
+  apiKey: string;           // For codex: unused (subprocess uses ~/.codex auth); filled with sentinel.
+  baseUrl?: string;         // For litellm; for openai/anthropic undefined.
+  /** For codex missing-binary case: telemetry to trigger the (c) graceful-fallback notice in callLlm. */
+  codexOauthPresentButBinaryMissing?: boolean;
+  /** For codex missing-binary fallback: the provider that was actually selected (for the STDERR notice). */
+  fallbackFrom?: "codex-oauth";
+}
+
+interface CodexAuthState {
+  chatgptOAuth: boolean;
+  openaiApiKey: string | null;
+}
+
+function readCodexAuthState(): CodexAuthState {
+  const codexAuthPath = path.join(os.homedir(), ".codex", "auth.json");
+  if (!fs.existsSync(codexAuthPath)) {
+    return { chatgptOAuth: false, openaiApiKey: null };
+  }
+  try {
+    const auth = JSON.parse(fs.readFileSync(codexAuthPath, "utf8"));
+    const oauth =
+      auth.auth_mode === "chatgpt" ||
+      (auth.tokens && typeof auth.tokens.access_token === "string");
+    const openaiKey =
+      typeof auth.OPENAI_API_KEY === "string" && auth.OPENAI_API_KEY.length > 0
+        ? auth.OPENAI_API_KEY
+        : null;
+    return { chatgptOAuth: Boolean(oauth), openaiApiKey: openaiKey };
+  } catch {
+    return { chatgptOAuth: false, openaiApiKey: null };
+  }
+}
+
+function codexBinaryOnPath(): boolean {
+  const pathEnv = process.env.PATH ?? "";
+  for (const dir of pathEnv.split(path.delimiter)) {
+    if (!dir) continue;
+    const candidate = path.join(dir, "codex");
+    if (fs.existsSync(candidate)) return true;
+  }
+  return false;
 }
 
 /**
- * Resolve the best available LLM provider.
+ * Resolve the best available LLM provider by cost-order (auto-resolution).
+ * Called by callLlm when no caller-explicit or config-explicit provider is set.
  *
- * Priority: ANTHROPIC_API_KEY → OPENAI_API_KEY env → ~/.codex/auth.json
- * (only the OPENAI_API_KEY field, not chatgpt OAuth — see file header).
+ * Returns a ResolvedProvider with declared provider identity + credentials.
+ * Throws with guidance (§3.7 d) when no provider path is viable.
+ *
+ * Special case: if codex OAuth is detected but binary is missing AND another
+ * credential is available, we fall back to that credential path and set
+ * `fallbackFrom: "codex-oauth"` so callLlm can emit the (c) notice.
  */
-function resolveProvider(preferred?: "anthropic" | "openai"): ResolvedProvider {
-  // 1. Explicit ANTHROPIC_API_KEY
-  if (preferred !== "openai" && process.env.ANTHROPIC_API_KEY) {
+function resolveProvider(
+  preferred?: LlmCallConfig["provider"],
+  configBaseUrl?: string,
+): ResolvedProvider {
+  // Priority 1-2: caller-explicit / config-explicit anthropic or openai.
+  // These constrain the search to one provider; missing credential fails fast
+  // rather than silently falling through to cost-order.
+  // (codex and litellm are handled inline in callLlm before reaching here.)
+  if (preferred === "anthropic") {
+    if (process.env.ANTHROPIC_API_KEY) {
+      return { provider: "anthropic", apiKey: process.env.ANTHROPIC_API_KEY };
+    }
+    throw new Error(explicitProviderMissingCredentialError("anthropic"));
+  }
+  if (preferred === "openai") {
+    if (process.env.OPENAI_API_KEY) {
+      return { provider: "openai", apiKey: process.env.OPENAI_API_KEY };
+    }
+    const codexAuth = readCodexAuthState();
+    if (codexAuth.openaiApiKey) {
+      return { provider: "openai", apiKey: codexAuth.openaiApiKey };
+    }
+    throw new Error(explicitProviderMissingCredentialError("openai"));
+  }
+
+  // Auto cost-order resolution.
+  const codexAuth = readCodexAuthState();
+
+  // Priority 3: codex CLI OAuth subscription.
+  if (codexAuth.chatgptOAuth) {
+    if (codexBinaryOnPath()) {
+      return {
+        provider: "codex",
+        apiKey: "codex-oauth",          // sentinel; unused
+      };
+    }
+    // OAuth detected but binary missing — fall through, mark for (c) notice.
+    const fallback = tryNonCodexProviders(configBaseUrl);
+    if (fallback) {
+      return { ...fallback, codexOauthPresentButBinaryMissing: true, fallbackFrom: "codex-oauth" };
+    }
+    // No other credential either — (d) with install guidance emphasized.
+    throw new Error(buildNoProviderError({ codexOauthPresent: true, codexBinaryPresent: false }));
+  }
+
+  // Priority 4-6: no codex OAuth case.
+  const fallback = tryNonCodexProviders(configBaseUrl);
+  if (fallback) return fallback;
+
+  throw new Error(buildNoProviderError({ codexOauthPresent: false, codexBinaryPresent: codexBinaryOnPath() }));
+}
+
+function explicitProviderMissingCredentialError(
+  provider: "anthropic" | "openai",
+): string {
+  const envVar = provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
+  return [
+    `api_provider=${provider} 명시적으로 선택되었으나 ${envVar}가 환경변수에 없습니다.`,
+    ...(provider === "openai"
+      ? ["(~/.codex/auth.json의 OPENAI_API_KEY 필드도 비어 있거나 없음)"]
+      : []),
+    `명시적 provider override를 사용하려면 ${envVar}를 export하세요.`,
+    "cost-order 자동 해소를 원하면 .onto/config.yml에서 api_provider를 제거하세요.",
+  ].join("\n");
+}
+
+function tryNonCodexProviders(configBaseUrl?: string): ResolvedProvider | null {
+  // Priority 4: LiteLLM — env or config has base URL.
+  const resolvedBaseUrl = process.env.LITELLM_BASE_URL ?? configBaseUrl;
+  if (resolvedBaseUrl) {
+    const apiKey = process.env.LITELLM_API_KEY ?? "sk-litellm-placeholder";
     return {
-      provider: "anthropic",
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      defaultModel: DEFAULT_ANTHROPIC_MODEL,
+      provider: "litellm",
+      apiKey,
+      baseUrl: resolvedBaseUrl,
     };
   }
 
-  // 2. Explicit OPENAI_API_KEY
+  // Priority 5: Anthropic API key.
+  if (process.env.ANTHROPIC_API_KEY) {
+    return {
+      provider: "anthropic",
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    };
+  }
+
+  // Priority 6: OpenAI per-token — env OPENAI_API_KEY or auth.json OPENAI_API_KEY field.
   if (process.env.OPENAI_API_KEY) {
     return {
       provider: "openai",
       apiKey: process.env.OPENAI_API_KEY,
-      defaultModel: DEFAULT_OPENAI_MODEL,
+    };
+  }
+  const codexAuth = readCodexAuthState();
+  if (codexAuth.openaiApiKey) {
+    return {
+      provider: "openai",
+      apiKey: codexAuth.openaiApiKey,
     };
   }
 
-  // 3. Codex CLI credentials (~/.codex/auth.json) — API-key mode ONLY.
-  //    The chatgpt OAuth mode is intentionally not honored: the OAuth
-  //    token authenticates against chatgpt.com, not api.openai.com, and
-  //    silently 401s with "Missing scopes: model.request" when used as
-  //    an OpenAI API key. See file header "Why no OAuth fallback".
-  let chatgptOAuthSeen = false;
-  const codexAuthPath = path.join(os.homedir(), ".codex", "auth.json");
-  if (fs.existsSync(codexAuthPath)) {
-    try {
-      const auth = JSON.parse(fs.readFileSync(codexAuthPath, "utf8"));
-      if (typeof auth.OPENAI_API_KEY === "string" && auth.OPENAI_API_KEY.length > 0) {
-        return {
-          provider: "openai",
-          apiKey: auth.OPENAI_API_KEY,
-          defaultModel: DEFAULT_OPENAI_MODEL,
-        };
-      }
-      // Detect chatgpt OAuth presence so we can guide the user explicitly.
-      if (
-        auth.auth_mode === "chatgpt" ||
-        (auth.tokens && typeof auth.tokens.access_token === "string")
-      ) {
-        chatgptOAuthSeen = true;
-      }
-    } catch {
-      // Malformed auth.json — ignore silently and fall through to the
-      // no-provider error below.
-    }
+  return null;
+}
+
+function buildNoProviderError(ctx: {
+  codexOauthPresent: boolean;
+  codexBinaryPresent: boolean;
+}): string {
+  const lines: string[] = [];
+  lines.push("background task용 LLM provider를 해소할 수 없습니다.");
+  lines.push("");
+  if (ctx.codexOauthPresent && !ctx.codexBinaryPresent) {
+    lines.push("~/.codex/auth.json에 chatgpt OAuth 자격이 있으나 codex 바이너리가 PATH에 없습니다.");
+    lines.push("이 경로는 cost-order 최상위(구독제, 호출당 한계비용 0) 이므로 가장 행동 장벽이 낮습니다:");
+    lines.push("  → codex 설치: https://github.com/openai/codex");
+    lines.push("  → 설치 후 `codex --version` 으로 PATH 인식 확인");
+    lines.push("");
   }
+  lines.push("권장 순서(비용 낮은 순):");
+  lines.push("  1. codex OAuth 구독: ~/.codex/auth.json을 chatgpt 모드로 구성 + codex 바이너리 설치 (구독제, 한계비용 0)");
+  lines.push("  2. LiteLLM: llm_base_url을 .onto/config.yml에 설정하거나 LITELLM_BASE_URL을 export (로컬 모델 사용 시 0)");
+  lines.push("  3. Anthropic API: ANTHROPIC_API_KEY를 export (per-token 과금)");
+  lines.push("  4. OpenAI per-token: OPENAI_API_KEY를 export, 또는 ~/.codex/auth.json의 OPENAI_API_KEY 필드 (per-token 과금)");
+  return lines.join("\n");
+}
 
-  // (Dead fallback branch removed — the earlier ANTHROPIC_API_KEY check at
-  // step 1 already handles both the `preferred === undefined` and the
-  // `preferred !== "openai"` cases, so the previous duplicate probe here was
-  // unreachable. Kept a comment to document the cleanup for future readers.)
+/**
+ * Construct a fail-fast error for api-key providers when no model is specified.
+ * Used by anthropic / openai / litellm dispatch branches. codex is exempt because
+ * the codex CLI picks its own default when `-m` is omitted.
+ *
+ * Hardcoded DEFAULT_ANTHROPIC_MODEL / DEFAULT_OPENAI_MODEL constants were removed
+ * from this module (2026-04-15): model choice is a user decision (cost / quality /
+ * account compatibility) and should not be hardcoded in library code where it can
+ * silently go stale or mismatch account permissions.
+ */
+function missingModelError(provider: "anthropic" | "openai" | "litellm"): Error {
+  const providerField = provider; // "anthropic" | "openai" | "litellm"
+  return new Error(
+    [
+      `provider=${provider} 경로는 model 지정이 필요합니다. 하드코딩된 기본 모델은 제거되었습니다.`,
+      "다음 중 한 가지로 설정하세요:",
+      `  1. .onto/config.yml 의 \`${providerField}.model: <model-id>\` (해당 provider 전용)`,
+      "  2. .onto/config.yml 의 `model: <model-id>` (provider 무관 기본값)",
+      "  3. 호출부에서 LlmCallConfig.model_id 인자 전달 (런타임 override)",
+      "(codex provider는 model 미지정 시 codex CLI가 자체 기본값을 사용하므로 이 메시지의 대상이 아닙니다.)",
+    ].join("\n"),
+  );
+}
 
-  const guidance = chatgptOAuthSeen
-    ? // Targeted message: user has chatgpt OAuth but no usable API key.
-      "No LLM API key available for learning extraction. Detected ~/.codex/auth.json " +
-      "with chatgpt OAuth (auth_mode=chatgpt), but the OAuth access_token cannot " +
-      "authenticate against api.openai.com (it's a chatgpt.com backend token). " +
-      "Set ANTHROPIC_API_KEY or OPENAI_API_KEY (a real sk-... key), or re-run " +
-      "`codex login` and choose API key mode instead of chatgpt OAuth."
-    : "No LLM provider available for learning extraction. " +
-      "Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or place an API key in ~/.codex/auth.json " +
-      "(field: OPENAI_API_KEY). Note: chatgpt OAuth mode is not supported — use API key mode.";
-  throw new Error(guidance);
+/** One-time STDERR install notice emitted when codex OAuth is detected but binary missing. */
+let codexInstallNoticeShown = false;
+function maybeEmitCodexInstallNotice(opts: {
+  fallbackProvider: string;
+  fallbackBillingMode: string;
+  suppress: boolean;
+}): void {
+  if (codexInstallNoticeShown || opts.suppress) return;
+  codexInstallNoticeShown = true;
+  const msg = [
+    "[onto] 구독제 cost-order 최상위 경로(codex OAuth)를 놓치고 있습니다.",
+    "~/.codex/auth.json에 chatgpt OAuth 자격이 있으나 codex 바이너리를 PATH에서 찾을 수 없습니다.",
+    "",
+    "codex를 설치하면 이 경로가 자동으로 활성화됩니다 (구독제, 호출당 한계비용 0):",
+    "  설치: https://github.com/openai/codex",
+    "  설치 후 `codex --version` 으로 PATH 인식 확인.",
+    "",
+    `지금은 다음 cost-order 경로로 폴백합니다: ${opts.fallbackProvider} (declared_billing_mode=${opts.fallbackBillingMode}).`,
+    "명시적으로 다른 provider를 쓰려면 .onto/config.yml에 api_provider를 지정하세요.",
+    "세션당 1회만 표시됩니다. `suppress_codex_install_notice: true`로 끌 수 있습니다.",
+    "",
+  ].join("\n");
+  process.stderr.write(msg);
+}
+
+/**
+ * B1: one-time cost-order transition notice.
+ *
+ * When auto-resolution selects a newer ladder slot (codex or litellm) and the
+ * user also has an API-key credential (ANTHROPIC_API_KEY / OPENAI_API_KEY /
+ * auth.json OPENAI_API_KEY field), the old code path would have picked the
+ * API key. Letting this transition happen silently can surprise users who
+ * weren't expecting a provider switch. Emit a single STDERR notice so they
+ * can opt-out explicitly by setting api_provider.
+ *
+ * Only fires when:
+ *   - resolved provider is "codex" or "litellm" (cost-order newer slots)
+ *   - no caller/config explicit provider was set (auto-resolution path)
+ *   - an API-key alternative is present
+ *
+ * Suppressible via env ONTO_SUPPRESS_COST_ORDER_NOTICE=1 for CI / automation.
+ */
+let costOrderTransitionNoticeShown = false;
+function maybeEmitCostOrderTransitionNotice(resolved: ResolvedProvider): void {
+  if (costOrderTransitionNoticeShown) return;
+  if (process.env.ONTO_SUPPRESS_COST_ORDER_NOTICE === "1") return;
+  if (resolved.provider !== "codex" && resolved.provider !== "litellm") return;
+
+  let wouldHaveBeen: "anthropic" | "openai" | null = null;
+  if (process.env.ANTHROPIC_API_KEY) {
+    wouldHaveBeen = "anthropic";
+  } else if (process.env.OPENAI_API_KEY) {
+    wouldHaveBeen = "openai";
+  } else {
+    const codexAuth = readCodexAuthState();
+    if (codexAuth.openaiApiKey) wouldHaveBeen = "openai";
+  }
+  if (!wouldHaveBeen) return;
+
+  costOrderTransitionNoticeShown = true;
+  const msg = [
+    `[onto] provider resolution changed by cost-order: would have used ${wouldHaveBeen} (per-token), now using ${resolved.provider} (${
+      resolved.provider === "codex" ? "subscription" : "variable; typically per-token audit"
+    }).`,
+    `기존 동작을 유지하려면 .onto/config.yml 에 \`api_provider: ${wouldHaveBeen}\` 를 명시하세요.`,
+    "세션당 1회만 표시됩니다. ONTO_SUPPRESS_COST_ORDER_NOTICE=1 로 끌 수 있습니다.",
+    "",
+  ].join("\n");
+  process.stderr.write(msg);
+}
+
+/** Test-only: reset module-level notice flags so each test observes fresh behavior. */
+export function __resetNoticeFlagsForTests(): void {
+  codexInstallNoticeShown = false;
+  costOrderTransitionNoticeShown = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -189,6 +536,8 @@ async function callAnthropic(
     input_tokens: response.usage.input_tokens,
     output_tokens: response.usage.output_tokens,
     model_id: modelId,
+    effective_base_url: "https://api.anthropic.com",
+    declared_billing_mode: "per_token",
   };
 }
 
@@ -202,10 +551,13 @@ async function callOpenAI(
   apiKey: string,
   modelId: string,
   maxTokens: number,
+  baseUrl?: string,
+  providerLabel: "openai" | "litellm" = "openai",
 ): Promise<LlmCallResult> {
   const { default: OpenAI } = await import("openai");
   const client = new OpenAI({
     apiKey,
+    baseURL: baseUrl,
     timeout: DEFAULT_TIMEOUT_MS,
     maxRetries: DEFAULT_MAX_RETRIES,
   });
@@ -221,11 +573,135 @@ async function callOpenAI(
 
   const text = response.choices[0]?.message?.content ?? "";
 
+  const defaultOpenAIBase = "https://api.openai.com/v1";
   return {
     text,
     input_tokens: response.usage?.prompt_tokens ?? 0,
     output_tokens: response.usage?.completion_tokens ?? 0,
     model_id: modelId,
+    effective_base_url: baseUrl ?? defaultOpenAIBase,
+    // LiteLLM downstream is opaque; record conservatively as per_token.
+    // The cost-order rank for litellm is variable (LlmBillingMode) — this field captures audit signal.
+    declared_billing_mode: "per_token",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// codex CLI call (OAuth subscription path)
+// ---------------------------------------------------------------------------
+
+/**
+ * Invoke `codex exec --ephemeral -` as a subprocess for a single-turn
+ * prompt → text response. Uses the host's codex CLI authentication
+ * (chatgpt OAuth via ~/.codex/auth.json), which routes through chatgpt.com's
+ * backend — cannot be reached via the OpenAI SDK.
+ *
+ * Design: development-records/plan/20260415-litellm-provider-design.md §3.5a
+ *
+ * --ephemeral keeps this learning call from persisting a session file
+ *   alongside review sessions. --skip-git-repo-check lets learning run
+ *   from non-repo cwd. No -C/-s/-o: this is single-turn, no agentic scaffold.
+ */
+async function callCodexCli(
+  systemPrompt: string,
+  userPrompt: string,
+  modelId?: string,
+  reasoningEffort?: string,
+): Promise<LlmCallResult> {
+  const { spawn } = await import("node:child_process");
+
+  const args: string[] = ["exec", "--skip-git-repo-check", "--ephemeral"];
+  if (modelId) args.push("-m", modelId);
+  if (reasoningEffort) args.push("-c", `model_reasoning_effort="${reasoningEffort}"`);
+  args.push("-");
+
+  const combinedPrompt = `${systemPrompt}\n\n---\n\n${userPrompt}`;
+
+  const child = spawn("codex", args, {
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  let stdout = "";
+  let stderr = "";
+  let timedOut = false;
+
+  child.stdout.on("data", (chunk: Buffer | string) => {
+    stdout += String(chunk);
+  });
+  child.stderr.on("data", (chunk: Buffer | string) => {
+    stderr += String(chunk);
+  });
+
+  child.stdin.write(combinedPrompt);
+  child.stdin.end();
+
+  const timeoutHandle = setTimeout(() => {
+    timedOut = true;
+    child.kill("SIGTERM");
+  }, DEFAULT_TIMEOUT_MS);
+
+  const exitCode = await new Promise<number>((resolve, reject) => {
+    child.on("error", (err: NodeJS.ErrnoException) => {
+      clearTimeout(timeoutHandle);
+      if (err.code === "ENOENT") {
+        reject(new Error(
+          "codex CLI not found on PATH. Install codex to use the OAuth subscription path: https://github.com/openai/codex",
+        ));
+      } else {
+        reject(err);
+      }
+    });
+    child.on("close", (code) => {
+      clearTimeout(timeoutHandle);
+      resolve(code ?? 1);
+    });
+  });
+
+  if (timedOut) {
+    throw new Error(`codex CLI call timed out after ${DEFAULT_TIMEOUT_MS}ms`);
+  }
+  if (exitCode !== 0) {
+    const combined = [stderr.trim(), stdout.trim()]
+      .filter((m) => m.length > 0)
+      .join("\n");
+    // A1: chatgpt account model allowlist rejection — augment with actionable hint.
+    // codex emits errors like:
+    //   "The 'gpt-4o-mini' model is not supported when using Codex with a ChatGPT account."
+    // Surface a fix path so users don't have to decode the upstream message.
+    if (
+      combined.includes("is not supported when using Codex with a ChatGPT account") ||
+      combined.includes("not supported when using Codex")
+    ) {
+      const requested = modelId ?? "(codex default)";
+      throw new Error(
+        [
+          combined,
+          "",
+          `지정된 모델 "${requested}"이 현재 ChatGPT 계정의 codex allowlist에 없습니다.`,
+          "다음 중 한 가지로 해결하세요:",
+          "  1. .onto/config.yml 에서 codex.model 을 제거 → codex CLI가 계정 허용 기본값을 선택",
+          "  2. 터미널에서 `codex` 를 직접 실행해 현재 계정에서 선택 가능한 모델 확인 후 config.codex.model 에 반영",
+          "  3. `codex login` 으로 API-key 모드로 전환 (per-token 과금, 더 넓은 모델 범위)",
+        ].join("\n"),
+      );
+    }
+    throw new Error(
+      combined.length > 0 ? combined : `codex CLI exited with code ${exitCode}`,
+    );
+  }
+
+  const text = stdout.trim();
+  // codex exec does not return usage metadata in stdout; estimate by char count.
+  // LlmCallResult carries these as approximate; audit may flag via declared_billing_mode=subscription.
+  const estimateTokens = (s: string) => Math.max(1, Math.ceil(s.length / 4));
+
+  return {
+    text,
+    input_tokens: estimateTokens(combinedPrompt),
+    output_tokens: estimateTokens(text),
+    model_id: modelId ?? "codex-default",
+    effective_base_url: "codex-cli://oauth",
+    declared_billing_mode: "subscription",
   };
 }
 
@@ -247,14 +723,96 @@ export async function callLlm(
     return callMockProvider(systemPrompt, userPrompt);
   }
 
-  const resolved = resolveProvider(config?.provider);
-  const modelId = config?.model_id ?? resolved.defaultModel;
+  // Caller-explicit codex (priority 1) → subprocess spawn, no credential resolution.
+  if (config?.provider === "codex") {
+    return callCodexCli(
+      systemPrompt,
+      userPrompt,
+      config.model_id ?? config.models_per_provider?.codex,
+      config.reasoning_effort,
+    );
+  }
+
+  // Caller-explicit litellm (priority 1) → OpenAI-compatible proxy.
+  if (config?.provider === "litellm") {
+    const baseUrl = config.base_url ?? process.env.LITELLM_BASE_URL;
+    if (!baseUrl) {
+      throw new Error(
+        "api_provider=litellm requires base_url (set via LlmCallConfig.base_url, env LITELLM_BASE_URL, or .onto/config.yml llm_base_url)",
+      );
+    }
+    const modelId = config.model_id ?? config.models_per_provider?.litellm;
+    if (!modelId) throw missingModelError("litellm");
+    const apiKey = process.env.LITELLM_API_KEY ?? "sk-litellm-placeholder";
+    const maxTokens = config.max_tokens ?? 1024;
+    return callOpenAI(systemPrompt, userPrompt, apiKey, modelId, maxTokens, baseUrl, "litellm");
+  }
+
+  // Auto-resolution by cost-order (priority 3-6). config-explicit anthropic/openai
+  // flows through resolveProvider too (preferred arg filters candidates).
+  const resolved = resolveProvider(config?.provider, config?.base_url);
   const maxTokens = config?.max_tokens ?? 1024;
 
-  if (resolved.provider === "anthropic") {
-    return callAnthropic(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
+  // Graceful-fallback notice: codex OAuth present but binary missing (§3.7 c).
+  if (resolved.codexOauthPresentButBinaryMissing) {
+    const suppress = Boolean(process.env.ONTO_SUPPRESS_CODEX_INSTALL_NOTICE);
+    maybeEmitCodexInstallNotice({
+      fallbackProvider: resolved.provider,
+      fallbackBillingMode: resolved.provider === "anthropic" || resolved.provider === "openai" ? "per_token" : "per_token",
+      suppress,
+    });
   }
-  return callOpenAI(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
+
+  // B1: cost-order transition notice. Only fires for auto-resolution paths where
+  // the user has an API-key credential that the OLD (pre-cost-order) code would
+  // have picked but NEW code routes to codex/litellm instead.
+  if (config?.provider === undefined) {
+    maybeEmitCostOrderTransitionNotice(resolved);
+  }
+
+  // Per-provider model lookup: applied AFTER resolveProvider decides, so per-provider
+  // overrides in OntoConfig work under auto-resolution too (not just explicit paths).
+  const perProviderModel = config?.models_per_provider?.[resolved.provider];
+
+  switch (resolved.provider) {
+    case "codex": {
+      // codex CLI picks its own default model when -m is omitted. Do NOT fall back
+      // to a hardcoded model: codex OAuth (chatgpt account) rejects many
+      // openai-native model IDs with:
+      //   "The '<model>' model is not supported when using Codex with a ChatGPT account."
+      // Order: caller model_id > config.codex.model > codex CLI default.
+      const modelId = config?.model_id ?? perProviderModel;
+      return callCodexCli(
+        systemPrompt,
+        userPrompt,
+        modelId,
+        config?.reasoning_effort,
+      );
+    }
+    case "litellm": {
+      const modelId = config?.model_id ?? perProviderModel;
+      if (!modelId) throw missingModelError("litellm");
+      return callOpenAI(
+        systemPrompt,
+        userPrompt,
+        resolved.apiKey,
+        modelId,
+        maxTokens,
+        resolved.baseUrl,
+        "litellm",
+      );
+    }
+    case "anthropic": {
+      const modelId = config?.model_id ?? perProviderModel;
+      if (!modelId) throw missingModelError("anthropic");
+      return callAnthropic(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
+    }
+    case "openai": {
+      const modelId = config?.model_id ?? perProviderModel;
+      if (!modelId) throw missingModelError("openai");
+      return callOpenAI(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -425,6 +983,8 @@ function callMockProvider(
     input_tokens: estimateMockTokens(systemPrompt + userPrompt),
     output_tokens: estimateMockTokens(text),
     model_id: MOCK_MODEL_ID,
+    effective_base_url: "mock://deterministic",
+    declared_billing_mode: "per_token",
   });
 }
 

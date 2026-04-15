@@ -2120,12 +2120,13 @@ async function main(): Promise<void> {
     assert(threw, "mock should throw on unknown prompt");
   });
 
-  // E-P49 — chatgpt OAuth fallback rejected with targeted guidance
-  await test("E-P49 llm-caller refuses chatgpt OAuth and explains why", async () => {
-    // Simulate a fake home with only chatgpt OAuth in auth.json. We don't
-    // delete the user's real ~/.codex/auth.json — instead we use HOME
-    // override so os.homedir() resolves to our fake. Then verify the
-    // resolveProvider error message names chatgpt explicitly.
+  // E-P49 — chatgpt OAuth + codex binary missing + no other credential = fail-fast
+  // with install guidance (cost-order policy change, 2026-04-15 design).
+  // Previously this path refused OAuth outright; now OAuth is a first-class
+  // cost-order path when the codex binary is available. When the binary is
+  // missing and no other credential is configured, the fail message must
+  // guide the user to install codex rather than claim OAuth is unsupported.
+  await test("E-P49 llm-caller guides to install codex when OAuth present but binary missing", async () => {
     const fakeHome = makeTmpDir("e-p49-home");
     fs.mkdirSync(path.join(fakeHome, ".codex"), { recursive: true });
     fs.writeFileSync(
@@ -2142,10 +2143,14 @@ async function main(): Promise<void> {
     const previousAnth = process.env.ANTHROPIC_API_KEY;
     const previousOpen = process.env.OPENAI_API_KEY;
     const previousMock = process.env.ONTO_LLM_MOCK;
+    const previousPath = process.env.PATH;
     process.env.HOME = fakeHome;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
     delete process.env.ONTO_LLM_MOCK;
+    // Force codex binary absent by pointing PATH at an empty dir.
+    const emptyPathDir = makeTmpDir("e-p49-empty-path");
+    process.env.PATH = emptyPathDir;
 
     try {
       const { callLlm } = await import("../shared/llm-caller.js");
@@ -2155,21 +2160,20 @@ async function main(): Promise<void> {
       } catch (error) {
         caught = error instanceof Error ? error : new Error(String(error));
       }
-      assert(caught !== null, "should throw");
+      assert(caught !== null, "should throw when no usable credential and codex binary missing");
       assert(
-        caught!.message.includes("chatgpt OAuth"),
-        `error should name chatgpt OAuth explicitly; got: ${caught!.message}`,
+        caught!.message.includes("codex 바이너리") ||
+          caught!.message.includes("codex binary"),
+        `error should mention codex binary missing; got: ${caught!.message}`,
       );
       assert(
-        caught!.message.includes("Missing scopes") ||
-          caught!.message.includes("api.openai.com") ||
-          caught!.message.includes("chatgpt.com"),
-        "error should explain WHY OAuth doesn't work",
+        caught!.message.includes("https://github.com/openai/codex"),
+        "error should include codex install link",
       );
       assert(
-        caught!.message.includes("ANTHROPIC_API_KEY") ||
-          caught!.message.includes("OPENAI_API_KEY"),
-        "error should suggest a working alternative",
+        caught!.message.includes("chatgpt OAuth") ||
+          caught!.message.includes("OAuth"),
+        "error should acknowledge OAuth credential is present",
       );
     } finally {
       if (previousHome === undefined) delete process.env.HOME;
@@ -2177,6 +2181,8 @@ async function main(): Promise<void> {
       if (previousAnth !== undefined) process.env.ANTHROPIC_API_KEY = previousAnth;
       if (previousOpen !== undefined) process.env.OPENAI_API_KEY = previousOpen;
       if (previousMock !== undefined) process.env.ONTO_LLM_MOCK = previousMock;
+      if (previousPath !== undefined) process.env.PATH = previousPath;
+      else delete process.env.PATH;
     }
   });
 

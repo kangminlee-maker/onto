@@ -188,6 +188,103 @@ Claude CLI subagent, API executor, and 3-Tier fallback paths have been removed �
 
 > Legacy note: `philosopher` has been retired as a canonical review/build pipeline role. The archival definition is preserved at `development-records/legacy/philosopher.md` for lineage reference. The canonical review structure is `9 lenses + synthesize`. `ask` activity is retired (§1.2) — single lens review로 대체.
 
+## LLM Provider Configuration (learn·govern·promote)
+
+Background tasks (learn/govern/promote) use cost-ordered provider resolution. Lower-cost providers are preferred automatically; explicit overrides win over cost-order.
+
+**Resolution ladder** (higher priority first):
+
+1. **Caller-explicit** — programmatic `callLlm(..., { provider })`.
+2. **Config-explicit** — `api_provider` in `.onto/config.yml`.
+3. **codex CLI OAuth subscription** — `~/.codex/auth.json` with `auth_mode: "chatgpt"` + `codex` binary on PATH. Subscription billing (chatgpt Plus/Pro/Team). Invoked as `codex exec --ephemeral -`.
+4. **LiteLLM** — `llm_base_url` resolved via CLI flag / `LITELLM_BASE_URL` env / project config / onto-home config. OpenAI-compatible proxy; downstream model/pricing determined by proxy config.
+5. **Anthropic API key** — `ANTHROPIC_API_KEY` env. Per-token billing.
+6. **OpenAI per-token** — `OPENAI_API_KEY` env, or `~/.codex/auth.json` `OPENAI_API_KEY` field (API-key mode). Per-token billing.
+
+Credential 전무 시 fail-fast with cost-order guidance. Host main-model delegation (using the surrounding Claude Code / codex session's own model) belongs to a separate **execution realization** axis and is out of scope for this ladder.
+
+### Config examples
+
+**Auto (recommended)** — leave `.onto/config.yml` alone and let cost-order pick:
+
+```yaml
+# .onto/config.yml
+# (no api_provider set — cost-order auto-resolution)
+```
+
+**codex OAuth explicit**:
+
+```yaml
+api_provider: codex
+# codex CLI picks its own default when model is omitted. chatgpt Plus/Pro/Team
+# accounts have a restricted model allowlist — hardcoded defaults were removed
+# because openai-native IDs (e.g. gpt-4o-mini) are rejected with:
+#   "The '<model>' model is not supported when using Codex with a ChatGPT account."
+# If you want to pin a model, use one from the codex allowlist for your account:
+codex:
+  model: gpt-5-codex      # example; choose one compatible with your subscription
+  effort: medium
+```
+
+**LiteLLM (local model or self-hosted proxy)**:
+
+```yaml
+api_provider: litellm
+llm_base_url: http://localhost:4000/v1
+litellm:
+  model: claude-sonnet-local     # per-provider override (preferred)
+# OR top-level fallback:
+# model: claude-sonnet-local
+```
+
+**Model configuration** — per-provider + top-level fallback pattern:
+
+```yaml
+# Per-provider model — applied when the provider is selected, regardless of whether
+# api_provider was explicit or cost-order auto-resolution picked it.
+anthropic: { model: claude-sonnet-4-20250514 }
+openai:    { model: gpt-4o }
+codex:     { model: gpt-5-codex, effort: medium }
+litellm:   { model: claude-sonnet-local }
+
+# Top-level fallback — used when the selected provider has no per-provider model set.
+model: claude-sonnet-4-20250514
+```
+
+Per-call resolution order (dispatch picks the first non-empty):
+
+1. Runtime `LlmCallConfig.model_id` from the call site
+2. `OntoConfig.{provider}.model` where `{provider}` is whichever the ladder resolved
+3. `OntoConfig.model` as last fallback
+4. For anthropic / openai / litellm: fail fast with guidance if still unset. For codex: omit `-m` and let the codex CLI pick.
+
+Because per-provider models apply under auto-resolution too, setting only `anthropic: { model: ... }` without `api_provider` works — when cost-order picks anthropic, that model is used.
+
+Or via environment (임시 라우팅):
+
+```bash
+export LITELLM_BASE_URL=http://staging-litellm:4000/v1
+export LITELLM_API_KEY=sk-proxy-token   # if the proxy authenticates
+```
+
+**Force per-token API** (거스르려면 명시):
+
+```yaml
+api_provider: anthropic
+model: claude-sonnet-4-20250514
+```
+
+### Transition cases (기존 사용자가 자동 전환될 수 있는 조건)
+
+- `~/.codex/auth.json` chatgpt OAuth + codex binary + `ANTHROPIC_API_KEY` env 모두 존재: 이전에는 Anthropic 사용, 지금은 **codex OAuth 구독 경로로 전환**. 세션당 1회 STDERR 안내 로그가 뜹니다. 명시적으로 Anthropic을 원하면 `.onto/config.yml`에 `api_provider: anthropic`.
+- OAuth 자격 있는데 codex 바이너리 없음: 이전에는 "not supported" 에러, 지금은 다음 cost-order 경로로 graceful fallback + 설치 안내 1회. opt-out: `suppress_codex_install_notice: true`.
+- 이전 "not supported" 에러는 삭제됨. OAuth는 이제 공식 최상위 경로.
+
+### Design record
+
+- `development-records/plan/20260415-litellm-provider-design.md` — cost-order 설계의 정본
+- `authority/core-lexicon.yaml` — `LlmCompatibleProxy`, `LlmBillingMode` 개념 정의
+
 ## Commands
 
 ### Team Review

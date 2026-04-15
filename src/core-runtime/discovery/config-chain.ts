@@ -9,10 +9,28 @@ export interface OntoConfig {
   execution_mode?: string;
   /** Specific executor to use: subagent | agent-teams | codex | api | mock */
   executor_realization?: string;
-  /** API provider for api executor: anthropic | openai */
+  /**
+   * API provider for background task LLM calls: anthropic | openai | litellm | codex
+   * - anthropic/openai: SDK direct call, per-token billing
+   * - litellm: OpenAI-compatible proxy; requires llm_base_url
+   * - codex: codex CLI OAuth subprocess (subscription); requires ~/.codex/auth.json chatgpt mode + codex binary
+   * If omitted, resolveProvider uses cost-order auto-resolution.
+   */
   api_provider?: string;
   /** LLM model to use (e.g. gpt-5.4, claude-sonnet-4-20250514) */
   model?: string;
+  /**
+   * Base URL for LLM-compatible proxy (LiteLLM etc.).
+   * Used when api_provider="litellm" or when presence alone signals litellm selection.
+   * Resolution: CLI flag > env LITELLM_BASE_URL > this field > onto-home config.
+   */
+  llm_base_url?: string;
+  /**
+   * If codex OAuth is detected but the codex binary is missing, a one-time STDERR
+   * install guidance is emitted per session. Set true to suppress it (e.g. corporate
+   * environments where codex install is policy-blocked).
+   */
+  suppress_codex_install_notice?: boolean;
   /** Review mode: light | full */
   review_mode?: string;
   /** Reasoning effort level passed to executor (e.g. low, medium, high, xhigh) */

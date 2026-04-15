@@ -216,8 +216,13 @@ Credential 전무 시 fail-fast with cost-order guidance. Host main-model delega
 
 ```yaml
 api_provider: codex
+# codex CLI picks its own default when model is omitted. chatgpt Plus/Pro/Team
+# accounts have a restricted model allowlist — hardcoded defaults were removed
+# because openai-native IDs (e.g. gpt-4o-mini) are rejected with:
+#   "The '<model>' model is not supported when using Codex with a ChatGPT account."
+# If you want to pin a model, use one from the codex allowlist for your account:
 codex:
-  model: gpt-5
+  model: gpt-5-codex      # example; choose one compatible with your subscription
   effort: medium
 ```
 
@@ -226,8 +231,27 @@ codex:
 ```yaml
 api_provider: litellm
 llm_base_url: http://localhost:4000/v1
-model: claude-sonnet-local
+litellm:
+  model: claude-sonnet-local     # per-provider override (preferred)
+# OR top-level fallback:
+# model: claude-sonnet-local
 ```
+
+**Model configuration** — per-provider + top-level fallback pattern:
+
+```yaml
+# Per-provider overrides win over top-level when the provider matches:
+anthropic: { model: claude-sonnet-4-20250514 }
+openai:    { model: gpt-4o }
+codex:     { model: gpt-5-codex, effort: medium }
+litellm:   { model: claude-sonnet-local }
+
+# Top-level fallback used when per-provider not set, OR during cost-order auto-resolution
+# (the bridge can't predict which provider wins, so only top-level applies there):
+model: claude-sonnet-4-20250514
+```
+
+For anthropic / openai / litellm, **model is required**. If neither a per-provider override nor a top-level `model` is set when one of these providers is selected, `callLlm` fails fast with a clear message. codex tolerates omission because the codex CLI picks its own default.
 
 Or via environment (임시 라우팅):
 

@@ -58,12 +58,30 @@ export interface OntoConfig {
    * Used when execution_mode is "codex" or --codex flag is set.
    * CLI executor path: codex.model → fallback for top-level model when in codex mode.
    * Prompt path: team lead reads codex.model / codex.effort and inserts into [Codex Configuration].
+   * Background task path (llm-caller): codex.model is passed as `-m` to `codex exec` when
+   * api_provider="codex" or when cost-order auto-resolves to codex.
    */
   codex?: {
     model?: string;
     /** Reasoning effort for codex. Maps to model_reasoning_effort in codex config. */
     effort?: string;
   };
+
+  /**
+   * Per-provider model overrides for background task (learn/govern/promote) LLM calls.
+   * When active provider matches one of these, its nested `model` wins over the
+   * top-level `model` field. Mirrors the existing `codex.model` pattern across all
+   * providers. Bridge: resolveLearningProviderConfig in llm-caller.ts.
+   *
+   * Precedence per provider (highest first):
+   *   CLI flag model > OntoConfig.{provider}.model > OntoConfig.model > fail-fast (api-key paths)
+   *
+   * Note: codex provider tolerates missing model (codex CLI picks its own default).
+   * anthropic / openai / litellm all require a model — fail-fast when unresolved.
+   */
+  anthropic?: { model?: string };
+  openai?: { model?: string };
+  litellm?: { model?: string };
 }
 
 async function readConfigAt(dir: string): Promise<OntoConfig> {

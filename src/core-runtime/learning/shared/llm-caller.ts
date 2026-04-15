@@ -62,6 +62,9 @@ export interface LearningProviderConfigInputs {
   model?: string;
   llm_base_url?: string;
   codex?: { model?: string; effort?: string };
+  anthropic?: { model?: string };
+  openai?: { model?: string };
+  litellm?: { model?: string };
 }
 
 /**
@@ -100,18 +103,19 @@ export function resolveLearningProviderConfig(args: {
   const configProvider = narrowProvider(config.api_provider);
   const provider = cli.provider ?? configProvider;
 
-  // model: CLI > config.codex.model (if codex path) > config.model
-  const isCodex = provider === "codex";
-  const configuredModel = isCodex
-    ? config.codex?.model ?? config.model
-    : config.model;
-  const model_id = cli.model ?? configuredModel;
+  // model: CLI > config.{provider}.model (when provider is known) > config.model
+  // When provider is auto-resolved (neither CLI nor config explicit), we can't
+  // know the eventual provider here, so we fall back to the top-level model.
+  // The dispatch layer (callLlm) fails fast if no model reaches the api-key paths.
+  const providerSpecific = pickProviderModel(config, provider);
+  const model_id = cli.model ?? providerSpecific ?? config.model;
 
   // base_url: CLI > env LITELLM_BASE_URL > config.llm_base_url
   const base_url =
     cli.llm_base_url ?? process.env.LITELLM_BASE_URL ?? config.llm_base_url;
 
   // reasoning_effort: CLI > config.codex.effort (codex only)
+  const isCodex = provider === "codex";
   const reasoning_effort = cli.reasoning_effort ?? (isCodex ? config.codex?.effort : undefined);
 
   const out: Partial<LlmCallConfig> = {};
@@ -120,6 +124,24 @@ export function resolveLearningProviderConfig(args: {
   if (base_url) out.base_url = base_url;
   if (reasoning_effort) out.reasoning_effort = reasoning_effort;
   return out;
+}
+
+function pickProviderModel(
+  config: LearningProviderConfigInputs,
+  provider: LlmCallConfig["provider"] | undefined,
+): string | undefined {
+  switch (provider) {
+    case "codex":
+      return config.codex?.model;
+    case "anthropic":
+      return config.anthropic?.model;
+    case "openai":
+      return config.openai?.model;
+    case "litellm":
+      return config.litellm?.model;
+    default:
+      return undefined;
+  }
 }
 
 function narrowProvider(value: string | undefined): LlmCallConfig["provider"] | undefined {
@@ -145,8 +167,6 @@ export interface LlmCallResult {
   declared_billing_mode?: "subscription" | "per_token";
 }
 
-const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
-const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 // Phase 3 production found 30s too tight for large audit batches (philosopher
 // 37 items was timing out then SDK-retrying for 90s total). 120s is generous
 // enough for ~50-item single-batch audits while still failing fast on real
@@ -175,7 +195,6 @@ const DEFAULT_MAX_RETRIES = 1;
 interface ResolvedProvider {
   provider: "anthropic" | "openai" | "litellm" | "codex";
   apiKey: string;           // For codex: unused (subprocess uses ~/.codex auth); filled with sentinel.
-  defaultModel: string;
   baseUrl?: string;         // For litellm; for openai/anthropic undefined.
   /** For codex missing-binary case: telemetry to trigger the (c) graceful-fallback notice in callLlm. */
   codexOauthPresentButBinaryMissing?: boolean;
@@ -230,9 +249,31 @@ function codexBinaryOnPath(): boolean {
  * `fallbackFrom: "codex-oauth"` so callLlm can emit the (c) notice.
  */
 function resolveProvider(
-  _preferred?: LlmCallConfig["provider"],
+  preferred?: LlmCallConfig["provider"],
   configBaseUrl?: string,
 ): ResolvedProvider {
+  // Priority 1-2: caller-explicit / config-explicit anthropic or openai.
+  // These constrain the search to one provider; missing credential fails fast
+  // rather than silently falling through to cost-order.
+  // (codex and litellm are handled inline in callLlm before reaching here.)
+  if (preferred === "anthropic") {
+    if (process.env.ANTHROPIC_API_KEY) {
+      return { provider: "anthropic", apiKey: process.env.ANTHROPIC_API_KEY };
+    }
+    throw new Error(explicitProviderMissingCredentialError("anthropic"));
+  }
+  if (preferred === "openai") {
+    if (process.env.OPENAI_API_KEY) {
+      return { provider: "openai", apiKey: process.env.OPENAI_API_KEY };
+    }
+    const codexAuth = readCodexAuthState();
+    if (codexAuth.openaiApiKey) {
+      return { provider: "openai", apiKey: codexAuth.openaiApiKey };
+    }
+    throw new Error(explicitProviderMissingCredentialError("openai"));
+  }
+
+  // Auto cost-order resolution.
   const codexAuth = readCodexAuthState();
 
   // Priority 3: codex CLI OAuth subscription.
@@ -241,7 +282,6 @@ function resolveProvider(
       return {
         provider: "codex",
         apiKey: "codex-oauth",          // sentinel; unused
-        defaultModel: DEFAULT_OPENAI_MODEL, // codex CLI picks its own default if unspecified
       };
     }
     // OAuth detected but binary missing — fall through, mark for (c) notice.
@@ -260,6 +300,20 @@ function resolveProvider(
   throw new Error(buildNoProviderError({ codexOauthPresent: false, codexBinaryPresent: codexBinaryOnPath() }));
 }
 
+function explicitProviderMissingCredentialError(
+  provider: "anthropic" | "openai",
+): string {
+  const envVar = provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
+  return [
+    `api_provider=${provider} 명시적으로 선택되었으나 ${envVar}가 환경변수에 없습니다.`,
+    ...(provider === "openai"
+      ? ["(~/.codex/auth.json의 OPENAI_API_KEY 필드도 비어 있거나 없음)"]
+      : []),
+    `명시적 provider override를 사용하려면 ${envVar}를 export하세요.`,
+    "cost-order 자동 해소를 원하면 .onto/config.yml에서 api_provider를 제거하세요.",
+  ].join("\n");
+}
+
 function tryNonCodexProviders(configBaseUrl?: string): ResolvedProvider | null {
   // Priority 4: LiteLLM — env or config has base URL.
   const resolvedBaseUrl = process.env.LITELLM_BASE_URL ?? configBaseUrl;
@@ -268,7 +322,6 @@ function tryNonCodexProviders(configBaseUrl?: string): ResolvedProvider | null {
     return {
       provider: "litellm",
       apiKey,
-      defaultModel: DEFAULT_OPENAI_MODEL,
       baseUrl: resolvedBaseUrl,
     };
   }
@@ -278,7 +331,6 @@ function tryNonCodexProviders(configBaseUrl?: string): ResolvedProvider | null {
     return {
       provider: "anthropic",
       apiKey: process.env.ANTHROPIC_API_KEY,
-      defaultModel: DEFAULT_ANTHROPIC_MODEL,
     };
   }
 
@@ -287,7 +339,6 @@ function tryNonCodexProviders(configBaseUrl?: string): ResolvedProvider | null {
     return {
       provider: "openai",
       apiKey: process.env.OPENAI_API_KEY,
-      defaultModel: DEFAULT_OPENAI_MODEL,
     };
   }
   const codexAuth = readCodexAuthState();
@@ -295,7 +346,6 @@ function tryNonCodexProviders(configBaseUrl?: string): ResolvedProvider | null {
     return {
       provider: "openai",
       apiKey: codexAuth.openaiApiKey,
-      defaultModel: DEFAULT_OPENAI_MODEL,
     };
   }
 
@@ -322,6 +372,30 @@ function buildNoProviderError(ctx: {
   lines.push("  3. Anthropic API: ANTHROPIC_API_KEY를 export (per-token 과금)");
   lines.push("  4. OpenAI per-token: OPENAI_API_KEY를 export, 또는 ~/.codex/auth.json의 OPENAI_API_KEY 필드 (per-token 과금)");
   return lines.join("\n");
+}
+
+/**
+ * Construct a fail-fast error for api-key providers when no model is specified.
+ * Used by anthropic / openai / litellm dispatch branches. codex is exempt because
+ * the codex CLI picks its own default when `-m` is omitted.
+ *
+ * Hardcoded DEFAULT_ANTHROPIC_MODEL / DEFAULT_OPENAI_MODEL constants were removed
+ * from this module (2026-04-15): model choice is a user decision (cost / quality /
+ * account compatibility) and should not be hardcoded in library code where it can
+ * silently go stale or mismatch account permissions.
+ */
+function missingModelError(provider: "anthropic" | "openai" | "litellm"): Error {
+  const providerField = provider; // "anthropic" | "openai" | "litellm"
+  return new Error(
+    [
+      `provider=${provider} 경로는 model 지정이 필요합니다. 하드코딩된 기본 모델은 제거되었습니다.`,
+      "다음 중 한 가지로 설정하세요:",
+      `  1. .onto/config.yml 의 \`${providerField}.model: <model-id>\` (해당 provider 전용)`,
+      "  2. .onto/config.yml 의 `model: <model-id>` (provider 무관 기본값)",
+      "  3. 호출부에서 LlmCallConfig.model_id 인자 전달 (런타임 override)",
+      "(codex provider는 model 미지정 시 codex CLI가 자체 기본값을 사용하므로 이 메시지의 대상이 아닙니다.)",
+    ].join("\n"),
+  );
 }
 
 /** One-time STDERR install notice emitted when codex OAuth is detected but binary missing. */
@@ -568,8 +642,9 @@ export async function callLlm(
         "api_provider=litellm requires base_url (set via LlmCallConfig.base_url, env LITELLM_BASE_URL, or .onto/config.yml llm_base_url)",
       );
     }
+    const modelId = config.model_id;
+    if (!modelId) throw missingModelError("litellm");
     const apiKey = process.env.LITELLM_API_KEY ?? "sk-litellm-placeholder";
-    const modelId = config.model_id ?? DEFAULT_OPENAI_MODEL;
     const maxTokens = config.max_tokens ?? 1024;
     return callOpenAI(systemPrompt, userPrompt, apiKey, modelId, maxTokens, baseUrl, "litellm");
   }
@@ -604,7 +679,8 @@ export async function callLlm(
       );
     }
     case "litellm": {
-      const modelId = config?.model_id ?? resolved.defaultModel;
+      const modelId = config?.model_id;
+      if (!modelId) throw missingModelError("litellm");
       return callOpenAI(
         systemPrompt,
         userPrompt,
@@ -616,11 +692,13 @@ export async function callLlm(
       );
     }
     case "anthropic": {
-      const modelId = config?.model_id ?? resolved.defaultModel;
+      const modelId = config?.model_id;
+      if (!modelId) throw missingModelError("anthropic");
       return callAnthropic(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
     }
     case "openai": {
-      const modelId = config?.model_id ?? resolved.defaultModel;
+      const modelId = config?.model_id;
+      if (!modelId) throw missingModelError("openai");
       return callOpenAI(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
     }
   }

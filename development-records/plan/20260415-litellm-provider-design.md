@@ -65,7 +65,11 @@ onto-3는 LLM 호출 경로가 두 갈래로 나뉜다.
 
 **설계 구현상 주의**: `codex exec` 호출 시 `--ephemeral` 플래그를 추가해 codex 세션 디스크 영속화를 피한다(learning은 단일-턴이므로 세션 파일 불요). §3.5a에 반영.
 
-**런타임 smoke test 결과** (2026-04-15 구현 후 실측): 짧은 프롬프트("ping"→"pong") 단일 호출로 priority 3 경로 동작 확인. `effective_base_url="codex-cli://oauth"`, `declared_billing_mode="subscription"`, model_id sentinel `"codex-default"` 기록됨. 초기 시도에서 `DEFAULT_OPENAI_MODEL=gpt-4o-mini`가 codex에도 default로 전파되어 chatgpt account가 거부한 버그 발견·수정(§3.6 구현 노트): codex provider는 user-explicit `model_id`만 `-m` 플래그로 전달하고, 없으면 codex CLI가 자체 기본값을 고른다.
+**런타임 smoke test 결과** (2026-04-15 구현 후 실측): 짧은 프롬프트("ping"→"pong") 단일 호출로 priority 3 경로 동작 확인. `effective_base_url="codex-cli://oauth"`, `declared_billing_mode="subscription"`, model_id sentinel `"codex-default"` 기록됨.
+
+**D12 (신규, smoke test 후 결정)**: `DEFAULT_ANTHROPIC_MODEL` / `DEFAULT_OPENAI_MODEL` 하드코딩 **완전 제거**. 이유: (1) 초기 스모크 테스트에서 `gpt-4o-mini` fallback이 chatgpt account에 의해 거부당하는 사례 확인 — 하드코딩된 모델은 특정 계정 권한에 안 맞을 수 있음. (2) 모델 선택은 비용·품질·계정 호환성이 걸린 사용자 결정이므로 라이브러리 코드에서 암묵적으로 가정하면 stale·mismatch 위험. 결과: anthropic / openai / litellm 경로는 model 미해소 시 fail-fast. codex는 `-m` 생략 시 codex CLI가 자체 기본값을 선택하므로 예외.
+
+**D13 (신규)**: 모델 설정 위치를 `OntoConfig.codex.model` 패턴으로 **모든 provider에 대칭 확장**. 필드: `anthropic?: { model?: string }`, `openai?: { model?: string }`, `litellm?: { model?: string }`, 기존 `codex?: { model?, effort? }`. 해소 순서 (per-provider): CLI override > `OntoConfig.{provider}.model` > `OntoConfig.model` > fail-fast(api-key 경로). Auto cost-order일 때는 bridge가 어떤 provider가 선택될지 모르므로 top-level `model`만 적용.
 
 ### 1.4 상위 원칙 정합성
 

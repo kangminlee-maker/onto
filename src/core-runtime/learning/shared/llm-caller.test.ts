@@ -105,6 +105,48 @@ describe("resolveLearningProviderConfig", () => {
     expect(out.reasoning_effort).toBe("high");
   });
 
+  it("per-provider model override applies for anthropic", () => {
+    const out = resolveLearningProviderConfig({
+      config: {
+        api_provider: "anthropic",
+        anthropic: { model: "claude-sonnet-4" },
+        model: "generic-fallback",
+      },
+    });
+    expect(out.provider).toBe("anthropic");
+    expect(out.model_id).toBe("claude-sonnet-4");
+  });
+
+  it("per-provider model override applies for openai", () => {
+    const out = resolveLearningProviderConfig({
+      config: { api_provider: "openai", openai: { model: "gpt-4o" }, model: "other" },
+    });
+    expect(out.model_id).toBe("gpt-4o");
+  });
+
+  it("per-provider model override applies for litellm", () => {
+    const out = resolveLearningProviderConfig({
+      config: { api_provider: "litellm", litellm: { model: "local-llama" }, model: "other" },
+    });
+    expect(out.model_id).toBe("local-llama");
+  });
+
+  it("falls back to top-level model when per-provider absent", () => {
+    const out = resolveLearningProviderConfig({
+      config: { api_provider: "openai", model: "fallback-model" },
+    });
+    expect(out.model_id).toBe("fallback-model");
+  });
+
+  it("auto-resolution (no provider) uses top-level model only", () => {
+    // Bridge can't predict which provider cost-order will pick, so per-provider fields don't apply here.
+    const out = resolveLearningProviderConfig({
+      config: { anthropic: { model: "ant" }, openai: { model: "oa" }, model: "top" },
+    });
+    expect(out.provider).toBeUndefined();
+    expect(out.model_id).toBe("top");
+  });
+
   it("env LITELLM_BASE_URL beats config.llm_base_url when CLI absent", () => {
     process.env.LITELLM_BASE_URL = "http://env:4000/v1";
     try {
@@ -154,6 +196,37 @@ describe("callLlm resolveProvider cost-order", () => {
       expect(result.error).toContain("LiteLLM");
       expect(result.error).toContain("ANTHROPIC_API_KEY");
       expect(result.error).toContain("OPENAI_API_KEY");
+    }
+  });
+
+  it("explicit anthropic without ANTHROPIC_API_KEY → fail-fast with clear guidance", async () => {
+    const { callLlm } = await import("./llm-caller.js");
+    let caught: Error | null = null;
+    try {
+      await callLlm("s", "u", { provider: "anthropic", max_tokens: 8 });
+    } catch (err) {
+      caught = err instanceof Error ? err : new Error(String(err));
+    }
+    expect(caught).not.toBeNull();
+    expect(caught!.message).toContain("api_provider=anthropic");
+    expect(caught!.message).toContain("ANTHROPIC_API_KEY");
+  });
+
+  it("explicit anthropic + key + no model → missing-model error (hardcoded defaults removed)", async () => {
+    process.env.ANTHROPIC_API_KEY = "sk-fake";
+    try {
+      const { callLlm } = await import("./llm-caller.js");
+      let caught: Error | null = null;
+      try {
+        await callLlm("s", "u", { provider: "anthropic", max_tokens: 8 });
+      } catch (err) {
+        caught = err instanceof Error ? err : new Error(String(err));
+      }
+      expect(caught).not.toBeNull();
+      expect(caught!.message).toContain("model 지정이 필요");
+      expect(caught!.message).toContain("anthropic.model");
+    } finally {
+      delete process.env.ANTHROPIC_API_KEY;
     }
   });
 

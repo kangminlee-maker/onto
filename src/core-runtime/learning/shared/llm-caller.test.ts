@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import {
   resolveLearningProviderConfig,
+  logLiteLLMIssue,
   __resetNoticeFlagsForTests,
   type LearningProviderConfigInputs,
   type LearningProviderCliOverrides,
@@ -384,6 +385,89 @@ describe("LlmCallResult audit fields", () => {
     } finally {
       if (orig === undefined) delete process.env.ONTO_LLM_MOCK;
       else process.env.ONTO_LLM_MOCK = orig;
+    }
+  });
+});
+
+// ─── logLiteLLMIssue (opt-in LiteLLM issue log) ───
+
+describe("logLiteLLMIssue", () => {
+  let tmpDir: string;
+  let logPath: string;
+  let savedEnv: string | undefined;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "onto-litellm-log-"));
+    logPath = path.join(tmpDir, "ISSUE-LOG.md");
+    savedEnv = process.env.ONTO_LITELLM_ISSUE_LOG;
+  });
+
+  afterEach(() => {
+    if (savedEnv === undefined) delete process.env.ONTO_LITELLM_ISSUE_LOG;
+    else process.env.ONTO_LITELLM_ISSUE_LOG = savedEnv;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("is a no-op when ONTO_LITELLM_ISSUE_LOG is unset", () => {
+    delete process.env.ONTO_LITELLM_ISSUE_LOG;
+    logLiteLLMIssue("title", "symptom", { model_id: "gpt-4o-mini" });
+    expect(fs.existsSync(logPath)).toBe(false);
+  });
+
+  it("appends a structured entry when the env var points to a file", () => {
+    process.env.ONTO_LITELLM_ISSUE_LOG = logPath;
+    logLiteLLMIssue("call failed (503)", "upstream unavailable", {
+      model_id: "gpt-4o-mini",
+      base_url: "http://127.0.0.1:4000/v1",
+      status: 503,
+      error_name: "APIError",
+      error_message: "Service Unavailable",
+      prompt_hash: "abc123def456",
+    });
+
+    const content = fs.readFileSync(logPath, "utf8");
+    expect(content).toMatch(/### \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] call failed \(503\)/);
+    expect(content).toContain("- **모듈**: onto / LiteLLM");
+    expect(content).toContain("- **증상**: upstream unavailable");
+    expect(content).toContain("- **모델**: gpt-4o-mini");
+    expect(content).toContain("- **엔드포인트**: http://127.0.0.1:4000/v1");
+    expect(content).toContain("- **상태 코드**: 503");
+    expect(content).toContain("- **에러**: APIError: Service Unavailable");
+    expect(content).toContain("- **프롬프트 해시**: abc123def456");
+  });
+
+  it("appends successive entries without overwriting prior ones", () => {
+    process.env.ONTO_LITELLM_ISSUE_LOG = logPath;
+    logLiteLLMIssue("first", "first symptom", { model_id: "a" });
+    logLiteLLMIssue("second", "second symptom", { model_id: "b" });
+
+    const content = fs.readFileSync(logPath, "utf8");
+    expect(content.match(/] first\b/g)?.length ?? 0).toBe(1);
+    expect(content.match(/] second\b/g)?.length ?? 0).toBe(1);
+  });
+
+  it("renders em-dash placeholders for missing context fields", () => {
+    process.env.ONTO_LITELLM_ISSUE_LOG = logPath;
+    logLiteLLMIssue("minimal", "no context", {});
+
+    const content = fs.readFileSync(logPath, "utf8");
+    expect(content).toContain("- **모델**: —");
+    expect(content).toContain("- **엔드포인트**: —");
+    expect(content).toContain("- **상태 코드**: —");
+    expect(content).toContain("- **에러**: —");
+    expect(content).toContain("- **프롬프트 해시**: —");
+  });
+
+  it("does not throw when the log path is unwritable", () => {
+    process.env.ONTO_LITELLM_ISSUE_LOG = path.join(tmpDir, "missing-dir", "log.md");
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    (process.stderr as any).write = () => true;
+    try {
+      expect(() =>
+        logLiteLLMIssue("unwritable", "should degrade gracefully", {}),
+      ).not.toThrow();
+    } finally {
+      (process.stderr as any).write = originalWrite;
     }
   });
 });

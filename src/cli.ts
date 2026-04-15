@@ -672,8 +672,14 @@ async function main(): Promise<number> {
       return handleHealth(ontoHome, subcommandArgv);
     }
 
+    case "govern": {
+      const { handleGovernCli } = await import(
+        "./core-runtime/govern/cli.js"
+      );
+      return handleGovernCli(ontoHome, subcommandArgv);
+    }
+
     case "learn":
-    case "govern":
     case "build":
     case "ask":
       console.error(
@@ -696,6 +702,7 @@ async function main(): Promise<number> {
           "Subcommands:",
           "  evolve start <description>   Start an evolve scope",
           "  reconstruct <subcommand>    Reconstruct activity CLI (start/explore/complete)",
+          "  govern <subcommand>         Govern queue CLI (submit/list/decide)",
           "  review <target> <intent>   Run 9-lens review",
           "  review --complete-session   Complete a prepared session",
           "  coordinator start|next|status  State machine coordinated review",

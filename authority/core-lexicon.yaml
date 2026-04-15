@@ -1,4 +1,4 @@
-lexicon_version: "0.11.0"
+lexicon_version: "0.12.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
@@ -14,6 +14,7 @@ notes:
   - "v0.9.4 additive (W-A-52, 2026-04-14): provisional_terms 에 invoke_surface + install_surface 2 seed 등재. R-4 install-surface authority alignment 성문화 (processes/evolve.md §9). supporting."
   - "v0.10.0 additive (W-A-29 R-31, 2026-04-15): fact_type term 신설. reconstruct 활동 Delta 의 10-value taxonomy (Stage 1 Structure / Stage 2 Behavior). 위계 정합 — Rank 5 (reconstruct.md) 가 canonical 이고 Rank 4 (BLUEPRINT.md) 가 duplicate 이던 위계 역전 해소. canonical 은 본 파일, reconstruct.md 는 참조. canonical-advancing."
   - "v0.11.0 additive (W-A-66/67/68, 2026-04-15): 3 supporting terms 신설 — competency_question/competency_scope (pragmatics lens + domain competency_qs.md 파일 소비), provenance (design-principles + review binding.yaml 소비), modularity_boundary (review 9-lens prompt packet 공통 소비). 각 term 이 해당 개념의 authority SSOT. supporting."
+  - "v0.12.0 additive (W-C-01, 2026-04-16): govern_process entity 신설 + entrypoint.instances.govern 에 dispatches→govern_process relation 추가. §1.4 govern 활동의 authority seat 등재 (v0 = bounded minimum surface, 큐 기록만). drift engine 과 승인 강제 차단은 W-C-02. canonical-advancing."
   - "v0.8.0 additive (W-A-63, 2026-04-13): review_record term → entity 승격. lifecycle_status attribute 부여. review_process relation produces→creates 전환. lexicon Stage 3-3 merge."
   - "v0.7.0 additive (W-D-01+W-D-03, D0 Bootstrap, 2026-04-13): provisional_lifecycle section 신설 (W-D-01) — lexicon term 성숙도 전이 모델 (seed→candidate→provisional→promoted) + 전이 조건 + 소비 정책 + lifecycle_status 관리 위치 성문화. provisional_terms section 신설 (W-D-03) — dep graph §2.2.1 4 seat 구조 (recording seat + actor + consumer + promotion path) + entry schema + 빈 entries. §1 정본 '다음 작업 #2' + BL-123 대응."
 
@@ -451,6 +452,26 @@ entities:
     execution_rules_ref:
       execution_flow: "processes/review/productized-live-path.md"
 
+  govern_process:
+    canonical_label: "govern_process"
+    korean_label: "거버넌스 프로세스"
+    definition: "govern entrypoint의 의도를 실행하는 프로세스. 규범 변경·drift 항목을 큐로 축적하고 주체자 판정을 이벤트 로그로 기록한다"
+    core_value: "이 개념이 없으면 프로젝트 규범에 대한 변경 제안·drift 가 흩어져 언제 어떤 판단이 있었는지 추적 불가능해진다. 반복 재논의 비용을 막기 위한 규범 변경 관리 주체"
+    relations:
+      - type: consumes
+        target: drift_queue_entry
+        note: "decide 는 기존 queue entry 를 판정 대상으로 소비. W-C-02 drift engine 이 생성한 entry 도 동일 경로로 소비"
+      - type: creates
+        target: drift_queue_entry
+        note: "submit 서브커맨드가 새 entry 생성. origin=human → tag=norm_change, origin=system → tag=drift"
+    execution_rules_ref:
+      process_contract: "processes/govern.md"
+      cli_surface: "commands/govern.md"
+      storage_path: ".onto/govern/queue.ndjson (project-local)"
+    notes:
+      - "W-C-01 v0 (2026-04-16): bounded minimum surface. 큐 기록만 제공. 승인 강제 차단은 W-C-02, 승급 경로·cross-project 규범은 W-C-03."
+      - "CLI-agent 책임 분리: CLI 는 이벤트 append + projection + 렌더링. agent 는 payload 작성 + 판정 근거 text 구성."
+
   domain_document:
     canonical_label: "domain_document"
     korean_label: "도메인 문서"
@@ -528,8 +549,11 @@ entities:
         definition: "학습 축적·승격·큐레이션·감사"
         notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
       govern:
-        definition: "규칙·구조·프로세스 관리"
-        notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
+        definition: "규범 변경 제안과 문서-코드 drift 감지 항목을 큐로 관리하고, 주체자 판정을 이벤트로 기록"
+        relations:
+          - { type: dispatches, target: govern_process }
+        notes:
+          - "v0.12.0 (W-C-01, 2026-04-16): dispatch target relation 도입. 기존 'deferred to Stage 3' 해소."
       design:
         definition: "대상을 분석하고 설계 문서를 생성"
         notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
@@ -1021,3 +1045,18 @@ terms:
       - "Consumers: review 9-lens prompt packets (모든 lens 가 이 경계를 공통 판단 기준으로 참조), m01-activity-inventory/govern.md (활동 단위 경계)."
       - "Lens별 적용: logic (rule locality), structure (schema locality), dependency (call/import graph locality), semantics (name scope locality), pragmatics (CQ locality), evolution (breakage locality), coverage (area locality), conciseness (dedup boundary), axiology (value-conflict locality)."
       - "관련 term: ownership_boundary (W-ID seat field — 구체적 파일/디렉토리 단위), modularity_boundary (개념 단위)."
+  - term_id: "drift_queue_entry"
+    canonical_label: "drift_queue_entry"
+    korean_label: "거버넌스 큐 항목"
+    axis: "governance"
+    term_status: "active"
+    definition: "govern_process 가 소유하는 큐의 단일 항목. 규범 변경 제안(origin=human, tag=norm_change) 또는 drift 감지(origin=system, tag=drift) 가 하나의 entry 로 기록된다. pending → decided 의 단순 생애주기."
+    allowed_values: []
+    notes:
+      - "Introduced by W-C-01 (2026-04-16) bounded minimum surface."
+      - "Origin → tag deterministic mapping: human → norm_change, system → drift."
+      - "사람이 drift 를 계기로 올린 제안: tag=norm_change + prompted_by_drift_id 로 원본 drift entry 를 링크."
+      - "Storage: .onto/govern/queue.ndjson (project-local, project-locality-principle 준수). Cross-project 규범은 W-C-03 에서 설계."
+      - "Event types: submit (base), decide (pending → decided transition). Append-only."
+      - "Schema location (code SSOT): src/core-runtime/govern/types.ts (GovernSubmitEvent, GovernDecideEvent, GovernQueueEntry)."
+      - "Consumers: govern_process (dispatches from govern entrypoint instance), W-C-02 drift engine (future producer for origin=system entries), processes/govern.md §7 (storage contract)."

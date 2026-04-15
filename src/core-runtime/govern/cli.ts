@@ -1,0 +1,328 @@
+/**
+ * onto govern — CLI entry point (W-C-01, bounded minimum surface v0).
+ *
+ * Subcommands: submit / list / decide (queue pattern).
+ *
+ * Responsibility split (consistent with evolve propose-align precedent):
+ *   - CLI owns: queue I/O, event log append, deterministic projection, table/JSON rendering.
+ *   - LLM / agent owns: proposal authoring (payload JSON assembly), judgment reasoning.
+ *
+ * v0 scope: 기록만. decide approve 후 authority 파일 실제 반영은 주체자 수동 편집 or W-C-02.
+ * 승인 강제 차단 (pre-commit/CI/merge gate) 도 W-C-02.
+ */
+
+import {
+  appendQueueEvent,
+  generateGovernId,
+  projectQueue,
+  readQueueEvents,
+  resolveQueuePath,
+} from "./queue.js";
+import { originToTag } from "./types.js";
+import type {
+  GovernDecideEvent,
+  GovernOrigin,
+  GovernQueueEntry,
+  GovernSubmitEvent,
+  GovernVerdict,
+} from "./types.js";
+
+export async function handleGovernCli(
+  _ontoHome: string,
+  argv: string[],
+): Promise<number> {
+  const subcommand = argv[0];
+  const subArgv = argv.slice(1);
+
+  switch (subcommand) {
+    case "submit":
+      return handleSubmit(subArgv);
+    case "list":
+      return handleList(subArgv);
+    case "decide":
+      return handleDecide(subArgv);
+    case "--help":
+    case "-h":
+    case undefined:
+      printHelp();
+      return 0;
+    default:
+      console.error(`[onto] Unknown govern subcommand: ${subcommand}`);
+      console.error("Run 'onto govern --help' for usage.");
+      return 1;
+  }
+}
+
+function printHelp(): void {
+  console.log(
+    [
+      "Usage: onto govern <subcommand> [options]",
+      "",
+      "Subcommands:",
+      "  submit   Queue a norm-change proposal or drift-detection item",
+      "  list     Show queue entries (pending / decided / all)",
+      "  decide   Record Principal verdict on a queued item",
+      "",
+      "Options (submit):",
+      "  --origin <human|system>     who is submitting (required)",
+      "  --target <path>             file/resource being proposed to change (required)",
+      "  --json <payload-json>       proposal payload JSON (required)",
+      "  --prompted-by-drift <id>    optional: this human proposal was prompted by a drift item",
+      "  --submitted-by <actor>      optional actor label (default: 'principal' for human, 'drift-engine' for system)",
+      "  --project-root <path>       project root (default: cwd)",
+      "",
+      "Options (list):",
+      "  --status <pending|decided|all>   filter (default: pending)",
+      "  --format <table|json>            output format (default: table)",
+      "  --project-root <path>            project root (default: cwd)",
+      "",
+      "Options (decide):",
+      "  <id>                        queue entry id (positional, required)",
+      "  --verdict <approve|reject>  required",
+      "  --reason <text>             required",
+      "  --decided-by <actor>        optional (default: principal)",
+      "  --project-root <path>       project root (default: cwd)",
+      "",
+      "v0 scope (bounded minimum surface):",
+      "  - submit appends to .onto/govern/queue.ndjson (event-sourced, append-only).",
+      "  - decide records verdict only. Actual authority-file edit after approve is",
+      "    manual (or delegated to W-C-02 drift-engine). No merge/CI gate in v0.",
+      "  - origin→tag is deterministic: human→norm_change, system→drift.",
+      "  - Cross-project norms (e.g., global meta-rules) are out of scope; see W-C-03.",
+    ].join("\n"),
+  );
+}
+
+function readOption(argv: string[], name: string): string | undefined {
+  const idx = argv.indexOf(`--${name}`);
+  if (idx >= 0 && idx + 1 < argv.length) return argv[idx + 1];
+  return undefined;
+}
+
+function resolveProjectRoot(argv: string[]): string {
+  return readOption(argv, "project-root") ?? process.cwd();
+}
+
+// ─── submit ───
+
+function handleSubmit(argv: string[]): number {
+  const originRaw = readOption(argv, "origin");
+  const target = readOption(argv, "target");
+  const jsonRaw = readOption(argv, "json");
+  const promptedBy = readOption(argv, "prompted-by-drift");
+  const submittedByOverride = readOption(argv, "submitted-by");
+
+  if (!originRaw || (originRaw !== "human" && originRaw !== "system")) {
+    console.error("[onto] govern submit: --origin must be 'human' or 'system'.");
+    return 1;
+  }
+  if (!target) {
+    console.error("[onto] govern submit: --target is required.");
+    return 1;
+  }
+  if (!jsonRaw) {
+    console.error("[onto] govern submit: --json payload is required.");
+    return 1;
+  }
+  let payload: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(jsonRaw);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      console.error("[onto] govern submit: --json must be a JSON object.");
+      return 1;
+    }
+    payload = parsed as Record<string, unknown>;
+  } catch (e) {
+    console.error(
+      `[onto] govern submit: --json parse error: ${e instanceof Error ? e.message : String(e)}`,
+    );
+    return 1;
+  }
+
+  const origin = originRaw as GovernOrigin;
+  const tag = originToTag(origin);
+  const projectRoot = resolveProjectRoot(argv);
+  const queuePath = resolveQueuePath(projectRoot);
+  const id = generateGovernId();
+  const submittedBy =
+    submittedByOverride ?? (origin === "human" ? "principal" : "drift-engine");
+
+  const event: GovernSubmitEvent = {
+    type: "submit",
+    id,
+    origin,
+    tag,
+    target,
+    payload,
+    submitted_at: new Date().toISOString(),
+    submitted_by: submittedBy,
+  };
+  if (promptedBy !== undefined) event.prompted_by_drift_id = promptedBy;
+
+  appendQueueEvent(queuePath, event);
+
+  console.log(
+    JSON.stringify(
+      {
+        status: "queued",
+        id,
+        origin,
+        tag,
+        target,
+        next_action: `onto govern list --status pending  # 또는 onto govern decide ${id} --verdict <approve|reject> --reason <text>`,
+      },
+      null,
+      2,
+    ),
+  );
+  return 0;
+}
+
+// ─── list ───
+
+function handleList(argv: string[]): number {
+  const statusFilterRaw = readOption(argv, "status") ?? "pending";
+  if (
+    statusFilterRaw !== "pending" &&
+    statusFilterRaw !== "decided" &&
+    statusFilterRaw !== "all"
+  ) {
+    console.error(
+      "[onto] govern list: --status must be 'pending', 'decided', or 'all'.",
+    );
+    return 1;
+  }
+  const format = readOption(argv, "format") ?? "table";
+  if (format !== "table" && format !== "json") {
+    console.error("[onto] govern list: --format must be 'table' or 'json'.");
+    return 1;
+  }
+
+  const projectRoot = resolveProjectRoot(argv);
+  const queuePath = resolveQueuePath(projectRoot);
+  const events = readQueueEvents(queuePath);
+  const entries = projectQueue(events);
+  const filtered =
+    statusFilterRaw === "all"
+      ? entries
+      : entries.filter((e) => e.status === statusFilterRaw);
+
+  if (format === "json") {
+    console.log(JSON.stringify(filtered, null, 2));
+    return 0;
+  }
+  renderTable(filtered, statusFilterRaw);
+  return 0;
+}
+
+function renderTable(entries: GovernQueueEntry[], statusFilter: string): void {
+  if (entries.length === 0) {
+    console.log(`(no ${statusFilter} govern entries)`);
+    return;
+  }
+  const rows = entries.map((e) => ({
+    id: e.id,
+    status: e.status,
+    tag: e.tag,
+    origin: e.origin,
+    target: e.target,
+    submitted_at: e.submitted_at,
+    verdict: e.verdict?.verdict ?? "",
+  }));
+  const cols: Array<keyof (typeof rows)[0]> = [
+    "id",
+    "status",
+    "tag",
+    "origin",
+    "target",
+    "submitted_at",
+    "verdict",
+  ];
+  const widths: Record<string, number> = {};
+  for (const c of cols) {
+    widths[c] = Math.max(
+      c.length,
+      ...rows.map((r) => String(r[c] ?? "").length),
+    );
+  }
+  const header = cols.map((c) => c.padEnd(widths[c]!)).join("  ");
+  console.log(header);
+  console.log(cols.map((c) => "-".repeat(widths[c]!)).join("  "));
+  for (const r of rows) {
+    console.log(
+      cols.map((c) => String(r[c] ?? "").padEnd(widths[c]!)).join("  "),
+    );
+  }
+}
+
+// ─── decide ───
+
+function handleDecide(argv: string[]): number {
+  const id = argv.find((a) => !a.startsWith("--"));
+  if (!id) {
+    console.error("[onto] govern decide: <id> positional argument is required.");
+    return 1;
+  }
+  const verdictRaw = readOption(argv, "verdict");
+  const reason = readOption(argv, "reason");
+  const decidedByOverride = readOption(argv, "decided-by");
+
+  if (!verdictRaw || (verdictRaw !== "approve" && verdictRaw !== "reject")) {
+    console.error(
+      "[onto] govern decide: --verdict must be 'approve' or 'reject'.",
+    );
+    return 1;
+  }
+  if (!reason || reason.trim().length === 0) {
+    console.error("[onto] govern decide: --reason is required.");
+    return 1;
+  }
+
+  const projectRoot = resolveProjectRoot(argv);
+  const queuePath = resolveQueuePath(projectRoot);
+  const events = readQueueEvents(queuePath);
+  const entries = projectQueue(events);
+  const existing = entries.find((e) => e.id === id);
+  if (!existing) {
+    console.error(`[onto] govern decide: id '${id}' not found in queue.`);
+    return 1;
+  }
+  if (existing.status === "decided") {
+    console.error(
+      `[onto] govern decide: id '${id}' already decided (verdict=${existing.verdict?.verdict}). v0 는 재판정 지원하지 않음.`,
+    );
+    return 1;
+  }
+
+  const verdict = verdictRaw as GovernVerdict;
+  const event: GovernDecideEvent = {
+    type: "decide",
+    id,
+    verdict,
+    reason,
+    decided_at: new Date().toISOString(),
+    decided_by: decidedByOverride ?? "principal",
+  };
+  appendQueueEvent(queuePath, event);
+
+  const applyNote =
+    verdict === "approve"
+      ? `(v0 는 기록만) 승인됨. ${existing.target} 파일의 실제 수정은 주체자 수동 편집 또는 W-C-02 drift-engine 책임.`
+      : `(v0 는 기록만) 거부됨. 제안 내용은 폐기. ${existing.target} 파일은 변경 없음.`;
+
+  console.log(
+    JSON.stringify(
+      {
+        status: "decided",
+        id,
+        verdict,
+        target: existing.target,
+        tag: existing.tag,
+        note: applyNote,
+      },
+      null,
+      2,
+    ),
+  );
+  return 0;
+}

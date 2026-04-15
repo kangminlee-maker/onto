@@ -18,6 +18,8 @@ import {
   readQueueEvents,
   resolveQueuePath,
 } from "./queue.js";
+import { routeProposal } from "./drift-engine.js";
+import type { ChangeKind, ChangeProposal } from "./drift-engine.js";
 import { originToTag } from "./types.js";
 import type {
   GovernDecideEvent,
@@ -41,6 +43,8 @@ export async function handleGovernCli(
       return handleList(subArgv);
     case "decide":
       return handleDecide(subArgv);
+    case "route":
+      return handleRoute(subArgv);
     case "--help":
     case "-h":
     case undefined:
@@ -62,6 +66,7 @@ function printHelp(): void {
       "  submit   Queue a norm-change proposal or drift-detection item",
       "  list     Show queue entries (pending / decided / all)",
       "  decide   Record Principal verdict on a queued item",
+      "  route    Classify a change proposal by drift policy (W-C-02, §1.3)",
       "",
       "Options (submit):",
       "  --origin <human|system>     who is submitting (required)",
@@ -82,6 +87,14 @@ function printHelp(): void {
       "  --reason <text>             required",
       "  --decided-by <actor>        optional (default: principal)",
       "  --project-root <path>       project root (default: cwd)",
+      "",
+      "Options (route):",
+      "  --json <proposal-json>                          required. ChangeProposal JSON (summary, target_files, change_kind, rationale?)",
+      "  --project-root <path>                           project root (default: cwd)",
+      "  (outcome routes)",
+      "    self_apply        drift-free local change. no queue append. caller logs only.",
+      "    queue             drift-risk change. appends origin=system, tag=drift to queue.",
+      "    principal_direct  governance-core change. appends with payload marker route=principal_direct.",
       "",
       "v0 scope (bounded minimum surface):",
       "  - submit appends to .onto/govern/queue.ndjson (event-sourced, append-only).",
@@ -253,6 +266,87 @@ function renderTable(entries: GovernQueueEntry[], statusFilter: string): void {
       cols.map((c) => String(r[c] ?? "").padEnd(widths[c]!)).join("  "),
     );
   }
+}
+
+// ─── route (W-C-02 drift engine) ───
+
+function handleRoute(argv: string[]): number {
+  const jsonRaw = readOption(argv, "json");
+  if (!jsonRaw) {
+    console.error("[onto] govern route: --json proposal is required.");
+    return 1;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonRaw);
+  } catch (e) {
+    console.error(
+      `[onto] govern route: --json parse error: ${e instanceof Error ? e.message : String(e)}`,
+    );
+    return 1;
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    console.error("[onto] govern route: --json must be a JSON object.");
+    return 1;
+  }
+  const obj = parsed as Record<string, unknown>;
+
+  const summary = obj.summary;
+  const targetFiles = obj.target_files;
+  const changeKind = obj.change_kind;
+  const rationale = obj.rationale;
+
+  if (typeof summary !== "string" || summary.trim().length === 0) {
+    console.error("[onto] govern route: proposal.summary (string) is required.");
+    return 1;
+  }
+  if (
+    !Array.isArray(targetFiles) ||
+    targetFiles.length === 0 ||
+    !targetFiles.every((f) => typeof f === "string" && f.length > 0)
+  ) {
+    console.error(
+      "[onto] govern route: proposal.target_files must be a non-empty string array.",
+    );
+    return 1;
+  }
+  const validKinds: ChangeKind[] = ["docs_only", "code", "config", "mixed"];
+  if (
+    typeof changeKind !== "string" ||
+    !validKinds.includes(changeKind as ChangeKind)
+  ) {
+    console.error(
+      `[onto] govern route: proposal.change_kind must be one of ${validKinds.join(", ")}.`,
+    );
+    return 1;
+  }
+
+  const proposal: ChangeProposal = {
+    summary,
+    target_files: targetFiles as string[],
+    change_kind: changeKind as ChangeKind,
+  };
+  if (typeof rationale === "string") proposal.rationale = rationale;
+
+  const projectRoot = resolveProjectRoot(argv);
+  const outcome = routeProposal(proposal, projectRoot);
+
+  console.log(
+    JSON.stringify(
+      {
+        status: "routed",
+        route: outcome.decision.route,
+        matched_rule: outcome.decision.matched_rule,
+        reason: outcome.decision.reason,
+        ...(outcome.queue_event_id
+          ? { queue_event_id: outcome.queue_event_id }
+          : {}),
+      },
+      null,
+      2,
+    ),
+  );
+  return 0;
 }
 
 // ─── decide ───

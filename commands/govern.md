@@ -11,6 +11,7 @@ govern <subcommand> [options]
 | `submit` | 새 항목을 큐에 등록 | — → pending |
 | `list` | 큐 조회 (pending / decided / all) | (읽기) |
 | `decide <id>` | 주체자 판정 기록 | pending → decided |
+| `route` | drift engine 분류 (§1.3 3 분기) + 필요 시 큐 append | (drift → pending 또는 no-op) |
 
 **Authority seat**: `processes/govern.md` (프로세스 계약). 큐 저장 경로: `.onto/govern/queue.ndjson` (프로젝트 로컬).
 
@@ -67,6 +68,27 @@ onto govern decide <id> --verdict <approve|reject> --reason <text> [--decided-by
 - `--decided-by` 기본값: `principal`.
 - v0 는 **재판정 불가**. 이미 decided 인 항목에 대해 두 번째 decide 호출 시 오류.
 - 출력 `note`: approve 시 "v0 는 기록만. 실제 수정은 주체자 수동 편집 또는 W-C-02".
+
+### route (W-C-02, §1.3 drift engine)
+
+```
+onto govern route --json <ChangeProposal-json>
+```
+
+변경 제안(ChangeProposal)을 받아 drift 정책 3 분기로 분류하고, 필요 시 큐에 append.
+
+`ChangeProposal` JSON schema:
+- `summary` (string, 필수): 변경 요지
+- `target_files` (string[], 필수, 길이 ≥ 1): 변경 대상 파일 경로
+- `change_kind` (enum, 필수): `docs_only` | `code` | `config` | `mixed`
+- `rationale` (string, 선택): 변경 근거
+
+**분류 결과 (`route`)**:
+- `self_apply`: drift 없는 local contained 변경. 큐 append 안 함 — caller 가 즉시 실행 가능.
+- `queue`: drift 가능성 있는 변경. 큐에 `origin=system, tag=drift` 로 append. payload.route=queue.
+- `principal_direct`: governance core (authority/, design-principles/, processes/govern.md) 변경. 큐에 append, payload.route=principal_direct marker. 자체 실행 금지, 반드시 Principal 직접 판정.
+
+분류 규칙과 수준 0→1 정합은 `processes/govern.md §11` 참조.
 
 ## CLI–Agent 책임 분리
 

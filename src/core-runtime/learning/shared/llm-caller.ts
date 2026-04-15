@@ -1,36 +1,31 @@
 /**
- * Learning extraction LLM call wrapper — Phase 2.
+ * Background task (learn/govern/promote) LLM call wrapper.
  *
- * Supports multiple providers with automatic fallback:
- *   1. ONTO_LLM_MOCK=1 → in-process mock provider (test only)
- *   2. ANTHROPIC_API_KEY env var → Anthropic API
- *   3. OPENAI_API_KEY env var → OpenAI API
- *   4. ~/.codex/auth.json (`OPENAI_API_KEY` field) → OpenAI API
- *      (only the API-key mode of codex CLI auth is supported. The chatgpt
- *      OAuth mode is intentionally NOT honored — see "Why no OAuth fallback"
- *      below.)
+ * Cost-order provider resolution ladder (lower priority number = higher priority):
+ *   1. Caller-explicit: callLlm(..., { provider }) — overrides any auto-resolution
+ *   2. Config-explicit: OntoConfig.api_provider — user override, wins over cost-order
+ *   3. codex CLI OAuth subscription (declared_billing_mode=subscription)
+ *      Requires ~/.codex/auth.json chatgpt mode + codex binary on PATH.
+ *      Invokes `codex exec --ephemeral -` as subprocess; OAuth token goes to
+ *      chatgpt.com backend, which cannot be reached via the OpenAI SDK.
+ *   4. LiteLLM (declared_billing_mode=per_token, cost_order_rank=variable)
+ *      Requires llm_base_url resolved via CLI flag / env LITELLM_BASE_URL /
+ *      project config / onto-home config.
+ *   5. Anthropic API key — ANTHROPIC_API_KEY env (per-token)
+ *   6. OpenAI per-token — OPENAI_API_KEY env, or ~/.codex/auth.json OPENAI_API_KEY field
  *
- * model_id fixed per provider (no floating alias — U2).
+ *   Priority 0 (special): ONTO_LLM_MOCK=1 → in-process mock (test only)
  *
- * Why no OAuth fallback:
- *   Production validation B-1 (2026-04-08) found that the chatgpt OAuth
- *   `tokens.access_token` from ~/.codex/auth.json fails when used as an
- *   OpenAI API key against api.openai.com:
+ *   Credential 전무 시 fail-fast with cost-order guidance. Host main-model
+ *   delegation ("fall through to host-spawned subagent") is an execution
+ *   realization axis concept and NOT part of this ladder — see
+ *   development-records/plan/20260415-litellm-provider-design.md §1.0.
  *
- *     401 You have insufficient permissions for this operation.
- *     Missing scopes: model.request.
- *
- *   The chatgpt OAuth token authenticates against chatgpt.com's backend
- *   (which uses a different wire format and endpoint set than the public
- *   OpenAI API). Treating it as an OpenAI API key is structurally wrong:
- *   the codex CLI uses it via its own backend, but onto's llm-caller calls
- *   the public OpenAI SDK, which only accepts proper sk-... API keys.
- *
- *   Previously this fallback was present and silently broken — operators
- *   discovered the failure only at first LLM call. Now the resolver fails
- *   fast with a clear instruction to set ANTHROPIC_API_KEY or a real
- *   OPENAI_API_KEY (or run `codex login` with API key mode rather than
- *   chatgpt mode).
+ * Graceful fallback (§3.7 c):
+ *   When codex OAuth is detected but the codex binary is absent, the resolver
+ *   falls back to the next cost-order path and emits a one-time STDERR install
+ *   notice. Suppressible via ONTO_SUPPRESS_CODEX_INSTALL_NOTICE=1 env or
+ *   .onto/config.yml suppress_codex_install_notice: true.
  *
  * Mock provider:
  *   When ONTO_LLM_MOCK=1 is set, callLlm() routes to an in-process mock that
@@ -39,6 +34,8 @@
  *   deterministic JSON. This unblocks E2E tests that need to exercise the
  *   full LLM call path without real API credentials. NEVER ship with this
  *   env var set in production — there's no real reasoning happening.
+ *
+ * Design: development-records/plan/20260415-litellm-provider-design.md
  */
 
 import crypto from "node:crypto";
@@ -161,24 +158,123 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_RETRIES = 1;
 
 // ---------------------------------------------------------------------------
-// Provider resolution
+// Provider resolution (cost-order)
 // ---------------------------------------------------------------------------
+//
+// Priority (lower number = higher priority):
+//   1. Caller-explicit (config.provider argument to callLlm — handled in callLlm itself)
+//   2. Config-explicit api_provider (via Partial<LlmCallConfig>.provider — handled in callLlm)
+//   3. codex CLI OAuth subscription — ~/.codex/auth.json chatgpt mode + codex binary on PATH
+//   4. LiteLLM — llm_base_url resolved via config/env
+//   5. Anthropic API key — ANTHROPIC_API_KEY env
+//   6. OpenAI per-token — OPENAI_API_KEY env OR ~/.codex/auth.json OPENAI_API_KEY field
+//
+// Credential 전무 시 fail-fast. Host main-model delegation is execution realization axis,
+// not part of this ladder (see development-records/plan/20260415-litellm-provider-design.md §1.0).
 
 interface ResolvedProvider {
-  provider: "anthropic" | "openai";
-  apiKey: string;
+  provider: "anthropic" | "openai" | "litellm" | "codex";
+  apiKey: string;           // For codex: unused (subprocess uses ~/.codex auth); filled with sentinel.
   defaultModel: string;
+  baseUrl?: string;         // For litellm; for openai/anthropic undefined.
+  /** For codex missing-binary case: telemetry to trigger the (c) graceful-fallback notice in callLlm. */
+  codexOauthPresentButBinaryMissing?: boolean;
+  /** For codex missing-binary fallback: the provider that was actually selected (for the STDERR notice). */
+  fallbackFrom?: "codex-oauth";
+}
+
+interface CodexAuthState {
+  chatgptOAuth: boolean;
+  openaiApiKey: string | null;
+}
+
+function readCodexAuthState(): CodexAuthState {
+  const codexAuthPath = path.join(os.homedir(), ".codex", "auth.json");
+  if (!fs.existsSync(codexAuthPath)) {
+    return { chatgptOAuth: false, openaiApiKey: null };
+  }
+  try {
+    const auth = JSON.parse(fs.readFileSync(codexAuthPath, "utf8"));
+    const oauth =
+      auth.auth_mode === "chatgpt" ||
+      (auth.tokens && typeof auth.tokens.access_token === "string");
+    const openaiKey =
+      typeof auth.OPENAI_API_KEY === "string" && auth.OPENAI_API_KEY.length > 0
+        ? auth.OPENAI_API_KEY
+        : null;
+    return { chatgptOAuth: Boolean(oauth), openaiApiKey: openaiKey };
+  } catch {
+    return { chatgptOAuth: false, openaiApiKey: null };
+  }
+}
+
+function codexBinaryOnPath(): boolean {
+  const pathEnv = process.env.PATH ?? "";
+  for (const dir of pathEnv.split(path.delimiter)) {
+    if (!dir) continue;
+    const candidate = path.join(dir, "codex");
+    if (fs.existsSync(candidate)) return true;
+  }
+  return false;
 }
 
 /**
- * Resolve the best available LLM provider.
+ * Resolve the best available LLM provider by cost-order (auto-resolution).
+ * Called by callLlm when no caller-explicit or config-explicit provider is set.
  *
- * Priority: ANTHROPIC_API_KEY → OPENAI_API_KEY env → ~/.codex/auth.json
- * (only the OPENAI_API_KEY field, not chatgpt OAuth — see file header).
+ * Returns a ResolvedProvider with declared provider identity + credentials.
+ * Throws with guidance (§3.7 d) when no provider path is viable.
+ *
+ * Special case: if codex OAuth is detected but binary is missing AND another
+ * credential is available, we fall back to that credential path and set
+ * `fallbackFrom: "codex-oauth"` so callLlm can emit the (c) notice.
  */
-function resolveProvider(preferred?: "anthropic" | "openai"): ResolvedProvider {
-  // 1. Explicit ANTHROPIC_API_KEY
-  if (preferred !== "openai" && process.env.ANTHROPIC_API_KEY) {
+function resolveProvider(
+  _preferred?: LlmCallConfig["provider"],
+  configBaseUrl?: string,
+): ResolvedProvider {
+  const codexAuth = readCodexAuthState();
+
+  // Priority 3: codex CLI OAuth subscription.
+  if (codexAuth.chatgptOAuth) {
+    if (codexBinaryOnPath()) {
+      return {
+        provider: "codex",
+        apiKey: "codex-oauth",          // sentinel; unused
+        defaultModel: DEFAULT_OPENAI_MODEL, // codex CLI picks its own default if unspecified
+      };
+    }
+    // OAuth detected but binary missing — fall through, mark for (c) notice.
+    const fallback = tryNonCodexProviders(configBaseUrl);
+    if (fallback) {
+      return { ...fallback, codexOauthPresentButBinaryMissing: true, fallbackFrom: "codex-oauth" };
+    }
+    // No other credential either — (d) with install guidance emphasized.
+    throw new Error(buildNoProviderError({ codexOauthPresent: true, codexBinaryPresent: false }));
+  }
+
+  // Priority 4-6: no codex OAuth case.
+  const fallback = tryNonCodexProviders(configBaseUrl);
+  if (fallback) return fallback;
+
+  throw new Error(buildNoProviderError({ codexOauthPresent: false, codexBinaryPresent: codexBinaryOnPath() }));
+}
+
+function tryNonCodexProviders(configBaseUrl?: string): ResolvedProvider | null {
+  // Priority 4: LiteLLM — env or config has base URL.
+  const resolvedBaseUrl = process.env.LITELLM_BASE_URL ?? configBaseUrl;
+  if (resolvedBaseUrl) {
+    const apiKey = process.env.LITELLM_API_KEY ?? "sk-litellm-placeholder";
+    return {
+      provider: "litellm",
+      apiKey,
+      defaultModel: DEFAULT_OPENAI_MODEL,
+      baseUrl: resolvedBaseUrl,
+    };
+  }
+
+  // Priority 5: Anthropic API key.
+  if (process.env.ANTHROPIC_API_KEY) {
     return {
       provider: "anthropic",
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -186,7 +282,7 @@ function resolveProvider(preferred?: "anthropic" | "openai"): ResolvedProvider {
     };
   }
 
-  // 2. Explicit OPENAI_API_KEY
+  // Priority 6: OpenAI per-token — env OPENAI_API_KEY or auth.json OPENAI_API_KEY field.
   if (process.env.OPENAI_API_KEY) {
     return {
       provider: "openai",
@@ -194,53 +290,63 @@ function resolveProvider(preferred?: "anthropic" | "openai"): ResolvedProvider {
       defaultModel: DEFAULT_OPENAI_MODEL,
     };
   }
-
-  // 3. Codex CLI credentials (~/.codex/auth.json) — API-key mode ONLY.
-  //    The chatgpt OAuth mode is intentionally not honored: the OAuth
-  //    token authenticates against chatgpt.com, not api.openai.com, and
-  //    silently 401s with "Missing scopes: model.request" when used as
-  //    an OpenAI API key. See file header "Why no OAuth fallback".
-  let chatgptOAuthSeen = false;
-  const codexAuthPath = path.join(os.homedir(), ".codex", "auth.json");
-  if (fs.existsSync(codexAuthPath)) {
-    try {
-      const auth = JSON.parse(fs.readFileSync(codexAuthPath, "utf8"));
-      if (typeof auth.OPENAI_API_KEY === "string" && auth.OPENAI_API_KEY.length > 0) {
-        return {
-          provider: "openai",
-          apiKey: auth.OPENAI_API_KEY,
-          defaultModel: DEFAULT_OPENAI_MODEL,
-        };
-      }
-      // Detect chatgpt OAuth presence so we can guide the user explicitly.
-      if (
-        auth.auth_mode === "chatgpt" ||
-        (auth.tokens && typeof auth.tokens.access_token === "string")
-      ) {
-        chatgptOAuthSeen = true;
-      }
-    } catch {
-      // Malformed auth.json — ignore silently and fall through to the
-      // no-provider error below.
-    }
+  const codexAuth = readCodexAuthState();
+  if (codexAuth.openaiApiKey) {
+    return {
+      provider: "openai",
+      apiKey: codexAuth.openaiApiKey,
+      defaultModel: DEFAULT_OPENAI_MODEL,
+    };
   }
 
-  // (Dead fallback branch removed — the earlier ANTHROPIC_API_KEY check at
-  // step 1 already handles both the `preferred === undefined` and the
-  // `preferred !== "openai"` cases, so the previous duplicate probe here was
-  // unreachable. Kept a comment to document the cleanup for future readers.)
+  return null;
+}
 
-  const guidance = chatgptOAuthSeen
-    ? // Targeted message: user has chatgpt OAuth but no usable API key.
-      "No LLM API key available for learning extraction. Detected ~/.codex/auth.json " +
-      "with chatgpt OAuth (auth_mode=chatgpt), but the OAuth access_token cannot " +
-      "authenticate against api.openai.com (it's a chatgpt.com backend token). " +
-      "Set ANTHROPIC_API_KEY or OPENAI_API_KEY (a real sk-... key), or re-run " +
-      "`codex login` and choose API key mode instead of chatgpt OAuth."
-    : "No LLM provider available for learning extraction. " +
-      "Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or place an API key in ~/.codex/auth.json " +
-      "(field: OPENAI_API_KEY). Note: chatgpt OAuth mode is not supported — use API key mode.";
-  throw new Error(guidance);
+function buildNoProviderError(ctx: {
+  codexOauthPresent: boolean;
+  codexBinaryPresent: boolean;
+}): string {
+  const lines: string[] = [];
+  lines.push("background task용 LLM provider를 해소할 수 없습니다.");
+  lines.push("");
+  if (ctx.codexOauthPresent && !ctx.codexBinaryPresent) {
+    lines.push("~/.codex/auth.json에 chatgpt OAuth 자격이 있으나 codex 바이너리가 PATH에 없습니다.");
+    lines.push("이 경로는 cost-order 최상위(구독제, 호출당 한계비용 0) 이므로 가장 행동 장벽이 낮습니다:");
+    lines.push("  → codex 설치: https://github.com/openai/codex");
+    lines.push("  → 설치 후 `codex --version` 으로 PATH 인식 확인");
+    lines.push("");
+  }
+  lines.push("권장 순서(비용 낮은 순):");
+  lines.push("  1. codex OAuth 구독: ~/.codex/auth.json을 chatgpt 모드로 구성 + codex 바이너리 설치 (구독제, 한계비용 0)");
+  lines.push("  2. LiteLLM: llm_base_url을 .onto/config.yml에 설정하거나 LITELLM_BASE_URL을 export (로컬 모델 사용 시 0)");
+  lines.push("  3. Anthropic API: ANTHROPIC_API_KEY를 export (per-token 과금)");
+  lines.push("  4. OpenAI per-token: OPENAI_API_KEY를 export, 또는 ~/.codex/auth.json의 OPENAI_API_KEY 필드 (per-token 과금)");
+  return lines.join("\n");
+}
+
+/** One-time STDERR install notice emitted when codex OAuth is detected but binary missing. */
+let codexInstallNoticeShown = false;
+function maybeEmitCodexInstallNotice(opts: {
+  fallbackProvider: string;
+  fallbackBillingMode: string;
+  suppress: boolean;
+}): void {
+  if (codexInstallNoticeShown || opts.suppress) return;
+  codexInstallNoticeShown = true;
+  const msg = [
+    "[onto] 구독제 cost-order 최상위 경로(codex OAuth)를 놓치고 있습니다.",
+    "~/.codex/auth.json에 chatgpt OAuth 자격이 있으나 codex 바이너리를 PATH에서 찾을 수 없습니다.",
+    "",
+    "codex를 설치하면 이 경로가 자동으로 활성화됩니다 (구독제, 호출당 한계비용 0):",
+    "  설치: https://github.com/openai/codex",
+    "  설치 후 `codex --version` 으로 PATH 인식 확인.",
+    "",
+    `지금은 다음 cost-order 경로로 폴백합니다: ${opts.fallbackProvider} (declared_billing_mode=${opts.fallbackBillingMode}).`,
+    "명시적으로 다른 provider를 쓰려면 .onto/config.yml에 api_provider를 지정하세요.",
+    "세션당 1회만 표시됩니다. `suppress_codex_install_notice: true`로 끌 수 있습니다.",
+    "",
+  ].join("\n");
+  process.stderr.write(msg);
 }
 
 // ---------------------------------------------------------------------------
@@ -444,7 +550,7 @@ export async function callLlm(
     return callMockProvider(systemPrompt, userPrompt);
   }
 
-  // Caller-explicit codex → subprocess spawn, no API-key resolution needed.
+  // Caller-explicit codex (priority 1) → subprocess spawn, no credential resolution.
   if (config?.provider === "codex") {
     return callCodexCli(
       systemPrompt,
@@ -454,13 +560,12 @@ export async function callLlm(
     );
   }
 
-  // Caller-explicit litellm → OpenAI-compatible proxy; use baseURL from config
-  // and either LITELLM_API_KEY env or a placeholder (proxies often self-auth).
+  // Caller-explicit litellm (priority 1) → OpenAI-compatible proxy.
   if (config?.provider === "litellm") {
-    const baseUrl = config.base_url;
+    const baseUrl = config.base_url ?? process.env.LITELLM_BASE_URL;
     if (!baseUrl) {
       throw new Error(
-        "api_provider=litellm requires base_url (set via LlmCallConfig.base_url, CLI flag, env LITELLM_BASE_URL, or .onto/config.yml llm_base_url)",
+        "api_provider=litellm requires base_url (set via LlmCallConfig.base_url, env LITELLM_BASE_URL, or .onto/config.yml llm_base_url)",
       );
     }
     const apiKey = process.env.LITELLM_API_KEY ?? "sk-litellm-placeholder";
@@ -469,14 +574,40 @@ export async function callLlm(
     return callOpenAI(systemPrompt, userPrompt, apiKey, modelId, maxTokens, baseUrl, "litellm");
   }
 
-  const resolved = resolveProvider(config?.provider);
+  // Auto-resolution by cost-order (priority 3-6). config-explicit anthropic/openai
+  // flows through resolveProvider too (preferred arg filters candidates).
+  const resolved = resolveProvider(config?.provider, config?.base_url);
   const modelId = config?.model_id ?? resolved.defaultModel;
   const maxTokens = config?.max_tokens ?? 1024;
 
-  if (resolved.provider === "anthropic") {
-    return callAnthropic(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
+  // Graceful-fallback notice: codex OAuth present but binary missing (§3.7 c).
+  if (resolved.codexOauthPresentButBinaryMissing) {
+    const suppress = Boolean(process.env.ONTO_SUPPRESS_CODEX_INSTALL_NOTICE);
+    maybeEmitCodexInstallNotice({
+      fallbackProvider: resolved.provider,
+      fallbackBillingMode: resolved.provider === "anthropic" || resolved.provider === "openai" ? "per_token" : "per_token",
+      suppress,
+    });
   }
-  return callOpenAI(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
+
+  switch (resolved.provider) {
+    case "codex":
+      return callCodexCli(systemPrompt, userPrompt, modelId, config?.reasoning_effort);
+    case "litellm":
+      return callOpenAI(
+        systemPrompt,
+        userPrompt,
+        resolved.apiKey,
+        modelId,
+        maxTokens,
+        resolved.baseUrl,
+        "litellm",
+      );
+    case "anthropic":
+      return callAnthropic(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
+    case "openai":
+      return callOpenAI(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
+  }
 }
 
 // ---------------------------------------------------------------------------

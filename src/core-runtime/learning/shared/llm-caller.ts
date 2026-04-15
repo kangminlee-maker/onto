@@ -577,7 +577,6 @@ export async function callLlm(
   // Auto-resolution by cost-order (priority 3-6). config-explicit anthropic/openai
   // flows through resolveProvider too (preferred arg filters candidates).
   const resolved = resolveProvider(config?.provider, config?.base_url);
-  const modelId = config?.model_id ?? resolved.defaultModel;
   const maxTokens = config?.max_tokens ?? 1024;
 
   // Graceful-fallback notice: codex OAuth present but binary missing (§3.7 c).
@@ -591,9 +590,21 @@ export async function callLlm(
   }
 
   switch (resolved.provider) {
-    case "codex":
-      return callCodexCli(systemPrompt, userPrompt, modelId, config?.reasoning_effort);
-    case "litellm":
+    case "codex": {
+      // codex CLI picks its own default model when -m is omitted. Do NOT fall back
+      // to DEFAULT_OPENAI_MODEL here: codex OAuth (chatgpt account) rejects many
+      // openai-native model IDs like gpt-4o-mini with:
+      //   "The '<model>' model is not supported when using Codex with a ChatGPT account."
+      // Only pass -m when the user explicitly supplied a model.
+      return callCodexCli(
+        systemPrompt,
+        userPrompt,
+        config?.model_id,
+        config?.reasoning_effort,
+      );
+    }
+    case "litellm": {
+      const modelId = config?.model_id ?? resolved.defaultModel;
       return callOpenAI(
         systemPrompt,
         userPrompt,
@@ -603,10 +614,15 @@ export async function callLlm(
         resolved.baseUrl,
         "litellm",
       );
-    case "anthropic":
+    }
+    case "anthropic": {
+      const modelId = config?.model_id ?? resolved.defaultModel;
       return callAnthropic(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
-    case "openai":
+    }
+    case "openai": {
+      const modelId = config?.model_id ?? resolved.defaultModel;
       return callOpenAI(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
+    }
   }
 }
 

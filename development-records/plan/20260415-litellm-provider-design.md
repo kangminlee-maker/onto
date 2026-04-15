@@ -65,6 +65,8 @@ onto-3는 LLM 호출 경로가 두 갈래로 나뉜다.
 
 **설계 구현상 주의**: `codex exec` 호출 시 `--ephemeral` 플래그를 추가해 codex 세션 디스크 영속화를 피한다(learning은 단일-턴이므로 세션 파일 불요). §3.5a에 반영.
 
+**런타임 smoke test 결과** (2026-04-15 구현 후 실측): 짧은 프롬프트("ping"→"pong") 단일 호출로 priority 3 경로 동작 확인. `effective_base_url="codex-cli://oauth"`, `declared_billing_mode="subscription"`, model_id sentinel `"codex-default"` 기록됨. 초기 시도에서 `DEFAULT_OPENAI_MODEL=gpt-4o-mini`가 codex에도 default로 전파되어 chatgpt account가 거부한 버그 발견·수정(§3.6 구현 노트): codex provider는 user-explicit `model_id`만 `-m` 플래그로 전달하고, 없으면 codex CLI가 자체 기본값을 고른다.
+
 ### 1.4 상위 원칙 정합성
 
 `design-principles/llm-runtime-interface-principles.md` §3.15 (host/runtime neutrality)는 `execution_realization`과 `host_runtime`을 분리 축으로 본다. 본 설계는 learning 경로에 대해 "provider" 축을 추가로 분리하는 셈이며, 동일 원칙의 자연스러운 연장이다.

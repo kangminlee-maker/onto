@@ -1,7 +1,7 @@
 /**
  * onto evolve — CLI entry point.
  *
- * Routes design subcommands to the appropriate command handler.
+ * Routes evolve subcommands to the appropriate command handler.
  */
 
 import { join } from "node:path";
@@ -18,6 +18,8 @@ export async function handleEvolveCli(
   switch (subcommand) {
     case "start":
       return handleEvolveStart(ontoHome, subArgv);
+    case "propose-align":
+      return handleEvolveProposeAlign(subArgv);
     case "align":
       return handleEvolveAlign(subArgv);
     case "draft":
@@ -37,12 +39,13 @@ export async function handleEvolveCli(
           "Usage: onto evolve <subcommand> [options]",
           "",
           "Subcommands:",
-          "  start <description>         Start or resume a design scope",
-          "  align --scope-id <id>       Lock or revise alignment direction",
-          "  draft --scope-id <id>       Generate draft packet / confirm surface / decide constraints",
-          "  apply --scope-id <id>       Apply design to implementation",
-          "  close --scope-id <id>       Close a validated scope",
-          "  defer --scope-id <id>       Defer a non-terminal scope",
+          "  start <description>              Start or resume an evolve scope",
+          "  propose-align --scope-id <id>    Submit consolidated dialog output → align_proposed",
+          "  align --scope-id <id>            Lock or revise alignment direction",
+          "  draft --scope-id <id>            Generate draft packet / confirm surface / decide constraints",
+          "  apply --scope-id <id>            Apply evolve output to implementation",
+          "  close --scope-id <id>            Close a validated scope",
+          "  defer --scope-id <id>            Defer a non-terminal scope",
           "",
           "Options:",
           "  --project-root <path>       Project root (default: cwd)",
@@ -50,15 +53,22 @@ export async function handleEvolveCli(
           "  --project-name <name>       Project name for scope ID generation",
           "  --scope-id <id>             Target scope ID (required for align/draft/apply/close)",
           "  --entry-mode <mode>         'experience', 'interface', or 'process' (default: experience)",
-          "  --verdict <verdict>         Align verdict: approve/revise/reject/redirect",
+          "  --json <content>            propose-align: dialog output JSON; align: verdict JSON",
           "  --reason <text>             Defer reason (required for defer)",
           "  --resume-condition <text>   Condition under which scope resumes (required for defer)",
+          "",
+          "propose-align UX contract:",
+          "  Agent (Claude Code session / LLM) conducts dialog with Principal using",
+          "  selection-based choices + natural-language fallback, consolidates answers",
+          "  across rounds, and on convergence calls propose-align with the resulting",
+          "  {interpreted_direction, proposed_scope, scenarios, as_is, constraints,",
+          "   decision_questions}. CLI owns state machine, event log, packet rendering.",
         ].join("\n"),
       );
       return 0;
 
     default:
-      console.error(`[onto] Unknown design subcommand: ${subcommand}`);
+      console.error(`[onto] Unknown evolve subcommand: ${subcommand}`);
       console.error("Run 'onto evolve --help' for usage.");
       return 1;
   }
@@ -106,7 +116,7 @@ async function handleEvolveStart(
     .trim();
 
   if (!rawInput && !scopeId) {
-    console.error("[onto] design start requires a description or --scope-id to resume.");
+    console.error("[onto] evolve start requires a description or --scope-id to resume.");
     return 1;
   }
 
@@ -127,7 +137,7 @@ async function handleEvolveStart(
     });
 
     if (!result.success) {
-      console.error(`[onto] design start failed: ${result.reason} (step: ${result.step})`);
+      console.error(`[onto] evolve start failed: ${result.reason} (step: ${result.step})`);
       return 1;
     }
 
@@ -180,10 +190,38 @@ async function handleEvolveStart(
     return 0;
   } catch (error) {
     console.error(
-      `[onto] design start error: ${error instanceof Error ? error.message : String(error)}`,
+      `[onto] evolve start error: ${error instanceof Error ? error.message : String(error)}`,
     );
     return 1;
   }
+}
+
+// ─── align ───
+
+// ─── propose-align ───
+
+async function handleEvolveProposeAlign(argv: string[]): Promise<number> {
+  const paths = resolveScopePathsFromArgv(argv);
+  if (!paths) return 1;
+
+  const jsonInput = readOption(argv, "json");
+  if (!jsonInput) {
+    console.error(
+      "[onto] evolve propose-align requires --json '<dialog-output>'.",
+    );
+    console.error(
+      'Shape: --json \'{"interpreted_direction":"...","proposed_scope":{"in":[...],"out":[...]},"as_is":{...},"constraints":[...],"decision_questions":[...]}\'',
+    );
+    console.error(
+      "See `onto evolve --help` for the UX contract (agent owns dialog, CLI owns state/events/packet).",
+    );
+    return 1;
+  }
+
+  const { executeProposeAlign } = await import("./commands/propose-align.js");
+  const result = executeProposeAlign(paths, jsonInput);
+  console.log(JSON.stringify(result, null, 2));
+  return result.success ? 0 : 1;
 }
 
 // ─── align ───
@@ -194,7 +232,7 @@ async function handleEvolveAlign(argv: string[]): Promise<number> {
 
   const jsonInput = readOption(argv, "json");
   if (!jsonInput) {
-    console.error("[onto] design align requires --json '<verdict-object>'.");
+    console.error("[onto] evolve align requires --json '<verdict-object>'.");
     console.error("Example: --json '{\"type\":\"approve\",\"direction\":\"...\",\"scope_in\":[],\"scope_out\":[]}'");
     return 1;
   }
@@ -214,7 +252,7 @@ async function handleEvolveDraft(argv: string[]): Promise<number> {
 
   const jsonInput = readOption(argv, "json");
   if (!jsonInput) {
-    console.error("[onto] design draft requires --json '<action-object>'.");
+    console.error("[onto] evolve draft requires --json '<action-object>'.");
     console.error("Example: --json '{\"type\":\"generate_surface\"}'");
     return 1;
   }
@@ -234,7 +272,7 @@ async function handleEvolveApply(argv: string[]): Promise<number> {
 
   const jsonInput = readOption(argv, "json");
   if (!jsonInput) {
-    console.error("[onto] design apply requires --json '<action-object>'.");
+    console.error("[onto] evolve apply requires --json '<action-object>'.");
     console.error("Example: --json '{\"type\":\"start_apply\",\"buildSpecHash\":\"...\"}'");
     return 1;
   }
@@ -268,7 +306,7 @@ async function handleEvolveDefer(argv: string[]): Promise<number> {
   const reason = readOption(argv, "reason");
   const resumeCondition = readOption(argv, "resume-condition");
   if (!reason || !resumeCondition) {
-    console.error("[onto] design defer requires --reason and --resume-condition.");
+    console.error("[onto] evolve defer requires --reason and --resume-condition.");
     return 1;
   }
 

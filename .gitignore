@@ -3,6 +3,10 @@
 .onto-review/
 .claude-plugin/
 .claude/
+
+# evolve scope artifacts (ephemeral design sessions)
+scopes/
+.sprint-kit/cache/
 .DS_Store
 __pycache__/
 *.pyc

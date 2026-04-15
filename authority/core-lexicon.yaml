@@ -532,6 +532,54 @@ entities:
         definition: "대상을 분석하고 설계 문서를 생성"
         notes: ["dispatch target: deferred to Stage 3 (intentional, not modeling omission)"]
 
+  LlmCompatibleProxy:
+    canonical_label: "LlmCompatibleProxy"
+    korean_label: "LLM 호환 프록시"
+    definition: "공용 LLM provider(OpenAI 등)의 wire-format을 유지한 채 백엔드 모델·라우팅·과금을 치환하는 중간 계층. onto는 이를 별도 provider 축으로 인식한다"
+    core_value: "이 개념이 없으면 로컬 모델·자체 호스팅·비용 관측·벤더 다중화 요구를 openai provider와 구분 없이 혼입해, 과금 경로·인증 모드·모델 네임스페이스가 섞인다"
+    attributes:
+      shared: []
+      local:
+        wire_format:
+          definition: "프록시가 준수하는 상위 공용 API의 와이어 포맷"
+          values: ["openai", "anthropic"]
+        base_url_resolution:
+          definition: "엔드포인트 결정 경로"
+          values: ["cli_flag", "env", "project_config", "onto_home_config"]
+    execution_rules_ref:
+      provider_resolution: "src/core-runtime/learning/shared/llm-caller.ts:resolveProvider"
+      config_schema: "src/core-runtime/discovery/config-chain.ts:OntoConfig"
+    notes:
+      - "구현 인스턴스 예: LiteLLM (openai wire-format). 벤더 이름은 lexicon에 직접 넣지 않는다"
+      - "codex CLI OAuth 경로와 구별됨 — OAuth 토큰은 chatgpt.com 백엔드 전용이라 프록시 wire-format으로 접근 불가. subprocess spawn이 필요하며 이는 LlmBillingMode=subscription 경로로 별도 분류된다"
+
+  LlmBillingMode:
+    canonical_label: "LlmBillingMode"
+    korean_label: "LLM 과금 모드"
+    definition: "provider 호출당 한계비용 구조의 분류. onto의 provider 해소 우선순위(cost-order)의 의미론적 근거"
+    core_value: "이 개념이 없으면 provider 목록이 단순 열거로만 남아 '왜 이 순서인지'가 코드에서만 설명되고 개념 공간에서 사라진다. 구독제와 per-token 과금은 같은 호출 빈도에서도 비용 구조가 완전히 다르므로 rank 1에서 구분되어야 한다"
+    attributes:
+      shared: []
+      local:
+        mode:
+          definition: "과금 방식"
+          values:
+            subscription: "사전 정액제. 호출당 한계비용이 0에 수렴 (rate limit까지). 예: codex CLI의 chatgpt OAuth"
+            per_token: "입출력 토큰 수 기반 과금. 호출량과 비용이 선형. 예: Anthropic API, OpenAI API, 유료 LiteLLM backend"
+            variable: "경로별로 0 또는 per-token일 수 있음. LiteLLM처럼 프록시 downstream이 불투명할 때 사용"
+        cost_order_rank:
+          definition: "provider 해소 우선순위 결정 시 과금 모드별 랭크 (낮은 숫자 = 더 앞)"
+          values:
+            subscription: 1
+            variable: 2
+            per_token: 3
+    execution_rules_ref:
+      resolution_ladder: "src/core-runtime/learning/shared/llm-caller.ts:resolveProvider"
+      design_record: "development-records/plan/20260415-litellm-provider-design.md §3.4"
+    notes:
+      - "명시적 사용자 override(config.api_provider 또는 caller-explicit)는 이 랭크를 거스를 수 있다 — override는 cost가 아니라 의도에 복무한다"
+      - "LiteLLM을 variable로 분류하는 이유: 프록시 downstream이 로컬 모델이면 0, 유료 API backend면 per-token. 감사 관점에서는 보수적으로 per-token 신호를 기록(LlmCallResult.declared_billing_mode) 하지만 cost-order 랭크는 variable로 둔다 (로컬 사용 의도를 수용)"
+
 # ---------------------------------------------------------------------------
 # Terms
 # ---------------------------------------------------------------------------

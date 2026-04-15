@@ -56,6 +56,82 @@ export interface LlmCallConfig {
   reasoning_effort?: string;
 }
 
+/**
+ * Minimal subset of OntoConfig that resolveLearningProviderConfig reads.
+ * Kept narrow to avoid learning→discovery coupling; callers pass a shape-compatible object.
+ */
+export interface LearningProviderConfigInputs {
+  api_provider?: string;
+  model?: string;
+  llm_base_url?: string;
+  codex?: { model?: string; effort?: string };
+}
+
+/**
+ * CLI flag overrides that win over OntoConfig values.
+ * Maps to the CLI-flag > env > project-config > onto-home-config precedence (D3).
+ */
+export interface LearningProviderCliOverrides {
+  provider?: "anthropic" | "openai" | "litellm" | "codex";
+  llm_base_url?: string;
+  model?: string;
+  reasoning_effort?: string;
+}
+
+/**
+ * Bridge: OntoConfig + CLI overrides → Partial<LlmCallConfig> that callLlm consumes.
+ *
+ * Callers (learning/promote panel-reviewer, promote-executor, judgment-auditor,
+ * insight-reclassifier, extractor, semantic-classifier) should:
+ *
+ *   const partial = resolveLearningProviderConfig({ config: ontoConfig, cliOverrides });
+ *   const result = await callLlm(system, user, { ...partial, max_tokens: 2048 });
+ *
+ * This replaces the pattern of callers building Partial<LlmCallConfig> ad-hoc, and is
+ * the canonical seat where OntoConfig translates to provider resolution input.
+ *
+ * Design: development-records/plan/20260415-litellm-provider-design.md §3.6a
+ */
+export function resolveLearningProviderConfig(args: {
+  config?: LearningProviderConfigInputs;
+  cliOverrides?: LearningProviderCliOverrides;
+}): Partial<LlmCallConfig> {
+  const config = args.config ?? {};
+  const cli = args.cliOverrides ?? {};
+
+  // provider: CLI > config.api_provider (narrowed to valid enum)
+  const configProvider = narrowProvider(config.api_provider);
+  const provider = cli.provider ?? configProvider;
+
+  // model: CLI > config.codex.model (if codex path) > config.model
+  const isCodex = provider === "codex";
+  const configuredModel = isCodex
+    ? config.codex?.model ?? config.model
+    : config.model;
+  const model_id = cli.model ?? configuredModel;
+
+  // base_url: CLI > env LITELLM_BASE_URL > config.llm_base_url
+  const base_url =
+    cli.llm_base_url ?? process.env.LITELLM_BASE_URL ?? config.llm_base_url;
+
+  // reasoning_effort: CLI > config.codex.effort (codex only)
+  const reasoning_effort = cli.reasoning_effort ?? (isCodex ? config.codex?.effort : undefined);
+
+  const out: Partial<LlmCallConfig> = {};
+  if (provider) out.provider = provider;
+  if (model_id) out.model_id = model_id;
+  if (base_url) out.base_url = base_url;
+  if (reasoning_effort) out.reasoning_effort = reasoning_effort;
+  return out;
+}
+
+function narrowProvider(value: string | undefined): LlmCallConfig["provider"] | undefined {
+  if (value === "anthropic" || value === "openai" || value === "litellm" || value === "codex") {
+    return value;
+  }
+  return undefined;
+}
+
 export interface LlmCallResult {
   text: string;
   input_tokens: number;

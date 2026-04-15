@@ -423,6 +423,58 @@ function maybeEmitCodexInstallNotice(opts: {
   process.stderr.write(msg);
 }
 
+/**
+ * B1: one-time cost-order transition notice.
+ *
+ * When auto-resolution selects a newer ladder slot (codex or litellm) and the
+ * user also has an API-key credential (ANTHROPIC_API_KEY / OPENAI_API_KEY /
+ * auth.json OPENAI_API_KEY field), the old code path would have picked the
+ * API key. Letting this transition happen silently can surprise users who
+ * weren't expecting a provider switch. Emit a single STDERR notice so they
+ * can opt-out explicitly by setting api_provider.
+ *
+ * Only fires when:
+ *   - resolved provider is "codex" or "litellm" (cost-order newer slots)
+ *   - no caller/config explicit provider was set (auto-resolution path)
+ *   - an API-key alternative is present
+ *
+ * Suppressible via env ONTO_SUPPRESS_COST_ORDER_NOTICE=1 for CI / automation.
+ */
+let costOrderTransitionNoticeShown = false;
+function maybeEmitCostOrderTransitionNotice(resolved: ResolvedProvider): void {
+  if (costOrderTransitionNoticeShown) return;
+  if (process.env.ONTO_SUPPRESS_COST_ORDER_NOTICE === "1") return;
+  if (resolved.provider !== "codex" && resolved.provider !== "litellm") return;
+
+  let wouldHaveBeen: "anthropic" | "openai" | null = null;
+  if (process.env.ANTHROPIC_API_KEY) {
+    wouldHaveBeen = "anthropic";
+  } else if (process.env.OPENAI_API_KEY) {
+    wouldHaveBeen = "openai";
+  } else {
+    const codexAuth = readCodexAuthState();
+    if (codexAuth.openaiApiKey) wouldHaveBeen = "openai";
+  }
+  if (!wouldHaveBeen) return;
+
+  costOrderTransitionNoticeShown = true;
+  const msg = [
+    `[onto] provider resolution changed by cost-order: would have used ${wouldHaveBeen} (per-token), now using ${resolved.provider} (${
+      resolved.provider === "codex" ? "subscription" : "variable; typically per-token audit"
+    }).`,
+    `기존 동작을 유지하려면 .onto/config.yml 에 \`api_provider: ${wouldHaveBeen}\` 를 명시하세요.`,
+    "세션당 1회만 표시됩니다. ONTO_SUPPRESS_COST_ORDER_NOTICE=1 로 끌 수 있습니다.",
+    "",
+  ].join("\n");
+  process.stderr.write(msg);
+}
+
+/** Test-only: reset module-level notice flags so each test observes fresh behavior. */
+export function __resetNoticeFlagsForTests(): void {
+  codexInstallNoticeShown = false;
+  costOrderTransitionNoticeShown = false;
+}
+
 // ---------------------------------------------------------------------------
 // Anthropic call
 // ---------------------------------------------------------------------------
@@ -586,6 +638,27 @@ async function callCodexCli(
     const combined = [stderr.trim(), stdout.trim()]
       .filter((m) => m.length > 0)
       .join("\n");
+    // A1: chatgpt account model allowlist rejection — augment with actionable hint.
+    // codex emits errors like:
+    //   "The 'gpt-4o-mini' model is not supported when using Codex with a ChatGPT account."
+    // Surface a fix path so users don't have to decode the upstream message.
+    if (
+      combined.includes("is not supported when using Codex with a ChatGPT account") ||
+      combined.includes("not supported when using Codex")
+    ) {
+      const requested = modelId ?? "(codex default)";
+      throw new Error(
+        [
+          combined,
+          "",
+          `지정된 모델 "${requested}"이 현재 ChatGPT 계정의 codex allowlist에 없습니다.`,
+          "다음 중 한 가지로 해결하세요:",
+          "  1. .onto/config.yml 에서 codex.model 을 제거 → codex CLI가 계정 허용 기본값을 선택",
+          "  2. 터미널에서 `codex` 를 직접 실행해 현재 계정에서 선택 가능한 모델 확인 후 config.codex.model 에 반영",
+          "  3. `codex login` 으로 API-key 모드로 전환 (per-token 과금, 더 넓은 모델 범위)",
+        ].join("\n"),
+      );
+    }
     throw new Error(
       combined.length > 0 ? combined : `codex CLI exited with code ${exitCode}`,
     );
@@ -662,6 +735,13 @@ export async function callLlm(
       fallbackBillingMode: resolved.provider === "anthropic" || resolved.provider === "openai" ? "per_token" : "per_token",
       suppress,
     });
+  }
+
+  // B1: cost-order transition notice. Only fires for auto-resolution paths where
+  // the user has an API-key credential that the OLD (pre-cost-order) code would
+  // have picked but NEW code routes to codex/litellm instead.
+  if (config?.provider === undefined) {
+    maybeEmitCostOrderTransitionNotice(resolved);
   }
 
   switch (resolved.provider) {

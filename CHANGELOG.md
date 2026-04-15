@@ -1,0 +1,92 @@
+# Changelog
+
+## Unreleased
+
+### Breaking changes
+
+#### Background task LLM provider resolution — cost-order ladder + explicit model required
+
+Learn / govern / promote 등 background task의 LLM 호출 경로가 **cost-order 기반 provider 해소**로 재설계되었습니다. 기존 하드코딩된 기본 모델(`DEFAULT_ANTHROPIC_MODEL`, `DEFAULT_OPENAI_MODEL`)은 완전히 제거되었습니다.
+
+**이전 동작 (broken in some cases)**:
+- `ANTHROPIC_API_KEY` → `OPENAI_API_KEY` → `~/.codex/auth.json`의 `OPENAI_API_KEY` 필드 순으로 해소.
+- 모델은 암묵적으로 `claude-sonnet-4-20250514` 또는 `gpt-4o-mini` 자동 사용.
+- chatgpt OAuth 모드는 "not supported" 에러로 fail-fast.
+
+**신규 동작**:
+- Cost-order 6단계 ladder (caller-explicit → config-explicit → codex OAuth → LiteLLM → Anthropic → OpenAI per-token).
+- 모델은 사용자가 명시해야 함. anthropic / openai / litellm 경로에서 모델 미지정 시 fail-fast. codex는 CLI가 자체 default 선택.
+- chatgpt OAuth는 **cost-order 최상위 공식 경로**로 승격.
+
+#### 영향을 받는 사용자 시나리오
+
+| 사용자 상태 | 변경 전 | 변경 후 | 조치 필요 |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY`만 set, `.onto/config.yml`에 model 없음 | anthropic + `claude-sonnet-4-20250514` 자동 | **fail-fast (missing-model)** | `.onto/config.yml`에 `model: claude-sonnet-4-20250514` 또는 `anthropic: { model: ... }` 추가 |
+| `OPENAI_API_KEY`만 set, model 없음 | openai + `gpt-4o-mini` 자동 | **fail-fast (missing-model)** | `.onto/config.yml`에 `model: gpt-4o-mini` 또는 `openai: { model: ... }` 추가 |
+| `~/.codex/auth.json` chatgpt OAuth + codex 바이너리 | "not supported" 에러 | **codex CLI OAuth 경로로 자동 전환** (호출당 한계비용 0) | 없음 (의도된 개선) |
+| chatgpt OAuth + `ANTHROPIC_API_KEY` 공존 | anthropic 사용 | **codex로 자동 전환 + 세션당 1회 STDERR 전환 안내** | Anthropic 유지하려면 `api_provider: anthropic` 명시 |
+| chatgpt OAuth 있으나 codex 바이너리 없음, 다른 key 있음 | "not supported" 에러 | **다음 cost-order 경로로 폴백 + 설치 안내** | codex 설치 권장 (구독제 경로 활성화) |
+| `~/.codex/auth.json`의 `OPENAI_API_KEY` 필드만 (API-key 모드) | openai 폴백 | openai 폴백 (priority 6 sub-resolution) | 없음 |
+
+#### 신규 설정 위치 (모든 provider 대칭)
+
+```yaml
+# .onto/config.yml
+
+# provider 결정 (생략 시 cost-order auto-resolution)
+api_provider: anthropic  # or "openai" | "litellm" | "codex"
+
+# per-provider 모델 (provider가 해당되면 top-level model을 이김)
+anthropic: { model: claude-sonnet-4-20250514 }
+openai:    { model: gpt-4o }
+codex:     { model: gpt-5-codex, effort: medium }   # 기존 codex 전용 필드 확장
+litellm:   { model: claude-sonnet-local }
+
+# auto-resolution 또는 per-provider 미설정 시 사용되는 top-level fallback
+model: claude-sonnet-4-20250514
+
+# LiteLLM endpoint (api_provider=litellm 시 필수)
+llm_base_url: http://localhost:4000/v1
+
+# codex 설치 안내 opt-out (OAuth 있고 바이너리 없을 때의 STDERR 알림 끔)
+suppress_codex_install_notice: false
+```
+
+#### 환경변수 (CLI·임시 override용)
+
+- `LITELLM_BASE_URL` — 세션 동안 litellm endpoint override
+- `LITELLM_API_KEY` — LiteLLM 프록시 auth (프록시가 검증하는 경우)
+- `ONTO_SUPPRESS_COST_ORDER_NOTICE=1` — B1 전환 안내 STDERR 로그 끔
+- `ONTO_LLM_MOCK=1` — (기존 유지) in-process mock provider, CI·테스트용
+
+### Added
+
+- `authority/core-lexicon.yaml`:
+  - `LlmCompatibleProxy` (LiteLLM 등 OpenAI-compatible 프록시 개념)
+  - `LlmBillingMode` (subscription / per_token / variable — cost-order의 의미론적 근거)
+- `OntoConfig`:
+  - `llm_base_url?: string`
+  - `suppress_codex_install_notice?: boolean`
+  - `anthropic?: { model?: string }`
+  - `openai?: { model?: string }`
+  - `litellm?: { model?: string }`
+- `LlmCallConfig`:
+  - `provider` enum에 `"litellm"`, `"codex"` 추가
+  - `base_url?: string`
+  - `reasoning_effort?: string` (codex 전용)
+- `LlmCallResult`:
+  - `effective_base_url?: string` (audit trail)
+  - `declared_billing_mode?: "subscription" | "per_token"` (선언적 분류, 실측 아님)
+- 신규 함수:
+  - `resolveLearningProviderConfig` — OntoConfig + CLI overrides → `Partial<LlmCallConfig>` 브리지
+  - `callCodexCli` — codex exec subprocess spawn (단일-턴, `--ephemeral`)
+
+### Changed
+
+- `resolveProvider` 완전 재작성: 6단계 cost-order. 명시적 provider (`"anthropic"`/`"openai"`)는 credential 부재 시 fail-fast (이전: 조용히 다음 경로로 폴백).
+- 기존 chatgpt OAuth "not supported" 에러 문구 삭제 — OAuth는 이제 공식 경로.
+
+### Design record
+
+- `development-records/plan/20260415-litellm-provider-design.md` — 결정표(D1~D13), 실측 검증, 테스트 전략, 롤아웃 계획.

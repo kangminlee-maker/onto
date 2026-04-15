@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import {
   resolveLearningProviderConfig,
+  __resetNoticeFlagsForTests,
   type LearningProviderConfigInputs,
   type LearningProviderCliOverrides,
 } from "./llm-caller.js";
@@ -179,6 +180,7 @@ describe("callLlm resolveProvider cost-order", () => {
     clearLlmEnv();
     tmp = createTmpHome();
     process.env.HOME = tmp.home;
+    __resetNoticeFlagsForTests();
   });
 
   afterEach(() => {
@@ -251,6 +253,77 @@ describe("callLlm resolveProvider cost-order", () => {
   it("bridge narrows main-model to undefined (execution realization axis, not provider)", () => {
     const out = resolveLearningProviderConfig({ config: { api_provider: "main-model" } });
     expect(out.provider).toBeUndefined();
+  });
+
+  // B1: cost-order transition notice — auto-resolution picks codex, user also has ANTHROPIC_API_KEY.
+  it("B1: auto-resolution picks codex while ANTHROPIC_API_KEY present → STDERR transition notice", async () => {
+    writeAuthJson(tmp!.home, { auth_mode: "chatgpt", tokens: { access_token: "tok" } });
+    // ensure codex binary IS findable — use the real PATH so `codex` is resolvable
+    // (the test machine has codex installed per §1.4 verification).
+    // We don't actually invoke codex — we intercept STDERR before the call.
+    process.env.ANTHROPIC_API_KEY = "sk-fake-anthropic";
+    const captured: string[] = [];
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    (process.stderr as any).write = (chunk: any) => {
+      captured.push(String(chunk));
+      return true;
+    };
+    try {
+      const { callLlm } = await import("./llm-caller.js");
+      // callLlm will try to spawn codex. We don't care if it succeeds/fails —
+      // we only care that the STDERR notice is emitted BEFORE dispatch.
+      await callLlm("s", "u", { max_tokens: 1 }).catch(() => {/* ignore dispatch errors */});
+      const combined = captured.join("");
+      expect(combined).toContain("provider resolution changed by cost-order");
+      expect(combined).toContain("would have used anthropic");
+      expect(combined).toContain("now using codex");
+    } finally {
+      (process.stderr as any).write = originalWrite;
+      delete process.env.ANTHROPIC_API_KEY;
+    }
+  });
+
+  it("B1: no notice when user sets api_provider explicitly", async () => {
+    writeAuthJson(tmp!.home, { auth_mode: "chatgpt", tokens: { access_token: "tok" } });
+    process.env.ANTHROPIC_API_KEY = "sk-fake-anthropic";
+    const captured: string[] = [];
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    (process.stderr as any).write = (chunk: any) => {
+      captured.push(String(chunk));
+      return true;
+    };
+    try {
+      const { callLlm } = await import("./llm-caller.js");
+      // explicit provider=anthropic — user chose, no transition surprise
+      await callLlm("s", "u", { provider: "anthropic", max_tokens: 1 }).catch(() => {});
+      const combined = captured.join("");
+      expect(combined).not.toContain("provider resolution changed by cost-order");
+    } finally {
+      (process.stderr as any).write = originalWrite;
+      delete process.env.ANTHROPIC_API_KEY;
+    }
+  });
+
+  it("B1: notice suppressed by ONTO_SUPPRESS_COST_ORDER_NOTICE=1", async () => {
+    writeAuthJson(tmp!.home, { auth_mode: "chatgpt", tokens: { access_token: "tok" } });
+    process.env.ANTHROPIC_API_KEY = "sk-fake-anthropic";
+    process.env.ONTO_SUPPRESS_COST_ORDER_NOTICE = "1";
+    const captured: string[] = [];
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    (process.stderr as any).write = (chunk: any) => {
+      captured.push(String(chunk));
+      return true;
+    };
+    try {
+      const { callLlm } = await import("./llm-caller.js");
+      await callLlm("s", "u", { max_tokens: 1 }).catch(() => {});
+      const combined = captured.join("");
+      expect(combined).not.toContain("provider resolution changed by cost-order");
+    } finally {
+      (process.stderr as any).write = originalWrite;
+      delete process.env.ANTHROPIC_API_KEY;
+      delete process.env.ONTO_SUPPRESS_COST_ORDER_NOTICE;
+    }
   });
 });
 

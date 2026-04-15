@@ -2,7 +2,67 @@
 
 ## Unreleased
 
+### Added
+
+#### Review execution realization canonicalization & auto-resolution (stay-in-host)
+
+`onto review`(플래그 무명시)가 이전엔 `"Claude runs use 'onto coordinator start'"` 에러를 던졌습니다. 이제 **host 감지 기반 auto-resolution**을 수행하고, 적절한 canonical path로 자동 라우팅합니다.
+
+**세 canonical path** (`execution_realization × host_runtime` 2-axis 조합):
+
+| Canonical path | Orchestrator | Context 비용 | Billing source |
+|---|---|---|---|
+| `agent_teams_claude` | coordinator subagent (TeamCreate로 spawn) | 메인 무소비 | Claude Code 구독 |
+| `subagent_claude` (신규 wiring) | 주체자 메인 세션 (Agent tool 직접, TeamCreate 없음) | 메인 일부 소비(orchestration만; lens reasoning은 독립 subagent) | Claude Code 구독 |
+| `subagent_codex` | codex CLI subprocess | 메인 무소비 | chatgpt 구독 또는 API-key |
+
+**Auto-resolution (stay-in-host 정책)**:
+- `--codex` flag 또는 `--prepare-only` → `subagent_codex` path (self 실행)
+- `host_runtime: claude` config 또는 `CLAUDECODE=1` 감지 → `coordinator-start` handoff JSON emit
+- codex binary + `~/.codex/auth.json` 감지 → codex path
+- 둘 다 없음 → fail-fast with cost-order guidance
+- `host_runtime: codex` config → codex path 강제
+
+**Handoff JSON** (`onto review` 무명시 + Claude host 감지 시 emit):
+
+```json
+{
+  "handoff": "coordinator-start",
+  "execution_realization": "agent-teams",
+  "host_runtime": "claude",
+  "requested_target": "<target>",
+  "request_text": "<intent>",
+  "next_action": {
+    "cli": "onto coordinator start \"<target>\" \"<intent>\"",
+    "orchestration_guidance": {
+      "preferred": "TeamCreate로 coordinator subagent를 nested spawn (canonical path = agent_teams_claude)",
+      "fallback": "TeamCreate 비가용 환경에서는 주체자가 Agent tool 직접 사용 (canonical path = subagent_claude)"
+    }
+  }
+}
+```
+
+주체자(Claude Code 세션)는 이 JSON을 읽고 `onto coordinator start`를 호출하며, TeamCreate 가용성에 따라 nested/flat orchestration을 선택합니다.
+
+**타입 확장점**: `ReviewHostRuntime`에 `"litellm"` 추가 (forward-compat slot). `subagent_litellm` wiring은 후속 PR.
+
+**Authority 신규 등재**: `authority/core-lexicon.yaml`에 `LlmAgentSpawnRealization` entry 추가 — 세 canonical 조합의 `orchestration_locus`, `context_cost`, `billing_source` 속성을 rank-1에 박제 (priority rank는 사용자 상황 의존적이므로 고정하지 않음).
+
+### Changed
+
+#### Authority: `LlmBillingMode.cost_order_rank` 제거
+
+기존 `LlmBillingMode` entry에서 `cost_order_rank` attribute를 제거했습니다. 이유: ranking은 사용자 상황(보유 구독·API 예산·context 여유·로컬 하드웨어 등)에 따라 달라지므로 authority rank-1에 고정하는 것이 부적절. 기본 정책(stay-in-host 등)은 resolver 정책 층에서 관리하고, 사용자는 `api_provider` config·`--codex` flag·`host_runtime` config 등 명시적 override로 조정합니다. `LlmAgentSpawnRealization`도 같은 원칙(rank 없음)으로 등재.
+
 ### Breaking changes
+
+#### `onto review` 에러 메시지 변경
+
+- 이전: 플래그 무명시 + Claude host 세션 → `"Unsupported --executor-realization: ... Claude runs use 'onto coordinator start' (Agent Teams nested spawn)."`
+- 신규: 플래그 무명시 + Claude host 감지 → coordinator-start handoff JSON emit (에러 아님, stdout JSON + exit 0)
+- 플래그 무명시 + 어떤 host도 감지 안 됨 → 명시적 fail-fast with 4가지 해결 경로 가이드
+
+기존 스크립트가 에러 exit code에 의존했다면 영향. 정상 경로를 원했던 사용자에겐 개선.
 
 #### Background task LLM provider resolution — cost-order ladder + explicit model required
 

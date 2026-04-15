@@ -359,16 +359,16 @@ function appendExecutorModelArgs(
 // Authority: authority/core-lexicon.yaml:LlmAgentSpawnRealization
 // ---------------------------------------------------------------------------
 
-type ExecutionRealizationHandoff =
+export type ExecutionRealizationHandoff =
   | { type: "self" }
   | { type: "coordinator_start"; execution_realization: "subagent" | "agent-teams" }
   | { type: "no_host" };
 
-function detectClaudeCodeHost(): boolean {
+export function detectClaudeCodeHost(): boolean {
   return process.env.CLAUDECODE === "1";
 }
 
-function detectCodexAvailable(): boolean {
+export function detectCodexAvailable(): boolean {
   const pathEnv = process.env.PATH ?? "";
   let codexOnPath = false;
   for (const dir of pathEnv.split(path.delimiter)) {
@@ -384,7 +384,7 @@ function detectCodexAvailable(): boolean {
   return fsSync.existsSync(authPath);
 }
 
-function resolveExecutionRealizationHandoff(args: {
+export function resolveExecutionRealizationHandoff(args: {
   explicitCodex: boolean;
   prepareOnly: boolean;
   ontoConfig: OntoConfig;

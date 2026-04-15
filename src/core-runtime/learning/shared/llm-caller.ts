@@ -47,9 +47,13 @@ import path from "node:path";
 import os from "node:os";
 
 export interface LlmCallConfig {
-  provider: "anthropic" | "openai";
+  provider: "anthropic" | "openai" | "litellm" | "codex";
   model_id: string;
   max_tokens: number;
+  /** Optional base URL for litellm (OpenAI-compatible proxy) or openai custom endpoint. Ignored by codex/anthropic. */
+  base_url?: string;
+  /** codex-only: reasoning effort passed as `model_reasoning_effort`. Ignored by other providers. */
+  reasoning_effort?: string;
 }
 
 export interface LlmCallResult {
@@ -57,6 +61,15 @@ export interface LlmCallResult {
   input_tokens: number;
   output_tokens: number;
   model_id: string;
+  /** Actual endpoint hit (audit trail). SDK/subprocess providers each fill their own sentinel. */
+  effective_base_url?: string;
+  /**
+   * Declarative billing classification used by onto's cost-order ladder.
+   * NOT a measured billing truth — e.g. LiteLLM downstream is opaque so it's
+   * recorded conservatively as per_token even if the backend is a free local
+   * model. Authority concept: authority/core-lexicon.yaml entities.LlmBillingMode.
+   */
+  declared_billing_mode?: "subscription" | "per_token";
 }
 
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
@@ -189,6 +202,8 @@ async function callAnthropic(
     input_tokens: response.usage.input_tokens,
     output_tokens: response.usage.output_tokens,
     model_id: modelId,
+    effective_base_url: "https://api.anthropic.com",
+    declared_billing_mode: "per_token",
   };
 }
 
@@ -202,10 +217,13 @@ async function callOpenAI(
   apiKey: string,
   modelId: string,
   maxTokens: number,
+  baseUrl?: string,
+  providerLabel: "openai" | "litellm" = "openai",
 ): Promise<LlmCallResult> {
   const { default: OpenAI } = await import("openai");
   const client = new OpenAI({
     apiKey,
+    baseURL: baseUrl,
     timeout: DEFAULT_TIMEOUT_MS,
     maxRetries: DEFAULT_MAX_RETRIES,
   });
@@ -221,11 +239,114 @@ async function callOpenAI(
 
   const text = response.choices[0]?.message?.content ?? "";
 
+  const defaultOpenAIBase = "https://api.openai.com/v1";
   return {
     text,
     input_tokens: response.usage?.prompt_tokens ?? 0,
     output_tokens: response.usage?.completion_tokens ?? 0,
     model_id: modelId,
+    effective_base_url: baseUrl ?? defaultOpenAIBase,
+    // LiteLLM downstream is opaque; record conservatively as per_token.
+    // The cost-order rank for litellm is variable (LlmBillingMode) — this field captures audit signal.
+    declared_billing_mode: "per_token",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// codex CLI call (OAuth subscription path)
+// ---------------------------------------------------------------------------
+
+/**
+ * Invoke `codex exec --ephemeral -` as a subprocess for a single-turn
+ * prompt → text response. Uses the host's codex CLI authentication
+ * (chatgpt OAuth via ~/.codex/auth.json), which routes through chatgpt.com's
+ * backend — cannot be reached via the OpenAI SDK.
+ *
+ * Design: development-records/plan/20260415-litellm-provider-design.md §3.5a
+ *
+ * --ephemeral keeps this learning call from persisting a session file
+ *   alongside review sessions. --skip-git-repo-check lets learning run
+ *   from non-repo cwd. No -C/-s/-o: this is single-turn, no agentic scaffold.
+ */
+async function callCodexCli(
+  systemPrompt: string,
+  userPrompt: string,
+  modelId?: string,
+  reasoningEffort?: string,
+): Promise<LlmCallResult> {
+  const { spawn } = await import("node:child_process");
+
+  const args: string[] = ["exec", "--skip-git-repo-check", "--ephemeral"];
+  if (modelId) args.push("-m", modelId);
+  if (reasoningEffort) args.push("-c", `model_reasoning_effort="${reasoningEffort}"`);
+  args.push("-");
+
+  const combinedPrompt = `${systemPrompt}\n\n---\n\n${userPrompt}`;
+
+  const child = spawn("codex", args, {
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  let stdout = "";
+  let stderr = "";
+  let timedOut = false;
+
+  child.stdout.on("data", (chunk: Buffer | string) => {
+    stdout += String(chunk);
+  });
+  child.stderr.on("data", (chunk: Buffer | string) => {
+    stderr += String(chunk);
+  });
+
+  child.stdin.write(combinedPrompt);
+  child.stdin.end();
+
+  const timeoutHandle = setTimeout(() => {
+    timedOut = true;
+    child.kill("SIGTERM");
+  }, DEFAULT_TIMEOUT_MS);
+
+  const exitCode = await new Promise<number>((resolve, reject) => {
+    child.on("error", (err: NodeJS.ErrnoException) => {
+      clearTimeout(timeoutHandle);
+      if (err.code === "ENOENT") {
+        reject(new Error(
+          "codex CLI not found on PATH. Install codex to use the OAuth subscription path: https://github.com/openai/codex",
+        ));
+      } else {
+        reject(err);
+      }
+    });
+    child.on("close", (code) => {
+      clearTimeout(timeoutHandle);
+      resolve(code ?? 1);
+    });
+  });
+
+  if (timedOut) {
+    throw new Error(`codex CLI call timed out after ${DEFAULT_TIMEOUT_MS}ms`);
+  }
+  if (exitCode !== 0) {
+    const combined = [stderr.trim(), stdout.trim()]
+      .filter((m) => m.length > 0)
+      .join("\n");
+    throw new Error(
+      combined.length > 0 ? combined : `codex CLI exited with code ${exitCode}`,
+    );
+  }
+
+  const text = stdout.trim();
+  // codex exec does not return usage metadata in stdout; estimate by char count.
+  // LlmCallResult carries these as approximate; audit may flag via declared_billing_mode=subscription.
+  const estimateTokens = (s: string) => Math.max(1, Math.ceil(s.length / 4));
+
+  return {
+    text,
+    input_tokens: estimateTokens(combinedPrompt),
+    output_tokens: estimateTokens(text),
+    model_id: modelId ?? "codex-default",
+    effective_base_url: "codex-cli://oauth",
+    declared_billing_mode: "subscription",
   };
 }
 
@@ -245,6 +366,31 @@ export async function callLlm(
   // Test-only mock provider — gated by ONTO_LLM_MOCK=1.
   if (process.env.ONTO_LLM_MOCK === "1") {
     return callMockProvider(systemPrompt, userPrompt);
+  }
+
+  // Caller-explicit codex → subprocess spawn, no API-key resolution needed.
+  if (config?.provider === "codex") {
+    return callCodexCli(
+      systemPrompt,
+      userPrompt,
+      config.model_id,
+      config.reasoning_effort,
+    );
+  }
+
+  // Caller-explicit litellm → OpenAI-compatible proxy; use baseURL from config
+  // and either LITELLM_API_KEY env or a placeholder (proxies often self-auth).
+  if (config?.provider === "litellm") {
+    const baseUrl = config.base_url;
+    if (!baseUrl) {
+      throw new Error(
+        "api_provider=litellm requires base_url (set via LlmCallConfig.base_url, CLI flag, env LITELLM_BASE_URL, or .onto/config.yml llm_base_url)",
+      );
+    }
+    const apiKey = process.env.LITELLM_API_KEY ?? "sk-litellm-placeholder";
+    const modelId = config.model_id ?? DEFAULT_OPENAI_MODEL;
+    const maxTokens = config.max_tokens ?? 1024;
+    return callOpenAI(systemPrompt, userPrompt, apiKey, modelId, maxTokens, baseUrl, "litellm");
   }
 
   const resolved = resolveProvider(config?.provider);
@@ -425,6 +571,8 @@ function callMockProvider(
     input_tokens: estimateMockTokens(systemPrompt + userPrompt),
     output_tokens: estimateMockTokens(text),
     model_id: MOCK_MODEL_ID,
+    effective_base_url: "mock://deterministic",
+    declared_billing_mode: "per_token",
   });
 }
 

@@ -1000,7 +1000,9 @@ delta:
       # Explorer populates this field based on which aspect of the source was traversed to discover the fact.
       # Consumed by Phase 2 Step 1 (aspect_bias per module/entity + global aspect_totals) and Phase 3 Observation Aspect Distribution table.
       # If a future lens introduces a new aspect value, Runtime passes it through unchanged and Phase 3 renders it as an additional row.
-      fact_type: entity | enum | property | relation | state_transition | command | query | policy_constant | flow | code_mapping
+      fact_type: {one of authority/core-lexicon.yaml#fact_type.allowed_values — Stage 1: entity, enum, property, relation, code_mapping; Stage 2: state_transition, command, query, policy_constant, flow}
+      # Canonical enum: authority/core-lexicon.yaml#fact_type (v0.10.0+, R-31 SSOT 정렬).
+      # 신규 fact_type 추가 시 lexicon term 의 allowed_values + stage_partition 우선 갱신 후 본 schema 의 structured_data 명세 추가.
       structured_data:  # structured data per fact_type (optional)
         # entity: {name, domain, db_table, properties: [{name, type, nullable, description, enum_ref, constraints}]}
         # enum: {name, values: [{value, code, description}]}

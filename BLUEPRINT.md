@@ -411,7 +411,7 @@ Phase 5: Learning Storage
 
 **Patch**: The unit of change where the coordinator converts labels into ontology elements and applies them to wip.yml.
 
-**fact_type** (10 types), partitioned by Stage:
+**fact_type** (10 types), partitioned by Stage. Canonical SSOT: `authority/core-lexicon.yaml#fact_type` (v0.10.0+, R-31 정렬). Stage 분할 요약:
 
 | Stage 1 — Structure | Stage 2 — Behavior |
 |---|---|
@@ -420,6 +420,8 @@ Phase 5: Learning Storage
 | `property` | `query` |
 | `relation` | `policy_constant` |
 | `code_mapping` | `flow` |
+
+값 추가·rename·세분화는 lexicon term 갱신이 선행. 본 표는 lexicon `stage_partition` 을 시각화한 사본.
 
 **Certainty classification** (2-stage adjudication):
 

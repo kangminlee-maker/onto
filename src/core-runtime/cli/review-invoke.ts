@@ -3,6 +3,7 @@
 import { execSync } from "node:child_process";
 import fsSync from "node:fs";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { pathToFileURL } from "node:url";
@@ -341,6 +342,125 @@ function appendExecutorModelArgs(
   return { bin: config.bin, args };
 }
 
+// ---------------------------------------------------------------------------
+// Execution realization auto-resolution (stay-in-host)
+//
+// Decides whether `onto review` should run the codex CLI path itself or hand
+// off to the Claude host via `onto coordinator start`. Three inputs matter:
+//
+//   - explicit CLI `--codex` flag                        → self (codex path)
+//   - OntoConfig.host_runtime / execution_realization    → explicit override
+//   - auto detection (CLAUDECODE=1 / codex on PATH)      → stay-in-host
+//
+// Priority rank between hosts is NOT hardcoded here — user situation varies
+// (subscription mix, context headroom, local hardware). Default policy prefers
+// the current host ecosystem; cross-host switches require explicit opt-in.
+// Design: development-records/plan/20260415T1700-execution-realization-priority-design.md
+// Authority: authority/core-lexicon.yaml:LlmAgentSpawnRealization
+// ---------------------------------------------------------------------------
+
+type ExecutionRealizationHandoff =
+  | { type: "self" }
+  | { type: "coordinator_start"; execution_realization: "subagent" | "agent-teams" }
+  | { type: "no_host" };
+
+function detectClaudeCodeHost(): boolean {
+  return process.env.CLAUDECODE === "1";
+}
+
+function detectCodexAvailable(): boolean {
+  const pathEnv = process.env.PATH ?? "";
+  let codexOnPath = false;
+  for (const dir of pathEnv.split(path.delimiter)) {
+    if (!dir) continue;
+    if (fsSync.existsSync(path.join(dir, "codex"))) {
+      codexOnPath = true;
+      break;
+    }
+  }
+  if (!codexOnPath) return false;
+  // auth.json presence (either OAuth or API-key mode is valid for review).
+  const authPath = path.join(os.homedir(), ".codex", "auth.json");
+  return fsSync.existsSync(authPath);
+}
+
+function resolveExecutionRealizationHandoff(args: {
+  explicitCodex: boolean;
+  prepareOnly: boolean;
+  ontoConfig: OntoConfig;
+}): ExecutionRealizationHandoff {
+  // prepare-only is called by the coordinator state machine itself and always
+  // prepares artifacts regardless of host — it's not a user-facing entrypoint.
+  if (args.prepareOnly) return { type: "self" };
+
+  // Explicit CLI flag wins over everything.
+  if (args.explicitCodex) return { type: "self" };
+
+  // Explicit config override.
+  const configHost = args.ontoConfig.host_runtime;
+  const configRealization = args.ontoConfig.execution_realization;
+  if (configHost === "claude") {
+    const realization =
+      configRealization === "subagent" || configRealization === "agent-teams"
+        ? configRealization
+        : "agent-teams";
+    return { type: "coordinator_start", execution_realization: realization };
+  }
+  if (configHost === "codex") return { type: "self" };
+
+  // Auto-resolution (stay-in-host). Within Claude host, agent_teams_claude is
+  // the default preferred; the subject session falls to subagent_claude (flat)
+  // if TeamCreate is unavailable — that decision is the subject's, not onto's.
+  if (detectClaudeCodeHost()) {
+    return { type: "coordinator_start", execution_realization: "agent-teams" };
+  }
+  if (detectCodexAvailable()) {
+    return { type: "self" };
+  }
+  return { type: "no_host" };
+}
+
+function buildNoHostDetectedError(): Error {
+  return new Error(
+    [
+      "Review execution realization을 해소할 수 없습니다.",
+      "현재 host 감지 결과: Claude Code 세션 아님(CLAUDECODE unset), codex CLI 미설치 또는 ~/.codex/auth.json 부재.",
+      "",
+      "다음 중 한 가지로 해결하세요:",
+      "  1. Claude Code 세션에서 `onto review` 재실행 (CLAUDECODE=1 감지 시 coordinator-start 안내)",
+      "  2. codex CLI 설치 + `codex login` 후 재실행",
+      "  3. `--codex` 플래그로 codex path 강제 (auth·binary 있어야 성공)",
+      "  4. `.onto/config.yml` 에 host_runtime: claude 또는 codex 명시",
+    ].join("\n"),
+  );
+}
+
+function emitCoordinatorStartHandoff(args: {
+  executionRealization: "subagent" | "agent-teams";
+  requestedTarget: string;
+  requestText: string;
+}): void {
+  // Shell-escape: wrap in double quotes and escape embedded double quotes/backslashes.
+  const q = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  const payload = {
+    handoff: "coordinator-start",
+    execution_realization: args.executionRealization,
+    host_runtime: "claude" as const,
+    requested_target: args.requestedTarget,
+    request_text: args.requestText,
+    next_action: {
+      cli: `onto coordinator start ${q(args.requestedTarget)} ${q(args.requestText)}`,
+      orchestration_guidance: {
+        preferred:
+          "TeamCreate로 coordinator subagent를 nested spawn, coordinator가 Agent tool로 9 lens + synthesize subagent 추가 nested spawn (canonical path = agent_teams_claude).",
+        fallback:
+          "TeamCreate 비가용 환경에서는 주체자 세션이 Agent tool로 lens subagent를 직접 spawn 가능 (canonical path = subagent_claude). coordinator state machine은 양쪽 모두 수용.",
+      },
+    },
+  };
+  console.log(JSON.stringify(payload, null, 2));
+}
+
 function resolveExecutorConfig(
   argv: string[],
   optionPrefix: "" | "synthesize-",
@@ -386,7 +506,7 @@ function resolveExecutorConfig(
   ) {
     throw new Error(
       `Unsupported --${optionPrefixLabel}executor-realization: ${explicitRealization}. ` +
-        `Only codex and mock are supported. Claude runs use \`onto coordinator start\` (Agent Teams nested spawn).`,
+        `Only codex and mock are supported for --executor-realization. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected; config host_runtime: claude explicitly opts in. See authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
     );
   }
 
@@ -401,7 +521,7 @@ function resolveExecutorConfig(
   if (typeof configRealization === "string" && configRealization.length > 0) {
     throw new Error(
       `Unsupported executor_realization in config: ${configRealization}. ` +
-        `Only codex and mock are supported. Claude runs use \`onto coordinator start\` (Agent Teams nested spawn).`,
+        `Only codex and mock are supported for --executor-realization. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected; config host_runtime: claude explicitly opts in. See authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
     );
   }
 
@@ -1388,8 +1508,31 @@ export async function reviewPrepareOnly(argv: string[]): Promise<PrepareOnlyResu
 
 export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   const prepareOnly = hasOptionFlag(argv, "prepare-only");
+  const explicitCodex = hasOptionFlag(argv, "codex");
 
   const setup = await resolveReviewInvokeSetup(argv);
+
+  // Auto-resolve execution realization before starting a session. When the
+  // resolution points at the Claude host, we don't start a session here — we
+  // emit a handoff JSON that tells the subject session to invoke
+  // `onto coordinator start`, which owns Claude-host preparation itself.
+  // See design record §3.2.
+  const handoff = resolveExecutionRealizationHandoff({
+    explicitCodex,
+    prepareOnly,
+    ontoConfig: setup.ontoConfig,
+  });
+  if (handoff.type === "no_host") {
+    throw buildNoHostDetectedError();
+  }
+  if (handoff.type === "coordinator_start") {
+    emitCoordinatorStartHandoff({
+      executionRealization: handoff.execution_realization,
+      requestedTarget: setup.resolvedInvokeInputs.requestedTarget,
+      requestText: setup.resolvedInvokeInputs.requestText,
+    });
+    return 0;
+  }
 
   const resolvedProjectRoot = path.resolve(
     readSingleOptionValueFromArgv(setup.startArgv, "project-root") ?? ".",

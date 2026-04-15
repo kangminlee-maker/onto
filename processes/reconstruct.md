@@ -266,7 +266,7 @@ Please select an option or describe the desired structure.
 - source_type = `code` AND top-level module count > 10 OR CLAUDE.md/README.md contains "service" / "API" / "platform" keywords → B (action-centric)
 - Otherwise (including ambiguous cases) → C (most flexible, default safe choice)
 
-> **Note**: Deeper architecture-based judgments (business logic boundary clarity, operational vs transactional, etc.) require `context_brief.architecture` which is only collected in Phase 0.5.2–0.5.4 (after Phase 0). The team lead may revisit schema selection after Phase 0.5 completes if the collected context contradicts the initial recommendation.
+> **Note**: Deeper architecture-based judgments (business logic boundary clarity, operational vs transactional, etc.) require `context_brief.architecture` which is only collected in Phase 0.5.2–0.5.4 (after Phase 0). Schema reconfirmation against the collected context is performed in Phase 0.5.5 (see Phase 0.5.5 Schema reconfirmation check).
 
 **0.3 Schema confirmation and save**
 
@@ -329,6 +329,18 @@ context_brief:
   known_terms: [{domain terms provided by user}]
 ```
 
+**0.5.5 Schema reconfirmation check**
+
+After `context_brief.yml` is saved, the team lead compares the collected `architecture` / `system_purpose` against the schema selected in Phase 0. Criteria triggering a reconfirmation prompt:
+
+- `architecture` keywords contradict the schema's typical pattern (e.g., schema B "action-centric" selected but architecture describes strong domain boundaries → schema D candidate)
+- `system_purpose` implies a source type the schema doesn't fit (e.g., schema D "domain-driven" selected but system_purpose describes a data-analysis pipeline → schema C candidate)
+- User-stated `known_terms` contain clear aggregate/bounded-context vocabulary that Phase 0.5.1 keyword scan missed
+
+If any criterion matches, the team lead presents: "Collected context suggests schema {Y} may fit better than the initially selected {X}. Keep {X} / switch to {Y} / customize." If none match, proceed to Phase 1 silently (no user prompt).
+
+Default when user does not respond: keep the initially selected schema (no switch).
+
 ---
 
 ### Phase 1: Integral Exploration Loop
@@ -359,7 +371,7 @@ Creates a team (`onto-build`) via TeamCreate.
   - Adjudicator counter increments only on **actual agent failure** during a round where Adjudicator was invoked (unresolvable conflicts existed). Resets to 0 on successful Adjudicator completion. **A round where Adjudicator was not invoked (no unresolvable conflicts) does NOT change the counter** — it is neither a success nor a failure for this role.
   - Synthesize counter increments on Synthesize agent failure; resets on successful Synthesize completion. Synthesize runs every round.
   - Both counters reset to 0 at Stage transition.
-  - If either counter reaches 2, present a warning to the user before the next round starts:
+  - If either counter reaches `config.build.degradation_warn_threshold` (default: 2 — see Config section), present a warning to the user before the next round starts:
   - Show which role(s) degraded and what that implies for Phase 3 output (Adjudicator down → N unresolved conflicts will escalate to the user; Synthesize down → exploration directives will be unsorted lists)
   - Show current round and remaining rounds in the Stage
   - Ask: "Continue this Stage? [continue / end Stage now / abort build]"
@@ -903,6 +915,13 @@ meta:
   # Runtime does NOT write phase3_user_responses, logs `phase3_response_inconsistent` warning to session-log, and
   # re-prompts Phase 3 with a clarifying message ("You indicated adjustments, but none were provided. Please specify,
   # or reply 'confirmed' to proceed."). Phase 3 is interactive, so re-prompt is the natural recovery path (no halt).
+  #
+  # Extensibility path: adding a new top-level field to phase3_user_responses (e.g., a future
+  # `ambiguity_decisions` category) requires (1) adding the schema declaration here, (2) updating the
+  # consistency rule above to reference the new field, (3) extending Phase 3 rendering to prompt for it,
+  # and (4) extending Phase 3.5 to apply it. The `other_adjustments` field is NOT an extension point —
+  # it is advisory-only and deliberately free-form; structured decisions MUST become first-class fields
+  # rather than being encoded in `other_adjustments` text. This preserves Phase 3.5 determinism.
 
   # Phase 4 runtime state — system-managed, NOT part of user response:
   phase4_runtime_state:
@@ -981,7 +1000,9 @@ delta:
       # Explorer populates this field based on which aspect of the source was traversed to discover the fact.
       # Consumed by Phase 2 Step 1 (aspect_bias per module/entity + global aspect_totals) and Phase 3 Observation Aspect Distribution table.
       # If a future lens introduces a new aspect value, Runtime passes it through unchanged and Phase 3 renders it as an additional row.
-      fact_type: entity | enum | property | relation | state_transition | command | query | policy_constant | flow | code_mapping
+      fact_type: {one of authority/core-lexicon.yaml#fact_type.allowed_values — Stage 1: entity, enum, property, relation, code_mapping; Stage 2: state_transition, command, query, policy_constant, flow}
+      # Canonical enum: authority/core-lexicon.yaml#fact_type (v0.10.0+, R-31 SSOT 정렬).
+      # 신규 fact_type 추가 시 lexicon term 의 allowed_values + stage_partition 우선 갱신 후 본 schema 의 structured_data 명세 추가.
       structured_data:  # structured data per fact_type (optional)
         # entity: {name, domain, db_table, properties: [{name, type, nullable, description, enum_ref, constraints}]}
         # enum: {name, values: [{value, code, description}]}

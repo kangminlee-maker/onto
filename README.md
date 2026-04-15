@@ -240,18 +240,25 @@ litellm:
 **Model configuration** — per-provider + top-level fallback pattern:
 
 ```yaml
-# Per-provider overrides win over top-level when the provider matches:
+# Per-provider model — applied when the provider is selected, regardless of whether
+# api_provider was explicit or cost-order auto-resolution picked it.
 anthropic: { model: claude-sonnet-4-20250514 }
 openai:    { model: gpt-4o }
 codex:     { model: gpt-5-codex, effort: medium }
 litellm:   { model: claude-sonnet-local }
 
-# Top-level fallback used when per-provider not set, OR during cost-order auto-resolution
-# (the bridge can't predict which provider wins, so only top-level applies there):
+# Top-level fallback — used when the selected provider has no per-provider model set.
 model: claude-sonnet-4-20250514
 ```
 
-For anthropic / openai / litellm, **model is required**. If neither a per-provider override nor a top-level `model` is set when one of these providers is selected, `callLlm` fails fast with a clear message. codex tolerates omission because the codex CLI picks its own default.
+Per-call resolution order (dispatch picks the first non-empty):
+
+1. Runtime `LlmCallConfig.model_id` from the call site
+2. `OntoConfig.{provider}.model` where `{provider}` is whichever the ladder resolved
+3. `OntoConfig.model` as last fallback
+4. For anthropic / openai / litellm: fail fast with guidance if still unset. For codex: omit `-m` and let the codex CLI pick.
+
+Because per-provider models apply under auto-resolution too, setting only `anthropic: { model: ... }` without `api_provider` works — when cost-order picks anthropic, that model is used.
 
 Or via environment (임시 라우팅):
 

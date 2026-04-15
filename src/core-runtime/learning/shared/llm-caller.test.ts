@@ -139,13 +139,41 @@ describe("resolveLearningProviderConfig", () => {
     expect(out.model_id).toBe("fallback-model");
   });
 
-  it("auto-resolution (no provider) uses top-level model only", () => {
-    // Bridge can't predict which provider cost-order will pick, so per-provider fields don't apply here.
+  it("auto-resolution (no provider) emits models_per_provider for dispatch-time lookup", () => {
+    // Per-provider models are carried through to dispatch so they apply after
+    // resolveProvider picks. This closes the earlier UX gap where
+    // `anthropic: { model: X }` was silently ignored under auto-resolution.
     const out = resolveLearningProviderConfig({
-      config: { anthropic: { model: "ant" }, openai: { model: "oa" }, model: "top" },
+      config: {
+        anthropic: { model: "ant-model" },
+        openai: { model: "oa-model" },
+        model: "top-level-fallback",
+      },
     });
     expect(out.provider).toBeUndefined();
-    expect(out.model_id).toBe("top");
+    expect(out.model_id).toBe("top-level-fallback");
+    expect(out.models_per_provider).toEqual({
+      anthropic: "ant-model",
+      openai: "oa-model",
+    });
+  });
+
+  it("auto-resolution with only per-provider set → models_per_provider carries, top-level absent", () => {
+    const out = resolveLearningProviderConfig({
+      config: { anthropic: { model: "claude-opus-4" } },
+    });
+    expect(out.provider).toBeUndefined();
+    expect(out.model_id).toBeUndefined();
+    expect(out.models_per_provider).toEqual({ anthropic: "claude-opus-4" });
+  });
+
+  it("reasoning_effort passes through regardless of provider being explicit", () => {
+    // codex.effort must reach dispatch even when api_provider isn't set,
+    // since cost-order may still pick codex.
+    const out = resolveLearningProviderConfig({
+      config: { codex: { effort: "high" } },
+    });
+    expect(out.reasoning_effort).toBe("high");
   });
 
   it("env LITELLM_BASE_URL beats config.llm_base_url when CLI absent", () => {

@@ -51,6 +51,20 @@ export interface LlmCallConfig {
   base_url?: string;
   /** codex-only: reasoning effort passed as `model_reasoning_effort`. Ignored by other providers. */
   reasoning_effort?: string;
+  /**
+   * Per-provider model overrides. Consumed by dispatch AFTER resolveProvider
+   * determines the actual provider, so these apply to both explicit and
+   * auto-resolved providers. Precedence in dispatch (higher first):
+   *   model_id (explicit / bridge-resolved) > models_per_provider[resolved] > fail-fast(api-key paths)
+   *
+   * Populated by resolveLearningProviderConfig from OntoConfig.{provider}.model.
+   */
+  models_per_provider?: {
+    anthropic?: string;
+    openai?: string;
+    litellm?: string;
+    codex?: string;
+  };
 }
 
 /**
@@ -103,10 +117,10 @@ export function resolveLearningProviderConfig(args: {
   const configProvider = narrowProvider(config.api_provider);
   const provider = cli.provider ?? configProvider;
 
-  // model: CLI > config.{provider}.model (when provider is known) > config.model
-  // When provider is auto-resolved (neither CLI nor config explicit), we can't
-  // know the eventual provider here, so we fall back to the top-level model.
-  // The dispatch layer (callLlm) fails fast if no model reaches the api-key paths.
+  // model: CLI > config.{provider}.model (when provider is known) > config.model.
+  // When provider is auto-resolved (neither CLI nor config explicit), model_id is
+  // left as config.model (or undefined). The dispatch layer then looks up
+  // models_per_provider[resolved.provider] before failing fast.
   const providerSpecific = pickProviderModel(config, provider);
   const model_id = cli.model ?? providerSpecific ?? config.model;
 
@@ -114,15 +128,27 @@ export function resolveLearningProviderConfig(args: {
   const base_url =
     cli.llm_base_url ?? process.env.LITELLM_BASE_URL ?? config.llm_base_url;
 
-  // reasoning_effort: CLI > config.codex.effort (codex only)
-  const isCodex = provider === "codex";
-  const reasoning_effort = cli.reasoning_effort ?? (isCodex ? config.codex?.effort : undefined);
+  // reasoning_effort: CLI > config.codex.effort. codex is the only consumer so this
+  // is safe to pass through regardless of explicit-vs-auto provider path.
+  const reasoning_effort = cli.reasoning_effort ?? config.codex?.effort;
+
+  // models_per_provider: all per-provider model overrides, consumed by dispatch
+  // AFTER resolveProvider picks. This keeps OntoConfig.anthropic.model etc.
+  // working under auto-resolution too, not just explicit api_provider paths.
+  const models_per_provider: NonNullable<LlmCallConfig["models_per_provider"]> = {};
+  if (config.anthropic?.model) models_per_provider.anthropic = config.anthropic.model;
+  if (config.openai?.model) models_per_provider.openai = config.openai.model;
+  if (config.litellm?.model) models_per_provider.litellm = config.litellm.model;
+  if (config.codex?.model) models_per_provider.codex = config.codex.model;
 
   const out: Partial<LlmCallConfig> = {};
   if (provider) out.provider = provider;
   if (model_id) out.model_id = model_id;
   if (base_url) out.base_url = base_url;
   if (reasoning_effort) out.reasoning_effort = reasoning_effort;
+  if (Object.keys(models_per_provider).length > 0) {
+    out.models_per_provider = models_per_provider;
+  }
   return out;
 }
 
@@ -702,7 +728,7 @@ export async function callLlm(
     return callCodexCli(
       systemPrompt,
       userPrompt,
-      config.model_id,
+      config.model_id ?? config.models_per_provider?.codex,
       config.reasoning_effort,
     );
   }
@@ -715,7 +741,7 @@ export async function callLlm(
         "api_provider=litellm requires base_url (set via LlmCallConfig.base_url, env LITELLM_BASE_URL, or .onto/config.yml llm_base_url)",
       );
     }
-    const modelId = config.model_id;
+    const modelId = config.model_id ?? config.models_per_provider?.litellm;
     if (!modelId) throw missingModelError("litellm");
     const apiKey = process.env.LITELLM_API_KEY ?? "sk-litellm-placeholder";
     const maxTokens = config.max_tokens ?? 1024;
@@ -744,22 +770,27 @@ export async function callLlm(
     maybeEmitCostOrderTransitionNotice(resolved);
   }
 
+  // Per-provider model lookup: applied AFTER resolveProvider decides, so per-provider
+  // overrides in OntoConfig work under auto-resolution too (not just explicit paths).
+  const perProviderModel = config?.models_per_provider?.[resolved.provider];
+
   switch (resolved.provider) {
     case "codex": {
       // codex CLI picks its own default model when -m is omitted. Do NOT fall back
-      // to DEFAULT_OPENAI_MODEL here: codex OAuth (chatgpt account) rejects many
-      // openai-native model IDs like gpt-4o-mini with:
+      // to a hardcoded model: codex OAuth (chatgpt account) rejects many
+      // openai-native model IDs with:
       //   "The '<model>' model is not supported when using Codex with a ChatGPT account."
-      // Only pass -m when the user explicitly supplied a model.
+      // Order: caller model_id > config.codex.model > codex CLI default.
+      const modelId = config?.model_id ?? perProviderModel;
       return callCodexCli(
         systemPrompt,
         userPrompt,
-        config?.model_id,
+        modelId,
         config?.reasoning_effort,
       );
     }
     case "litellm": {
-      const modelId = config?.model_id;
+      const modelId = config?.model_id ?? perProviderModel;
       if (!modelId) throw missingModelError("litellm");
       return callOpenAI(
         systemPrompt,
@@ -772,12 +803,12 @@ export async function callLlm(
       );
     }
     case "anthropic": {
-      const modelId = config?.model_id;
+      const modelId = config?.model_id ?? perProviderModel;
       if (!modelId) throw missingModelError("anthropic");
       return callAnthropic(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
     }
     case "openai": {
-      const modelId = config?.model_id;
+      const modelId = config?.model_id ?? perProviderModel;
       if (!modelId) throw missingModelError("openai");
       return callOpenAI(systemPrompt, userPrompt, resolved.apiKey, modelId, maxTokens);
     }

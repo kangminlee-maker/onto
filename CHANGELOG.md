@@ -37,13 +37,14 @@ Learn / govern / promote 등 background task의 LLM 호출 경로가 **cost-orde
 # provider 결정 (생략 시 cost-order auto-resolution)
 api_provider: anthropic  # or "openai" | "litellm" | "codex"
 
-# per-provider 모델 (provider가 해당되면 top-level model을 이김)
+# per-provider 모델 — 해당 provider가 선택되면 자동 적용 (auto-resolution 포함).
+# api_provider가 명시되지 않아도, cost-order가 해당 provider를 고르면 이 값이 쓰임.
 anthropic: { model: claude-sonnet-4-20250514 }
 openai:    { model: gpt-4o }
-codex:     { model: gpt-5-codex, effort: medium }   # 기존 codex 전용 필드 확장
+codex:     { model: gpt-5-codex, effort: medium }
 litellm:   { model: claude-sonnet-local }
 
-# auto-resolution 또는 per-provider 미설정 시 사용되는 top-level fallback
+# top-level fallback — per-provider를 설정하지 않은 provider가 선택됐을 때
 model: claude-sonnet-4-20250514
 
 # LiteLLM endpoint (api_provider=litellm 시 필수)
@@ -52,6 +53,13 @@ llm_base_url: http://localhost:4000/v1
 # codex 설치 안내 opt-out (OAuth 있고 바이너리 없을 때의 STDERR 알림 끔)
 suppress_codex_install_notice: false
 ```
+
+**모델 해소 순서** (각 provider의 dispatch 시점):
+
+1. 호출부의 `LlmCallConfig.model_id` (runtime override)
+2. `OntoConfig.{provider}.model` (per-provider 설정)
+3. `OntoConfig.model` (top-level fallback)
+4. → api-key 경로(anthropic/openai/litellm)는 여기서 fail-fast. codex는 CLI가 자체 default 선택.
 
 #### 환경변수 (CLI·임시 override용)
 

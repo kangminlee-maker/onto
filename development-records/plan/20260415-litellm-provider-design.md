@@ -69,7 +69,9 @@ onto-3는 LLM 호출 경로가 두 갈래로 나뉜다.
 
 **D12 (신규, smoke test 후 결정)**: `DEFAULT_ANTHROPIC_MODEL` / `DEFAULT_OPENAI_MODEL` 하드코딩 **완전 제거**. 이유: (1) 초기 스모크 테스트에서 `gpt-4o-mini` fallback이 chatgpt account에 의해 거부당하는 사례 확인 — 하드코딩된 모델은 특정 계정 권한에 안 맞을 수 있음. (2) 모델 선택은 비용·품질·계정 호환성이 걸린 사용자 결정이므로 라이브러리 코드에서 암묵적으로 가정하면 stale·mismatch 위험. 결과: anthropic / openai / litellm 경로는 model 미해소 시 fail-fast. codex는 `-m` 생략 시 codex CLI가 자체 기본값을 선택하므로 예외.
 
-**D13 (신규)**: 모델 설정 위치를 `OntoConfig.codex.model` 패턴으로 **모든 provider에 대칭 확장**. 필드: `anthropic?: { model?: string }`, `openai?: { model?: string }`, `litellm?: { model?: string }`, 기존 `codex?: { model?, effort? }`. 해소 순서 (per-provider): CLI override > `OntoConfig.{provider}.model` > `OntoConfig.model` > fail-fast(api-key 경로). Auto cost-order일 때는 bridge가 어떤 provider가 선택될지 모르므로 top-level `model`만 적용.
+**D13 (신규)**: 모델 설정 위치를 `OntoConfig.codex.model` 패턴으로 **모든 provider에 대칭 확장**. 필드: `anthropic?: { model?: string }`, `openai?: { model?: string }`, `litellm?: { model?: string }`, 기존 `codex?: { model?, effort? }`.
+
+**D14 (신규, 로컬 검토 반영)**: Per-provider model은 **auto-resolution에서도 적용**된다. 초안에서는 "bridge가 provider를 모르니 auto-resolution엔 top-level model만 적용"이라는 제약이 있었으나 이는 "anthropic.model을 설정해두고 api_provider는 안 썼는데 왜 안 먹지?" UX 놀람을 만든다. 해결: `LlmCallConfig.models_per_provider?: { anthropic?, openai?, litellm?, codex? }` 필드 추가. Bridge가 config.{provider}.model 전부를 여기에 담아 전달하고, dispatch가 resolveProvider 결과 provider에 맞는 모델을 조회. 최종 해소 순서: (1) caller model_id > (2) models_per_provider[resolved] > (3) fail-fast(api-key) 또는 codex CLI 기본값(codex).
 
 ### 1.4 상위 원칙 정합성
 

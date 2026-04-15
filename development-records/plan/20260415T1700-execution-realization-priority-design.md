@@ -245,13 +245,21 @@ LlmAgentSpawnRealization:
       billing_source: claude_code_subscription
       notes: "주체자가 TeamCreate 없이 Agent tool을 직접 사용해 lens subagent를 flat spawn. 같은 `coordinator-state-machine.ts` 재활용. 주체자 context가 orchestration에 사용되지만 lens reasoning은 독립 subagent context."
 
-    subagent_codex:
+    subagent_codex_oauth:
       execution_realization: subagent
       host_runtime: codex
       orchestration_locus: subprocess
       context_cost: independent
-      billing_source: chatgpt_subscription        # OAuth mode 기준
-      notes: "`onto review --codex` 경로. codex CLI subprocess가 각 lens 실행. auth.json API-key mode일 경우 billing_source=openai_per_token."
+      billing_source: chatgpt_subscription
+      notes: "`onto review --codex` 경로 + ~/.codex/auth.json chatgpt OAuth mode. 호출당 한계비용 0, chatgpt 구독 한도 공유."
+
+    subagent_codex_apikey:
+      execution_realization: subagent
+      host_runtime: codex
+      orchestration_locus: subprocess
+      context_cost: independent
+      billing_source: openai_per_token
+      notes: "`onto review --codex` 경로 + ~/.codex/auth.json API-key mode. per-token 과금. 타입 space에서는 subagent_codex_oauth와 같은 (subagent, codex) 조합이지만 billing_source가 달라 별도 instance."
 
     # 확장점: subagent_litellm (future)
     #   execution_realization: subagent

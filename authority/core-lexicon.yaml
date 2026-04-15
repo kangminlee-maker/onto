@@ -622,13 +622,20 @@ entities:
         context_cost: "orchestration_only"
         billing_source: "claude_code_subscription"
         notes: "주체자가 TeamCreate 없이 Agent tool을 직접 사용해 lens subagent를 flat spawn. 같은 coordinator-state-machine.ts 재활용. 주체자 context가 orchestration에 사용되지만 lens reasoning은 독립 subagent context."
-      subagent_codex:
+      subagent_codex_oauth:
         execution_realization: "subagent"
         host_runtime: "codex"
         orchestration_locus: "subprocess"
         context_cost: "independent"
         billing_source: "chatgpt_subscription"
-        notes: "`onto review --codex` 경로. codex CLI subprocess가 각 lens 실행. auth.json API-key mode일 경우 billing_source는 openai_per_token."
+        notes: "`onto review --codex` 경로 + ~/.codex/auth.json이 chatgpt OAuth mode (auth_mode=chatgpt 또는 tokens.access_token). codex CLI가 chatgpt.com 백엔드 사용 → 호출당 한계비용 0, chatgpt 구독 한도 공유."
+      subagent_codex_apikey:
+        execution_realization: "subagent"
+        host_runtime: "codex"
+        orchestration_locus: "subprocess"
+        context_cost: "independent"
+        billing_source: "openai_per_token"
+        notes: "`onto review --codex` 경로 + ~/.codex/auth.json이 API-key mode (OPENAI_API_KEY 필드 존재). codex CLI가 api.openai.com 사용 → per-token 과금. 타입 space에서는 subagent_codex_oauth와 동일한 (subagent, codex) 조합이지만 billing_source가 다르므로 별도 instance."
     execution_rules_ref:
       resolution_policy: "src/core-runtime/cli/review-invoke.ts:resolveExecutionRealization"
       state_machine: "src/core-runtime/cli/coordinator-state-machine.ts (agent_teams_claude + subagent_claude 공용)"

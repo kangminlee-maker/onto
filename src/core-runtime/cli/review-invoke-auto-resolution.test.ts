@@ -151,17 +151,28 @@ describe("resolveExecutionRealizationHandoff", () => {
       prepareOnly: false,
       ontoConfig: {},
     });
-    expect(out).toEqual({ type: "self" });
+    expect(out.type).toBe("self");
+    if (out.type === "self") {
+      expect(out.profile.host_runtime).toBe("codex");
+    }
   });
 
-  it("E1b prepare-only short-circuits to self (coordinator internal)", () => {
+  it("E1b prepare-only on Claude host → self with Claude profile (artifact seam)", () => {
+    // coordinator-state-machine calls reviewPrepareOnly(--prepare-only) from within
+    // a Claude Code session; it must receive the Claude profile so prepared session
+    // artifacts get recorded as agent-teams+claude, not subagent+codex. This is the
+    // artifact seam fix (review consensus #1, 2026-04-16).
     process.env.CLAUDECODE = "1";
     const out = resolveExecutionRealizationHandoff({
       explicitCodex: false,
       prepareOnly: true,
       ontoConfig: {},
     });
-    expect(out).toEqual({ type: "self" });
+    expect(out.type).toBe("self");
+    if (out.type === "self") {
+      expect(out.profile.host_runtime).toBe("claude");
+      expect(out.profile.execution_realization).toBe("agent-teams");
+    }
   });
 
   it("E2 explicit config host_runtime=claude → coordinator_start with agent-teams default", () => {
@@ -172,7 +183,7 @@ describe("resolveExecutionRealizationHandoff", () => {
     });
     expect(out.type).toBe("coordinator_start");
     if (out.type === "coordinator_start") {
-      expect(out.execution_realization).toBe("agent-teams");
+      expect(out.profile.execution_realization).toBe("agent-teams");
     }
   });
 
@@ -184,7 +195,7 @@ describe("resolveExecutionRealizationHandoff", () => {
     });
     expect(out.type).toBe("coordinator_start");
     if (out.type === "coordinator_start") {
-      expect(out.execution_realization).toBe("subagent");
+      expect(out.profile.execution_realization).toBe("subagent");
     }
   });
 
@@ -194,7 +205,10 @@ describe("resolveExecutionRealizationHandoff", () => {
       prepareOnly: false,
       ontoConfig: { host_runtime: "codex" },
     });
-    expect(out).toEqual({ type: "self" });
+    expect(out.type).toBe("self");
+    if (out.type === "self") {
+      expect(out.profile.host_runtime).toBe("codex");
+    }
   });
 
   it("E3 auto + CLAUDECODE=1 → coordinator_start with agent-teams", () => {
@@ -206,7 +220,7 @@ describe("resolveExecutionRealizationHandoff", () => {
     });
     expect(out.type).toBe("coordinator_start");
     if (out.type === "coordinator_start") {
-      expect(out.execution_realization).toBe("agent-teams");
+      expect(out.profile.execution_realization).toBe("agent-teams");
     }
   });
 
@@ -223,7 +237,10 @@ describe("resolveExecutionRealizationHandoff", () => {
         prepareOnly: false,
         ontoConfig: {},
       });
-      expect(out).toEqual({ type: "self" });
+      expect(out.type).toBe("self");
+    if (out.type === "self") {
+      expect(out.profile.host_runtime).toBe("codex");
+    }
     } finally {
       fs.rmSync(binDir, { recursive: true, force: true });
     }
@@ -245,7 +262,7 @@ describe("resolveExecutionRealizationHandoff", () => {
       });
       expect(out.type).toBe("coordinator_start");
       if (out.type === "coordinator_start") {
-        expect(out.execution_realization).toBe("agent-teams");
+        expect(out.profile.execution_realization).toBe("agent-teams");
       }
     } finally {
       fs.rmSync(binDir, { recursive: true, force: true });
@@ -261,15 +278,17 @@ describe("resolveExecutionRealizationHandoff", () => {
     expect(out).toEqual({ type: "no_host" });
   });
 
-  it("E7 unsupported config host_runtime falls through to auto", () => {
-    // e.g. future "litellm" value in config — current code has no wiring, so
-    // it should fall through to auto-resolution rather than assert the explicit value.
-    const out = resolveExecutionRealizationHandoff({
-      explicitCodex: false,
-      prepareOnly: false,
-      ontoConfig: { host_runtime: "litellm" },
-    });
-    // With no CLAUDECODE and no codex, falls to no_host.
-    expect(out).toEqual({ type: "no_host" });
+  it("E7 explicit host_runtime=litellm → fail-fast (type recognized, wiring deferred)", () => {
+    // LiteLLM is type-recognized (ReviewHostRuntime includes "litellm" as
+    // forward-compat slot) but review wiring is deferred. Setting it
+    // explicitly in config should fail with actionable guidance, not silently
+    // fall through to auto-resolution. (Review consensus #2, 2026-04-16.)
+    expect(() =>
+      resolveExecutionRealizationHandoff({
+        explicitCodex: false,
+        prepareOnly: false,
+        ontoConfig: { host_runtime: "litellm" },
+      }),
+    ).toThrow(/litellm.*type-recognized.*wiring is deferred/s);
   });
 });

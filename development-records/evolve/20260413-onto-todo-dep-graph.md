@@ -39,7 +39,7 @@ review_session_refs:
 
 # onto 축·활동 Dependency Graph (M-05)
 
-본 문서는 M-05 (Pre-draft Dependency Modeling) 산출 seat 이다. pre-draft 단계에서 **축 (A/B/C/D) 간 의존**, **활동 (review/design/reconstruct/learn/govern) 간 의존**, **D bootstrap vs continuing 구분**, **Compound sequencing 표기 규약**, **M-05/M-06/M-07 책임 경계** 를 모델링한다.
+본 문서는 M-05 (Pre-draft Dependency Modeling) 산출 seat 이다. pre-draft 단계에서 **축 (A/B/C/D) 간 의존**, **활동 (review/evolve/reconstruct/learn/govern) 간 의존**, **D bootstrap vs continuing 구분**, **Compound sequencing 표기 규약**, **M-05/M-06/M-07 책임 경계** 를 모델링한다.
 
 ## 0. 위상·경계
 
@@ -153,7 +153,7 @@ v1.1 에서 BL-122 를 D continuing 에서 **분리**:
 
 ```
   review ─┐
-  design ─┼──► product / ontology
+  evolve ─┼──► product / ontology
 reconstruct ┘       │
                     │ (역설계, reconstruct)
                     ▼
@@ -170,7 +170,7 @@ reconstruct ┘       │
 
 ### 3.2 활동 의존 해설 (§1.2)
 
-- **review / design / reconstruct**: 상호 **독립**. ontology 유무에 따라 선택적 입력 (있으면 비용 감소).
+- **review / evolve / reconstruct**: 상호 **독립**. ontology 유무에 따라 선택적 입력 (있으면 비용 감소).
 - **learn**: 앞 3 활동의 **부산물 관리** (§1.2 독립 대상 없음). 앞 3 활동 최소 1사이클 운영 후 learning 수집·검증·승격.
 - **govern**: 전 활동의 **메타** — 규범 등재·갱신·폐기 추적. 기준을 정하고 learn 이 실행 (§1.2 "경계 계약: govern 이 기준을 정하고, learn 이 실행한다").
 
@@ -179,10 +179,10 @@ reconstruct ┘       │
 | From | To | 관계 | 출처 |
 |---|---|---|---|
 | review | learn | 부산물 수집 (운영 후) | §1.2 표 |
-| design | learn | 부산물 수집 (운영 후) | §1.2 표 |
+| evolve | learn | 부산물 수집 (운영 후) | §1.2 표 |
 | reconstruct | learn | 부산물 수집 (운영 후) | §1.2 표 |
 | govern | learn | 기준 정의 (선행) | §1.2 경계 계약 |
-| govern | review, design, reconstruct | 규범 제약 (상시) | §1.1 principle |
+| govern | review, evolve, reconstruct | 규범 제약 (상시) | §1.1 principle |
 
 ## 4. 축 × 활동 매트릭스
 
@@ -197,7 +197,7 @@ M-06 이 본 매트릭스로 work item 을 축별로 분배한다.
 
 review 활동 split + W-D bootstrap-only:
 
-|        | review-ontology-present (r+) | review-ontology-absent (r−) | design | reconstruct | learn | govern |
+|        | review-ontology-present (r+) | review-ontology-absent (r−) | evolve | reconstruct | learn | govern |
 |--------|:---:|:---:|:---:|:---:|:---:|:---:|
 | **W-A** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **W-B** | – | – | – | ✓ (A0) | ✓ (저장·처리) | – |
@@ -308,7 +308,7 @@ onto-todo.md v1.2 §1.3 에서 depends_on 의 3종 의미를 이미 확정. 본 
 | 항목 | 결정 |
 |---|---|
 | **축 순서** | `D0 → B → A → C + D continuing` (DR-M05-01) |
-| **활동 의존** | review / design / reconstruct 독립 + learn 부산물 + govern 메타 (§1.2) |
+| **활동 의존** | review / evolve / reconstruct 독립 + learn 부산물 + govern 메타 (§1.2) |
 | **축 × 활동 매트릭스** | M-06 분배 근거 확정 (§4) |
 | **D bootstrap vs continuing** | BL-123 중 lifecycle 성문화 + 인용 금지 도구 = D0. D continuing 은 cross-cutting lane, 별도 W-ID 없음 |
 | **Compound sequencing** | compound_id + depends_on 체인 + Notes compound_member (DR-M05-02, DL-015 해소) |

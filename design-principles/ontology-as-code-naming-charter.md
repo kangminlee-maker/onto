@@ -34,7 +34,7 @@
 허용값:
 
 - `review`
-- `build`
+- `reconstruct`
 - `ask`
 - `learn`
 - `govern`

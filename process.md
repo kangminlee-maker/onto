@@ -89,7 +89,7 @@ When adding or removing a process, all of the following files must be updated:
 |---|---|
 | `synthesize` | Synthesizes review lens findings into consensus, disagreement, overlooked premises, and final review output |
 
-> `philosopher` has been retired as a canonical review/build pipeline role. Canonical review uses `axiology` + `synthesize`. `ask` activity is retired (§1.2). The archival lineage is preserved at `development-records/legacy/philosopher.md`.
+> `philosopher` has been retired as a canonical review/reconstruct pipeline role. Canonical review uses `axiology` + `synthesize`. `ask` activity is retired (§1.2). The archival lineage is preserved at `development-records/legacy/philosopher.md`.
 
 ### Domain Documents
 Each agent reads the corresponding domain documents at execution time (verified using general principles if no file exists):
@@ -179,7 +179,7 @@ Domains use a **per-session selection** model. Each process execution selects a 
 
 **Command syntax**: `@` is recognized as a domain prefix only when it is an **independent whitespace-delimited token**. `@` within paths (e.g., `node_modules/@types/`) is not parsed as a domain. If 2+ `@` tokens appear, only the first is recognized; the rest are warned and ignored. `@-` specifies no-domain mode non-interactively.
 
-#### Domain Selection Flow (shared module — review, build, question)
+#### Domain Selection Flow (shared module — review, reconstruct, question)
 
 1. **Target analysis** — Read the target and summarize in 1-2 sentences
 2. **Collect available domains** — config.yml `domains:` + `~/.onto/domains/` combined, deduplicated. Domains in `~/.onto/drafts/` are **not** included (seeds are not verification standards).
@@ -258,7 +258,7 @@ Old format compatibility: `domain: A` + `secondary_domains: B` → automatically
 
 | Process | Domain resolution |
 |---------|-------------------|
-| review, build, question, design | Session domain selection (above) |
+| review, reconstruct, question, evolve | Session domain selection (above) |
 | promote | Auto-determined from learning tags' `[domain/X]` (no selection needed) |
 | transform | No domain context needed |
 | onboard | Asks user for relevant domain list |
@@ -311,7 +311,7 @@ When `execution_mode: codex` is set in config.yml or a `--codex` command flag is
 
 **Scope**: Currently supported for the **review** process only. Other processes behave differently:
 - **promote** — the Phase 3 CLI pipeline (`onto promote`, `onto promote --apply`, `onto reclassify-insights`) calls Anthropic / OpenAI / Codex CLI APIs directly through `src/core-runtime/learning/shared/llm-caller.ts` with automatic provider resolution. It does NOT route through the Agent Teams / Codex mode infrastructure. The `/onto:promote` slash command is a prompt-backed reference path that still uses Agent Teams.
-- **build, question** — always use Agent Teams regardless of this setting.
+- **reconstruct, question** — always use Agent Teams regardless of this setting.
 
 This scope will expand as Codex mode is validated in review.
 
@@ -385,7 +385,7 @@ Errors are classified into 4 categories for response:
 2. If the teammate is unresponsive (no reply after 60 seconds), team lead resends once more.
 3. After 2 failed retries, the teammate is excluded (graceful degradation) and the team lead informs the user.
 
-**Per-process error handling extension**: If an irreplaceable single role within a process (e.g., Explorer in build, Philosopher) fails, it is classified as process-halting. This is specified in the respective process file. For irreplaceable roles, retry is attempted before halting.
+**Per-process error handling extension**: If an irreplaceable single role within a process (e.g., Explorer in reconstruct, Philosopher) fails, it is classified as process-halting. This is specified in the respective process file. For irreplaceable roles, retry is attempted before halting.
 
 ### Team Lifecycle Management
 
@@ -450,7 +450,7 @@ The team lead is a **structure coordinator**. It manages the relationships betwe
 - Do not modify or summarize content when relaying collected results.
 - Do not inject own judgment into the review.
 - Do not cross-share results between teammates (to ensure independence).
-  - **Build mode exception**: For build process anonymized WIP sharing rules, refer to `processes/reconstruct.md`.
+  - **Reconstruct mode exception**: For reconstruct process anonymized WIP sharing rules, refer to `processes/reconstruct.md`.
 
 **Lifecycle management**: Creation -> task assignment -> error handling -> **full-member shutdown confirmation** -> shutdown.
 
@@ -482,7 +482,7 @@ Read the files below and construct your own context. Skip if file does not exist
 
 [Task Directives]
 {Per-process task directives — review target, system purpose, specific instructions}
-{For build process: The definitions of certainty levels (observed, rationale-absent, inferred, ambiguous, not-in-source) are defined in the "Certainty Classification (2-Stage Adjudication)" section of processes/reconstruct.md as the SSOT.}
+{For reconstruct process: The definitions of certainty levels (observed, rationale-absent, inferred, ambiguous, not-in-source) are defined in the "Certainty Classification (2-Stage Adjudication)" section of processes/reconstruct.md as the SSOT.}
 
 [Team Rules]
 - Save your review finding to {session path}/round1/{agent-id}.md using the Write tool.

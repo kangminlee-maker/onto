@@ -114,17 +114,42 @@ The authoritative source for boundary definitions is `roles/conciseness.md`. Thi
 
 ## 5. Quantitative Criteria
 
-Observed thresholds from the domain are recorded as they accumulate.
+Domain-observed thresholds for conciseness judgment. Each threshold is a review signal, not an automatic removal trigger.
 
-- (Not yet defined — accumulated through reviews)
+### Taxonomy Redundancy Thresholds
+
+- **Multiple labels per element**: same taxonomy element ID with 3+ different labels → consolidate to canonical name. Two labels may reflect legitimate regional variation; three almost certainly duplicates. (concepts.md §Core Synonym Mappings)
+- **Extension account ratio**: if >30% of an entity's accounts are extensions, review for over-extension. Many extensions may map to existing standard elements. (concepts.md §Extension Account Handling)
+- **Unused standard elements**: if >50% of standard taxonomy elements in a jurisdiction have zero usage across all entities → informational (valid placeholders, not removal targets)
+
+### Structural Redundancy Thresholds
+
+- **Intermediate hierarchy nodes**: node with exactly 1 child for >2 reporting periods → merge candidate. Exception: reserved by taxonomy standard
+- **Duplicate aggregation paths**: if the same account is reachable through 2+ aggregation paths → review for path consolidation. One canonical path must be designated
+- **Orphan notes**: notes extracted but linked to zero FinancialFacts → review for linkage error or removal. Notes from unstructured sources are most prone to this
+
+### Derived Metric Redundancy
+
+- **Multiple formula definitions**: same derived metric (e.g., ROE) defined with 2+ different formulas → consolidate to one authoritative definition. Document the formula choice rationale. (logic_rules.md §Derived Metric Calculation Rules)
+- **Cached vs computed metrics**: if a derived metric is stored both as a precomputed value and computable from underlying data → prefer on-demand computation. Store only when computation cost is prohibitive
+
+### Cross-Tier Duplication
+
+- **Tier-2/Tier-3 overlap**: same metric defined as both a taxonomy element (Tier-2) and an analytical convention (Tier-3) → consolidate to Tier-2 when the taxonomy element matches exactly. Retain Tier-3 separately only when the computation differs (e.g., "adjusted EBITDA" vs taxonomy operating income)
+
+### Review Output Conciseness
+
+- **Finding deduplication**: 3+ findings citing the same root cause (e.g., multiple extension accounts mapping to the same standard element) → consolidate into 1 finding with root cause + all affected accounts
+- **Cross-file deduplication**: issue flagged by both conciseness and a preceding agent (logic or semantics) → defer to the preceding agent's finding; add only the consolidation recommendation
 
 ---
 
 ## Related Documents
 
-- `concepts.md` — term definitions, synonym mappings, homonym lists (semantic criteria for redundancy determination)
-- `structure_spec.md` — isolated node rules, required relationship requirements (structural removal criteria)
-- `competency_qs.md` — competency question list (criteria for "actual difference" in minimum granularity determination)
-- `dependency_rules.md` — external standard reference rules (basis for allowing parallel taxonomy mappings)
-- `logic_rules.md` — accounting identities and point-in-time/period rules (criteria for logical equivalence determination)
-- `extension_cases.md` — extension account processing scenarios (basis for classification node retain/remove decisions)
+- `concepts.md` — Term definitions, synonym mappings, homonym lists, extension account handling (semantic criteria for redundancy determination)
+- `structure_spec.md` — Isolated node rules, required relationships, ID system (structural removal criteria)
+- `competency_qs.md` — CQ-ID sections for minimum granularity judgment
+- `domain_scope.md` — Normative system classification (Tier system), cross-cutting concerns
+- `dependency_rules.md` — External standard reference rules, source of truth management (basis for allowing parallel mappings)
+- `logic_rules.md` — Accounting identities, derived metric formulas (criteria for logical equivalence determination)
+- `extension_cases.md` — Taxonomy change and extension account scenarios (basis for classification node retain/remove decisions)

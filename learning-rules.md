@@ -44,16 +44,16 @@ Entry format:
 - Do not add if it duplicates an existing entry.
 - If it contradicts an existing entry, replace with the new learning.
 
-**Design learning** (`{project}/.onto/learnings/design.md`):
-- 파일명 `design.md`는 `{agent-id}.md` 패턴의 확장이다. 기존 learning 파일은 review lens별로 소유되지만(`logic.md`, `structure.md` 등), design learning은 design 프로세스 전체가 하나의 학습 생산자이므로 프로세스 이름을 파일명으로 사용한다. promote, loader 등 `{agent-id}` 패턴을 기반으로 동작하는 코드에서 `design`을 유효한 ID로 인식해야 한다.
-- 저장: 각 Phase 종료 시 `{project}/.onto/learnings/design.md`에 저장
+**Evolve learning** (`{project}/.onto/learnings/evolve.md`):
+- 파일명 `evolve.md`는 `{agent-id}.md` 패턴의 확장이다. 기존 learning 파일은 review lens별로 소유되지만(`logic.md`, `structure.md` 등), evolve learning은 evolve 프로세스 전체가 하나의 학습 생산자이므로 프로세스 이름을 파일명으로 사용한다. promote, loader 등 `{agent-id}` 패턴을 기반으로 동작하는 코드에서 `evolve`를 유효한 ID로 인식해야 한다.
+- 저장: 각 Phase 종료 시 `{project}/.onto/learnings/evolve.md`에 저장
   - project-local only (project-locality principle §2.2)
   - entry format, axis tag, purpose type, impact, verification gate: 공통 규칙 적용
-- 소비: `~/.onto/learnings/design.md` (promoted global만)
+- 소비: `~/.onto/learnings/evolve.md` (promoted global만)
   - project-level 학습은 promote 전까지 소비하지 않음
   - Context Acquisition에서 로드. consumption rules 적용
 - promote: 기존 `onto promote` 흐름에 포함 (디렉토리 스캔)
-- review 학습과의 관계: design 산출물을 review한 학습은 review가 저장. 중복 저장 금지
+- review 학습과의 관계: evolve 산출물을 review한 학습은 review가 저장. 중복 저장 금지
 
 Entry format:
 ```markdown
@@ -245,16 +245,16 @@ If new communication entries have been added, notify the user:
 
 ## Activity Graph Closure (W-A-69)
 
-§1.2 활동 간 경계 계약의 구현. review, design, reconstruct, learn, govern 5 활동이 learning artifact를 매개로 연결되는 관계 규칙.
+§1.2 활동 간 경계 계약의 구현. review, evolve, reconstruct, learn, govern 5 활동이 learning artifact를 매개로 연결되는 관계 규칙.
 
 ### 재진입 계약
 
 | 재진입 경로 | 조건 | 소유 |
 |---|---|---|
 | review → learn | review 실행 후 learning 생성 | review_process (core-lexicon.yaml) |
-| design → learn | design 프로세스에서 패턴 발견 시 learning 생성 | processes/evolve.md §6 |
+| evolve → learn | evolve 프로세스에서 패턴 발견 시 learning 생성 | processes/evolve.md §6 |
 | reconstruct → learn | ontology 구축 중 learning 생성 | processes/reconstruct.md |
-| learn → review/design/reconstruct | promoted learning을 다음 활동에 소비 | loader.ts (promoted only) |
+| learn → review/evolve/reconstruct | promoted learning을 다음 활동에 소비 | loader.ts (promoted only) |
 | govern → learn | learning promotion 기준 정의 | §1.2 경계 계약 "govern이 기준, learn이 실행" |
 
 재진입 규칙: 활동 A가 활동 B의 산출물을 입력으로 사용할 때, B의 산출물은 **해당 활동의 완료 후** 생성된다. 실행 중에 다른 활동의 산출물을 직접 생성하지 않는다.
@@ -270,7 +270,7 @@ learning artifact의 lifecycle에 따른 소비 가능 범위:
 | provisional | 소비 불가 | provisional_lifecycle §provisional.consumption_policy |
 | promoted | **소비 가능** | loader.ts user scope 로드 |
 
-promotion edge: `learn(promote) → promoted learning → review/design/reconstruct(consume)`. 이 edge는 promote 프로세스 완료 시점에만 활성화된다.
+promotion edge: `learn(promote) → promoted learning → review/evolve/reconstruct(consume)`. 이 edge는 promote 프로세스 완료 시점에만 활성화된다.
 
 ### Owner-Key 모델
 
@@ -281,7 +281,7 @@ promotion edge: `learn(promote) → promoted learning → review/design/reconstr
 | learning (project scope) | learn | `{project}/.onto/learnings/{agent}.md` | 생성·저장·퇴역 책임 |
 | learning (user scope) | learn (promote) | `~/.onto/learnings/{agent}.md` | promotion 후 소비 가능 상태 관리 |
 | review_record | review | `{session}/review-record.yaml` | 검증 결과 + learning 생성 trigger |
-| scope artifacts | design | `{scope}/events.ndjson` + materialized views | scope lifecycle 관리 |
+| scope artifacts | evolve | `{scope}/events.ndjson` + materialized views | scope lifecycle 관리 |
 | ontology | reconstruct | `{project}/.onto/builds/{session}/` | 도메인 지식 구조화 산출물 |
 | normative artifact | govern | `authority/`, `design-principles/`, `processes/` | 규범 등재·갱신·폐기 |
 

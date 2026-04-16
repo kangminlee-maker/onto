@@ -66,7 +66,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - elapsed_minutes: 30
 - commit_hash: d48ac2d
 - subagent_count: 5 (m01-activity-surveyor × 1 coordinator + 5 parallel activity subagents)
-- notes: review/design/reconstruct/learn/govern 5 활동에 대한 구현 상태 inventory. Agent Teams subagent 경로 (v3 QA A2 허용). 출력: `.onto/temp/m01-activity-inventory/{review,design,reconstruct,learn,govern}.md` (5 파일)
+- notes: review/evolve/reconstruct/learn/govern 5 활동에 대한 구현 상태 inventory. Agent Teams subagent 경로 (v3 QA A2 허용). 출력: `.onto/temp/m01-activity-inventory/{review,evolve,reconstruct,learn,govern}.md` (5 파일)
 - result_summary:
     activities_inventoried: 5
     structural_gaps_surfaced: 7 (DL-016~022 deferred ledger 추가)
@@ -152,7 +152,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
     result: "[] (0 건). M-04 Phase A v1.2 완료 시점 (16:25) 이후 신규 open PR 없음. M-05 dep graph 작업과 독립."
 - result_summary:
     axis_order_finalized: "D0 → B → A → C + D continuing (cross-cutting lane)"
-    activity_dep_edges: 5  # review/design/reconstruct → learn, govern → learn, govern → review/design/reconstruct
+    activity_dep_edges: 5  # review/evolve/reconstruct → learn, govern → learn, govern → review/evolve/reconstruct
     axis_activity_matrix_decided: true  # W-A 5 활동, W-B reconstruct+learn, W-C govern, W-D govern
     compound_pre_identified: 3  # agent_id_rename, build_review_cycle, business_domain_wave
     d_bootstrap_vs_continuing: "BL-123 분할 (D0 = lifecycle 성문화 + 인용 금지 도구 / D continuing = cross-cutting lane 별도 W-ID 없음)"
@@ -220,7 +220,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - elapsed_minutes: (pending)
 - commit_hash: (pending)
 - subagent_count: 0 (메인 세션 단독, v3 QA A2 Principal 통합 판정)
-- notes: W-B 섹션 전수 51 W-ID 작성. canonical-advancing 2건 (W-B-01 A0 framework via DL-016 + W-B-02 state machine 3중 dedup via DL-018), minimum surface 조건 2 (depends_on 3종 edge) W-B-02 에서 cover 완료. build_coordinator_redesign cluster 3 (순서 의존 BL-097 → BL-095 → BL-096), DR-M06-02 재배치 1 (BL-033 axis=D→B), design/principal/SE/business infra 전수. deferred BL 22건 compact YAML + `(deferred)` placeholder. Compound 3건 (build_review_cycle 37, agent_id_rename 나머지 5, business_domain_wave 5) 는 Wave 3 전담 — Wave 2 불포함.
+- notes: W-B 섹션 전수 51 W-ID 작성. canonical-advancing 2건 (W-B-01 A0 framework via DL-016 + W-B-02 state machine 3중 dedup via DL-018), minimum surface 조건 2 (depends_on 3종 edge) W-B-02 에서 cover 완료. build_coordinator_redesign cluster 3 (순서 의존 BL-097 → BL-095 → BL-096), DR-M06-02 재배치 1 (BL-033 axis=D→B), evolve/principal/SE/business infra 전수. deferred BL 22건 compact YAML + `(deferred)` placeholder. Compound 3건 (build_review_cycle 37, agent_id_rename 나머지 5, business_domain_wave 5) 는 Wave 3 전담 — Wave 2 불포함.
 - pr_rescan_evidence:
     command: "gh pr list --state open --json number,title,updatedAt,url --limit 20"
     timestamp: 2026-04-13T20:15:00+09:00
@@ -228,7 +228,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - wave2_result_summary:
     work_items_created: 51  # W-B-01 ~ W-B-51
     by_axis_count_cumulative: { A: 1, B: 51, C: 0, D: 3 }  # Wave 1 + Wave 2
-    by_activity_count_wave2: { reconstruct: 34, govern: 13, review: 2, design: 2 }
+    by_activity_count_wave2: { reconstruct: 34, govern: 13, review: 2, evolve: 2 }
     by_canonicality_wave2: { canonical_advancing: 2, supporting: 32, scaffolding: 17 }
     by_lifecycle_wave2: { active: 32, deferred: 19 }  # M-07 검증 정정 (DR-M07-03): 원래 active:29/deferred:22 → 실측 active:32/deferred:19
     minimum_surface_progress:
@@ -256,7 +256,7 @@ Origin QA: `20260413-m00-preparation-qa.md` v3 — Execution log seat (CC1-d)
 - wave3_result_summary:
     work_items_created: 76  # 75 W-A + 1 W-D-04
     by_axis_count_cumulative: { A: 76, B: 51, C: 0, D: 4 }  # Wave 1+2+3 = 131
-    by_activity_count_wave3: { reconstruct: 36, govern: 25, review: 8, design: 3, learn: 1 }
+    by_activity_count_wave3: { reconstruct: 36, govern: 25, review: 8, evolve: 3, learn: 1 }
     by_canonicality_wave3: { canonical_advancing: 8, supporting: 23, scaffolding: 45 }
     by_lifecycle_wave3: { active: 75, deferred: 1 }
     compound_members_created_wave3: 12  # agent 5 (ordinal 2~6) + build 2 (kickoff) + business 5

@@ -123,7 +123,7 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
 기존 memory·PR backlog·design record의 관련 항목을 단일 리스트로 통합.
 
 **Inclusion criteria** (executor 해석 방지):
-1. §1 축 A/B/C/D 또는 5 활동(review/design/reconstruct/learn/govern) 중 하나와 **직접 관계**
+1. §1 축 A/B/C/D 또는 5 활동(review/evolve/reconstruct/learn/govern) 중 하나와 **직접 관계**
 2. 2026-04-01 이후 발생·유효
 3. Source: `MEMORY.md` entry **또는** Open PR **또는** `development-records/evolve/` 산출물 **또는** backlog 전용 memory 파일
 4. **제외**: 이미 merged되어 해결된 것 / 완전히 폐기된 제안 / 주체자 대화용 메모
@@ -144,11 +144,11 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
    - 제목 (title) + 본문 첫 3문장 (first 3 sentences of body) + labels join
    - 영문 소문자·공백 정규화 후 비교
 2. **Functional area 분류** (한 item은 1개 영역에만 속함):
-   - `review-harness` / `build` / `design-methodology` / `learn-lifecycle` / `govern-rules` / `lexicon-vocabulary` / `infra-runtime` / `docs-records`
+   - `review-harness` / `reconstruct` / `design-methodology` / `learn-lifecycle` / `govern-rules` / `lexicon-vocabulary` / `infra-runtime` / `docs-records`
    - 분류 기준: **Source-type별 fallback 순서** (v5.1 추가)
      - **PR**: `gh pr view --json files`로 추출한 changed files 기준. 가장 많이 touch하는 경로의 상위 디렉토리가 영역 결정
      - **design record**: 문서 path (예: `development-records/evolve/` 하위) + 명시 tag (frontmatter의 `functional_area` 또는 `axis`)
-     - **memory entry**: frontmatter의 `functional_area` tag 우선. 없으면 제목·본문 키워드 매칭 (`review`, `build`, `lexicon` 등)
+     - **memory entry**: frontmatter의 `functional_area` tag 우선. 없으면 제목·본문 키워드 매칭 (`review`, `reconstruct`, `lexicon` 등)
    - 3 fallback 모두 불명확하면 `unclassified`로 태그 후 M-03 disposition에서 재판단
 3. **Similarity 판정**:
    - 같은 functional area + similarity ≥ 70% → **dedup 후보**
@@ -173,7 +173,7 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
 
 ### M-01 다섯 활동 구현 상태 Inventory
 
-- **대상**: review / design / reconstruct / learn / govern
+- **대상**: review / evolve / reconstruct / learn / govern
 - **산출**: 각 활동별 {존재 파일, 기능, 미구현 요소, 참조 contract}
 
 ### M-02 축 B 기반 인프라 Inventory
@@ -215,7 +215,7 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
 | **deprecated_aliases** (v5 추가) | Migration Contract로 rename된 경우 이전 ID 목록. 검색·참조용. 기본 빈 list |
 | **previous_id** (v5 추가) | Migration 시 이전 ID 1개 (reissue 계보). 기본 null |
 | **rewrite_trace** (v5 추가) | `deps` 재작성 이력. Migration 발생 시에만 채워짐. {date, change_type, old_id, new_id} list |
-| **activity** (v5.1 추가) | work item이 대상으로 하는 onto 활동. 허용값: `review` / `design` / `reconstruct` / `learn` / `govern`. **기본 단일 귀속**. 활동 간 interface 성격이면 **복수 귀속** 허용 (list, 예: `[review, learn]`). M-07 lifecycle balance와 Expansion Protocol의 activity-기준 판정이 이 field를 canonical authority로 읽음 |
+| **activity** (v5.1 추가) | work item이 대상으로 하는 onto 활동. 허용값: `review` / `evolve` / `reconstruct` / `learn` / `govern`. **기본 단일 귀속**. 활동 간 interface 성격이면 **복수 귀속** 허용 (list, 예: `[review, learn]`). M-07 lifecycle balance와 Expansion Protocol의 activity-기준 판정이 이 field를 canonical authority로 읽음 |
 
 **Canonical output spec**:
 - 저장 seat: `development-records/evolve/20260413-onto-todo.md`
@@ -322,7 +322,7 @@ M-06은 분류가 없는 item을 거부. M-03 disposition과 함께 canonical pa
 
 ## Expansion Protocol (신설)
 
-5 활동(review/design/reconstruct/learn/govern) 또는 4축(A/B/C/D) 구조가 변경될 필요가 발견된 경우의 handling rule.
+5 활동(review/evolve/reconstruct/learn/govern) 또는 4축(A/B/C/D) 구조가 변경될 필요가 발견된 경우의 handling rule.
 
 ### Trigger
 

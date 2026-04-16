@@ -112,16 +112,49 @@ The authoritative source for boundary definitions is `roles/conciseness.md`. Thi
 
 ## 5. Quantitative Criteria
 
-Observed thresholds from the domain are recorded as they accumulate.
+Domain-observed thresholds for conciseness judgment. Each threshold is a review signal, not an automatic removal trigger.
 
-- (Not yet defined — accumulated through reviews)
+### Chart of Accounts Thresholds
+
+- **Level 3 account count**: >300 active accounts → review for consolidation opportunity. Large charts indicate historical accumulation, often with redundant accounts
+- **Unused account ratio**: >20% of defined accounts with zero journal activity for >2 periods → cleanup candidates. Exception: accounts reserved for specific infrequent transactions (tax refund, prior period adjustments)
+- **Account classification depth**: >4 hierarchy levels → review for flattening. Most systems function well with 3 levels (element → classification → individual account)
+- **Subsidiary ledger completeness**: trade receivables account without subsidiary ledger → review for aggregation loss (IAS 1 disclosure requirements)
+
+### Policy Duplication Thresholds
+
+- **Policy statement repetition**: Same accounting policy stated in 3+ places (notes, internal policy manual, audit file) → consolidate to single authoritative source with references
+- **Multiple methods in same class**: Same asset class (e.g., PP&E) with multiple measurement methods (cost + fair value) → enforce single method per class (IAS 16)
+
+### Consolidation Redundancy Thresholds
+
+- **Intercompany elimination documentation**: Same elimination pattern recorded in 3+ locations → consolidate to single eliminations register
+- **Inter-standard cross-references**: Same standard cited from 5+ different policy documents → create centralized standards reference
+
+### Period Reporting Thresholds
+
+- **Duplicate period-end procedures**: Same procedure (e.g., bank reconciliation) executed by 2+ teams → single owner
+- **Comparative period redundancy**: Prior period data stored separately in multiple systems → single source of truth
+
+### Review Output Conciseness
+
+- **Finding deduplication**: 3+ findings citing same root cause (e.g., cross-statement linkage failure trace) → consolidate into 1 finding with root cause + all affected statements
+- **Cross-file deduplication**: Issue flagged by both conciseness and preceding agent → defer to preceding agent; add only consolidation recommendation
+
+### Cross-Tier Duplication Thresholds
+
+- **Tier-1a/1b overlap**: Same rule appearing as both K-IFRS (T1a) and Corporate Tax Law (T1b) → preserve both (different purposes), but cross-reference
+- **Tier-1a/T3 overlap**: Standard rule and industry practice saying same thing → consolidate to Tier-1a when industry practice is merely restatement
+- **Tier-2/T3 overlap**: Audit procedure (T2) and industry heuristic (T3) → preserve if T2 adds specific procedures; consolidate if T2 merely quotes T3
 
 ---
 
 ## Related Documents
 
-- `concepts.md` — term definitions, synonym mappings, homonym lists (semantic criteria for redundancy determination)
-- `structure_spec.md` — financial statement structure and chart of accounts rules (structural removal criteria)
-- `competency_qs.md` — competency question list (criteria for "actual difference" in minimum granularity determination)
-- `dependency_rules.md` — source of truth management rules, inter-financial-statement linkage relationships (basis for allowing reference copies)
-- `logic_rules.md` — Debit (차변)/Credit (대변) balance, recognition/measurement logic, constraint conflict checking rules (criteria for logical equivalence determination)
+- `concepts.md` — Term definitions, synonym mappings, homonym lists, normative tier references (semantic criteria for redundancy)
+- `structure_spec.md` — Financial statement structure, chart of accounts, hierarchy principles (structural removal criteria)
+- `competency_qs.md` — Competency question list (criteria for "actual difference" in minimum granularity)
+- `domain_scope.md` — Normative tier classification, cross-cutting concerns (tier-level duplication criteria)
+- `dependency_rules.md` — Source of truth management, inter-statement linkage (basis for allowing reference copies)
+- `logic_rules.md` — Double-entry balance, recognition/measurement logic, closing procedures (logical equivalence criteria)
+- `extension_cases.md` — Extension scenarios that may introduce or resolve redundancy

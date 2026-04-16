@@ -41,14 +41,21 @@ Internal bounded path (review 의 3-step 에 대응, W-A-74 DL-020 해소):
 - **입력**: `--session-id <id>`
 - **산출**: state 파일이 `exploring` 으로 전이 + `explore_invocations` 증가
 - **완료 조건**: 1회 invocation 당 state 갱신. 완결이 아니므로 여러 번 반복 호출 가능
-- **§1.4 연계**: 2 축 (domain knowledge 기반 "왜" 추정) — 실제 Explorer loop 은 후속 W-ID 에서 build runtime 과 연결
+- **§1.4 연계**: 2 축 (domain knowledge 기반 "왜" 추정) — 실제 Explorer loop 은 후속 W-ID 에서 reconstruct runtime 과 연결
 
 ### Step 3 — `complete`
 
 - **입력**: `--session-id <id>`
 - **산출**: `{session_root}/ontology-draft.md` + state 가 `converted` + `principal_review_status = requested`
 - **완료 조건**: ontology 초안 파일 존재 + Principal 검증 대기 상태 진입
-- **§1.4 연계**: 3 축 (Principal 검증 경로) — complete 가 검증 요청을 명시적으로 표시. Principal 이 `passed/rejected` 로 상태 갱신
+- **§1.4 연계**: 3 축 (Principal 검증 경로) — complete 가 검증 요청을 명시적으로 표시
+
+### Step 4 — `confirm` (W-B-07)
+
+- **입력**: `--session-id <id> --verdict passed|rejected`
+- **산출**: `principal_review_status` 가 `passed` 또는 `rejected` 로 갱신
+- **전제 조건**: session 이 `converted` 상태이고 `principal_review_status = requested`
+- **§1.4 연계**: 3 축 (Principal 검증 경로) 완결 — Principal 이 ontology-draft.md 를 검토한 결과 기록
 
 ## Authority
 
@@ -75,6 +82,10 @@ onto reconstruct explore --session-id 20260414-abcd1234
 # 종료 + Principal 검증 요청
 onto reconstruct complete --session-id 20260414-abcd1234
 # → ontology-draft.md 생성, principal_review_status=requested
+
+# Principal 검증 결과 기록
+onto reconstruct confirm --session-id 20260414-abcd1234 --verdict passed
+# → principal_review_status=passed
 ```
 
 ## 참조

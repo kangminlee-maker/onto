@@ -251,6 +251,56 @@ export function executeReconstructComplete(
   };
 }
 
+// ─── confirm (W-B-07: principal confirmation seat) ───
+
+export type PrincipalVerdict = "passed" | "rejected";
+
+export interface ReconstructConfirmOptions {
+  sessionsDir: string;
+  sessionId: string;
+  verdict: PrincipalVerdict;
+  now?: () => string;
+}
+
+export interface ReconstructConfirmResult {
+  success: boolean;
+  session_id: string;
+  state: ReconstructSessionState;
+}
+
+export function executeReconstructConfirm(
+  options: ReconstructConfirmOptions,
+): ReconstructConfirmResult {
+  const now = (options.now ?? (() => new Date().toISOString()))();
+  const root = resolve(options.sessionsDir, options.sessionId);
+  const state = readState(root);
+
+  if (state.current_state !== "converted") {
+    throw new Error(
+      `Cannot confirm: session is in "${state.current_state}" state, expected "converted".`,
+    );
+  }
+  if (state.principal_review_status !== "requested") {
+    throw new Error(
+      `Cannot confirm: principal_review_status is "${state.principal_review_status}", expected "requested".`,
+    );
+  }
+
+  const next: ReconstructSessionState = {
+    ...state,
+    last_updated_at: now,
+    principal_review_status: options.verdict,
+  };
+
+  writeState(root, next);
+
+  return {
+    success: true,
+    session_id: options.sessionId,
+    state: next,
+  };
+}
+
 // ─── CLI entry ───
 
 function readOption(argv: string[], name: string): string | undefined {
@@ -373,6 +423,47 @@ export async function handleReconstructCli(
       }
     }
 
+    case "confirm": {
+      const sessionId = readOption(subArgv, "session-id");
+      const verdict = readOption(subArgv, "verdict");
+      if (!sessionId || !verdict) {
+        console.error(
+          "[onto] reconstruct confirm requires --session-id and --verdict (passed|rejected).",
+        );
+        return 1;
+      }
+      if (verdict !== "passed" && verdict !== "rejected") {
+        console.error(
+          `[onto] Invalid verdict: "${verdict}". Must be "passed" or "rejected".`,
+        );
+        return 1;
+      }
+      try {
+        const result = executeReconstructConfirm({
+          sessionsDir,
+          sessionId,
+          verdict,
+        });
+        console.log(
+          JSON.stringify(
+            {
+              status: "confirmed",
+              verdict: result.state.principal_review_status,
+              session_id: result.session_id,
+            },
+            null,
+            2,
+          ),
+        );
+        return 0;
+      } catch (error) {
+        console.error(
+          `[onto] reconstruct confirm error: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return 1;
+      }
+    }
+
     case "--help":
     case "-h":
     case undefined:
@@ -384,6 +475,8 @@ export async function handleReconstructCli(
           "  start <source> <intent>     Initialize a reconstruct session",
           "  explore --session-id <id>    Run one exploration invocation (bounded)",
           "  complete --session-id <id>   Finalize ontology draft + request Principal review",
+          "  confirm --session-id <id> --verdict passed|rejected",
+          "                               Record Principal verification result",
           "",
           "Options:",
           "  --project-root <path>        Project root (default: cwd)",
@@ -391,7 +484,7 @@ export async function handleReconstructCli(
           "  --session-id <id>            Custom session id (start only)",
           "",
           "Bounded path (review 3-step 대응):",
-          "  start → explore (1+ times) → complete",
+          "  start → explore (1+ times) → complete → confirm",
           "",
           "State is persisted at {session_root}/reconstruct-state.json.",
           "The process contract is processes/reconstruct.md (activity=reconstruct, process_name=build).",

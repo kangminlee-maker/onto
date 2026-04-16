@@ -1,18 +1,22 @@
-# Onto Design
+# Onto Evolve
 
-온톨로지를 기반으로 기존 설계 대상에 새 영역을 설계합니다.
+온톨로지를 기반으로 기존 설계 대상에 새 영역을 설계하는 evolve 활동.
 
 ```
-design <goal> [@{domain} | @-] [--ontology <path>] [--source <path>] [--prior-design <path>]
+evolve <goal> [--domain <name> | --no-domain] [--ontology <path>] [--source <path>] [--prior-design <path>]
 ```
 
 | 인자 | 의미 | 필수 |
 |---|---|---|
 | `<goal>` | 설계 목표 (자연어) | 필수 |
-| `@{domain}` / `@-` | 도메인 지정 / no-domain | 선택 (생략 시 Domain Selection Flow) |
-| `--source <path>` | 설계 대상(design target) 경로. 생략 시 프로젝트 루트 | 선택 |
+| `--domain <name>` | 도메인 지정 (canonical). Legacy: `@{domain}` | 선택 (생략 시 Domain Selection Flow) |
+| `--no-domain` | 도메인 없음 (canonical). Legacy: `@-` | 선택 |
+| `--source <path>` | 설계 대상(design_target) 경로. 생략 시 프로젝트 루트 | 선택 |
 | `--ontology <path>` | 주체자 지정 ontology 파일 | 선택 |
 | `--prior-design <path>` | 반복 설계용 이전 버전 설계 문서 | 선택 |
+
+> **Legacy `@` 표기 보존**: `@{domain}` / `@-` 도 backward compat 으로 인식됨. Claude Code의 `@filename` mention 과 충돌하므로 새 flag (`--domain` / `--no-domain`) 권장.
+> **Methodology terms 보존**: `design_target` 등 lexicon 용어는 활동 rename 과 무관하게 유지.
 
 **Authority seat**: `processes/evolve.md` (프로세스 계약). scope-runtime 이벤트 모델은 `src/core-runtime/scope-runtime/types.ts`.
 

@@ -53,9 +53,11 @@ Current bounded `review` path:
 
 Designed with inspiration from ontology structures, applicable across domains regardless of field -- software, law, accounting, and more.
 
+**Five activities** (`authority/core-lexicon.yaml#activity_enum`): `review`, `evolve`, `reconstruct`, `learn`, `govern`.
+
 **Two core capabilities**:
 - **Verification (review)**: 9 review lenses independently inspect scope-defined targets, then a separate synthesize stage writes the final review result
-- **Build**: Incrementally constructs ontologies from scope-undefined analysis targets (code, spreadsheets, databases, documents) using integral exploration
+- **Reconstruct**: Incrementally constructs ontologies from scope-undefined analysis targets (code, spreadsheets, databases, documents) using integral exploration
 
 ## Installation
 
@@ -125,24 +127,26 @@ Usable without domain documents (verified using general principles). Domain docu
 ## Getting Started
 
 ```
-/onto:onboard                        # Set up project environment
-/onto:review {target}                # Run 9-lens review + synthesize (interactive domain selection)
-/onto:review {target} @ontology      # Run with specific domain
-/onto:review {target} @-             # Run without domain rules
-/onto:review {target} --codex        # Use codex host runtime (defaults to subagent)
-/onto:build {path|GitHub URL}        # Build ontology from analysis target
-/onto:evolve {goal}                  # Design new areas for existing target (brownfield)
+/onto:onboard                              # Set up project environment
+/onto:review {target}                      # Run 9-lens review + synthesize (interactive domain selection)
+/onto:review {target} --domain ontology    # Run with specific domain (canonical)
+/onto:review {target} --no-domain          # Run without domain rules (canonical)
+/onto:review {target} --codex              # Use codex host runtime (defaults to subagent)
+/onto:reconstruct {path|GitHub URL}        # Reconstruct ontology from analysis target (start → explore → complete → confirm)
+/onto:evolve {goal}                        # Add new areas to existing target (brownfield)
 ```
 
 ### Domain Selection
 
 Each process execution selects a single **session domain**. Three ways to specify:
 
-| Method | Syntax | Behavior |
-|--------|--------|----------|
-| Explicit | `@{domain}` | Non-interactive, uses specified domain |
-| No-domain | `@-` | Non-interactive, no domain rules applied |
-| Interactive / resolved default | (omit) | One configured domain: use it directly. Multiple configured domains: prompt for selection when interactive; otherwise fail fast and require explicit `@{domain}` or `@-`. |
+| Method | Canonical | Legacy (still works) | Behavior |
+|--------|-----------|----------------------|----------|
+| Explicit | `--domain {name}` | `@{domain}` | Non-interactive, uses specified domain |
+| No-domain | `--no-domain` | `@-` | Non-interactive, no domain rules applied |
+| Interactive / resolved default | (omit) | (omit) | One configured domain: use it directly. Multiple configured domains: prompt for selection when interactive; otherwise fail fast and require explicit domain selection. |
+
+> **Why canonical flags**: Claude Code uses `@filename` syntax to mention/attach files into context. Positional `@{domain}` tokens in onto can be ambiguous in that environment. Prefer `--domain` / `--no-domain`. Legacy `@` syntax is preserved for backward compat. `--domain` and `--no-domain` are mutually exclusive.
 
 Project domains and execution profile are declared in `.onto/config.yml`:
 ```yaml
@@ -300,18 +304,19 @@ model: claude-sonnet-4-20250514
 
 > `ask` activity는 §1.2에서 폐기되었습니다. 단일 lens에 질의가 필요하면 `/onto:review`를 사용하세요.
 
-### Ontology Build/Transform
+### Ontology Reconstruct/Transform
 | Command | Description |
 |---|---|
-| `/onto:build {path\|URL}` | Build ontology from analysis target (integral exploration) |
+| `/onto:reconstruct {path\|URL}` | Reconstruct ontology from analysis target (integral exploration). 4-step bounded path: `start → explore → complete → confirm` |
+| `/onto:reconstruct confirm --session-id <id> --verdict passed\|rejected` | Record Principal verification result for the produced `ontology-draft.md` |
 | `/onto:transform {file}` | Transform Raw Ontology to desired format |
 
-### Design
+### Evolve
 | Command | Description |
 |---|---|
 | `/onto:evolve {goal}` | 온톨로지 기반 설계 — 기존 설계 대상에 새 영역 추가 (brownfield) |
-| `/onto:evolve {goal} @{domain}` | Design with specific domain |
-| `/onto:evolve {goal} @-` | Design without domain rules |
+| `/onto:evolve {goal} @{domain}` | Evolve with specific domain |
+| `/onto:evolve {goal} @-` | Evolve without domain rules |
 
 ### Environment Management
 | Command | Description |

@@ -61,11 +61,13 @@ Productized live path에서는 이 내용을 직접 다시 실행하지 않고,
 
 Determine `{session_domain}` per the "Domain Determination Rules" in `process.md`.
 
-- If `@{domain}` is specified in the command: use non-interactive resolution
-- If `@-` is specified: set `{session_domain}` to empty (no-domain mode)
-- Otherwise: run the Domain Selection Flow (target analysis → collect available domains → derive suggestion → display UI → await user input)
+Domain selection inputs (canonical first; legacy `@` syntax retained for backward compat):
+- **Canonical**: `--domain {name}` → non-interactive resolution; `--no-domain` → empty `{session_domain}` (no-domain mode)
+- **Legacy** (deprecated due to `@filename` mention conflict in Claude Code): `@{domain}` and `@-` positional tokens still work
+- Otherwise (no domain flag): run the Domain Selection Flow (target analysis → collect available domains → derive suggestion → display UI → await user input)
+- `--domain` and `--no-domain` are mutually exclusive (specifying both fails fast at parser layer)
 - **Seed review detection**: If the review target path matches `drafts/{domain}`:
-  - Default domain recommendation: `@-` (no-domain mode) unless user explicitly specifies otherwise
+  - Default domain recommendation: no-domain mode (canonical: `--no-domain`; internal token: `@-`) unless user explicitly specifies otherwise
   - Reason: seed content is unverified, so applying domain-specific rules would use unverified content as standards
 
 The resolved `{session_domain}` is used throughout this session for domain document loading, learning storage tags, and the verification context section of the final output.
@@ -82,7 +84,7 @@ The team lead collects only the items below. Per-agent learnings/domain document
 1. **Review target collection**:
    - If file/directory: reads the relevant code.
    - If design/decision: reads the related documents.
-   - If `drafts/{domain}` path: reads all 8 files from `~/.onto/drafts/{domain}/` as the review target (seed review mode). The seed domain's documents are the review target, not verification standards. Verification standards come from: (a) agent intrinsic methodology, (b) `@{other-domain}` if specified, (c) LLM pre-training knowledge.
+   - If `drafts/{domain}` path: reads all 8 files from `~/.onto/drafts/{domain}/` as the review target (seed review mode). The seed domain's documents are the review target, not verification standards. Verification standards come from: (a) agent intrinsic methodology, (b) `--domain {other-name}` (or legacy `@{other-domain}`) if specified, (c) LLM pre-training knowledge.
 
 2. **Project context collection**:
    - Identifies the system purpose and principles from CLAUDE.md, README.md, etc.

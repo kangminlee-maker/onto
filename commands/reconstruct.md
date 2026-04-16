@@ -2,7 +2,7 @@
 
 `reconstruct` activity 의 CLI entry. 소스 (codebase / spreadsheet / database / document) 를 분석하여 domain ontology 초안을 산출한다.
 
-Slash command 진입점 (`/onto:reconstruct $ARGUMENTS`): `$ARGUMENTS` 는 분석 대상 경로. `@{domain}` / `@-` 로 도메인 지정 또는 no-domain 모드 선택.
+Slash command 진입점 (`/onto:reconstruct $ARGUMENTS`): `$ARGUMENTS` 는 분석 대상 경로. **Canonical**: `--domain {name}` 또는 `--no-domain` 으로 도메인 지정. **Legacy** (backward compat): `@{domain}` / `@-` 도 인식 — Claude Code의 `@filename` mention 과 충돌하므로 새 flag 권장.
 
 Read `~/.claude/plugins/onto/process.md` (common definitions) and
 `~/.claude/plugins/onto/processes/reconstruct.md`, then execute.

@@ -60,6 +60,11 @@ import {
   type LearningProviderConfigInputs,
   type LearningProviderCliOverrides,
 } from "../learning/shared/llm-caller.js";
+import {
+  callLlmWithTools,
+  type ToolLoopProvider,
+} from "../learning/shared/llm-tool-loop.js";
+import { ONTO_DEFAULT_TOOLS } from "./onto-tools.js";
 import { embedInlineContext } from "../review/inline-context-embedder.js";
 
 function requireString(
@@ -72,7 +77,10 @@ function requireString(
   return value;
 }
 
-function buildSystemPrompt(unitId: string, unitKind: string, packetPath: string, outputPath: string): string {
+/**
+ * System prompt for inline (Tier 2) mode: no tools, all context inlined.
+ */
+function buildSystemPromptInline(unitId: string, unitKind: string, packetPath: string, outputPath: string): string {
   return `You are executing a single bounded review unit as a ContextIsolatedReasoningUnit.
 
 Unit id: ${unitId}
@@ -97,6 +105,50 @@ Rules:
   limitation as "insufficient content within boundary" rather than fabricating.`;
 }
 
+/**
+ * System prompt for tool-native (Tier 1) mode: read-only tools available,
+ * boundary enforced by the TS process at tool-call time.
+ *
+ * The prompt explicitly enumerates the available tools so the model knows
+ * the contract; the loop driver also passes the JSON schemas via the API's
+ * tools array. Both signals reinforce each other.
+ */
+function buildSystemPromptToolNative(
+  unitId: string,
+  unitKind: string,
+  packetPath: string,
+  outputPath: string,
+): string {
+  return `You are executing a single bounded review unit as a ContextIsolatedReasoningUnit.
+
+Unit id: ${unitId}
+Unit kind: ${unitKind}
+Authoritative prompt packet path: ${packetPath}
+Canonical output path: ${outputPath}
+
+You have THREE read-only tools to fetch additional context as needed:
+- read_file(path, start_line?, end_line?) — read up to 2000 lines of a file
+- list_directory(path) — list entries in a directory (skips .git, node_modules, .onto, dist, build)
+- search_content(pattern, path?, case_insensitive?) — find literal substring matches under a directory
+
+Tools are bounded:
+- Paths must resolve inside projectRoot or ontoHome. Boundary violations return an error you can recover from by trying a different path.
+- Use search_content to locate references first, then read_file to inspect specific sections.
+- Prefer narrow reads (start_line/end_line) over re-reading the same large file.
+
+Rules:
+- Treat the prompt packet (in the user message) as the authoritative contract.
+- Treat the Boundary Policy and Effective Boundary State in the packet as hard constraints.
+- Use tools ONLY when the packet's inlined content is insufficient — do not browse for browsing's sake.
+- Stay within the smallest sufficient finding set implied by the packet.
+- After your tool exploration, produce ONLY the final markdown content for the canonical output path.
+- Do not wrap the answer in code fences.
+- Do not add commentary before or after the markdown.
+- Do not change the required output structure from the packet.
+- If the packet asks you to preserve disagreement or uncertainty, preserve it explicitly.
+- If even with tools you cannot complete the task, state the limitation as "insufficient content within boundary" rather than fabricating.`;
+}
+
 interface ExecutorOptions {
   projectRoot: string;
   sessionRoot: string;
@@ -109,6 +161,9 @@ interface ExecutorOptions {
   ontoHome: string;
 }
 
+type ToolModeRequest = "native" | "inline" | "auto";
+type ToolModeUsed = "native" | "inline";
+
 interface ExecutorResult {
   unit_id: string;
   unit_kind: string;
@@ -116,11 +171,35 @@ interface ExecutorResult {
   output_path: string;
   realization: "ts_inline_http";
   host_runtime: "litellm" | "anthropic" | "openai" | "codex";
+  /** Tier picked at execution time. "native" = function-calling loop; "inline" = single-turn with all context inlined. */
+  tool_mode: ToolModeUsed;
   /** Resolved LLM model used. */
   model_id?: string;
   /** Token usage for cost tracking. */
   input_tokens?: number;
   output_tokens?: number;
+  /** Tool-loop telemetry; absent when tool_mode="inline". */
+  tool_iterations?: number;
+  tool_calls?: number;
+}
+
+function parseToolMode(raw: unknown): ToolModeRequest {
+  if (raw === "native" || raw === "inline" || raw === "auto") return raw;
+  if (raw === undefined || raw === "") return "auto";
+  throw new Error(`Invalid --tool-mode value: ${String(raw)} (expected native | inline | auto)`);
+}
+
+/**
+ * Map a resolved provider to the tool-loop driver's provider enum. Returns
+ * `null` for `codex` because the codex CLI subprocess path has its own
+ * agentic scaffold and isn't routed through callLlmWithTools — auto mode
+ * should fall back to inline in that case.
+ */
+function asToolLoopProvider(provider: string | undefined): ToolLoopProvider | null {
+  if (provider === "anthropic" || provider === "openai" || provider === "litellm") {
+    return provider;
+  }
+  return null;
 }
 
 async function loadOntoConfig(projectRoot: string): Promise<LearningProviderConfigInputs> {
@@ -184,6 +263,10 @@ export async function runInlineHttpReviewUnitExecutorCli(
       "max-tokens": { type: "string" },
       // Inline embedding control
       "embed-domain-docs": { type: "boolean", default: false },
+      // Tool mode: native (Tier 1 function-calling loop) | inline (Tier 2,
+      // current behavior) | auto (try native, fall back to inline if the
+      // provider rejects tools or no tool_calls came back).
+      "tool-mode": { type: "string", default: "auto" },
     },
     strict: true,
     allowPositionals: false,
@@ -240,23 +323,121 @@ export async function runInlineHttpReviewUnitExecutorCli(
     cliOverrides,
   });
 
-  // Read packet, optionally embed inline content.
+  // Tool-mode resolution: CLI flag > config.subagent_llm.tool_mode > "auto".
+  // We read subagent_llm tool_mode lazily so this stays a thin overlay on
+  // the existing config-load path.
+  const toolModeFromConfig =
+    typeof (ontoConfig as { subagent_llm?: { tool_mode?: unknown } }).subagent_llm?.tool_mode === "string"
+      ? ((ontoConfig as { subagent_llm: { tool_mode: string } }).subagent_llm.tool_mode as ToolModeRequest)
+      : undefined;
+  const requestedToolMode = parseToolMode(values["tool-mode"] ?? toolModeFromConfig);
+
+  // Determine which Tier the auto/native paths should attempt. codex provider
+  // routes through subprocess and bypasses callLlmWithTools entirely — auto
+  // collapses to inline there.
+  const toolLoopProvider = asToolLoopProvider(cliOverrides.provider);
+  const tryNative =
+    requestedToolMode === "native" ||
+    (requestedToolMode === "auto" && toolLoopProvider !== null);
+  if (requestedToolMode === "native" && toolLoopProvider === null) {
+    throw new Error(
+      `--tool-mode=native requires provider in {anthropic, openai, litellm}; got "${cliOverrides.provider ?? "(auto)"}".`,
+    );
+  }
+
+  // Read packet, optionally embed inline content. Embedding is independent of
+  // tool_mode — even tool-native runs benefit from packet pre-population so
+  // the LLM doesn't have to re-discover the obvious targets.
   const userPrompt = await readPacketAndEmbed(
     packetPath,
     ontoHome,
     projectRoot,
     embedDomainDocs,
   );
-  const systemPrompt = buildSystemPrompt(unitId, unitKind, packetPath, outputPath);
 
-  // Make the call.
-  const llmConfig: Partial<LlmCallConfig> = { ...llmPartial, max_tokens: maxTokens };
-  const result = await callLlm(systemPrompt, userPrompt, llmConfig);
+  let outputText = "";
+  let modelIdUsed: string | undefined;
+  let inputTokensUsed = 0;
+  let outputTokensUsed = 0;
+  let toolModeUsed: ToolModeUsed = "inline";
+  let toolIterations: number | undefined;
+  let toolCallsExecuted: number | undefined;
+  let nativeAttemptError: string | undefined;
 
-  const outputText = result.text.trim();
+  if (tryNative && toolLoopProvider) {
+    const systemPrompt = buildSystemPromptToolNative(unitId, unitKind, packetPath, outputPath);
+    const modelForLoop = llmPartial.model_id ?? llmPartial.models_per_provider?.[toolLoopProvider];
+    if (!modelForLoop) {
+      throw new Error(
+        `tool-native mode requires a model id (set --model, OntoConfig.${toolLoopProvider}.model, or OntoConfig.model).`,
+      );
+    }
+    try {
+      const loopResult = await callLlmWithTools(
+        systemPrompt,
+        userPrompt,
+        ONTO_DEFAULT_TOOLS,
+        {
+          provider: toolLoopProvider,
+          model_id: modelForLoop,
+          max_tokens: maxTokens,
+          ...(llmPartial.base_url ? { base_url: llmPartial.base_url } : {}),
+        },
+        { projectRoot, ontoHome },
+      );
+      outputText = loopResult.text.trim();
+      modelIdUsed = loopResult.model_id;
+      inputTokensUsed = loopResult.input_tokens;
+      outputTokensUsed = loopResult.output_tokens;
+      toolIterations = loopResult.iterations;
+      toolCallsExecuted = loopResult.tool_calls;
+      toolModeUsed = "native";
+      // Empty final text after a tool loop usually means the model only ever
+      // returned tool_use blocks and never produced a final answer (or hit
+      // the iteration cap). In auto mode we fall back to inline; in native
+      // mode we surface the failure.
+      if (outputText.length === 0) {
+        if (requestedToolMode === "auto") {
+          nativeAttemptError = `tool-native produced empty final text${
+            loopResult.truncated_by_iteration_cap ? " (iteration cap hit)" : ""
+          }`;
+          toolModeUsed = "inline";
+        } else {
+          throw new Error(
+            `tool-native mode produced empty final text for unit ${unitId} (iterations=${loopResult.iterations}, tool_calls=${loopResult.tool_calls}).`,
+          );
+        }
+      }
+    } catch (err) {
+      if (requestedToolMode === "auto") {
+        nativeAttemptError = err instanceof Error ? err.message : String(err);
+        toolModeUsed = "inline";
+        toolIterations = undefined;
+        toolCallsExecuted = undefined;
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  if (toolModeUsed === "inline") {
+    if (nativeAttemptError) {
+      process.stderr.write(
+        `[onto] tool-native attempt failed (${nativeAttemptError}); falling back to inline mode.\n`,
+      );
+    }
+    const systemPrompt = buildSystemPromptInline(unitId, unitKind, packetPath, outputPath);
+    const llmConfig: Partial<LlmCallConfig> = { ...llmPartial, max_tokens: maxTokens };
+    const result = await callLlm(systemPrompt, userPrompt, llmConfig);
+    outputText = result.text.trim();
+    modelIdUsed = result.model_id;
+    inputTokensUsed = result.input_tokens;
+    outputTokensUsed = result.output_tokens;
+  }
+
   if (outputText.length === 0) {
     throw new Error(
-      `Inline-HTTP executor produced empty output for unit ${unitId} (provider: ${cliOverrides.provider ?? "auto"}).`,
+      `Inline-HTTP executor produced empty output for unit ${unitId} (provider: ${cliOverrides.provider ?? "auto"}, tool_mode: ${toolModeUsed}).`,
     );
   }
 
@@ -271,9 +452,12 @@ export async function runInlineHttpReviewUnitExecutorCli(
     output_path: outputPath,
     realization: "ts_inline_http",
     host_runtime: deriveHostRuntime(cliOverrides.provider),
-    model_id: result.model_id,
-    input_tokens: result.input_tokens,
-    output_tokens: result.output_tokens,
+    tool_mode: toolModeUsed,
+    input_tokens: inputTokensUsed,
+    output_tokens: outputTokensUsed,
+    ...(modelIdUsed !== undefined ? { model_id: modelIdUsed } : {}),
+    ...(toolIterations !== undefined ? { tool_iterations: toolIterations } : {}),
+    ...(toolCallsExecuted !== undefined ? { tool_calls: toolCallsExecuted } : {}),
   };
 
   console.log(JSON.stringify(executorResult, null, 2));

@@ -82,6 +82,52 @@ export interface OntoConfig {
   anthropic?: { model?: string };
   openai?: { model?: string };
   litellm?: { model?: string };
+
+  /**
+   * Phase 2 host-decoupling: subagent LLM configuration for review unit execution.
+   *
+   * When set, `resolveExecutorConfig()` auto-selects the
+   * `inline-http-review-unit-executor` binary instead of the codex executor,
+   * passing provider/model/base_url as CLI flags to the executor.
+   *
+   * This decouples the **subagent LLM** (per-lens executor) from the
+   * **main LLM** (orchestrator host runtime). Examples:
+   *   - host_runtime: claude + subagent_llm: { provider: litellm, model: llama-8b }
+   *     → Claude Code session orchestrates; LiteLLM 8B executes lenses
+   *   - host_runtime: codex + subagent_llm: { provider: anthropic, model: claude-haiku }
+   *     → Codex CLI session orchestrates; Anthropic Haiku executes lenses
+   *   - host_runtime: standalone (no main host LLM) — auto-uses ts_inline_http
+   *     → TS process orchestrates and calls subagent_llm.provider directly
+   *
+   * Precedence: CLI --executor-bin/--executor-realization > subagent_llm
+   *   > OntoConfig.executor_realization > host-runtime default (codex/inline-http).
+   */
+  subagent_llm?: {
+    provider?: string;     // anthropic | openai | litellm | codex
+    model?: string;
+    base_url?: string;     // Required when provider=litellm
+    max_tokens?: number;
+    embed_domain_docs?: boolean;
+  };
+
+  /**
+   * Phase 2 host-decoupling: main LLM configuration for standalone host
+   * orchestration (Phase 3 wiring).
+   *
+   * Currently RESERVED — when host_runtime: claude or codex, the main LLM is
+   * the host session itself (no config needed). For host_runtime: standalone,
+   * Phase 3 will wire this to drive lens selection and synthesize meta-reasoning
+   * via TS-process direct LLM calls.
+   *
+   * Phase 2 acceptance: schema present + recognized by config parser; runtime
+   * consumption is per-task (background tasks use api_provider/model already).
+   */
+  main_llm?: {
+    provider?: string;
+    model?: string;
+    base_url?: string;
+    max_tokens?: number;
+  };
 }
 
 async function readConfigAt(dir: string): Promise<OntoConfig> {

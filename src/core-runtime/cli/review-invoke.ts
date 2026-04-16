@@ -30,7 +30,17 @@ import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.j
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
 
-type ExecutorRealization = "codex" | "mock";
+/**
+ * Executor realization for review unit execution.
+ *
+ * - "codex":           codex CLI subprocess (codex-review-unit-executor.ts)
+ * - "mock":            in-process deterministic stub (mock-review-unit-executor.ts)
+ * - "ts_inline_http":  TS process directly calls LLM HTTP endpoint (Phase 2 of host
+ *                      runtime decoupling). Selected automatically when
+ *                      OntoConfig.subagent_llm is set or host_runtime is "standalone".
+ *                      See `inline-http-review-unit-executor.ts`.
+ */
+type ExecutorRealization = "codex" | "mock" | "ts_inline_http";
 type ReviewTargetScopeKind = "file" | "directory" | "bundle";
 type ReviewMode = "light" | "full";
 type BoundaryDecisionAction = "approve_external_boundary" | "rerun_target" | "cancel";
@@ -166,11 +176,13 @@ function packageManagerBin(): string {
 const EXECUTOR_SCRIPT_FILENAMES: Record<ExecutorRealization, string> = {
   codex: "codex-review-unit-executor",
   mock: "mock-review-unit-executor",
+  ts_inline_http: "inline-http-review-unit-executor",
 };
 
 const EXECUTOR_NPM_SCRIPTS: Record<ExecutorRealization, string> = {
   codex: "review:codex-unit-executor",
   mock: "review:mock-unit-executor",
+  ts_inline_http: "review:inline-http-unit-executor",
 };
 
 function resolveExecutorScript(realization: ExecutorRealization): string {
@@ -341,6 +353,57 @@ function appendExecutorModelArgs(
   if (typeof reasoningEffort === "string" && reasoningEffort.length > 0) {
     args.push("--reasoning-effort", reasoningEffort);
   }
+  return { bin: config.bin, args };
+}
+
+/**
+ * Phase 2 wiring: append subagent_llm config fields as inline-http executor
+ * CLI flags. Called when the auto-selection logic picks ts_inline_http based
+ * on subagent_llm config or standalone host detection.
+ *
+ * Translates OntoConfig.subagent_llm → inline-http executor flags:
+ *   subagent_llm.provider → --provider
+ *   subagent_llm.model → --model
+ *   subagent_llm.base_url → --llm-base-url
+ *   subagent_llm.max_tokens → --max-tokens
+ *   subagent_llm.embed_domain_docs → --embed-domain-docs
+ *
+ * Falls back to top-level api_provider/model/llm_base_url when subagent_llm
+ * fields are unset — so a user with `api_provider: litellm; model: llama-8b`
+ * and `host_runtime: standalone` (no subagent_llm block) still gets a
+ * working executor.
+ */
+function appendSubagentLlmArgs(
+  config: ReviewUnitExecutorConfig,
+  ontoConfig?: OntoConfig,
+): ReviewUnitExecutorConfig {
+  const args = [...config.args];
+  const sub = ontoConfig?.subagent_llm;
+
+  const provider = sub?.provider ?? ontoConfig?.api_provider;
+  if (typeof provider === "string" && provider.length > 0) {
+    args.push("--provider", provider);
+  }
+
+  const model = sub?.model ?? ontoConfig?.model;
+  if (typeof model === "string" && model.length > 0) {
+    args.push("--model", model);
+  }
+
+  const baseUrl = sub?.base_url ?? ontoConfig?.llm_base_url;
+  if (typeof baseUrl === "string" && baseUrl.length > 0) {
+    args.push("--llm-base-url", baseUrl);
+  }
+
+  const maxTokens = sub?.max_tokens;
+  if (typeof maxTokens === "number" && maxTokens > 0) {
+    args.push("--max-tokens", String(maxTokens));
+  }
+
+  if (sub?.embed_domain_docs === true) {
+    args.push("--embed-domain-docs");
+  }
+
   return { bin: config.bin, args };
 }
 
@@ -570,7 +633,7 @@ function resolveExecutorConfig(
     (optionPrefixLabel.length > 0
       ? readSingleOptionValueFromArgv(argv, "executor-realization")
       : undefined);
-  if (explicitRealization === "codex" || explicitRealization === "mock") {
+  if (explicitRealization === "codex" || explicitRealization === "mock" || explicitRealization === "ts_inline_http") {
     return appendExecutorModelArgs(
       buildExecutorConfigFromRealization(explicitRealization, ontoHome),
       argv,
@@ -583,12 +646,12 @@ function resolveExecutorConfig(
   ) {
     throw new Error(
       `Unsupported --${optionPrefixLabel}executor-realization: ${explicitRealization}. ` +
-        `Only codex and mock are supported for --executor-realization. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected; config host_runtime: claude explicitly opts in. See authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
+        `Supported values: codex, mock, ts_inline_http. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected. See authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
     );
   }
 
   const configRealization = ontoConfig?.executor_realization;
-  if (configRealization === "codex" || configRealization === "mock") {
+  if (configRealization === "codex" || configRealization === "mock" || configRealization === "ts_inline_http") {
     return appendExecutorModelArgs(
       buildExecutorConfigFromRealization(configRealization as ExecutorRealization, ontoHome),
       argv,
@@ -598,7 +661,24 @@ function resolveExecutorConfig(
   if (typeof configRealization === "string" && configRealization.length > 0) {
     throw new Error(
       `Unsupported executor_realization in config: ${configRealization}. ` +
-        `Only codex and mock are supported for --executor-realization. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected; config host_runtime: claude explicitly opts in. See authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
+        `Supported values: codex, mock, ts_inline_http. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected. See authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
+    );
+  }
+
+  // Phase 2 wiring: auto-select ts_inline_http executor when:
+  //   1. subagent_llm config is set (user explicitly wants cross-host subagent), or
+  //   2. host_runtime is standalone (no host tool ecosystem → must use direct call)
+  // Precedence: this check comes AFTER explicit --executor-realization and config
+  // executor_realization, so explicit choices always win.
+  const subagentLlm = ontoConfig?.subagent_llm;
+  const hostRuntime = ontoConfig?.host_runtime;
+  if (
+    (subagentLlm && typeof subagentLlm.provider === "string" && subagentLlm.provider.length > 0) ||
+    hostRuntime === "standalone"
+  ) {
+    return appendSubagentLlmArgs(
+      buildExecutorConfigFromRealization("ts_inline_http", ontoHome),
+      ontoConfig,
     );
   }
 

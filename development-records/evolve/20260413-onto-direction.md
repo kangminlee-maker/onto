@@ -76,14 +76,14 @@ onto는 다섯 활동으로 이루어진다. 각 활동은 대상(object)과 산
 | 활동 | 대상 | 산출 | ontology 역할 |
 |---|---|---|---|
 | **review** | product | 검증 결과 | 선택적 입력 (있으면 빠르고 정확) |
-| **design** | product | 변경 계획 | 선택적 입력 (있으면 constraints 파악 빠름) |
+| **evolve** | product | 변경 계획 | 선택적 입력 (있으면 constraints 파악 빠름) |
 | **reconstruct** | product | **ontology** | 출력 |
-| **learn** | review·design·reconstruct에서 발생한 learning | promoted learning (= knowledge) | 간접적 |
+| **learn** | review·evolve·reconstruct에서 발생한 learning | promoted learning (= knowledge) | 간접적 |
 | **govern** | principle, 계약, 구조적 규칙, lifecycle 규칙, drift 정책 | 갱신된 규범 | 간접적 |
 
 ### 활동 관계
 
-- **review/design**은 ontology가 있으면 활용, 없어도 수행 가능 (비용 차이만)
+- **review/evolve**는 ontology가 있으면 활용, 없어도 수행 가능 (비용 차이만)
 - **reconstruct**는 ontology 부재 상태를 해소
 - **learn**은 앞 세 활동의 부산물 관리 (독립 대상 없음)
 - **govern**은 앞 네 활동이 준수할 규범을 관리 (메타)
@@ -119,7 +119,7 @@ onto는 다섯 활동으로 이루어진다. 각 활동은 대상(object)과 산
 
 ### onto = product
 
-onto 자체가 하나의 product이다. 코드(`src/core-runtime/`), 규범(`authority/`, `design-principles/`, `processes/`), 명령(`commands/`)은 모두 Principal이 만든 작동 실체. 따라서 onto에게 review·design·reconstruct를 적용할 수 있다.
+onto 자체가 하나의 product이다. 코드(`src/core-runtime/`), 규범(`authority/`, `design-principles/`, `processes/`), 명령(`commands/`)은 모두 Principal이 만든 작동 실체. 따라서 onto에게 review·evolve·reconstruct를 적용할 수 있다.
 
 ### Drift 정책 기반 분기
 
@@ -160,7 +160,7 @@ self-application은 govern이 정한 drift 정책에 따라 분기한다.
 | 활동 | 완료(구현) 기준 |
 |---|---|
 | **review** | 검증 결과 산출 + learning 자동 수집 + ontology 유무 경로 분기 |
-| **design** | 변경 계획 산출 + learning 자동 수집 + ontology 활용 경로 |
+| **evolve** | 변경 계획 산출 + learning 자동 수집 + ontology 활용 경로 |
 | **reconstruct** | ontology 초안 산출 + domain knowledge 기반 "왜" 추정 + Principal 검증 경로 |
 | **learn** | 수집·저장·검증·승격 자동 운영 + govern 기준 준수 |
 | **govern** | 규범 등재·갱신·폐기 추적 + drift 정책 명시 + 자기 변경 시 Principal 승인 강제 |
@@ -171,7 +171,7 @@ self-application은 govern이 정한 drift 정책에 따라 분기한다.
 
 | 축 | 성격 | 정의 |
 |---|---|---|
-| **축 A** (entrypoint 구현) | 활동별 | 다섯 활동(review, design, reconstruct, learn, govern)의 구현. command·process·calling convention |
+| **축 A** (entrypoint 구현) | 활동별 | 다섯 활동(review, evolve, reconstruct, learn, govern)의 구현. command·process·calling convention |
 | **축 B** (기반 인프라) | 공통 | product·ontology·learning 저장·처리 공통 인프라. scope-runtime, readers, middleware 기반 |
 | **축 C** (자율성 진화) | 메타 | self-application 메커니즘 + drift 판정 + 큐·승인 흐름 + 수준 0→1→2 엔진 |
 | **축 D** (상시 원칙) | 교차 | lexicon provisional lifecycle. 모든 축에서 새 용어 등장 시 등록·관리 |

@@ -88,7 +88,7 @@ Q1 답은 "병렬"이 아니라 **"pipeline with barrier"**이다. M-04를 Phase
 
 | 항목 | 내용 |
 |---|---|
-| **activity vocabulary** | 허용값 5개 (review/design/reconstruct/learn/govern). 상수 하드코딩 대신 Expansion Protocol 경유성으로 파라미터화 |
+| **activity vocabulary** | 허용값 5개 (review/evolve/reconstruct/learn/govern). 상수 하드코딩 대신 Expansion Protocol 경유성으로 파라미터화 |
 | **axis token** | `{A, B, C, D}`. Expansion 시 변경 가능 (registry 참조형으로 점진 전환) |
 | **canonical seat** | work item ID 형식 `W-{axis}-{nn}` + 할당 책임 주체 |
 | **binding rule** | activity 단일/복수 귀속, axis 단일 귀속, activity↔axis 관계 |
@@ -145,7 +145,7 @@ M-01/M-02/M-06 subagent가 병렬 실행될 때 산출물 저장 경로 및 merg
 
 | 단계 | Subagent 산출물 seat | Merge owner | M-03/M-07 입력 경로 |
 |---|---|---|---|
-| **M-01 (활동별 inventory)** | `.onto/temp/m01-activity-inventory/{activity}.md` (예: review.md, design.md, reconstruct.md, learn.md, govern.md 5개 파일) | 메인 세션 | M-03이 5개 파일을 직접 read |
+| **M-01 (활동별 inventory)** | `.onto/temp/m01-activity-inventory/{activity}.md` (예: review.md, evolve.md, reconstruct.md, learn.md, govern.md 5개 파일) | 메인 세션 | M-03이 5개 파일을 직접 read |
 | **M-02 (축 B 인프라 inventory)** | `.onto/temp/m02-infra-inventory/{component}.md` (예: scope-runtime.md, readers.md, middleware.md 등) | 메인 세션 | M-03이 모든 파일을 직접 read |
 | **M-06 (축별 work item 초안)** | `.onto/temp/m06-axis-draft/{axis}.md` (A.md, B.md, C.md, D.md 4개 파일) | 메인 세션 (central merge gate) | M-07이 4개 파일을 단일 `development-records/evolve/20260413-onto-todo.md`로 통합 |
 
@@ -208,7 +208,7 @@ pre-briefing은 v5.1 "실행 중 자연 반영" 원칙에 선택적으로 추가
 
 **2차원 매트릭스**: 축 × 활동
 
-|  | review | design | reconstruct | learn | govern |
+|  | review | evolve | reconstruct | learn | govern |
 |---|---|---|---|---|---|
 | **축 A** | 5~10 | 5~10 | 5~10 | 5~10 | 5~10 |
 | **축 B** | A0 + 공통 인프라 5~15 |

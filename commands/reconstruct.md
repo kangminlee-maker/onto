@@ -41,7 +41,7 @@ Internal bounded path (review 의 3-step 에 대응, W-A-74 DL-020 해소):
 - **입력**: `--session-id <id>`
 - **산출**: state 파일이 `exploring` 으로 전이 + `explore_invocations` 증가
 - **완료 조건**: 1회 invocation 당 state 갱신. 완결이 아니므로 여러 번 반복 호출 가능
-- **§1.4 연계**: 2 축 (domain knowledge 기반 "왜" 추정) — 실제 Explorer loop 은 후속 W-ID 에서 build runtime 과 연결
+- **§1.4 연계**: 2 축 (domain knowledge 기반 "왜" 추정) — 실제 Explorer loop 은 후속 W-ID 에서 reconstruct runtime 과 연결
 
 ### Step 3 — `complete`
 

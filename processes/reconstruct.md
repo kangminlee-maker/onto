@@ -25,12 +25,12 @@ W-A-74 에서 reconstruct CLI 의 3-step bounded path 를 확보했다. 이는 �
 | 2 | `onto reconstruct explore` | → `exploring` (반복 가능) | reconstruct_exploring~adjudicating~awaiting_user_review~processing_responses loop 의 bounded invocation |
 | 3 | `onto reconstruct complete` | → `converted` | converting~converted phase + Principal 검증 요청 |
 
-본 document 의 상세 phase 구조 (Phase 0.5 ~ Phase 4) 는 CLI 호출 내부에서 build runtime 이 실행하는 방법론이다. CLI 는 방법론의 public surface 만 노출한다.
+본 document 의 상세 phase 구조 (Phase 0.5 ~ Phase 4) 는 CLI 호출 내부에서 reconstruct runtime 이 실행하는 방법론이다. CLI 는 방법론의 public surface 만 노출한다.
 
 §1.4 정본의 reconstruct 완료 기준 3축 (ontology 초안 산출 + domain knowledge 기반 "왜" 추정 + Principal 검증 경로) 은 CLI 3-step 과 다음과 같이 매핑된다:
 
 - **초안 산출** ← `complete` 가 `ontology-draft.md` 생성
-- **"왜" 추정** ← `explore` 가 build runtime 의 certainty classification 호출
+- **"왜" 추정** ← `explore` 가 reconstruct runtime 의 certainty classification 호출
 - **Principal 검증 경로** ← `complete` 가 `principal_review_status=requested` 로 검증 대기 명시
 
 ## Generalization Scope
@@ -42,9 +42,9 @@ This process is an **extensible design**. Currently supported source types are c
 ### Structural Difference Between Verification and Exploration
 
 - **Verification (review)**: Multi-perspective evaluation of a scope-defined input. Independent parallelism is appropriate.
-- **Exploration (build)**: Discovering domain knowledge from a scope-undefined source. Independent exploration yields N-fold duplication, and empty areas are only discovered at consensus time — unfavorable.
+- **Exploration (reconstruct)**: Discovering domain knowledge from a scope-undefined source. Independent exploration yields N-fold duplication, and empty areas are only discovered at consensus time — unfavorable.
 
-Therefore, build uses an **integral exploration** structure:
+Therefore, reconstruct uses an **integral exploration** structure:
 - A single Explorer traverses the source and generates **deltas** (domain fact reports)
 - Lenses analyze deltas to attach **labels** (ontology elements) and propose **epsilons** (next exploration directions)
 - Runtime Coordinator applies patches and checks convergence; Axiology Adjudicator resolves conflicts; Synthesize composes integrated directives
@@ -112,7 +112,7 @@ When lenses write the `rationale` field of a label, include the following:
 
 ---
 
-## Agent Configuration (build mode)
+## Agent Configuration (reconstruct mode)
 
 | ID | Role | Behavior in Build |
 |---|---|---|
@@ -122,7 +122,7 @@ When lenses write the `rationale` field of a label, include the following:
 | Axiology Adjudicator | Conflict resolver | Resolves conflicts that runtime rules cannot resolve. Judges based on system purpose only. **Spawned as a fresh context per invocation with anonymized inputs** — does not carry round-level reasoning context, cannot identify which lens produced which position |
 | `synthesize` | Integrator | Composes resolved material into integrated exploration directives. Does not produce independent perspectives or resolve conflicts — structures and edits only |
 
-Lens definitions (`roles/{lens-id}.md`) are the same as in review. In build, the role shifts from "verification" to "identifying gaps in their dimension + assigning labels." The current lens list is managed in the agent configuration table in `process.md`.
+Lens definitions (`roles/{lens-id}.md`) are the same as in review. In reconstruct, the role shifts from "verification" to "identifying gaps in their dimension + assigning labels." The current lens list is managed in the agent configuration table in `process.md`.
 
 ### Role Boundary Principles
 
@@ -358,9 +358,9 @@ When Stage 1 converges (or reaches maximum), proceed to Stage 2. The Stage 2 Exp
 **When Schema C is selected**: Stage 2's command/query are converted to Entity (entity_type: command/query).
 
 Follows the **Agent Teams Execution** in `process.md` (including error handling rules).
-Creates a team (`onto-build`) via TeamCreate.
+Creates a team (`onto-reconstruct`) via TeamCreate.
 
-**Error handling (build-specific)** — applies process.md Retry Protocol. Build-specific rules:
+**Error handling (reconstruct-specific)** — applies process.md Retry Protocol. Reconstruct-specific rules:
 
 - **Explorer failure**: Halt the process + inform the user (irreplaceable single point).
 - **Runtime Coordinator failure**: Halt the process + inform the user (irreplaceable; failure indicates a bug, not a transient error).
@@ -371,13 +371,13 @@ Creates a team (`onto-build`) via TeamCreate.
   - Adjudicator counter increments only on **actual agent failure** during a round where Adjudicator was invoked (unresolvable conflicts existed). Resets to 0 on successful Adjudicator completion. **A round where Adjudicator was not invoked (no unresolvable conflicts) does NOT change the counter** — it is neither a success nor a failure for this role.
   - Synthesize counter increments on Synthesize agent failure; resets on successful Synthesize completion. Synthesize runs every round.
   - Both counters reset to 0 at Stage transition.
-  - If either counter reaches `config.build.degradation_warn_threshold` (default: 2 — see Config section), present a warning to the user before the next round starts:
+  - If either counter reaches `config.reconstruct.degradation_warn_threshold` (default: 2 — see Config section), present a warning to the user before the next round starts:
   - Show which role(s) degraded and what that implies for Phase 3 output (Adjudicator down → N unresolved conflicts will escalate to the user; Synthesize down → exploration directives will be unsorted lists)
   - Show current round and remaining rounds in the Stage
-  - Ask: "Continue this Stage? [continue / end Stage now / abort build]"
+  - Ask: "Continue this Stage? [continue / end Stage now / abort reconstruct]"
     - **continue** — proceed with degraded execution
     - **end Stage now** — close current Stage immediately, proceed to Stage transition (if Stage 1) or Phase 2 (if Stage 2)
-    - **abort build** — halt the entire build process, preserve current wip.yml as partial artifact in the session directory
+    - **abort reconstruct** — halt the entire reconstruct process, preserve current wip.yml as partial artifact in the session directory
   - Default action (if user does not respond): continue
 - **Stage 2 module_inventory replacement**: Any modules from Stage 1's `module_inventory` that remained in `uncovered_modules` at Stage 1 termination are preserved in wip.yml meta as `stage1_uncovered_modules` and reported in Phase 3's "Unexplored Areas" section.
 
@@ -385,7 +385,7 @@ Creates a team (`onto-build`) via TeamCreate.
 
 Creates the following agents as teammates:
 - **explorer**: Dedicated source traverser. Recommended to use Explore-type subagent.
-- **Lenses (N, per process.md agent table)**: Analysis agents that do not directly traverse the source. Same role definitions as review (`roles/{lens-id}.md`), operating in build mode.
+- **Lenses (N, per process.md agent table)**: Analysis agents that do not directly traverse the source. Same role definitions as review (`roles/{lens-id}.md`), operating in reconstruct mode.
 - **synthesize**: Integrator that composes resolved material into unified output. Not an independent lens.
 
 Explorer initial prompt composition:
@@ -394,7 +394,7 @@ The team lead reads the `explorers/{source_type}.md` profile corresponding to th
 
 ```
 You are the source traverser (Explorer).
-You are joining the onto-build team.
+You are joining the onto-reconstruct team.
 
 [Role]
 You directly traverse the analysis target and generate deltas (domain fact reports).
@@ -451,9 +451,9 @@ Refer to "Delta Format" below.
 Lens initial prompt: use the **Teammate Initial Prompt Template** from `process.md`. However, replace [Task Directives] with the following:
 
 ```
-[Task Directives — build mode]
-You are operating in build mode.
-In review mode, your role is "verification," but in build mode, it shifts to "identifying gaps in your dimension + assigning labels."
+[Task Directives — reconstruct mode]
+You are operating in reconstruct mode.
+In review mode, your role is "verification," but in reconstruct mode, it shifts to "identifying gaps in your dimension + assigning labels."
 You do not directly traverse the source. You analyze deltas (domain fact reports) reported by the Explorer.
 
 Each round, the team lead delivers:
@@ -536,7 +536,7 @@ Synthesize initial prompt:
 
 ```
 You are the integrator (Synthesize).
-You are joining the onto-build team.
+You are joining the onto-reconstruct team.
 
 [Role]
 You compose resolved material into integrated exploration directives for the Explorer.
@@ -660,7 +660,7 @@ Information convergence = number of new facts in Explorer's reported delta = 0
 >
 > **Rationale for CJK threshold**: The previous ASCII-only tokenizer (`[^a-z0-9]+`) stripped every Korean character, making convergence detection blind on Korean-heavy corpora (e.g., this repository's own learnings). Unicode-aware splitting with a lower CJK threshold restores semantic sensitivity.
 >
-> **Convergence is determined solely by Tier 1.** This preserves the "No LLM judgment required" guarantee for termination: given the same source, the same normalized facts, the build terminates at the same round.
+> **Convergence is determined solely by Tier 1.** This preserves the "No LLM judgment required" guarantee for termination: given the same source, the same normalized facts, the reconstruct terminates at the same round.
 >
 > **Tier 2 (non-gating diagnostic, operator-toggleable)**:
 > - **Non-gating** (invariant of the design): Tier 2 output never affects convergence, regardless of enable state or availability.
@@ -681,14 +681,14 @@ Information convergence = number of new facts in Explorer's reported delta = 0
 **Build-time configuration** (all keys resolved from `{project}/.onto/config.yml`):
 
 ```yaml
-# {project}/.onto/config.yml — build-relevant keys
+# {project}/.onto/config.yml — reconstruct-relevant keys
 output_language: en           # language for all agent prompts (referenced from Explorer/Lens/Synthesize prompts)
 
 semantic_identity:
   diagnostic_enabled: true    # default; when false, Tier 2 is skipped entirely
   diagnostic_threshold: 0.7   # Jaccard cutoff; pairs in [threshold, 1.0) forwarded to semantics lens
 
-build:
+reconstruct:
   underexplored_threshold:
     min_floor: 2              # absolute minimum facts before considered underexplored
     ratio: 0.5                # fraction of per-Stage median
@@ -697,15 +697,15 @@ build:
   max_phase4_reentries: 2         # max Phase 4 bug-guard re-entries before halting with session error
 ```
 
-**Parser**: standard YAML 1.2. Config is read once at build start and snapshotted into session context; no mid-build reloads.
+**Parser**: standard YAML 1.2. Config is read once at reconstruct start and snapshotted into session context; no mid-reconstruct reloads.
 
 **Error handling**:
 - **File absent**: all defaults apply silently.
-- **File present, malformed YAML** (parser throws): **halt** the build with error class `config_malformed` and return the parser message to the user. Do NOT silently fall back — a malformed config indicates user intent that cannot be resolved.
+- **File present, malformed YAML** (parser throws): **halt** the reconstruct with error class `config_malformed` and return the parser message to the user. Do NOT silently fall back — a malformed config indicates user intent that cannot be resolved.
 - **Valid YAML, missing key**: default applies for that key (forward-compatibility with older configs).
 - **Valid YAML, type-invalid value** (e.g., `diagnostic_threshold: "high"` instead of a number): log warning `config_type_invalid: {key}` to the session log (see "Session Log & Error Handling Artifact"), fall back to default for that key.
 - **Valid YAML, out-of-range numeric** (e.g., `diagnostic_threshold: 1.5` outside `[0, 1]`; `min_floor: -3`; negative counts): log warning `config_out_of_range: {key}`, fall back to default.
-- **Unknown keys** at any level (top-level or under `semantic_identity:` / `build:`): log `config_unknown_key_ignored: {path}` to the session log, then ignore. Registered top-level keys for this document: `output_language`, `semantic_identity`, `build`. Any other top-level key (e.g., a typo like `output_langage`) is logged as unknown. Registered sub-keys are those shown in the schema example above; other sub-keys under `semantic_identity:` / `build:` are also logged as unknown. Preserves forward-compatibility while surfacing typos for post-hoc diagnosis.
+- **Unknown keys** at any level (top-level or under `semantic_identity:` / `reconstruct:`): log `config_unknown_key_ignored: {path}` to the session log, then ignore. Registered top-level keys for this document: `output_language`, `semantic_identity`, `reconstruct`. Any other top-level key (e.g., a typo like `output_langage`) is logged as unknown. Registered sub-keys are those shown in the schema example above; other sub-keys under `semantic_identity:` / `reconstruct:` are also logged as unknown. Preserves forward-compatibility while surfacing typos for post-hoc diagnosis.
 - **User-extension namespace**: keys matching `x-*` at any level, or nested under a top-level `custom:` block, are reserved for user/tool extensions. Runtime ignores them silently (no `config_unknown_key_ignored` warning), so integrators can annotate config without triggering forward-compat diagnostics.
 
 If coverage is unsatisfied (facts=0 but unexplored modules exist), Runtime Coordinator force-generates epsilons targeting unexplored modules (step 3e).
@@ -939,7 +939,7 @@ meta:
   # Lifecycle: reentry_count starts at 0 at first Phase 4 entry; incremented atomically with wip.yml fsync
   # (must survive Runtime crash/restart to prevent crash-restart loop bypass); cleared with phase3_user_responses on Save success.
   # Atomic-clear invariant: phase3_user_responses and phase4_runtime_state MUST be cleared in the same wip.yml
-  # rewrite that marks Save success. Partial clear (one but not the other) leaves the next /onto:build invocation
+  # rewrite that marks Save success. Partial clear (one but not the other) leaves the next /onto:reconstruct invocation
   # unable to distinguish completion from resumption; Runtime enforces this via a single atomic write.
   # Lifecycle of cumulative_unresolved_conflicts (Runtime-managed):
   #   - Appended by Runtime at end of each round (from Synthesize's unresolved_for_user).
@@ -975,7 +975,7 @@ elements:
 **Anonymized wip (version shared with lenses)**:
 - Version of wip.yml with the `labeled_by` field removed
 - Lenses know "which elements have already been identified" but not "who made the judgment"
-- This is a **build mode exception** to the "independence guarantee" principle in process.md: to ensure coverage completeness, the confirmed element list from previous rounds is shared, but the judgment author is hidden to mitigate anchoring bias
+- This is a **reconstruct mode exception** to the "independence guarantee" principle in process.md: to ensure coverage completeness, the confirmed element list from previous rounds is shared, but the judgment author is hidden to mitigate anchoring bias
 
 ---
 
@@ -1228,7 +1228,7 @@ When the exploration loop terminates, finalization is performed in 4 steps. No s
    - **Stage 1 bias** (denominator = `meta.stage1_module_inventory`):
      - Compute: stage1_module_inventory − modules with ≥1 Stage-1 fact → Stage 1 underexplored set
      - Per-module fact count distribution (Stage 1 facts only)
-     - Stage 1 threshold: `max(config.build.underexplored_threshold.min_floor, config.build.underexplored_threshold.ratio × median(Stage 1 per-module counts))`. Defaults: `min_floor: 2`, `ratio: 0.5` → `max(2, 0.5 × Stage1_median)`.
+     - Stage 1 threshold: `max(config.reconstruct.underexplored_threshold.min_floor, config.reconstruct.underexplored_threshold.ratio × median(Stage 1 per-module counts))`. Defaults: `min_floor: 2`, `ratio: 0.5` → `max(2, 0.5 × Stage1_median)`.
      - Each entry tagged `origin: stage1_module`.
    - **Stage 2 bias** (denominator = `meta.module_inventory` (Entity IDs)):
      - Compute: entity_inventory − entities with ≥1 state_transition/command/query fact referencing them → Stage 2 underexplored set
@@ -1376,9 +1376,9 @@ After 4b, Runtime also prepares the Phase 3 Unresolved Conflicts table using the
 - Phase 3.5 never executes (no trigger event).
 - Phase 4 never triggers (Phase 3.5 is the only path into it).
 - wip.yml remains in its post-Phase-2 state, preserved indefinitely in `{project}/.onto/builds/{session ID}/`.
-- **Resumption**: the user re-runs `/onto:build` with the same session directory. Runtime detects existing `wip.yml` without `phase3_user_responses` and re-enters Phase 3 (re-renders the same summary from the existing wip.yml). No build work is lost; only the Phase 3 prompt is re-issued.
-- **Resumption integrity check**: before re-entering any phase, Runtime reads and validates four artifacts — `schema.yml` (structural spec), `wip.yml` (build state, YAML-parse + meta presence), `deltas/` directory (non-empty, matches `meta.deltas` references), `session-log.yml` (YAML-parse if present). Any failure halts with `session_state_corrupt` (see registered codes table) and preserves the session directory untouched so the user can repair or discard.
-- **Alternative abort**: user can manually delete the session directory to abort the build.
+- **Resumption**: the user re-runs `/onto:reconstruct` with the same session directory. Runtime detects existing `wip.yml` without `phase3_user_responses` and re-enters Phase 3 (re-renders the same summary from the existing wip.yml). No reconstruct work is lost; only the Phase 3 prompt is re-issued.
+- **Resumption integrity check**: before re-entering any phase, Runtime reads and validates four artifacts — `schema.yml` (structural spec), `wip.yml` (reconstruct state, YAML-parse + meta presence), `deltas/` directory (non-empty, matches `meta.deltas` references), `session-log.yml` (YAML-parse if present). Any failure halts with `session_state_corrupt` (see registered codes table) and preserves the session directory untouched so the user can repair or discard.
+- **Alternative abort**: user can manually delete the session directory to abort the reconstruct.
 
 No implicit timeout or silent-promotion occurs — user authority over the Phase 3 decision is absolute.
 
@@ -1390,9 +1390,9 @@ After the user responds to Phase 3, Runtime Coordinator applies the user decisio
 
 1. **Unresolved conflicts table** — for each row:
    - If user selects **Position A** or **Position B**: update the corresponding `conflict` issue to `resolution: resolved`, record which position was chosen in `resolved_position: position_a | position_b`, and apply the chosen label to the target element via an `update` patch (no element mutation for epsilon conflicts — they do not correspond to elements).
-   - If user provides a **custom free-form resolution**: update the `conflict` issue to `resolution: user_resolved` with `resolution_text: {user's text}`. The target element itself is NOT mutated — the resolution_text is advisory context attached to the conflict issue only. Rationale: free-form text cannot be deterministically applied to a structured element field without re-invoking an LLM, which would reintroduce semantic judgment outside the build loop.
+   - If user provides a **custom free-form resolution**: update the `conflict` issue to `resolution: user_resolved` with `resolution_text: {user's text}`. The target element itself is NOT mutated — the resolution_text is advisory context attached to the conflict issue only. Rationale: free-form text cannot be deterministically applied to a structured element field without re-invoking an LLM, which would reintroduce semantic judgment outside the reconstruct loop.
    - If user **defers** (explicit `defer` response or if the conflict is unaddressed when the user replies `confirmed` globally): update the `conflict` issue to `resolution: user_deferred` and leave the target element in its pre-confirmation state.
-   - If user's response is **ambiguous or does not match any of the above patterns** (e.g., "kind of A and B combined", "A for subject X but B for Y", free-form note not clearly identifying a position): Runtime treats it as `user_resolved` with the raw reply preserved in `resolution_text`. The target element is NOT mutated. This default preserves the user's intent without silent misclassification as a specific position. Runtime may optionally log the ambiguity for post-build review.
+   - If user's response is **ambiguous or does not match any of the above patterns** (e.g., "kind of A and B combined", "A for subject X but B for Y", free-form note not clearly identifying a position): Runtime treats it as `user_resolved` with the raw reply preserved in `resolution_text`. The target element is NOT mutated. This default preserves the user's intent without silent misclassification as a specific position. Runtime may optionally log the ambiguity for post-reconstruct review.
 
 2. **User Decision Required Items (certainty-based)** — for each row:
    - If user confirms the proposed action: update the element's `certainty` and note the rationale in `user_confirmed_rationale`.
@@ -1453,7 +1453,7 @@ elements:
     name: {name}
     definition: {definition}
     certainty: {observed | rationale-absent | inferred | ambiguous | not-in-source}
-    # `pending` is intra-build only and must be resolved before raw.yml save.
+    # `pending` is intra-reconstruct only and must be resolved before raw.yml save.
     # Any element still at `pending` at Phase 4 is either escalated to the user
     # (as an unresolved item) or treated as `not-in-source` if the user defers.
     added_in_round: {round}
@@ -1525,7 +1525,7 @@ issues:
   - **Re-entry semantics**: On re-entry, Phase 3 re-renders only the remaining pending items (previously-resolved items are NOT re-shown). Phase 3.5 re-runs idempotently — prior decisions (resolved/user_resolved/user_deferred) are preserved; only the new decisions for previously-pending items are applied.
   - **user_deferred is terminal**: The bug-guard triggers ONLY on `resolution: pending`. `user_deferred` is a valid terminal state and does not trigger re-entry.
   - **Data-consistency escape hatch**: If on re-entry Phase 3's pending item count is 0 (no items to re-show) but the bug-guard still flags `resolution: pending` in wip.yml, halt immediately with error class `phase_3_5_invariant_violation` — without consuming a re-entry slot. Under current Phase 3.5 step 5 invariants, surviving `pending` always indicates a Runtime defect. This escape hatch distinguishes two defect patterns: "pending without any Phase 3 queue item" (halts on first detection as invariant violation) vs "pending persists across re-entries despite Phase 3.5 terminalization" (consumes re-entries until bound, see `phase_reentry_bound_exhausted` below). Both require Runtime-level investigation, not additional user input.
-  - **Re-entry bound**: `config.build.max_phase4_reentries` (default 2) re-entries per Phase 4 attempt. Counter stored as `meta.phase4_runtime_state.reentry_count` (persists across Runtime restarts to prevent crash-restart loop bypass).
+  - **Re-entry bound**: `config.reconstruct.max_phase4_reentries` (default 2) re-entries per Phase 4 attempt. Counter stored as `meta.phase4_runtime_state.reentry_count` (persists across Runtime restarts to prevent crash-restart loop bypass).
   - **Counter increment timing**: Runtime increments `reentry_count` by 1 **immediately upon bug-guard detecting `resolution: pending`, atomically with a wip.yml fsync, BEFORE issuing the Phase 3 re-render prompt**. This ordering ensures that a crash between detection and re-render does not bypass the bound (after restart, the counter already reflects the detection).
   - **Bound semantics**: `max_phase4_reentries: N` means the counter MAY reach N; at `reentry_count == N` with pending still remaining after the N-th re-entry's Phase 3.5 completes, halt with `phase_reentry_bound_exhausted`. Per Phase 3.5 step 5 invariants, surviving `pending` after a full Phase 3.5 pass indicates a Runtime defect; the bound exists to prevent infinite re-entry loops while surfacing the defect for investigation. Default N=2 → up to 2 re-entries allowed; 3rd detection of pending halts. (Prior name `phase_3_5_defect_unresolvable` was retired when the registry consolidated on `phase_reentry_bound_exhausted`.)
 - `meta.cumulative_unresolved_conflicts` is dropped at save (see its lifecycle comment in the wip.yml schema). User-deferred items persist via `raw.yml.issues[]` instead.
@@ -1572,7 +1572,7 @@ Fix the config file and re-run. No session state was written (halt fires before 
 [HALT: phase_3_5_invariant_violation at phase_4]
 Runtime bug: Phase 3.5 reported `resolution: pending` with no Phase 3 pending items to re-render.
 Preserved: wip.yml at {wip_path}, session-log.yml at {log_path}.
-Report this bug with the session directory attached. Do not re-run /onto:build on this session — state is inconsistent.
+Report this bug with the session directory attached. Do not re-run /onto:reconstruct on this session — state is inconsistent.
 ```
 
 `phase_reentry_bound_exhausted` (phase_4):
@@ -1580,7 +1580,7 @@ Report this bug with the session directory attached. Do not re-run /onto:build o
 [HALT: phase_reentry_bound_exhausted at phase_4]
 Phase 4 bug-guard detected `resolution: pending` on {reentry_count}/{max_phase4_reentries} re-entries; the re-entry bound is exhausted with pending still remaining.
 Preserved: wip.yml at {wip_path} (pre-Save state; raw.yml is NOT written by this halt), session-log.yml at {log_path}.
-Per Phase 3.5 step 5 invariants, surviving `pending` indicates a Runtime defect (Phase 3.5 did not terminalize as expected). Report the session directory as a bug and start a new /onto:build session; do not resume this one.
+Per Phase 3.5 step 5 invariants, surviving `pending` indicates a Runtime defect (Phase 3.5 did not terminalize as expected). Report the session directory as a bug and start a new /onto:reconstruct session; do not resume this one.
 ```
 
 `explorer_failure` (phase_1):
@@ -1588,7 +1588,7 @@ Per Phase 3.5 step 5 invariants, surviving `pending` indicates a Runtime defect 
 [HALT: explorer_failure at phase_1]
 Explorer failed mid-exploration (stage {stage}, round {round}): {explorer_error}
 Preserved: session directory at {session_dir} (partial wip.yml retained for debugging).
-Start a new /onto:build session on the same target; the partial session is not resumable.
+Start a new /onto:reconstruct session on the same target; the partial session is not resumable.
 ```
 
 `runtime_coordinator_failure` (phase_1):
@@ -1605,7 +1605,7 @@ Report this bug with the session directory; investigate Runtime implementation b
 Session state at {session_dir} failed integrity check on resumption.
 Cause: {wip_malformed | deltas_missing | session_log_corrupt | schema_missing}
 Preserved: session directory (not modified by this halt).
-Either delete the session directory and start a new build, or repair the affected file manually and re-run.
+Either delete the session directory and start a new reconstruct, or repair the affected file manually and re-run.
 ```
 
 **Registered error/warning codes** (this document's canonical enumeration; extensible via additions to this list):
@@ -1680,7 +1680,7 @@ Save path:
 
 ## Domain Document Integrity Rules
 
-본 절은 build process 가 domain document 를 input 으로 소비하거나, domain document 확장 작업 (생성, Stage 3 coverage expansion, Stage 4 protocol extension 등) 을 수행할 때 적용되는 canonical process rule seat 이다. 구체 domain (software-engineering, business, ui-design 등) 적용은 이 규칙의 instance 이며, 규칙 자체는 domain 중립이다.
+본 절은 reconstruct process 가 domain document 를 input 으로 소비하거나, domain document 확장 작업 (생성, Stage 3 coverage expansion, Stage 4 protocol extension 등) 을 수행할 때 적용되는 canonical process rule seat 이다. 구체 domain (software-engineering, business, ui-design 등) 적용은 이 규칙의 instance 이며, 규칙 자체는 domain 중립이다.
 
 ### P-1. Cross-Reference Integrity Check (교차 참조 무결성 점검 단계)
 
@@ -1706,9 +1706,9 @@ domain document 확장 직후 또는 domain document 변경 시, review 단계�
 
 본 규칙은 점검 **축** 의 canonical seat 이며, checklist 의 owner seat 는 `processes/review/lens-prompt-contract.md §7` 이다. 동일 점검 축이 다른 문서에 normative 로 존재하면 authority violation 이다.
 
-실행 시점: domain document 변경 시 (매 build 세션 이 아님).
+실행 시점: domain document 변경 시 (매 reconstruct 세션 이 아님).
 
-P-2 와 P-1 의 역할 분리: P-1 은 build/extend 직후의 process gate (생산 시점), P-2 는 review-time 의 lens 공통 점검 (소비 시점). 두 gate 가 동일 cross-ref 점검을 중복 수행하지 않도록 실행 시점이 분리된다.
+P-2 와 P-1 의 역할 분리: P-1 은 reconstruct/extend 직후의 process gate (생산 시점), P-2 는 review-time 의 lens 공통 점검 (소비 시점). 두 gate 가 동일 cross-ref 점검을 중복 수행하지 않도록 실행 시점이 분리된다.
 
 근거: BL-086, philosopher_synthesis CC-3 (4/4 합의).
 
@@ -1733,15 +1733,15 @@ domain document refactoring 을 두 편집 축 (간결성 cleanup — 제거/병
 
 ## Change Propagation Checklist
 
-When modifying this file (build.md), the following documents must be synchronized:
+When modifying this file (reconstruct.md), the following documents must be synchronized:
 
 | Document | Sections to Synchronize |
 |---|---|
 | `README.md` | Line 3 (description), agent table, "Ontology Build" section, certainty description, directory structure |
-| `BLUEPRINT.md` | Section 2 (term definitions), Section 3.6 (Explorer), Section 4.3 (build), certainty table, directory structure, MCP interface |
+| `BLUEPRINT.md` | Section 2 (term definitions), Section 3.6 (Explorer), Section 4.3 (reconstruct), certainty table, directory structure, MCP interface |
 | `process.md` | Certainty-related content in Teammate prompt template, agent-domain document mapping, "verification agent" → "lens" terminology |
-| `explorers/*.md` | Source-type profiles — if certainty level names/formats in build.md change, synchronize the examples in the profiles |
-| `src/core-runtime/cli/coordinator-state-machine.ts` | Add `awaiting_adjudication` state for build mode pipeline |
+| `explorers/*.md` | Source-type profiles — if certainty level names/formats in reconstruct.md change, synchronize the examples in the profiles |
+| `src/core-runtime/cli/coordinator-state-machine.ts` | Add `awaiting_adjudication` state for reconstruct mode pipeline |
 | `.sprint-kit.yaml` / config | Schema negotiation (Phase 0) 변경 시 config 파일의 schema 옵션·기본값 동기화 |
 | `golden/schema-*.yml` | Schema 구조(필드, 타입, 필수값) 변경 시 golden fixture 의 스키마 정합 확인 |
 | `authority/core-lexicon.yaml` | 용어 정의(certainty level, fact_type 등) 변경 시 lexicon term 동기화 (W-D-01 provisional_lifecycle 참조) |

@@ -732,11 +732,11 @@ elements:
     rationale_ref: inf-ratl-001     # ❌ FORBIDDEN
 ```
 
-이런 reference가 발견되면 build process가 **fail-close**.
+이런 reference가 발견되면 reconstruct process가 **fail-close**.
 
 ### 4.3 Validation Checks (Build-time Enforcement)
 
-build process의 Phase 2 finalization 단계에 **boundary validator**를 추가:
+reconstruct process의 Phase 2 finalization 단계에 **boundary validator**를 추가:
 
 ```python
 def validate_layer_boundary(gt_yml_path, inference_yml_path):
@@ -1484,7 +1484,7 @@ print(format_for_user(result))
 **정의**: 사용자(=주체자)에게 ontology 정보를 제시하는 인터페이스.
 
 **예시**:
-- Phase 3 user confirmation report (build process 출력)
+- Phase 3 user confirmation report (reconstruct process 출력)
 - `/onto:transform --html` 결과 (HTML interactive viz)
 - `/onto:transform --wiki` 결과
 - Onto IDE plugin UI

@@ -284,7 +284,7 @@ canonical entrypoint path로 연결할 수 있어야 한다.
 
 1. 현재 프로토타입에서 가장 핵심적인 주체자 가치가 `review`에 있다
 2. `review`는 `LLM` 판단과 결정론적 계약 실행 경계를 가장 선명하게 나눌 수 있다
-3. `review`를 정리하면 이후 `build`, `learn`, `govern`에도 공통 구조를 이식할 수 있다
+3. `review`를 정리하면 이후 `reconstruct`, `learn`, `govern`에도 공통 구조를 이식할 수 있다
 
 따라서 현재 1순위는:
 
@@ -432,7 +432,7 @@ canonical execution profile은 아래 두 축으로 표현한다.
 2. prompt-backed path가 실제 artifact를 만든다
 3. bounded runtime replacement가 같은 artifact를 쓴다
 4. `review`의 live path가 legacy wording이 아니라 canonical live truth를 따른다
-5. 이후 `build`, `learn`, `govern`도 같은 방법론으로 확장 가능하다
+5. 이후 `reconstruct`, `learn`, `govern`도 같은 방법론으로 확장 가능하다
 
 ---
 
@@ -508,7 +508,7 @@ canonical execution profile은 아래 두 축으로 표현한다.
 | 영역 | 결정 | 이유 |
 |---|---|---|
 | Lens semantic grounding (Obrst L1, OntoClean Rigidity/Identity, Gomez-Perez 등) | authority 외 (`development-records/reference/`) | review-first productization은 lens 의미 근거를 외부 ontology 평가 framework가 아니라 `core-lens-registry.yaml` (lens 설정)과 `core-lexicon.yaml` (개념 SSOT)로 한정한다. 외부 framework 매핑이 다시 필요해지면 별도 reference seat를 추가한다 |
-| 비-`review` 프로세스/시스템 authority surface (team review, ontology build, learning promotion 등의 deep authority) | 당분간 de-scope | 현재 productization은 `review-first` 단계이며 `build/learn/govern`은 same methodology로 확장 가능함을 §14 Success Criteria 항목 5에서 선언하지만 authority deep coverage는 review가 닫힌 후로 미룬다. legacy surface는 `translation-reference.yaml`(legacy aid)과 `BLUEPRINT.md`(legacy/reference)에 남아 있음 |
+| 비-`review` 프로세스/시스템 authority surface (team review, ontology build, learning promotion 등의 deep authority) | 당분간 de-scope | 현재 productization은 `review-first` 단계이며 `reconstruct/learn/govern`은 same methodology로 확장 가능함을 §14 Success Criteria 항목 5에서 선언하지만 authority deep coverage는 review가 닫힌 후로 미룬다. legacy surface는 `translation-reference.yaml`(legacy aid)과 `BLUEPRINT.md`(legacy/reference)에 남아 있음 |
 | `agent panel + Philosopher` 모델 | de-canonicalized | §10에서 명시. legacy `BLUEPRINT.md`에 historical record로 남아 있음 |
 
 ### Reshuffle 2026-04-07

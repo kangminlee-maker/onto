@@ -125,7 +125,7 @@ relation_names:
 
 ### 해소 기록 (DL-013/014, 2026-04-13T15:30, M-04 Phase A)
 
-**DL-013 resolution_note**: DR-M04-01 으로 해소. `authority/core-lexicon.yaml` v0.6.0 에 `activity_enum` term 추가 (`allowed_values: [review, design, reconstruct, learn, govern]` + legacy_aliases `build→reconstruct`, `ask→retired`) + `axis_enum` term 추가 (`allowed_values: [A, B, C, D]` + 축 간 의존 notes). M-04 Phase A task schema 의 `depends_on` 필드는 `20260413-onto-todo.md#§1.1` 에 slot 예약 완료 — 각 원소 regex `^(W-[ABCD]-\d{2}|BL-\d{3}|DL-\d{3})$`, 값은 M-05 Pre-draft Dependency Modeling 에서 채움. 본 DL 의 "canonical 참조 정렬" 은 DR-M04-01 + `20260413-onto-todo.md` frontmatter `activity_enum_ref` + `axis_enum_ref` 의 3지점 정렬로 완결.
+**DL-013 resolution_note**: DR-M04-01 으로 해소. `authority/core-lexicon.yaml` v0.6.0 에 `activity_enum` term 추가 (`allowed_values: [review, evolve, reconstruct, learn, govern]` + legacy_aliases `build→reconstruct`, `ask→retired`) + `axis_enum` term 추가 (`allowed_values: [A, B, C, D]` + 축 간 의존 notes). M-04 Phase A task schema 의 `depends_on` 필드는 `20260413-onto-todo.md#§1.1` 에 slot 예약 완료 — 각 원소 regex `^(W-[ABCD]-\d{2}|BL-\d{3}|DL-\d{3})$`, 값은 M-05 Pre-draft Dependency Modeling 에서 채움. 본 DL 의 "canonical 참조 정렬" 은 DR-M04-01 + `20260413-onto-todo.md` frontmatter `activity_enum_ref` + `axis_enum_ref` 의 3지점 정렬로 완결.
 
 **DL-014 resolution_note**: DR-M04-02 로 해소. frontmatter 필드 `activity_enum_ref` + `axis_enum_ref` 의무화 규약 수립. 값 형식: `authority/core-lexicon.yaml#<term_id>.v<lexicon_version>`. `20260413-onto-todo.md` 초판 frontmatter 에 신규 형식으로 반영 완료. 기존 consolidated v3.2 의 `#§1.2` / `#§1.5` 형식 은 legacy 호환 기간 (v3.3 재revision 또는 M-08 일괄 교체) 까지 병존 허용. lexicon_version bump 규약 (additive=minor, breaking=major) + Expansion Protocol Migration Contract (v5.1 meta) 연계.
 

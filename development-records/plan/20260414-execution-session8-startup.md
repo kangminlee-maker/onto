@@ -164,7 +164,7 @@ cat authority/core-lexicon.yaml                                      # v0.9.5 (W
 ## 7. 참조 memory
 
 - `project_execution_phase_progress.md` — 세션 7 종료 시점 55/141
-- `project_onto_direction.md` — §1.2 활동 분류 (5 activities: review/reconstruct/learn/govern/design)
+- `project_onto_direction.md` — §1.2 활동 분류 (5 activities: review/reconstruct/learn/govern/evolve)
 - `feedback_end_of_session_seat_sync.md` — W-ID 완료 commit 에 seat 갱신 포함 필수
 
 ## 8. 세션 7 lesson (memory 후보)

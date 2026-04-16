@@ -318,19 +318,19 @@ provisional_terms:
       registered_date: "2026-04-14"
       definition_draft: >
         reconstruct 활동의 CLI 관찰 가능 3-step bounded path (start → explore → complete).
-        review 3-step 과 대응하며, build runtime 의 RECONSTRUCT_TRANSITIONS 전체 상태 머신과는
+        review 3-step 과 대응하며, reconstruct runtime 의 RECONSTRUCT_TRANSITIONS 전체 상태 머신과는
         구별되는 public surface. session-level state 는 reconstruct-state.json 단일 파일로 관리한다.
-        없으면 build runtime 방법론 호출 경로가 ad-hoc 이어서 post-PR 결함 cluster (build-runtime 40 BL) 의
+        없으면 reconstruct runtime 방법론 호출 경로가 ad-hoc 이어서 post-PR 결함 cluster (reconstruct-runtime 40 BL) 의
         구조적 원인이 유지된다.
       evidence:
         - "commands/reconstruct.md (CLI entry 문서)"
         - "src/core-runtime/evolve/commands/reconstruct.ts (handler)"
         - "src/core-runtime/evolve/commands/reconstruct.test.ts (17 tests)"
-        - "processes/reconstruct.md §'Naming: reconstruct (activity) vs build (process)' 섹션"
+        - "processes/reconstruct.md (activity=reconstruct, process_name=reconstruct)"
       notes:
         - "DL-020 해소"
         - "§1.4 reconstruct 완료 기준 3축 (초안·why 추정·Principal 검증) 이 3-step 에 매핑됨"
-        - "build runtime 의 실제 Explorer/lens loop 은 후속 W-ID 범위"
+        - "reconstruct runtime 의 실제 Explorer/lens loop 은 후속 W-ID 범위"
     invoke_surface:
       term_id: invoke_surface
       lifecycle_status: seed
@@ -373,7 +373,7 @@ provisional_terms:
 # M-04-A 추가(2026-04-13): activity_enum + axis_enum taxonomy term.
 # §1 정본 §1.2/§1.5 동기화 목적 — 기존 entrypoint entity (review instance 만 상세) 는 유지.
 # entrypoint.instances 를 §1.2 5 활동 (reconstruct 추가, ask 폐기) 에 정렬하는 작업은 Stage 3 scope.
-# build, ask, learn, govern, design의 고유 개념(process entity, dispatch target 등)은
+# reconstruct, ask, learn, govern, evolve의 고유 개념(process entity, dispatch target 등)은
 # Stage 3에서 추가. 이 scope 경계는 의도적이며, 비-review 개념의 부재는 누락이 아님.
 
 entities:
@@ -568,11 +568,11 @@ entities:
         definition: "9-lens 구조로 검증"
         relations:
           - { type: dispatches, target: review_process }
-      build:
-        definition: "지식을 구조화된 artifact로 구축"
+      reconstruct:
+        definition: "product로부터 ontology를 역설계하여 구축"
         notes:
           - "dispatch target: deferred to Stage 3 (intentional, not modeling omission)"
-          - "activity_enum cross-ref (v0.6.1): `build` 는 activity_enum.legacy_aliases 에서 retire_kind=renamed, canonical_replacement=reconstruct. 본 instance 의 Stage 3 align 시 definition 은 reconstruct 로 이관 예정 (§1.2 정본 정렬). 현재는 entrypoint.instances 고정 scope 보호."
+          - "W-A-77 rename (2026-04-14): build → reconstruct. §1.2 정본 정렬 완료. legacy alias는 activity_enum.legacy_aliases에 보존."
       ask:
         definition: "특정 관점에서 질의에 답변"
         notes:
@@ -911,7 +911,7 @@ terms:
     term_status: "active"
     definition: "Runtime state machine that deterministically enforces review process state transitions. Not an orchestrator — executes pre-fixed rules, not semantic judgment."
     notes:
-      - "Review process only. build/learn/govern extensions require separate design."
+      - "Review process only. reconstruct/learn/govern extensions require separate design."
       - "9 states (auto 3, await 3, terminal 3), 12 edges."
   - term_id: "auto_state"
     canonical_label: "auto_state"
@@ -944,7 +944,7 @@ terms:
     term_status: "active"
     definition: "The existing system (code, spreadsheet, document, etc.) to which design adds new areas."
     notes:
-      - "build's analysis target and design_target can refer to the same system, but the relationship is contextual, not definitional."
+      - "reconstruct's analysis target and design_target can refer to the same system, but the relationship is contextual, not definitional."
   - term_id: "outcome"
     canonical_label: "outcome"
     korean_label: "결과"
@@ -958,7 +958,7 @@ terms:
     term_status: "active"
     definition: "A partial scope of the design target relevant to the goal. The unit that partitions exploration range in Phase 2."
     notes:
-      - "Different from domain (knowledge system applied to review/design). One domain may contain multiple areas; one area may span multiple domains."
+      - "Different from domain (knowledge system applied to review/evolve). One domain may contain multiple areas; one area may span multiple domains."
   - term_id: "design_constraint"
     canonical_label: "design_constraint"
     korean_label: "설계 제약"

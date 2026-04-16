@@ -1,109 +1,147 @@
 ---
-version: 1
-last_updated: "2026-03-29"
-source: setup-domains
+version: 2
+last_updated: "2026-04-16"
+source: manual
 status: established
 ---
 
 # Visual Design Domain — Concept Dictionary and Interpretation Rules
 
+Classification axis: **Visual design concern** — classified by the design concern each term addresses. Each term is tagged with its abstraction layer: [L1] Standard/Specification, [L2] Principle/Convention, [L3] Practice/Tool-Specific.
+
+## Abstraction Layer Reference
+
+- **[L1] Standard/Specification**: Elements defined by W3C, ISO, ICC, or platform specifications. Exist as codified standards with formal versioning. Example: WCAG contrast ratio 4.5:1 is L1 — it is a published specification with legal enforcement in some jurisdictions.
+- **[L2] Principle/Convention**: Design principles and conventions widely adopted by practice. No formal specification enforcement — adherence depends on design review and team discipline. Example: the 60-30-10 color ratio rule is L2 — widely taught and applied but not codified in any standard.
+- **[L3] Practice/Tool-Specific**: Terms belonging to specific tools, workflows, or organizational practices. Example: Figma component variants are L3 — they are a tool-specific implementation of the general concept of component variations.
+
+**[L1]/[L2] boundary**: W3C/ISO/ICC defines → [L1]. Applied by convention without specification → [L2]. When a spec defines a capability (L1) but effective use requires a design principle, both layers noted.
+
+**Tier × L relationship**: Normative tiers (domain_scope.md [Tier-1a/1b/2/3]) and abstraction layers ([L1/L2/L3]) are independently defined. See domain_scope.md §Relationship Between Tier and Abstraction Layer for the occupied combinations.
+
 ## Composition Principle Core Terms
 
-- Visual Hierarchy = a system that conveys the order of information importance using visual means such as size, color, contrast, and position. Intentionally designing the user's gaze movement path
-- Gestalt Principles = principles about how humans perceive visual elements as groups. Proximity, Similarity, Continuity, Closure, Figure-Ground separation
-- CRAP Principles = Contrast, Repetition, Alignment, Proximity. Four layout principles for non-designers organized by Robin Williams
-- Negative Space (whitespace) = empty areas where no design elements are placed. When used intentionally, it serves as visual breathing room, element relationship clarification, and gaze guidance. Not "empty" but "intentionally left empty"
-- Golden Ratio (1:1.618) = a ratio observed in nature and classical art. Used as a reference point for visual balance in layout, type scale, and image composition
-- Rule of Thirds = a composition technique where the screen is divided into 3 equal horizontal and vertical sections, placing key elements at intersection points
+- [L2] Visual Hierarchy = a system that conveys the order of information importance using visual means such as size, color, contrast, and position. Intentionally designing the user's gaze movement path. Multiple means combined create stronger hierarchy than any single means alone
+- [L2] Gestalt Principles = principles about how humans perceive visual elements as groups. Six principles: Proximity (closer = related), Similarity (visually alike = related), Continuity (aligned = related), Closure (incomplete shapes perceived as whole), Figure-Ground (separation of foreground from background), Common Fate (elements moving together = related). Wertheimer (1923), formalized by Koffka (1935)
+- [L2] CRAP Principles = Contrast, Repetition, Alignment, Proximity. Four layout principles for non-designers organized by Robin Williams ("The Non-Designer's Design Book," 1994). Overlap with Gestalt is intentional — CRAP operationalizes Gestalt for layout decisions
+- [L2] Negative Space (whitespace) = empty areas where no design elements are placed. When used intentionally, it serves as visual breathing room, element relationship clarification, and gaze guidance. Not "empty" but "intentionally left empty." Active whitespace (deliberately placed for emphasis) vs passive whitespace (natural margins)
+- [L2] Golden Ratio (1:1.618) = a ratio observed in nature and classical art (phi, Fibonacci). Used as a reference point for visual balance in layout, type scale, and image composition. Not a universal rule — empirical support is mixed, but a useful starting point
+- [L2] Rule of Thirds = a composition technique where the screen is divided into 3 equal horizontal and vertical sections, placing key elements at intersection points. Derived from photography and painting; in UI, it guides hero section composition and landing page focal points
+- [L2] Visual Weight = the perceived importance or dominance of an element. Determined by size, color saturation, contrast with surroundings, complexity, and isolation. Larger, darker, more saturated, more complex, and more isolated elements carry more visual weight
+- [L2] F-pattern / Z-pattern = empirical gaze movement patterns. F-pattern: text-heavy pages scanned top→left→down (Nielsen, 2006 eye-tracking study). Z-pattern: image-heavy pages scanned top-left→top-right→bottom-left→bottom-right. Layout should place critical information along these paths
 
 ## Typography Core Terms
 
-- Typeface = the entire family of characters designed under the same design principles. Helvetica, Noto Sans, etc.
-- Font = a specific weight, style, and size combination of a typeface. Helvetica Bold 16px is one font
-- Type Scale = a size step system generated by applying a ratio to the body size as the base. Examples: Minor Third (1.2), Major Third (1.25), Perfect Fourth (1.333)
-- Line-height = the vertical spacing between text lines. Body text at 1.4~1.6x and headings at 1.1~1.3x are general readability standards
-- Letter-spacing = the horizontal spacing between characters. Distinguish between kerning (specific character pairs) and tracking (entire text)
-- Readability = the degree of comfort in reading a block of text. Affected by line-height, measure (line length), and alignment method
-- Legibility = the degree to which individual characters can be distinguished and recognized. Affected by typeface characteristics (x-height, counter, stroke contrast)
-- Measure (line length) = the width of a single line of text. Optimal readability range: 45~75 characters for English, 25~35 characters for Korean/CJK
+- [L2] Typeface = the entire family of characters designed under the same design principles. Helvetica, Noto Sans, Source Han Sans. Typeface is the "design"; font is the specific "file" or "instance"
+- [L2] Font = a specific weight, style, and size combination of a typeface. Helvetica Bold 16px is one font. In digital design, the distinction has blurred — "font" is colloquially used for both
+- [L2] Type Scale = a size step system generated by applying a ratio to the body size as the base. Common ratios: Minor Third (1.2), Major Third (1.25), Perfect Fourth (1.333), Golden Ratio (1.618). Chosen ratio affects visual rhythm — tighter ratios for compact interfaces, wider ratios for dramatic hierarchy
+- [L2] Line-height (leading) = the vertical spacing between text baselines. Body text at 1.4~1.6× and headings at 1.1~1.3× are general readability standards. Too tight causes line collision; too loose breaks inter-line cohesion
+- [L2] Letter-spacing (tracking) = the uniform horizontal spacing adjustment across entire text. Distinct from kerning (specific character pairs). Headings often benefit from tighter tracking; small/uppercase text from wider tracking
+- [L2] Readability = the degree of comfort in reading a block of text. Affected by line-height, measure (line length), alignment, foreground-background contrast, and surrounding whitespace. A property of text blocks, not individual characters
+- [L2] Legibility = the degree to which individual characters can be distinguished and recognized. Affected by typeface characteristics: x-height (proportion of lowercase to uppercase), counter (enclosed space in letters like 'o', 'e'), stroke contrast. A property of the typeface design itself
+- [L2] Measure (line length) = the width of a single line of text. Optimal readability range: 45~75 characters for English, 25~35 characters for Korean/CJK. Too long: eye loses track of next line. Too short: excessive line breaks disrupt reading
+- [L1] Variable Font = a single font file containing multiple axes of variation (weight, width, slant, optical size). W3C OpenType specification 1.8 (2016). Reduces file count and enables fluid interpolation between styles. Axes: `wght`, `wdth`, `ital`, `slnt`, `opsz`
+- [L2] Optical Size = adjusting letterform details based on display size. Small sizes: larger x-height, wider counters, heavier strokes for legibility. Large sizes: finer strokes, tighter spacing for elegance. Variable font `opsz` axis automates this
 
 ## Color Core Terms
 
-- Color Wheel = a tool representing color relationships in a circular format. The basis for deriving harmony relationships such as complementary, analogous, and triadic combinations
-- Hue = the type of color (red, blue, etc.). Position on the color wheel
-- Saturation = the vividness of a color. Higher values are closer to pure color; lower values are closer to neutral gray
-- Lightness/Value = the brightness of a color. Higher values approach white; lower values approach black
-- Contrast Ratio = the relative brightness difference between foreground and background colors. WCAG criteria: 4.5:1 or above for normal text, 3:1 or above for large text
-- Semantic Color = colors with functional meaning assigned. success (green), error (red), warning (yellow), info (blue), etc. Named by meaning, not raw color values
-- Color Token = a variable that abstracts color values. A 2-layer structure of Primitive tokens (blue-500) and Semantic tokens (color-error)
-- 60-30-10 Rule = the color ratio rule of primary 60%, secondary 30%, accent 10%. An empirical rule for maintaining visual balance and hierarchy
+- [L2] Color Wheel = a tool representing color relationships in a circular format. Basis for harmony: complementary (opposite), analogous (adjacent), triadic (equilateral triangle), split-complementary (one base + two adjacent to its complement). Newton (1666); Itten's 12-hue wheel (1961)
+- [L1] Color Space = a mathematical model defining a range of representable colors. sRGB (standard web, 8-bit per channel), Display P3 (wider gamut, Apple devices since 2016), Adobe RGB (print/photography). Specifying color space prevents cross-device color shift. ICC profiles standardize conversion
+- [L2] Hue = the type of color (red, blue, yellow). Position on the color wheel, measured in degrees (0°=red, 120°=green, 240°=blue in HSL)
+- [L2] Saturation = the vividness of a color. 100% = pure hue; 0% = neutral gray. High saturation for accents; low saturation for backgrounds and large areas
+- [L2] Lightness/Value = the brightness of a color. 100% = white; 0% = black. Controls visual weight and hierarchy. Lightness steps must be perceptually even (not mathematically even)
+- [L1] Contrast Ratio = the relative luminance difference between foreground and background colors, calculated per WCAG 2.x formula. Criteria: normal text 4.5:1 (AA), 7:1 (AAA); large text (18px+ or 14px bold+) 3:1 (AA), 4.5:1 (AAA); UI components and graphical objects 3:1 (WCAG 2.1 SC 1.4.11)
+<!-- derived-from: WCAG 2.2, SC 1.4.3, 1.4.6, 1.4.11 -->
+- [L2] Semantic Color = colors with functional meaning assigned. success (green), error (red), warning (yellow/amber), info (blue). Named by meaning, not raw value. Semantic colors decouple visual intent from specific hue — enabling theme switching
+- [L3] Color Token = a variable that abstracts color values into a design system. Two-layer minimum: Primitive (blue-500, gray-100) and Semantic (color-error, color-surface-primary). Three-layer with Component tokens (button-bg-primary). See structure_spec.md §Token Layer Structure
+- [L2] 60-30-10 Rule = empirical color ratio: dominant 60% (backgrounds, large surfaces), secondary 30% (supporting elements), accent 10% (CTAs, highlights). Maintains visual balance and clear hierarchy. Not a rigid formula — proportions vary by context
+- [L2] Tonal Palette = a set of lightness/darkness variations of a single hue. Material Design 3 generates tonal palettes algorithmically from a key color. Used for maintaining harmony across light/dark themes while preserving contrast
 
 ## Layout Core Terms
 
-- Grid System = a structural framework for aligning and placing content. Composed of columns, gutters, and margins
-- Column Grid = a grid that divides the screen into vertical columns. 12 columns are versatile (divisible by 2, 3, 4, 6)
-- Modular Grid = a grid composed of modules by combining vertical columns and horizontal rows
-- Gutter = the spacing between columns. Provides visual separation between content blocks
-- Breakpoint = the viewport width threshold at which layout changes in responsive design
-- Responsive Design = a design approach where layout fluidly adapts to viewport size
-- Adaptive Design = a design approach where layout discretely switches at pre-defined breakpoints
+- [L2] Grid System = a structural framework for aligning and placing content. Composed of columns, gutters, and margins. Purpose: consistent alignment, predictable content placement, scalable layouts
+- [L2] Column Grid = a grid dividing the screen into vertical columns. 12-column grid is versatile (divisible by 2, 3, 4, 6). 4-column for mobile, 8-column for tablet, 12-column for desktop
+- [L2] Modular Grid = a grid combining vertical columns and horizontal rows to create modules. More rigid than column grids; useful for image-heavy layouts and dashboards
+- [L2] Gutter = the spacing between columns. Provides visual separation. Gutter width must be less than margin width — otherwise content blocks appear more separated from each other than from the page edge
+- [L2] Breakpoint = the viewport width threshold at which layout changes. Content-driven, not device-driven — breakpoints should be where the layout breaks, not where a specific device starts
+- [L2] Responsive Design = a design approach where layout fluidly adapts to viewport size using flexible grids and media queries. Ethan Marcotte (2010). Same content structure, different visual presentation
+- [L2] Adaptive Design = a design approach where layout discretely switches at pre-defined breakpoints. Distinct layouts per range rather than fluid scaling
+- [L2] Baseline Grid = a horizontal grid based on the line-height of body text. All vertical spacing aligns to multiples of this baseline. Creates vertical rhythm — a sense of visual order across the page
+- [L2] Spatial System = a comprehensive spacing scale derived from a base unit (typically 4px or 8px). Defines all permissible spacing values: 4, 8, 12, 16, 24, 32, 48, 64, 96px. Values outside the scale are prohibited without documented exception
 
 ## Design System Core Terms
 
-- Design Token = an abstraction of design decisions into atomic, shareable units across code and design tools. Includes color, size, spacing, shadow, motion, etc.
-- Primitive Token = the lowest-level token that expresses the value itself as its name. Example: blue-500, spacing-16
-- Semantic Token = a token that expresses usage/meaning as its name. Example: color-primary, spacing-component-gap. References a primitive token
-- Component Token = a token limited to a specific component. Example: button-bg-primary. References a semantic token
-- Atomic Design = Brad Frost's 5-layer component composition methodology. Atom (button, input field) → Molecule (search bar) → Organism (header) → Template (page layout) → Page (actual content)
-- Variant = a visual/functional variation of the same component. Size (small/medium/large), style (primary/secondary/ghost), state (default/hover/active/disabled)
-- Design System Governance = the procedures for adding, changing, and deprecating tokens/components, contribution rules, and version management policies
+- [L3] Design Token = atomic named value storing a design decision. Jina Anne (Salesforce Lightning, 2014). Encodes color, spacing, typography, shadow, border-radius, z-index, motion as platform-agnostic key-value pairs. Single update propagates everywhere
+- [L3] Primitive Token = lowest-level token expressing the value itself as its name. Example: `blue-500`, `spacing-16`, `shadow-sm`. Raw palette values without contextual meaning
+- [L3] Semantic Token = token expressing usage/meaning as its name. Example: `color-primary`, `color-error`, `spacing-component-gap`. References a primitive token. Enables theme switching by remapping semantic→primitive references
+- [L3] Component Token = token limited to a specific component. Example: `button-bg-primary`, `input-border-focus`. References a semantic token. Provides component-level overrides without breaking the global system
+- [L2] Atomic Design = Brad Frost's 5-layer component composition methodology (2013). Atom (button, icon, label) → Molecule (search bar, form field) → Organism (header, card list) → Template (page layout) → Page (actual content). Provides a shared vocabulary for component granularity
+- [L2] Variant = a visual/functional variation of the same component. Axes of variation: Size (small/medium/large), Style (primary/secondary/ghost/destructive), State (default/hover/active/disabled). Each variant must be documented with usage criteria
+- [L3] Design System Governance = procedures for adding, changing, and deprecating tokens/components. Includes contribution model, review process, version management (semantic versioning for breaking changes), and adoption tracking
+- [L3] Figma Component = Figma's implementation of reusable design elements. Variants panel, auto-layout, component properties. Tool-specific — not identical to code components. Synchronization frequency and acceptable discrepancy range between Figma and code must be defined
+- [L2] Design System Maturity = L1 style guide → L2 pattern library → L3 full system (tokens, governance) → L4 infrastructure (tooling, metrics, automated enforcement). Most organizations plateau at L2
 
 ## Accessibility Core Terms
 
-- WCAG = Web Content Accessibility Guidelines, published by W3C. Three conformance levels: Level A (minimum), AA (standard), AAA (enhanced)
-- Perceivable = the first of the 4 WCAG principles. Information and interface elements must be perceivable by users
-- Color Blindness = a visual characteristic where certain colors cannot be distinguished. Red-green color blindness is most common (approximately 8% of males). Information must not be conveyed by color alone
-- Focus Indicator = a visual device indicating the currently selected element during keyboard navigation. Minimum 2px or more, 3:1 contrast ratio
-- Alt Text = a text description of an image's content. Conveys image information to screen reader users
+<!-- derived-from: WCAG 2.2, SC 1.4.1, 1.4.3, 1.4.6, 1.4.11 -->
+- [L1] WCAG = Web Content Accessibility Guidelines, published by W3C. Version 2.2 (2023). Three conformance levels: Level A (minimum), AA (standard target), AAA (enhanced). Four principles: Perceivable, Operable, Understandable, Robust (POUR)
+- [L1] Perceivable = the first WCAG principle. Information and interface elements must be presentable to users in ways they can perceive. Visual design implications: sufficient contrast, text alternatives for images, information not conveyed by color alone
+- [L1] Color Blindness Accommodation = designing for color vision deficiency. Protanopia/deuteranopia (red-green, ~8% of males), tritanopia (blue-yellow, rare). Information must not be conveyed by color alone (WCAG 1.4.1). Supplementary means: shape, pattern, text, icon, position
+- [L1] Focus Indicator = visual device indicating the currently focused element during keyboard navigation. Minimum: 2px solid outline with 3:1 contrast ratio against adjacent colors. WCAG 2.4.7 (AA) requires visible focus; WCAG 2.4.11/2.4.12 (AA/AAA in 2.2) specify minimum area and contrast
+- [L1] Alt Text = text description of an image's content for screen readers. Decorative images use empty alt (`alt=""`). Informative images describe the content. Complex images (charts, diagrams) use long description
+- [L1] prefers-reduced-motion = CSS media query respecting user's OS-level motion reduction setting. WCAG 2.3.3 (AAA) recommends; practical standard is to support it at AA level. All non-essential motion should be suppressed when active
+- [L2] Perceptual Uniformity = ensuring that equal numerical steps in a color scale produce equal perceived differences. CIE LAB and OKLCH color spaces are perceptually uniform; sRGB is not. A 10-step gray ramp in sRGB looks uneven; in OKLCH it looks evenly spaced
 
 ## Brand Identity Core Terms
 
-- Brand Identity = the totality of visual and verbal expressions that a brand intentionally constructs. Logo, colors, typefaces, tone and manner, image style, etc.
-- Logo = the visual symbol representing a brand. Distinguished as wordmark (letter-based), symbol (shape-based), and combination (letters + shape)
-- Clear Space = the minimum margin around a logo that other elements cannot encroach upon. Defined by the logo's own proportions (e.g., 1/2 of logo height)
-- Tone and Manner = the visual and verbal tone and atmosphere of a brand. Defined by adjective combinations such as "professional and warm," "bold and innovative"
-- Style Guide = a document recording the usage rules for brand visual elements. Narrower scope than a design system (primarily limited to brand visual elements)
+- [L2] Brand Identity = the totality of visual and verbal expressions that a brand intentionally constructs. Logo, colors, typefaces, tone and manner, image style, motion style. Distinct from brand image (how the audience perceives the brand)
+- [L2] Logo = the visual symbol representing a brand. Types: wordmark (letter-based, e.g., Google), symbol/icon (shape-based, e.g., Apple), combination mark (letters + shape, e.g., Adidas), emblem (text inside symbol, e.g., Starbucks). Each type has different scalability and recognition characteristics
+- [L2] Clear Space = the minimum margin around a logo that other elements cannot encroach upon. Defined by the logo's own proportions (e.g., the height of the letter 'A' in the logo). Ensures visual isolation and recognition
+- [L2] Tone and Manner = the visual and verbal tone and atmosphere of a brand. Defined by adjective pairs: "professional and warm," "bold and innovative," "minimal and precise." Constrains typeface, color, image, and motion choices
+- [L2] Style Guide = a document recording usage rules for brand visual elements. Narrower scope than a design system (limited to brand elements). Covers: logo usage, color palette, typography, image style, do/don't examples
+- [L2] Brand Architecture = the organizational structure of brands within a company. Monolithic (one brand, e.g., FedEx), endorsed (parent endorses sub-brands, e.g., Marriott), pluralistic (independent brands, e.g., P&G). Determines how visual systems relate across products
+- [L2] Co-branding = visual rules when two brands appear together. Requires: relative size, placement priority, clear space preservation, color conflict resolution. Without pre-defined rules, co-branding produces inconsistent visual hierarchies
 
 ## Motion Core Terms
 
-- Easing = the speed change curve of an animation. ease-in (starts slow), ease-out (ends slow), ease-in-out (slow on both ends). Key to natural-feeling movement
-- Duration = the time an animation runs. General ranges: feedback (100~200ms), transitions (200~400ms), complex movements (400~700ms)
-- Micro-interaction = immediate visual feedback for a single action. Button click response, toggle switch, input confirmation, etc.
-- Transition = visual change from one state to another. Page transitions, modal open/close, layout changes, etc.
+- [L2] Easing = the speed change curve of an animation. Standard functions: ease-in (starts slow — for exit), ease-out (ends slow — for entrance), ease-in-out (slow on both ends — for repositioning). Linear easing feels mechanical and is appropriate only for looping/progress indicators
+- [L2] Duration = the time an animation runs. Ranges by complexity: micro-feedback (100~200ms), state transitions (200~300ms), element entrance/exit (200~400ms), complex layout changes (400~700ms). Duration > 700ms feels sluggish for UI
+- [L2] Micro-interaction = immediate visual feedback for a single action. Button press, toggle switch, input confirmation. Dan Saffer's framework (2013): Trigger → Rules → Feedback → Loops/Modes
+- [L2] Transition = visual change from one state to another. Page transitions, modal appearance, layout changes. Must convey spatial or logical relationship between states
+- [L2] Choreography = coordinating multiple animated elements to create a coherent sequence. Staggered entry (elements appear sequentially with 30~50ms offset), shared axis (elements moving in same direction), focal point (attention drawn to one element first). More than 2 simultaneous animations increase cognitive load
+- [L2] Motion Semantics = the meaning conveyed by motion type. Expansion = revealing content, collapse = hiding, slide-in = new context arriving, fade = subtle appearance/disappearance. Inconsistent motion semantics confuse users about what is happening
 
 ## Homonyms Requiring Attention
 
-- "style": CSS style (code implementation) != visual style (design intent) != brand style (tone and manner)
-- "component": design component (reusable element in design tools like Figma) != code component (implementation unit in React/Vue). 1:1 correspondence is not guaranteed
-- "token": design token (abstract value of visual properties) != authentication token (security) != language token (NLP)
-- "hierarchy": visual hierarchy (information importance) != component hierarchy (Atomic Design levels) != token hierarchy (primitive/semantic/component)
-- "grid": layout grid (page structure) != icon grid (icon design baseline) != data grid (table-format UI)
-- "theme": color theme (light/dark) != brand theme (brand-specific visual variations) != seasonal theme (time-limited visual changes)
-- "consistency": visual consistency (same expression for same meaning) != functional consistency (same behavior for same pattern) != platform consistency (OS convention adherence)
-- "contrast": contrast ratio (accessibility standard) != visual contrast (emphasizing differences as a design principle)
+- "style": CSS style (code implementation) != visual style (design intent) != brand style (tone and manner). Default: design intent
+- "component": design component (reusable element in Figma) != code component (React/Vue/Swift implementation unit). 1:1 correspondence is not guaranteed; synchronization is a managed process, not an assumption
+- "token": design token (abstract value of visual properties) != authentication token (security) != language token (NLP). Default in this domain: design token
+- "hierarchy": visual hierarchy (information importance) != component hierarchy (Atomic Design levels) != token hierarchy (primitive/semantic/component). Qualify on first use
+- "grid": layout grid (page structure) != icon grid (icon design keyline) != data grid (table-format UI). Default: layout grid
+- "theme": color theme (light/dark mode) != brand theme (brand-specific visual variations) != seasonal theme (time-limited visual changes). Default: color theme
+- "consistency": visual consistency (same expression for same meaning) != functional consistency (same behavior for same pattern) != platform consistency (OS convention adherence). See domain_scope.md §Cross-Cutting Concerns
+- "contrast": contrast ratio (WCAG accessibility metric, L1) != visual contrast (emphasizing differences as a design principle, L2). Both valid within this domain; qualify when ambiguous
+- "scale": type scale (size steps) != scale (zoom level) != scale (size/magnitude). Default: type scale
+- "weight": font weight (boldness) != visual weight (perceived dominance of an element). Default: font weight
 
 ## Interpretation Principles
 
-- "Beautiful" is not a design quality criterion. Visual design quality is judged by whether the intended purpose (information delivery, action guidance, brand communication) is achieved
-- Accessibility is not optional but a baseline requirement. A design that does not meet accessibility standards is not a complete design
-- In the 3-layer design token hierarchy (primitive → semantic → component), upper layers must reference lower layers. If semantic tokens directly contain hardcoded values, consistency maintenance becomes impossible
-- Typeface selection is a functional decision, not a sensory one. It is constrained by medium (screen/print), content type (body/headings/code), and target users (age/language)
-- Design tool (Figma, etc.) components and code components are synchronization targets, not identical objects. The acceptable range of discrepancy and synchronization frequency must be defined
-- A design without visual hierarchy is the same as claiming "everything is important." If everything is important, nothing is important
-- Motion/animation is information, not decoration. Motion that does not convey state change only increases cognitive load
-- Meaning must not be conveyed by color alone (WCAG 1.4.1). Supplementary means such as shape, text, and icons must always accompany color
+- "Beautiful" is not a design quality criterion. Visual design quality is judged by whether the intended purpose (information delivery, action guidance, brand communication) is achieved. Aesthetic-usability effect (Tractinsky, 1997): users perceive attractive interfaces as more usable, but this perception can mask real problems
+- Accessibility is not optional but a baseline requirement. A design that does not meet WCAG AA is not a complete design. This is both an ethical principle and, in many jurisdictions, a legal requirement
+- In the 3-layer design token hierarchy (primitive → semantic → component), upper layers must reference lower layers. Semantic tokens directly containing hardcoded values make theme switching impossible and consistency maintenance intractable
+- Typeface selection is a functional decision, not a sensory one. It is constrained by medium (screen/print), content type (body/headings/code), target users (age/language), and licensing. "It looks nice" is insufficient rationale
+- Design tool (Figma) components and code components are synchronization targets, not identical objects. The acceptable range of discrepancy and synchronization frequency must be defined. Neither is inherently the source of truth — the design system documentation is
+- A design without visual hierarchy is equivalent to asserting "everything is important." If everything is important, nothing is important. Visual hierarchy must be a deliberate, documented decision
+- Motion/animation is information, not decoration. Motion that does not convey state change, spatial relationship, or feedback only increases cognitive load and harms users with vestibular disorders
+- Meaning must not be conveyed by color alone (WCAG 1.4.1). Red-green color blind users (~8% of males) may not distinguish error (red) from success (green). Supplementary means — shape, text, icons, position — must always accompany color-based meaning
+- Perceptual uniformity matters more than mathematical uniformity. Color ramps, spacing scales, and type scales should produce perceptually even steps, which requires non-linear mathematical intervals
+- Consistency is a means, not an end. Consistency reduces learning cost and builds trust. But forcing consistency where context requires different treatment creates false uniformity — the worst kind of inconsistency is consistent misapplication
 
 ## Related Documents
-- domain_scope.md — Domain definition where these terms are used
-- logic_rules.md — Color logic, typography logic, accessibility rules
-- structure_spec.md — Visual design system structure rules
+- domain_scope.md — Domain definition, normative tier classification, cross-cutting concerns
+- domain_scope.md §Relationship Between Tier and Abstraction Layer — Tier × L matrix
+- logic_rules.md — Color logic, typography logic, accessibility rules, constraint conflict checks
+- structure_spec.md — Token layers, component layers, visual design system structural requirements
+- dependency_rules.md — Token–component, brand–visual system, color–accessibility dependency chains
+- competency_qs.md — Competency questions referencing terms defined here
+- conciseness_rules.md — Deduplication rules using synonym mappings from this file

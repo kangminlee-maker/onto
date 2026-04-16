@@ -502,6 +502,24 @@ export function resolveExecutionProfile(args: {
     return { type: "resolved", profile: { execution_realization: "ts_inline_http", host_runtime: "standalone" } };
   }
 
+  // ONTO_HOST_RUNTIME env var: explicit override that wins over auto-detection.
+  // This bridges Phase 1 host-detection (discovery/host-detection.ts) with
+  // the execution profile resolution. Without this, a user inside a Claude Code
+  // session cannot force standalone mode via env var — CLAUDECODE=1 always wins.
+  const envHostRuntime = process.env.ONTO_HOST_RUNTIME?.trim().toLowerCase();
+  if (envHostRuntime === "standalone") {
+    return { type: "resolved", profile: { execution_realization: "ts_inline_http", host_runtime: "standalone" } };
+  }
+  if (envHostRuntime === "litellm" || envHostRuntime === "anthropic" || envHostRuntime === "openai") {
+    return { type: "resolved", profile: { execution_realization: "ts_inline_http", host_runtime: envHostRuntime as "litellm" | "anthropic" | "openai" } };
+  }
+  if (envHostRuntime === "claude") {
+    return { type: "resolved", profile: { execution_realization: "agent-teams", host_runtime: "claude" } };
+  }
+  if (envHostRuntime === "codex") {
+    return { type: "resolved", profile: { execution_realization: "subagent", host_runtime: "codex" } };
+  }
+
   // Auto-resolution (stay-in-host). Within Claude host, agent_teams_claude is
   // the default preferred; the subject session falls to subagent_claude (flat)
   // if TeamCreate is unavailable — that decision is the subject's, not onto's.

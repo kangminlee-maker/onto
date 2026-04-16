@@ -61,6 +61,9 @@ function requireExecutionRealization(
   if (value === "subagent" || value === "agent-teams" || value === "codex") {
     return value === "codex" ? "subagent" : value;
   }
+  if (value === "ts_inline_http") {
+    return value;
+  }
   throw new Error(`Invalid execution realization: ${value}`);
 }
 
@@ -72,6 +75,16 @@ function normalizeHostRuntime(
   }
   if (hostRuntimeValue === "codex" || hostRuntimeValue === "claude") {
     return hostRuntimeValue;
+  }
+  // Phase 2: standalone and direct-call hosts are valid — pass through as
+  // ReviewHostRuntime (artifact-types.ts union includes these values).
+  if (
+    hostRuntimeValue === "standalone" ||
+    hostRuntimeValue === "litellm" ||
+    hostRuntimeValue === "anthropic" ||
+    hostRuntimeValue === "openai"
+  ) {
+    return hostRuntimeValue as ReviewHostRuntime;
   }
   throw new Error(`Invalid host runtime: ${hostRuntimeValue}`);
 }

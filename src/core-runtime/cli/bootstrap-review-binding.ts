@@ -36,6 +36,9 @@ function requireExecutionRealization(
   if (value === "subagent" || value === "agent-teams" || value === "codex") {
     return value === "codex" ? "subagent" : value;
   }
+  if (value === "ts_inline_http") {
+    return value;
+  }
   throw new Error(`Invalid --execution-realization: ${value}`);
 }
 
@@ -47,6 +50,14 @@ function normalizeHostRuntime(
   }
   if (hostRuntimeValue === "codex" || hostRuntimeValue === "claude") {
     return hostRuntimeValue;
+  }
+  if (
+    hostRuntimeValue === "standalone" ||
+    hostRuntimeValue === "litellm" ||
+    hostRuntimeValue === "anthropic" ||
+    hostRuntimeValue === "openai"
+  ) {
+    return hostRuntimeValue as ReviewHostRuntime;
   }
   throw new Error(`Invalid --host-runtime: ${hostRuntimeValue}`);
 }

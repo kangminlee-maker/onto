@@ -20,13 +20,13 @@ Common definitions referenced by each process file (`processes/`).
 | Team Review | `processes/review.md` | Agent panel review (Agent Teams) | Learning -> Promotion |
 | Ontology Build | `processes/reconstruct.md` | Build ontology from analysis target (Agent Teams) | -> Transform, Review |
 | Transform | `processes/transform.md` | Raw Ontology format conversion | Build -> |
-| Learning Promotion | `processes/promote.md` | Learning Quality Assurance — 승격, 큐레이션, 감사. Canonical entrypoints: `onto promote` (Phase A analyze), `onto promote --apply <session>` (Phase B mutations), `onto reclassify-insights [--apply]` (insight role reclassification), `onto migrate-session-roots` (legacy layout migration). Slash command `/onto:promote` is the prompt-backed reference path. | Review/Query -> |
+| Learning Promotion | `processes/learn/promote.md` | Learning Quality Assurance — 승격, 큐레이션, 감사. Canonical entrypoints: `onto promote` (Phase A analyze), `onto promote --apply <session>` (Phase B mutations), `onto reclassify-insights [--apply]` (insight role reclassification), `onto migrate-session-roots` (legacy layout migration). Slash command `/onto:promote` is the prompt-backed reference path. | Review/Query -> |
 | Domain Creation | `processes/create-domain.md` | Generate seed domain documents from minimal input | -> Feedback, Review |
 | Domain Feedback | `processes/feedback.md` | Feed learnings back into domain documents | Review/Query -> |
-| Domain Promotion | `processes/promote-domain.md` | Promote seed domain to established | Feedback -> |
+| Domain Promotion | `processes/learn/promote-domain.md` | Promote seed domain to established | Feedback -> |
 | Data Backup | `processes/backup.md` | Snapshot onto user data for rollback | -> Restore |
 | Data Restore | `processes/restore.md` | Restore user data from backup | Backup -> |
-| Health Dashboard | `processes/health.md` | Show learning pool health metrics | Standalone |
+| Health Dashboard | `processes/learn/health.md` | Show learning pool health metrics | Standalone |
 | Design | `processes/evolve.md` | 온톨로지 기반 설계 — 기존 설계 대상에 새 영역 추가 (brownfield) | Build ->, -> Review |
 
 ---

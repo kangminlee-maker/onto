@@ -1,7 +1,7 @@
 /**
  * /onto:health CLI entry.
  *
- * Design authority: processes/health.md (rule owner)
+ * Design authority: processes/learn/health.md (rule owner)
  *
  * Responsibility:
  *   - Parse target (global | project) from argv

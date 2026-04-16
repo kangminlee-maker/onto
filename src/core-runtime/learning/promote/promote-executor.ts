@@ -7,7 +7,7 @@
  *   - learn-phase3-design-v9.md DD-23 (RecoveryResolution operator seat)
  *   - learn-phase3-design-v8.md DD-16 (recoverability checkpoint)
  *   - learn-phase3-design-v5.md §1.3 Phase B canonical sequence
- *   - processes/promote.md Step 6 (Promotion Execution)
+ *   - processes/learn/promote.md Step 6 (Promotion Execution)
  *
  * Responsibility:
  *   - Load PromoteReport + PromoteDecisions for a session.

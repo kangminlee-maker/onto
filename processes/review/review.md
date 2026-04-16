@@ -1,7 +1,7 @@
 # Review Reference Execution
 
 > The 9 review lenses plus a separate synthesize stage review a target from multiple perspectives.
-> Related: If learnings accumulate after review, promotion is possible via `processes/promote.md`.
+> Related: If learnings accumulate after review, promotion is possible via `processes/learn/promote.md`.
 
 This document is the prompt-backed reference execution for `검토 (review)`.
 The canonical live execution authority is `processes/review/productized-live-path.md`.

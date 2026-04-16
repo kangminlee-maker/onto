@@ -11,6 +11,6 @@ Shows learning pool health dashboard. No agent spawning required.
 onto health          # Global learnings
 onto health project  # Project learnings
 ```
-CLI implementation: `src/core-runtime/cli/health.ts`. Rule owner: `processes/health.md`.
+CLI implementation: `src/core-runtime/cli/health.ts`. Rule owner: `processes/learn/health.md`.
 
-**Prompt-backed fallback**: If CLI is unavailable, read `~/.claude/plugins/onto/processes/health.md` and execute per spec.
+**Prompt-backed fallback**: If CLI is unavailable, read `~/.claude/plugins/onto/processes/learn/health.md` and execute per spec.

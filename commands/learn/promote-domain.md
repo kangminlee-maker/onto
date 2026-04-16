@@ -7,4 +7,4 @@ Requires all SEED markers to be removed before promotion.
 Example: `/onto:promote-domain palantir-foundry`
 
 Read `~/.claude/plugins/onto/process.md` (common definitions) and
-`~/.claude/plugins/onto/processes/promote-domain.md`, then execute.
+`~/.claude/plugins/onto/processes/learn/promote-domain.md`, then execute.

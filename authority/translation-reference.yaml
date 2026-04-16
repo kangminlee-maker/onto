@@ -217,7 +217,7 @@ concepts:
     relations:
       - input: "project-level learning"
       - output: "global-level learning"
-      - defined_at: "processes/promote.md"
+      - defined_at: "processes/learn/promote.md"
       - preceded_by: "team review | individual query"
     disambiguation: >
       Not 'learning escalation' (no hierarchy of authority is involved).

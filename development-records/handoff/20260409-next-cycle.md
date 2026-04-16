@@ -14,10 +14,10 @@
 3. `AGENTS.md` — agent 정의
 4. `authority/ontology-as-code-guideline.md`
 5. `authority/llm-native-development-guideline.md`
-6. `commands/review.md`, `commands/promote.md` — 주요 workflow command
+6. `commands/review.md`, `commands/learn/promote.md` — 주요 workflow command
 7. `processes/review/productized-live-path.md`
 8. `processes/review/nested-spawn-coordinator-contract.md`
-9. `processes/promote.md` — Phase 3 promote 프로세스
+9. `processes/learn/promote.md` — Phase 3 promote 프로세스
 10. (참조) `development-records/handoff/20260406-current-work.md` — 직전 cycle (Phase 1~3 구현 + harness productization + production validation) 의 완전한 기록. 새 작업이 과거 맥락을 필요로 할 때만 참고.
 
 **중요**:

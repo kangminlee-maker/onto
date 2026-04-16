@@ -206,7 +206,7 @@ v0 구현은 **수준 1 도달 조건** 을 충족한다:
 | canonical term | 대상 | 출발 | 도착 | 기준 문서 |
 |---|---|---|---|---|
 | `lexicon_term_promotion` | lexicon term | `provisional_terms` 섹션 | `terms` 섹션 | `authority/core-lexicon.yaml#provisional_lifecycle` |
-| `learning_scope_promotion` | learning artifact | `{project}/.onto/learnings/{agent}.md` | `~/.onto/learnings/{agent}.md` | `processes/promote.md` |
+| `learning_scope_promotion` | learning artifact | `{project}/.onto/learnings/{agent}.md` | `~/.onto/learnings/{agent}.md` | `processes/learn/promote.md` |
 | `learning_to_principle_promotion` | promoted learning → principle | `~/.onto/learnings/{agent}.md` 의 항목 | `design-principles/*.md` 또는 `processes/*.md` 의 본문 | W-C-03 (미구현, §1.1/§1.2 "보류 중") |
 
 ### 12.2 의존 그래프
@@ -244,7 +244,7 @@ flowchart LR
 
 | 전이 | canonical owner | 하위 경로 |
 |---|---|---|
-| `seed → candidate → provisional → promoted` | 각 entity 의 execution_rules_ref 가 지정 (예: learning → `processes/promote.md`, term → `provisional_lifecycle`) | — |
+| `seed → candidate → provisional → promoted` | 각 entity 의 execution_rules_ref 가 지정 (예: learning → `processes/learn/promote.md`, term → `provisional_lifecycle`) | — |
 | `promoted → deprecated → retired` | **M-08 refresh protocol** (`development-records/plan/20260413-refresh-protocol.md`) | promote Step 4a event marker review (learning 대상) + judgment audit (judgment-type learning 대상) 은 M-08 의 하위 경로로 재분류됨 |
 
 ### 12.4 authoring path 성문화 (W-D-05 S3)

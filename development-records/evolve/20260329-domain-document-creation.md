@@ -330,10 +330,10 @@ Seed Generation + Feedback Loop 구현 시 수정이 필요한 파일 목록:
 | 5 | `process.md` — Teammate Initial Prompt | Context Self-Loading에 drafts/ 제외 주석 |
 | 6 | `processes/create-domain.md` | **신규** — Seed 생성 프로세스 |
 | 7 | `processes/feedback.md` | **신규** — 피드백 루프 프로세스 (9단계) |
-| 8 | `processes/promote-domain.md` | **신규** — 승격 프로세스 |
+| 8 | `processes/learn/promote-domain.md` | **신규** — 승격 프로세스 |
 | 9 | `commands/create-domain.md` | **신규** — 커맨드 정의 |
 | 10 | `commands/feedback.md` | **신규** — 커맨드 정의 |
-| 11 | `commands/promote-domain.md` | **신규** — 커맨드 정의 |
+| 11 | `commands/learn/promote-domain.md` | **신규** — 커맨드 정의 |
 | 12 | `processes/review.md` | Step 0에 seed 리뷰 시 @- 기본 추천, Step 1에 seed 리뷰 분기 |
 | 13 | `commands/review.md` | seed review 구문 예시 추가 |
 | 14 | `README.md` | 커맨드 목록, 디렉토리 구조에 drafts/ 추가 |

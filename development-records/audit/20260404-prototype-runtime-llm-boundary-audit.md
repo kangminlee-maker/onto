@@ -77,10 +77,10 @@
 |---|---|---|---|---|
 | `commands/` | host-facing 호출 표면 | 혼합 | 사용자(=주체자)가 보는 진입점이지만, 현재는 프롬프트 지시와 실행 규칙이 뒤섞여 있다 | `commands/review.md`, `commands/reconstruct.md` |
 | `process.md` | 공통 실행 규칙, 에이전트 정의, 도메인 규칙 | 혼합 | 개념 SSOT와 실행 규칙이 함께 있다. 일부는 runtime화 가능, 일부는 `LLM` 지시다 | `process.md` |
-| `processes/` | 실제 작업 절차 정의 | 대부분 혼합 | 절차 안에 의미 판단과 파일시스템 조작이 모두 섞여 있다 | `processes/review.md`, `processes/reconstruct.md`, `processes/promote.md` |
+| `processes/` | 실제 작업 절차 정의 | 대부분 혼합 | 절차 안에 의미 판단과 파일시스템 조작이 모두 섞여 있다 | `processes/review.md`, `processes/reconstruct.md`, `processes/learn/promote.md` |
 | `roles/` | 관점별 전문성 정의 | `LLM` 소유 | 전문 관점과 핵심 질문은 의미 판단 그 자체다 | `roles/onto_logic.md`, `roles/onto_axiology.md`, `roles/onto_synthesize.md` |
 | 도메인 문서 및 학습 파일 | 검토/구축의 기준 지식 | 혼합 | 내용은 `LLM`이 읽고 판단하지만, 저장 위치/승격/보존은 runtime화 가능하다 | `~/.onto/domains/*`, `~/.onto/learnings/*` |
-| backup/restore/health 류 프로세스 | 운영 보조 기능 | runtime 소유 | 의미 판단보다 파일시스템/집계/보존이 핵심이다 | `processes/backup.md`, `processes/restore.md`, `processes/health.md` |
+| backup/restore/health 류 프로세스 | 운영 보조 기능 | runtime 소유 | 의미 판단보다 파일시스템/집계/보존이 핵심이다 | `processes/backup.md`, `processes/restore.md`, `processes/learn/health.md` |
 
 ### 3.2 Entrypoint-by-Entrypoint Classification
 
@@ -171,16 +171,16 @@
 |---|---|---|
 | `processes/backup.md` | runtime 소유 | 순수 파일시스템 작업 |
 | `processes/restore.md` | runtime 소유 | 순수 파일시스템 작업 + 검증 |
-| `processes/health.md` | runtime 소유 | 집계와 보고 |
+| `processes/learn/health.md` | runtime 소유 | 집계와 보고 |
 | `processes/transform.md` | 혼합 | output format negotiation은 `LLM`, 실제 transform rendering은 혼합 |
 
 ### 4.6 Learning / Governance-like Prototype Areas
 
 | 파일 | 현재 분류 | 판단 |
 |---|---|---|
-| `processes/promote.md` | 혼합 | project learning을 global로 승격하는 판단과 파일 반영이 섞여 있다 |
+| `processes/learn/promote.md` | 혼합 | project learning을 global로 승격하는 판단과 파일 반영이 섞여 있다 |
 | `processes/feedback.md` | 혼합 | domain feedback suggestion은 `LLM`, 문서 적용과 이력 관리는 runtime |
-| `processes/promote-domain.md` | 혼합 | SEED marker scan은 runtime, 승격 판단은 mixed |
+| `processes/learn/promote-domain.md` | 혼합 | SEED marker scan은 runtime, 승격 판단은 mixed |
 | `processes/create-domain.md` | 혼합 | seed draft 생성은 `LLM`, 디렉터리/충돌 검사는 runtime |
 
 ---

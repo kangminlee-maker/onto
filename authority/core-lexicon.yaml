@@ -399,7 +399,7 @@ entities:
     execution_rules_ref:
       data_accumulation: "design-principles/project-locality-principle.md §2.2"
       consumption_precondition: "design-principles/project-locality-principle.md §2.2"
-      lifecycle_transition: "processes/promote.md"
+      lifecycle_transition: "processes/learn/promote.md"
     notes:
       - "법칙이 아니라, 상황에 따라 유용한 정보. 있으면 좋지만 risk를 질 필요는 없는 항목"
 
@@ -488,7 +488,7 @@ entities:
       shared: [lifecycle_status, scope]
     execution_rules_ref:
       resolution_order: "design-principles/project-locality-principle.md §2.3"
-      lifecycle_transition: "processes/promote-domain.md"
+      lifecycle_transition: "processes/learn/promote-domain.md"
     notes:
       - "도메인 귀속은 파일 경로 규약({domain}/ 디렉토리)에 의해 결정됨"
 
@@ -1168,7 +1168,7 @@ terms:
     allowed_values: []
     notes:
       - "W-D-05 (2026-04-16) 신설 — 'promoted' 용어 3분리 중 2/3 (Semantic drift 해소)."
-      - "Source of truth: processes/promote.md."
+      - "Source of truth: processes/learn/promote.md."
       - "Consumer: src/core-runtime/loader.ts (promoted learning 만 user scope 로드), loader consumption filter."
       - "본 term 은 learning artifact 의 저장 경계 (project → user) 이동만 지칭. learning 내용 자체의 변환이나 principle 승격과는 구별됨."
 

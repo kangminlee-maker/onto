@@ -57,16 +57,25 @@ const MAX_LIST_ENTRIES = 200; // Per directory
 const MAX_SEARCH_MATCHES = 100; // Total matches per search_content call
 const MAX_SEARCH_TRAVERSAL = 10_000; // File-count safety brake on traversal
 
-const SKIP_DIR_NAMES = new Set([
+// Always-skipped directory names. .onto is NOT in this set; it is gated
+// per-call via ToolExecutionContext.allowOntoTraversal so synthesize runs
+// can discover lens outputs under .onto/review/<session>/round1 while normal
+// lens runs still avoid the noise of session artifacts.
+const ALWAYS_SKIP_DIR_NAMES = new Set([
   ".git",
   "node_modules",
-  ".onto", // session artifacts; if user wants .onto contents they pass an explicit path inside it
   "dist",
   "build",
   ".next",
   ".turbo",
   "__pycache__",
 ]);
+
+function shouldSkipDir(name: string, ctx: ToolExecutionContext): boolean {
+  if (ALWAYS_SKIP_DIR_NAMES.has(name)) return true;
+  if (name === ".onto" && !ctx.allowOntoTraversal) return true;
+  return false;
+}
 
 export class BoundaryViolationError extends Error {
   constructor(message: string) {
@@ -78,6 +87,16 @@ export class BoundaryViolationError extends Error {
 export interface ToolExecutionContext {
   projectRoot: string;
   ontoHome: string;
+  /**
+   * When true, list_directory and search_content will descend into `.onto`
+   * subdirectories. Used by the synthesize unit so it can discover lens
+   * outputs under `.onto/review/<session>/round1`. Lens units pass false (or
+   * omit it) so they don't traverse session artifacts.
+   *
+   * read_file is unaffected — it only checks the projectRoot/ontoHome
+   * boundary, and `.onto` is already inside projectRoot by design.
+   */
+  allowOntoTraversal?: boolean;
 }
 
 /**
@@ -232,7 +251,7 @@ const READ_FILE_TOOL: OntoTool = {
 const LIST_DIRECTORY_TOOL: OntoTool = {
   name: "list_directory",
   description:
-    "List entries (files and subdirectories) in a directory inside projectRoot or ontoHome. Skips .git, node_modules, .onto, dist, build. Returns up to 200 entries with [F]/[D] markers and byte sizes.",
+    "List entries (files and subdirectories) in a directory inside projectRoot or ontoHome. Always skips .git, node_modules, dist, build. Skips .onto unless allowOntoTraversal is set in the execution context (synthesize unit). Returns up to 200 entries with [F]/[D] markers and byte sizes.",
   input_schema: {
     type: "object",
     properties: {
@@ -252,7 +271,7 @@ const LIST_DIRECTORY_TOOL: OntoTool = {
     }
 
     const entries = await fs.readdir(target, { withFileTypes: true });
-    const filtered = entries.filter((e) => !SKIP_DIR_NAMES.has(e.name));
+    const filtered = entries.filter((e) => !shouldSkipDir(e.name, ctx));
     const trimmed = filtered.slice(0, MAX_LIST_ENTRIES);
 
     const lines: string[] = [
@@ -329,7 +348,7 @@ const SEARCH_CONTENT_TOOL: OntoTool = {
 
     const matches: string[] = [];
     const traversed = { count: 0 };
-    await walkAndSearch(root, needle, caseInsensitive, ctx.projectRoot, matches, traversed);
+    await walkAndSearch(root, needle, caseInsensitive, ctx, matches, traversed);
 
     if (matches.length === 0) {
       return `# search_content: no matches for "${pattern}" under ${path.relative(ctx.projectRoot, root) || root}`;
@@ -352,7 +371,7 @@ async function walkAndSearch(
   dir: string,
   needle: string,
   caseInsensitive: boolean,
-  projectRoot: string,
+  ctx: ToolExecutionContext,
   matches: string[],
   traversed: { count: number },
 ): Promise<void> {
@@ -369,11 +388,11 @@ async function walkAndSearch(
   for (const entry of entries) {
     if (matches.length >= MAX_SEARCH_MATCHES) return;
     if (traversed.count >= MAX_SEARCH_TRAVERSAL) return;
-    if (SKIP_DIR_NAMES.has(entry.name)) continue;
+    if (shouldSkipDir(entry.name, ctx)) continue;
 
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      await walkAndSearch(full, needle, caseInsensitive, projectRoot, matches, traversed);
+      await walkAndSearch(full, needle, caseInsensitive, ctx, matches, traversed);
     } else if (entry.isFile()) {
       traversed.count++;
       try {
@@ -385,7 +404,7 @@ async function walkAndSearch(
           const line = lines[i] ?? "";
           const haystack = caseInsensitive ? line.toLowerCase() : line;
           if (haystack.includes(needle)) {
-            const rel = path.relative(projectRoot, full) || full;
+            const rel = path.relative(ctx.projectRoot, full) || full;
             matches.push(`${rel}:${i + 1}: ${line.trim().slice(0, 200)}`);
             if (matches.length >= MAX_SEARCH_MATCHES) return;
           }

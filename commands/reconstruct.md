@@ -4,8 +4,10 @@
 
 Slash command 진입점 (`/onto:reconstruct $ARGUMENTS`): `$ARGUMENTS` 는 분석 대상 경로. **Canonical**: `--domain {name}` 또는 `--no-domain` 으로 도메인 지정. **Legacy** (backward compat): `@{domain}` / `@-` 도 인식 — Claude Code의 `@filename` mention 과 충돌하므로 새 flag 권장.
 
-Read `~/.claude/plugins/onto/process.md` (common definitions) and
-`~/.claude/plugins/onto/processes/reconstruct.md`, then execute.
+Plugin install resolves via `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}`. Set `ONTO_PLUGIN_DIR` env var when installed in a custom location.
+
+Read `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/process.md` (common definitions) and
+`${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/processes/reconstruct.md`, then execute.
 
 ## Repo-local canonical bounded path
 

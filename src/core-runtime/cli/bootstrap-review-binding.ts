@@ -11,6 +11,10 @@ import type {
 import { hasOptionFlag } from "../review/review-artifact-utils.js";
 import { bootstrapInvocationBindingArtifacts } from "../review/materializers.js";
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
+import {
+  detectClaudeCodeEnvSignal,
+  detectCodexEnvSignal,
+} from "../discovery/host-detection.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -48,14 +52,13 @@ function normalizeHostRuntime(
 }
 
 function detectHostRuntimeFromEnvironment(): ReviewHostRuntime | undefined {
-  if (process.env.CODEX_THREAD_ID || process.env.CODEX_CI) {
+  // Delegated to canonical seat. Note: this consumer expects undefined when
+  // no signal is present (so caller can apply its own default), so we DO NOT
+  // call `detectHostRuntime()` (which always returns "standalone" as default).
+  if (detectCodexEnvSignal()) {
     return "codex";
   }
-  if (
-    process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS ||
-    process.env.CLAUDE_PROJECT_DIR ||
-    process.env.CLAUDECODE
-  ) {
+  if (detectClaudeCodeEnvSignal()) {
     return "claude";
   }
   return undefined;

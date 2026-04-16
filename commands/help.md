@@ -97,7 +97,9 @@ review {target} @{domain}          Use as verification standard
 
 ### More Info
 
-- README: `~/.claude/plugins/onto/README.md`
-- Authority docs: `~/.claude/plugins/onto/authority/`
-- Review contracts: `~/.claude/plugins/onto/processes/review/`
+> Plugin install resolves via `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}`. Set `ONTO_PLUGIN_DIR` env var when installed in a custom location.
+
+- README: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/README.md`
+- Authority docs: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/authority/`
+- Review contracts: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/processes/review/`
 - Domain documents: `~/.onto/domains/`

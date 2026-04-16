@@ -1,6 +1,25 @@
 # Onto
 
-A Claude Code plugin that performs multi-perspective verification of logical systems using a 9-lens review structure plus a separate synthesize stage, and automatically builds ontologies from analysis targets.
+A multi-host LLM-driven runtime that performs multi-perspective verification of logical systems (9-lens review + synthesize) and reconstructs ontologies from analysis targets. Runs as a Claude Code plugin, a Codex CLI subagent, or a standalone CLI process.
+
+## Host Compatibility Matrix
+
+| Host runtime | Detection signal | Main LLM (orchestrator) | Subagent LLM (per-lens) | Status |
+|---|---|---|---|---|
+| **Claude Code** | `CLAUDECODE=1` (or `CLAUDE_PROJECT_DIR`, `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`) | Claude Code session | TeamCreate (default) / Agent tool / `--codex` / future LiteLLM | ✅ Full |
+| **Codex CLI** | `CODEX_THREAD_ID`, `CODEX_CI`, or codex binary + `~/.codex/auth.json` | Codex CLI session | `codex exec --ephemeral` subprocess / future direct LLM | ✅ Full |
+| **Standalone CLI** | None of the above (or `ONTO_HOST_RUNTIME=standalone`) | TS process + configured LLM | future direct LLM call (LiteLLM/Anthropic/OpenAI) | 📐 Phase 2 wiring |
+
+**Two-tier LLM model**: the **main LLM** (orchestrator) and the **subagent LLM** (per-lens executor) are independently configurable. Examples:
+- Claude Code session as main + LiteLLM 8B as subagent (Phase 2)
+- LiteLLM 31B local as main + LiteLLM 8B as subagent (Phase 2)
+- Anthropic API direct as main + LiteLLM 8B as subagent (Phase 2)
+
+Phase 1 (current) ships the host-detection + capability matrix + 2-axis configuration schema. Phase 2 will wire the cross-host subagent LLM call.
+
+**Override env vars**:
+- `ONTO_HOST_RUNTIME=claude|codex|standalone` — explicit host override
+- `ONTO_PLUGIN_DIR=<path>` — plugin install location (defaults to `~/.claude/plugins/onto`)
 
 > Productization note:
 > this repository is the current prototype/reference line.
@@ -76,7 +95,7 @@ Run the following commands in order within Claude Code:
 
 Or if installed via git clone:
 ```bash
-cd ~/.claude/plugins/onto && git pull
+cd "${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}" && git pull
 ```
 
 When upgrading from a previous version, run the migration since the global data path has changed:

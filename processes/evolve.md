@@ -314,13 +314,13 @@ entrypoint 가 호출될 때, 주체자가 실제로 접근하는 파일(`invoke
 | 개념 | 실체 | 역할 |
 |---|---|---|
 | **authority seat** | repo 의 `processes/evolve.md` (이 파일) | canonical rule 의 원천. 모든 버전 기준의 진실 |
-| **invoke surface** | `commands/evolve.md` (repo) 또는 `~/.claude/plugins/onto/commands/evolve.md` (installed) | 주체자가 호출로 진입하는 표면. §8 command surface 와 동일 |
-| **install surface** | `~/.claude/plugins/onto/` 하위 설치 트리 | 활성 실행 시 invoke surface 가 읽는 실제 파일 위치 |
+| **invoke surface** | `commands/evolve.md` (repo) 또는 `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/commands/evolve.md` (installed) | 주체자가 호출로 진입하는 표면. §8 command surface 와 동일 |
+| **install surface** | `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/` 하위 설치 트리 | 활성 실행 시 invoke surface 가 읽는 실제 파일 위치. 기본 경로는 Claude Code install 위치이며, `ONTO_PLUGIN_DIR` 환경변수로 override 가능 |
 
 ### 9.2 Alignment 불변식
 
 1. **Mirror requirement**: install surface 는 authority seat 의 deterministic snapshot 이다. 설치 시점 이후 authority seat 가 개정되면 install surface 는 재설치 전까지 stale 이다.
-2. **Single-truth citation**: invoke surface (`commands/evolve.md`) 의 `Read ... then execute` 블록이 참조하는 경로는 install surface 상대 경로(`~/.claude/plugins/onto/...`) 로 통일한다. repo 상대 경로와 install 상대 경로가 한 블록 안에서 혼용되면 artifact truth 가 이원화된다.
+2. **Single-truth citation**: invoke surface (`commands/evolve.md`) 의 `Read ... then execute` 블록이 참조하는 경로는 install surface 상대 경로(`${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/...`) 로 통일한다. repo 상대 경로와 install 상대 경로가 한 블록 안에서 혼용되면 artifact truth 가 이원화된다. `ONTO_PLUGIN_DIR` 환경변수가 설정되면 그 값이 install surface root 가 되며, 미설정 시 기본값(`~/.claude/plugins/onto`) 으로 fallback 한다.
 3. **Version parity**: install surface 와 authority seat 버전 차이는 재설치(또는 plugin update) 로만 해소된다. runtime 은 mismatch 를 감지할 책임이 없다 — 주체자가 install 절차로 보정한다.
 4. **Non-mutation**: install surface 에 대한 현장 수정은 금지한다. 실험은 repo 에서 수행하고 재설치로 반영한다. install surface 의 파일은 authority seat 의 materialization 일 뿐이며, 독립적 authority 를 갖지 않는다.
 

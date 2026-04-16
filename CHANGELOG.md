@@ -2,6 +2,47 @@
 
 ## Unreleased
 
+### Changed — Phase 1: Host runtime decoupling (2026-04-17)
+
+**onto는 더 이상 "Claude Code plugin" 단일 호스트 도구가 아닌, "multi-host LLM-driven runtime"으로 재포지셔닝.** 3 host 환경 (Claude Code session, Codex CLI session, standalone CLI process) 을 동등하게 인식.
+
+**Phase 1 scope** (이 PR): host detection + capability matrix + 2-axis (main LLM × subagent LLM) configuration schema + override mechanism + 문서/렉시콘 reframing. Phase 2 에서 standalone host 의 직접 LLM 호출 wiring 진행 예정.
+
+#### Added
+
+- **`src/core-runtime/discovery/host-detection.ts`** (canonical seat) — `detectHostRuntime()` + `detectHostCapabilities()` + 6단계 priority resolution
+- **`src/core-runtime/discovery/plugin-path.ts`** — `resolvePluginPath()` + `ONTO_PLUGIN_DIR` env var 지원
+- **`ONTO_HOST_RUNTIME`** env var (`claude` | `codex` | `standalone`) — host detection explicit override
+- **`ONTO_PLUGIN_DIR`** env var — plugin install 경로 override (default: `~/.claude/plugins/onto`)
+- 단위 테스트 신규 31건 (`host-detection.test.ts` 24건 + `plugin-path.test.ts` 5건 + 기타)
+- Lexicon `provisional_terms` 신규 seed: `host_runtime_detection`, `main_subagent_llm_axis`
+
+#### Changed
+
+- 3 파일에 중복되어 있던 host detection 로직을 canonical seat 로 통합:
+  - `src/core-runtime/cli/bootstrap-review-binding.ts` (line 50-62)
+  - `src/core-runtime/cli/prepare-review-session.ts` (line 75-87)
+  - `src/core-runtime/cli/review-invoke.ts` (line 377-395)
+- README + BLUEPRINT 재포지셔닝: "Claude Code plugin" → "multi-host LLM-driven runtime" + Host Compatibility Matrix + Two-tier LLM model 추가
+- 17 개 markdown 문서 (commands/*.md 7파일 + processes/*.md 3파일 + README + process.md + BLUEPRINT 등) 의 hardcoded `~/.claude/plugins/onto/` 표기 → `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/` fallback notation 으로 갱신
+- `processes/review/execution-preparation-artifacts.md`: 예시 데이터 (literal absolute path) 보존 + canonical 표기 안내문 추가
+
+#### Architecture decisions
+
+| 결정 | 선택 |
+|---|---|
+| `unknown` host category | 도입 안 함 — 어떤 신호도 없으면 `standalone` default (TS process 가 valid use case) |
+| Capability detection 분리 | host runtime 의존 (TeamCreate/AgentSpawn) vs 환경 독립 (Codex/Anthropic/OpenAI/LiteLLM) 두 부류 분리 |
+| Subagent inline tool mode (Phase 2) | inline content mode 우선; function-calling loop 는 Phase 3 |
+| Standalone main LLM 역할 (Phase 2) | TS process 가 별도 LLM 호출하여 lens 선택 + synthesize — 단순 dispatcher 가 아닌 main LLM 사용 |
+
+#### Backward compatibility
+
+- 기존 `host_runtime: claude|codex` config 값 그대로 인식
+- 기존 detection 시그널 모두 유지 (`CLAUDECODE`, `CLAUDE_PROJECT_DIR`, `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`, `CODEX_THREAD_ID`, `CODEX_CI`)
+- 기존 boolean predicate (`detectClaudeCodeHost()`, `detectCodexAvailable()`) — 시그너처 변경 없음, 내부만 위임
+- `~/.claude/plugins/onto/` 경로는 `ONTO_PLUGIN_DIR` 미설정 시 default 로 유지
+
 ### Changed — Domain selection canonical syntax (2026-04-17)
 
 **`--domain {name}` / `--no-domain` 을 canonical 도메인 selection 문법으로 도입.** Legacy 위치 인자 `@{domain}` / `@-` 도 backward compat 으로 계속 인식.

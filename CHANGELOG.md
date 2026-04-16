@@ -20,7 +20,7 @@
 - `--codex` flag 또는 `--prepare-only` → `subagent_codex` path (self 실행)
 - `host_runtime: claude` config 또는 `CLAUDECODE=1` 감지 → `coordinator-start` handoff JSON emit
 - codex binary + `~/.codex/auth.json` 감지 → codex path
-- 둘 다 없음 → fail-fast with cost-order guidance
+- 둘 다 없음 → fail-fast with host-setup guidance
 - `host_runtime: codex` config → codex path 강제
 
 **Handoff JSON** (`onto review` 무명시 + Claude host 감지 시 emit):

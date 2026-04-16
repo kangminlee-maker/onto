@@ -110,7 +110,7 @@ The command surface should stay thin:
 - `--codex` → subagent + codex (`host_runtime: codex`). `onto review` CLI가 전체 실행을 담당.
 - 플래그 무명시 + `CLAUDECODE=1` 감지: auto-resolution이 coordinator-start handoff JSON을 emit → 주체자가 이후 nested(agent_teams_claude) 또는 flat(subagent_claude) 패턴 선택.
 - 플래그 무명시 + codex binary + auth.json만 있음: codex 경로를 default로 진행.
-- 플래그 무명시 + 둘 다 없음: fail-fast with cost-order guidance.
+- 플래그 무명시 + 둘 다 없음: fail-fast with host-setup guidance (네 가지 해결 경로 제시).
 - `.onto/config.yml`의 `host_runtime: claude` | `codex`로 명시 override 가능 (stay-in-host 자동 해소를 거스름).
 
 Examples:

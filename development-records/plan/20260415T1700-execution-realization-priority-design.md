@@ -99,6 +99,13 @@ export type ReviewHostRuntime = "codex" | "claude" | "litellm";
 
 기존 두 값의 의미는 불변. `ReviewExecutionRealization`은 변경 없음.
 
+**`litellm`의 현재 상태는 "타입 인정, 런타임 fail-close"**:
+- 타입 공간에서는 `ReviewHostRuntime`의 유효 값으로 인정됨 → artifact/binding에서 해당 값이 파싱·직렬화는 가능.
+- 런타임에서 명시적 `host_runtime: "litellm"` config는 `resolveExecutionProfile`에서 **explicit error**로 거절됨 — actionable guidance(설정 제거 또는 claude/codex 선택)와 함께 fail-fast.
+- Auto-resolution ladder는 절대로 `litellm` host를 선택하지 않음 — Claude Code host 감지와 codex availability 감지만 있음.
+- 이 fail-close 계약은 `subagent_litellm` 조합이 실제로 wired되기 전까지 고정. wiring이 들어오는 후속 PR에서는 이 에러를 제거하고 auto-detection·resolver 분기를 추가.
+- 근거: `src/core-runtime/cli/review-invoke.ts:resolveExecutionProfile`, 단위 테스트 E7 (review-invoke-auto-resolution.test.ts).
+
 ### 3.2 `review-invoke.ts` auto-resolution 재작성
 
 현재 `resolveExecutorConfig`(line 344-413)의 "Claude runs use coordinator start" 에러를 제거하고 auto-resolution 블록으로 교체.

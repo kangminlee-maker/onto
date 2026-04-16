@@ -499,16 +499,23 @@ function buildNoHostDetectedError(): Error {
 }
 
 function emitCoordinatorStartHandoff(args: {
-  executionRealization: "subagent" | "agent-teams";
+  preferredRealization: "subagent" | "agent-teams";
   requestedTarget: string;
   requestText: string;
 }): void {
   // Shell-escape: wrap in double quotes and escape embedded double quotes/backslashes.
   const q = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  // preferred: plan-time recommendation based on onto's resolution policy
+  //   (typically agent-teams nested when TeamCreate is expected to be available).
+  // actual:    deferred — determined by subject session at TeamCreate attempt time.
+  //   onto child process cannot introspect the subject session's capability.
+  //   coordinator-state-machine then records the realized path into session
+  //   artifacts (binding.yaml / execution-plan.yaml / session-metadata.yaml).
   const payload = {
     handoff: "coordinator-start",
-    execution_realization: args.executionRealization,
     host_runtime: "claude" as const,
+    preferred_realization: args.preferredRealization,
+    actual_realization: "deferred_to_subject_session" as const,
     requested_target: args.requestedTarget,
     request_text: args.requestText,
     next_action: {
@@ -518,6 +525,8 @@ function emitCoordinatorStartHandoff(args: {
           "TeamCreate로 coordinator subagent를 nested spawn, coordinator가 Agent tool로 9 lens + synthesize subagent 추가 nested spawn (canonical path = agent_teams_claude).",
         fallback:
           "TeamCreate 비가용 환경에서는 주체자 세션이 Agent tool로 lens subagent를 직접 spawn 가능 (canonical path = subagent_claude). coordinator state machine은 양쪽 모두 수용.",
+        recording_note:
+          "주체자가 실제 선택한 realization은 coordinator-state-machine이 session artifact(binding.yaml 등)에 기록. 본 handoff payload의 preferred_realization은 plan-time 권장이지 actual truth가 아님.",
       },
     },
   };
@@ -1630,7 +1639,7 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   }
   if (handoff.type === "coordinator_start") {
     emitCoordinatorStartHandoff({
-      executionRealization: handoff.profile.execution_realization,
+      preferredRealization: handoff.profile.execution_realization,
       requestedTarget: setup.resolvedInvokeInputs.requestedTarget,
       requestText: setup.resolvedInvokeInputs.requestText,
     });

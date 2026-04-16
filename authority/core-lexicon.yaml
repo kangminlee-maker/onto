@@ -1,4 +1,4 @@
-lexicon_version: "0.13.0"
+lexicon_version: "0.14.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
@@ -16,6 +16,7 @@ notes:
   - "v0.11.0 additive (W-A-66/67/68, 2026-04-15): 3 supporting terms 신설 — competency_question/competency_scope (pragmatics lens + domain competency_qs.md 파일 소비), provenance (design-principles + review binding.yaml 소비), modularity_boundary (review 9-lens prompt packet 공통 소비). 각 term 이 해당 개념의 authority SSOT. supporting."
   - "v0.12.0 additive (W-C-01, 2026-04-16): govern_process entity 신설 + entrypoint.instances.govern 에 dispatches→govern_process relation 추가. §1.4 govern 활동의 authority seat 등재 (v0 = bounded minimum surface, 큐 기록만). drift engine 과 승인 강제 차단은 W-C-02. canonical-advancing."
   - "v0.13.0 additive (W-C-02, 2026-04-16): drift_queue_entry term notes 갱신 — drift engine 실구현 반영 (src/core-runtime/govern/drift-engine.ts). govern_process entity notes 에 drift engine classifier/router 역할 + §1.3 수준 0→1 gate 도달 기록. classifier 는 3 분기 (self_apply / queue / principal_direct) deterministic. 승인 강제 차단 (pre-commit/CI/merge gate) 은 W-C-02 v1 이후. canonical-advancing."
+  - "v0.14.0 additive (W-D-05, 2026-04-16): **lifecycle 통합 재정의**. (1) principle entity 신설 — 규범적 결정 정의 + authority/core-lexicon.yaml 은 정의만, 본문은 design-principles/processes/ 배치 명시 + principle vs promoted term 구별 규칙 (execution_rules 보유 여부). (2) 'promoted' 용어 3분리 canonical term 신설 — lexicon_term_promotion / learning_scope_promotion / learning_to_principle_promotion (Semantic drift 해소). (3) shared_attributes.lifecycle_status 에 execution_rules_ref 추가 — deprecated/retired canonical owner 는 M-08 refresh protocol (Conciseness drift 해소). W-C-03 선행 blocker 해소. canonical-advancing."
   - "v0.8.0 additive (W-A-63, 2026-04-13): review_record term → entity 승격. lifecycle_status attribute 부여. review_process relation produces→creates 전환. lexicon Stage 3-3 merge."
   - "v0.7.0 additive (W-D-01+W-D-03, D0 Bootstrap, 2026-04-13): provisional_lifecycle section 신설 (W-D-01) — lexicon term 성숙도 전이 모델 (seed→candidate→provisional→promoted) + 전이 조건 + 소비 정책 + lifecycle_status 관리 위치 성문화. provisional_terms section 신설 (W-D-03) — dep graph §2.2.1 4 seat 구조 (recording seat + actor + consumer + promotion path) + entry schema + 빈 entries. §1 정본 '다음 작업 #2' + BL-123 대응."
 
@@ -103,8 +104,11 @@ shared_attributes:
       promoted: "승인 완료. 소비 가능"
       deprecated: "퇴역 후보"
       retired: "퇴역 완료"
+    execution_rules_ref:
+      transition_canonical_owner: "development-records/plan/20260413-refresh-protocol.md (M-08 refresh protocol). deprecated/retired 전이의 canonical owner. 기존 promote Step 4a event marker review (learning 대상) + judgment audit (judgment-type learning 대상) 은 M-08 하위 경로로 재분류됨 (W-D-05, 2026-04-16)."
     notes:
       - "전이 모델과 소비 문서는 각 entity의 execution_rules_ref에서 확인"
+      - "W-D-05 (2026-04-16): deprecated/retired 관리 분산 drift 해소 — M-08 refresh protocol 이 canonical owner."
   scope:
     definition: "Storage ownership boundary of a knowledge asset."
     values:
@@ -504,6 +508,32 @@ entities:
     legacy_aliases:
       - alias: "review_record_term"
         context: "Pre-W-A-63 term entry. Entity 승격 전의 terms section 항목."
+
+  principle:
+    canonical_label: "principle"
+    korean_label: "규범"
+    definition: >
+      규범적 결정으로 확정된 상위 층. 모든 onto 활동이 준수해야 할 제약.
+      본문은 design-principles/ (rank 2-4) 와 processes/ (rank 5) 에 존재한다.
+      authority/core-lexicon.yaml (rank 1) 은 principle entity 정의만 담고 본문은 담지 않는다.
+      promoted term 과는 별개 층 — promoted term 은 lexicon inventory (개념 식별) 이고,
+      principle 은 normative commitment (행동 규범) 이다.
+    core_value: >
+      이 개념이 없으면 '준수해야 할 규범' 과 '참조할 개념' 이 구별되지 않아 authority/ 가 behaviour policy 도
+      담도록 팽창한다. rank 1 (개념 SSOT) 과 rank 2 (개발 원칙) 의 CLAUDE.md 위계 구분이 흐려져 drift 누적.
+    relations:
+      - type: references
+        target: learning
+        note: "principle 은 learning 을 출처(provenance)로 가질 수 있다. W-C-03 의 learning_to_principle_promotion 경로를 통해 promoted learning 이 principle 로 승격 가능 (구체 기준은 W-C-03 설계)."
+    execution_rules_ref:
+      authoring_path: "본문 배치는 design-principles/*.md (rank 2-4) 와 processes/*.md (rank 5). 본문 수정은 Principal 승인 또는 W-ID 기반 authoring."
+      lifecycle_transition: "principle 본문 자체는 lifecycle_status 속성을 가지지 않음 — 등재되면 active. deprecated/retired 는 CLAUDE.md 위계 재편 시 별도 W-ID."
+      consumption_rule: "모든 onto 활동이 실행 전 관련 principle 을 ref. 위반 시 활동이 거부되거나 Principal 승인 요구."
+    notes:
+      - "W-D-05 (2026-04-16) 신설. lifecycle 통합 재정의 5 sub-task 중 S4."
+      - "본 entity 는 principle 의 정의와 principle vs promoted term 구별 규칙만 담는다. 기존 promoted term (activity_enum, axis_enum 등) 의 principle-tier 재분류는 별도 W-ID (scope creep 방지)."
+      - "instance 본문 (각 design-principles 파일, 각 process 파일) 은 파일 시스템 배치로 식별. lexicon 은 이들을 개별 entity 로 등재하지 않음 (domain_document, learning 패턴과 동일 — 개념 정의만 lexicon, 인스턴스 본문은 파일)."
+      - "구별 규칙 (principle vs promoted term, Q2 Fix): principle 은 execution_rules (무엇을 해야 하는가) 를 포함. term 은 definition (무엇인가) 만 포함. execution_rules_ref 보유 여부가 1차 구분 단서."
 
   principal:
     canonical_label: "principal"
@@ -1116,6 +1146,45 @@ terms:
       - "Consumers: review 9-lens prompt packets (모든 lens 가 이 경계를 공통 판단 기준으로 참조), m01-activity-inventory/govern.md (활동 단위 경계)."
       - "Lens별 적용: logic (rule locality), structure (schema locality), dependency (call/import graph locality), semantics (name scope locality), pragmatics (CQ locality), evolution (breakage locality), coverage (area locality), conciseness (dedup boundary), axiology (value-conflict locality)."
       - "관련 term: ownership_boundary (W-ID seat field — 구체적 파일/디렉토리 단위), modularity_boundary (개념 단위)."
+  - term_id: "lexicon_term_promotion"
+    canonical_label: "lexicon term promotion"
+    korean_label: "렉시콘 용어 승격"
+    axis: "lifecycle_nomenclature"
+    term_status: "active"
+    definition: "provisional_terms 섹션에 등재된 term 이 review PASS + Principal 승인을 거쳐 terms 섹션으로 이동하는 lifecycle 전이. term_status=active 로 설정되어 정식 참조 가능해진다."
+    allowed_values: []
+    notes:
+      - "W-D-05 (2026-04-16) 신설 — 'promoted' 용어 3분리 중 1/3 (Semantic drift 해소)."
+      - "Source of truth: authority/core-lexicon.yaml#provisional_lifecycle (W-D-01)."
+      - "Consumer: src/core-runtime/readers/lexicon-citation-check.ts (W-D-02), M-08 refresh protocol (provisional_terms scan)."
+      - "기존 'promoted' 일반 명칭은 대상 모호성 유발. 본 term 이 lexicon term 대상의 promotion 만 지칭."
+
+  - term_id: "learning_scope_promotion"
+    canonical_label: "learning scope promotion"
+    korean_label: "학습 스코프 승격"
+    axis: "lifecycle_nomenclature"
+    term_status: "active"
+    definition: "project-level learning (`{project}/.onto/learnings/{agent}.md`) 이 panel 3-agent 검증 PASS + Principal 승인을 거쳐 user-level scope (`~/.onto/learnings/{agent}.md`) 로 이동하는 lifecycle 전이. 이동 후 글로벌 소비 가능."
+    allowed_values: []
+    notes:
+      - "W-D-05 (2026-04-16) 신설 — 'promoted' 용어 3분리 중 2/3 (Semantic drift 해소)."
+      - "Source of truth: processes/promote.md."
+      - "Consumer: src/core-runtime/loader.ts (promoted learning 만 user scope 로드), loader consumption filter."
+      - "본 term 은 learning artifact 의 저장 경계 (project → user) 이동만 지칭. learning 내용 자체의 변환이나 principle 승격과는 구별됨."
+
+  - term_id: "learning_to_principle_promotion"
+    canonical_label: "learning-to-principle promotion"
+    korean_label: "학습에서 규범으로의 승격"
+    axis: "lifecycle_nomenclature"
+    term_status: "active"
+    definition: "promoted learning (knowledge) 중 일정 기준을 충족한 항목이 design-principles/ 또는 processes/ 의 principle 본문으로 승격되는 lifecycle 전이. 구체 기준과 경로는 W-C-03 에서 설계·구현."
+    allowed_values: []
+    notes:
+      - "W-D-05 (2026-04-16) 신설 — 'promoted' 용어 3분리 중 3/3 (Semantic drift 해소)."
+      - "Source of truth (planned): processes/govern.md (W-C-03 완료 시 §N 신설). 현재 onto-direction §1.1/§1.2 '보류 중' 상태 — W-D-05 는 도착지 (principle entity) 만 정의, 실 경로는 W-C-03 이 설계."
+      - "Consumer: govern CLI (W-C-03 의 promote-principle subcommand — W-C-03 구현 시)."
+      - "W-C-03 blocker 해소를 위해 도착지 명시 (principle entity 신설) + 용어 canonical 확립 목적."
+
   - term_id: "drift_queue_entry"
     canonical_label: "drift_queue_entry"
     korean_label: "거버넌스 큐 항목"

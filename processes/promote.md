@@ -7,6 +7,12 @@
 >
 > 프로세스 이름 "promote"는 활동 1에서 유래하며, 활동 2-3을 포함하는 확장된 범위를 갖는다.
 > Related: Learnings accumulated from reviews (`processes/review.md`) or queries (`processes/question.md`) are the target.
+>
+> **W-D-05 용어 정렬 (2026-04-16)**: 본 프로세스의 활동 1 (승격) 은 `learning_scope_promotion`
+> canonical term 으로 지칭한다 (authority/core-lexicon.yaml#learning_scope_promotion). 대상은
+> learning artifact 의 저장 경계 (project → user scope) 이동만 포함. lexicon term 대상의 이동은
+> `lexicon_term_promotion`, knowledge → principle 본문 승격은 `learning_to_principle_promotion`
+> (W-C-03 미구현) 로 분리된다. 세 `*_promotion` term 의 의존 그래프는 `processes/govern.md §12` 참조.
 
 학습 품질 보증(LQA)을 수행한다. Project-level learnings (`{project}/.onto/learnings/`)의 global-level 승격, 기존 global 학습의 축 태그 재평가와 교차 에이전트 중복 제거, judgment 학습 재검증 및 event marker 보유 학습 퇴역 검토를 포함한다.
 

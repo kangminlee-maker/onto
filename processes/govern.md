@@ -194,3 +194,125 @@ v0 구현은 **수준 1 도달 조건** 을 충족한다:
 - 실제 diff 분석 + authority 규칙 충돌 검출 (drift probe 본체).
 - pre-commit / CI / merge gate 차단 강제 (decide approve 가 실제 merge 를 gating).
 - 수준 2 (일부 drift 감수 변경 자체 실행) 로의 전이 기준 — 수준 1 운영 데이터 축적 후 재평가.
+
+---
+
+## 12. Learning · Term · Principle Lifecycle 의존 그래프 (W-D-05)
+
+세션 13 drift 리서치 결과 확정된 3 lifecycle 간 의존 관계 시각화. 관계 **정의** 는 `authority/core-lexicon.yaml` 의 각 entity relations 가 canonical. 본 §12 는 **시각화 + 경로 요약** 만 담는다 (개념 SSOT drift 방지).
+
+### 12.1 세 lifecycle 의 canonical 이름 (W-D-05 S1)
+
+| canonical term | 대상 | 출발 | 도착 | 기준 문서 |
+|---|---|---|---|---|
+| `lexicon_term_promotion` | lexicon term | `provisional_terms` 섹션 | `terms` 섹션 | `authority/core-lexicon.yaml#provisional_lifecycle` |
+| `learning_scope_promotion` | learning artifact | `{project}/.onto/learnings/{agent}.md` | `~/.onto/learnings/{agent}.md` | `processes/promote.md` |
+| `learning_to_principle_promotion` | promoted learning → principle | `~/.onto/learnings/{agent}.md` 의 항목 | `design-principles/*.md` 또는 `processes/*.md` 의 본문 | W-C-03 (미구현, §1.1/§1.2 "보류 중") |
+
+### 12.2 의존 그래프
+
+```mermaid
+flowchart LR
+  subgraph lexicon["lexicon (authority/core-lexicon.yaml)"]
+    prov_term["provisional_terms"]
+    term["terms"]
+    prov_term -->|lexicon_term_promotion| term
+  end
+
+  subgraph learning["learning artifact"]
+    proj_learn["project scope<br/>(project/.onto/learnings/)"]
+    user_learn["user scope<br/>(~/.onto/learnings/)"]
+    proj_learn -->|learning_scope_promotion| user_learn
+  end
+
+  subgraph principle["principle 본문"]
+    dp_file["design-principles/*.md"]
+    proc_file["processes/*.md"]
+  end
+
+  user_learn -.->|learning_to_principle_promotion<br/>W-C-03 경로| dp_file
+  user_learn -.->|learning_to_principle_promotion<br/>W-C-03 경로| proc_file
+
+  term -.->|참조 (개념 resolve)| dp_file
+  term -.->|참조 (개념 resolve)| proc_file
+
+  classDef pending fill:#fef3c7,stroke:#d97706,color:#92400e
+  class dp_file,proc_file pending
+```
+
+### 12.3 lifecycle_status 전이 canonical owner (W-D-05 S2)
+
+| 전이 | canonical owner | 하위 경로 |
+|---|---|---|
+| `seed → candidate → provisional → promoted` | 각 entity 의 execution_rules_ref 가 지정 (예: learning → `processes/promote.md`, term → `provisional_lifecycle`) | — |
+| `promoted → deprecated → retired` | **M-08 refresh protocol** (`development-records/plan/20260413-refresh-protocol.md`) | promote Step 4a event marker review (learning 대상) + judgment audit (judgment-type learning 대상) 은 M-08 의 하위 경로로 재분류됨 |
+
+### 12.4 authoring path 성문화 (W-D-05 S3)
+
+| 계층 | rank (CLAUDE.md) | authoring path | execution_rules_ref 위치 |
+|---|---|---|---|
+| `authority/` | 1 (개념 SSOT) | W-ID 기반 authoring. schema/structure 변경 시 Principal 승인 | 각 entity 내부 `authoring_rules` (top-level) + entity 별 `execution_rules_ref` |
+| `design-principles/` | 2-4 (개발 원칙 / 제품 방향 / 인터페이스 명세 / 이름 규칙) | Principal 수동 작성 OR W-ID 기반 authoring OR `learning_to_principle_promotion` 경로 (W-C-03 미구현) | `principle.execution_rules_ref.authoring_path` |
+| `processes/` | 5 (기능별 계약) | Principal 수동 작성 OR W-ID 기반 authoring OR `learning_to_principle_promotion` 경로 (W-C-03 미구현) | `principle.execution_rules_ref.authoring_path` (동일 — principle 의 한 유형) |
+
+### 12.5 principle vs promoted term 구별 (W-D-05 S4, Q2 Fix)
+
+| 축 | principle | promoted term |
+|---|---|---|
+| 답하는 질문 | 무엇을 해야 하는가 (obligation) | 무엇인가 (identity) |
+| 형식 | Markdown prose (서술·근거·반례) | YAML schema (structured definition) |
+| `execution_rules_ref` | **필수 보유** — 규범 본문·lifecycle·소비 규칙 가리킴 | 선택 보유 — 단순 enum 은 없음 |
+| 본문 배치 | `design-principles/*.md` + `processes/*.md` | `authority/core-lexicon.yaml` 내부 |
+| authority/core-lexicon.yaml 에 등재 | entity **정의** 만 (본문 X) | entity/term **정의 + 값** (본문 그 자체) |
+
+**1차 구분 단서**: `execution_rules_ref` 보유 여부.
+
+### 12.6 scope 경계 (MINOR 처리)
+
+본 §12 는 principle **entity 정의** 와 **구별 규칙** 만 명시한다. 기존 `authority/core-lexicon.yaml` 에 등재된 promoted term (`activity_enum`, `axis_enum`, `fact_type`, `learning`, `review_process` 등) 의 principle-tier 재분류는 **별도 W-ID** 로 분리 (scope creep 방지, 세션 13 9-lens 리뷰 Lens 6 MINOR 반영).
+
+---
+
+## 13. Knowledge → Principle Promotion (W-C-03)
+
+§1.2 "보류 중" 해소. promoted learning (knowledge) 이 principle 본문 (`design-principles/` 또는 `processes/`) 으로 승격되는 경로. canonical term: `learning_to_principle_promotion`. W-D-05 가 확정한 도착지 (principle entity) 를 소비한다.
+
+### 13.1 승격 기준 3축 + 1 보조 (v0)
+
+| 축 | 판정 방식 | 검증 시점 |
+|---|---|---|
+| **Quality gate** | workload-evidence: source session 의 `state_transitions`, `constraint_count`, `retry_count` 중 하나 이상 threshold 초과 (OR mode). threshold 는 `.onto/govern/thresholds.yaml` config | `promote-principle` submit 시 CLI validator |
+| **Frequency gate** (Quality 면제) | `similar_to` 가 기존 pending 의 유효 id 참조 시 workload evidence 면제. 첫 1건은 Quality 필수, 2번째부터 frequency 가능 | `promote-principle` submit 시 CLI validator |
+| **Completeness gate** | proposal schema 필수 필드 전수 (learning_ref, target, rationale, conflict_check, workload_evidence.evidence_summary) | `promote-principle` submit 시 CLI validator |
+| **Principal gate** | 기존 `onto govern decide <id> --verdict approve` | 별도 호출 시 (주체자 최종 판정) |
+
+### 13.2 Threshold Config
+
+`.onto/govern/thresholds.yaml` (project-local). 파일 편집으로 즉시 조정. 부재 시 hardcoded default:
+
+```yaml
+mode: any
+state_transitions_min: 8
+constraint_count_min: 3
+retry_count_min: 2
+repeat_observation_min: 1
+```
+
+### 13.3 similar_to Grouping
+
+CLI 밖에서 agent 의 자연어 reasoning 으로 유사도 판정. 결과를 proposal `similar_to` 필드에 기입. CLI 는 id 존재 검증만 (LLM 호출 없음). `list --group` 시 similar_to 기반 그룹 렌더링.
+
+흐름: agent 가 `govern list --status pending --format json` → 기존 pending 비교 → similar_to 채움 → `promote-principle --json <proposal>` 제출.
+
+LLM inflate 방지: v0 는 `origin=human` 만 (agent auto-propose 없음). 큐에 쌓여도 Principal decide 없으면 소비 안 됨 (structural 안전).
+
+### 13.4 v0 범위
+
+- **기록만** (W-C-01 동형): decide approve 후 실제 파일 편집은 주체자 수동.
+- **Out**: 자동 파일 반영, 자동 conflict 분석, agent auto-propose, consumption-based exposure (W-C-05).
+
+### 13.5 §1.2 "보류 중" 해소 경로
+
+- **W-D-05**: 도착지 구조 확정 (principle entity + canonical term + 3 계층 authoring path)
+- **W-C-03 (본 §13)**: 승격 기준 (3축) + runtime CLI (`onto govern promote-principle`) 확정
+- **잔존**: 실제 파일 자동 반영 (v1). "보류 중" 의 "경로 미구현" 부분은 W-C-03 으로 해소. "자동 반영 미구현" 부분은 v1 으로 명시 잔존.

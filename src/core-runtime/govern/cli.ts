@@ -20,6 +20,8 @@ import {
 } from "./queue.js";
 import { routeProposal } from "./drift-engine.js";
 import type { ChangeKind, ChangeProposal } from "./drift-engine.js";
+import { executePromotePrinciple } from "./promote-principle.js";
+import type { PromotePrincipleProposal } from "./promote-principle.js";
 import { originToTag } from "./types.js";
 import type {
   GovernDecideEvent,
@@ -45,6 +47,8 @@ export async function handleGovernCli(
       return handleDecide(subArgv);
     case "route":
       return handleRoute(subArgv);
+    case "promote-principle":
+      return handlePromotePrinciple(subArgv);
     case "--help":
     case "-h":
     case undefined:
@@ -67,6 +71,7 @@ function printHelp(): void {
       "  list     Show queue entries (pending / decided / all)",
       "  decide   Record Principal verdict on a queued item",
       "  route    Classify a change proposal by drift policy (W-C-02, §1.3)",
+      "  promote-principle  Propose a promoted learning for principle promotion (W-C-03)",
       "",
       "Options (submit):",
       "  --origin <human|system>     who is submitting (required)",
@@ -266,6 +271,45 @@ function renderTable(entries: GovernQueueEntry[], statusFilter: string): void {
       cols.map((c) => String(r[c] ?? "").padEnd(widths[c]!)).join("  "),
     );
   }
+}
+
+// ─── promote-principle (W-C-03) ───
+
+function handlePromotePrinciple(argv: string[]): number {
+  const jsonRaw = readOption(argv, "json");
+  if (!jsonRaw) {
+    console.error("[onto] govern promote-principle: --json proposal is required.");
+    console.error("Example: onto govern promote-principle --json '{\"learning_ref\":{\"agent_id\":\"logic\",\"entry_marker\":\"...\"},\"target\":{\"category\":\"design_principle\",\"file_path\":\"design-principles/X.md\",\"section\":\"NEW\"},\"rationale\":\"...\",\"conflict_check\":{\"reviewed_by_agent\":true,\"existing_principle_refs\":[],\"conflict_summary\":\"no conflict\"},\"workload_evidence\":{\"state_transitions\":10,\"evidence_summary\":\"...\",\"event_refs\":[]},\"source_impact\":\"high\"}'");
+    return 1;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonRaw);
+  } catch (e) {
+    console.error(`[onto] govern promote-principle: --json parse error: ${e instanceof Error ? e.message : String(e)}`);
+    return 1;
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    console.error("[onto] govern promote-principle: --json must be a JSON object.");
+    return 1;
+  }
+
+  const projectRoot = resolveProjectRoot(argv);
+  const result = executePromotePrinciple(parsed as PromotePrincipleProposal, projectRoot);
+
+  if (!result.success) {
+    console.error(`[onto] govern promote-principle: ${result.reason}`);
+    return 1;
+  }
+
+  console.log(JSON.stringify({
+    status: "queued",
+    id: result.id,
+    gate_passed: result.gate_passed,
+    similar_to: result.similar_to,
+    next_action: `onto govern decide ${result.id} --verdict <approve|reject> --reason <text>`,
+  }, null, 2));
+  return 0;
 }
 
 // ─── route (W-C-02 drift engine) ───

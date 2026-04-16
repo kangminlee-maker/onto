@@ -12,6 +12,7 @@ govern <subcommand> [options]
 | `list` | 큐 조회 (pending / decided / all) | (읽기) |
 | `decide <id>` | 주체자 판정 기록 | pending → decided |
 | `route` | drift engine 분류 (§1.3 3 분기) + 필요 시 큐 append | (drift → pending 또는 no-op) |
+| `promote-principle` | knowledge → principle 승격 제안 (W-C-03) | — → pending (Quality/Frequency + Completeness gate 통과 시) |
 
 **Authority seat**: `processes/govern.md` (프로세스 계약). 큐 저장 경로: `.onto/govern/queue.ndjson` (프로젝트 로컬).
 

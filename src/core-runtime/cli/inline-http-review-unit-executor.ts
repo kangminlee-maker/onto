@@ -66,6 +66,7 @@ import {
 } from "../learning/shared/llm-tool-loop.js";
 import { ONTO_DEFAULT_TOOLS } from "./onto-tools.js";
 import { embedInlineContext } from "../review/inline-context-embedder.js";
+import { parsePacketBoundaryPolicy } from "../review/packet-boundary-policy.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -289,6 +290,12 @@ interface ExecutorResult {
   /** Tool-loop telemetry; absent when tool_mode="inline". */
   tool_iterations?: number;
   tool_calls?: number;
+  /**
+   * True when the caller requested tool-native (or auto) but the packet's
+   * Boundary Policy Filesystem: denied forced inline. Surface as audit signal
+   * so cost dashboards can correlate packet policy with executor tier.
+   */
+  packet_policy_downgrade?: boolean;
 }
 
 function parseToolMode(raw: unknown): ToolModeRequest {
@@ -444,14 +451,45 @@ export async function runInlineHttpReviewUnitExecutorCli(
   // routes through subprocess and bypasses callLlmWithTools entirely — auto
   // collapses to inline there.
   const toolLoopProvider = asToolLoopProvider(cliOverrides.provider);
-  const tryNative =
-    requestedToolMode === "native" ||
-    (requestedToolMode === "auto" && toolLoopProvider !== null);
   if (requestedToolMode === "native" && toolLoopProvider === null) {
     throw new Error(
       `--tool-mode=native requires provider in {anthropic, openai, litellm}; got "${cliOverrides.provider ?? "(auto)"}".`,
     );
   }
+
+  // Read packet (raw) first so we can inspect its declared Boundary Policy
+  // BEFORE deciding whether native mode is admissible. Embedding happens
+  // after, so boundary policy is taken from the authored packet, not from
+  // any embedded material.
+  const rawPacketText = await fs.readFile(packetPath, "utf8");
+  const packetPolicy = parsePacketBoundaryPolicy(rawPacketText);
+
+  // A1 precedence rule: packet-declared Filesystem: denied forbids tool-native
+  // mode regardless of CLI flag, because the packet is the authoritative
+  // contract for this unit. If the caller explicitly asked for native, surface
+  // the conflict as a fail-fast precondition error (rather than silently
+  // changing the requested mode). Otherwise (auto), downgrade to inline and
+  // emit a one-time STDERR notice so operators can see why the tier changed.
+  let packetForcedInline = false;
+  if (packetPolicy.filesystem === "denied") {
+    if (requestedToolMode === "native") {
+      throw new Error(
+        `--tool-mode=native conflicts with packet's Boundary Policy (Filesystem: ${
+          packetPolicy.filesystemRaw ?? "denied"
+        }). ` +
+          "The packet declares no filesystem access; tool-native mode would hand the LLM file tools in violation. " +
+          "Use --tool-mode=inline or remove the packet-level Filesystem: denied declaration.",
+      );
+    }
+    if (requestedToolMode === "auto") {
+      packetForcedInline = true;
+    }
+  }
+
+  const tryNative =
+    !packetForcedInline &&
+    (requestedToolMode === "native" ||
+      (requestedToolMode === "auto" && toolLoopProvider !== null));
 
   // Read packet, optionally embed inline content. Embedding is independent of
   // tool_mode — even tool-native runs benefit from packet pre-population so
@@ -462,6 +500,15 @@ export async function runInlineHttpReviewUnitExecutorCli(
     projectRoot,
     embedDomainDocs,
   );
+
+  if (packetForcedInline) {
+    process.stderr.write(
+      `[onto] tool-native downgraded to inline for unit ${unitId}: packet declares Boundary Policy Filesystem: ${
+        packetPolicy.filesystemRaw ?? "denied"
+      }. ` +
+        "The packet's policy takes precedence over --tool-mode=auto.\n",
+    );
+  }
 
   let outputText = "";
   let modelIdUsed: string | undefined;
@@ -572,6 +619,7 @@ export async function runInlineHttpReviewUnitExecutorCli(
     ...(modelIdUsed !== undefined ? { model_id: modelIdUsed } : {}),
     ...(toolIterations !== undefined ? { tool_iterations: toolIterations } : {}),
     ...(toolCallsExecuted !== undefined ? { tool_calls: toolCallsExecuted } : {}),
+    ...(packetForcedInline ? { packet_policy_downgrade: true } : {}),
   };
 
   console.log(JSON.stringify(executorResult, null, 2));

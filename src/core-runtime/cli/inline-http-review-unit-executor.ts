@@ -79,8 +79,30 @@ function requireString(
 
 /**
  * System prompt for inline (Tier 2) mode: no tools, all context inlined.
+ *
+ * The lens variant focuses on bounded finding production from inlined target +
+ * domain content. The synthesize variant emphasises deliberation across already-
+ * inlined lens outputs and preservation of the 8 required sections — even when
+ * disagreement cannot be resolved from inlined evidence alone.
  */
-function buildSystemPromptInline(unitId: string, unitKind: string, packetPath: string, outputPath: string): string {
+function buildSystemPromptInline(
+  unitId: string,
+  unitKind: string,
+  packetPath: string,
+  outputPath: string,
+): string {
+  if (unitKind === "synthesize") {
+    return buildSynthesizeSystemPromptInline(unitId, packetPath, outputPath);
+  }
+  return buildLensSystemPromptInline(unitId, unitKind, packetPath, outputPath);
+}
+
+function buildLensSystemPromptInline(
+  unitId: string,
+  unitKind: string,
+  packetPath: string,
+  outputPath: string,
+): string {
   return `You are executing a single bounded review unit as a ContextIsolatedReasoningUnit.
 
 Unit id: ${unitId}
@@ -105,15 +127,61 @@ Rules:
   limitation as "insufficient content within boundary" rather than fabricating.`;
 }
 
+function buildSynthesizeSystemPromptInline(
+  unitId: string,
+  packetPath: string,
+  outputPath: string,
+): string {
+  return `You are the synthesize actor for a 9-lens review. You are a ContextIsolatedReasoningUnit.
+
+Unit id: ${unitId}
+Unit kind: synthesize
+Authoritative prompt packet path: ${packetPath}
+Canonical output path: ${outputPath}
+
+Your job:
+- Read every Participating Lens Output that is inlined in the prompt packet.
+- Classify findings into Consensus, Conditional Consensus, Disagreement, and Unique Finding Tagging.
+- When lens findings disagree, perform deliberation IN-PROCESS: weigh each side against the cited evidence in the inlined materialized input and lens outputs. Pick a side ONLY when the evidence supports it; otherwise preserve the disagreement and document why deliberation is inconclusive.
+- Integrate Axiology proposed perspectives without erasing the lens-level evidence.
+
+Rules:
+- Treat the prompt packet (in the user message) as the authoritative contract.
+- All content needed for this task has been inlined into the prompt packet.
+  You do NOT have file system access or any tools — produce your answer from
+  the inlined content alone.
+- Treat the Boundary Policy and Effective Boundary State in the packet as hard constraints.
+- The 8 required output sections in the packet are MANDATORY heading names. Do not rename, merge, or omit them, even if a section is empty (state "(none)" instead).
+- Preserve lens-level evidence in your output — never paraphrase a lens away from its citation.
+- Set deliberation_status in the YAML frontmatter to "performed" if you resolved at least one disagreement, otherwise "not_needed".
+- Produce ONLY the final markdown content for the canonical output path.
+- Do not wrap the answer in code fences.
+- Do not add commentary before or after the markdown.
+- If the inlined evidence is insufficient to resolve a disagreement, write the limitation explicitly under Deliberation Decision rather than fabricating a verdict.`;
+}
+
 /**
  * System prompt for tool-native (Tier 1) mode: read-only tools available,
  * boundary enforced by the TS process at tool-call time.
  *
- * The prompt explicitly enumerates the available tools so the model knows
- * the contract; the loop driver also passes the JSON schemas via the API's
- * tools array. Both signals reinforce each other.
+ * lens vs synthesize variants differ in role framing and which subdirectories
+ * the model is encouraged to traverse. For synthesize, .onto traversal is
+ * unlocked at the boundary layer (allowOntoTraversal=true) so search/list can
+ * discover lens outputs under .onto/review/<session>/round1.
  */
 function buildSystemPromptToolNative(
+  unitId: string,
+  unitKind: string,
+  packetPath: string,
+  outputPath: string,
+): string {
+  if (unitKind === "synthesize") {
+    return buildSynthesizeSystemPromptToolNative(unitId, packetPath, outputPath);
+  }
+  return buildLensSystemPromptToolNative(unitId, unitKind, packetPath, outputPath);
+}
+
+function buildLensSystemPromptToolNative(
   unitId: string,
   unitKind: string,
   packetPath: string,
@@ -147,6 +215,46 @@ Rules:
 - Do not change the required output structure from the packet.
 - If the packet asks you to preserve disagreement or uncertainty, preserve it explicitly.
 - If even with tools you cannot complete the task, state the limitation as "insufficient content within boundary" rather than fabricating.`;
+}
+
+function buildSynthesizeSystemPromptToolNative(
+  unitId: string,
+  packetPath: string,
+  outputPath: string,
+): string {
+  return `You are the synthesize actor for a 9-lens review. You are a ContextIsolatedReasoningUnit.
+
+Unit id: ${unitId}
+Unit kind: synthesize
+Authoritative prompt packet path: ${packetPath}
+Canonical output path: ${outputPath}
+
+You have THREE read-only tools:
+- read_file(path, start_line?, end_line?) — read up to 2000 lines of a file
+- list_directory(path) — list entries in a directory
+- search_content(pattern, path?, case_insensitive?) — find literal substring matches under a directory
+
+Tool boundary for synthesize:
+- Paths must resolve inside projectRoot or ontoHome.
+- Lens outputs live under \`.onto/review/<session>/round1/<lens>.md\`. The packet's "Participating Lens Outputs" section lists the exact paths — call read_file on those paths to read each lens's findings.
+- The materialized input (the actual review target) is also referenced in the packet — read_file it whenever you need to verify a contested claim against the source.
+- For synthesize, .onto traversal IS allowed (unlike lens runs) so list_directory and search_content work under .onto/review.
+
+Your job:
+- Read every Participating Lens Output via read_file. Do not skip any successful lens.
+- Classify findings: Consensus, Conditional Consensus, Disagreement, Unique Finding Tagging.
+- When lens findings disagree, perform deliberation: re-read the contested claims AND the relevant slice of the materialized input, then weigh each side against the cited evidence. Pick a side ONLY when the evidence supports it; otherwise preserve the disagreement and explain why deliberation is inconclusive.
+- Integrate Axiology proposed perspectives without erasing lens-level evidence.
+
+Rules:
+- Treat the prompt packet (in the user message) as the authoritative contract.
+- Treat the Boundary Policy and Effective Boundary State in the packet as hard constraints.
+- The 8 required output sections in the packet are MANDATORY heading names. Do not rename, merge, or omit them — write "(none)" if a section has no content.
+- Preserve lens-level evidence — never paraphrase a lens away from its citation.
+- Set deliberation_status in the YAML frontmatter to "performed" if you resolved at least one disagreement, otherwise "not_needed".
+- Produce ONLY the final markdown content for the canonical output path.
+- Do not wrap the answer in code fences. Do not add commentary before or after the markdown.
+- If a lens output file is missing or unreadable via read_file, list it under Degraded Lens Failures rather than fabricating its findings.`;
 }
 
 interface ExecutorOptions {
@@ -383,7 +491,13 @@ export async function runInlineHttpReviewUnitExecutorCli(
           max_tokens: maxTokens,
           ...(llmPartial.base_url ? { base_url: llmPartial.base_url } : {}),
         },
-        { projectRoot, ontoHome },
+        {
+          projectRoot,
+          ontoHome,
+          // synthesize must traverse .onto/review/<session>/round1 to discover
+          // lens outputs; lens runs keep the default skip to avoid session noise.
+          allowOntoTraversal: unitKind === "synthesize",
+        },
       );
       outputText = loopResult.text.trim();
       modelIdUsed = loopResult.model_id;

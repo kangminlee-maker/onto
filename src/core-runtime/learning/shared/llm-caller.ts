@@ -1103,8 +1103,8 @@ function callMockProvider(
   } else if (
     systemPrompt.startsWith("You are executing a single bounded review unit")
   ) {
-    // Phase 2 host-decoupling: ts_inline_http review unit executor (lens or
-    // synthesize). The mock returns a minimal lens-output-shaped markdown so
+    // Phase 2 host-decoupling: ts_inline_http review unit executor (lens
+    // variant). The mock returns a minimal lens-output-shaped markdown so
     // executor tests can verify the full call → write → JSON-print path
     // without needing a real LLM endpoint. Real lens output comes from a real
     // LLM; this mock only exercises the executor wiring.
@@ -1128,6 +1128,44 @@ function callMockProvider(
       "",
       "## Domain Context Assumptions",
       "Mock executor returned this output for test purposes via ONTO_LLM_MOCK=1.",
+      "",
+    ].join("\n");
+  } else if (
+    systemPrompt.startsWith("You are the synthesize actor for a 9-lens review")
+  ) {
+    // Phase 3-3: synthesize-variant executor mock. Returns a minimal
+    // synthesize-shaped markdown with the 8 required sections + YAML
+    // frontmatter so downstream consumers can verify the structure.
+    text = [
+      "---",
+      "deliberation_status: not_needed",
+      "---",
+      "",
+      "# Mock Synthesize Output (ts_inline_http executor mock, synthesize variant)",
+      "",
+      "## Consensus",
+      "(none — mock executor)",
+      "",
+      "## Conditional Consensus",
+      "(none — mock executor)",
+      "",
+      "## Disagreement",
+      "(none — mock executor)",
+      "",
+      "## Deliberation Decision",
+      "Mock synthesize returned this output via ONTO_LLM_MOCK=1; no real deliberation performed.",
+      "",
+      "## Unique Finding Tagging",
+      "(none — mock executor)",
+      "",
+      "## Axiology Integration",
+      "(none — mock executor)",
+      "",
+      "## Newly Learned",
+      "(none — mock executor)",
+      "",
+      "## Degraded Lens Failures",
+      "(none — mock executor)",
       "",
     ].join("\n");
   } else {

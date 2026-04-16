@@ -309,6 +309,8 @@ export async function runPromoter(
   // -------------------------------------------------------------------------
   // Step 7: Retirement analysis — DD-6
   // -------------------------------------------------------------------------
+  // W-C-06 scope 명시: retirement 는 GLOBAL scope 대상 (promoted items).
+  // panel_verdicts (Step 3~6) 는 PROJECT scope 대상. 두 signal 의 scope 가 다름은 의도적.
   const retirement_candidates = identifyRetirementCandidates(
     collection.global_items,
   );
@@ -330,7 +332,9 @@ export async function runPromoter(
       axis_tag_re_evaluation_changes_this_session: countAxisTagChanges(
         panelVerdicts,
       ),
-      creation_gate_failures: 0, // Phase 3 MVP — populated when extractor wires it through
+      creation_gate_failures: collection.global_items.filter(
+        (item) => item.raw_line.includes("tag-incomplete"),
+      ).length,
       applied_learnings_aggregate: { yes: 0, no: 0 },
     },
   });

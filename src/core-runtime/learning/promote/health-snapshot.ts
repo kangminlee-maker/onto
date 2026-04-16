@@ -177,6 +177,14 @@ export interface BuildHealthSnapshotConfig {
  * Note on `event_marker_review_candidates`: this is the count of items the
  * retirement analyzer surfaced as candidates (i.e., 2+ countable markers).
  * It is not the total event marker count across the global pool.
+ *
+ * Scope semantics (W-C-06 signal scope 명시):
+ *   - globalItems, retirementCandidates → GLOBAL scope (~/.onto/learnings/)
+ *   - panelVerdicts → PROJECT scope ({project}/.onto/learnings/)
+ *   - crossAgentDedupClusters → GLOBAL scope (cross-agent dedup)
+ * These scopes are intentionally different: retirement operates on promoted
+ * (global) items, while panel review operates on project items being promoted.
+ * The snapshot aggregates both, labeled by their source scope.
  */
 export function buildHealthSnapshot(
   config: BuildHealthSnapshotConfig,

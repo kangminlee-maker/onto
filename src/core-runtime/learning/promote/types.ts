@@ -363,7 +363,11 @@ export interface HealthSnapshot {
   judgment_ratio_pct: number;
   cross_agent_dedup_clusters_remaining: number;
   axis_tag_re_evaluation_changes_this_session: number;
+  /** Count of global-scope items surfaced by retirement analysis (2+ countable event markers).
+   *  Signal scope: GLOBAL (~/.onto/learnings/). W-C-06: scope 명시. */
   event_marker_review_candidates: number;
+  /** Count of items with tag-incomplete markers (creation gate failures).
+   *  W-C-07: hardcoded 0 → actual count from collection. */
   creation_gate_failures: number;
   applied_learnings_aggregate: { yes: number; no: number };
   separation_trigger_agents: string[];

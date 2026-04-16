@@ -1,9 +1,35 @@
 ---
 as_of: 2026-04-16T22:30:00+09:00
-status: active
+status: implemented
 functional_area: lifecycle-unification-align
-purpose: W-D-05 (lifecycle 통합 재정의) 선행 W-ID align-packet. W-C-03 knowledge→principle 승격 설계 중 발견된 drift 3건 해소 + 핵심 개념 기반 재확정.
+purpose: W-D-05 (lifecycle 통합 재정의) align-packet + 구현 기록. W-C-03 knowledge→principle 승격 설계 중 발견된 drift 3건 해소 + 핵심 개념 기반 재확정.
 blocks: W-C-03
+implementation_commit: "세션 13 구현 완료 (2026-04-16). Q1~Q6 주체자 승인 (I 일괄) + 9-lens SHOULD-FIX 3건 적용 후 S1~S5 구현."
+---
+
+## 0. 구현 상태 (2026-04-16 세션 13 최종)
+
+- **Q1~Q6 주체자 승인**: (I) 전체 권장안 일괄 승인.
+- **9-lens 독립 리뷰**: BLOCKING 0, SHOULD-FIX 4 (통합 3건), MINOR 1 → GO-WITH-FIX.
+- **SHOULD-FIX 3건 반영 (A 선택)**:
+  - Fix 1: 3분리 이름을 `lexicon_term_promotion` / `learning_scope_promotion` / `learning_to_principle_promotion` 3단어 대칭형으로 통일
+  - Fix 2: Q1 정의에서 "authority/" 는 entity 정의만, 본문은 design-principles/processes/ 로 분리 명시 (CLAUDE.md rank 구분 준수)
+  - Fix 3: 의존 그래프 — 관계 정의는 core-lexicon.yaml entity relations, mermaid diagram 은 processes/govern.md §12 로 분리
+- **MINOR 1건**: S4 는 principle entity **정의 + 구별 규칙만** 명시. 기존 promoted term (activity_enum 등) 의 principle-tier 재분류는 **별도 W-ID** (scope creep 방지).
+
+## 0.1 실제 구현 산출물
+
+- `authority/core-lexicon.yaml` v0.13.0 → v0.14.0:
+  - `principle` entity 신설 (principal entity 앞 배치) — Q1 정의 Fix 2 반영 + Q2 구별 규칙 + Q5 execution_rules_ref
+  - `lexicon_term_promotion` / `learning_scope_promotion` / `learning_to_principle_promotion` 3 term 신설
+  - `shared_attributes.lifecycle_status` 에 `execution_rules_ref.transition_canonical_owner` 추가 (M-08 refresh protocol)
+- `processes/govern.md` §12 신설 — 6 하위 섹션 (canonical 이름 표, mermaid diagram, lifecycle_status 전이 owner, 3 계층 authoring path, principle vs promoted term 구별, scope 경계)
+- `processes/promote.md` 상단 — W-D-05 용어 정렬 note 추가 (learning_scope_promotion canonical 참조)
+- `development-records/evolve/20260413-onto-direction.md`:
+  - principle 개념 정의 교체 (W-D-05 Fix 2 반영)
+  - §1.2 "knowledge → principle 경로" 섹션 — structure drift 해소 기록 + 실 경로 W-C-03 으로 위임 명시
+- `development-records/evolve/20260413-onto-todo.md`:
+  - W-D-05 seat active → done + rewrite_trace
 ---
 
 # W-D-05 Lifecycle 통합 재정의 — Align Packet

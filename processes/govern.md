@@ -194,3 +194,79 @@ v0 구현은 **수준 1 도달 조건** 을 충족한다:
 - 실제 diff 분석 + authority 규칙 충돌 검출 (drift probe 본체).
 - pre-commit / CI / merge gate 차단 강제 (decide approve 가 실제 merge 를 gating).
 - 수준 2 (일부 drift 감수 변경 자체 실행) 로의 전이 기준 — 수준 1 운영 데이터 축적 후 재평가.
+
+---
+
+## 12. Learning · Term · Principle Lifecycle 의존 그래프 (W-D-05)
+
+세션 13 drift 리서치 결과 확정된 3 lifecycle 간 의존 관계 시각화. 관계 **정의** 는 `authority/core-lexicon.yaml` 의 각 entity relations 가 canonical. 본 §12 는 **시각화 + 경로 요약** 만 담는다 (개념 SSOT drift 방지).
+
+### 12.1 세 lifecycle 의 canonical 이름 (W-D-05 S1)
+
+| canonical term | 대상 | 출발 | 도착 | 기준 문서 |
+|---|---|---|---|---|
+| `lexicon_term_promotion` | lexicon term | `provisional_terms` 섹션 | `terms` 섹션 | `authority/core-lexicon.yaml#provisional_lifecycle` |
+| `learning_scope_promotion` | learning artifact | `{project}/.onto/learnings/{agent}.md` | `~/.onto/learnings/{agent}.md` | `processes/promote.md` |
+| `learning_to_principle_promotion` | promoted learning → principle | `~/.onto/learnings/{agent}.md` 의 항목 | `design-principles/*.md` 또는 `processes/*.md` 의 본문 | W-C-03 (미구현, §1.1/§1.2 "보류 중") |
+
+### 12.2 의존 그래프
+
+```mermaid
+flowchart LR
+  subgraph lexicon["lexicon (authority/core-lexicon.yaml)"]
+    prov_term["provisional_terms"]
+    term["terms"]
+    prov_term -->|lexicon_term_promotion| term
+  end
+
+  subgraph learning["learning artifact"]
+    proj_learn["project scope<br/>(project/.onto/learnings/)"]
+    user_learn["user scope<br/>(~/.onto/learnings/)"]
+    proj_learn -->|learning_scope_promotion| user_learn
+  end
+
+  subgraph principle["principle 본문"]
+    dp_file["design-principles/*.md"]
+    proc_file["processes/*.md"]
+  end
+
+  user_learn -.->|learning_to_principle_promotion<br/>W-C-03 경로| dp_file
+  user_learn -.->|learning_to_principle_promotion<br/>W-C-03 경로| proc_file
+
+  term -.->|참조 (개념 resolve)| dp_file
+  term -.->|참조 (개념 resolve)| proc_file
+
+  classDef pending fill:#fef3c7,stroke:#d97706,color:#92400e
+  class dp_file,proc_file pending
+```
+
+### 12.3 lifecycle_status 전이 canonical owner (W-D-05 S2)
+
+| 전이 | canonical owner | 하위 경로 |
+|---|---|---|
+| `seed → candidate → provisional → promoted` | 각 entity 의 execution_rules_ref 가 지정 (예: learning → `processes/promote.md`, term → `provisional_lifecycle`) | — |
+| `promoted → deprecated → retired` | **M-08 refresh protocol** (`development-records/plan/20260413-refresh-protocol.md`) | promote Step 4a event marker review (learning 대상) + judgment audit (judgment-type learning 대상) 은 M-08 의 하위 경로로 재분류됨 |
+
+### 12.4 authoring path 성문화 (W-D-05 S3)
+
+| 계층 | rank (CLAUDE.md) | authoring path | execution_rules_ref 위치 |
+|---|---|---|---|
+| `authority/` | 1 (개념 SSOT) | W-ID 기반 authoring. schema/structure 변경 시 Principal 승인 | 각 entity 내부 `authoring_rules` (top-level) + entity 별 `execution_rules_ref` |
+| `design-principles/` | 2-4 (개발 원칙 / 제품 방향 / 인터페이스 명세 / 이름 규칙) | Principal 수동 작성 OR W-ID 기반 authoring OR `learning_to_principle_promotion` 경로 (W-C-03 미구현) | `principle.execution_rules_ref.authoring_path` |
+| `processes/` | 5 (기능별 계약) | Principal 수동 작성 OR W-ID 기반 authoring OR `learning_to_principle_promotion` 경로 (W-C-03 미구현) | `principle.execution_rules_ref.authoring_path` (동일 — principle 의 한 유형) |
+
+### 12.5 principle vs promoted term 구별 (W-D-05 S4, Q2 Fix)
+
+| 축 | principle | promoted term |
+|---|---|---|
+| 답하는 질문 | 무엇을 해야 하는가 (obligation) | 무엇인가 (identity) |
+| 형식 | Markdown prose (서술·근거·반례) | YAML schema (structured definition) |
+| `execution_rules_ref` | **필수 보유** — 규범 본문·lifecycle·소비 규칙 가리킴 | 선택 보유 — 단순 enum 은 없음 |
+| 본문 배치 | `design-principles/*.md` + `processes/*.md` | `authority/core-lexicon.yaml` 내부 |
+| authority/core-lexicon.yaml 에 등재 | entity **정의** 만 (본문 X) | entity/term **정의 + 값** (본문 그 자체) |
+
+**1차 구분 단서**: `execution_rules_ref` 보유 여부.
+
+### 12.6 scope 경계 (MINOR 처리)
+
+본 §12 는 principle **entity 정의** 와 **구별 규칙** 만 명시한다. 기존 `authority/core-lexicon.yaml` 에 등재된 promoted term (`activity_enum`, `axis_enum`, `fact_type`, `learning`, `review_process` 등) 의 principle-tier 재분류는 **별도 W-ID** 로 분리 (scope creep 방지, 세션 13 9-lens 리뷰 Lens 6 MINOR 반영).

@@ -170,23 +170,28 @@ onto는 주체자의 TeamCreate 가용성을 알 수 없으므로 nested vs flat
 
 ### 3.3 주체자 수신 출력 (handoff=coordinator-start 시)
 
+**Payload는 plan-time 권장(`preferred_realization`)과 realized truth(`actual_realization`)를 별도 필드로 분리**. onto child process는 주체자의 TeamCreate 가용성을 introspect할 수 없으므로 actual은 deferred이며, 실제 선택된 realization은 coordinator-state-machine이 세션 artifact(binding.yaml 등)에 기록한다.
+
 ```json
 {
-  "entrypoint_plan": { /* 기존 필드 */ },
-  "execution_realization": "agent-teams",
-  "host_runtime": "claude",
   "handoff": "coordinator-start",
+  "host_runtime": "claude",
+  "preferred_realization": "agent-teams",
+  "actual_realization": "deferred_to_subject_session",
+  "requested_target": "<target>",
+  "request_text": "<intent>",
   "next_action": {
-    "cli": "onto coordinator start <target> <intent>",
+    "cli": "onto coordinator start \"<target>\" \"<intent>\"",
     "orchestration_guidance": {
       "preferred": "TeamCreate로 coordinator subagent를 nested spawn, coordinator가 Agent tool로 9 lens + synthesize subagent 추가 nested spawn (canonical path = agent_teams_claude)",
-      "fallback": "TeamCreate 비가용 환경에서는 주체자 세션이 Agent tool로 lens subagent를 직접 spawn 가능 (canonical path = subagent_claude). coordinator state machine은 양쪽 모두 수용."
+      "fallback": "TeamCreate 비가용 환경에서는 주체자 세션이 Agent tool로 lens subagent를 직접 spawn 가능 (canonical path = subagent_claude). coordinator state machine은 양쪽 모두 수용.",
+      "recording_note": "주체자가 실제 선택한 realization은 coordinator-state-machine이 session artifact(binding.yaml 등)에 기록. 본 handoff payload의 preferred_realization은 plan-time 권장이지 actual truth가 아님."
     }
   }
 }
 ```
 
-주체자 세션은 이 guidance를 읽고 TeamCreate 호출 시도 → 실패 시 flat 패턴으로 전환. onto는 힌트만 제공.
+주체자 세션은 이 guidance를 읽고 TeamCreate 호출 시도 → 실패 시 flat 패턴으로 전환. onto는 힌트만 제공하며, 최종 realization 값은 coordinator-state-machine이 session artifact에 기록한다.
 
 codex 경로(handoff=self)는 기존 출력 그대로 + `handoff: "self"` 필드 추가만.
 
@@ -208,7 +213,7 @@ codex 경로(handoff=self)는 기존 출력 그대로 + `handoff: "self"` 필드
 LlmAgentSpawnRealization:
   canonical_label: "LlmAgentSpawnRealization"
   korean_label: "LLM 에이전트 생성 실현"
-  definition: "review agentic 작업에서 lens reasoning unit을 어떤 기제로 spawn하고 누가 orchestration하는가를 규정하는 축. execution_realization × host_runtime 2-axis의 세 유효 조합에 대한 의미론적 seat"
+  definition: "review agentic 작업에서 lens reasoning unit을 어떤 기제로 spawn하고 누가 orchestration하는가를 규정하는 축. execution_realization × host_runtime 2-axis의 세 유효 조합(agent_teams_claude, subagent_claude, subagent_codex)에 대한 의미론적 seat — codex 조합은 billing_source rail에 따라 subagent_codex_oauth / subagent_codex_apikey 두 instance로 세분화된다."
   core_value: "이 개념이 없으면 2-axis 조합의 의미가 타입 정의에만 존재해, '세 조합이 왜 서로 다른가'를 설명하는 rank-1 자리가 없다. 특히 orchestrator 소재·context 비용·billing source의 차이가 운영 의사결정 근거인데 authority에 부재"
 
   attributes:
@@ -354,7 +359,7 @@ attributes:
 | `onto coordinator start` | state machine 진입 | 동일 |
 | `onto review` (플래그 무명시, Claude Code 세션) | "Claude runs use 'onto coordinator start'" 에러 | **auto-resolution → handoff=coordinator-start JSON** (사용자 다음 액션 명시) |
 | `onto review` (플래그 무명시, codex 가용) | 기본 "codex" 가정 경로 시도 | 동일 (handoff=self) |
-| `onto review` (플래그 무명시, 아무것도 없음) | 기본 "codex" 시도 → codex 에러 | **auto-resolution fail-fast with cost-order guidance** |
+| `onto review` (플래그 무명시, 아무것도 없음) | 기본 "codex" 시도 → codex 에러 | **auto-resolution fail-fast with host-setup guidance** (네 가지 해결 경로 제시) |
 
 ## 7. 롤아웃 & 문서화
 

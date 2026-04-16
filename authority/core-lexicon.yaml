@@ -584,7 +584,7 @@ entities:
   LlmAgentSpawnRealization:
     canonical_label: "LlmAgentSpawnRealization"
     korean_label: "LLM 에이전트 생성 실현"
-    definition: "review agentic 작업에서 lens reasoning unit을 어떤 기제로 spawn하고 누가 orchestration하는가를 규정하는 축. execution_realization × host_runtime 2-axis의 세 유효 조합에 대한 의미론적 seat"
+    definition: "review agentic 작업에서 lens reasoning unit을 어떤 기제로 spawn하고 누가 orchestration하는가를 규정하는 축. execution_realization × host_runtime 2-axis의 세 유효 조합(agent_teams_claude, subagent_claude, subagent_codex)에 대한 의미론적 seat — codex 조합은 billing_source rail에 따라 subagent_codex_oauth / subagent_codex_apikey 두 instance로 세분화된다."
     core_value: "이 개념이 없으면 2-axis 조합의 의미가 타입 정의에만 존재해, '세 조합이 왜 서로 다른가'를 설명하는 rank-1 자리가 없다. 특히 orchestrator 소재·context 비용·billing source의 차이가 운영 의사결정 근거인데 authority에 부재"
     attributes:
       shared: []

@@ -23,26 +23,28 @@
 - 둘 다 없음 → fail-fast with host-setup guidance
 - `host_runtime: codex` config → codex path 강제
 
-**Handoff JSON** (`onto review` 무명시 + Claude host 감지 시 emit):
+**Handoff JSON** (`onto review` 무명시 + Claude host 감지 시 emit). Plan-time 권장(`preferred_realization`)과 실제 realized truth(`actual_realization`)를 분리. actual은 deferred — 주체자가 TeamCreate 가용성에 따라 선택한 뒤 coordinator-state-machine이 session artifact에 기록:
 
 ```json
 {
   "handoff": "coordinator-start",
-  "execution_realization": "agent-teams",
   "host_runtime": "claude",
+  "preferred_realization": "agent-teams",
+  "actual_realization": "deferred_to_subject_session",
   "requested_target": "<target>",
   "request_text": "<intent>",
   "next_action": {
     "cli": "onto coordinator start \"<target>\" \"<intent>\"",
     "orchestration_guidance": {
       "preferred": "TeamCreate로 coordinator subagent를 nested spawn (canonical path = agent_teams_claude)",
-      "fallback": "TeamCreate 비가용 환경에서는 주체자가 Agent tool 직접 사용 (canonical path = subagent_claude)"
+      "fallback": "TeamCreate 비가용 환경에서는 주체자가 Agent tool 직접 사용 (canonical path = subagent_claude)",
+      "recording_note": "주체자가 실제 선택한 realization은 coordinator-state-machine이 session artifact(binding.yaml 등)에 기록"
     }
   }
 }
 ```
 
-주체자(Claude Code 세션)는 이 JSON을 읽고 `onto coordinator start`를 호출하며, TeamCreate 가용성에 따라 nested/flat orchestration을 선택합니다.
+주체자(Claude Code 세션)는 이 JSON을 읽고 `onto coordinator start`를 호출하며, TeamCreate 가용성에 따라 nested/flat orchestration을 선택합니다. 최종 realization 값은 session artifact에 기록되어 downstream consumer가 "실제 어떤 경로로 실행됐는지" 정확히 answer 할 수 있습니다.
 
 **타입 확장점**: `ReviewHostRuntime`에 `"litellm"` 추가 (forward-compat slot). `subagent_litellm` wiring은 후속 PR.
 

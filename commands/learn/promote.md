@@ -4,4 +4,4 @@ Promotes project-level learnings to global-level. If $ARGUMENTS is provided, tar
 
 Read `~/.claude/plugins/onto/process.md` (common definitions),
 `~/.claude/plugins/onto/learning-rules.md` (learning storage rules), and
-`~/.claude/plugins/onto/processes/promote.md`, then execute.
+`~/.claude/plugins/onto/processes/learn/promote.md`, then execute.

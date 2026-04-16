@@ -6,7 +6,7 @@
  *   - learn-phase3-design-v6.md DD-18 §SST (candidate_items canonical definition)
  *   - learn-phase3-design-v5.md §5.1 (collector.ts skeleton)
  *   - learn-phase3-design-v5.md DD-10 (BaselineHash + freshness gate)
- *   - processes/promote.md Step 1~2
+ *   - processes/learn/promote.md Step 1~2
  *   - learning-rules.md (file format)
  *
  * Responsibility:

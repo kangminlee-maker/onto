@@ -235,7 +235,7 @@ CLI smoke test (`onto promote --skip-panel --skip-audit`)로 실 repo 117 candid
 6. `src/core-runtime/learning/extractor.ts` — Phase 2 패턴
 7. `src/core-runtime/learning/shared/semantic-classifier.ts` — P-4 재사용
 8. `src/core-runtime/learning/shared/duplicate-check.ts` — P-3 재사용
-9. `processes/promote.md` — 기존 프로세스 (코드 기반으로 갱신할 대상)
+9. `processes/learn/promote.md` — 기존 프로세스 (코드 기반으로 갱신할 대상)
 10. `learning-rules.md` — 학습 저장/소비/승인 규칙
 
 #### 완료된 단계 (1~13) — full Phase 3 implementation
@@ -273,7 +273,7 @@ CLI smoke test (`onto promote --skip-panel --skip-audit`)로 실 repo 117 candid
 #### 구현된 모듈 (Step 7~13)
 
 7. **Collector** — `promote/collector.ts` ✅
-   - `learning-rules.md`, `processes/promote.md` Step 1~2 기반
+   - `learning-rules.md`, `processes/learn/promote.md` Step 1~2 기반
    - `ParsedLearningItem` 파싱 (TAG_PATTERN/SOURCE_PATTERN/CONTENT_CAPTURE 재사용)
    - `BaselineHash` 캡처 (DD-10)
    - `CollectionResult` (DD-18 SST: project_items / global_items / candidate_items 분리)

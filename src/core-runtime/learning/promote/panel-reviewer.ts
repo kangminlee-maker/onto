@@ -7,7 +7,7 @@
  *   - learn-phase3-design-v4.md DD-7 (array validator signature)
  *   - learn-phase3-design-v4.md DD-12 (hard gate: valid_member_count < 2)
  *   - learn-phase3-design-v2.md DD-2 (per-member LLM call, API-based)
- *   - processes/promote.md Step 3 (criteria 1~6 definitions)
+ *   - processes/learn/promote.md Step 3 (criteria 1~6 definitions)
  *
  * Responsibility:
  *   - DD-2 Panel composition: originator + axiology + auto_selected
@@ -167,7 +167,7 @@ const PANEL_SYSTEM_PROMPT_TEMPLATE = `You are reviewing promotion candidates for
 
 Your task is to evaluate each candidate learning against 5 criteria AND recommend an axis tag adjustment. Output ONE JSON object per candidate in an "items" array. NO markdown fences, NO commentary, JSON only.
 
-Criteria (processes/promote.md):
+Criteria (processes/learn/promote.md):
   1. Generalizability — is it valid across projects, or only in this project?
   2. Accuracy — is it based on facts or a coincidence from a unique situation?
   3. Contradiction handling — if it contradicts an existing global entry, which is more correct?

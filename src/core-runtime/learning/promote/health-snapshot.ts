@@ -2,7 +2,7 @@
  * Phase 3 Promote — Collection health snapshot (Step 9d).
  *
  * Design authority:
- *   - processes/promote.md §9 (Collection Health Snapshot)
+ *   - processes/learn/promote.md §9 (Collection Health Snapshot)
  *   - learn-phase3-design-v4.md §1.3 (P-15 metric assembly)
  *
  * Responsibility:

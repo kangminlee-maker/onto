@@ -1,7 +1,7 @@
 # Domain Seed Generation Process
 
 > Generates a seed domain document set from minimal input (name + description).
-> Related: After seed creation, use `processes/feedback.md` to improve seeds, then `processes/promote-domain.md` to promote to established.
+> Related: After seed creation, use `processes/feedback.md` to improve seeds, then `processes/learn/promote-domain.md` to promote to established.
 
 Generates 8 domain document files in `~/.onto/drafts/{domain}/` with SEED markers on low-confidence content. The seed is a starting point — maturation happens through the feedback loop.
 

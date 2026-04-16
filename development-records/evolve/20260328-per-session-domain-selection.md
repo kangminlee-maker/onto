@@ -218,7 +218,7 @@ Order does not matter. If unsure, you can skip and select domains per review."
 | `processes/review.md` | Step 0 삽입 | Major |
 | `processes/reconstruct.md` | Step 0 추가 | Medium |
 | `processes/question.md` | Step 0 추가 | Medium |
-| `processes/promote.md` | domain config 의존 제거 | Minor |
+| `processes/learn/promote.md` | domain config 의존 제거 | Minor |
 | `processes/onboard.md` §3.3 | unordered set 질문 + `domains:` 형식 | Medium |
 | `commands/review.md` | `@{domain}`, `@-` 옵션 설명 | Minor |
 | `commands/reconstruct.md` | `@{domain}`, `@-` 옵션 설명 | Minor |

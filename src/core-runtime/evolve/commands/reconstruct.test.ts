@@ -6,6 +6,7 @@ import {
   executeReconstructStart,
   executeReconstructExplore,
   executeReconstructComplete,
+  executeReconstructConfirm,
 } from "./reconstruct.js";
 import type { ReconstructSessionState } from "./reconstruct.js";
 
@@ -231,8 +232,94 @@ describe("executeReconstructComplete", () => {
   });
 });
 
-describe("end-to-end bounded path (review 3-step 대응)", () => {
-  it("start → explore → complete 한 cycle 전체 작동", () => {
+describe("confirm (W-B-07: principal confirmation seat)", () => {
+  function startExploreComplete(id: string) {
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: id,
+    });
+    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: id });
+    return executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: id });
+  }
+
+  it("confirm --verdict passed 는 principal_review_status = passed", () => {
+    startExploreComplete("cf1");
+
+    const result = executeReconstructConfirm({
+      sessionsDir: tmpRoot,
+      sessionId: "cf1",
+      verdict: "passed",
+    });
+
+    expect(result.state.principal_review_status).toBe("passed");
+    expect(result.state.current_state).toBe("converted");
+  });
+
+  it("confirm --verdict rejected 는 principal_review_status = rejected", () => {
+    startExploreComplete("cf2");
+
+    const result = executeReconstructConfirm({
+      sessionsDir: tmpRoot,
+      sessionId: "cf2",
+      verdict: "rejected",
+    });
+
+    expect(result.state.principal_review_status).toBe("rejected");
+  });
+
+  it("exploring 상태에서 confirm 은 에러", () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: "cf3",
+    });
+    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "cf3" });
+
+    expect(() =>
+      executeReconstructConfirm({
+        sessionsDir: tmpRoot,
+        sessionId: "cf3",
+        verdict: "passed",
+      }),
+    ).toThrow(/expected "converted"/);
+  });
+
+  it("이미 confirm 된 session 재 confirm 은 에러", () => {
+    startExploreComplete("cf4");
+    executeReconstructConfirm({
+      sessionsDir: tmpRoot,
+      sessionId: "cf4",
+      verdict: "passed",
+    });
+
+    expect(() =>
+      executeReconstructConfirm({
+        sessionsDir: tmpRoot,
+        sessionId: "cf4",
+        verdict: "rejected",
+      }),
+    ).toThrow(/expected "requested"/);
+  });
+
+  it("confirm 결과가 state 파일에 persist", () => {
+    const completed = startExploreComplete("cf5");
+    executeReconstructConfirm({
+      sessionsDir: tmpRoot,
+      sessionId: "cf5",
+      verdict: "passed",
+    });
+
+    const root = join(tmpRoot, "cf5");
+    const persisted = readStateFile(root);
+    expect(persisted.principal_review_status).toBe("passed");
+  });
+});
+
+describe("end-to-end bounded path (review 4-step: start→explore→complete→confirm)", () => {
+  it("start → explore → complete → confirm 전체 작동", () => {
     const started = executeReconstructStart({
       source: "./src",
       intent: "E2E",
@@ -254,8 +341,16 @@ describe("end-to-end bounded path (review 3-step 대응)", () => {
     expect(completed.state.current_state).toBe("converted");
     expect(completed.state.principal_review_status).toBe("requested");
 
+    const confirmed = executeReconstructConfirm({
+      sessionsDir: tmpRoot,
+      sessionId: "e2e",
+      verdict: "passed",
+    });
+    expect(confirmed.state.principal_review_status).toBe("passed");
+
     const persisted = readStateFile(started.session_root);
     expect(persisted.current_state).toBe("converted");
+    expect(persisted.principal_review_status).toBe("passed");
     expect(persisted.explore_invocations).toBe(1);
     expect(persisted.ontology_draft_path).not.toBeNull();
   });

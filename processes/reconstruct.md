@@ -648,7 +648,17 @@ Information convergence = number of new facts in Explorer's reported delta = 0
 
 > **Semantic identity matching**: Runtime Coordinator determines "new fact" via a deterministic single-tier rule, with an optional LLM-based diagnostic signal:
 >
-> **Tier 1 (gating, deterministic)**: Normalize subject+statement (lowercase, trim whitespace, strip punctuation, split on whitespace into tokens, drop stopwords {`a, an, the, of, to, in, on, is, are, was, were, be`}). Two facts are the "same fact" if and only if their normalized token multisets are identical.
+> **Tier 1 (gating, deterministic)**: Normalize subject+statement then compare token multisets. Two facts are the "same fact" if and only if their normalized token multisets are identical.
+>
+> Normalization steps (in order):
+> 1. Lowercase the entire string
+> 2. Split on runs of Unicode letters and numbers (`/[\p{L}\p{N}]+/gu`). This replaces the legacy ASCII-only split (`[^a-z0-9]+`) which stripped all non-Latin characters
+> 3. Drop English stopwords: {`a, an, the, of, to, in, on, is, are, was, were, be`}
+> 4. Apply minimum token length — **language-sensitive threshold**:
+>    - **Latin tokens**: minimum 4 characters. Drops short function words (`with`, `that`, `from`) that add noise without semantic content
+>    - **CJK tokens**: minimum 2 characters. Korean/CJK words carry semantic content at shorter lengths (`코드` = code, `검증` = verification). A word is classified as CJK if it contains any character in: Hiragana `U+3040–30FF`, Hangul Jamo `U+3130–318F`, Hangul Syllables `U+AC00–D7AF`, CJK Unified Ideographs `U+4E00–9FFF`
+>
+> **Rationale for CJK threshold**: The previous ASCII-only tokenizer (`[^a-z0-9]+`) stripped every Korean character, making convergence detection blind on Korean-heavy corpora (e.g., this repository's own learnings). Unicode-aware splitting with a lower CJK threshold restores semantic sensitivity.
 >
 > **Convergence is determined solely by Tier 1.** This preserves the "No LLM judgment required" guarantee for termination: given the same source, the same normalized facts, the build terminates at the same round.
 >
@@ -662,7 +672,7 @@ Information convergence = number of new facts in Explorer's reported delta = 0
 >
 > **Rationale for `T_diag = 0.7`**: chosen as a conservative over-recall cutoff for diagnostic purposes. Values below 0.3 overwhelm the semantics lens with noise; values above 0.85 miss common synonym patterns. 0.7 balances call volume against recall. Implementers may tune.
 >
-> **Tokenization note**: mirrors the `significantTokens` function in `src/core-runtime/learning/promote/panel-reviewer.ts` to maintain a single tokenization convention across the codebase. Facts with <4 tokens after normalization are excluded from Tier 2 (too noisy); Tier 1 always applies.
+> **Tokenization note**: mirrors the `significantTokens` function in `src/core-runtime/learning/promote/panel-reviewer.ts` (Unicode-aware, CJK-sensitive) to maintain a single tokenization convention across the codebase. Facts with <4 significant tokens after normalization are excluded from Tier 2 (too noisy); Tier 1 always applies regardless of token count.
 >
 > **Semantics lens unavailable (Tier 2 only)**: Tier 2 diagnostic skipped. No impact on convergence (Tier 1 is authoritative). Logged once per affected round as an "advisory signal unavailable" notice. Does NOT trigger graceful degradation because no round-level lens output is lost — only the optional Tier 2 diagnostic.
 >

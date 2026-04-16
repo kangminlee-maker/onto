@@ -270,3 +270,49 @@ flowchart LR
 ### 12.6 scope 경계 (MINOR 처리)
 
 본 §12 는 principle **entity 정의** 와 **구별 규칙** 만 명시한다. 기존 `authority/core-lexicon.yaml` 에 등재된 promoted term (`activity_enum`, `axis_enum`, `fact_type`, `learning`, `review_process` 등) 의 principle-tier 재분류는 **별도 W-ID** 로 분리 (scope creep 방지, 세션 13 9-lens 리뷰 Lens 6 MINOR 반영).
+
+---
+
+## 13. Knowledge → Principle Promotion (W-C-03)
+
+§1.2 "보류 중" 해소. promoted learning (knowledge) 이 principle 본문 (`design-principles/` 또는 `processes/`) 으로 승격되는 경로. canonical term: `learning_to_principle_promotion`. W-D-05 가 확정한 도착지 (principle entity) 를 소비한다.
+
+### 13.1 승격 기준 3축 + 1 보조 (v0)
+
+| 축 | 판정 방식 | 검증 시점 |
+|---|---|---|
+| **Quality gate** | workload-evidence: source session 의 `state_transitions`, `constraint_count`, `retry_count` 중 하나 이상 threshold 초과 (OR mode). threshold 는 `.onto/govern/thresholds.yaml` config | `promote-principle` submit 시 CLI validator |
+| **Frequency gate** (Quality 면제) | `similar_to` 가 기존 pending 의 유효 id 참조 시 workload evidence 면제. 첫 1건은 Quality 필수, 2번째부터 frequency 가능 | `promote-principle` submit 시 CLI validator |
+| **Completeness gate** | proposal schema 필수 필드 전수 (learning_ref, target, rationale, conflict_check, workload_evidence.evidence_summary) | `promote-principle` submit 시 CLI validator |
+| **Principal gate** | 기존 `onto govern decide <id> --verdict approve` | 별도 호출 시 (주체자 최종 판정) |
+
+### 13.2 Threshold Config
+
+`.onto/govern/thresholds.yaml` (project-local). 파일 편집으로 즉시 조정. 부재 시 hardcoded default:
+
+```yaml
+mode: any
+state_transitions_min: 8
+constraint_count_min: 3
+retry_count_min: 2
+repeat_observation_min: 1
+```
+
+### 13.3 similar_to Grouping
+
+CLI 밖에서 agent 의 자연어 reasoning 으로 유사도 판정. 결과를 proposal `similar_to` 필드에 기입. CLI 는 id 존재 검증만 (LLM 호출 없음). `list --group` 시 similar_to 기반 그룹 렌더링.
+
+흐름: agent 가 `govern list --status pending --format json` → 기존 pending 비교 → similar_to 채움 → `promote-principle --json <proposal>` 제출.
+
+LLM inflate 방지: v0 는 `origin=human` 만 (agent auto-propose 없음). 큐에 쌓여도 Principal decide 없으면 소비 안 됨 (structural 안전).
+
+### 13.4 v0 범위
+
+- **기록만** (W-C-01 동형): decide approve 후 실제 파일 편집은 주체자 수동.
+- **Out**: 자동 파일 반영, 자동 conflict 분석, agent auto-propose, consumption-based exposure (W-C-05).
+
+### 13.5 §1.2 "보류 중" 해소 경로
+
+- **W-D-05**: 도착지 구조 확정 (principle entity + canonical term + 3 계층 authoring path)
+- **W-C-03 (본 §13)**: 승격 기준 (3축) + runtime CLI (`onto govern promote-principle`) 확정
+- **잔존**: 실제 파일 자동 반영 (v1). "보류 중" 의 "경로 미구현" 부분은 W-C-03 으로 해소. "자동 반영 미구현" 부분은 v1 으로 명시 잔존.

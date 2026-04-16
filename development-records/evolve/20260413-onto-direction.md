@@ -107,7 +107,7 @@ onto는 다섯 활동으로 이루어진다. 각 활동은 대상(object)과 산
 - 승격 canonical term `learning_to_principle_promotion` 등재 (3분리 중 하나).
 - principle 본문 배치: `design-principles/*.md` + `processes/*.md`. `authority/` 는 정의만.
 
-**실 경로 보류 중**: 구체 **기준** (승격 criteria, consensus threshold 등) 과 **runtime 구현** (CLI subcommand, queue 통합) 은 **W-C-03** 에서 설계·구현. promoted learning 중 어떤 것이 principle 로 승격될 자격을 갖는지의 판단 기준은 W-C-03 의 verification_consumer=principal 승인을 거쳐 확정된다.
+**경로 구현 완료 (W-C-03, 2026-04-16)**: 승격 기준 3축 (Quality/workload-evidence + Frequency/similar_to + Completeness/schema) + Principal gate + runtime CLI (`onto govern promote-principle`) 확정. processes/govern.md §13 참조. v0 는 기록만 (decide approve 후 파일 편집 수동). 자동 반영은 v1 잔존.
 
 ### 폐기된 개념: ask
 

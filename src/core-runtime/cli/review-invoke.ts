@@ -82,8 +82,8 @@ interface ResolvedReviewInvokeInputs {
 interface ReviewInvokeRouteSummary {
   combined_entrypoint: "review:invoke";
   bounded_invoke_steps: string[];
-  execution_realization: "subagent" | "agent-teams";
-  host_runtime: "codex" | "claude";
+  execution_realization: "subagent" | "agent-teams" | "ts_inline_http";
+  host_runtime: "codex" | "claude" | "standalone" | "litellm" | "anthropic" | "openai";
   review_mode: ReviewMode;
   max_concurrent_lenses: number;
   concurrency_strategy: "bounded_parallel";
@@ -425,8 +425,8 @@ function appendSubagentLlmArgs(
 // ---------------------------------------------------------------------------
 
 export interface ResolvedExecutionProfile {
-  execution_realization: "subagent" | "agent-teams";
-  host_runtime: "codex" | "claude";
+  execution_realization: "subagent" | "agent-teams" | "ts_inline_http";
+  host_runtime: "codex" | "claude" | "standalone" | "litellm" | "anthropic" | "openai";
 }
 
 export type ExecutionProfileResolution =
@@ -482,21 +482,10 @@ export function resolveExecutionProfile(args: {
   const configHost = args.ontoConfig.host_runtime;
   const configRealization = args.ontoConfig.execution_realization;
 
-  // LiteLLM explicit fail-close: type space recognizes it but review wiring
-  // is deferred (see design §5 Non-Goals, §3.1). Silently falling through to
-  // auto-resolution would surprise users who set it on purpose.
-  if (configHost === "litellm") {
-    throw new Error(
-      [
-        "host_runtime=\"litellm\" is type-recognized but review wiring is deferred to a subsequent PR.",
-        "Current canonical paths: agent_teams_claude, subagent_claude, subagent_codex.",
-        "To proceed, either:",
-        "  1. Remove host_runtime from .onto/config.yml and rely on auto-resolution",
-        "  2. Set host_runtime: claude or codex explicitly",
-        "See authority/core-lexicon.yaml:LlmAgentSpawnRealization and",
-        "development-records/plan/20260415T1700-execution-realization-priority-design.md §5.",
-      ].join("\n"),
-    );
+  // Phase 2 wiring: litellm and other direct-call hosts are now valid.
+  // Route to ts_inline_http executor (same as standalone).
+  if (configHost === "litellm" || configHost === "anthropic" || configHost === "openai") {
+    return { type: "resolved", profile: { execution_realization: "ts_inline_http", host_runtime: configHost as "litellm" | "anthropic" | "openai" } };
   }
 
   if (configHost === "claude") {
@@ -509,6 +498,9 @@ export function resolveExecutionProfile(args: {
   if (configHost === "codex") {
     return { type: "resolved", profile: { execution_realization: "subagent", host_runtime: "codex" } };
   }
+  if (configHost === "standalone") {
+    return { type: "resolved", profile: { execution_realization: "ts_inline_http", host_runtime: "standalone" } };
+  }
 
   // Auto-resolution (stay-in-host). Within Claude host, agent_teams_claude is
   // the default preferred; the subject session falls to subagent_claude (flat)
@@ -519,6 +511,14 @@ export function resolveExecutionProfile(args: {
   if (detectCodexAvailable()) {
     return { type: "resolved", profile: { execution_realization: "subagent", host_runtime: "codex" } };
   }
+
+  // Phase 2 wiring: when no host signal is detected AND subagent_llm config
+  // exists, treat as standalone (TS process orchestrates with direct LLM call).
+  // Without subagent_llm, we can't meaningfully execute — fall through to no_host.
+  if (args.ontoConfig.subagent_llm?.provider) {
+    return { type: "resolved", profile: { execution_realization: "ts_inline_http", host_runtime: "standalone" } };
+  }
+
   return { type: "no_host" };
 }
 
@@ -528,7 +528,8 @@ export function resolveExecutionProfile(args: {
  *   already calling this internally; don't emit handoff JSON, just record the
  *   profile into session artifacts)
  * - prepareOnly=false + resolved Claude → "coordinator_start" (emit handoff)
- * - resolved codex → "self"
+ * - resolved codex → "self" (self-execute via codex subprocess)
+ * - resolved standalone → "self" (self-execute via ts_inline_http)
  * - no_host → "no_host"
  */
 export function resolveExecutionRealizationHandoff(args: {
@@ -555,19 +556,21 @@ function buildNoHostDetectedError(): Error {
   return new Error(
     [
       "Review execution realization을 해소할 수 없습니다.",
-      "현재 host 감지 결과: Claude Code 세션 아님(CLAUDECODE unset), codex CLI 미설치 또는 ~/.codex/auth.json 부재.",
+      "현재 host 감지 결과: Claude Code 세션 아님(CLAUDECODE unset), codex CLI 미설치 또는 ~/.codex/auth.json 부재, subagent_llm 미설정.",
       "",
       "다음 중 한 가지로 해결하세요:",
       "  1. Claude Code 세션에서 `onto review` 재실행 (CLAUDECODE=1 감지 시 coordinator-start 안내)",
       "  2. codex CLI 설치 + `codex login` 후 재실행",
       "  3. `--codex` 플래그로 codex path 강제 (auth·binary 있어야 성공)",
       "  4. `.onto/config.yml` 에 host_runtime: claude 또는 codex 명시",
+      "  5. `.onto/config.yml` 에 host_runtime: standalone + subagent_llm: { provider, model } 설정 (LiteLLM/Anthropic/OpenAI 직접 호출)",
+      "  6. `ONTO_HOST_RUNTIME=standalone` env var + `subagent_llm` config 설정",
     ].join("\n"),
   );
 }
 
 function emitCoordinatorStartHandoff(args: {
-  preferredRealization: "subagent" | "agent-teams";
+  preferredRealization: "subagent" | "agent-teams" | "ts_inline_http";
   requestedTarget: string;
   requestText: string;
 }): void {

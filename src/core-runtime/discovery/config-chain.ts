@@ -108,6 +108,21 @@ export interface OntoConfig {
     base_url?: string;     // Required when provider=litellm
     max_tokens?: number;
     embed_domain_docs?: boolean;
+    /**
+     * Phase 3-2 tool-mode selector for ts_inline_http executor:
+     *   - "native": always use callLlmWithTools (Tier 1 function-calling loop).
+     *     Requires provider in {anthropic, openai, litellm} and a model that
+     *     supports tool_use / function_call. Fails fast if those preconditions
+     *     are not met.
+     *   - "inline": always use single-turn callLlm with all context inlined
+     *     (Tier 2). Use this for small models without function-call support
+     *     (e.g. Qwen3-4B-Instruct).
+     *   - "auto" (default): try Tier 1 if the resolved provider supports it,
+     *     fall back to Tier 2 if the loop returns empty / errors.
+     *
+     * Precedence: CLI --tool-mode > this field > "auto".
+     */
+    tool_mode?: "native" | "inline" | "auto";
   };
 
   /**

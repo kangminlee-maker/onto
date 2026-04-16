@@ -279,7 +279,7 @@ export interface LlmCallResult {
 // 37 items was timing out then SDK-retrying for 90s total). 120s is generous
 // enough for ~50-item single-batch audits while still failing fast on real
 // network problems.
-const DEFAULT_TIMEOUT_MS = 120_000;
+const DEFAULT_TIMEOUT_MS = Number(process.env.ONTO_LLM_TIMEOUT_MS) || 120_000;
 // SDK auto-retry hides failures behind a long stall. We surface failures
 // faster (1 retry instead of the default 2) so operators see provider errors
 // within ~2× timeout instead of ~3×.

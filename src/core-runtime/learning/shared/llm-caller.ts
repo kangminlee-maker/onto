@@ -43,6 +43,88 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
+// ---------------------------------------------------------------------------
+// LiteLLM issue log (opt-in)
+// ---------------------------------------------------------------------------
+//
+// When ONTO_LITELLM_ISSUE_LOG is set to a file path, callOpenAI appends a
+// structured entry for any SDK exception or empty response — but only when
+// invoked via the LiteLLM provider path (providerLabel === "litellm"). This
+// surfaces LiteLLM-proxied failures (timeout, 5xx, connection refused, empty
+// body) into an operator-owned log without coupling onto to a specific
+// deployment.
+//
+// Why opt-in via env var:
+//   The log path is operator-owned (e.g. llm-runtime/docs/ISSUE-LOG.md).
+//   Keeping it out of onto code preserves portability — env-var gating means
+//   unsetting disables logging entirely with no code change.
+//
+// Why only the LiteLLM path (not direct openai/anthropic/codex):
+//   Direct api.openai.com / api.anthropic.com / codex OAuth failures are
+//   unrelated to the LiteLLM runtime and would pollute the ISSUE-LOG. The
+//   provider ladder (§3.6a of the LiteLLM provider design doc) routes LiteLLM
+//   through callOpenAI with providerLabel="litellm" — that's the gate.
+
+interface LiteLLMIssueContext {
+  model_id?: string | undefined;
+  base_url?: string | undefined;
+  prompt_hash?: string | undefined;
+  status?: number | string | undefined;
+  error_name?: string | undefined;
+  error_message?: string | undefined;
+}
+
+function formatIssueTimestamp(now: Date): string {
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return (
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+    `${pad(now.getHours())}:${pad(now.getMinutes())}`
+  );
+}
+
+function renderIssueEntry(
+  title: string,
+  symptom: string,
+  ctx: LiteLLMIssueContext,
+  now: Date,
+): string {
+  const lines = [
+    "",
+    `### [${formatIssueTimestamp(now)}] ${title}`,
+    "- **모듈**: onto / LiteLLM",
+    `- **증상**: ${symptom}`,
+    `- **모델**: ${ctx.model_id ?? "—"}`,
+    `- **엔드포인트**: ${ctx.base_url ?? "—"}`,
+    `- **상태 코드**: ${ctx.status ?? "—"}`,
+    `- **에러**: ${ctx.error_name ?? "—"}${ctx.error_message ? `: ${ctx.error_message}` : ""}`,
+    `- **프롬프트 해시**: ${ctx.prompt_hash ?? "—"}`,
+    "- **임시 대응**: 자동 기록 (onto llm-caller)",
+    "- **재발 여부**: —",
+    "- **v5 후보 Action**: —",
+    "",
+  ];
+  return lines.join("\n");
+}
+
+export function logLiteLLMIssue(
+  title: string,
+  symptom: string,
+  ctx: LiteLLMIssueContext,
+): void {
+  const logPath = process.env.ONTO_LITELLM_ISSUE_LOG;
+  if (!logPath) return;
+  try {
+    fs.appendFileSync(logPath, renderIssueEntry(title, symptom, ctx, new Date()), "utf8");
+  } catch (writeErr) {
+    // Never let logging failure break the LLM call path.
+    process.stderr.write(
+      `[onto] Failed to write LiteLLM issue log to ${logPath}: ${
+        (writeErr as Error).message ?? String(writeErr)
+      }\n`,
+    );
+  }
+}
+
 export interface LlmCallConfig {
   provider: "anthropic" | "openai" | "litellm" | "codex";
   model_id: string;
@@ -562,16 +644,51 @@ async function callOpenAI(
     maxRetries: DEFAULT_MAX_RETRIES,
   });
 
-  const response = await client.chat.completions.create({
-    model: modelId,
-    max_tokens: maxTokens,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-  });
+  const promptHash = hashPrompt(systemPrompt + userPrompt);
+  const isLiteLLM = providerLabel === "litellm";
+
+  let response;
+  try {
+    response = await client.chat.completions.create({
+      model: modelId,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+  } catch (err) {
+    if (isLiteLLM) {
+      const e = err as { status?: number; name?: string; message?: string };
+      logLiteLLMIssue(
+        `LiteLLM call failed (${e.status ?? e.name ?? "unknown"})`,
+        e.message ?? String(err),
+        {
+          model_id: modelId,
+          base_url: baseUrl,
+          status: e.status,
+          error_name: e.name,
+          error_message: e.message,
+          prompt_hash: promptHash,
+        },
+      );
+    }
+    throw err;
+  }
 
   const text = response.choices[0]?.message?.content ?? "";
+
+  if (isLiteLLM && text === "") {
+    logLiteLLMIssue(
+      "LiteLLM returned empty content",
+      "chat.completions succeeded but message.content was empty",
+      {
+        model_id: modelId,
+        base_url: baseUrl,
+        prompt_hash: promptHash,
+      },
+    );
+  }
 
   const defaultOpenAIBase = "https://api.openai.com/v1";
   return {

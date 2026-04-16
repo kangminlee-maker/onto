@@ -6,7 +6,7 @@
  *
  * Rejected when the scope is already in a terminal state (closed, deferred,
  * rejected). Separated from close.ts so that deferral has its own CLI
- * surface (BL-061: executeDefer existed but was not reachable via onto design).
+ * surface (BL-061: executeDefer existed but was not reachable via onto evolve).
  */
 
 import { readEvents } from "../../scope-runtime/event-store.js";

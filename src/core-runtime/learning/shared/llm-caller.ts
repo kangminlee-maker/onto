@@ -1082,6 +1082,25 @@ function callMockProvider(
       reason: "mock — no overlap detected",
     });
   } else if (
+    systemPrompt.startsWith("You are a review complexity assessor")
+  ) {
+    // Phase 3: Step 1.5 complexity assessment mock — defaults to full review
+    text = JSON.stringify({
+      q2_cross_verification_secondary: false,
+      q2_rationale: "mock — defaulting to full review (cross-verification critical)",
+      q3_miss_risk_acceptable: false,
+      q3_rationale: "mock — defaulting to full review (risk not acceptable)",
+      suggest_light: false,
+    });
+  } else if (
+    systemPrompt.startsWith("You are a review lens selector")
+  ) {
+    // Phase 3: Step 1.5 lens selection mock — default light set
+    text = JSON.stringify({
+      selected_lens_ids: ["axiology", "logic", "pragmatics", "evolution"],
+      rationale: "mock — default light review lens set",
+    });
+  } else if (
     systemPrompt.startsWith("You are executing a single bounded review unit")
   ) {
     // Phase 2 host-decoupling: ts_inline_http review unit executor (lens or

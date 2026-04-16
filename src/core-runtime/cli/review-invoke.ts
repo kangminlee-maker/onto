@@ -29,6 +29,7 @@ import { resolveOntoHome } from "../discovery/onto-home.js";
 import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.js";
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
+import { assessComplexity, selectLenses } from "./complexity-assessment.js";
 
 /**
  * Executor realization for review unit execution.
@@ -1273,12 +1274,50 @@ async function resolveReviewInvokeInputs(
     ontoConfig,
   );
 
-  const reviewMode = resolveReviewMode(argv, ontoConfig);
+  let reviewMode = resolveReviewMode(argv, ontoConfig);
   const explicitLensIds = readMultiOptionValuesFromArgv(argv, "lens-id");
+
+  // Phase 3: standalone LLM-based complexity assessment (Step 1.5)
+  // When no explicit review-mode or lens-id is set AND host is standalone/direct-call,
+  // call main_llm to assess whether light review is appropriate.
+  const hostRuntimeForAssessment = ontoConfig.host_runtime ?? process.env.ONTO_HOST_RUNTIME;
+  const isStandaloneHost = hostRuntimeForAssessment === "standalone" ||
+    hostRuntimeForAssessment === "litellm" ||
+    hostRuntimeForAssessment === "anthropic" ||
+    hostRuntimeForAssessment === "openai";
+  const noExplicitMode = !readSingleOptionValueFromArgv(argv, "review-mode");
+  const noExplicitLens = explicitLensIds.length === 0;
+
+  let resolvedLensIds: string[];
+
   const lensDefaults = resolveLensDefaultsForReviewMode(reviewMode);
-  const resolvedLensIds = explicitLensIds.length > 0
-    ? explicitLensIds
-    : lensDefaults.resolvedLensIds;
+
+  if (isStandaloneHost && noExplicitMode && noExplicitLens) {
+    // Step 1.5: LLM-based assessment
+    const targetDesc = typeof requestedTarget === "string" ? requestedTarget : "(bundle)";
+    try {
+      const assessment = await assessComplexity(targetDesc, requestText ?? "", ontoConfig);
+      if (assessment.suggestLight) {
+        reviewMode = "light";
+        const lensSelection = await selectLenses(targetDesc, requestText ?? "", ontoConfig);
+        resolvedLensIds = lensSelection.selectedLensIds;
+        console.error(`[onto] Step 1.5: light review suggested (Q2: ${assessment.q2Rationale.slice(0, 80)}). Lenses: ${resolvedLensIds.join(", ")}`);
+      } else {
+        reviewMode = "full";
+        resolvedLensIds = [...FULL_REVIEW_LENS_IDS];
+        console.error(`[onto] Step 1.5: full review suggested (Q2: ${assessment.q2Rationale.slice(0, 80)})`);
+      }
+    } catch (err) {
+      // Assessment failed → default to full review (safe fallback)
+      reviewMode = "full";
+      resolvedLensIds = [...FULL_REVIEW_LENS_IDS];
+      console.error(`[onto] Step 1.5: assessment failed (${err instanceof Error ? err.message : String(err)}), defaulting to full review`);
+    }
+  } else {
+    resolvedLensIds = explicitLensIds.length > 0
+      ? explicitLensIds
+      : lensDefaults.resolvedLensIds;
+  }
   const diffRange = readSingleOptionValueFromArgv(argv, "diff-range");
 
   let absoluteTargetPath = "";

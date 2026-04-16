@@ -124,7 +124,7 @@ npm run review:run-prompt-execution -- \
   --executor-arg=--
 ```
 
-2026-04-13 정책 확정 이후 CLI executor로 wired된 경로는 `codex`만이다. Claude CLI 기반 subagent 및 API executor 경로는 전부 제거되었다. Claude runtime 경로는 `onto coordinator start`를 통한 Agent Teams nested spawn으로만 실행되며, 이는 `review:run-prompt-execution`을 거치지 않는다.
+2026-04-13 정책 확정 이후 CLI executor로 wired된 경로는 `codex`만이다. Claude CLI 기반 subagent 및 API executor 경로는 전부 제거되었다. Claude host 경로(`agent_teams_claude` nested orchestration 또는 `subagent_claude` flat orchestration)는 `onto coordinator start`를 통한 coordinator state machine으로 실행되며, `review:run-prompt-execution`을 거치지 않는다. 두 Claude host canonical path는 동일한 state machine을 공유하며 caller의 orchestration 패턴(TeamCreate nested vs Agent-tool flat)만 다르다 — 상세는 `processes/review/nested-spawn-coordinator-contract.md` §2.1.
 
 현재 구현에서 CLI runner를 통해 실행되는 execution profile:
 

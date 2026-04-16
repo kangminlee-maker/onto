@@ -585,8 +585,8 @@ entities:
   LlmBillingMode:
     canonical_label: "LlmBillingMode"
     korean_label: "LLM 과금 모드"
-    definition: "provider 호출당 한계비용 구조의 분류. onto의 provider 해소 우선순위(cost-order)의 의미론적 근거"
-    core_value: "이 개념이 없으면 provider 목록이 단순 열거로만 남아 '왜 이 순서인지'가 코드에서만 설명되고 개념 공간에서 사라진다. 구독제와 per-token 과금은 같은 호출 빈도에서도 비용 구조가 완전히 다르므로 rank 1에서 구분되어야 한다"
+    definition: "provider 호출당 한계비용 구조의 분류. 구독제·토큰당 과금·variable 등 billing 속성 자체만 다룸. 호출 경로의 선호 순위는 이 개념이 아니라 resolver 정책 층에서 관리된다."
+    core_value: "이 개념이 없으면 provider 목록이 단순 열거로만 남아 '구독제와 per-token 과금의 비용 구조가 왜 다른지'가 코드에서만 설명되고 개념 공간에서 사라진다. 과금 특성을 rank-1에 박제해 두면 운영·감사·회계가 일관된 용어로 논의 가능."
     attributes:
       shared: []
       local:
@@ -596,18 +596,84 @@ entities:
             subscription: "사전 정액제. 호출당 한계비용이 0에 수렴 (rate limit까지). 예: codex CLI의 chatgpt OAuth"
             per_token: "입출력 토큰 수 기반 과금. 호출량과 비용이 선형. 예: Anthropic API, OpenAI API, 유료 LiteLLM backend"
             variable: "경로별로 0 또는 per-token일 수 있음. LiteLLM처럼 프록시 downstream이 불투명할 때 사용"
-        cost_order_rank:
-          definition: "provider 해소 우선순위 결정 시 과금 모드별 랭크 (낮은 숫자 = 더 앞)"
-          values:
-            subscription: 1
-            variable: 2
-            per_token: 3
+        # cost_order_rank removed (2026-04-15): ranking은 사용자 상황(보유 구독·API
+        # 예산·context 여유·로컬 하드웨어 등) 의존적이므로 authority rank-1에 고정하지
+        # 않는다. 기본 정책(stay-in-host 등)은 resolver 정책 층이 제공하고, 사용자가
+        # `api_provider` config나 `--codex` 같은 명시적 override로 조정한다.
+        # 근거: 20260415T1700-execution-realization-priority-design.md D7.
     execution_rules_ref:
-      resolution_ladder: "src/core-runtime/learning/shared/llm-caller.ts:resolveProvider"
+      classification_consumer: "src/core-runtime/learning/shared/llm-caller.ts:resolveProvider (provider 해소 정책에서 billing mode 분류를 참조)"
       design_record: "development-records/plan/20260415-litellm-provider-design.md §3.4"
     notes:
-      - "명시적 사용자 override(config.api_provider 또는 caller-explicit)는 이 랭크를 거스를 수 있다 — override는 cost가 아니라 의도에 복무한다"
-      - "LiteLLM을 variable로 분류하는 이유: 프록시 downstream이 로컬 모델이면 0, 유료 API backend면 per-token. 감사 관점에서는 보수적으로 per-token 신호를 기록(LlmCallResult.declared_billing_mode) 하지만 cost-order 랭크는 variable로 둔다 (로컬 사용 의도를 수용)"
+      - "이 entry는 billing 속성 분류만 담는다. Provider 해소·선호 순서는 resolver 정책 층(llm-caller.ts resolveProvider)이 관리하며 사용자 상황에 따라 달라진다."
+      - "LiteLLM을 variable로 분류하는 이유: 프록시 downstream이 로컬 모델이면 0, 유료 API backend면 per-token. 감사 관점에서는 보수적으로 per-token 신호를 기록(LlmCallResult.declared_billing_mode)"
+
+  LlmAgentSpawnRealization:
+    canonical_label: "LlmAgentSpawnRealization"
+    korean_label: "LLM 에이전트 생성 실현"
+    definition: "review agentic 작업에서 lens reasoning unit을 어떤 기제로 spawn하고 누가 orchestration하는가를 규정하는 축. execution_realization × host_runtime 2-axis의 세 유효 조합(agent_teams_claude, subagent_claude, subagent_codex)에 대한 의미론적 seat — codex 조합은 billing_source rail에 따라 subagent_codex_oauth / subagent_codex_apikey 두 instance로 세분화된다."
+    core_value: "이 개념이 없으면 2-axis 조합의 의미가 타입 정의에만 존재해, '세 조합이 왜 서로 다른가'를 설명하는 rank-1 자리가 없다. 특히 orchestrator 소재·context 비용·billing source의 차이가 운영 의사결정 근거인데 authority에 부재"
+    attributes:
+      shared: []
+      local:
+        orchestration_locus:
+          definition: "lens dispatch와 state 전이를 담당하는 주체의 소재"
+          values:
+            coordinator_subagent: "main이 TeamCreate로 spawn한 별도 subagent가 orchestration 담당"
+            main_session: "주체자 세션 자체가 Agent tool 호출로 orchestration"
+            subprocess: "외부 CLI (codex 등)가 자체 orchestration"
+        context_cost:
+          definition: "메인 세션 context 소비 특성"
+          values:
+            independent: "orchestration·lens reasoning 모두 메인 외부 context"
+            orchestration_only: "orchestration만 메인 소비, lens reasoning은 독립 context"
+        billing_source:
+          definition: "실행 비용이 청구되는 자원 rail (누가·어떤 계정이 지불하느냐). 과금 방식(subscription vs per-token 등) 자체의 분류는 별도 개념 `LlmBillingMode`가 담당 — 이 필드는 rail 식별만 한다."
+          values:
+            claude_code_subscription: "주체자의 Claude Code 세션이 지불"
+            chatgpt_account: "~/.codex/auth.json OAuth mode 경유 chatgpt 계정이 지불"
+            openai_account: "~/.codex/auth.json API-key mode의 OpenAI 계정이 지불"
+            local_or_self_hosted: "로컬 모델 또는 자체 호스팅 (외부 지불 없음)"
+    instances:
+      agent_teams_claude:
+        execution_realization: "agent-teams"
+        host_runtime: "claude"
+        orchestration_locus: "coordinator_subagent"
+        context_cost: "independent"
+        billing_source: "claude_code_subscription"
+        notes: "`onto coordinator start` + 주체자의 TeamCreate + nested Agent tool. 주체자 메인 context 거의 무소비."
+      subagent_claude:
+        execution_realization: "subagent"
+        host_runtime: "claude"
+        orchestration_locus: "main_session"
+        context_cost: "orchestration_only"
+        billing_source: "claude_code_subscription"
+        notes: "주체자가 TeamCreate 없이 Agent tool을 직접 사용해 lens subagent를 flat spawn. 같은 coordinator-state-machine.ts 재활용. 주체자 context가 orchestration에 사용되지만 lens reasoning은 독립 subagent context."
+      subagent_codex_oauth:
+        execution_realization: "subagent"
+        host_runtime: "codex"
+        orchestration_locus: "subprocess"
+        context_cost: "independent"
+        billing_source: "chatgpt_account"
+        notes: "`onto review --codex` 경로 + ~/.codex/auth.json이 chatgpt OAuth mode (auth_mode=chatgpt 또는 tokens.access_token). codex CLI가 chatgpt.com 백엔드 사용. 과금 모드 분류는 LlmBillingMode.subscription 참조."
+      subagent_codex_apikey:
+        execution_realization: "subagent"
+        host_runtime: "codex"
+        orchestration_locus: "subprocess"
+        context_cost: "independent"
+        billing_source: "openai_account"
+        notes: "`onto review --codex` 경로 + ~/.codex/auth.json이 API-key mode (OPENAI_API_KEY 필드 존재). codex CLI가 api.openai.com 사용. 과금 모드 분류는 LlmBillingMode.per_token 참조. 타입 space에서는 subagent_codex_oauth와 동일한 (subagent, codex) 조합이지만 billing_source rail이 다르므로 별도 instance."
+    execution_rules_ref:
+      resolution_profile: "src/core-runtime/cli/review-invoke.ts:resolveExecutionProfile"
+      resolution_handoff: "src/core-runtime/cli/review-invoke.ts:resolveExecutionRealizationHandoff"
+      state_machine: "src/core-runtime/cli/coordinator-state-machine.ts (agent_teams_claude + subagent_claude 공용)"
+      codex_executor: "src/core-runtime/cli/codex-review-unit-executor.ts (subagent_codex_* 전용)"
+      design_record: "development-records/plan/20260415T1700-execution-realization-priority-design.md"
+    notes:
+      - "Priority(선호 순서)는 사용자 상황 의존적이므로 이 entry에 고정하지 않는다. resolver 정책 층이 기본값(stay-in-host) 제공, 사용자가 --codex flag·OntoConfig.execution_realization·host_runtime으로 override"
+      - "Provider resolution 축(LlmBillingMode, LlmCompatibleProxy)과 직교 — background task의 단일-턴 API call 경로와 review의 agentic 실행 경로는 서로 영향 주지 않음"
+      - "host_runtime에 litellm 값이 타입 공간(artifact-types.ts)에 열려 있으며, subagent_litellm 조합은 후속 설계에서 wiring"
+      - "TeamCreate 가용성은 onto child process가 introspect할 수 없으므로 nested(agent_teams_claude) vs flat(subagent_claude) 최종 선택은 주체자 세션의 판단. onto는 handoff JSON의 orchestration_guidance로 힌트만 제공"
 
 # ---------------------------------------------------------------------------
 # Terms
@@ -703,8 +769,10 @@ terms:
     allowed_values:
       - "codex"
       - "claude"
+      - "litellm"
     notes:
       - "`codex` and `claude` are host runtimes, not canonical execution realizations."
+      - "`litellm` is a forward-compat slot: the type is recognized (artifact-types.ts) and explicit `host_runtime: \"litellm\"` in OntoConfig fails closed in runtime (src/core-runtime/cli/review-invoke.ts:resolveExecutionProfile). `subagent_litellm` combination wiring is deferred to a subsequent design. See authority/core-lexicon.yaml:LlmAgentSpawnRealization."
   - term_id: "lens_prompt_contract"
     canonical_label: "LensPromptContract"
     korean_label: "lens 프롬프트 계약"

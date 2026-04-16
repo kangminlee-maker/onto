@@ -3,6 +3,7 @@
 import { execSync } from "node:child_process";
 import fsSync from "node:fs";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { pathToFileURL } from "node:url";
@@ -70,8 +71,8 @@ interface ResolvedReviewInvokeInputs {
 interface ReviewInvokeRouteSummary {
   combined_entrypoint: "review:invoke";
   bounded_invoke_steps: string[];
-  execution_realization: "subagent";
-  host_runtime: "codex";
+  execution_realization: "subagent" | "agent-teams";
+  host_runtime: "codex" | "claude";
   review_mode: ReviewMode;
   max_concurrent_lenses: number;
   concurrency_strategy: "bounded_parallel";
@@ -341,6 +342,197 @@ function appendExecutorModelArgs(
   return { bin: config.bin, args };
 }
 
+// ---------------------------------------------------------------------------
+// Execution realization auto-resolution (stay-in-host)
+//
+// Decides whether `onto review` should run the codex CLI path itself or hand
+// off to the Claude host via `onto coordinator start`. Three inputs matter:
+//
+//   - explicit CLI `--codex` flag                        → self (codex path)
+//   - OntoConfig.host_runtime / execution_realization    → explicit override
+//   - auto detection (CLAUDECODE=1 / codex on PATH)      → stay-in-host
+//
+// Priority rank between hosts is NOT hardcoded here — user situation varies
+// (subscription mix, context headroom, local hardware). Default policy prefers
+// the current host ecosystem; cross-host switches require explicit opt-in.
+// Design: development-records/plan/20260415T1700-execution-realization-priority-design.md
+// Authority: authority/core-lexicon.yaml:LlmAgentSpawnRealization
+// ---------------------------------------------------------------------------
+
+export interface ResolvedExecutionProfile {
+  execution_realization: "subagent" | "agent-teams";
+  host_runtime: "codex" | "claude";
+}
+
+export type ExecutionProfileResolution =
+  | { type: "resolved"; profile: ResolvedExecutionProfile }
+  | { type: "no_host" };
+
+export type ExecutionRealizationHandoff =
+  | { type: "self"; profile: ResolvedExecutionProfile }
+  | { type: "coordinator_start"; profile: ResolvedExecutionProfile }
+  | { type: "no_host" };
+
+export function detectClaudeCodeHost(): boolean {
+  return process.env.CLAUDECODE === "1";
+}
+
+export function detectCodexAvailable(): boolean {
+  const pathEnv = process.env.PATH ?? "";
+  let codexOnPath = false;
+  for (const dir of pathEnv.split(path.delimiter)) {
+    if (!dir) continue;
+    if (fsSync.existsSync(path.join(dir, "codex"))) {
+      codexOnPath = true;
+      break;
+    }
+  }
+  if (!codexOnPath) return false;
+  // auth.json presence (either OAuth or API-key mode is valid for review).
+  const authPath = path.join(os.homedir(), ".codex", "auth.json");
+  return fsSync.existsSync(authPath);
+}
+
+/**
+ * Resolves the (execution_realization, host_runtime) profile without deciding
+ * action (handoff vs self-execute). This is the single seat that writes
+ * {realization, host} into session artifacts so Claude-host runs don't get
+ * recorded as `subagent + codex` anymore.
+ *
+ * LiteLLM is type-recognized (`ReviewHostRuntime` includes "litellm") but
+ * review wiring is deferred — explicit `host_runtime: "litellm"` config is
+ * fail-closed here rather than silently falling through.
+ */
+export function resolveExecutionProfile(args: {
+  explicitCodex: boolean;
+  ontoConfig: OntoConfig;
+}): ExecutionProfileResolution {
+  if (args.explicitCodex) {
+    return { type: "resolved", profile: { execution_realization: "subagent", host_runtime: "codex" } };
+  }
+
+  const configHost = args.ontoConfig.host_runtime;
+  const configRealization = args.ontoConfig.execution_realization;
+
+  // LiteLLM explicit fail-close: type space recognizes it but review wiring
+  // is deferred (see design §5 Non-Goals, §3.1). Silently falling through to
+  // auto-resolution would surprise users who set it on purpose.
+  if (configHost === "litellm") {
+    throw new Error(
+      [
+        "host_runtime=\"litellm\" is type-recognized but review wiring is deferred to a subsequent PR.",
+        "Current canonical paths: agent_teams_claude, subagent_claude, subagent_codex.",
+        "To proceed, either:",
+        "  1. Remove host_runtime from .onto/config.yml and rely on auto-resolution",
+        "  2. Set host_runtime: claude or codex explicitly",
+        "See authority/core-lexicon.yaml:LlmAgentSpawnRealization and",
+        "development-records/plan/20260415T1700-execution-realization-priority-design.md §5.",
+      ].join("\n"),
+    );
+  }
+
+  if (configHost === "claude") {
+    const realization =
+      configRealization === "subagent" || configRealization === "agent-teams"
+        ? configRealization
+        : "agent-teams";
+    return { type: "resolved", profile: { execution_realization: realization, host_runtime: "claude" } };
+  }
+  if (configHost === "codex") {
+    return { type: "resolved", profile: { execution_realization: "subagent", host_runtime: "codex" } };
+  }
+
+  // Auto-resolution (stay-in-host). Within Claude host, agent_teams_claude is
+  // the default preferred; the subject session falls to subagent_claude (flat)
+  // if TeamCreate is unavailable — that decision is the subject's, not onto's.
+  if (detectClaudeCodeHost()) {
+    return { type: "resolved", profile: { execution_realization: "agent-teams", host_runtime: "claude" } };
+  }
+  if (detectCodexAvailable()) {
+    return { type: "resolved", profile: { execution_realization: "subagent", host_runtime: "codex" } };
+  }
+  return { type: "no_host" };
+}
+
+/**
+ * Wraps resolveExecutionProfile with action decision:
+ * - prepareOnly=true + resolved Claude → "self" (coordinator-state-machine is
+ *   already calling this internally; don't emit handoff JSON, just record the
+ *   profile into session artifacts)
+ * - prepareOnly=false + resolved Claude → "coordinator_start" (emit handoff)
+ * - resolved codex → "self"
+ * - no_host → "no_host"
+ */
+export function resolveExecutionRealizationHandoff(args: {
+  explicitCodex: boolean;
+  prepareOnly: boolean;
+  ontoConfig: OntoConfig;
+}): ExecutionRealizationHandoff {
+  const profile = resolveExecutionProfile({
+    explicitCodex: args.explicitCodex,
+    ontoConfig: args.ontoConfig,
+  });
+  if (profile.type === "no_host") return { type: "no_host" };
+
+  // Claude host: emit handoff unless we're in prepare-only mode (coordinator
+  // state machine is already calling us — it needs artifacts prepared, not a
+  // handoff JSON written to stdout).
+  if (profile.profile.host_runtime === "claude" && !args.prepareOnly) {
+    return { type: "coordinator_start", profile: profile.profile };
+  }
+  return { type: "self", profile: profile.profile };
+}
+
+function buildNoHostDetectedError(): Error {
+  return new Error(
+    [
+      "Review execution realization을 해소할 수 없습니다.",
+      "현재 host 감지 결과: Claude Code 세션 아님(CLAUDECODE unset), codex CLI 미설치 또는 ~/.codex/auth.json 부재.",
+      "",
+      "다음 중 한 가지로 해결하세요:",
+      "  1. Claude Code 세션에서 `onto review` 재실행 (CLAUDECODE=1 감지 시 coordinator-start 안내)",
+      "  2. codex CLI 설치 + `codex login` 후 재실행",
+      "  3. `--codex` 플래그로 codex path 강제 (auth·binary 있어야 성공)",
+      "  4. `.onto/config.yml` 에 host_runtime: claude 또는 codex 명시",
+    ].join("\n"),
+  );
+}
+
+function emitCoordinatorStartHandoff(args: {
+  preferredRealization: "subagent" | "agent-teams";
+  requestedTarget: string;
+  requestText: string;
+}): void {
+  // Shell-escape: wrap in double quotes and escape embedded double quotes/backslashes.
+  const q = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  // preferred: plan-time recommendation based on onto's resolution policy
+  //   (typically agent-teams nested when TeamCreate is expected to be available).
+  // actual:    deferred — determined by subject session at TeamCreate attempt time.
+  //   onto child process cannot introspect the subject session's capability.
+  //   coordinator-state-machine then records the realized path into session
+  //   artifacts (binding.yaml / execution-plan.yaml / session-metadata.yaml).
+  const payload = {
+    handoff: "coordinator-start",
+    host_runtime: "claude" as const,
+    preferred_realization: args.preferredRealization,
+    actual_realization: "deferred_to_subject_session" as const,
+    requested_target: args.requestedTarget,
+    request_text: args.requestText,
+    next_action: {
+      cli: `onto coordinator start ${q(args.requestedTarget)} ${q(args.requestText)}`,
+      orchestration_guidance: {
+        preferred:
+          "TeamCreate로 coordinator subagent를 nested spawn, coordinator가 Agent tool로 9 lens + synthesize subagent 추가 nested spawn (canonical path = agent_teams_claude).",
+        fallback:
+          "TeamCreate 비가용 환경에서는 주체자 세션이 Agent tool로 lens subagent를 직접 spawn 가능 (canonical path = subagent_claude). coordinator state machine은 양쪽 모두 수용.",
+        recording_note:
+          "주체자가 실제 선택한 realization은 coordinator-state-machine이 session artifact(binding.yaml 등)에 기록. 본 handoff payload의 preferred_realization은 plan-time 권장이지 actual truth가 아님.",
+      },
+    },
+  };
+  console.log(JSON.stringify(payload, null, 2));
+}
+
 function resolveExecutorConfig(
   argv: string[],
   optionPrefix: "" | "synthesize-",
@@ -386,7 +578,7 @@ function resolveExecutorConfig(
   ) {
     throw new Error(
       `Unsupported --${optionPrefixLabel}executor-realization: ${explicitRealization}. ` +
-        `Only codex and mock are supported. Claude runs use \`onto coordinator start\` (Agent Teams nested spawn).`,
+        `Only codex and mock are supported for --executor-realization. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected; config host_runtime: claude explicitly opts in. See authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
     );
   }
 
@@ -401,7 +593,7 @@ function resolveExecutorConfig(
   if (typeof configRealization === "string" && configRealization.length > 0) {
     throw new Error(
       `Unsupported executor_realization in config: ${configRealization}. ` +
-        `Only codex and mock are supported. Claude runs use \`onto coordinator start\` (Agent Teams nested spawn).`,
+        `Only codex and mock are supported for --executor-realization. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected; config host_runtime: claude explicitly opts in. See authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
     );
   }
 
@@ -1251,13 +1443,16 @@ function rejectRemovedFlags(argv: string[]): void {
   }
 }
 
-function appendCanonicalExecutionProfileArgs(argv: string[]): string[] {
+function appendCanonicalExecutionProfileArgs(
+  argv: string[],
+  profile: ResolvedExecutionProfile,
+): string[] {
   return [
     ...argv,
     "--execution-realization",
-    "subagent",
+    profile.execution_realization,
     "--host-runtime",
-    "codex",
+    profile.host_runtime,
   ];
 }
 
@@ -1309,6 +1504,13 @@ interface ReviewInvokeSetup {
   resolvedInvokeInputs: ResolvedReviewInvokeInputs;
   maxConcurrentLenses: number;
   startArgv: string[];
+  /**
+   * Resolved execution profile that drove the startArgv's --execution-realization
+   * and --host-runtime args. Downstream consumers (runReviewInvokeCli,
+   * reviewPrepareOnly) use this to return artifact-consistent responses.
+   * null when resolution yielded no_host AND caller hasn't forced a fallback.
+   */
+  executionProfile: ResolvedExecutionProfile | null;
 }
 
 async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSetup> {
@@ -1352,7 +1554,27 @@ async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSet
     ),
     resolvedInvokeInputs,
   );
-  const startArgvWithProfile = appendCanonicalExecutionProfileArgs(normalizedStartArgv);
+  // Resolve execution profile ONCE here so session artifacts, startArgv, and
+  // downstream responses all share the same (realization, host) pair. This is
+  // the single seat that writes the Claude-host profile into prepared session
+  // artifacts — closes the "Claude run recorded as codex" artifact seam gap
+  // (review consensus #1, 2026-04-16).
+  const explicitCodex = hasOptionFlag(argv, "codex");
+  const profileResolution = resolveExecutionProfile({ explicitCodex, ontoConfig });
+  // Defaults when no host detected: preserve the prior hardcoded behavior so
+  // --prepare-only in a credential-less env still gets artifacts prepared and
+  // downstream fail-fast surfaces at resolveExecutorConfig. runReviewInvokeCli
+  // (non-prepareOnly) explicitly re-checks and throws earlier.
+  const executionProfile: ResolvedExecutionProfile | null =
+    profileResolution.type === "resolved" ? profileResolution.profile : null;
+  const profileForArtifacts: ResolvedExecutionProfile = executionProfile ?? {
+    execution_realization: "subagent",
+    host_runtime: "codex",
+  };
+  const startArgvWithProfile = appendCanonicalExecutionProfileArgs(
+    normalizedStartArgv,
+    profileForArtifacts,
+  );
   const startArgv = appendDirectoryListingConfigArgs(
     startArgvWithProfile,
     argv,
@@ -1365,31 +1587,64 @@ async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSet
     resolvedInvokeInputs,
     maxConcurrentLenses,
     startArgv,
+    executionProfile,
   };
 }
 
 /**
  * Runs review preparation and returns the result directly (no console output).
  * Used by the coordinator state machine to avoid console.log capture.
+ *
+ * The execution_realization / host_runtime in the returned result mirror the
+ * values that were written into the prepared session artifacts (via
+ * setup.executionProfile). This closes the artifact seam gap where Claude-path
+ * runs were previously recorded as `subagent + codex` regardless of host.
  */
 export async function reviewPrepareOnly(argv: string[]): Promise<PrepareOnlyResult> {
   const setup = await resolveReviewInvokeSetup(argv);
   const startResult = await startReviewSession(setup.startArgv);
   const sessionRoot = path.resolve(startResult.session_root);
+  const profile: ResolvedExecutionProfile = setup.executionProfile ?? {
+    execution_realization: "subagent",
+    host_runtime: "codex",
+  };
   return {
     prepare_only: true,
     session_root: sessionRoot,
     request_text: setup.resolvedInvokeInputs.requestText,
-    execution_realization: "subagent",
-    host_runtime: "codex",
+    execution_realization: profile.execution_realization,
+    host_runtime: profile.host_runtime,
     review_mode: setup.resolvedInvokeInputs.reviewMode,
   };
 }
 
 export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   const prepareOnly = hasOptionFlag(argv, "prepare-only");
+  const explicitCodex = hasOptionFlag(argv, "codex");
 
   const setup = await resolveReviewInvokeSetup(argv);
+
+  // Auto-resolve execution realization before starting a session. When the
+  // resolution points at the Claude host, we don't start a session here — we
+  // emit a handoff JSON that tells the subject session to invoke
+  // `onto coordinator start`, which owns Claude-host preparation itself.
+  // See design record §3.2.
+  const handoff = resolveExecutionRealizationHandoff({
+    explicitCodex,
+    prepareOnly,
+    ontoConfig: setup.ontoConfig,
+  });
+  if (handoff.type === "no_host") {
+    throw buildNoHostDetectedError();
+  }
+  if (handoff.type === "coordinator_start") {
+    emitCoordinatorStartHandoff({
+      preferredRealization: handoff.profile.execution_realization,
+      requestedTarget: setup.resolvedInvokeInputs.requestedTarget,
+      requestText: setup.resolvedInvokeInputs.requestText,
+    });
+    return 0;
+  }
 
   const resolvedProjectRoot = path.resolve(
     readSingleOptionValueFromArgv(setup.startArgv, "project-root") ?? ".",
@@ -1401,12 +1656,16 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
 
   if (prepareOnly) {
     const sessionRoot = path.resolve(startResult.session_root);
+    const profile: ResolvedExecutionProfile = setup.executionProfile ?? {
+      execution_realization: "subagent",
+      host_runtime: "codex",
+    };
     const result: PrepareOnlyResult = {
       prepare_only: true,
       session_root: sessionRoot,
       request_text: setup.resolvedInvokeInputs.requestText,
-      execution_realization: "subagent",
-      host_runtime: "codex",
+      execution_realization: profile.execution_realization,
+      host_runtime: profile.host_runtime,
       review_mode: setup.resolvedInvokeInputs.reviewMode,
     };
     console.log(JSON.stringify(result, null, 2));
@@ -1477,11 +1736,15 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     "review:run-prompt-execution",
     "review:complete-session",
   ] as const;
+  const routeProfile: ResolvedExecutionProfile = setup.executionProfile ?? {
+    execution_realization: "subagent",
+    host_runtime: "codex",
+  };
   const routeSummary: ReviewInvokeRouteSummary = {
     combined_entrypoint: "review:invoke",
     bounded_invoke_steps: [...boundedInvokeSteps],
-    execution_realization: "subagent",
-    host_runtime: "codex",
+    execution_realization: routeProfile.execution_realization,
+    host_runtime: routeProfile.host_runtime,
     review_mode: setup.resolvedInvokeInputs.reviewMode,
     max_concurrent_lenses: setup.maxConcurrentLenses,
     concurrency_strategy: "bounded_parallel",

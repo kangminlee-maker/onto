@@ -1,7 +1,19 @@
 export type ReviewEntrypoint = "review";
 export type ReviewTargetScopeKind = "file" | "directory" | "bundle";
 export type ReviewExecutionRealization = "subagent" | "agent-teams";
-export type ReviewHostRuntime = "codex" | "claude";
+/**
+ * Host runtime for review execution.
+ * - "codex":   codex CLI subprocess (subagent + codex canonical combination)
+ * - "claude":  Claude Code host session (both agent_teams_claude and subagent_claude
+ *              combinations; subject session chooses nested vs flat orchestration
+ *              based on its TeamCreate availability)
+ * - "litellm": LiteLLM-hosted local model (forward-compat slot; subagent_litellm
+ *              combination wiring is deferred — see
+ *              development-records/plan/20260415T1700-execution-realization-priority-design.md
+ *              D8 and §5 Non-Goals)
+ * See authority/core-lexicon.yaml:LlmAgentSpawnRealization for semantic definitions.
+ */
+export type ReviewHostRuntime = "codex" | "claude" | "litellm";
 export type ReviewMode = "light" | "full";
 export type BoundaryAccessPolicy = "allowed" | "denied";
 export type BoundaryGuaranteeLevel =

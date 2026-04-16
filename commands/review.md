@@ -140,7 +140,7 @@ Read the current repo copies of:
    - `--codex` explicit OR `host_runtime: codex` config → `subagent + codex` path
    - `CLAUDECODE=1` OR `host_runtime: claude` config → coordinator-start handoff JSON emitted; subject session then invokes `onto coordinator start`, selecting nested (`agent_teams_claude`) or flat (`subagent_claude`) orchestration based on TeamCreate availability
    - `host_runtime: litellm` in config → explicit fail-fast (type-recognized but wiring deferred)
-   - Neither host detected → fail-fast with cost-order guidance
+   - Neither host detected → fail-fast with host-setup guidance
 2. If resolved path is `subagent + codex` → verify Codex CLI readiness. If unavailable → halt with guidance.
 3. Resolved execution profile (execution_realization + host_runtime) is recorded into session artifacts (binding.yaml, execution-plan.yaml, session-metadata.yaml) so downstream consumers see actual path used.
 4. Before lens execution, the command must ensure the bounded TS core steps have already written:

@@ -134,7 +134,7 @@ suppress_codex_install_notice: false
 
 - `authority/core-lexicon.yaml`:
   - `LlmCompatibleProxy` (LiteLLM 등 OpenAI-compatible 프록시 개념)
-  - `LlmBillingMode` (subscription / per_token / variable — cost-order의 의미론적 근거)
+  - `LlmBillingMode` (subscription / per_token / variable — billing 속성 분류; 선호 순위는 resolver 정책 층이 관리)
 - `OntoConfig`:
   - `llm_base_url?: string`
   - `suppress_codex_install_notice?: boolean`

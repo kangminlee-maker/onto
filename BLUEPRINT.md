@@ -62,7 +62,7 @@ onto is a **multi-host LLM-driven runtime** that runs in three host environments
 
 1. **Claude Code plugin** ✅ — invoked via slash commands (`/onto:review`, `/onto:reconstruct`, `/onto:evolve`, etc.) inside a Claude Code terminal session
 2. **Codex CLI subagent** ✅ — invoked via `onto review ... --codex` or as a `codex exec` subprocess from a Codex CLI session
-3. **Standalone CLI** 📐 (Phase 2 wiring) — invoked as `npm run onto:*` or installed CLI; orchestrates lenses by calling configured LLM endpoints (LiteLLM / Anthropic SDK / OpenAI SDK direct)
+3. **Standalone CLI** ✅ (Phase 2 executor; ✅ binary, 📐 auto-wiring) — invoked as `npm run onto:*` or installed CLI; orchestrates lenses by calling configured LLM endpoints (LiteLLM / Anthropic SDK / OpenAI SDK direct) via `inline-http-review-unit-executor`. Auto-selection via `host_runtime: standalone` config is pending; the executor binary itself is already callable via explicit `--executor-bin` override or `npm run review:inline-http-unit-executor`.
 
 The host environment is detected automatically via env signals. Override with `ONTO_HOST_RUNTIME=claude|codex|standalone`.
 
@@ -73,14 +73,14 @@ Two core capabilities:
 1. **Verification (review)** ✅: 9 independent review lenses inspect a scope-defined target, then a separate synthesize stage writes the final review result
 2. **Reconstruct** ✅: Incrementally constructs ontologies (structured domain knowledge representations) from analysis targets using integral exploration. CLI 4-step bounded path: `start → explore → complete → confirm`
 
-### Two-tier LLM model (📐 Phase 1 schema; Phase 2 wiring)
+### Two-tier LLM model (✅ Phase 1 schema; ✅ Phase 2 subagent executor; 📐 Phase 2 auto-wiring)
 
 onto separates two LLM roles that can be configured independently:
 
-| Role | Purpose | Phase 1 binding | Phase 2 binding |
+| Role | Purpose | Phase 1 binding | Phase 2 status |
 |---|---|---|---|
-| **Main LLM** | Orchestrates the session: lens selection, synthesize, meta-reasoning | Bound to host runtime (Claude / Codex / TS process) | Configurable: `main_llm.provider` in `.onto/config.yml` |
-| **Subagent LLM** | Per-lens execution (9 parallel lens reasonings) | Bound to host runtime (TeamCreate / codex exec / direct call) | Configurable: `subagent_llm.provider` independently of main |
+| **Main LLM** | Orchestrates the session: lens selection, synthesize, meta-reasoning | Bound to host runtime (Claude / Codex / TS process) | 📐 Auto-config from `main_llm.provider` in `.onto/config.yml` (pending) |
+| **Subagent LLM** | Per-lens execution (9 parallel lens reasonings) | Bound to host runtime (TeamCreate / codex exec / direct call) | ✅ `inline-http-review-unit-executor` binary callable via explicit invocation; auto-selection via `subagent_llm.provider` config pending |
 
 Cross-host combinations enabled by Phase 2 (examples):
 - Claude Code main + LiteLLM 8B subagent (cheap parallel lens execution under Claude orchestration)

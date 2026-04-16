@@ -37,6 +37,7 @@
     "review:run-prompt-execution": "tsx src/core-runtime/cli/run-review-prompt-execution.ts",
     "review:mock-unit-executor": "tsx src/core-runtime/cli/mock-review-unit-executor.ts",
     "review:codex-unit-executor": "tsx src/core-runtime/cli/codex-review-unit-executor.ts",
+    "review:inline-http-unit-executor": "tsx src/core-runtime/cli/inline-http-review-unit-executor.ts",
     "review:invoke": "tsx src/core-runtime/cli/review-invoke.ts",
     "migrate:agent-id-rename": "bash scripts/migrate-agent-id-rename.sh",
     "review:watch": "bash scripts/onto-review-watch.sh",

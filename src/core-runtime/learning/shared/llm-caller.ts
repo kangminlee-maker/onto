@@ -1081,6 +1081,36 @@ function callMockProvider(
       matched_existing_line: null,
       reason: "mock — no overlap detected",
     });
+  } else if (
+    systemPrompt.startsWith("You are executing a single bounded review unit")
+  ) {
+    // Phase 2 host-decoupling: ts_inline_http review unit executor (lens or
+    // synthesize). The mock returns a minimal lens-output-shaped markdown so
+    // executor tests can verify the full call → write → JSON-print path
+    // without needing a real LLM endpoint. Real lens output comes from a real
+    // LLM; this mock only exercises the executor wiring.
+    text = [
+      "# Mock Lens Output (ts_inline_http executor mock)",
+      "",
+      "## Structural Inspection",
+      "- Mock checklist item: PASS",
+      "",
+      "## Findings",
+      "(none — mock executor)",
+      "",
+      "## Newly Learned",
+      "(none — mock executor)",
+      "",
+      "## Applied Learnings",
+      "(none — mock executor)",
+      "",
+      "## Domain Constraints Used",
+      "(none — mock executor)",
+      "",
+      "## Domain Context Assumptions",
+      "Mock executor returned this output for test purposes via ONTO_LLM_MOCK=1.",
+      "",
+    ].join("\n");
   } else {
     // N-1 fail-loud: unknown prompt → throw with the prefix so tests
     // immediately point at the prompt that drifted. The previous "ok"

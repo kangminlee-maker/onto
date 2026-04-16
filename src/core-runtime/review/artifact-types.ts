@@ -1,19 +1,36 @@
 export type ReviewEntrypoint = "review";
 export type ReviewTargetScopeKind = "file" | "directory" | "bundle";
-export type ReviewExecutionRealization = "subagent" | "agent-teams";
+/**
+ * Execution realization for review lens / synthesize unit.
+ * - "subagent":      single bounded execution unit (codex exec, claude Agent tool flat,
+ *                     or TS process direct LLM call)
+ * - "agent-teams":   nested team spawning (Claude Code TeamCreate; claude host only)
+ * - "ts_inline_http": Phase 2 — TS process directly calls LLM HTTP endpoint (LiteLLM /
+ *                     Anthropic SDK direct / OpenAI SDK direct). Inline content mode:
+ *                     domain docs and target are embedded in the prompt rather than
+ *                     fetched via tool calls. Suitable for hosts without their own
+ *                     tool ecosystem (standalone CLI). See
+ *                     `src/core-runtime/cli/inline-http-review-unit-executor.ts`.
+ */
+export type ReviewExecutionRealization = "subagent" | "agent-teams" | "ts_inline_http";
 /**
  * Host runtime for review execution.
- * - "codex":   codex CLI subprocess (subagent + codex canonical combination)
- * - "claude":  Claude Code host session (both agent_teams_claude and subagent_claude
- *              combinations; subject session chooses nested vs flat orchestration
- *              based on its TeamCreate availability)
- * - "litellm": LiteLLM-hosted local model (forward-compat slot; subagent_litellm
- *              combination wiring is deferred — see
- *              development-records/plan/20260415T1700-execution-realization-priority-design.md
- *              D8 and §5 Non-Goals)
+ * - "codex":      codex CLI subprocess (subagent + codex canonical combination)
+ * - "claude":     Claude Code host session (both agent_teams_claude and subagent_claude
+ *                 combinations; subject session chooses nested vs flat orchestration
+ *                 based on its TeamCreate availability)
+ * - "litellm":    LiteLLM-hosted model accessed via TS process direct HTTP. Phase 2
+ *                 wires this combination as `ts_inline_http + litellm`.
+ * - "anthropic":  Anthropic SDK direct call from TS process. Phase 2 wires this as
+ *                 `ts_inline_http + anthropic`. Subagent provider for "Claude Code main
+ *                 + Anthropic SDK subagent" cross-host combinations.
+ * - "openai":     OpenAI SDK direct call (or OpenAI-compatible endpoint without
+ *                 LiteLLM proxy). Phase 2 wires this as `ts_inline_http + openai`.
+ * - "standalone": TS process orchestrates with no host LLM (Phase 2 partial; main
+ *                 LLM provider read from `main_llm` config in `.onto/config.yml`).
  * See authority/core-lexicon.yaml:LlmAgentSpawnRealization for semantic definitions.
  */
-export type ReviewHostRuntime = "codex" | "claude" | "litellm";
+export type ReviewHostRuntime = "codex" | "claude" | "litellm" | "anthropic" | "openai" | "standalone";
 export type ReviewMode = "light" | "full";
 export type BoundaryAccessPolicy = "allowed" | "denied";
 export type BoundaryGuaranteeLevel =

@@ -8,14 +8,24 @@ A multi-host LLM-driven runtime that performs multi-perspective verification of 
 |---|---|---|---|---|
 | **Claude Code** | `CLAUDECODE=1` (or `CLAUDE_PROJECT_DIR`, `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`) | Claude Code session | TeamCreate (default) / Agent tool / `--codex` / future LiteLLM | ✅ Full |
 | **Codex CLI** | `CODEX_THREAD_ID`, `CODEX_CI`, or codex binary + `~/.codex/auth.json` | Codex CLI session | `codex exec --ephemeral` subprocess / future direct LLM | ✅ Full |
-| **Standalone CLI** | None of the above (or `ONTO_HOST_RUNTIME=standalone`) | TS process + configured LLM | future direct LLM call (LiteLLM/Anthropic/OpenAI) | 📐 Phase 2 wiring |
+| **Standalone CLI** | None of the above (or `ONTO_HOST_RUNTIME=standalone`) | TS process + configured LLM | `inline-http-review-unit-executor` binary (LiteLLM/Anthropic/OpenAI direct call) | ✅ Phase 2 executor; 📐 auto-wiring pending |
 
 **Two-tier LLM model**: the **main LLM** (orchestrator) and the **subagent LLM** (per-lens executor) are independently configurable. Examples:
-- Claude Code session as main + LiteLLM 8B as subagent (Phase 2)
-- LiteLLM 31B local as main + LiteLLM 8B as subagent (Phase 2)
-- Anthropic API direct as main + LiteLLM 8B as subagent (Phase 2)
+- Claude Code session as main + LiteLLM 8B as subagent (Phase 2 ✅ via `--executor-bin` override)
+- LiteLLM 31B local as main + LiteLLM 8B as subagent (📐 auto-wiring pending)
+- Anthropic API direct as main + LiteLLM 8B as subagent (✅ via explicit subagent invocation)
 
-Phase 1 (current) ships the host-detection + capability matrix + 2-axis configuration schema. Phase 2 will wire the cross-host subagent LLM call.
+**Phase 1** ✅ shipped: host detection + capability matrix + 2-axis configuration schema.
+**Phase 2** ✅ shipped: `inline-http-review-unit-executor` binary (TS process directly calls LiteLLM/Anthropic/OpenAI for lens execution; inline content mode for tool-less hosts). Auto-selection via `host_runtime: standalone` config pending.
+
+Quick test (mock LLM):
+```bash
+ONTO_LLM_MOCK=1 npm run review:inline-http-unit-executor -- \
+  --project-root . --session-root /tmp/sess --onto-home ~/.onto \
+  --unit-id logic --unit-kind lens \
+  --packet-path /tmp/sess/lens.packet.md \
+  --output-path /tmp/sess/round1/logic.md
+```
 
 **Override env vars**:
 - `ONTO_HOST_RUNTIME=claude|codex|standalone` — explicit host override

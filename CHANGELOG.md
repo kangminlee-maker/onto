@@ -2,6 +2,61 @@
 
 ## Unreleased
 
+### Added — Phase 2: ts_inline_http review unit executor (2026-04-17)
+
+**Phase 2** of host runtime decoupling — TS process가 LLM HTTP endpoint (LiteLLM / Anthropic SDK / OpenAI SDK) 를 직접 호출하여 lens / synthesize 단위를 실행하는 새 executor 추가. host runtime 에 tool ecosystem 이 없는 standalone CLI 시나리오 또는 cross-host 조합 (Claude main + LiteLLM subagent 등) 의 subagent 경로 enable.
+
+#### Added
+
+- **`src/core-runtime/cli/inline-http-review-unit-executor.ts`** (CLI binary) — codex executor 와 동일 인터페이스 (project-root, session-root, unit-id, unit-kind, packet-path, output-path) + LLM 선택 flag (`--provider`, `--model`, `--llm-base-url`, `--reasoning-effort`, `--max-tokens`, `--embed-domain-docs`)
+- **`src/core-runtime/review/inline-context-embedder.ts`** — Phase 2 inline content mode helper. packet 의 도메인 doc reference (`- Primary: <path>.md`) 를 inline 으로 expand. ONTO_PLUGIN_DIR fallback notation, 한국어 section label (기본/보조), 파일 truncation (default 500 lines) 지원
+- **`package.json`** 신규 npm script: `review:inline-http-unit-executor`
+- 단위 테스트 16건 (embedder 9 + executor 7), mock LLM provider branch 신규
+
+#### Changed
+
+- `ReviewExecutionRealization` 타입 확장: `"subagent" | "agent-teams"` → `"subagent" | "agent-teams" | "ts_inline_http"`
+- `ReviewHostRuntime` 타입 확장: `"codex" | "claude" | "litellm"` → `"codex" | "claude" | "litellm" | "anthropic" | "openai" | "standalone"`
+- `llm-caller.ts` mock provider: ts_inline_http executor system prompt 패턴 인식 + 결정적 lens-shaped markdown 반환
+
+#### Design decisions
+
+| 결정 | 선택 |
+|---|---|
+| Tool ecosystem 처리 | inline content mode (function-calling loop 는 Phase 3) |
+| LLM provider 결정 경로 | `learning/shared/llm-caller.ts` cost-order ladder 재사용 (`resolveLearningProviderConfig` bridge) |
+| Inline embedding default | opt-in (`--embed-domain-docs` flag) — 기본은 ref-only 보존 |
+| `host_runtime` JSON 보고 값 | 사용자 지정 `--provider` 따름 (litellm/anthropic/openai/codex) — auto-resolution 시 anthropic fallback |
+
+#### Phase 2 사용 예
+
+**Standalone CLI 직접 실행** (mock):
+```bash
+ONTO_LLM_MOCK=1 npm run review:inline-http-unit-executor -- \
+  --project-root . --session-root /tmp/sess --onto-home ~/.onto \
+  --unit-id logic --unit-kind lens \
+  --packet-path /tmp/sess/lens-logic.packet.md \
+  --output-path /tmp/sess/round1/logic.md
+```
+
+**LiteLLM 8B 로컬 subagent**:
+```bash
+ANTHROPIC_API_KEY=sk-... LITELLM_BASE_URL=http://localhost:4000/v1 \
+npm run review:inline-http-unit-executor -- \
+  --project-root . --session-root /tmp/sess --onto-home ~/.onto \
+  --unit-id structure --unit-kind lens \
+  --packet-path /tmp/sess/lens-structure.packet.md \
+  --output-path /tmp/sess/round1/structure.md \
+  --provider litellm --model llama-8b --max-tokens 4096 \
+  --embed-domain-docs
+```
+
+#### 다음 단계 (별도 PR 권장)
+
+- Phase 2 wiring: `host_runtime: standalone` config 시 `run-review-prompt-execution.ts` 가 ts_inline_http executor 자동 선택
+- Cross-host config schema: `.onto/config.yml` 에 `main_llm` + `subagent_llm` 분리 설정
+- Phase 3 (선택): function-calling loop in TS — subagent 가 file read 등 tool 사용 가능
+
 ### Changed — Phase 1: Host runtime decoupling (2026-04-17)
 
 **onto는 더 이상 "Claude Code plugin" 단일 호스트 도구가 아닌, "multi-host LLM-driven runtime"으로 재포지셔닝.** 3 host 환경 (Claude Code session, Codex CLI session, standalone CLI process) 을 동등하게 인식.

@@ -116,16 +116,50 @@ The authoritative source for boundary definitions is `roles/conciseness.md`. Thi
 
 ## 5. Quantitative Criteria
 
-Thresholds observed in this domain are recorded as they accumulate.
+Domain-observed thresholds for conciseness judgment. Each threshold is a review signal, not an automatic removal trigger.
 
-- (Not yet defined — accumulated through reviews)
+### Source and Rating Thresholds
+
+- **Source duplication**: Same source registered under 2+ entries in source registry → consolidate. Two entries acceptable for transition periods (rebrand, vendor change), but >2 indicates registry hygiene issue
+- **Credibility rating proliferation**: >7 distinct credibility rating values → review for over-granulation. Most systems function well with 3-5 ratings (e.g., Trusted/Verified/Unverified/Speculative)
+- **Trait value duplication**: Same trait used across 3+ entity types but with different value sets per type → consolidate to single value set per logic_rules.md ST04
+
+### Methodology and Analysis Thresholds
+
+- **Methodology overlap**: Same analytical conclusion derivable from 3+ methodologies → use one as canonical, others as cross-validation
+- **Segment proliferation**: >12 segments in single segmentation scheme → review for MECE compliance and over-classification
+- **Analysis output redundancy**: Same conclusion appearing in 3+ separate analysis outputs → consolidate or cross-reference
+
+### Decision Gate Thresholds
+
+- **Pass condition proliferation**: >10 pass conditions per single decision gate → review for consolidation or splitting into multiple gates
+- **Verification logic overlap**: 2+ pass conditions verified by same logic → consolidate conditions or split logic
+- **Gate result redundancy**: Same gate result tracked in 3+ places → single source of truth
+
+### Risk Assessment Thresholds
+
+- **Risk factor duplication**: Same risk identified by 2+ owners with different IDs → consolidate to single risk factor with multi-owner attribute
+- **Response strategy redundancy**: Same response (e.g., "purchase insurance") for 3+ different risks → review for response template
+- **Risk score recalculation cost**: If recalculating all risks takes >1 day, consolidate calculation tooling
+
+### Multi-Domain Thresholds
+
+- **Namespace collision recurrence**: Same naming collision appearing 3+ times across domains → register in canonical homonym table
+- **Cross-domain reference duplication**: Same cross-domain concept referenced from 5+ places → create canonical reference document
+
+### Review Output Conciseness
+
+- **Finding deduplication**: 3+ findings citing same root cause → consolidate into 1 finding with root cause + affected locations
+- **Cross-file deduplication**: Issue flagged by both conciseness and preceding agent → defer to preceding agent's finding; add only consolidation recommendation
 
 ---
 
 ## Related Documents
 
-- `concepts.md` — Term definitions, synonym mappings, homonym list (semantic criteria for duplication determination)
-- `structure_spec.md` — Entity types, traits, relationship structure (structural-perspective removal criteria)
+- `concepts.md` — Term definitions, synonym mappings, homonym list, normative tier references (semantic criteria for duplication)
+- `structure_spec.md` — Entity types, traits, relationship structure (structural removal criteria)
 - `competency_qs.md` — Competency question list (criteria for judging "actual difference" in minimum granularity)
-- `dependency_rules.md` — Inter-area dependency relationships and independence rules (basis for allowing reference copies)
-- `logic_rules.md` — Credibility consistency and propagation rules (criteria for logical equivalence determination)
+- `domain_scope.md` — Normative tier classification, cross-cutting concerns (tier-level duplication criteria)
+- `dependency_rules.md` — Inter-area dependency relationships, independence rules (basis for allowing reference copies)
+- `logic_rules.md` — Credibility consistency and propagation rules (criteria for logical equivalence)
+- `extension_cases.md` — Extension scenarios that may introduce or resolve redundancy

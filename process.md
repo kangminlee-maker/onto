@@ -465,7 +465,7 @@ You are {role}.
 You are joining the {team name} team.
 
 [Your Definition]
-{Content of ~/.claude/plugins/onto/roles/{agent-id}.md}
+{Content of ${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/roles/{agent-id}.md}
 
 [Context Self-Loading]
 Read the files below and construct your own context. Skip if file does not exist:

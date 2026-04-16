@@ -28,6 +28,7 @@ import { printOntoReleaseChannelNotice } from "../release-channel/release-channe
 import { resolveOntoHome } from "../discovery/onto-home.js";
 import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.js";
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
+import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
 
 type ExecutorRealization = "codex" | "mock";
 type ReviewTargetScopeKind = "file" | "directory" | "bundle";
@@ -374,24 +375,27 @@ export type ExecutionRealizationHandoff =
   | { type: "coordinator_start"; profile: ResolvedExecutionProfile }
   | { type: "no_host" };
 
+/**
+ * Legacy boolean predicate. Returns true when host is detected as Claude Code.
+ *
+ * NOTE: signal set differs from upstream `isClaudeCodeHost()` — this preserves
+ * the legacy "CLAUDECODE === '1'" check exclusively, because some review
+ * call-sites rely on the narrower signal (CLAUDECODE alone) to decide whether
+ * to emit a coordinator-start handoff JSON. Broadening this to all 3 Claude
+ * env signals would change auto-resolution behavior for users who set
+ * CLAUDE_PROJECT_DIR without the rest. See `discovery/host-detection.ts`
+ * for the full multi-signal `isClaudeCodeHost()` and capability matrix.
+ */
 export function detectClaudeCodeHost(): boolean {
   return process.env.CLAUDECODE === "1";
 }
 
+/**
+ * Legacy boolean predicate. Returns true when codex binary + auth.json are
+ * both present. Wraps the canonical seat in `discovery/host-detection.ts`.
+ */
 export function detectCodexAvailable(): boolean {
-  const pathEnv = process.env.PATH ?? "";
-  let codexOnPath = false;
-  for (const dir of pathEnv.split(path.delimiter)) {
-    if (!dir) continue;
-    if (fsSync.existsSync(path.join(dir, "codex"))) {
-      codexOnPath = true;
-      break;
-    }
-  }
-  if (!codexOnPath) return false;
-  // auth.json presence (either OAuth or API-key mode is valid for review).
-  const authPath = path.join(os.homedir(), ".codex", "auth.json");
-  return fsSync.existsSync(authPath);
+  return detectCodexBinaryAvailable();
 }
 
 /**

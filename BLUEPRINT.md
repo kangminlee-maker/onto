@@ -58,7 +58,13 @@
 
 ### What It Is
 
-onto is a **Claude Code plugin** that runs inside Claude Code (an AI coding tool operating in the terminal) via slash commands (`/onto:review`, `/onto:reconstruct`, `/onto:evolve`, etc.).
+onto is a **multi-host LLM-driven runtime** that runs in three host environments:
+
+1. **Claude Code plugin** ✅ — invoked via slash commands (`/onto:review`, `/onto:reconstruct`, `/onto:evolve`, etc.) inside a Claude Code terminal session
+2. **Codex CLI subagent** ✅ — invoked via `onto review ... --codex` or as a `codex exec` subprocess from a Codex CLI session
+3. **Standalone CLI** 📐 (Phase 2 wiring) — invoked as `npm run onto:*` or installed CLI; orchestrates lenses by calling configured LLM endpoints (LiteLLM / Anthropic SDK / OpenAI SDK direct)
+
+The host environment is detected automatically via env signals. Override with `ONTO_HOST_RUNTIME=claude|codex|standalone`.
 
 **Five activities** (`authority/core-lexicon.yaml#activity_enum`): `review`, `evolve`, `reconstruct`, `learn`, `govern`. Two are user-facing core capabilities below; the remaining three (evolve, learn, govern) are described at surface level in §4.4–§4.6.
 
@@ -66,6 +72,30 @@ Two core capabilities:
 
 1. **Verification (review)** ✅: 9 independent review lenses inspect a scope-defined target, then a separate synthesize stage writes the final review result
 2. **Reconstruct** ✅: Incrementally constructs ontologies (structured domain knowledge representations) from analysis targets using integral exploration. CLI 4-step bounded path: `start → explore → complete → confirm`
+
+### Two-tier LLM model (📐 Phase 1 schema; Phase 2 wiring)
+
+onto separates two LLM roles that can be configured independently:
+
+| Role | Purpose | Phase 1 binding | Phase 2 binding |
+|---|---|---|---|
+| **Main LLM** | Orchestrates the session: lens selection, synthesize, meta-reasoning | Bound to host runtime (Claude / Codex / TS process) | Configurable: `main_llm.provider` in `.onto/config.yml` |
+| **Subagent LLM** | Per-lens execution (9 parallel lens reasonings) | Bound to host runtime (TeamCreate / codex exec / direct call) | Configurable: `subagent_llm.provider` independently of main |
+
+Cross-host combinations enabled by Phase 2 (examples):
+- Claude Code main + LiteLLM 8B subagent (cheap parallel lens execution under Claude orchestration)
+- LiteLLM 31B local main + LiteLLM 8B subagent (fully local stack)
+- Anthropic API direct main + LiteLLM 8B subagent (cloud orchestrator + local executor)
+
+### Host capability matrix
+
+| Host | hasTeamCreate | hasAgentSpawn | hasCodexExec (env-detected) | Default subagent path |
+|---|---|---|---|---|
+| `claude` | true | true | (env-conditional) | `agent_teams_claude` (TeamCreate) |
+| `codex` | false | false | true | `subagent_codex_oauth` or `subagent_codex_apikey` |
+| `standalone` | false | false | (env-conditional) | (Phase 2) direct LLM call: anthropic / openai / litellm |
+
+`hasCodexExec`, `hasAnthropicApiKey`, `hasOpenAiApiKey`, `hasLiteLlmEndpoint` are environmental capabilities detected independently of the host. A Claude main session can use any of them as a subagent provider once Phase 2 wiring lands.
 
 ### Why It Exists
 

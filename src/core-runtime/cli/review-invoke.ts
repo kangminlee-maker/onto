@@ -142,9 +142,10 @@ const KNOWN_INVOKE_ONLY_OPTION_NAMES = [
   "diff-range",
   "model",
   "reasoning-effort",
+  "domain",
 ] as const;
 
-const KNOWN_INVOKE_ONLY_FLAG_NAMES = ["codex", "prepare-only", "no-watch"] as const;
+const KNOWN_INVOKE_ONLY_FLAG_NAMES = ["codex", "prepare-only", "no-watch", "no-domain"] as const;
 
 function requireString(
   value: string | undefined,
@@ -1138,8 +1139,28 @@ async function resolveReviewInvokeInputs(
     requestText = requestText.slice(0, MAX_REQUEST_TEXT_LENGTH);
   }
 
+  // Domain selection precedence (highest to lowest):
+  //   1. --requested-domain-token (internal/legacy machine-facing flag, used by CLI runners)
+  //   2. --no-domain flag (canonical user-facing, equivalent to legacy @-)
+  //   3. --domain {name} option (canonical user-facing, equivalent to legacy @{name})
+  //   4. positional @{domain} or @- (legacy short syntax — kept for backward compat;
+  //      conflicts with Claude Code's @filename mention syntax)
+  //   5. empty → triggers domain resolution (interactive selection or no-domain default)
+  const noDomainFlag = hasOptionFlag(argv, "no-domain");
+  const explicitDomainName = readSingleOptionValueFromArgv(argv, "domain");
+  if (noDomainFlag && typeof explicitDomainName === "string" && explicitDomainName.length > 0) {
+    throw new Error(
+      "Conflicting domain flags: --no-domain cannot be combined with --domain. Use exactly one.",
+    );
+  }
+  const canonicalDomainToken = noDomainFlag
+    ? "@-"
+    : typeof explicitDomainName === "string" && explicitDomainName.length > 0
+      ? (normalizeDomainToken(explicitDomainName) ?? "")
+      : "";
   const requestedDomainToken =
     readSingleOptionValueFromArgv(argv, "requested-domain-token") ??
+    (canonicalDomainToken.length > 0 ? canonicalDomainToken : undefined) ??
     parsedPositionals.requestedDomainToken ??
     "";
   const resolvedDomainSelection = await resolveDomainSelection(

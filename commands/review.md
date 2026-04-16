@@ -87,13 +87,14 @@ The command surface should stay thin:
 - do not hard-code lens counts, concurrency values, or execution profile constants
 - all runtime values are derived from `execution-plan.yaml` and `binding.yaml`
 
-**Domain selection**:
-- Append `@{domain}` to specify a domain
-- Append `@-` for no-domain mode
+**Domain selection** (canonical: explicit flags; legacy `@` syntax kept for backward compat):
+- **Canonical**: `--domain {name}` to specify a domain; `--no-domain` for no-domain mode
+- **Legacy** (kept for backward compat — note: `@` may conflict with Claude Code's `@filename` mention syntax): append positional `@{domain}` or `@-`
 - If omitted:
-  - one configured domain -> use it directly
-  - multiple configured domains -> prompt for interactive selection when a TTY is available
-  - multiple configured domains in a non-interactive environment -> fail fast and require an explicit domain token
+  - one configured domain → use it directly
+  - multiple configured domains → prompt for interactive selection when a TTY is available
+  - multiple configured domains in a non-interactive environment → fail fast and require an explicit domain selection
+- `--domain` and `--no-domain` are mutually exclusive (specifying both fails fast)
 
 **Boundary selection**
 - If the requested target resolves outside `project-root`, runtime now asks for explicit user decision in TTY mode.
@@ -113,11 +114,15 @@ The command surface should stay thin:
 - 플래그 무명시 + 둘 다 없음: fail-fast with host-setup guidance (네 가지 해결 경로 제시).
 - `.onto/config.yml`의 `host_runtime: claude` | `codex`로 명시 override 가능 (stay-in-host 자동 해소를 거스름).
 
-Examples:
-- `/onto:review process.md @ontology --codex` — codex host runtime
-- `/onto:review src/ @- --codex` — codex, no-domain
+Examples (canonical):
+- `/onto:review process.md --domain ontology --codex` — codex host runtime, ontology domain
+- `/onto:review src/ --no-domain --codex` — codex, no-domain
 - `/onto:review --target-scope-kind bundle --primary-ref drafts/ontology --member-ref drafts/ontology/domain_scope.md --member-ref drafts/ontology/concepts.md "seed bundle review" --codex` — explicit bundle target
-- `/onto:review drafts/palantir-foundry @- --codex` — seed review
+- `/onto:review drafts/palantir-foundry --no-domain --codex` — seed review
+
+Examples (legacy `@` syntax — still works):
+- `/onto:review process.md @ontology --codex`
+- `/onto:review src/ @- --codex`
 
 Agent Teams 경로는 `onto coordinator start <target> <intent>` 형태로 별도 진입한다.
 

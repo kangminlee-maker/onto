@@ -320,10 +320,25 @@ run_expect_pass "E21: no-domain-default" \
   src/core-runtime/cli/review-invoke.ts "no domain" \
   --executor-realization mock --review-mode light
 
-run_expect_pass "E22: explicit-no-domain" \
+run_expect_pass "E22: explicit-no-domain (legacy @- syntax)" \
   src/core-runtime/cli/review-invoke.ts "no domain" \
   --executor-realization mock --review-mode light \
   --requested-domain-token "@-"
+
+run_expect_pass "E22a: --no-domain canonical flag" \
+  src/core-runtime/cli/review-invoke.ts "no domain" \
+  --executor-realization mock --review-mode light \
+  --no-domain
+
+run_expect_pass "E22b: --domain canonical option" \
+  src/core-runtime/cli/review-invoke.ts "explicit domain" \
+  --executor-realization mock --review-mode light \
+  --domain software-engineering
+
+run_expect_fail "E22c: --domain conflicts with --no-domain" \
+  src/core-runtime/cli/review-invoke.ts "conflict" \
+  --executor-realization mock --review-mode light \
+  --domain software-engineering --no-domain
 
 run_expect_fail "E23: unknown-executor-rejected" \
   src/ "test" \

@@ -2,6 +2,76 @@
 
 ## Unreleased
 
+### Changed — Domain selection canonical syntax (2026-04-17)
+
+**`--domain {name}` / `--no-domain` 을 canonical 도메인 selection 문법으로 도입.** Legacy 위치 인자 `@{domain}` / `@-` 도 backward compat 으로 계속 인식.
+
+**문제**: Claude Code 가 `@filename` 을 컨텍스트 첨부 mention 문법으로 사용하므로, `/onto:review src/foo.ts @software-engineering` 같은 입력에서 `@software-engineering` 이 도메인 selector 가 아니라 "파일 mention 시도" 로 해석될 위험.
+
+**해결**:
+- `src/core-runtime/cli/review-invoke.ts` 파서에 `--domain` (option) + `--no-domain` (flag) 추가
+- 우선순위: `--requested-domain-token` (internal) > `--no-domain` > `--domain {name}` > legacy `@{domain}` / `@-` positional
+- `--domain` 과 `--no-domain` 동시 지정 시 parser layer 에서 fail-fast
+- 내부 canonical 토큰 (`@{name}` / `@-`) 은 유지 — session artifact backward compat
+- e2e tests E22a (`--no-domain`), E22b (`--domain {name}`), E22c (mutual exclusion fail) 추가, 모두 PASS
+
+**문서 업데이트**: `commands/review.md`, `commands/reconstruct.md`, `commands/evolve.md`, `commands/help.md`, `processes/review/review.md`, `processes/review/interpretation-contract.md`, `processes/review/productized-live-path.md`, `README.md`, `BLUEPRINT.md` — canonical 우선 표기, legacy `@` 표기를 backward compat 으로 명시.
+
+### Added — Session 18 (2026-04-16): 142/142 (100%) execution-phase completion
+
+#### Activity name normalization
+
+- `design` → `evolve` (활동명) — methodology terms (`design_target`, `design_area`, `design_constraint`, `design_gap`)와 디렉토리 경로(`design-principles/`)는 보존
+- `build` → `reconstruct` (활동명) — `npm run build:ts-core` 등 toolchain 명령과 `legacy_aliases` 등재 내용은 보존
+- 정본 정렬: `processes/reconstruct.md` 자체 선언("legacy `build` 토큰은 activity_enum.legacy_aliases에만 alias로 보존")과 본문 일치
+- Lexicon `activity_enum.allowed_values`: `[review, evolve, reconstruct, learn, govern]`
+
+#### Reconstruct confirm subcommand (W-B-07)
+
+- `onto reconstruct confirm --session-id <id> --verdict passed|rejected` 신규
+- `principal_review_status: pending → requested → passed|rejected` 상태 머신 완결
+- `executeReconstructConfirm()` + 에러 가드 (비-converted 상태, 비-requested 상태, 잘못된 verdict 차단)
+- 테스트 22/22 PASS (신규 10건 포함)
+- `processes/reconstruct.md §1.4` 3축 중 "Principal 검증 경로" 런타임 구현 완료
+
+#### CJK/Unicode tokenization rules in reconstruct (W-A-27)
+
+- `processes/reconstruct.md §2 Tier 1`에 CJK/Unicode 처리 규칙 명시
+- Unicode-aware splitting (`/[\p{L}\p{N}]+/gu`) — 기존 ASCII-only split 대체
+- Latin 최소 토큰 길이 4, CJK 최소 2 (한글·한자·히라가나)
+- CJK 문자 범위 명시 (U+3040–30FF, U+3130–318F, U+AC00–D7AF, U+4E00–9FFF)
+- `panel-reviewer.ts:significantTokens()` 코드 구현과 일치 확인
+
+#### Domain upgrades (4건)
+
+| Domain | Before | After | Ratio |
+|---|---|---|---|
+| visual-design (W-B-48) | 57K | 184K | 3.2x |
+| finance (W-B-47) | 46K | 128K | 2.8x |
+| accounting (W-B-46) | 44K | 133K | 3.0x |
+| market-intelligence (W-B-45) | 42K | 117K | 2.79x |
+
+각 도메인 8파일 v2 확장: Normative System Classification (Tier-1a/1b/2/3), Cross-Cutting Concerns, Inter-Document Contract, CQ-ID 섹션 + P1/P2/P3 우선순위 + inference path + PASS/FAIL 기준, Required Relationships, Classification Criteria Design, SE Transfer Verification 추가. 글로벌 동기화 (`~/.onto/domains/{domain}/`) 완료.
+
+#### Adaptive Light Review verification (W-B-51)
+
+- 이미 구현 확인 — W-A-50 commit 33427df (shared-phenomenon §7 reverse application) 시점에 인프라 완성
+- `processes/review/review.md §1.5 Complexity Assessment` (lines 99-160): Q2/Q3 cheap trigger + Principal 확인 절차
+- `shared-phenomenon-contract.md §7 Reverse Application`: lens 선택 로직
+- `interpretation-contract.md §4.7 lens_selection_plan`: output schema
+- `review.md` Step 4 경량/전원 모드 분기 (lines 387-392), 세션 메타데이터 `review_mode: light | full`
+
+#### Palantir 4th upgrade decision (W-B-49)
+
+- 분석가 보고서 §10 수치 추가 반영 불필요로 결정
+- Forrester TEI ROI 315%·Gartner MQ·IDC MarketScape positioning은 `domain_scope.md:383-385` Reference Standards에 이미 반영
+- 달러 수치($345M/$83.2M)는 벤더 의뢰·조직 특정·시간 한정 데이터로 도메인 지식이 아님
+
+### Progress
+
+- 4축 모두 100% 완결: 축 A 76/76, 축 B 55/55, 축 C 8/8, 축 D 5/5
+- §1 정본의 모든 W-ID 작업이 main에 통합됨 (PR #59 squash merged)
+
 ### Added
 
 #### Review execution realization canonicalization & auto-resolution (stay-in-host)

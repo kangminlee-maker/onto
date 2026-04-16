@@ -5,7 +5,7 @@
 > 1. **Audience**: Non-specialists (not developers or product developers).
 >    With this document and an LLM alone, it must be possible to rebuild the **review** process
 >    and produce the same verification results as onto.
->    Non-review processes (build, promote, etc.) are described at surface level only.
+>    Non-review processes (reconstruct, evolve, learn, govern) are described at surface level only.
 >
 > 2. **Tense**: Describes only the current state. No past history (migrations, renames, deprecated models).
 >
@@ -32,7 +32,7 @@
 >
 > 8. **Scope and self-sufficiency**: This document's reconstruction depth is centered on **review**.
 >    The review process (§4.1, §7, §8) is described at reconstruction depth — enough to rebuild with an LLM.
->    Build and other processes are described at **surface level** (command, input, output, flow summary) — enough to understand what they do, not enough to rebuild from scratch.
+>    Reconstruct and other processes are described at **surface level** (command, input, output, flow summary) — enough to understand what they do, not enough to rebuild from scratch.
 >    For full reconstruction of non-review processes, consult the primary sources listed in standard 6.
 
 > **Status and Reliance**
@@ -45,7 +45,7 @@
 > |---|---|---|
 > | §3 Review Lenses | Derived | `authority/core-lens-registry.yaml`, `roles/*.md` |
 > | §4.1 Review flow | Derived | `processes/review/productized-live-path.md` |
-> | §4.3 Build flow | Surface summary | `processes/reconstruct.md` |
+> | §4.3 Reconstruct flow | Surface summary | `processes/reconstruct.md` |
 > | §5 Domain System | Derived | `process.md` Domain Documents section |
 > | §6 Learning System | Derived | `learning-rules.md` |
 > | §7 Execution Profile | Derived | `process.md` Agent Teams Execution section |
@@ -58,12 +58,14 @@
 
 ### What It Is
 
-onto is a **Claude Code plugin** that runs inside Claude Code (an AI coding tool operating in the terminal) via slash commands (`/onto:review`, `/onto:build`, etc.).
+onto is a **Claude Code plugin** that runs inside Claude Code (an AI coding tool operating in the terminal) via slash commands (`/onto:review`, `/onto:reconstruct`, `/onto:evolve`, etc.).
+
+**Five activities** (`authority/core-lexicon.yaml#activity_enum`): `review`, `evolve`, `reconstruct`, `learn`, `govern`. Two are user-facing core capabilities below; the remaining three (evolve, learn, govern) are described at surface level in §4.4–§4.6.
 
 Two core capabilities:
 
 1. **Verification (review)** ✅: 9 independent review lenses inspect a scope-defined target, then a separate synthesize stage writes the final review result
-2. **Build** ✅: Incrementally constructs ontologies (structured domain knowledge representations) from analysis targets using integral exploration
+2. **Reconstruct** ✅: Incrementally constructs ontologies (structured domain knowledge representations) from analysis targets using integral exploration. CLI 4-step bounded path: `start → explore → complete → confirm`
 
 ### Why It Exists
 
@@ -113,6 +115,9 @@ Legacy term mapping (for reference only — not used elsewhere in this document)
 | agent panel | 9 review lenses |
 | agent | review_lens |
 | execution_mode | execution_realization × host_runtime (2-axis model) |
+| `build` (activity) | `reconstruct` — renamed via W-A-77 (2026-04-14). `npm run build:ts-core` 등 toolchain 명령은 무관하며 보존 |
+| `design` (activity) | `evolve` — renamed via W-A-78 (2026-04-15). methodology 용어(`design_target`, `design_area` 등)는 보존 |
+| `ask` | retired (§1.2) — 단일 lens 질의가 필요하면 `/onto:review` 사용 |
 
 ---
 
@@ -359,15 +364,22 @@ Available dimensions: `logic`, `structure`, `dependency`, `semantics`, `pragmati
 
 ---
 
-### 4.3 Ontology Build ✅ (prompt-only — no TS bounded runtime)
+### 4.3 Ontology Reconstruct ✅ (prompt-only methodology + ✅ TS CLI bounded path)
 
-**Command**: `/onto:build {path|URL}`
+**Command**: `/onto:reconstruct {path|URL}`
 **Input**: Analysis target (code, spreadsheets, databases, documents)
-**Output**: `raw.yml` — ontology extracted from the source
+**Output**: `raw.yml` — ontology extracted from the source; `ontology-draft.md` — Principal-facing review draft
 
-Build is currently executed entirely via the prompt-backed reference path. TS runtime productization follows the review-first strategy and is 🔲 not yet implemented.
+The methodology is executed via the prompt-backed reference path. The CLI surface is a **4-step bounded path** (`start → explore → complete → confirm`) implemented in `src/core-runtime/evolve/commands/reconstruct.ts`, mirroring review's 3-step bounded path. TS runtime productization of the full Phase 0–4 methodology is 🔲 not yet implemented.
 
-Build uses an **integral exploration** structure because, unlike review, the scope is undefined.
+| Subcommand | Action |
+|---|---|
+| `start <source> <intent>` | Initialize a reconstruct session |
+| `explore --session-id <id>` | Run one exploration invocation (bounded; repeatable) |
+| `complete --session-id <id>` | Finalize ontology-draft.md + set `principal_review_status: requested` |
+| `confirm --session-id <id> --verdict passed\|rejected` | Record Principal verification result (W-B-07, §1.4 3-axis 완결) |
+
+Reconstruct uses an **integral exploration** structure because, unlike review, the scope is undefined.
 
 #### Flow
 
@@ -439,16 +451,18 @@ Each certainty level triggers different actions in Phase 3 (user confirmation).
 
 ---
 
-### 4.4 Design 📐
+### 4.4 Evolve 📐
 
 **Command**: `/onto:evolve {goal}`
 **Input**: 설계 목표 (자연어) + 설계 대상 + 선택적으로 ontology, 학습, 도메인 문서
 **Output**: 설계 문서 (Specification)
 
-온톨로지를 기반으로 기존 설계 대상(design target)에 새 영역을 추가하는 설계 프로세스.
+온톨로지를 기반으로 기존 설계 대상(design target)에 새 영역을 추가하는 evolve 활동.
 brownfield 전용 — 기존 대상의 constraint를 인식하고 그 안에서 설계.
 6-Phase inquiry로 주체자의 인지 한계를 보완하여 constraint-aware한 설계를 도출.
 산출물 검증은 `/onto:review`로 연결.
+
+> Methodology terms (`design_target`, `design_area`, `design_constraint`, `design_gap`) retain the `design_` prefix as lexicon-stable terminology — the **activity name** changed from `design` to `evolve`, but the methodology vocabulary is preserved.
 
 code-product(experience/interface) 런타임 경로 구현 완료.
 methodology(process) 런타임 경로 구현 예정.
@@ -561,13 +575,15 @@ codex:
 
 **Output language priority**: config.yml `output_language` > CLAUDE.md language directives. If absent, defaults to `en`.
 
-**Selection methods**:
+**Selection methods** (canonical flags first; legacy `@` syntax kept for backward compat):
 
-| Method | Syntax | Behavior |
-|---|---|---|
-| Explicit | `@{domain}` | Non-interactive, uses specified domain |
-| No-domain | `@-` | Non-interactive, no domain rules applied |
-| Interactive | (omit) | Analyze target → suggest domain → user confirms |
+| Method | Canonical | Legacy (still works) | Behavior |
+|---|---|---|---|
+| Explicit | `--domain {name}` | `@{domain}` | Non-interactive, uses specified domain |
+| No-domain | `--no-domain` | `@-` | Non-interactive, no domain rules applied |
+| Interactive | (omit) | (omit) | Analyze target → suggest domain → user confirms |
+
+**Why canonical flags**: positional `@{domain}` conflicts with Claude Code's `@filename` mention syntax. `--domain` / `--no-domain` removes ambiguity. Internal canonical token remains `@{name}` / `@-` for backward compat with session artifacts. `--domain` and `--no-domain` are mutually exclusive (parser-layer fail-fast).
 
 **No-domain mode**: Verifies using lens default methodology only. Learning tags: `[methodology]` only.
 

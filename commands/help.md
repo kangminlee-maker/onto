@@ -12,15 +12,20 @@ Display the command reference below in the configured language.
 ```
 /onto:onboard                              Set up onto environment for a project
 /onto:review {target}                      9-lens review + synthesize
-/onto:review {target} @{domain}            Review with specific domain
-/onto:review {target} @-                   Review without domain rules
+/onto:review {target} --domain {name}      Review with specific domain (canonical)
+/onto:review {target} --no-domain          Review without domain rules (canonical)
 /onto:review {target} --codex              Use codex host runtime (Codex CLI path)
-/onto:build {path|URL}                     Build ontology from analysis target
-/onto:evolve {goal}                        Design new areas for existing target (brownfield)
-/onto:evolve {goal} @{domain}              Design with specific domain
-/onto:evolve {goal} @-                     Design without domain rules
+/onto:reconstruct {path|URL}               Reconstruct ontology from analysis target
+                                           (4-step bounded path: start → explore → complete → confirm)
+/onto:reconstruct confirm --session-id <id> --verdict passed|rejected
+                                           Record Principal verification result
+/onto:evolve {goal}                        Add new areas to existing target (brownfield)
+/onto:evolve {goal} --domain {name}        Evolve with specific domain (canonical)
+/onto:evolve {goal} --no-domain            Evolve without domain rules (canonical)
 /onto:transform {file}                     Transform raw ontology to desired format
 ```
+
+> **Legacy `@` domain syntax**: `@{domain}` and `@-` still work for backward compat. Note: `@filename` is also Claude Code's mention syntax — use `--domain` / `--no-domain` to avoid ambiguity.
 
 ### Domain Document Management
 
@@ -47,13 +52,16 @@ Display the command reference below in the configured language.
 
 ### Domain Selection
 
-Each review/build/question selects a single **session domain**:
+Each review/reconstruct/evolve selects a single **session domain**:
 
-| Method | Syntax | Behavior |
-|--------|--------|----------|
-| Explicit | `@{domain}` | Uses specified domain |
-| No-domain | `@-` | No domain rules applied |
-| Interactive | (omit) | Suggests domain, user confirms |
+| Method | Canonical | Legacy (still works) | Behavior |
+|--------|-----------|----------------------|----------|
+| Explicit | `--domain {name}` | `@{domain}` | Uses specified domain |
+| No-domain | `--no-domain` | `@-` | No domain rules applied |
+| Interactive | (omit) | (omit) | Suggests domain, user confirms |
+
+`--domain` and `--no-domain` are mutually exclusive (specifying both fails fast).
+Legacy `@` syntax conflicts with Claude Code's `@filename` mention — prefer `--domain`/`--no-domain`.
 
 ### Execution Path
 

@@ -87,10 +87,11 @@ prompt-backed path에서도 이 단계의 결과는 최종적으로
 
 현재 host-facing `review:invoke`의 기본 규칙:
 
-- explicit `@{domain}` 또는 `@-`가 있으면 그대로 사용
+- explicit `--domain {name}` / `--no-domain` (canonical) 또는 legacy `@{domain}` / `@-` (backward compat) 가 있으면 그대로 사용
 - configured domain이 하나면 바로 사용
 - configured domain이 여러 개면 interactive selection을 수행
-- interactive selection이 불가능한 non-interactive 환경이면 fail-fast 하고 explicit domain token을 요구
+- interactive selection이 불가능한 non-interactive 환경이면 fail-fast 하고 explicit domain selection을 요구
+- `--domain` 과 `--no-domain` 동시 지정은 parser layer 에서 fail-fast
 
 ### 3.4 호출 고정 (InvocationBinding)
 

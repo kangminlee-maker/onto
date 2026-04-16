@@ -46,7 +46,7 @@
 
 1. 주체자 자연어 요청
 2. 명시된 target token
-3. 명시된 domain token (`@{domain}` / `@-`)
+3. 명시된 domain selection (canonical: `--domain {name}` / `--no-domain`; legacy backward-compat: `@{domain}` / `@-` positional tokens)
 4. 실행 mode 힌트 (`--codex`)
 5. 현재 project context
    - `README.md`
@@ -70,7 +70,7 @@
 3. `intent_summary`
    - 주체자가 무엇을 검토받고 싶은지 한 문장으로 정리
 4. `domain_recommendation`
-   - 특정 domain 추천 또는 `@-` 추천
+   - 특정 domain 추천 또는 no-domain 추천 (internal token: `@-`)
 5. `domain_selection_required`
    - 추천 후 주체자 확인이 필요한지
 6. `review_mode_recommendation`

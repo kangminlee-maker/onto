@@ -2,6 +2,58 @@
 
 ## Unreleased
 
+### Added — Phase 2 wiring: subagent_llm config + auto executor selection (2026-04-17)
+
+**Phase 2 wiring** — `subagent_llm` config 설정 또는 `host_runtime: standalone` 감지 시 `inline-http-review-unit-executor` 가 자동 선택되도록 wiring.
+
+#### Added
+
+- **`OntoConfig.subagent_llm`** 신규 config block: `{ provider, model, base_url, max_tokens, embed_domain_docs }`
+- **`OntoConfig.main_llm`** 신규 config block (Phase 3 reserved): `{ provider, model, base_url, max_tokens }`
+- **`appendSubagentLlmArgs()`** 함수: `subagent_llm` config → inline-http executor CLI args 변환. 미설정 시 top-level `api_provider`/`model`/`llm_base_url` fallback
+- **`ExecutorRealization`** 에 `"ts_inline_http"` 추가 + `EXECUTOR_SCRIPT_FILENAMES`, `EXECUTOR_NPM_SCRIPTS` 등록
+
+#### Changed
+
+- **`resolveExecutorConfig()`** 에 auto-selection 분기 추가:
+  - `subagent_llm.provider` 설정 → `ts_inline_http` executor 자동 선택
+  - `host_runtime: standalone` → `ts_inline_http` executor 자동 선택
+  - 우선순위: explicit `--executor-realization` > config `executor_realization` > **subagent_llm/standalone 자동** > codex default
+- Executor realization error message 에 `ts_inline_http` 추가
+
+#### Behavior matrix
+
+| Scenario | host_runtime | subagent_llm | Executor 선택 |
+|---|---|---|---|
+| Claude host, default | claude | (unset) | 기존: caller `--executor-bin` 또는 codex default |
+| Claude host + subagent config | claude | `{provider: litellm, model: llama-8b}` | **자동: ts_inline_http** + LiteLLM flags |
+| Codex host, default | codex | (unset) | 기존: codex executor |
+| Codex host + subagent config | codex | `{provider: anthropic, model: haiku}` | **자동: ts_inline_http** + Anthropic flags |
+| Standalone host | standalone | (unset) | **자동: ts_inline_http** + top-level config fallback |
+| Standalone + subagent | standalone | `{provider: litellm}` | **자동: ts_inline_http** + LiteLLM flags |
+| Explicit `--executor-realization mock` | any | any | mock (explicit wins) |
+
+#### 사용 예
+
+```yaml
+# .onto/config.yml — Claude main + LiteLLM 8B subagent
+host_runtime: claude
+subagent_llm:
+  provider: litellm
+  model: llama-8b-local
+  base_url: http://localhost:4000/v1
+  embed_domain_docs: true
+```
+
+```yaml
+# .onto/config.yml — standalone CLI + Anthropic Haiku subagent
+host_runtime: standalone
+subagent_llm:
+  provider: anthropic
+  model: claude-haiku-4-5-20251001
+  max_tokens: 4096
+```
+
 ### Added — Phase 2: ts_inline_http review unit executor (2026-04-17)
 
 **Phase 2** of host runtime decoupling — TS process가 LLM HTTP endpoint (LiteLLM / Anthropic SDK / OpenAI SDK) 를 직접 호출하여 lens / synthesize 단위를 실행하는 새 executor 추가. host runtime 에 tool ecosystem 이 없는 standalone CLI 시나리오 또는 cross-host 조합 (Claude main + LiteLLM subagent 등) 의 subagent 경로 enable.

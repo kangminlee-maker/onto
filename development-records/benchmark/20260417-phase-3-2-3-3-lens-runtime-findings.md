@@ -101,7 +101,36 @@ axiology.packet.md 의 `## Boundary Policy` 섹션은 명시적으로 `Filesyste
   - Post-processor: `stripWrappingCodeFence(text)` 가 trimmed text 의 양 끝 fence pair 를 정확히 1회 strip. 13 unit test 로 경계 동작 (partial fence, inner block, CRLF, 공백) 검증. Executor 가 lens/synthesize 양쪽 경로에서 output 을 쓰기 직전 호출.
   - End-to-end mock: `ONTO_LLM_MOCK_SYNTHESIZE_WRAP_FENCE=1` 환경변수로 mock 에 wrap 행동을 주입하는 negative-path hook. 실 LLM 없이 "wrap 들어와도 strip 이 잡아낸다" 불변식을 결정론적으로 검증.
   - 부수 정리: PR #67 이후 pre-existing 으로 빨간색이던 2 개 provider-override 테스트 (`--tool-mode` default 변경으로 model id 요구) 에 `--tool-mode inline` 추가로 복구.
-- **A3** (path-only synthesize 측정): synthesize benchmark packet 의 inline embed 를 제거한 variant 작성 후 native vs inline 재측정. native 가 path-only 에서도 작동하는지 확인.
+- **A3** (path-only synthesize 측정): synthesize benchmark packet 의 inline embed 를 제거한 variant 작성 후 native vs inline 재측정. native 가 path-only 에서도 작동하는지 확인. **MEASURED (2026-04-17)**. 아래 "A3 path-only 측정 결과" 섹션 참고.
+
+## A3 path-only 측정 결과 (2026-04-17)
+
+### 환경
+- 모델: `mlx-community/Qwen3-30B-A3B-Instruct-2507-4bit` (동일)
+- 경로: LiteLLM proxy `http://localhost:8080/v1`
+- 변수 packet: `/tmp/onto-benchmark/packets/synthesize.path-only.packet.md` (105 줄, 원본 281 줄에서 inline lens output 블록 3 개 제거)
+- 디스크 staging 정정: `.onto/review/2026-04-17-bench-synthesize/round1/{axiology,dependency,structure}.md` — 원본 디스크 파일이 lens output 이 아닌 packet·source 본문이었음을 발견, /tmp 원본 packet 의 inline 블록에서 authoritative content 를 추출해 덮어씀 (gitignored).
+- 출력: `/tmp/onto-real-llm-test/synthesize-30b-pathonly-{native,inline}.md`
+
+### 관측
+
+| mode | input_tokens | output_tokens | tool_iter | tool_calls | Expected 대비 정확도 |
+|---|---|---|---|---|---|
+| native (Tier 1) | 17,954 | 1,299 | 5 | 4 | 4/4 expected findings 정확 식별 + Degraded `(none)` 정확 |
+| inline (Tier 2) | 1,920 | 1,051 | — | — | 2/4 정확 + 1 건 **fabrication** + Degraded `(none)` **오보** |
+
+### 핵심 발견
+
+1. **Native mode 가 path-only 환경에서 의도대로 작동한다**. 4 회 `read_file` 호출로 3 개 lens output 을 수집 후 8 required sections 을 모두 생성했고, 4 expected findings (declaration-without-backing systemic pattern, W-ID 시간 색인, structure minor-severity unique, promotion path Conditional Consensus) 를 모두 정확히 surface 했다. 첫 줄에 `- ---` (bullet prefix + frontmatter) 가 나온 minor formatting quirk 만 남음.
+
+2. **Inline mode + path-only = fabrication 위험** (CRITICAL). Tool 없는 inline 모드는 packet 에 content 가 없음에도 Degraded Lens Failures 를 `(none)` 으로 기록했고, Disagreement 섹션에 axiology 에 존재하지 않는 인용문 ("Naming alignment between value, activity, and concept is not yet resolved") 을 **창작**해 Deliberation verdict 까지 도출했다. grep 으로 3 개 lens output 전수 검색 시 0 건 매칭 — 순수 hallucination. prompt 의 "insufficient content within boundary" 지시를 위반한 치명적 안전성 결함.
+
+3. **비용 측면**. Native 는 4 tool round-trip 으로 input tokens 가 9.3 배 증가 (1,920 → 17,954) 하지만 output 품질은 높다. Inline 은 저비용이지만 path-only 환경에서는 **사용 불가** — content 가 없으면 fabricate 하기 때문에 절대 기본값이 되면 안 된다.
+
+### 후속 조치 (새 backlog)
+
+- **A4 (제안)**: path-only 환경에서 inline mode 를 차단. packet 에 "Lens outputs are NOT inlined" 명시가 있거나 inline block 이 없을 때, executor 가 tool-native 경로만 허용하고 inline 요청은 fail-fast. 즉 A1 (packet Boundary > CLI) 의 대칭: packet 이 tools 필요를 선언하면 tools 없는 모드는 거부.
+- **A5 (제안)**: Degraded Lens Failures 자동 검증. executor 가 output 을 저장하기 전 참조된 lens output path 의 raw text 가 synthesize output 의 evidence citation 에 실제로 존재하는지 샘플 체크. 위반 시 경고 로깅 (차단은 아님). fabrication 사후 감지 수단.
 
 ## 파일 위치
 

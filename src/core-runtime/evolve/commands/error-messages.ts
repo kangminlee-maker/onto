@@ -6,6 +6,12 @@
  *
  * Registry seat: authority/diagnostic-codes.yaml (authority-adjacent data seat).
  * Concept SSOT 아님 — citation check 대상 아님.
+ *
+ * 보증:
+ * - Registry load 시 schema validation (code 유일성 + 최소 1 matcher + matcher 형식).
+ *   violation 발견 시 load 실패 → fail-fast.
+ * - lookupDiagnosticCode 미매칭 시 console.warn — silent fail 방지.
+ *   (영문 reason 원문이 Principal 에 노출되는 UX 버그를 즉시 감지 가능.)
  */
 
 import { readFileSync } from "node:fs";
@@ -62,8 +68,42 @@ function loadRegistry(): Registry {
   if (!parsed || !Array.isArray(parsed.diagnostic_codes)) {
     throw new Error("[diagnostic-codes] invalid registry — diagnostic_codes 배열 없음");
   }
+  validateRegistry(parsed);
   cachedRegistry = parsed;
   return parsed;
+}
+
+/**
+ * Registry schema 검증 — code 유일성 + matcher 형식.
+ * loadRegistry 내부에서 호출되며, 테스트 용도로도 export.
+ */
+export function validateRegistry(registry: Registry): void {
+  const seenCodes = new Set<string>();
+  for (const entry of registry.diagnostic_codes) {
+    if (seenCodes.has(entry.code)) {
+      throw new Error(
+        `[diagnostic-codes] duplicate code "${entry.code}" — code는 registry 내에서 유일해야 합니다.`,
+      );
+    }
+    seenCodes.add(entry.code);
+
+    if (!Array.isArray(entry.matchers) || entry.matchers.length === 0) {
+      throw new Error(
+        `[diagnostic-codes] entry "${entry.code}" has no matchers — 최소 1개 matcher가 필요합니다.`,
+      );
+    }
+
+    for (let i = 0; i < entry.matchers.length; i++) {
+      const m = entry.matchers[i]!;
+      const hasIncludes = typeof m.includes === "string" && m.includes.length > 0;
+      const hasIncludesAll = Array.isArray(m.includes_all) && m.includes_all.length > 0;
+      if (!hasIncludes && !hasIncludesAll) {
+        throw new Error(
+          `[diagnostic-codes] entry "${entry.code}" matcher[${i}] — includes 또는 includes_all 중 하나를 비어있지 않은 값으로 지정해야 합니다.`,
+        );
+      }
+    }
+  }
 }
 
 /** 테스트용 registry 초기화 */
@@ -109,6 +149,11 @@ export function lookupDiagnosticCode(reason: string): DiagnosticMatch | null {
       };
     }
   }
+  // Silent failure 방지 — 매칭되지 않은 reason 은 영문 원문이 Principal 에 노출된다.
+  // 개발자용 경고를 남겨 registry entry 누락 또는 reason 문구 drift 를 즉시 감지 가능하게.
+  console.warn(
+    `[diagnostic-codes] no matching entry for reason: "${reason}". Registry에 새 entry 추가 또는 기존 matcher 보강이 필요합니다.`,
+  );
   return null;
 }
 

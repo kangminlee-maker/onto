@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   wrapGateError,
   lookupDiagnosticCode,
   listDiagnosticCodes,
+  validateRegistry,
   __resetDiagnosticRegistryCache,
 } from "./error-messages.js";
 
@@ -49,9 +50,14 @@ describe("wrapGateError — backward-compatible behavior (기존 7 tests)", () =
     expect(wrapGateError(reason)).toBe(reason);
   });
 
-  it("passes through unknown error messages unchanged", () => {
+  it("passes through unknown error messages unchanged and warns developer", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const reason = "Some unknown error occurred";
     expect(wrapGateError(reason)).toBe(reason);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]?.[0]).toContain("no matching entry");
+    expect(warnSpy.mock.calls[0]?.[0]).toContain(reason);
+    warnSpy.mockRestore();
   });
 });
 
@@ -122,8 +128,11 @@ describe("lookupDiagnosticCode — code 기반 routing", () => {
     expect(hit!.message).toBe(reason);
   });
 
-  it("미매칭 reason → null", () => {
+  it("미매칭 reason → null (+ console.warn 발행)", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(lookupDiagnosticCode("totally unknown error")).toBeNull();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    warnSpy.mockRestore();
   });
 
   it("우선순위: 가장 먼저 매칭되는 entry 가 이긴다 (registry 순서)", () => {
@@ -153,5 +162,59 @@ describe("listDiagnosticCodes — registry 내용 노출", () => {
       expect(c.matchers.length).toBeGreaterThan(0);
       expect(typeof c.category).toBe("string");
     }
+  });
+});
+
+describe("validateRegistry — schema check (fail-fast on malformed registry)", () => {
+  it("throws on duplicate code", () => {
+    expect(() => validateRegistry({
+      version: "test",
+      diagnostic_codes: [
+        { code: "DUP", matchers: [{ includes: "x" }], category: "test" },
+        { code: "DUP", matchers: [{ includes: "y" }], category: "test" },
+      ],
+    })).toThrow(/duplicate code.*DUP/);
+  });
+
+  it("throws when entry has no matchers", () => {
+    expect(() => validateRegistry({
+      version: "test",
+      diagnostic_codes: [
+        { code: "C1", matchers: [], category: "test" },
+      ],
+    })).toThrow(/no matchers/);
+  });
+
+  it("throws on matcher without includes / includes_all", () => {
+    expect(() => validateRegistry({
+      version: "test",
+      diagnostic_codes: [
+        { code: "C1", matchers: [{}], category: "test" },
+      ],
+    })).toThrow(/includes.*includes_all/);
+  });
+
+  it("throws on matcher with empty includes_all array", () => {
+    expect(() => validateRegistry({
+      version: "test",
+      diagnostic_codes: [
+        { code: "C1", matchers: [{ includes_all: [] }], category: "test" },
+      ],
+    })).toThrow(/includes.*includes_all/);
+  });
+
+  it("passes a well-formed registry without throwing", () => {
+    expect(() => validateRegistry({
+      version: "test",
+      diagnostic_codes: [
+        { code: "C1", matchers: [{ includes: "x" }], category: "test" },
+        { code: "C2", matchers: [{ includes_all: ["a", "b"] }], category: "test" },
+      ],
+    })).not.toThrow();
+  });
+
+  it("production registry (authority/diagnostic-codes.yaml) passes validation", () => {
+    // loadRegistry 내부에서 validateRegistry 호출 — listDiagnosticCodes 로 간접 트리거
+    expect(() => listDiagnosticCodes()).not.toThrow();
   });
 });

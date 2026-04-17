@@ -411,6 +411,13 @@ export async function runInlineHttpReviewUnitExecutorCli(
       // current behavior) | auto (try native, fall back to inline if the
       // provider rejects tools or no tool_calls came back).
       "tool-mode": { type: "string", default: "auto" },
+      // Citation audit (A5) configuration. The audit is post-flight and
+      // warning-only; this flag tunes how aggressive the extractor is about
+      // what counts as a "significant quote". Default 20 skips noise like
+      // `"performed"`, `` `x.ts` ``, etc. Lower to audit shorter citations;
+      // raise to suppress moderate-length quotes that produce false positives
+      // for a given synthesize template.
+      "min-quote-length": { type: "string" },
     },
     strict: true,
     allowPositionals: false,
@@ -712,6 +719,19 @@ export async function runInlineHttpReviewUnitExecutorCli(
   // and checks whether every significant quoted string in the output exists
   // in at least one lens. Warning-only: never fails the executor. Wrapped in
   // try/catch so parser or filesystem errors never escape the audit layer.
+  const minQuoteLengthRaw = values["min-quote-length"];
+  let minQuoteLength: number | undefined;
+  if (typeof minQuoteLengthRaw === "string" && minQuoteLengthRaw.length > 0) {
+    const parsed = Number.parseInt(minQuoteLengthRaw, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      minQuoteLength = parsed;
+    } else {
+      throw new Error(
+        `Invalid --min-quote-length value: ${String(minQuoteLengthRaw)} (expected a positive integer).`,
+      );
+    }
+  }
+
   let citationAudit: CitationAuditResult | undefined;
   if (unitKind === "synthesize") {
     try {
@@ -720,6 +740,7 @@ export async function runInlineHttpReviewUnitExecutorCli(
         outputText,
         projectRoot,
         unitId,
+        minQuoteLength,
       );
     } catch (err) {
       process.stderr.write(
@@ -767,6 +788,7 @@ async function runCitationAudit(
   outputText: string,
   projectRoot: string,
   unitId: string,
+  minQuoteLength?: number,
 ): Promise<CitationAuditResult | undefined> {
   const participating = parseParticipatingLensPaths(rawPacketText);
   if (participating.length === 0) return undefined;
@@ -795,7 +817,9 @@ async function runCitationAudit(
     return undefined;
   }
 
-  const result = auditCitations(outputText, lensContents);
+  const auditOptions =
+    typeof minQuoteLength === "number" ? { minQuoteLength } : undefined;
+  const result = auditCitations(outputText, lensContents, auditOptions);
 
   if (unreadable.length > 0) {
     process.stderr.write(
@@ -809,9 +833,16 @@ async function runCitationAudit(
       .map((q) => JSON.stringify(q.length > 80 ? `${q.slice(0, 77)}...` : q))
       .join(", ");
     process.stderr.write(
-      `[onto] citation audit WARNING for unit ${unitId}: ${result.quotes_unmatched.length} quote(s) in synthesize output not found in any lens. ` +
+      `[onto] citation audit WARNING for unit ${unitId}: ${result.quotes_unmatched.length} attribution-style quote(s) in synthesize output not found in any lens. ` +
         `This may indicate fabrication. Sample: ${sample}. ` +
         "See citation_audit.quotes_unmatched in the result JSON for the full list.\n",
+    );
+  }
+  if (result.quotes_unmatched_meta.length > 0) {
+    process.stderr.write(
+      `[onto] citation audit advisory for unit ${unitId}: ${result.quotes_unmatched_meta.length} non-attribution quote(s) in synthesize output not found in any lens. ` +
+        "These may be taxonomy labels or paraphrased references — advisory only, not a fabrication warning. " +
+        "See citation_audit.quotes_unmatched_meta in the result JSON.\n",
     );
   }
 

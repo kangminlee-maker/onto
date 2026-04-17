@@ -160,11 +160,12 @@ Learnings tagged with `[domain/{domain}]` can be fed back into the corresponding
 
 ### Output Language Rules
 
-1. **config.yml takes priority**: If the project's `{project}/.onto/config.yml` declares `output_language:`, that language is used.
-2. **Default**: If `output_language:` is absent, `en` (English) is used.
-3. **CLAUDE.md precedence**: `output_language` in config.yml always takes priority over language directives in CLAUDE.md.
+The two-axis language policy is canonicalized in `design-principles/output-language-boundary.md` (rank 4). Summary:
 
-The team lead reads config.yml during Context Gathering, resolves the `output_language` value, and fills the `{output_language}` variable in the teammate initial prompt.
+1. **Internal system** (agent prompts, `wip.yml`, `deltas/`, `session-log.yml`, any agent-to-agent hand-off) — English only, regardless of `output_language`.
+2. **External output** (principal-facing reports, halt messages, interactive prompts) — translated via `output_language` at the Runtime Coordinator's render seat (`src/core-runtime/translate/render-for-user.ts`).
+3. `output_language` resolution: `{project}/.onto/config.yml` first, `en` default. CLAUDE.md language directives are overridden by `output_language`.
+4. Allowed render points are enumerated in `authority/external-render-points.yaml`; unregistered `{output_language}` references are rejected by the boundary lint (see `scripts/lint-output-language-boundary.ts`).
 
 ### Domain Determination Rules
 
@@ -490,7 +491,7 @@ Read the files below and construct your own context. Skip if file does not exist
 - After saving, report **only the file path** to the team lead. Do not include the review text in the message.
 - Only report the full text via SendMessage if Write fails.
 - Do not send direct messages to other teammates until the team lead permits.
-- Respond in {output_language}. (resolved from config.yml, default: en)
+- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `design-principles/output-language-boundary.md`).
 - Do not use metaphors or analogies.
 ```
 
@@ -541,7 +542,7 @@ Skip if file does not exist:
 - Write your review finding to {session path}/round1/{agent-id}.md using shell redirect (e.g., cat << 'EOF' > {path}).
 - Treat `{session path}/execution-preparation/materialized-input.md` as the authoritative review target basis when it is provided.
 - If file write fails, return the full review text as your response.
-- Respond in {output_language}. (resolved from config.yml, default: en)
+- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `design-principles/output-language-boundary.md`).
 - Do not use metaphors or analogies.
 ```
 
@@ -586,7 +587,7 @@ cross-process Step 4 deliberation이 실행되지 않습니다 — synthesize의
 - Write the final output to {session path}/synthesis.md using the Write tool.
 - Read `{session path}/interpretation.yaml`, `{session path}/binding.yaml`, and `execution-preparation/*` before synthesizing.
 - If file write fails, return the full synthesis text as your response.
-- Respond in {output_language}. (resolved from config.yml, default: en)
+- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `design-principles/output-language-boundary.md`).
 - Do not use metaphors or analogies.
 ```
 
@@ -632,7 +633,7 @@ frontmatter의 deliberation_status는 not_needed (논쟁 없음) 또는 performe
 - Write the final output to {session path}/synthesis.md using shell redirect.
 - Read `{session path}/interpretation.yaml`, `{session path}/binding.yaml`, and `execution-preparation/*` before synthesizing.
 - If file write fails, return the full synthesis text as your response.
-- Respond in {output_language}. (resolved from config.yml, default: en)
+- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `design-principles/output-language-boundary.md`).
 - Do not use metaphors or analogies.
 ```
 

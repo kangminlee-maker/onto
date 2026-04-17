@@ -1,0 +1,202 @@
+#!/usr/bin/env tsx
+/**
+ * Output Language Boundary Lint
+ *
+ * Enforces `design-principles/output-language-boundary.md` in CI.
+ * Scans the repo for violations of the internal-English / external-translate
+ * policy and exits non-zero when any are found.
+ *
+ * Current checks (progressive — more will be added as authors adopt the
+ * render-for-user seat):
+ *
+ *   R1. Prohibited pattern in prompts/instructions:
+ *         `Respond in {output_language}`
+ *       Anywhere outside the allowlist is a violation. The pattern is the
+ *       exact literal the previous (pre-boundary) agent prompts used; it
+ *       directs an LLM to respond in a variable language, which is exactly
+ *       what the principle forbids inside agent hand-off paths.
+ *
+ * Usage:
+ *   npx tsx scripts/lint-output-language-boundary.ts
+ *   npm run lint:output-language-boundary
+ *
+ * Exit code 0 = pass, 1 = violations found.
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const REPO_ROOT = path.resolve(__dirname, "..");
+
+interface Violation {
+  rule: string;
+  file: string;
+  line: number;
+  excerpt: string;
+  guidance: string;
+}
+
+/**
+ * Files that are permitted to contain the prohibited pattern because they
+ * describe it (principle doc, lint script itself, history / legacy notes).
+ * Paths are repo-relative.
+ */
+const R1_ALLOWLIST: readonly string[] = [
+  "design-principles/output-language-boundary.md",
+  "scripts/lint-output-language-boundary.ts",
+  "CHANGELOG.md", // historical references to the pre-boundary pattern
+];
+
+const R1_PATTERN = /Respond in \{output_language\}/;
+const R1_GUIDANCE =
+  "Agent prompts must not direct the LLM to respond in a variable language. " +
+  "Replace with `Respond in English` + a note about the Runtime Coordinator's render seat. " +
+  "See design-principles/output-language-boundary.md §3.1.";
+
+/**
+ * Directories scanned by default. We deliberately skip `.onto/`, `dist/`,
+ * `node_modules/`, `.git/`, and the temporary session artifacts under
+ * `.onto/review/` — those are either gitignored or held ephemeral.
+ */
+const SCAN_ROOTS: readonly string[] = [
+  "processes",
+  "commands",
+  "design-principles",
+  "authority",
+  "roles",
+  "src",
+  "scripts",
+  "development-records",
+];
+
+const SCAN_TOP_LEVEL_FILES: readonly string[] = [
+  "process.md",
+  "README.md",
+  "AGENTS.md",
+  "CLAUDE.md",
+  "CHANGELOG.md",
+  "BLUEPRINT.md",
+];
+
+const FILE_EXTENSIONS = new Set([".md", ".ts", ".yaml", ".yml"]);
+
+const IGNORED_DIRECTORIES = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  ".onto",
+  ".claude",
+  "coverage",
+]);
+
+function listFiles(root: string): string[] {
+  const result: string[] = [];
+  const walk = (dir: string): void => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith(".") && IGNORED_DIRECTORIES.has(entry.name)) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (IGNORED_DIRECTORIES.has(entry.name)) continue;
+        walk(full);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      const ext = path.extname(entry.name);
+      if (!FILE_EXTENSIONS.has(ext)) continue;
+      result.push(full);
+    }
+  };
+  walk(root);
+  return result;
+}
+
+function repoRelative(absolute: string): string {
+  return path.relative(REPO_ROOT, absolute);
+}
+
+function scanFile(absolutePath: string, violations: Violation[]): void {
+  const rel = repoRelative(absolutePath);
+  if (R1_ALLOWLIST.includes(rel)) return;
+
+  let content: string;
+  try {
+    content = fs.readFileSync(absolutePath, "utf8");
+  } catch {
+    return;
+  }
+
+  const lines = content.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (R1_PATTERN.test(line)) {
+      violations.push({
+        rule: "R1",
+        file: rel,
+        line: i + 1,
+        excerpt: line.trim(),
+        guidance: R1_GUIDANCE,
+      });
+    }
+  }
+}
+
+function main(): void {
+  const allFiles: string[] = [];
+  for (const root of SCAN_ROOTS) {
+    const absRoot = path.join(REPO_ROOT, root);
+    if (!fs.existsSync(absRoot)) continue;
+    allFiles.push(...listFiles(absRoot));
+  }
+  for (const file of SCAN_TOP_LEVEL_FILES) {
+    const abs = path.join(REPO_ROOT, file);
+    if (fs.existsSync(abs)) allFiles.push(abs);
+  }
+
+  const violations: Violation[] = [];
+  for (const file of allFiles) scanFile(file, violations);
+
+  if (violations.length === 0) {
+    process.stdout.write(
+      `[lint:output-language-boundary] clean — ${allFiles.length} files scanned, 0 violations.\n`,
+    );
+    process.exit(0);
+  }
+
+  process.stderr.write(
+    `[lint:output-language-boundary] ${violations.length} violation(s) found across ${allFiles.length} files:\n\n`,
+  );
+  const byRule = new Map<string, Violation[]>();
+  for (const v of violations) {
+    const list = byRule.get(v.rule) ?? [];
+    list.push(v);
+    byRule.set(v.rule, list);
+  }
+  for (const [rule, list] of byRule) {
+    process.stderr.write(`── Rule ${rule} ──\n`);
+    for (const v of list) {
+      process.stderr.write(`  ${v.file}:${v.line}\n`);
+      process.stderr.write(`    ${v.excerpt}\n`);
+    }
+    if (list.length > 0) {
+      process.stderr.write(`  guidance: ${list[0].guidance}\n\n`);
+    }
+  }
+  process.stderr.write(
+    "Fix the listed lines or add the file to the rule's allowlist in " +
+      "scripts/lint-output-language-boundary.ts (only for legitimate " +
+      "description / historical reference cases — not to silence a real " +
+      "violation).\n",
+  );
+  process.exit(1);
+}
+
+main();

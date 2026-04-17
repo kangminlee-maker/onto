@@ -1,10 +1,16 @@
 # Current Planning Artifacts
 
-Last updated: 2026-04-13 (M-05 v1.1 patch 완료 기준 — codex review 383afe00 CONDITIONAL consolidated 해소. M-06 진입 준비)
+Last updated: 2026-04-17 (Output Language Boundary Track 완결 + Active 잔여 8 건 handoff 추가)
 
 이 파일은 `plan/` 디렉토리 각 artifact 계열의 최신 active 버전 경로를 명시한다. M-08 refresh protocol이 매 갱신 시 업데이트한다.
 
 ## Active Artifacts
+
+### Next Session Startup Handoff
+- **Current**: `20260417-active-remaining-work-handoff.md`
+- **Status**: active
+- **Scope**: 2026-04-17 세션 종료 후 active 잔여 8 건의 session-restart handoff. `/clear` 직후 첫 명령 + 8 items 상태·verify 명령·권장 순서·anti-patterns
+- **Supersede 조건**: 다음 세션이 §3 옵션 중 하나 착수 + 첫 PR 생성 시
 
 ### M-00 실행 준비 답변서
 - **Current**: `20260413-m00-preparation-qa.md`

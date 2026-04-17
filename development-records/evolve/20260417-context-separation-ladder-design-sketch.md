@@ -1,12 +1,17 @@
 ---
-as_of: 2026-04-17
+as_of: 2026-04-18
 status: design-sketch
 functional_area: provider-resolution-context-separation-ladder
+revision_history:
+  - "2026-04-17: initial sketch (cost-order deprecation + context-separation ladder)"
+  - "2026-04-18: scope 확장 — independence axiom (§1.1.1), ExecutionPlan 통합 (§3.1 expanded), 8 결함 R1~R8 매핑 (§7), PR 분할 (§8)"
 purpose: |
   Cost-order provider resolution ladder 폐기 + context-separation 기반 새 ladder 설계.
   Cost 는 각 principal 환경에 따라 상대적이라 universal quality 축이 될 수 없고,
   context separation (메인 context 오염 방지) 은 누구에게나 항상 더 좋은 결과이므로
-  정렬축으로 우월. 본 sketch 는 설계 합의용 — 구현은 후속 PR.
+  정렬축으로 우월. 2026-04-18 세션에서 review 5 회 실패 drill-down 으로 8 결함 catalog
+  추가, "independent judgments over shared execution plan" 이라는 design axiom 확립.
+  본 sketch 는 설계 합의용 — 구현은 후속 PR (§8 우선순위).
 authority_stance: non-authoritative-design-surface
 canonicality: scaffolding
 source_refs:
@@ -38,6 +43,21 @@ source_refs:
 > cost는 각자가 처한 환경에 따라 상대적이야. 하지만 메인 context를 사용하지 않는게 좋다는 것, 컨텍스트의 분리가 명확하다는 것은 누구에게나 항상 좋은 결과야.
 
 즉 **비용은 universal quality 축이 아님** (회사 계정 / 개인 / subscription 유형 / 지역별 가격 차이). 반면 **context 분리** 는 principal 환경과 무관하게 항상 동일한 quality 향상을 제공.
+
+### 1.1.1 Design axiom — Independence 의 두 종류 분리 (2026-04-18 추가)
+
+Review 에는 두 종류의 "independence" 가 존재하고, **서로 다른 layer 에 속해야** 합니다. 이 둘을 혼동하면 한쪽의 올바른 독립성이 다른 쪽의 잘못된 독립성을 낳습니다.
+
+| 독립성 종류 | 올바른 위치 | 이유 |
+|---|---|---|
+| **Epistemic independence** (판단의 독립) | **Lens layer** — axiology / logic / structure / evolution / pragmatics / … | Review 의 존재 이유. 다각도 관점이 서로의 판단에 오염되지 않고 독립적으로 target 을 조망해야 발견되지 않던 결함이 드러남 |
+| **Execution consistency** (실행 맥락의 공유) | **Infrastructure layer** — provider / transport / model / config / retry / synthesize pipeline | 각 lens 가 같은 조건에서 판단하도록 공통 plan 제공. Lens 마다 다른 provider / retry 로 실행되면 판단의 비교 가능성 소실 |
+
+**Axiom**: **Independent judgments over shared execution plan.** Judgment 는 독립, 실행 plan 은 공유.
+
+2026-04-17~18 세션의 실패 반복이 이 axiom 위반의 증거. 아래 §2 의 silent divergence 는 infrastructure layer 가 독립 resolver 로 분산된 탓이고, 이것이 lens 들에게 inconsistent execution plan 을 전달해서 (logic 만 Codex, 나머지는 Anthropic) **lens 의 올바른 epistemic 독립성을 infrastructure 의 잘못된 독립성이 훼손** 하는 구조가 재현됐습니다.
+
+본 sketch 의 ladder 재설계 scope 는 **infrastructure layer 에만** 작동합니다. Lens 의 epistemic independence (다른 lens 의 round1 결과를 못 보고 독립 평가하는 구조) 는 review 의 핵심 가치이므로 **보존 대상**이며, 설계 변경 범위 밖.
 
 ### 1.2 교체 원칙 — context separation
 
@@ -85,18 +105,61 @@ Layer 1 의 결과가 inline-http 일 때만 실행. 내부에서 step 3 (codex)
 
 ## 3. 제안 — 통합 context-separation ladder
 
-### 3.1 단일 resolver 로 통합
+### 3.1 단일 resolver 로 통합 — `resolveExecutionPlan` (2026-04-18 scope 확장)
 
-Layer 1 + Layer 2 를 `resolveExecutor` 하나로 통합. 반환값:
+Layer 1 + Layer 2 뿐 아니라 **retry policy / lens budget / synthesize strategy 까지 한 plan 으로 통합**. 이는 §1.1.1 axiom 의 "shared execution plan" 을 충족하는 구체 구조. 반환값:
+
 ```ts
-type ResolvedExecutor = {
+type ExecutionPlan = {
+  // Infrastructure transport (§3.2 ladder 에서 결정)
   separation_rank: "S0" | "S1" | "S2" | "S3";
   execution_realization: "subprocess" | "ts_inline_http" | "host_nested_spawn" | "mock";
   provider_identity: "codex" | "anthropic" | "openai" | "litellm" | "claude-code" | "mock";
+  model_id: string;
   credentials: { ... };  // provider 별 필수 자격
-  ladder_trace: string[];  // 관찰 로그 — emitLadderLog 가 반환 전 stderr 에 발행한 줄
+
+  // Retry policy (오늘 R4 결함 반영 — per-error-type 분기)
+  retry_policy: {
+    timeout_ms: number;
+    max_attempts: number;
+    backoff: "exponential" | "linear" | "none";
+    classify: {
+      // transient: rate-limit-429, connection-reset, overloaded-529
+      // permanent: auth-401, invalid_model-400, timeout-after-subprocess-kill
+      [errorSignature: string]: "retry" | "halt";
+    };
+  };
+
+  // Lens dispatch (R7 결함 반영 — lens 별 budget/priority)
+  lens_dispatch: {
+    max_concurrent: number;
+    per_lens_learning_budget_tokens: number;
+    per_lens_context_budget_tokens: number;
+    overflow_policy: "drop-learnings-first" | "truncate-context" | "reject";
+  };
+
+  // Synthesize strategy (R6 결함 반영 — partial synthesize 허용)
+  synthesize_strategy: {
+    quorum: "all-lenses" | "majority" | "custom";
+    custom_threshold?: number;  // e.g., 3 of 4
+    missing_lens_marker: "skip" | "error-note" | "halt";
+  };
+
+  // Observability (PR #91/#93 + R5 확장)
+  plan_trace: string[];  // 전체 decision sequence — stderr 발행 + session artifact 저장
 };
 ```
+
+이 plan 은 session 시작 시 **한 번 계산** 되어 `execution-plan.yaml` 에 persisted. 이후 lens runner / retry logic / synthesize step 은 **plan 의 필드를 참조만** 하고 재-resolve 하지 않음.
+
+### 3.1.1 Lens 의 epistemic independence 보존 경계
+
+`ExecutionPlan` 은 lens 의 **실행 환경** 만 공유. 각 lens 의 **판단 컨텍스트** 는 여전히 독립:
+- Lens 간 round1 출력 공유 없음 (synthesize 전까지)
+- Lens 별 prompt 는 독립 구성 (`prompt-packets/<lens>.prompt.md`)
+- Plan 의 `per_lens_*_budget` 은 각 lens 가 동일 **자원 할당** 을 받게 하는 장치 (판단 개입 아님)
+
+이 경계가 흐려지면 안 됨 — §1.1.1 axiom 의 implementation 경계.
 
 ### 3.2 새 ladder 의 순서
 
@@ -218,22 +281,68 @@ PR #91 의 `@deprecated` 주석 → 본 구현 PR 에서 **"Replaced by context-
 - memory `feedback_local_llm_architectural_review.md` — **§4.2 결정 반영**: "ladder 정책 아님 / 특정 로컬 MoE 실험 경험 기록" 으로 scope 재정의. "review 에 Claude/Codex 필수" 는 principal 의 config 작성 참고 조언이지 자동 강제 아님 명시.
 - memory `feedback_review_executor_policy.md` — **§4.3 결정 반영**: Nested spawn 은 `OntoConfig.execution_realization: "host_nested_spawn"` 로만 opt-in (CLI flag 없음) 명시.
 
-## 7. 구현 PR scope (예상)
+## 7. 구현 PR scope (예상, 2026-04-18 확장)
 
-- `src/core-runtime/learning/shared/llm-caller.ts` — resolveProvider / tryNonCodexProviders 삭제, 통합 resolveExecutor 추가. §4.1 A 반영 (config-based external_http_provider)
-- `src/core-runtime/cli/review-invoke.ts` — resolveExecutionProfile 삭제. §4.2 no-policy 로 entrypoint allowlist 불필요 → 구현 단순
-- `src/core-runtime/cli/inline-http-review-unit-executor.ts` — config field `external_http_provider` 소비 (env auto-resolution 제거)
-- `src/core-runtime/discovery/config-chain.ts` — 신설 필드 `external_http_provider` + `execution_realization` 스키마 추가
+2026-04-17~18 세션에서 drill-down 된 **review 파이프라인 8 결함 (R1~R8)** 을 본 구현 PR 이 커버하는 범위로 명시:
+
+| 결함 ID | 내용 | 본 PR 의 해소 기제 |
+|---|---|---|
+| **R1** | tool-native vs inline path 의 provider propagation 비대칭 | `resolveExecutionPlan` 통합 — 두 path 가 동일 plan 참조 |
+| **R2** | 2-layer silent divergence (resolveExecutionProfile vs resolveProvider) | 두 resolver 를 `resolveExecutionPlan` 로 통합 |
+| **R3** | config schema 불일치 (yml/yaml, subagent_llm vs top-level) | loader yaml 우선 + yml fallback + deprecation warn. Schema validation + fail-fast |
+| **R4** | retry policy 동질 처리 (transient / permanent 미구분) | `ExecutionPlan.retry_policy.classify` 에 per-error 분기 명시 |
+| **R5** | model-call observability 경로 누락 (callLlmWithTools / callCodexCli) | 모든 call path 에 `emitModelCallLog` 추가 (PR #93 확장) |
+| **R6** | halted_partial 에서 synthesize 불가 (all-or-nothing) | `ExecutionPlan.synthesize_strategy.quorum` 으로 partial synthesize 명시 |
+| **R7** | lens 별 learn-loader context 불균형 무통제 | `ExecutionPlan.lens_dispatch.per_lens_*_budget` 으로 균등 할당 |
+| **R8** | config schema 역할 분리 미문서화 | `processes/configuration.md` 에 config shape + 각 field 의 소비 경로 표 |
+
+파일 변경 범위:
+- `src/core-runtime/learning/shared/llm-caller.ts` — resolveProvider / tryNonCodexProviders 삭제, ExecutionPlan resolver 일부 이동
+- `src/core-runtime/cli/review-invoke.ts` — resolveExecutionProfile 삭제 → resolveExecutionPlan 호출 진입점
+- `src/core-runtime/cli/inline-http-review-unit-executor.ts` — config 소비 → plan 참조로 전환
+- `src/core-runtime/cli/codex-review-unit-executor.ts` — plan.retry_policy.timeout_ms 참조 + [model-call] 로그
+- `src/core-runtime/learning/shared/llm-caller.ts` 의 `callLlmWithTools` — [model-call] 로그 추가
+- `src/core-runtime/discovery/config-chain.ts` — 신설 필드 schema + yaml loader
+- `src/core-runtime/review/execution-plan-resolver.ts` (신설) — `resolveExecutionPlan(config) → ExecutionPlan`
 - Test 재작성 (§5)
-- Docs / memory 갱신 (§6.3)
+- Docs (`processes/configuration.md`) / memory 갱신 (§6.3)
 
-규모: L (~250-400 줄 수정, 15-20 test case). §4 결정이 "config-only" 로 수렴한 덕에 entrypoint-layer 로직 (allowlist / warning) 불필요 → 초안 추정 대비 구현 범위 축소. 한 PR 로 가능하나 9-lens review 1-2 round 필요.
+규모: L+ (~500-700 줄 수정/신설, 25-30 test case). 8 결함 통합 scope 이라 초안 (250-400 줄, 15-20 test) 대비 확장. 9-lens review 2-3 round 예상. 필요 시 **PR 분할** (Critical: R1/R2/R5, High: R3/R4, Medium: R6/R7/R8) — §8 에서 우선순위 명시.
 
-## 8. Next step (이 세션)
+## 8. Next step — 2026-04-18 업데이트
 
-본 sketch 가 주체자 합의 얻으면:
-1. Sketch 를 commit (별도 doc PR, scope 작음) — 설계 artifact 보존.
-2. 그 후 즉시 v0 govern review 재실행 — 단 Codex explicit provider 지정 (`--provider codex`) 하여 current (여전히 cost-order 인) ladder 에서 Codex 경로 강제. Memory 정책 (Claude/Codex 필수) 준수.
-3. Review 결과 → Phase 4 scope 재협의 input + memory 갱신 + handoff 작성.
+2026-04-17~18 세션에서 v0 govern review 를 5 회 시도했고 각 시도가 다른 layer 의 silent divergence 를 드러냄. 3/4 lens 부분 완료로 F1~F4 govern finding 확보 (별도 handoff 문서 참조). 다음 세션 진입 순서:
 
-본 sketch 가 수정 필요하면 주체자 feedback 반영 후 재제출.
+### 우선순위 1 — Review Recovery PR-1 (Critical)
+
+**R1 + R2 + R5** 묶음:
+- `resolveExecutionPlan` 통합 resolver 신설 (R1/R2 해소)
+- 모든 LLM call 경로 (`callAnthropic`, `callOpenAI`, `callLlmWithTools`, `callCodexCli`) 에 `[model-call]` observability (R5 확장)
+- §3 의 ExecutionPlan schema 중 **infrastructure transport + retry_policy + plan_trace** 만 우선 구현
+
+**이 PR 이 먼저 merged 돼야 Phase 4 govern review 가 재현 가능한 상태에서 돌 수 있음.**
+
+### 우선순위 2 — Review Recovery PR-2 (High)
+
+**R3 + R4** 묶음:
+- Config loader 의 yaml/yml transitional support + schema validation (R3)
+- `retry_policy.classify` 의 per-error-type 분기 (R4) — timeout/invalid_model/auth 는 즉시 halt, rate-limit/connection-reset 만 retry
+
+### 우선순위 3 — Review Recovery PR-3 (Medium, Phase 4 이후 가능)
+
+**R6 + R7 + R8** 묶음:
+- ExecutionPlan 의 `synthesize_strategy.quorum` 구현 (R6)
+- `lens_dispatch.per_lens_*_budget` 구현 (R7)
+- `processes/configuration.md` 신설/갱신 (R8)
+
+### 그 후 — Phase 4 govern 설계 Phase 2 진입
+
+F1~F4 finding 을 input 으로 scope 확정:
+- F1 (W-C-02 분할 문서적 명확성) — 상태 마커 도입
+- F2 (BL-4 gate registry) — gate 들의 disposition 표
+- F3 (§12-§13 scope bloat) — derived summary 로 재배치
+- F4 (value justification) — bounded minimum 의 "왜"
+
+### 본 sketch 의 정체성
+
+`authority_stance: non-authoritative-design-surface` — 본 문서는 구현 PR 들의 설계 input 이며, 구현 후 각 PR 의 commit / test 가 canonical. 구현 완료 시 본 sketch 는 archive 대상.

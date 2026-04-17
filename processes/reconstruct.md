@@ -680,6 +680,12 @@ Information convergence = number of new facts in Explorer's reported delta = 0
 
 **Build-time configuration** (all keys resolved from `{project}/.onto/config.yml`):
 
+This section enumerates the reconstruct-specific keys. Definitions, valid
+values, defaults, and the full resolution chain (onto-home → project → CLI
+→ env var) for every OntoConfig key are in **`processes/configuration.md`**
+(canonical SSOT). The block below is a reconstruct-only excerpt for quick
+reference.
+
 ```yaml
 # {project}/.onto/config.yml — reconstruct-relevant keys
 output_language: en           # language for all agent prompts (referenced from Explorer/Lens/Synthesize prompts)

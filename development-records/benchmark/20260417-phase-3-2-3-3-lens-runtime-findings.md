@@ -140,7 +140,13 @@ axiology.packet.md 의 `## Boundary Policy` 섹션은 명시적으로 `Filesyste
     - `--tool-mode=inline` 호출 시 LLM 호출 전 fail-fast 메시지 정확 출력.
     - `--tool-mode=auto` 호출 시 STDERR 공지 + native 승격 + 4 tool_calls + 8-section 출력 + Degraded `none` 정확 (`input_tokens: 17,989`, `output_tokens: 1,287`).
   - 단위 테스트: `packet-boundary-policy.test.ts` 16 건 (parser field combinations), executor `Tools: required precedence` describe 4 건 (inline 거부, auto 승격, codex provider 거부, conflict packet 거부). 합계 20 건 신규, 0 회귀.
-- **A5 (제안)**: Degraded Lens Failures 자동 검증. executor 가 output 을 저장하기 전 참조된 lens output path 의 raw text 가 synthesize output 의 evidence citation 에 실제로 존재하는지 샘플 체크. 위반 시 경고 로깅 (차단은 아님). fabrication 사후 감지 수단 (A4 는 사전 차단, A5 는 사후 감지로 방어선 이중화).
+- **A5**: synthesize output 의 citation 이 참조된 lens output path 의 raw text 에 실제로 존재하는지 샘플 체크. 위반 시 경고 로깅 (차단은 아님). fabrication 사후 감지 수단 (A4 는 사전 차단, A5 는 사후 감지로 방어선 이중화). **IMPLEMENTED (2026-04-17)**. 구현 요약:
+  - `review/citation-audit.ts` 신규: `extractSignificantQuotes(text, minLength=20)` 으로 `"..."` + `` `...` `` quote 추출, `auditCitations(synth, lensContents)` 로 각 quote 가 lens pool 의 어떤 항목에 substring-match 하는지 확인 후 `{ quotes_checked, quotes_unmatched[], min_quote_length }` 반환.
+  - `review/participating-lens-paths.ts` 신규: `## Participating Lens Outputs` + `## Runtime Participating Lens Outputs` 섹션의 `- <lensId>: <path>` bullet 파서. Backtick-wrapped / 비-wrapped 경로 모두 허용, placeholder row (`(none for mock test)`) skip.
+  - Executor wiring: unit_kind === "synthesize" 일 때 output 저장 직후 audit 실행. 불러올 수 있는 lens file 이 0 개면 audit skip, 일부 실패면 경고 + 나머지로 진행. `citation_audit` 필드를 `ExecutorResult` JSON 에 첨부, `quotes_unmatched.length > 0` 이면 STDERR WARNING (상위 3 샘플 포함) 출력. **Audit 실패는 executor 를 실패시키지 않음** (try/catch 로 전체 감싸 fail-soft).
+  - Mock hook: `ONTO_LLM_MOCK_SYNTHESIZE_FABRICATE=1` 로 mock synthesize 출력의 Disagreement 섹션에 lens pool 에 없는 인용문 주입, executor E2E 테스트로 audit 가 반드시 detect 하고 WARNING 을 발령함을 결정론적으로 검증.
+  - 단위 테스트: `citation-audit.test.ts` 15 건 (quote extraction 7 + auditCitations 8), `participating-lens-paths.test.ts` 9 건 (heading 변이, 경로 형식, 섹션 경계). 합계 24 건 신규. Executor E2E 5 건 신규 (clean pass / fabrication 감지 / 섹션 부재 skip / 파일 부재 skip / lens-kind skip).
+  - **실 LLM 운용 특성**: 30B-A3B path-only + auto 재실행 결과 `citation_audit.quotes_checked: 4, quotes_unmatched: 3` 관측. 3 건 중 0 건이 실제 fabrication, 3 건은 cross-lens 메타-라벨 + paraphrase. 예: `"declaration without operational backing"` 은 어느 lens 에도 verbatim 존재하지 않는 **합성 라벨** (systemic pattern 명명), `"3 independent promoted term types with no precedence rule"` 은 dependency.md 원문 중 backtick 괄호 부분 제거한 **축약 인용**. A3 의 실제 fabrication (`"Naming alignment between value, activity, and concept is not yet resolved"`) 은 여전히 matched 0 건으로 탐지됨. **High-recall, low-precision 특성** 인정 — warning-only 정책이 적절한 이유. 미래 개선 후보: "lens: '...'" attribution 패턴을 별도 signal 로 분리해서 직접 인용만 엄격 감사.
 
 ## 파일 위치
 

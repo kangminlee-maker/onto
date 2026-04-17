@@ -67,6 +67,8 @@ import {
 import { ONTO_DEFAULT_TOOLS } from "./onto-tools.js";
 import { embedInlineContext } from "../review/inline-context-embedder.js";
 import { parsePacketBoundaryPolicy } from "../review/packet-boundary-policy.js";
+import { parseParticipatingLensPaths } from "../review/participating-lens-paths.js";
+import { auditCitations, type CitationAuditResult } from "../review/citation-audit.js";
 import { stripWrappingCodeFence } from "./strip-wrapping-code-fence.js";
 
 function requireString(
@@ -316,6 +318,13 @@ interface ExecutorResult {
    * `packet_policy_downgrade` for the opposite direction (A4).
    */
   packet_policy_promotion?: boolean;
+  /**
+   * Post-flight citation audit (A5). Present only for synthesize units whose
+   * packet declares Participating Lens Outputs that resolve to readable files.
+   * `quotes_unmatched` lists suspected fabrications — WARNING ONLY, the
+   * executor never fails on audit findings alone.
+   */
+  citation_audit?: CitationAuditResult;
 }
 
 function parseToolMode(raw: unknown): ToolModeRequest {
@@ -698,6 +707,29 @@ export async function runInlineHttpReviewUnitExecutorCli(
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, `${outputText}\n`, "utf8");
 
+  // A5 citation audit — post-flight fabrication detector for synthesize units.
+  // Parses the packet's Participating Lens Outputs section, reads each file,
+  // and checks whether every significant quoted string in the output exists
+  // in at least one lens. Warning-only: never fails the executor. Wrapped in
+  // try/catch so parser or filesystem errors never escape the audit layer.
+  let citationAudit: CitationAuditResult | undefined;
+  if (unitKind === "synthesize") {
+    try {
+      citationAudit = await runCitationAudit(
+        rawPacketText,
+        outputText,
+        projectRoot,
+        unitId,
+      );
+    } catch (err) {
+      process.stderr.write(
+        `[onto] citation audit skipped for unit ${unitId}: ${
+          err instanceof Error ? err.message : String(err)
+        }\n`,
+      );
+    }
+  }
+
   const executorResult: ExecutorResult = {
     unit_id: unitId,
     unit_kind: unitKind,
@@ -713,10 +745,77 @@ export async function runInlineHttpReviewUnitExecutorCli(
     ...(toolCallsExecuted !== undefined ? { tool_calls: toolCallsExecuted } : {}),
     ...(packetForcedInline ? { packet_policy_downgrade: true } : {}),
     ...(packetForcedNative ? { packet_policy_promotion: true } : {}),
+    ...(citationAudit !== undefined ? { citation_audit: citationAudit } : {}),
   };
 
   console.log(JSON.stringify(executorResult, null, 2));
   return 0;
+}
+
+/**
+ * A5 citation audit helper. Reads the lens output files referenced in the
+ * packet's Participating Lens Outputs section, runs the audit against the
+ * synthesize output text, and emits a STDERR warning if any quoted strings
+ * in the synthesize output don't substring-match any lens.
+ *
+ * Returns the audit result (undefined when the packet has no participating
+ * paths, or when no lens file could be read — audit requires at least one
+ * readable lens pool to be meaningful).
+ */
+async function runCitationAudit(
+  rawPacketText: string,
+  outputText: string,
+  projectRoot: string,
+  unitId: string,
+): Promise<CitationAuditResult | undefined> {
+  const participating = parseParticipatingLensPaths(rawPacketText);
+  if (participating.length === 0) return undefined;
+
+  const lensContents: string[] = [];
+  const unreadable: string[] = [];
+  for (const { lensId, path: lensPath } of participating) {
+    const absPath = path.isAbsolute(lensPath)
+      ? lensPath
+      : path.resolve(projectRoot, lensPath);
+    try {
+      const content = await fs.readFile(absPath, "utf8");
+      lensContents.push(content);
+    } catch {
+      unreadable.push(`${lensId} (${lensPath})`);
+    }
+  }
+
+  if (lensContents.length === 0) {
+    // No lens file readable — don't audit against an empty pool (every quote
+    // would trivially be unmatched, producing noise). Surface the state.
+    process.stderr.write(
+      `[onto] citation audit skipped for unit ${unitId}: no lens outputs readable (${unreadable.length}/${participating.length} failed). ` +
+        "Audit requires at least one readable lens for meaningful detection.\n",
+    );
+    return undefined;
+  }
+
+  const result = auditCitations(outputText, lensContents);
+
+  if (unreadable.length > 0) {
+    process.stderr.write(
+      `[onto] citation audit partial for unit ${unitId}: ${unreadable.length}/${participating.length} lens file(s) unreadable (${unreadable.join(", ")}). ` +
+        "Remaining lens files used as audit pool.\n",
+    );
+  }
+  if (result.quotes_unmatched.length > 0) {
+    const sample = result.quotes_unmatched
+      .slice(0, 3)
+      .map((q) => JSON.stringify(q.length > 80 ? `${q.slice(0, 77)}...` : q))
+      .join(", ");
+    process.stderr.write(
+      `[onto] citation audit WARNING for unit ${unitId}: ${result.quotes_unmatched.length} quote(s) in synthesize output not found in any lens. ` +
+        `This may indicate fabrication. Sample: ${sample}. ` +
+        "See citation_audit.quotes_unmatched in the result JSON for the full list.\n",
+    );
+  }
+
+  return result;
 }
 
 async function main(): Promise<number> {

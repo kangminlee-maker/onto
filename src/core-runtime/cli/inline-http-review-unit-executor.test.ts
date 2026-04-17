@@ -334,6 +334,193 @@ describe("runInlineHttpReviewUnitExecutorCli — embed flag", () => {
   });
 });
 
+describe("runInlineHttpReviewUnitExecutorCli — citation audit (Phase 3-4 A5)", () => {
+  function writeLensPool(files: Record<string, string>): string {
+    const round1 = path.join(sessionRoot, "round1");
+    mkdirSync(round1, { recursive: true });
+    for (const [name, body] of Object.entries(files)) {
+      writeFileSync(path.join(round1, name), body, "utf8");
+    }
+    return round1;
+  }
+
+  function buildSynthesizePacket(lensPaths: string[]): string {
+    return [
+      "# Synthesize Prompt Packet (A5 audit test)",
+      "",
+      "You are the synthesize actor.",
+      "",
+      "## Boundary Policy",
+      "- Filesystem: read-only",
+      "- Network: denied",
+      "",
+      "## Participating Lens Outputs",
+      ...lensPaths.map((p, i) => `- lens${i}: ${p}`),
+      "",
+      "## Required Output Sections",
+      "- Consensus",
+      "- Conditional Consensus",
+      "- Disagreement",
+      "- Deliberation Decision",
+      "- Unique Finding Tagging",
+      "- Axiology Integration",
+      "- Newly Learned",
+      "- Degraded Lens Failures",
+      "",
+    ].join("\n");
+  }
+
+  it("attaches citation_audit with 0 unmatched when synthesize quotes match lens pool", async () => {
+    const round1 = writeLensPool({
+      "axiology.md": "axiology content with the phrase (none — mock executor) inline.",
+    });
+    const packet = buildSynthesizePacket([path.join(round1, "axiology.md")]);
+    const packetPath = writePacket("synthesize.packet.md", packet);
+    const outputPath = path.join(sessionRoot, "synthesize.md");
+
+    const exitCode = await runInlineHttpReviewUnitExecutorCli([
+      "--project-root", projectRoot,
+      "--session-root", sessionRoot,
+      "--onto-home", ontoHome,
+      "--unit-id", "synthesize",
+      "--unit-kind", "synthesize",
+      "--packet-path", packetPath,
+      "--output-path", outputPath,
+      "--tool-mode", "inline",
+    ]);
+
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(consoleLogSpy.getOutput().join(""));
+    expect(result.citation_audit).toBeDefined();
+    expect(result.citation_audit.quotes_unmatched).toEqual([]);
+    expect(result.citation_audit.min_quote_length).toBe(20);
+  });
+
+  it("flags fabricated quote via ONTO_LLM_MOCK_SYNTHESIZE_FABRICATE=1", async () => {
+    const savedHook = process.env.ONTO_LLM_MOCK_SYNTHESIZE_FABRICATE;
+    process.env.ONTO_LLM_MOCK_SYNTHESIZE_FABRICATE = "1";
+
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    const stderrChunks: string[] = [];
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrChunks.push(typeof chunk === "string" ? chunk : chunk.toString());
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      const round1 = writeLensPool({
+        "axiology.md": "axiology content with legitimate findings about value alignment.",
+      });
+      const packet = buildSynthesizePacket([path.join(round1, "axiology.md")]);
+      const packetPath = writePacket("synthesize.packet.md", packet);
+      const outputPath = path.join(sessionRoot, "synthesize.md");
+
+      const exitCode = await runInlineHttpReviewUnitExecutorCli([
+        "--project-root", projectRoot,
+        "--session-root", sessionRoot,
+        "--onto-home", ontoHome,
+        "--unit-id", "synthesize",
+        "--unit-kind", "synthesize",
+        "--packet-path", packetPath,
+        "--output-path", outputPath,
+        "--tool-mode", "inline",
+      ]);
+
+      expect(exitCode).toBe(0);
+      const result = JSON.parse(consoleLogSpy.getOutput().join(""));
+      expect(result.citation_audit.quotes_unmatched).toContain(
+        "A fabricated quote that is definitely nowhere in the lens pool for this mock test run",
+      );
+      const stderrText = stderrChunks.join("");
+      expect(stderrText).toMatch(/citation audit WARNING/);
+      expect(stderrText).toMatch(/may indicate fabrication/);
+    } finally {
+      process.stderr.write = originalWrite;
+      if (savedHook === undefined) {
+        delete process.env.ONTO_LLM_MOCK_SYNTHESIZE_FABRICATE;
+      } else {
+        process.env.ONTO_LLM_MOCK_SYNTHESIZE_FABRICATE = savedHook;
+      }
+    }
+  });
+
+  it("skips audit (no citation_audit field) when packet has no Participating Lens Outputs", async () => {
+    // Use the basic panel-review packet which has no Participating Lens Outputs.
+    const packetPath = writePacket("lens.packet.md", PANEL_REVIEW_PACKET);
+    const outputPath = path.join(sessionRoot, "synthesize.md");
+
+    const exitCode = await runInlineHttpReviewUnitExecutorCli([
+      "--project-root", projectRoot,
+      "--session-root", sessionRoot,
+      "--onto-home", ontoHome,
+      "--unit-id", "synthesize",
+      "--unit-kind", "synthesize",
+      "--packet-path", packetPath,
+      "--output-path", outputPath,
+      "--tool-mode", "inline",
+    ]);
+
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(consoleLogSpy.getOutput().join(""));
+    expect(result.citation_audit).toBeUndefined();
+  });
+
+  it("skips audit (with STDERR notice) when every referenced lens file is unreadable", async () => {
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    const stderrChunks: string[] = [];
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrChunks.push(typeof chunk === "string" ? chunk : chunk.toString());
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      const packet = buildSynthesizePacket([
+        path.join(sessionRoot, "round1", "does-not-exist.md"),
+      ]);
+      const packetPath = writePacket("synthesize.packet.md", packet);
+      const outputPath = path.join(sessionRoot, "synthesize.md");
+
+      const exitCode = await runInlineHttpReviewUnitExecutorCli([
+        "--project-root", projectRoot,
+        "--session-root", sessionRoot,
+        "--onto-home", ontoHome,
+        "--unit-id", "synthesize",
+        "--unit-kind", "synthesize",
+        "--packet-path", packetPath,
+        "--output-path", outputPath,
+        "--tool-mode", "inline",
+      ]);
+
+      expect(exitCode).toBe(0);
+      const result = JSON.parse(consoleLogSpy.getOutput().join(""));
+      expect(result.citation_audit).toBeUndefined();
+      expect(stderrChunks.join("")).toMatch(/citation audit skipped/);
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+  });
+
+  it("does not audit lens-kind units", async () => {
+    const packetPath = writePacket("lens.packet.md", PANEL_REVIEW_PACKET);
+    const outputPath = path.join(sessionRoot, "logic.md");
+
+    const exitCode = await runInlineHttpReviewUnitExecutorCli([
+      "--project-root", projectRoot,
+      "--session-root", sessionRoot,
+      "--onto-home", ontoHome,
+      "--unit-id", "logic",
+      "--unit-kind", "lens",
+      "--packet-path", packetPath,
+      "--output-path", outputPath,
+      "--tool-mode", "inline",
+    ]);
+
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(consoleLogSpy.getOutput().join(""));
+    expect(result.citation_audit).toBeUndefined();
+  });
+});
+
 describe("runInlineHttpReviewUnitExecutorCli — Tools: required precedence (Phase 3-4 A4)", () => {
   const TOOLS_REQUIRED_PACKET = `# Synthesize Prompt Packet (path-only)
 

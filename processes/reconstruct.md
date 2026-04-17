@@ -444,7 +444,7 @@ Refer to "Delta Format" below.
 - Traverse the source according to the team lead's exploration directives (integrated epsilon).
 - Report traversal results in delta format to the team lead.
 - If traversal fails (file access failure, parsing failure, etc.), report delta with status: failed.
-- Respond in {output_language}. (resolved from config.yml, default: en)
+- Respond in English. Your delta flows into wip.yml and is consumed by downstream agents (Synthesize, Adjudicator). Principal-facing translation happens only at Runtime Coordinator render seats (see `design-principles/output-language-boundary.md`).
 - Do not use metaphors or analogies.
 ```
 
@@ -528,7 +528,7 @@ Refer to "Adjudicator Output Format" below.
 [Rules]
 - Judge based on system purpose only. Do not apply structural, coverage, or pragmatic criteria — those perspectives are already represented in the justifications.
 - Do not speculate about which lens produced which position. Justification text may contain perspective-revealing language (e.g., "from a structural perspective") — disregard such cues entirely.
-- Respond in {output_language}. (resolved from config.yml, default: en)
+- Respond in English. Your judgment is written into `wip.yml.issues[].resolution_decision` and consumed by Synthesize + downstream rounds. Principal-facing translation happens only at Runtime Coordinator render seats (see `design-principles/output-language-boundary.md`).
 - Do not use metaphors or analogies.
 ```
 
@@ -564,7 +564,7 @@ Refer to "Synthesize Output Format" below.
 - Do not re-adjudicate resolved conflicts.
 - **Do not mutate wip.yml directly.** Your output is a directive (text or structured emit); Runtime Coordinator is the sole writer of wip.yml. This applies in Phase 1 rounds and Phase 2 Step 4 alike.
 - Work according to the team lead's directives.
-- Respond in {output_language}. (resolved from config.yml, default: en)
+- Respond in English. Your epsilon directive feeds the next round's Explorer prompt and is persisted under `wip.yml.meta.epsilons`. Principal-facing translation happens only at Runtime Coordinator render seats (see `design-principles/output-language-boundary.md`).
 - Do not use metaphors or analogies.
 ```
 
@@ -688,7 +688,7 @@ reference.
 
 ```yaml
 # {project}/.onto/config.yml — reconstruct-relevant keys
-output_language: en           # language for all agent prompts (referenced from Explorer/Lens/Synthesize prompts)
+output_language: en           # principal-facing output language only. Agent prompts, wip.yml, session-log, and all internal artifacts stay in English regardless of this setting. Translation occurs only at Runtime Coordinator render seats registered in `authority/external-render-points.yaml`. See `design-principles/output-language-boundary.md`.
 
 semantic_identity:
   diagnostic_enabled: true    # default; when false, Tier 2 is skipped entirely

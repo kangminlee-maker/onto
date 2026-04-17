@@ -366,6 +366,49 @@ describe("draft-packet — validation", () => {
   });
 });
 
+// ─── Section 2: source consistency (content.constraint_details canonical) ───
+
+describe("draft-packet — Section 2 source consistency", () => {
+  it("Section 2 active count matches content.constraint_details length, not pool.summary.total", () => {
+    // pool에 3건 있지만 content에는 2건만 — Section 3에 실제 보이는 수와 일치해야 함
+    const e1 = makeEntry("CST-001");
+    const e2 = makeEntry("CST-002");
+    const e3 = makeEntry("CST-003");
+    const state = makeState({ constraint_pool: makePoolWith(e1, e2, e3) });
+    const content = makeContent({ constraint_details: [poDet("CST-001"), poDet("CST-002")] });
+    const md = renderDraftPacket(state, content);
+    expect(md).toContain("아래 2건");
+    expect(md).not.toContain("아래 3건");
+  });
+
+  it("decided/undecided counts derive from pool lookup of detail ids", () => {
+    const e1 = makeEntry("CST-001", { status: "decided", decision: "inject" });
+    const e2 = makeEntry("CST-002", { status: "undecided" });
+    const state = makeState({ constraint_pool: makePoolWith(e1, e2) });
+    const content = makeContent({ constraint_details: [poDet("CST-001"), poDet("CST-002")] });
+    const md = renderDraftPacket(state, content);
+    expect(md).toContain("1건 결정 완료, 1건 미결정");
+  });
+
+  it("clarify_pending detail counts into '미결정' group", () => {
+    const e1 = makeEntry("CST-001", { status: "clarify_pending" });
+    const state = makeState({ constraint_pool: makePoolWith(e1) });
+    const content = makeContent({ constraint_details: [poDet("CST-001")] });
+    const md = renderDraftPacket(state, content);
+    expect(md).toContain("0건 결정 완료, 1건 미결정");
+  });
+});
+
+describe("draft-packet — validation (invalidated detail rejection)", () => {
+  it("throws when constraint_details references an invalidated constraint", () => {
+    const entry = makeEntry("CST-001", { status: "invalidated" });
+    const state = makeState({ constraint_pool: makePoolWith(entry) });
+    expect(() => renderDraftPacket(state, makeContent({
+      constraint_details: [poDet("CST-001")],
+    }))).toThrow("invalidated");
+  });
+});
+
 // ─── requires_policy_change rendering ───
 
 describe("draft-packet — requires_policy_change", () => {

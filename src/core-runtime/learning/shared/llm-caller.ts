@@ -336,6 +336,20 @@ function emitLadderLog(line: string): void {
   process.stderr.write(`[provider-ladder] ${line}\n`);
 }
 
+/**
+ * Model-call observability — emits STDERR logs for each LLM API call, covering
+ * (a) pre-call model_id + provider + max_tokens, (b) post-call usage on success,
+ * (c) full SDK error fields (status / error.type / error.message / request_id)
+ * on failure. Silent "Connection error." wrapping by review runner no longer
+ * hides model-not-found / auth / quota / network distinctions.
+ *
+ * Companion to emitLadderLog: provider-ladder resolves TRANSPORT, model-call
+ * resolves MODEL + surfaces SDK response detail. Two independent axes.
+ */
+function emitModelCallLog(line: string): void {
+  process.stderr.write(`[model-call] ${line}\n`);
+}
+
 function readCodexAuthState(): CodexAuthState {
   const codexAuthPath = path.join(os.homedir(), ".codex", "auth.json");
   if (!fs.existsSync(codexAuthPath)) {
@@ -649,12 +663,33 @@ async function callAnthropic(
     maxRetries: DEFAULT_MAX_RETRIES,
   });
 
-  const response = await client.messages.create({
-    model: modelId,
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
-  });
+  emitModelCallLog(`anthropic call: model="${modelId}" max_tokens=${maxTokens}`);
+
+  let response;
+  try {
+    response = await client.messages.create({
+      model: modelId,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    });
+  } catch (err) {
+    const e = err as {
+      status?: number;
+      name?: string;
+      message?: string;
+      error?: { type?: string; message?: string };
+      request_id?: string;
+    };
+    emitModelCallLog(
+      `anthropic call FAILED: model="${modelId}" status=${e.status ?? "?"} type=${e.error?.type ?? e.name ?? "?"} message="${e.error?.message ?? e.message ?? String(err)}" request_id=${e.request_id ?? "?"}`,
+    );
+    throw err;
+  }
+
+  emitModelCallLog(
+    `anthropic success: model_id=${response.model ?? modelId} input_tokens=${response.usage.input_tokens} output_tokens=${response.usage.output_tokens}`,
+  );
 
   const text = response.content
     .filter((block) => block.type === "text")
@@ -695,6 +730,10 @@ async function callOpenAI(
   const promptHash = hashPrompt(systemPrompt + userPrompt);
   const isLiteLLM = providerLabel === "litellm";
 
+  emitModelCallLog(
+    `${providerLabel} call: model="${modelId}" max_tokens=${maxTokens}${baseUrl ? ` base_url=${baseUrl}` : ""}`,
+  );
+
   let response;
   try {
     response = await client.chat.completions.create({
@@ -706,8 +745,17 @@ async function callOpenAI(
       ],
     });
   } catch (err) {
+    const e = err as {
+      status?: number;
+      name?: string;
+      message?: string;
+      error?: { type?: string; message?: string };
+      request_id?: string;
+    };
+    emitModelCallLog(
+      `${providerLabel} call FAILED: model="${modelId}" status=${e.status ?? "?"} type=${e.error?.type ?? e.name ?? "?"} message="${e.error?.message ?? e.message ?? String(err)}" request_id=${e.request_id ?? "?"}`,
+    );
     if (isLiteLLM) {
-      const e = err as { status?: number; name?: string; message?: string };
       logLiteLLMIssue(
         `LiteLLM call failed (${e.status ?? e.name ?? "unknown"})`,
         e.message ?? String(err),
@@ -723,6 +771,10 @@ async function callOpenAI(
     }
     throw err;
   }
+
+  emitModelCallLog(
+    `${providerLabel} success: model_id=${response.model ?? modelId} input_tokens=${response.usage?.prompt_tokens ?? 0} output_tokens=${response.usage?.completion_tokens ?? 0}`,
+  );
 
   const text = response.choices[0]?.message?.content ?? "";
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -473,6 +473,98 @@ describe("logLiteLLMIssue", () => {
 });
 
 // ─── Provider ladder observability ([provider-ladder] STDERR) ───
+
+describe("model-call observability ([model-call] STDERR)", () => {
+  let captured: string[] = [];
+  let originalWrite: typeof process.stderr.write | null = null;
+
+  beforeEach(() => {
+    clearLlmEnv();
+    __resetNoticeFlagsForTests();
+    captured = [];
+    originalWrite = process.stderr.write.bind(process.stderr);
+    (process.stderr as any).write = (chunk: unknown) => {
+      captured.push(String(chunk));
+      return true;
+    };
+  });
+
+  afterEach(() => {
+    if (originalWrite) (process.stderr as any).write = originalWrite;
+    originalWrite = null;
+    restoreEnv();
+  });
+
+  function modelCallLines(): string[] {
+    return captured.filter((l) => l.includes("[model-call]"));
+  }
+
+  it("anthropic API failure → [model-call] FAILED log includes status / type / message / request_id", async () => {
+    // Mock @anthropic-ai/sdk to throw an APIError-shaped object.
+    vi.doMock("@anthropic-ai/sdk", () => ({
+      default: class {
+        messages = {
+          create: vi.fn().mockRejectedValue({
+            status: 400,
+            name: "BadRequestError",
+            message: "400 Bad Request",
+            error: { type: "invalid_request_error", message: "model: claude-fake-id not found" },
+            request_id: "req_test_123",
+          }),
+        };
+      },
+    }));
+    vi.resetModules();
+
+    process.env.ANTHROPIC_API_KEY = "sk-test";
+    const { callLlm } = await import("./llm-caller.js");
+
+    try {
+      await callLlm("s", "u", { provider: "anthropic", model_id: "claude-fake-id", max_tokens: 8 });
+    } catch {
+      // expected
+    }
+
+    const lines = modelCallLines();
+    expect(lines.some((l) => l.includes("anthropic call:") && l.includes('model="claude-fake-id"'))).toBe(true);
+    expect(lines.some((l) => l.includes("anthropic call FAILED") && l.includes("status=400"))).toBe(true);
+    expect(lines.some((l) => l.includes("invalid_request_error"))).toBe(true);
+    expect(lines.some((l) => l.includes("claude-fake-id not found"))).toBe(true);
+    expect(lines.some((l) => l.includes("req_test_123"))).toBe(true);
+
+    vi.doUnmock("@anthropic-ai/sdk");
+    vi.resetModules();
+    delete process.env.ANTHROPIC_API_KEY;
+  });
+
+  it("pre-call log always emits before failure — principal sees attempted model id even on throw", async () => {
+    vi.doMock("@anthropic-ai/sdk", () => ({
+      default: class {
+        messages = {
+          create: vi.fn().mockRejectedValue(new Error("network blip")),
+        };
+      },
+    }));
+    vi.resetModules();
+
+    process.env.ANTHROPIC_API_KEY = "sk-test";
+    const { callLlm } = await import("./llm-caller.js");
+
+    try {
+      await callLlm("s", "u", { provider: "anthropic", model_id: "claude-x", max_tokens: 8 });
+    } catch { /* expected */ }
+
+    const lines = modelCallLines();
+    const preIdx = lines.findIndex((l) => l.includes("anthropic call:"));
+    const failIdx = lines.findIndex((l) => l.includes("anthropic call FAILED"));
+    expect(preIdx).toBeGreaterThanOrEqual(0);
+    expect(failIdx).toBeGreaterThan(preIdx);
+
+    vi.doUnmock("@anthropic-ai/sdk");
+    vi.resetModules();
+    delete process.env.ANTHROPIC_API_KEY;
+  });
+});
 
 describe("resolveProvider ladder observability", () => {
   let tmp: { home: string; cleanup: () => void } | null = null;

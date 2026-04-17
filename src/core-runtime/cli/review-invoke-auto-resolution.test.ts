@@ -278,17 +278,19 @@ describe("resolveExecutionRealizationHandoff", () => {
     expect(out).toEqual({ type: "no_host" });
   });
 
-  it("E7 explicit host_runtime=litellm → fail-fast (type recognized, wiring deferred)", () => {
-    // LiteLLM is type-recognized (ReviewHostRuntime includes "litellm" as
-    // forward-compat slot) but review wiring is deferred. Setting it
-    // explicitly in config should fail with actionable guidance, not silently
-    // fall through to auto-resolution. (Review consensus #2, 2026-04-16.)
-    expect(() =>
-      resolveExecutionRealizationHandoff({
-        explicitCodex: false,
-        prepareOnly: false,
-        ontoConfig: { host_runtime: "litellm" },
-      }),
-    ).toThrow(/litellm.*type-recognized.*wiring is deferred/s);
+  it("E7 explicit host_runtime=litellm → ts_inline_http self-execute (Phase 2 wiring)", () => {
+    // LiteLLM wiring is live in Phase 2 — `resolveExecutionProfile` routes
+    // litellm/anthropic/openai to ts_inline_http and the handoff returns
+    // `self` so the invoking process runs the executor in-band. The earlier
+    // fail-fast expectation (2026-04-16) pre-dated Phase 2 wiring.
+    const out = resolveExecutionRealizationHandoff({
+      explicitCodex: false,
+      prepareOnly: false,
+      ontoConfig: { host_runtime: "litellm" },
+    });
+    expect(out).toEqual({
+      type: "self",
+      profile: { execution_realization: "ts_inline_http", host_runtime: "litellm" },
+    });
   });
 });

@@ -144,7 +144,7 @@ Read the current repo copies of:
 1. `onto review` auto-resolves execution realization via stay-in-host policy:
    - `--codex` explicit OR `host_runtime: codex` config → `subagent + codex` path
    - `CLAUDECODE=1` OR `host_runtime: claude` config → coordinator-start handoff JSON emitted; subject session then invokes `onto coordinator start`, selecting nested (`agent_teams_claude`) or flat (`subagent_claude`) orchestration based on TeamCreate availability
-   - `host_runtime: litellm` in config → explicit fail-fast (type-recognized but wiring deferred)
+   - `host_runtime: litellm` / `anthropic` / `openai` / `standalone` in config → `ts_inline_http` self-execute (TS runtime calls the endpoint directly). When `subagent_llm` is also set it overrides; otherwise top-level `api_provider` / `llm_base_url` / `model` are the fallback source
    - Neither host detected → fail-fast with host-setup guidance
 2. If resolved path is `subagent + codex` → verify Codex CLI readiness. If unavailable → halt with guidance.
 3. Resolved execution profile (execution_realization + host_runtime) is recorded into session artifacts (binding.yaml, execution-plan.yaml, session-metadata.yaml) so downstream consumers see actual path used.

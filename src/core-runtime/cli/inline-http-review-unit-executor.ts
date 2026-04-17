@@ -67,6 +67,7 @@ import {
 import { ONTO_DEFAULT_TOOLS } from "./onto-tools.js";
 import { embedInlineContext } from "../review/inline-context-embedder.js";
 import { parsePacketBoundaryPolicy } from "../review/packet-boundary-policy.js";
+import { stripWrappingCodeFence } from "./strip-wrapping-code-fence.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -140,6 +141,13 @@ Unit kind: synthesize
 Authoritative prompt packet path: ${packetPath}
 Canonical output path: ${outputPath}
 
+OUTPUT FORMAT — READ FIRST:
+- Your entire response is written verbatim to the canonical output path as-is. No post-processing will change your first or last lines.
+- The FIRST character of your response MUST be the YAML frontmatter delimiter "-" (three dashes on line 1). Do NOT begin your response with three backticks, a language tag like "yaml" or "markdown", or any prose preface.
+- The LAST character of your response MUST be part of the final markdown section body. Do NOT end your response with three backticks or a closing code fence.
+- Do NOT wrap the entire answer in a \`\`\`yaml, \`\`\`markdown, or any code block. The output file must be valid markdown with YAML frontmatter, not a markdown file that contains your answer as a code block.
+- Inner code blocks INSIDE the markdown body (e.g. citing a small code snippet in a finding) are allowed. The rule applies only to an outer wrapper around the whole response.
+
 Your job:
 - Read every Participating Lens Output that is inlined in the prompt packet.
 - Classify findings into Consensus, Conditional Consensus, Disagreement, and Unique Finding Tagging.
@@ -156,7 +164,6 @@ Rules:
 - Preserve lens-level evidence in your output — never paraphrase a lens away from its citation.
 - Set deliberation_status in the YAML frontmatter to "performed" if you resolved at least one disagreement, otherwise "not_needed".
 - Produce ONLY the final markdown content for the canonical output path.
-- Do not wrap the answer in code fences.
 - Do not add commentary before or after the markdown.
 - If the inlined evidence is insufficient to resolve a disagreement, write the limitation explicitly under Deliberation Decision rather than fabricating a verdict.`;
 }
@@ -230,6 +237,13 @@ Unit kind: synthesize
 Authoritative prompt packet path: ${packetPath}
 Canonical output path: ${outputPath}
 
+OUTPUT FORMAT — READ FIRST:
+- Your FINAL message (after any tool calls complete) is written verbatim to the canonical output path.
+- The FIRST character of your final message MUST be the YAML frontmatter delimiter "-" (three dashes on line 1). Do NOT begin with three backticks, a language tag like "yaml" or "markdown", or any prose preface.
+- The LAST character of your final message MUST be part of the final markdown section body. Do NOT end with three backticks or a closing code fence.
+- Do NOT wrap the entire answer in a \`\`\`yaml, \`\`\`markdown, or any code block. The output file must be valid markdown with YAML frontmatter, not a markdown file that contains your answer as a code block.
+- Inner code blocks INSIDE the markdown body (e.g. citing a small code snippet in a finding) are allowed. The rule applies only to an outer wrapper around the whole response.
+
 You have THREE read-only tools:
 - read_file(path, start_line?, end_line?) — read up to 2000 lines of a file
 - list_directory(path) — list entries in a directory
@@ -254,7 +268,7 @@ Rules:
 - Preserve lens-level evidence — never paraphrase a lens away from its citation.
 - Set deliberation_status in the YAML frontmatter to "performed" if you resolved at least one disagreement, otherwise "not_needed".
 - Produce ONLY the final markdown content for the canonical output path.
-- Do not wrap the answer in code fences. Do not add commentary before or after the markdown.
+- Do not add commentary before or after the markdown.
 - If a lens output file is missing or unreadable via read_file, list it under Degraded Lens Failures rather than fabricating its findings.`;
 }
 
@@ -595,6 +609,13 @@ export async function runInlineHttpReviewUnitExecutorCli(
     inputTokensUsed = result.input_tokens;
     outputTokensUsed = result.output_tokens;
   }
+
+  // Defensive post-process: some models (observed on Qwen3-30B-A3B in Phase
+  // 3-4 A2 bench) ignore the "Do not wrap in code fences" prompt rule and
+  // emit the entire markdown answer inside a ```yaml or ```markdown block.
+  // Strip a single outer wrapping fence pair if present; leave inner code
+  // blocks and well-formed markdown untouched. See strip-wrapping-code-fence.ts.
+  outputText = stripWrappingCodeFence(outputText);
 
   if (outputText.length === 0) {
     throw new Error(

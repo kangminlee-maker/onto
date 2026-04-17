@@ -140,6 +140,11 @@ describe("runInlineHttpReviewUnitExecutorCli — basic execution", () => {
     const packetPath = writePacket("lens.packet.md", PANEL_REVIEW_PACKET);
     const outputPath = path.join(sessionRoot, "logic.md");
 
+    // --tool-mode inline: these tests exercise provider override via the mock
+    // provider, which doesn't exercise the tool-calling loop. Under the Phase
+    // 3-2 default (--tool-mode auto) the executor would try native first and
+    // require a resolved model id; inline keeps the test focused on host_runtime
+    // propagation.
     const exitCode = await runInlineHttpReviewUnitExecutorCli([
       "--project-root", projectRoot,
       "--session-root", sessionRoot,
@@ -149,6 +154,7 @@ describe("runInlineHttpReviewUnitExecutorCli — basic execution", () => {
       "--packet-path", packetPath,
       "--output-path", outputPath,
       "--provider", "anthropic",
+      "--tool-mode", "inline",
     ]);
 
     expect(exitCode).toBe(0);
@@ -169,6 +175,7 @@ describe("runInlineHttpReviewUnitExecutorCli — basic execution", () => {
       "--packet-path", packetPath,
       "--output-path", outputPath,
       "--provider", "litellm",
+      "--tool-mode", "inline",
     ]);
 
     // Note: with mock, host_runtime reports per --provider flag, not actual mock target
@@ -203,6 +210,90 @@ describe("runInlineHttpReviewUnitExecutorCli — error cases", () => {
         "--output-path", path.join(sessionRoot, "out.md"),
       ]),
     ).rejects.toThrow(/--packet-path/);
+  });
+});
+
+describe("runInlineHttpReviewUnitExecutorCli — synthesize code-fence strip (Phase 3-4 A2)", () => {
+  const SYNTHESIZE_PACKET = `# Synthesize Prompt Packet
+
+You are the synthesize actor. Consolidate lens outputs.
+
+## Participating Lens Outputs
+(none for mock test)
+
+## Boundary Policy
+- Filesystem: read-only
+- Network: denied
+
+## Required Output Sections
+- Consensus
+- Conditional Consensus
+- Disagreement
+- Deliberation Decision
+- Unique Finding Tagging
+- Axiology Integration
+- Newly Learned
+- Degraded Lens Failures
+`;
+
+  it("baseline: synthesize output has no wrapping code fence", async () => {
+    const packetPath = writePacket("synthesize.packet.md", SYNTHESIZE_PACKET);
+    const outputPath = path.join(sessionRoot, "synthesize.md");
+
+    const exitCode = await runInlineHttpReviewUnitExecutorCli([
+      "--project-root", projectRoot,
+      "--session-root", sessionRoot,
+      "--onto-home", ontoHome,
+      "--unit-id", "synthesize",
+      "--unit-kind", "synthesize",
+      "--packet-path", packetPath,
+      "--output-path", outputPath,
+      "--tool-mode", "inline",
+    ]);
+
+    expect(exitCode).toBe(0);
+    const output = readFileSync(outputPath, "utf8");
+    expect(output.startsWith("---\ndeliberation_status:")).toBe(true);
+    expect(output.includes("```yaml")).toBe(false);
+    expect(output.trimEnd().endsWith("```")).toBe(false);
+  });
+
+  it("strips ```yaml wrapping fence when the mock returns a wrapped synthesize response", async () => {
+    const savedWrapHook = process.env.ONTO_LLM_MOCK_SYNTHESIZE_WRAP_FENCE;
+    process.env.ONTO_LLM_MOCK_SYNTHESIZE_WRAP_FENCE = "1";
+    try {
+      const packetPath = writePacket("synthesize.packet.md", SYNTHESIZE_PACKET);
+      const outputPath = path.join(sessionRoot, "synthesize.md");
+
+      const exitCode = await runInlineHttpReviewUnitExecutorCli([
+        "--project-root", projectRoot,
+        "--session-root", sessionRoot,
+        "--onto-home", ontoHome,
+        "--unit-id", "synthesize",
+        "--unit-kind", "synthesize",
+        "--packet-path", packetPath,
+        "--output-path", outputPath,
+        "--tool-mode", "inline",
+      ]);
+
+      expect(exitCode).toBe(0);
+      const output = readFileSync(outputPath, "utf8");
+      // Even though the mock wrapped the body in ```yaml ... ```, the executor
+      // must have stripped the outer fence before writing the canonical file.
+      expect(output.startsWith("---\ndeliberation_status:")).toBe(true);
+      expect(output.includes("```yaml")).toBe(false);
+      expect(output.trimEnd().endsWith("```")).toBe(false);
+      // The required section headings must still be present — strip must not
+      // have damaged the markdown body.
+      expect(output).toContain("## Consensus");
+      expect(output).toContain("## Degraded Lens Failures");
+    } finally {
+      if (savedWrapHook === undefined) {
+        delete process.env.ONTO_LLM_MOCK_SYNTHESIZE_WRAP_FENCE;
+      } else {
+        process.env.ONTO_LLM_MOCK_SYNTHESIZE_WRAP_FENCE = savedWrapHook;
+      }
+    }
   });
 });
 

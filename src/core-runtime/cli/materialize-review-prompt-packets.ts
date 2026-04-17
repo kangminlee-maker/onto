@@ -53,7 +53,10 @@ async function readOptionalText(targetPath: string): Promise<string> {
 function renderBoundaryPolicySection(
   binding: InvocationBindingArtifact,
   projectRoot: string,
+  options?: { tools?: "required" | "optional" },
 ): string {
+  const toolsLine =
+    options?.tools !== undefined ? `\n- tools: ${options.tools}` : "";
   return `## Boundary Policy
 - web research: ${binding.boundary_policy.web_research_policy}
 - repo exploration: ${binding.boundary_policy.repo_exploration_policy}
@@ -72,7 +75,7 @@ ${binding.boundary_policy.write_policy.allowed_output_refs
   }
 - web source citation required: ${
     binding.boundary_policy.provenance_policy.web_source_citation_required
-  }`;
+  }${toolsLine}`;
 }
 
 function renderBoundaryEnforcementSection(
@@ -500,7 +503,7 @@ You must preserve lens evidence and must not invent new independent perspectives
 - target snapshot: ${toRelativePath(binding.target_snapshot_path, projectRoot)}
 - context candidate assembly: ${toRelativePath(contextCandidateAssemblyPath, projectRoot)}
 
-${renderBoundaryPolicySection(binding, projectRoot)}
+${renderBoundaryPolicySection(binding, projectRoot, { tools: "required" })}
 
 ${renderBoundaryEnforcementSection(binding)}
 

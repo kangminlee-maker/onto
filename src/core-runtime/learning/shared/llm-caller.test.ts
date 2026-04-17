@@ -471,3 +471,90 @@ describe("logLiteLLMIssue", () => {
     }
   });
 });
+
+// ─── Provider ladder observability ([provider-ladder] STDERR) ───
+
+describe("resolveProvider ladder observability", () => {
+  let tmp: { home: string; cleanup: () => void } | null = null;
+  let captured: string[] = [];
+  let originalWrite: typeof process.stderr.write | null = null;
+
+  beforeEach(() => {
+    clearLlmEnv();
+    tmp = createTmpHome();
+    process.env.HOME = tmp.home;
+    __resetNoticeFlagsForTests();
+    captured = [];
+    originalWrite = process.stderr.write.bind(process.stderr);
+    (process.stderr as any).write = (chunk: unknown) => {
+      captured.push(String(chunk));
+      return true;
+    };
+  });
+
+  afterEach(() => {
+    if (originalWrite) (process.stderr as any).write = originalWrite;
+    originalWrite = null;
+    if (tmp) tmp.cleanup();
+    tmp = null;
+    restoreEnv();
+  });
+
+  function ladderLines(): string[] {
+    return captured.filter((l) => l.includes("[provider-ladder]"));
+  }
+
+  it("empty env → step 3 codex skipped (auth.json 부재) + step 4/5/6 skipped + final throw log", async () => {
+    await attemptResolve();
+    const lines = ladderLines();
+    expect(lines.some((l) => l.includes("step 3 codex: skipped") && l.includes("auth.json 부재"))).toBe(true);
+    expect(lines.some((l) => l.includes("step 4 litellm: skipped"))).toBe(true);
+    expect(lines.some((l) => l.includes("step 5 anthropic: skipped"))).toBe(true);
+    expect(lines.some((l) => l.includes("step 6 openai: skipped"))).toBe(true);
+    expect(lines.some((l) => l.includes("final:") && l.includes("no provider viable"))).toBe(true);
+  });
+
+  it("LITELLM_BASE_URL set → step 4 matched (env source) log, step 5/6 not evaluated", async () => {
+    process.env.LITELLM_BASE_URL = "https://litellm.example.com";
+    try { await attemptResolve(); } catch { /* ignore */ }
+    const lines = ladderLines();
+    expect(lines.some((l) => l.includes("step 4 litellm: matched") && l.includes("LITELLM_BASE_URL env"))).toBe(true);
+    expect(lines.some((l) => l.includes("step 5 anthropic:"))).toBe(false);
+    expect(lines.some((l) => l.includes("step 6 openai:"))).toBe(false);
+  });
+
+  it("ANTHROPIC_API_KEY only → step 3/4 skipped + step 5 matched log", async () => {
+    process.env.ANTHROPIC_API_KEY = "sk-fake";
+    try { await attemptResolve(); } catch { /* ignore */ }
+    const lines = ladderLines();
+    expect(lines.some((l) => l.includes("step 3 codex: skipped"))).toBe(true);
+    expect(lines.some((l) => l.includes("step 4 litellm: skipped"))).toBe(true);
+    expect(lines.some((l) => l.includes("step 5 anthropic: matched"))).toBe(true);
+    expect(lines.some((l) => l.includes("step 6 openai:"))).toBe(false);
+  });
+
+  it("codex auth.json exists but auth_mode != 'chatgpt' → step 3 skip with 'OAuth 조건 미충족'", async () => {
+    writeAuthJson(tmp!.home, { auth_mode: "api" });
+    await attemptResolve();
+    const lines = ladderLines();
+    expect(lines.some((l) => l.includes("step 3 codex: skipped") && l.includes("OAuth 조건 미충족"))).toBe(true);
+  });
+
+  it("codex OAuth present + binary missing → step 3 falls-through log with binary NOT on PATH", async () => {
+    writeAuthJson(tmp!.home, { auth_mode: "chatgpt", tokens: { access_token: "tok" } });
+    const originalPath = process.env.PATH;
+    process.env.PATH = "/tmp/none-existing-dir-xyz";
+    process.env.ANTHROPIC_API_KEY = "sk-fake";
+    try { await attemptResolve(); } catch { /* ignore */ } finally { process.env.PATH = originalPath ?? ""; }
+    const lines = ladderLines();
+    expect(lines.some((l) => l.includes("step 3 codex: OAuth detected") && l.includes("binary NOT on PATH"))).toBe(true);
+    expect(lines.some((l) => l.includes("step 5 anthropic: matched"))).toBe(true);
+  });
+
+  it("explicit anthropic without key → explicit fail-fast log", async () => {
+    const { callLlm } = await import("./llm-caller.js");
+    try { await callLlm("s", "u", { provider: "anthropic", max_tokens: 8 }); } catch { /* ignore */ }
+    const lines = ladderLines();
+    expect(lines.some((l) => l.includes("explicit anthropic") && l.includes("fail-fast"))).toBe(true);
+  });
+});

@@ -1,6 +1,14 @@
 /**
  * Background task (learn/govern/promote) LLM call wrapper.
  *
+ * @deprecated Cost-order ladder is slated for replacement by a context-separation
+ * based ladder (subprocess-first). Rationale: cost is environment-relative and
+ * cannot serve as a universal quality axis, whereas main-context separation
+ * (subprocess > external HTTP API > host nested spawn) is universally better
+ * for principals regardless of billing plan. Replacement tracked in a follow-up
+ * PR; observability (this file's [provider-ladder] STDERR logging) is the
+ * prerequisite for safely performing that topology change.
+ *
  * Cost-order provider resolution ladder (lower priority number = higher priority):
  *   1. Caller-explicit: callLlm(..., { provider }) — overrides any auto-resolution
  *   2. Config-explicit: OntoConfig.api_provider — user override, wins over cost-order
@@ -315,6 +323,19 @@ interface CodexAuthState {
   openaiApiKey: string | null;
 }
 
+/**
+ * Cost-order ladder observability — emits a one-line STDERR log for each
+ * decision point (match / skip + reason) so silent fallbacks (e.g., Codex
+ * OAuth missing → LiteLLM) no longer leave principals guessing which
+ * provider was selected and why.
+ *
+ * No suppressor env var: fallback reason is always load-bearing information
+ * for principals. Tests capture via vi.spyOn(process.stderr, "write").
+ */
+function emitLadderLog(line: string): void {
+  process.stderr.write(`[provider-ladder] ${line}\n`);
+}
+
 function readCodexAuthState(): CodexAuthState {
   const codexAuthPath = path.join(os.homedir(), ".codex", "auth.json");
   if (!fs.existsSync(codexAuthPath)) {
@@ -366,45 +387,63 @@ function resolveProvider(
   // (codex and litellm are handled inline in callLlm before reaching here.)
   if (preferred === "anthropic") {
     if (process.env.ANTHROPIC_API_KEY) {
+      emitLadderLog("explicit anthropic: matched (ANTHROPIC_API_KEY env)");
       return { provider: "anthropic", apiKey: process.env.ANTHROPIC_API_KEY };
     }
+    emitLadderLog("explicit anthropic: ANTHROPIC_API_KEY 없음 → fail-fast");
     throw new Error(explicitProviderMissingCredentialError("anthropic"));
   }
   if (preferred === "openai") {
     if (process.env.OPENAI_API_KEY) {
+      emitLadderLog("explicit openai: matched (OPENAI_API_KEY env)");
       return { provider: "openai", apiKey: process.env.OPENAI_API_KEY };
     }
     const codexAuth = readCodexAuthState();
     if (codexAuth.openaiApiKey) {
+      emitLadderLog("explicit openai: matched (~/.codex/auth.json OPENAI_API_KEY field)");
       return { provider: "openai", apiKey: codexAuth.openaiApiKey };
     }
+    emitLadderLog("explicit openai: OPENAI_API_KEY env 없음 AND ~/.codex/auth.json OPENAI_API_KEY field 없음 → fail-fast");
     throw new Error(explicitProviderMissingCredentialError("openai"));
   }
 
   // Auto cost-order resolution.
+  const codexAuthPath = path.join(os.homedir(), ".codex", "auth.json");
+  const codexAuthFileExists = fs.existsSync(codexAuthPath);
   const codexAuth = readCodexAuthState();
 
   // Priority 3: codex CLI OAuth subscription.
   if (codexAuth.chatgptOAuth) {
     if (codexBinaryOnPath()) {
+      emitLadderLog("step 3 codex: matched — ~/.codex/auth.json chatgpt OAuth + codex binary on PATH");
       return {
         provider: "codex",
         apiKey: "codex-oauth",          // sentinel; unused
       };
     }
     // OAuth detected but binary missing — fall through, mark for (c) notice.
+    emitLadderLog("step 3 codex: OAuth detected in ~/.codex/auth.json but codex binary NOT on PATH → falls through to step 4-6 (will emit (c) install notice)");
     const fallback = tryNonCodexProviders(configBaseUrl);
     if (fallback) {
       return { ...fallback, codexOauthPresentButBinaryMissing: true, fallbackFrom: "codex-oauth" };
     }
     // No other credential either — (d) with install guidance emphasized.
+    emitLadderLog("final: codex OAuth present but binary missing AND no fallback provider → throw");
     throw new Error(buildNoProviderError({ codexOauthPresent: true, codexBinaryPresent: false }));
+  }
+
+  // Codex OAuth 조건 미충족 — skip 이유 세분화
+  if (!codexAuthFileExists) {
+    emitLadderLog("step 3 codex: skipped — ~/.codex/auth.json 부재 (codex login 또는 chatgpt OAuth 필요)");
+  } else {
+    emitLadderLog("step 3 codex: skipped — ~/.codex/auth.json 존재하지만 chatgpt OAuth 조건 미충족 (auth_mode !== 'chatgpt' AND tokens.access_token 없음)");
   }
 
   // Priority 4-6: no codex OAuth case.
   const fallback = tryNonCodexProviders(configBaseUrl);
   if (fallback) return fallback;
 
+  emitLadderLog("final: no provider viable (step 4-6 모두 skip) → throw");
   throw new Error(buildNoProviderError({ codexOauthPresent: false, codexBinaryPresent: codexBinaryOnPath() }));
 }
 
@@ -424,26 +463,33 @@ function explicitProviderMissingCredentialError(
 
 function tryNonCodexProviders(configBaseUrl?: string): ResolvedProvider | null {
   // Priority 4: LiteLLM — env or config has base URL.
-  const resolvedBaseUrl = process.env.LITELLM_BASE_URL ?? configBaseUrl;
+  const envBase = process.env.LITELLM_BASE_URL;
+  const resolvedBaseUrl = envBase ?? configBaseUrl;
   if (resolvedBaseUrl) {
     const apiKey = process.env.LITELLM_API_KEY ?? "sk-litellm-placeholder";
+    const source = envBase ? "LITELLM_BASE_URL env" : "project/onto-home config llm_base_url";
+    emitLadderLog(`step 4 litellm: matched (${source} → ${resolvedBaseUrl})`);
     return {
       provider: "litellm",
       apiKey,
       baseUrl: resolvedBaseUrl,
     };
   }
+  emitLadderLog("step 4 litellm: skipped — LITELLM_BASE_URL env 및 config.llm_base_url 모두 없음");
 
   // Priority 5: Anthropic API key.
   if (process.env.ANTHROPIC_API_KEY) {
+    emitLadderLog("step 5 anthropic: matched (ANTHROPIC_API_KEY env)");
     return {
       provider: "anthropic",
       apiKey: process.env.ANTHROPIC_API_KEY,
     };
   }
+  emitLadderLog("step 5 anthropic: skipped — ANTHROPIC_API_KEY env 없음");
 
   // Priority 6: OpenAI per-token — env OPENAI_API_KEY or auth.json OPENAI_API_KEY field.
   if (process.env.OPENAI_API_KEY) {
+    emitLadderLog("step 6 openai: matched (OPENAI_API_KEY env)");
     return {
       provider: "openai",
       apiKey: process.env.OPENAI_API_KEY,
@@ -451,11 +497,13 @@ function tryNonCodexProviders(configBaseUrl?: string): ResolvedProvider | null {
   }
   const codexAuth = readCodexAuthState();
   if (codexAuth.openaiApiKey) {
+    emitLadderLog("step 6 openai: matched (~/.codex/auth.json OPENAI_API_KEY field)");
     return {
       provider: "openai",
       apiKey: codexAuth.openaiApiKey,
     };
   }
+  emitLadderLog("step 6 openai: skipped — OPENAI_API_KEY env 및 ~/.codex/auth.json OPENAI_API_KEY 모두 없음");
 
   return null;
 }

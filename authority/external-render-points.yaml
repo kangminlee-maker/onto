@@ -1,0 +1,33 @@
+# authority/external-render-points.yaml
+#
+# `output_language` 설정값에 따라 번역이 허용되는 지점의 whitelist.
+# 이 파일에 등록되지 않은 위치에서 `{output_language}` 를 참조하는 코드나
+# 문서는 (CI lint gate 가 활성화되면) 빌드 실패 대상이다.
+#
+# 엔트리 추가는 `design-principles/output-language-boundary.md` §4 절차에 따름:
+#   1. rationale 필드에 "이 지점 이후 다른 agent 소비 없음" 증명
+#   2. PR 로 추가 — 리뷰어가 internal boundary 침범 여부 확인
+#
+# Canonical authority: design-principles/output-language-boundary.md
+# Schema version: v1 (2026-04-17)
+
+schema_version: "v1"
+as_of: "2026-04-17"
+
+# 각 엔트리 필드:
+#   id           : unique identifier (snake_case)
+#   file         : repo-relative path (파일 또는 디렉토리 glob)
+#   section      : optional. 파일 내 섹션 제목 (예: "Phase 3 — User Review")
+#   rationale    : 왜 이 지점이 external boundary 인가 (agent 소비 없음을 입증)
+#   conditional  : optional. 부분 허용 조건 (예: "user-visible annotation 영역만")
+#
+# CI lint gate 는 §6 "미확립" 상태이므로 현재는 **참조용 whitelist**.
+# 본 파일은 gate 도입 시점부터 enforcement 대상이 된다.
+
+points: []
+
+# TODO (2026-04-17 session followup):
+#   다음 PR 에서 reconstruct halt template / Phase 3 user summary / Phase 5
+#   completion report / commands/help.md / processes/onboard.md / review
+#   synthesize user-visible section 등을 순차 등록. 각 건은 실제 코드/문서에서
+#   번역 지점이 명시적으로 분리된 시점에 entry 로 추가한다.

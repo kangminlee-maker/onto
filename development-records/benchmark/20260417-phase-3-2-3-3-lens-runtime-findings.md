@@ -129,8 +129,18 @@ axiology.packet.md 의 `## Boundary Policy` 섹션은 명시적으로 `Filesyste
 
 ### 후속 조치 (새 backlog)
 
-- **A4 (제안)**: path-only 환경에서 inline mode 를 차단. packet 에 "Lens outputs are NOT inlined" 명시가 있거나 inline block 이 없을 때, executor 가 tool-native 경로만 허용하고 inline 요청은 fail-fast. 즉 A1 (packet Boundary > CLI) 의 대칭: packet 이 tools 필요를 선언하면 tools 없는 모드는 거부.
-- **A5 (제안)**: Degraded Lens Failures 자동 검증. executor 가 output 을 저장하기 전 참조된 lens output path 의 raw text 가 synthesize output 의 evidence citation 에 실제로 존재하는지 샘플 체크. 위반 시 경고 로깅 (차단은 아님). fabrication 사후 감지 수단.
+- **A4**: path-only 환경에서 inline mode 를 차단. packet 에 "Lens outputs are NOT inlined" 명시가 있거나 inline block 이 없을 때, executor 가 tool-native 경로만 허용하고 inline 요청은 fail-fast. 즉 A1 (packet Boundary > CLI) 의 대칭: packet 이 tools 필요를 선언하면 tools 없는 모드는 거부. **IMPLEMENTED (2026-04-17)**. 구현 요약:
+  - Parser 확장: `packet-boundary-policy.ts` 에 `Tools: required | optional | denied | unknown` 필드 추가. `Boundary Policy` 섹션의 `- Tools:` bullet 을 기존 Filesystem/Network 과 동일 방식으로 파싱.
+  - Executor precedence 두 block:
+    - Conflict check: `Filesystem: denied` + `Tools: required` 동시 선언 시 packet 자체 거부 (오늘의 tools 가 전부 filesystem-scoped 이므로 모순).
+    - `Tools: required` + `--tool-mode=inline` → fail-fast with fabrication 위험 메시지.
+    - `Tools: required` + `--tool-mode=auto` + tool-loop-capable provider (litellm/anthropic/openai) → native 로 자동 승격, STDERR 공지, `packet_policy_promotion: true` audit signal emit.
+    - `Tools: required` + `--tool-mode=auto` + codex/null provider → fail-fast ("function-calling tool loop 미지원").
+  - E2E 실증 (30B-A3B, path-only packet + `- Tools: required`):
+    - `--tool-mode=inline` 호출 시 LLM 호출 전 fail-fast 메시지 정확 출력.
+    - `--tool-mode=auto` 호출 시 STDERR 공지 + native 승격 + 4 tool_calls + 8-section 출력 + Degraded `none` 정확 (`input_tokens: 17,989`, `output_tokens: 1,287`).
+  - 단위 테스트: `packet-boundary-policy.test.ts` 16 건 (parser field combinations), executor `Tools: required precedence` describe 4 건 (inline 거부, auto 승격, codex provider 거부, conflict packet 거부). 합계 20 건 신규, 0 회귀.
+- **A5 (제안)**: Degraded Lens Failures 자동 검증. executor 가 output 을 저장하기 전 참조된 lens output path 의 raw text 가 synthesize output 의 evidence citation 에 실제로 존재하는지 샘플 체크. 위반 시 경고 로깅 (차단은 아님). fabrication 사후 감지 수단 (A4 는 사전 차단, A5 는 사후 감지로 방어선 이중화).
 
 ## 파일 위치
 

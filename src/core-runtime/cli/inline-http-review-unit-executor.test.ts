@@ -333,3 +333,127 @@ describe("runInlineHttpReviewUnitExecutorCli — embed flag", () => {
     expect(output.length).toBeGreaterThan(0);
   });
 });
+
+describe("runInlineHttpReviewUnitExecutorCli — Tools: required precedence (Phase 3-4 A4)", () => {
+  const TOOLS_REQUIRED_PACKET = `# Synthesize Prompt Packet (path-only)
+
+You are the synthesize actor. Lens outputs live on disk.
+
+## Boundary Policy
+- Filesystem: read-only inside round1/
+- Network: denied
+- Tools: required
+
+## Participating Lens Outputs
+- axiology: .onto/review/session/round1/axiology.md
+
+## Required Output Sections
+- Consensus
+- Conditional Consensus
+- Disagreement
+- Deliberation Decision
+- Unique Finding Tagging
+- Axiology Integration
+- Newly Learned
+- Degraded Lens Failures
+`;
+
+  it("rejects --tool-mode=inline with a clear fail-fast message", async () => {
+    const packetPath = writePacket("synthesize.packet.md", TOOLS_REQUIRED_PACKET);
+    const outputPath = path.join(sessionRoot, "synthesize.md");
+
+    await expect(
+      runInlineHttpReviewUnitExecutorCli([
+        "--project-root", projectRoot,
+        "--session-root", sessionRoot,
+        "--onto-home", ontoHome,
+        "--unit-id", "synthesize",
+        "--unit-kind", "synthesize",
+        "--packet-path", packetPath,
+        "--output-path", outputPath,
+        "--tool-mode", "inline",
+      ]),
+    ).rejects.toThrow(/Tools: required|fabricated citations/);
+  });
+
+  it("auto-promotes --tool-mode=auto to native when a tool-loop provider is available", async () => {
+    const packetPath = writePacket("synthesize.packet.md", TOOLS_REQUIRED_PACKET);
+    const outputPath = path.join(sessionRoot, "synthesize.md");
+
+    // Capture STDERR to verify the promotion notice is emitted.
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    const stderrChunks: string[] = [];
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrChunks.push(typeof chunk === "string" ? chunk : chunk.toString());
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      const exitCode = await runInlineHttpReviewUnitExecutorCli([
+        "--project-root", projectRoot,
+        "--session-root", sessionRoot,
+        "--onto-home", ontoHome,
+        "--unit-id", "synthesize",
+        "--unit-kind", "synthesize",
+        "--packet-path", packetPath,
+        "--output-path", outputPath,
+        "--provider", "litellm",
+        "--llm-base-url", "http://localhost:8080",
+        "--model", "mock-model",
+        "--tool-mode", "auto",
+      ]);
+
+      expect(exitCode).toBe(0);
+      const stderrText = stderrChunks.join("");
+      expect(stderrText).toMatch(/auto-promoted to tool-native/);
+      expect(stderrText).toMatch(/Tools: required/);
+
+      const result = JSON.parse(consoleLogSpy.getOutput().join(""));
+      expect(result.packet_policy_promotion).toBe(true);
+      expect(result.tool_mode).toBe("native");
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+  });
+
+  it("rejects --tool-mode=auto when the resolved provider has no tool-loop support", async () => {
+    const packetPath = writePacket("synthesize.packet.md", TOOLS_REQUIRED_PACKET);
+    const outputPath = path.join(sessionRoot, "synthesize.md");
+
+    await expect(
+      runInlineHttpReviewUnitExecutorCli([
+        "--project-root", projectRoot,
+        "--session-root", sessionRoot,
+        "--onto-home", ontoHome,
+        "--unit-id", "synthesize",
+        "--unit-kind", "synthesize",
+        "--packet-path", packetPath,
+        "--output-path", outputPath,
+        "--provider", "codex",
+        "--tool-mode", "auto",
+      ]),
+    ).rejects.toThrow(/Tools: required|function-calling tool loop/);
+  });
+
+  it("rejects a packet that simultaneously denies filesystem and requires tools", async () => {
+    const conflictingPacket = TOOLS_REQUIRED_PACKET.replace(
+      "- Filesystem: read-only inside round1/",
+      "- Filesystem: denied",
+    );
+    const packetPath = writePacket("synthesize.packet.md", conflictingPacket);
+    const outputPath = path.join(sessionRoot, "synthesize.md");
+
+    await expect(
+      runInlineHttpReviewUnitExecutorCli([
+        "--project-root", projectRoot,
+        "--session-root", sessionRoot,
+        "--onto-home", ontoHome,
+        "--unit-id", "synthesize",
+        "--unit-kind", "synthesize",
+        "--packet-path", packetPath,
+        "--output-path", outputPath,
+        "--tool-mode", "auto",
+      ]),
+    ).rejects.toThrow(/internally inconsistent/);
+  });
+});

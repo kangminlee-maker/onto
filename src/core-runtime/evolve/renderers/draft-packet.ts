@@ -18,7 +18,8 @@ import { formatPerspective } from "./format.js";
  * - Summary table sorted: required → recommended, then CST-ID ascending.
  * - PO/Builder detail format determined by pool's decision_owner.
  * - Section 4 (Invalidated) auto-generated from pool; omitted if 0 items.
- * - Throws if constraint_id not in pool.
+ * - Throws if constraint_id not in pool, or if detail targets an invalidated constraint.
+ * - Section 2 "결정 필요 N건" canonical source = content.constraint_details (Section 3 실제 렌더 항목). status별 집계는 pool lookup.
  */
 export function renderDraftPacket(
   state: ScopeState,
@@ -32,7 +33,7 @@ export function renderDraftPacket(
   lines.push("");
 
   renderSurface(lines, state, content);
-  renderStatus(lines, state);
+  renderStatus(lines, state, content);
   renderConstraints(lines, state, content);
   renderInvalidated(lines, state);
   renderGuardrails(lines, content);
@@ -68,6 +69,12 @@ function validate(state: ScopeState, content: DraftPacketContent): void {
     if (!entry.source_refs || entry.source_refs.length === 0) {
       throw new Error(
         `renderDraftPacket: constraint ${d.constraint_id} has no source_refs in pool. constraint.discovered 이벤트에 source_refs를 포함하세요.`,
+      );
+    }
+    // invalidated constraint 는 Section 4(자동 생성)에서만 노출되어야 함. Section 3 detail로 들어오면 중복/모순 발생.
+    if (entry.status === "invalidated") {
+      throw new Error(
+        `renderDraftPacket: constraint ${d.constraint_id} is invalidated — must not appear in constraint_details. Invalidated constraints are auto-rendered in Section 4.`,
       );
     }
   }
@@ -111,7 +118,11 @@ function renderSurface(
 
 // ─── Section 2: 현재까지의 결정 현황 (자동 생성) ───
 
-function renderStatus(lines: string[], state: ScopeState): void {
+function renderStatus(
+  lines: string[],
+  state: ScopeState,
+  content: DraftPacketContent,
+): void {
   lines.push("### 2. 현재까지의 결정 현황");
   lines.push("");
 
@@ -127,17 +138,27 @@ function renderStatus(lines: string[], state: ScopeState): void {
   }
   lines.push(`- Align에서 결정: ${alignItems.join(", ")}`);
 
-  // Draft decisions needed
-  const { summary } = state.constraint_pool;
-  const active = summary.total - summary.invalidated;
+  // Canonical source for Section 2 active count = content.constraint_details (Section 3에 실제로 렌더되는 항목들).
+  // status별 집계는 pool에서 lookup — detail id set ∩ pool 의 status 합.
+  const active = content.constraint_details.length;
+  let decided = 0;
+  let undecided = 0;
+  let clarifyPending = 0;
+  for (const d of content.constraint_details) {
+    const entry = findConstraint(state.constraint_pool, d.constraint_id)!;
+    if (entry.status === "decided") decided++;
+    else if (entry.status === "clarify_pending") clarifyPending++;
+    else undecided++;
+  }
   lines.push(
-    `- Draft에서 결정 필요: 아래 ${active}건 (${summary.decided}건 결정 완료, ${summary.undecided + summary.clarify_pending}건 미결정)`,
+    `- Draft에서 결정 필요: 아래 ${active}건 (${decided}건 결정 완료, ${undecided + clarifyPending}건 미결정)`,
   );
 
-  // Lock condition
-  if (summary.clarify_pending > 0) {
+  // Lock condition — clarify_pending은 pool.summary가 runtime 사실 source (Section 3 렌더와 독립적 gate).
+  const poolClarify = state.constraint_pool.summary.clarify_pending;
+  if (poolClarify > 0) {
     lines.push(
-      `- 잠금 전 필수 해소: \`clarify\` 상태 항목이 ${summary.clarify_pending}건 있어 잠글 수 없음`,
+      `- 잠금 전 필수 해소: \`clarify\` 상태 항목이 ${poolClarify}건 있어 잠글 수 없음`,
     );
   } else {
     lines.push("- 잠금 전 필수 해소: `clarify` 상태 항목이 있으면 잠글 수 없음");

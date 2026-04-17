@@ -279,3 +279,65 @@ refresh cycle 실행 시 아래를 순서대로:
 - [ ] §5 Principal trigger 해당 여부 확인
 - [ ] compound 변경 시 4 불변식 재검증
 - [ ] onto-todo.md revision bump (변경 시)
+- [ ] §11 memory-state 동기화 수행
+
+---
+
+## 11. Memory-state Synchronization
+
+본 섹션은 claude.ai assistant 의 파일 기반 memory (`~/.claude-1/projects/<project-slug>/memory/`) 와 live repo 상태 간 drift 를 관리한다. W-ID lifecycle 과 별개의 artifact 이지만 **refresh cycle 과 동일한 주기로 동기화** 한다 — 2026-04-17 세션에서 3일치 drift 가 누적돼 로드맵 보고가 크게 왜곡된 사례가 도출의 근거.
+
+### 11.1 적용 범위
+
+- `memory/MEMORY.md` (index)
+- `memory/project_*.md` (프로젝트 트랙 · 진행 상태 · backlog)
+- `memory/feedback_*.md` (주체자 피드백 · 운영 규칙)
+- `memory/reference_*.md` (외부 시스템 포인터)
+
+개별 세션 transient 상태 (TaskCreate list, 현재 대화 맥락) 는 본 섹션 대상이 아니다.
+
+### 11.2 Drift 발생 원인
+
+아래 경로가 memory 를 우회 수정하므로 세션 간 drift 가 누적된다:
+
+- 대량 merge (오늘 세션 기준 PR #60 ~ #82 약 20+ PR) — file 경로 rename, 기능 완결, 명명 변경
+- W-ID lifecycle 전이 — memory 는 작성 시점 snapshot 이므로 `active → done` 전환 반영 안 됨
+- 디렉토리 구조 변경 — W-A-78 `development-records/design/ → evolve/` 같은 대량 이동
+- PR state 전이 — OPEN → MERGED / CLOSED 는 GitHub 측 truth, memory 는 작성 시점 값 유지
+
+### 11.3 동기화 체크리스트
+
+refresh cycle 실행 시 아래 순서로:
+
+- [ ] `MEMORY.md` index 의 각 항목 description 이 최신 `project_*/feedback_*/reference_*.md` frontmatter description 과 일치하는지 확인
+- [ ] 각 `project_*.md` 의 "진행 상태" 또는 "현재 상태" 필드가 live 파일·commit log 와 일치하는지 sampling 검증 (특히 파일 경로 · PR 번호 · W-ID 상태)
+- [ ] `gh pr list --state open` 출력과 memory 가 "OPEN" 이라고 주장하는 PR 목록 대조 (memory 는 closed/merged PR 을 인지 못 할 수 있음)
+- [ ] `grep "stale\|STALE" memory/` 로 기존 stale 경고 보유 memory 확인 → 재평가 또는 CLOSED 처리
+- [ ] refresh 시점 이후 6 개월 경과한 `active` 상태 memory 는 재평가 또는 archive 대상 (기록 없이 방치 금지)
+
+### 11.4 Verify 패턴 (drift 확인 최소 비용 쿼리)
+
+아래 쿼리는 memory claim 을 live 상태와 대조하는 표준 방법. 각 claim 유형별 1 개 쿼리만 실행해도 대다수 drift 탐지 가능:
+
+| Claim 유형 | Verify 쿼리 |
+|---|---|
+| "PR #NN OPEN" | `gh pr view NN --json state` |
+| "W-{axis}-{nn} active/deferred" | `grep -A25 "^id: W-{axis}-{nn}$" development-records/evolve/20260413-onto-todo.md \| grep "lifecycle_status:"` |
+| "file X at line Y" | `grep -n "{pattern}" {path}` (line number drifts after any intermediate PR) |
+| "feature X not yet implemented" | `grep -r "{feature-seat}" src/` — 존재 시 memory claim 무효 |
+| "backlog N items pending" | 실제 각 id 에 대해 위 쿼리 반복 — 다수가 해소되어 있을 수 있음 |
+
+### 11.5 Remediation 규약
+
+Drift 발견 시 memory 수정 원칙:
+
+- **DONE / RESOLVED / CLOSED**: description 맨 앞에 상태 + verify 날짜 기록 (예: `"CLOSED (2026-04-17 verify): ..."`). 본문은 "이력 참조용" 성격으로 전환
+- **변경된 경로·ID**: 최신 경로로 수정 + 이전 경로를 괄호로 보존 (추후 git log 추적 용이)
+- **PR 상태 전이**: MERGED commit sha 기록 (예: `"PR #78 MERGED (ce49c68, 2026-04-17)"`)
+- **완전히 무효화된 memory**: 파일 삭제 대신 description 에 `"OBSOLETE (YYYY-MM-DD): ..."` 마킹 후 MEMORY.md index 에서만 제거. 파일 자체는 6개월 retention 후 삭제
+
+### 11.6 Sync 주기 권장
+
+- **세션 진입 시**: MEMORY.md index 을 통한 현재 상태 파악. stale 표지가 있으면 해당 memory 를 본격 사용 전 verify
+- **세션 종료 시**: 세션 중 변경된 PR · W-ID · 설계 결정을 memory 에 반영. 새 내용은 신규 파일, 변경은 기존 파일의 frontmatter description 갱신
+- **Refresh cycle 전체 (§3)**: §11.3 체크리스트 일괄 수행. 권장 주기는 §3.1 의 W-ID refresh 주기와 동일하게 유지 (양쪽이 한 번에 정합화되면 cross-reference 오류 최소화)

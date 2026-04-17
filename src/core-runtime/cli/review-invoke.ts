@@ -201,14 +201,36 @@ function resolveDirectExecutorPath(
   const distPath = path.join(
     ontoHome, "dist", "core-runtime", "cli", `${filename}.js`,
   );
+  const srcPath = path.join(
+    ontoHome, "src", "core-runtime", "cli", `${filename}.ts`,
+  );
+
   if (fsSync.existsSync(distPath)) {
+    // Dev-workflow guard: when src/ has been edited since dist/ was compiled,
+    // the dist binary ships stale behaviour that silently overrides source
+    // changes. Warn on STDERR so editors of review-invoke / executor code
+    // notice the divergence immediately. Non-fatal — the dist is still used
+    // because installed deployments have no src/ and we cannot distinguish
+    // "dev repo with stale dist" from "installed package" purely from mtime.
+    try {
+      if (fsSync.existsSync(srcPath)) {
+        const distStat = fsSync.statSync(distPath);
+        const srcStat = fsSync.statSync(srcPath);
+        if (srcStat.mtimeMs > distStat.mtimeMs) {
+          process.stderr.write(
+            `[onto] WARNING: dist/${filename}.js is older than src/${filename}.ts. ` +
+              `Using the compiled version, which may not reflect your recent edits. ` +
+              `Rebuild (npm run build) or move dist/ aside to force the src/tsx path.\n`,
+          );
+        }
+      }
+    } catch {
+      // stat failure is non-fatal; fall through to the dist path.
+    }
     return { bin: "node", scriptPath: distPath };
   }
 
   // Dev mode: use tsx with source
-  const srcPath = path.join(
-    ontoHome, "src", "core-runtime", "cli", `${filename}.ts`,
-  );
   const tsxBin = path.join(ontoHome, "node_modules", ".bin", "tsx");
   if (fsSync.existsSync(srcPath) && fsSync.existsSync(tsxBin)) {
     return { bin: tsxBin, scriptPath: srcPath };
@@ -405,6 +427,11 @@ function appendSubagentLlmArgs(
     args.push("--embed-domain-docs");
   }
 
+  const toolMode = (sub as { tool_mode?: unknown })?.tool_mode;
+  if (typeof toolMode === "string" && toolMode.length > 0) {
+    args.push("--tool-mode", toolMode);
+  }
+
   return { bin: config.bin, args };
 }
 
@@ -468,9 +495,9 @@ export function detectCodexAvailable(): boolean {
  * {realization, host} into session artifacts so Claude-host runs don't get
  * recorded as `subagent + codex` anymore.
  *
- * LiteLLM is type-recognized (`ReviewHostRuntime` includes "litellm") but
- * review wiring is deferred — explicit `host_runtime: "litellm"` config is
- * fail-closed here rather than silently falling through.
+ * host_runtime ∈ {litellm, anthropic, openai} is now wired: the profile
+ * resolves to ts_inline_http and `resolveExecutorConfig` picks the matching
+ * subprocess. Keep both seats in sync when extending the accepted set.
  */
 export function resolveExecutionProfile(args: {
   explicitCodex: boolean;
@@ -687,16 +714,26 @@ function resolveExecutorConfig(
     );
   }
 
-  // Phase 2 wiring: auto-select ts_inline_http executor when:
-  //   1. subagent_llm config is set (user explicitly wants cross-host subagent), or
+  // Phase 2 wiring: auto-select ts_inline_http executor when any of:
+  //   1. subagent_llm config is set (user explicitly wants cross-host subagent)
   //   2. host_runtime is standalone (no host tool ecosystem → must use direct call)
+  //   3. host_runtime is a direct-call provider (litellm/anthropic/openai).
+  //      Previously this branch only accepted `standalone`, causing a visible
+  //      inconsistency with resolveExecutionProfile (which already routes
+  //      litellm/anthropic/openai to ts_inline_http). The asymmetry made
+  //      session-metadata.yaml record `ts_inline_http + litellm` while the
+  //      spawned subprocess fell back to codex — the exact symptom observed
+  //      in the 2026-04-17 local-MLX session.
   // Precedence: this check comes AFTER explicit --executor-realization and config
   // executor_realization, so explicit choices always win.
   const subagentLlm = ontoConfig?.subagent_llm;
   const hostRuntime = ontoConfig?.host_runtime;
   if (
     (subagentLlm && typeof subagentLlm.provider === "string" && subagentLlm.provider.length > 0) ||
-    hostRuntime === "standalone"
+    hostRuntime === "standalone" ||
+    hostRuntime === "litellm" ||
+    hostRuntime === "anthropic" ||
+    hostRuntime === "openai"
   ) {
     return appendSubagentLlmArgs(
       buildExecutorConfigFromRealization("ts_inline_http", ontoHome),

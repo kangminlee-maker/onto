@@ -176,9 +176,25 @@ print_footer_complete() {
 
 print_header
 
+# Session-directory disappearance guard.
+#
+# If the session directory is deleted while we are watching (e.g. the runner
+# aborts and the caller rm -rf's the failed session, or an outer cleanup
+# script moves the tree), continuing to poll an absent file spams the pane
+# with `tail: No such file`. Detect the deletion at each loop head and exit
+# cleanly so stale watcher panes do not outlive their session.
+check_session_alive() {
+  if [ ! -d "$SESSION_ROOT" ]; then
+    echo ""
+    echo "${C_DIM}Session directory removed (${SESSION_ROOT}). Watcher exiting.${C_RESET}"
+    exit 0
+  fi
+}
+
 # Wait for error-log.md to appear (max 60 seconds)
 WAIT_COUNT=0
 while [ ! -f "$ERROR_LOG" ]; do
+  check_session_alive
   if [ "$WAIT_COUNT" -ge 60 ]; then
     echo "${C_RED}Error: $ERROR_LOG did not appear within 60s${C_RESET}" >&2
     exit 1
@@ -196,6 +212,7 @@ trap 'echo ""; echo "${C_DIM}Watcher stopped (review may still be running).${C_R
 # Poll loop
 LAST_LINE=0
 while true; do
+  check_session_alive
   CURRENT_LINES=$(wc -l < "$ERROR_LOG" 2>/dev/null || echo 0)
   if [ "$CURRENT_LINES" -gt "$LAST_LINE" ]; then
     sed -n "$((LAST_LINE + 1)),${CURRENT_LINES}p" "$ERROR_LOG" | awk \

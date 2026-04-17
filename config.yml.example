@@ -1,0 +1,82 @@
+# config.yml.example — onto project configuration template
+#
+# Copy this file to {project}/.onto/config.yml and adjust for your
+# environment. The `.onto/` directory is gitignored, so your local
+# settings never leak to the remote repo.
+#
+# Full OntoConfig surface (every key, every valid value, resolution
+# chain, merge strategy): processes/configuration.md.
+# Type source of truth: src/core-runtime/discovery/config-chain.ts.
+#
+# This file is the minimal shape most contributors need. Keys not
+# shown here default sensibly — `onto onboard` will prompt for the
+# ones you need on first run.
+
+# ─────────────────────────────────────────────────────────────────
+# Output language — principal-facing output ONLY
+# ─────────────────────────────────────────────────────────────────
+# Agent prompts, wip.yml, session-log.yml and every inter-agent
+# hand-off stay in English regardless of this value. Translation
+# happens only at the Runtime Coordinator's render seat.
+# See: design-principles/output-language-boundary.md
+output_language: en           # en | ko | ja | ...
+
+# ─────────────────────────────────────────────────────────────────
+# Domains (optional)
+# ─────────────────────────────────────────────────────────────────
+# Unordered set of domains applicable to this project. Per-session
+# selection via `--domain {name}` or `--no-domain`. Omit this block
+# to pick a domain interactively each session.
+# domains:
+#   - software-engineering
+#   - ontology
+
+# ─────────────────────────────────────────────────────────────────
+# Execution profile (optional)
+# ─────────────────────────────────────────────────────────────────
+# `onto review` auto-detects the host if these are omitted:
+#   - Claude Code session (CLAUDECODE=1)       → claude
+#   - codex binary + ~/.codex/auth.json        → codex
+# Set explicitly when you want to override auto-detection or use
+# a direct HTTP provider (local LLM server, LiteLLM proxy, etc.).
+#
+# host_runtime options: codex | claude | standalone | litellm | anthropic | openai
+# For `standalone` + direct-call providers, add the subagent_llm
+# block below.
+# host_runtime: claude
+
+# ─────────────────────────────────────────────────────────────────
+# Subagent LLM (required for standalone host_runtime)
+# ─────────────────────────────────────────────────────────────────
+# When host_runtime is `standalone`, each review lens is executed by
+# the TS process calling this provider directly over HTTP. See
+# processes/configuration.md §4.3 for the full sub-field reference.
+#
+# subagent_llm:
+#   provider: litellm           # anthropic | openai | litellm | codex
+#   model: claude-sonnet-4-6
+#   base_url: http://localhost:4000/v1   # required when provider=litellm
+#   max_tokens: 4096
+#   tool_mode: auto             # auto | native | inline. default auto
+
+# ─────────────────────────────────────────────────────────────────
+# Background task LLM (learn / govern / promote) — optional
+# ─────────────────────────────────────────────────────────────────
+# Omit for cost-order auto-resolution: codex OAuth > LiteLLM >
+# Anthropic > OpenAI. Set explicitly to force a specific provider.
+# api_provider: anthropic       # anthropic | openai | litellm | codex
+
+# ─────────────────────────────────────────────────────────────────
+# Review concurrency — optional (default 9)
+# ─────────────────────────────────────────────────────────────────
+# Lower for constrained environments. Local LLM with a single GPU:
+# 1 recommended.
+# max_concurrent_lenses: 9
+
+# ─────────────────────────────────────────────────────────────────
+# Learning extraction mode — optional (default disabled)
+# ─────────────────────────────────────────────────────────────────
+# disabled : skip extraction
+# shadow   : run extractor + write manifest, do NOT update live learnings
+# active   : update .onto/learnings/ during review
+# learning_extract_mode: disabled

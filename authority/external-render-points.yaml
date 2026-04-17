@@ -9,6 +9,7 @@
 #   2. PR 로 추가 — 리뷰어가 internal boundary 침범 여부 확인
 #
 # Canonical authority: design-principles/output-language-boundary.md
+# Loader / render seat: src/core-runtime/translate/render-for-user.ts
 # Schema version: v1 (2026-04-17)
 
 schema_version: "v1"
@@ -21,13 +22,68 @@ as_of: "2026-04-17"
 #   rationale    : 왜 이 지점이 external boundary 인가 (agent 소비 없음을 입증)
 #   conditional  : optional. 부분 허용 조건 (예: "user-visible annotation 영역만")
 #
-# CI lint gate 는 §6 "미확립" 상태이므로 현재는 **참조용 whitelist**.
-# 본 파일은 gate 도입 시점부터 enforcement 대상이 된다.
+# 본 파일은 render-for-user.ts 에 의해 런타임에 로드되며, 미등록 id 로
+# renderForUser 를 호출하면 런타임 에러. CI lint gate 는 추가 follow-up PR
+# 에서 도입 — 등록된 현황이 baseline 으로 고정된 뒤 켜진다.
 
-points: []
+points:
+  # ─────────────────────────────────────────────────────────────────
+  # Reconstruct: halt message templates (per halt code)
+  # ─────────────────────────────────────────────────────────────────
+  # 각 halt 템플릿은 Runtime 이 원인·보존 경로·다음 행동을 조립한 뒤
+  # principal 에게 직접 표시한다. Agent 소비 없음. 현재는 English hardcoded
+  # 이며, render 경계가 이 지점이라는 사실만 등록. 실제 번역 주입은
+  # follow-up PR.
+  - id: halt_message_config_malformed
+    file: processes/reconstruct.md
+    section: "Halt event rendering — config_malformed"
+    rationale: "Halt 시 principal 이 직접 읽는 최종 메시지. 이후 agent 소비 없음."
 
-# TODO (2026-04-17 session followup):
-#   다음 PR 에서 reconstruct halt template / Phase 3 user summary / Phase 5
-#   completion report / commands/help.md / processes/onboard.md / review
-#   synthesize user-visible section 등을 순차 등록. 각 건은 실제 코드/문서에서
-#   번역 지점이 명시적으로 분리된 시점에 entry 로 추가한다.
+  - id: halt_message_phase_3_5_invariant_violation
+    file: processes/reconstruct.md
+    section: "Halt event rendering — phase_3_5_invariant_violation"
+    rationale: "Runtime bug halt. principal 에게 preserved path + 진단 안내."
+
+  - id: halt_message_phase_reentry_bound_exhausted
+    file: processes/reconstruct.md
+    section: "Halt event rendering — phase_reentry_bound_exhausted"
+    rationale: "Phase 3.5 재진입 상한 초과. principal 에게 raw.yml 안내."
+
+  - id: halt_message_explorer_failure
+    file: processes/reconstruct.md
+    section: "Halt event rendering — explorer_failure"
+    rationale: "Explorer 실패 최종 메시지. session dir preserved 경로 안내."
+
+  - id: halt_message_runtime_coordinator_failure
+    file: processes/reconstruct.md
+    section: "Halt event rendering — runtime_coordinator_failure"
+    rationale: "Runtime Coordinator deterministic bug halt. debug guidance."
+
+  - id: halt_message_session_state_corrupt
+    file: processes/reconstruct.md
+    section: "Halt event rendering — session_state_corrupt"
+    rationale: "Resumption integrity check 실패. principal 에게 repair/discard 선택 안내."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Reconstruct: principal-facing phase output
+  # ─────────────────────────────────────────────────────────────────
+  - id: phase_3_user_summary
+    file: processes/reconstruct.md
+    section: "Phase 3: User Review"
+    rationale: "wip.yml (English) 을 principal 이 검토할 요약으로 Runtime 이 조립. 이후 principal 응답만 돌아오므로 agent hand-off 아님."
+
+  - id: phase_5_completion_report
+    file: processes/reconstruct.md
+    section: "Phase 5: Learning Storage — Completion report"
+    rationale: "Reconstruct 완료 시 principal 이 읽는 최종 표·지표. agent 소비 없음."
+
+  # ─────────────────────────────────────────────────────────────────
+  # Onboard / help — 대화형 CLI surface
+  # ─────────────────────────────────────────────────────────────────
+  - id: onboard_interactive_messages
+    file: processes/onboard.md
+    rationale: "Onboard 의 모든 프롬프트·안내 메시지. principal 과 직접 대화."
+
+  - id: help_command_output
+    file: commands/help.md
+    rationale: "/onto:help 출력. README 외 principal 이 직접 읽는 커맨드 reference."

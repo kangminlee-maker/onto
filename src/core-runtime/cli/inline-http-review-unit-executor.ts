@@ -310,6 +310,12 @@ interface ExecutorResult {
    * so cost dashboards can correlate packet policy with executor tier.
    */
   packet_policy_downgrade?: boolean;
+  /**
+   * True when the caller requested auto mode but the packet's Boundary Policy
+   * Tools: required forced tool-native promotion. Mirror of
+   * `packet_policy_downgrade` for the opposite direction (A4).
+   */
+  packet_policy_promotion?: boolean;
 }
 
 function parseToolMode(raw: unknown): ToolModeRequest {
@@ -478,6 +484,25 @@ export async function runInlineHttpReviewUnitExecutorCli(
   const rawPacketText = await fs.readFile(packetPath, "utf8");
   const packetPolicy = parsePacketBoundaryPolicy(rawPacketText);
 
+  // A1 + A4 consistency check: a packet cannot BOTH deny filesystem AND require
+  // tools, because today's tools (read_file / list_directory / search_content)
+  // are all filesystem-scoped. Reject the packet upfront rather than letting
+  // the two blocks below reach contradictory conclusions.
+  if (
+    packetPolicy.filesystem === "denied" &&
+    packetPolicy.tools === "required"
+  ) {
+    throw new Error(
+      `Packet Boundary Policy is internally inconsistent for unit ${unitId}: ` +
+        `Filesystem: ${packetPolicy.filesystemRaw ?? "denied"} AND Tools: ${
+          packetPolicy.toolsRaw ?? "required"
+        }. ` +
+        "All current executor tools (read_file / list_directory / search_content) require filesystem access, " +
+        "so a packet cannot deny filesystem while also requiring tools. " +
+        "Remove one of the two declarations.",
+    );
+  }
+
   // A1 precedence rule: packet-declared Filesystem: denied forbids tool-native
   // mode regardless of CLI flag, because the packet is the authoritative
   // contract for this unit. If the caller explicitly asked for native, surface
@@ -500,9 +525,46 @@ export async function runInlineHttpReviewUnitExecutorCli(
     }
   }
 
+  // A4 precedence rule (mirror of A1): packet-declared Tools: required forbids
+  // inline mode regardless of CLI flag, because a packet with path-only lens
+  // outputs CANNOT produce a faithful synthesis without tools — the LLM would
+  // fabricate citations (demonstrated in Phase 3-4 A3 benchmark, 2026-04-17,
+  // with Qwen3-30B-A3B producing a quote that grep returned 0 matches for).
+  //
+  // If the caller explicitly asked for inline, fail-fast. Under auto, try to
+  // promote to native; if the provider has no tool-loop support, fail-fast
+  // rather than silently falling back to fabrication-prone inline.
+  let packetForcedNative = false;
+  if (packetPolicy.tools === "required") {
+    if (requestedToolMode === "inline") {
+      throw new Error(
+        `--tool-mode=inline conflicts with packet's Boundary Policy (Tools: ${
+          packetPolicy.toolsRaw ?? "required"
+        }). ` +
+          "The packet declares that tools are required to complete this unit (e.g. path-only lens outputs). " +
+          "Running inline mode would force the LLM to answer without the cited sources, which has been " +
+          "shown to produce fabricated citations. Use --tool-mode=native or --tool-mode=auto (with a " +
+          "provider that supports function calling), or remove the packet-level Tools: required declaration.",
+      );
+    }
+    if (requestedToolMode === "auto" && toolLoopProvider === null) {
+      throw new Error(
+        `--tool-mode=auto + packet Boundary Policy (Tools: ${
+          packetPolicy.toolsRaw ?? "required"
+        }) cannot be satisfied: ` +
+          `the resolved provider (${cliOverrides.provider ?? "default-auto"}) does not support the function-calling tool loop. ` +
+          "Select a provider in {anthropic, openai, litellm} via --provider, or edit the packet to remove Tools: required.",
+      );
+    }
+    if (requestedToolMode === "auto") {
+      packetForcedNative = true;
+    }
+  }
+
   const tryNative =
     !packetForcedInline &&
     (requestedToolMode === "native" ||
+      packetForcedNative ||
       (requestedToolMode === "auto" && toolLoopProvider !== null));
 
   // Read packet, optionally embed inline content. Embedding is independent of
@@ -521,6 +583,15 @@ export async function runInlineHttpReviewUnitExecutorCli(
         packetPolicy.filesystemRaw ?? "denied"
       }. ` +
         "The packet's policy takes precedence over --tool-mode=auto.\n",
+    );
+  }
+  if (packetForcedNative) {
+    process.stderr.write(
+      `[onto] inline auto-promoted to tool-native for unit ${unitId}: packet declares Boundary Policy Tools: ${
+        packetPolicy.toolsRaw ?? "required"
+      }. ` +
+        "The packet's policy takes precedence over --tool-mode=auto. " +
+        "Running inline would risk fabrication when lens outputs are path-only.\n",
     );
   }
 
@@ -641,6 +712,7 @@ export async function runInlineHttpReviewUnitExecutorCli(
     ...(toolIterations !== undefined ? { tool_iterations: toolIterations } : {}),
     ...(toolCallsExecuted !== undefined ? { tool_calls: toolCallsExecuted } : {}),
     ...(packetForcedInline ? { packet_policy_downgrade: true } : {}),
+    ...(packetForcedNative ? { packet_policy_promotion: true } : {}),
   };
 
   console.log(JSON.stringify(executorResult, null, 2));

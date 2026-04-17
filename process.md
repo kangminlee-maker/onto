@@ -481,6 +481,12 @@ Read the files below and construct your own context. Skip if file does not exist
 [Agent-Domain Document Mapping]
 (Refer to the Domain Documents table in this file. Include the corresponding domain document path for the agent.)
 
+[Language Policy]
+Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
+hand-offs to other agents stay English-only regardless of `output_language`.
+Principal-facing translation happens at the Runtime Coordinator's render seat
+(design-principles/output-language-boundary.md).
+
 [Task Directives]
 {Per-process task directives — review target, system purpose, specific instructions}
 {For reconstruct process: The definitions of certainty levels (observed, rationale-absent, inferred, ambiguous, not-in-source) are defined in the "Certainty Classification (2-Stage Adjudication)" section of processes/reconstruct.md as the SSOT.}
@@ -535,6 +541,12 @@ Skip if file does not exist:
 [Learning Rules]
 {Content of learning-rules.md — inlined by the team lead}
 
+[Language Policy]
+Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
+hand-offs to other agents stay English-only regardless of `output_language`.
+Principal-facing translation happens at the Runtime Coordinator's render seat
+(design-principles/output-language-boundary.md).
+
 [Task Directives]
 {Per-process task directives — review target, system purpose, specific instructions}
 
@@ -569,6 +581,12 @@ Read the files below using the Read tool. Skip if file does not exist:
 
 [Learning Rules]
 {Content of learning-rules.md — inlined by the team lead}
+
+[Language Policy]
+Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
+hand-offs to other agents stay English-only regardless of `output_language`.
+Principal-facing translation happens at the Runtime Coordinator's render seat
+(design-principles/output-language-boundary.md).
 
 [Task Directives]
 {Review synthesize directives — lens result file paths,
@@ -618,6 +636,12 @@ Read the files below using `cat`. Skip if file does not exist:
 
 [Learning Rules]
 {Content of learning-rules.md — inlined by the team lead}
+
+[Language Policy]
+Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
+hand-offs to other agents stay English-only regardless of `output_language`.
+Principal-facing translation happens at the Runtime Coordinator's render seat
+(design-principles/output-language-boundary.md).
 
 [Task Directives]
 {Review synthesize directives — lens result file paths,

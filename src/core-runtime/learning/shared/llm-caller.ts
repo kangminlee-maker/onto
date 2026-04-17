@@ -1141,9 +1141,18 @@ function callMockProvider(
     // makes the mock wrap its entire response in a ```yaml fence, simulating
     // the 30B-A3B behavior that violates the "Do not wrap" prompt rule. This
     // exercises the executor's stripWrappingCodeFence post-processor without
-    // needing a real LLM call. The hook is test-only and gated on the
-    // ONTO_LLM_MOCK=1 envelope already checked above; production runs never
-    // see it.
+    // needing a real LLM call.
+    //
+    // Phase 3-4 A5 negative-path hook: ONTO_LLM_MOCK_SYNTHESIZE_FABRICATE=1
+    // injects a fabricated quote (a phrase that won't appear in any lens
+    // pool content) into the Disagreement section, simulating the
+    // hallucination observed in the A3 benchmark. This exercises the
+    // citation audit layer. Both hooks are test-only and gated on the
+    // ONTO_LLM_MOCK=1 envelope already checked above.
+    const disagreementSection =
+      process.env.ONTO_LLM_MOCK_SYNTHESIZE_FABRICATE === "1"
+        ? 'Axiology said "A fabricated quote that is definitely nowhere in the lens pool for this mock test run".'
+        : "(none — mock executor)";
     const synthesizeBody = [
       "---",
       "deliberation_status: not_needed",
@@ -1158,7 +1167,7 @@ function callMockProvider(
       "(none — mock executor)",
       "",
       "## Disagreement",
-      "(none — mock executor)",
+      disagreementSection,
       "",
       "## Deliberation Decision",
       "Mock synthesize returned this output via ONTO_LLM_MOCK=1; no real deliberation performed.",

@@ -1136,7 +1136,15 @@ function callMockProvider(
     // Phase 3-3: synthesize-variant executor mock. Returns a minimal
     // synthesize-shaped markdown with the 8 required sections + YAML
     // frontmatter so downstream consumers can verify the structure.
-    text = [
+    //
+    // Phase 3-4 A2 negative-path hook: ONTO_LLM_MOCK_SYNTHESIZE_WRAP_FENCE=1
+    // makes the mock wrap its entire response in a ```yaml fence, simulating
+    // the 30B-A3B behavior that violates the "Do not wrap" prompt rule. This
+    // exercises the executor's stripWrappingCodeFence post-processor without
+    // needing a real LLM call. The hook is test-only and gated on the
+    // ONTO_LLM_MOCK=1 envelope already checked above; production runs never
+    // see it.
+    const synthesizeBody = [
       "---",
       "deliberation_status: not_needed",
       "---",
@@ -1168,6 +1176,10 @@ function callMockProvider(
       "(none — mock executor)",
       "",
     ].join("\n");
+    text =
+      process.env.ONTO_LLM_MOCK_SYNTHESIZE_WRAP_FENCE === "1"
+        ? "```yaml\n" + synthesizeBody + "```"
+        : synthesizeBody;
   } else {
     // N-1 fail-loud: unknown prompt → throw with the prefix so tests
     // immediately point at the prompt that drifted. The previous "ok"

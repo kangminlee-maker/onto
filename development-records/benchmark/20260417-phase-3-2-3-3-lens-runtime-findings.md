@@ -95,8 +95,12 @@ axiology.packet.md 의 `## Boundary Policy` 섹션은 명시적으로 `Filesyste
 
 ### 따라오는 검증 거리 (별 PR 후보)
 
-- **A1** (Finding 1 대응): packet Boundary Policy parser — `Filesystem: denied` 시 native mode 자동 inline 강제. Phase 3-2 의 정책 우선순위 결함 해소.
-- **A2** (synthesize 코드블록 wrap): system prompt 의 "Do not wrap" 지시 강화 + executor 단의 leading/trailing fence 자동 strip.
+- **A1** (Finding 1 대응): packet Boundary Policy parser — `Filesystem: denied` 시 native mode 자동 inline 강제. Phase 3-2 의 정책 우선순위 결함 해소. **IMPLEMENTED (PR #70, 2026-04-17)**.
+- **A2** (synthesize 코드블록 wrap): system prompt 의 "Do not wrap" 지시 강화 + executor 단의 leading/trailing fence 자동 strip. **IMPLEMENTED (2026-04-17)**. 방어선 이중화:
+  - Prompt 강화: 두 synthesize variant (inline, tool-native) 상단에 "OUTPUT FORMAT — READ FIRST" 블록 신설. 첫 문자 "-" (YAML frontmatter delimiter) 강제, 외부 wrapping fence 금지, 내부 code block 허용 명시.
+  - Post-processor: `stripWrappingCodeFence(text)` 가 trimmed text 의 양 끝 fence pair 를 정확히 1회 strip. 13 unit test 로 경계 동작 (partial fence, inner block, CRLF, 공백) 검증. Executor 가 lens/synthesize 양쪽 경로에서 output 을 쓰기 직전 호출.
+  - End-to-end mock: `ONTO_LLM_MOCK_SYNTHESIZE_WRAP_FENCE=1` 환경변수로 mock 에 wrap 행동을 주입하는 negative-path hook. 실 LLM 없이 "wrap 들어와도 strip 이 잡아낸다" 불변식을 결정론적으로 검증.
+  - 부수 정리: PR #67 이후 pre-existing 으로 빨간색이던 2 개 provider-override 테스트 (`--tool-mode` default 변경으로 model id 요구) 에 `--tool-mode inline` 추가로 복구.
 - **A3** (path-only synthesize 측정): synthesize benchmark packet 의 inline embed 를 제거한 variant 작성 후 native vs inline 재측정. native 가 path-only 에서도 작동하는지 확인.
 
 ## 파일 위치

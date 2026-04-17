@@ -75,6 +75,7 @@ Executes the following upon user approval:
 - Asks the user first: "What language should agent output be in? (e.g., `en`, `ko`, `ja`) Default: `en`"
 - Creates `.onto/config.yml` with `output_language: {language}` as the first entry.
 - All subsequent onboarding messages are delivered in the configured language.
+- Full OntoConfig key surface: `processes/configuration.md` (SSOT)
 
 **3.2 Create project learning directory**
 - Creates `.onto/learnings/` directory if it does not exist.

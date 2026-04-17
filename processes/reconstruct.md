@@ -440,6 +440,12 @@ Boundary case: A hardcoded constant (e.g., MIN_PAYMENT=500) is observed (the val
 [Delta Report Format]
 Refer to "Delta Format" below.
 
+[Language Policy]
+Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
+hand-offs to other agents stay English-only regardless of `output_language`.
+Principal-facing translation happens at the Runtime Coordinator's render seat
+(design-principles/output-language-boundary.md).
+
 [Team Rules]
 - Traverse the source according to the team lead's exploration directives (integrated epsilon).
 - Report traversal results in delta format to the team lead.
@@ -525,6 +531,12 @@ For each conflict pair:
 [Output Format]
 Refer to "Adjudicator Output Format" below.
 
+[Language Policy]
+Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
+hand-offs to other agents stay English-only regardless of `output_language`.
+Principal-facing translation happens at the Runtime Coordinator's render seat
+(design-principles/output-language-boundary.md).
+
 [Rules]
 - Judge based on system purpose only. Do not apply structural, coverage, or pragmatic criteria — those perspectives are already represented in the justifications.
 - Do not speculate about which lens produced which position. Justification text may contain perspective-revealing language (e.g., "from a structural perspective") — disregard such cues entirely.
@@ -558,6 +570,12 @@ Perform:
 
 [Output Format]
 Refer to "Synthesize Output Format" below.
+
+[Language Policy]
+Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
+hand-offs to other agents stay English-only regardless of `output_language`.
+Principal-facing translation happens at the Runtime Coordinator's render seat
+(design-principles/output-language-boundary.md).
 
 [Rules]
 - Do not invent new exploration directions not present in the input.

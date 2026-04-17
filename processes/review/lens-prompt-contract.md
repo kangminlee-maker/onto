@@ -346,6 +346,12 @@ You are {role}.
 [Context Self-Loading]
 {learnings/domain/communication/rules}
 
+[Language Policy]
+Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
+hand-offs to other agents stay English-only regardless of `output_language`.
+Principal-facing translation happens at the Runtime Coordinator's render seat
+(design-principles/output-language-boundary.md).
+
 [Task Directives]
 - Begin Round 1 review.
 - Perform Structural Inspection Checklist first.

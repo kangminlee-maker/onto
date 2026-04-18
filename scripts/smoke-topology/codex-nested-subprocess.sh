@@ -52,7 +52,7 @@ env -u CLAUDECODE -u CLAUDE_PROJECT_DIR -u CODEX_THREAD_ID -u CODEX_CI \
   node "${ONTO_CLI}" \
     "$(basename "${SMOKE_TARGET_FILE}")" "${SMOKE_INTENT}" \
     --project-root "${SMOKE_TMP_ROOT}" \
-    --onto-home "${SMOKE_TMP_ROOT}" \
+    --onto-home "${ONTO_REPO_ROOT}" \
     --no-watch \
     > "${STDOUT_LOG}" 2> "${STDERR_LOG}" || {
       smoke_fail "onto review exited non-zero; see ${STDERR_LOG}"
@@ -60,13 +60,14 @@ env -u CLAUDECODE -u CLAUDE_PROJECT_DIR -u CODEX_THREAD_ID -u CODEX_CI \
 
 # ── Assertions ─────────────────────────────────────────────────────────────
 
-# (1) Resolver picked codex-nested-subprocess.
+# (1) Resolver picked codex-nested-subprocess. `[topology] ... matched` is on STDERR.
 smoke_assert_stderr_contains "${STDERR_LOG}" \
   "\[topology\] codex-nested-subprocess: matched" \
   "topology resolver match"
 
-# (2) PR-L dispatch branch active.
-smoke_assert_stderr_contains "${STDERR_LOG}" \
+# (2) PR-L dispatch branch active. `[review runner] ...` is emitted on STDOUT
+#     by run-review-prompt-execution, so check both streams.
+smoke_assert_log_contains "${STDERR_LOG}" "${STDOUT_LOG}" \
   "\[review runner\] topology=codex-nested-subprocess" \
   "PR-L dispatch branch"
 
@@ -74,7 +75,7 @@ smoke_assert_stderr_contains "${STDERR_LOG}" \
 SESSION_ROOT_LINE="$(grep -Eo 'session_root: .*' "${STDOUT_LOG}" | head -1 || true)"
 if [[ -z "${SESSION_ROOT_LINE}" ]]; then
   # Alt: session root is written into .onto/review/.latest-session symlink
-  SESSION_ROOT="$(readlink -f "${SMOKE_TMP_ROOT}/.onto/review/.latest-session" 2>/dev/null || echo "")"
+  SESSION_ROOT="$(cat "${SMOKE_TMP_ROOT}/.onto/review/.latest-session" 2>/dev/null || echo "")"
 else
   SESSION_ROOT="${SESSION_ROOT_LINE#session_root: }"
 fi

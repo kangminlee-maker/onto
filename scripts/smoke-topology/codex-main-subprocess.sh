@@ -51,7 +51,7 @@ CODEX_THREAD_ID="smoke-${SMOKE_TOPOLOGY_ID}-$(date +%s)" env -u CLAUDECODE -u CL
   node "${ONTO_CLI}" \
     "$(basename "${SMOKE_TARGET_FILE}")" "${SMOKE_INTENT}" \
     --project-root "${SMOKE_TMP_ROOT}" \
-    --onto-home "${SMOKE_TMP_ROOT}" \
+    --onto-home "${ONTO_REPO_ROOT}" \
     --no-watch \
     > "${STDOUT_LOG}" 2> "${STDERR_LOG}" || {
       smoke_fail "onto review exited non-zero; see ${STDERR_LOG}"
@@ -63,11 +63,12 @@ smoke_assert_stderr_contains "${STDERR_LOG}" \
   "\[topology\] codex-main-subprocess: matched" \
   "topology resolver match"
 
-smoke_assert_stderr_contains "${STDERR_LOG}" \
+# `[plan:executor] ...` may appear on either stream depending on invoke path.
+smoke_assert_log_contains "${STDERR_LOG}" "${STDOUT_LOG}" \
   "\[plan:executor\] topology=codex-main-subprocess" \
   "PR-F executor mapping"
 
-SESSION_ROOT="$(readlink -f "${SMOKE_TMP_ROOT}/.onto/review/.latest-session" 2>/dev/null || true)"
+SESSION_ROOT="$(cat "${SMOKE_TMP_ROOT}/.onto/review/.latest-session" 2>/dev/null || true)"
 if [[ -z "${SESSION_ROOT}" || ! -d "${SESSION_ROOT}" ]]; then
   smoke_fail "unable to locate session_root; stderr=${STDERR_LOG}"
 fi

@@ -31,6 +31,20 @@
 
 옛 이름 (`light`, `light_review_lens_ids`) 은 **즉시 에러**. dual-read / alias 미제공 (옵션 A big-bang 채택 — 본 시점 외부 채택 미확인 + beta 단계).
 
+#### Consumer migration matrix
+
+각 소비 seat 별 필요 action / backward-read 동작 / 실패 증상:
+
+| Consumer | Required action | Backward-read behavior | Failure symptom |
+|---|---|---|---|
+| `.onto/config.yml` (`review_mode` field) | `review_mode: light` → `review_mode: core-axis` | 옛 값은 parser 단에서 **즉시 거부** | stderr: `\`review_mode: 'light'\` was renamed to \`'core-axis'\` in v0.2.0 (PR #127). Update \`.onto/config.yml\` or CLI flag to \`core-axis\`.` |
+| CLI flag (`--review-mode`) | `--review-mode light` → `--review-mode core-axis` | 동일 — friendly error | stderr: `\`--review-mode light\` was renamed to \`--review-mode core-axis\` in v0.2.0 (PR #127).` |
+| Historical review artifacts (`.onto/review/<session>/execution-result.yaml`, `review-record.yaml`) | **변경 불요** (artifact freeze) | reader 에서 `light` → `core-axis` silent normalize (원본 yaml 보존) | 없음 — backward-readable. 원본 artifact 에는 `light` 그대로 남아 있음 (historical fact) |
+| `review-log.ts` / progressiveness 분석 | 자동 | normalize 결과 `review_mode: core-axis` 로 집계 통합 | 없음 |
+| Session watcher (`onto-review-watch.sh`, `npm run review:watch`) | 변경 불요 | raw string 표시 (normalize X) | watch UI 에서 옛 세션이 `light` 로 표시 — informational (historical record 보존) |
+| `npm install onto-core` (third-party TS consumer) | `ReviewMode` type + field 참조 갱신 (`ReviewMode = 'core-axis' \| 'full'`, `light_review_lens_ids` → `core_axis_lens_ids`) | 없음 (type breakage) | TypeScript compile error on import — rename 필요 |
+| LLM 응답 consumer (Step 1.5 complexity-assessment mock / production) | JSON schema 갱신: `suggest_light` → `suggest_core_axis` | 옛 key 보유 시 `parsed.suggest_core_axis === true` 가 undefined → `suggestCoreAxis: false` (safe fallback) | 없음 — silent fallback to full review |
+
 #### Legacy persisted-state policy
 
 옛 sessions (rename 이전 생성된 `.onto/review/<session>/`) 의 `execution-result.yaml` 은 `review_mode: light` 를 보존. 정책:

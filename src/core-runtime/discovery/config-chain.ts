@@ -247,6 +247,45 @@ async function readConfigAt(dir: string): Promise<OntoConfig> {
 }
 
 /**
+ * Orthogonal-only config chain resolver — skips atomic profile adoption
+ * and legacy deprecation checks.
+ *
+ * # What this is
+ *
+ * Reads home + project `.onto/config.yml`, merges ONLY the orthogonal
+ * fields (output_language, domains, review_mode, learning_extract_mode,
+ * etc. — see `config-profile.ts:PROFILE_FIELDS` for the complement set),
+ * and returns the merged partial config without running
+ * `adoptProfile` or `checkAndEmitLegacyDeprecation`.
+ *
+ * # Why this exists
+ *
+ * Callers that only need a single orthogonal field (e.g.,
+ * `resolveReviewSessionExtractMode` reading `learning_extract_mode`) do
+ * NOT need provider-profile validation. Routing them through
+ * `resolveConfigChain` caused false fail-fast throws once PR #96's atomic
+ * profile adoption started rejecting "no provider profile declared"
+ * configs — a test/tooling fixture that cares only about orthogonal
+ * settings would be blocked by an unrelated profile gate.
+ *
+ * # How it relates
+ *
+ * Same underlying `readConfigAt` + `mergeOrthogonalFields` that
+ * `resolveConfigChain` uses, sequenced without the adoption/legacy
+ * stages. Callers that need a full config (including profile) continue
+ * to use `resolveConfigChain`.
+ */
+export async function resolveOrthogonalConfigChain(
+  ontoHome: string,
+  projectRoot: string,
+): Promise<Partial<OntoConfig>> {
+  const homeConfig = await readConfigAt(ontoHome);
+  const sameRoot = ontoHome === projectRoot;
+  const projectConfig = sameRoot ? homeConfig : await readConfigAt(projectRoot);
+  return mergeOrthogonalFields(homeConfig, projectConfig);
+}
+
+/**
  * Config chain resolver (home + project) with atomic profile adoption.
  *
  * As of Review Recovery PR-1 (2026-04-18), provider-coupled fields

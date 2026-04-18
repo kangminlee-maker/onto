@@ -17,7 +17,7 @@ import {
   type ExtractMode,
 } from "../learning/shared/mode.js";
 import { resolveOntoHome } from "../discovery/onto-home.js";
-import { resolveConfigChain } from "../discovery/config-chain.js";
+import { resolveOrthogonalConfigChain } from "../discovery/config-chain.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -83,8 +83,15 @@ export async function resolveReviewSessionExtractMode(
     // ONLY the config read path is best-effort. A missing or malformed
     // .onto/config.yml must not block session startup because env var +
     // default is a complete baseline.
+    //
+    // Uses `resolveOrthogonalConfigChain` (not `resolveConfigChain`):
+    // `learning_extract_mode` is an orthogonal field with no provider-
+    // profile coupling, so we skip atomic profile adoption + legacy
+    // deprecation gates that would otherwise fire for configs missing
+    // a provider profile entirely (a legitimate state for fixtures or
+    // orthogonal-only use cases).
     try {
-      const config = await resolveConfigChain(ontoHome, projectRoot);
+      const config = await resolveOrthogonalConfigChain(ontoHome, projectRoot);
       configExtractMode = config.learning_extract_mode;
     } catch {
       // best-effort: config read/parse failure falls through to default

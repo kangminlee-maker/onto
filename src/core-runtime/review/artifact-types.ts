@@ -383,6 +383,13 @@ export interface ReviewRecord {
   resolved_review_mode?: string;
   resolved_execution_realization?: string;
   resolved_host_runtime?: string;
+  /**
+   * Optional mirror of `CoordinatorStateFile.orchestrator_reported_realization`
+   * (see contract §18). Distinct from `resolved_execution_realization` which
+   * records plan-time preference; this records the caller's actual dispatch
+   * mechanism if self-reported. Absent when no self-report was provided.
+   */
+  orchestrator_reported_realization?: string;
   resolved_lens_ids: string[];
   execution_result_ref?: string | null;
   session_metadata_ref?: string | null;

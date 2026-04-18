@@ -49,8 +49,14 @@ function requireTargetScopeKind(value: string): ReviewTargetScopeKind {
 }
 
 function requireReviewMode(value: string): ReviewMode {
-  if (value === "light" || value === "full") {
+  if (value === "core-axis" || value === "full") {
     return value;
+  }
+  if (value === "light") {
+    throw new Error(
+      "`review_mode: 'light'` was renamed to `'core-axis'` in v0.2.0 (PR #127). " +
+        "Update `.onto/config.yml` or CLI flag to `core-axis`. See CHANGELOG.md for migration.",
+    );
   }
   throw new Error(`Invalid review mode: ${value}`);
 }

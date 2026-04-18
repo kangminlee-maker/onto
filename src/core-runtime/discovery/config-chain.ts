@@ -56,7 +56,7 @@ export interface OntoConfig {
    * environments where codex install is policy-blocked).
    */
   suppress_codex_install_notice?: boolean;
-  /** Review mode: light | full */
+  /** Review mode: core-axis | full */
   review_mode?: string;
   /** Reasoning effort level passed to executor (e.g. low, medium, high, xhigh) */
   reasoning_effort?: string;

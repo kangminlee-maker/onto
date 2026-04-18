@@ -54,7 +54,7 @@ closed-world validation에 가깝다.
    - domain document location
 6. explicit user selection
    - domain confirmation
-   - light/full override
+   - core-axis/full override
 
 ---
 
@@ -68,7 +68,7 @@ closed-world validation에 가깝다.
 4. `resolved_execution_realization`
 5. `resolved_host_runtime`
 6. `resolved_review_mode`
-   - `light` 또는 `full`
+   - `core-axis` 또는 `full`
 7. `resolved_lens_set`
 8. `session_id`
 9. `session_root`

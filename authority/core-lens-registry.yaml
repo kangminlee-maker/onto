@@ -63,11 +63,15 @@ full_review_lens_ids:
   - conciseness
   - axiology
 
-# `light_review_lens_ids` — 4 lens. review_mode 가 `light` 일 때 실행 (default).
+# `core_axis_lens_ids` — 4 lens. review_mode 가 `core-axis` 일 때 실행.
+# Default 결정은 invocation path 별 다름 (registry 단독으로 결정 X):
+#   - explicit `--review-mode` / config `review_mode` 없으면 → `full` (review-invoke.ts:1171 fallback)
+#   - host-facing positional invoke (예: /onto:review) → `core-axis` (Step 1.5 dynamic 또는 fixed 4-lens, host_runtime 분기)
 #
-# 선정 근거 (design intent, 이름 "light" 와 별개):
+# 선정 근거 (design intent):
 #   onto 의 "meta-level 판단 축" 4 개 — 대상의 의도 / 목적 / 판단에 관한
-#   lens. 대상 크기에 무관하게 적용 가치 유지.
+#   lens. 대상 크기에 무관하게 적용 가치 유지. `project_onto_direction.md`
+#   의 "네 축 재정의" 와 어휘 정렬.
 #     - logic: 논리 일관성 / 추론 오류
 #     - pragmatics: 목적 / 맥락에의 실용성
 #     - evolution: 시간에 따른 변화 / 확장성
@@ -75,18 +79,20 @@ full_review_lens_ids:
 #
 # 제외된 5 (structure / dependency / semantics / coverage / conciseness) 는
 # "content-level 분석 축" — 대상의 표면 속성 검증. 작은 target 에서는 검증
-# 가치 작아짐. 또한 이들을 제외함으로써 light mode 의 LLM 호출이 9 → 4
-# 로 줄어들어 토큰 비용 절반 이하.
+# 가치 작아짐. 또한 이들을 제외함으로써 core-axis mode 의 LLM 호출이 9 →
+# 4 로 줄어들어 토큰 비용 절반 이하 (부수 효과).
 #
-# Silent failure risk (이름 "light" 의 signal 과 별개):
-#   - dependency lens 누락: 작은 md 라도 파일 참조가 깨져 있으면 light 에서
-#     침묵. full 전환 없이는 미검증
-#   - coverage lens 누락: "놓친 영역" 감지 부재. light 반복 사용 시 누락 누적
+# Silent failure risk (별도 design 으로 다룸):
+#   - dependency lens 누락: 작은 md 라도 파일 참조가 깨져 있으면 core-axis
+#     에서 침묵. full 전환 없이는 미검증
+#   - coverage lens 누락: "놓친 영역" 감지 부재. core-axis 반복 사용 시
+#     누락 누적
 #
-# 향후 재검토 후보: 메모리 `project_light_review_lens_design.md` 참조.
-# light vs full 의 axis-aligned 이름 rename (예: `core-axis` vs `full`) 은
-# 별도 design record 로 다룰 수 있음.
-light_review_lens_ids:
+# Rename 이력: 본 필드는 PR #126 (2026-04-18) 까지 `light_review_lens_ids`
+# 로 명명. mental model 정렬 (이름이 부수 효과 "비용 절감" 만 전달하고
+# 본질 "meta-level 4 axis core" 를 가리지 않도록) 위해 rename.
+# 참조: `development-records/evolve/20260418-light-to-core-axis-rename-proposal.md`
+core_axis_lens_ids:
   - logic
   - pragmatics
   - evolution
@@ -108,7 +114,7 @@ core_role_ids:
 
 # `always_include_lens_ids` — 어떤 lens set 에도 반드시 포함되는 lens.
 # 현재는 axiology 뿐 (가치 정합성은 모든 review 의 최상위 판단 축이므로).
-# light_review_lens_ids 에 axiology 가 들어있는 것은 결과적 일치 — always_include
-# 규칙과 light mode 의 meta-axis 선정이 각각 독립 이유로 axiology 를 채택.
+# core_axis_lens_ids 에 axiology 가 들어있는 것은 결과적 일치 — always_include
+# 규칙과 core-axis mode 의 meta-axis 선정이 각각 독립 이유로 axiology 를 채택.
 always_include_lens_ids:
   - axiology

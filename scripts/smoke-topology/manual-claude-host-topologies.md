@@ -33,7 +33,7 @@ TeamCreate 미사용.
 # /tmp/onto-smoke-claude/.onto/config.yml
 execution_topology_priority:
   - cc-main-agent-subagent
-review_mode: light
+review_mode: core-axis
 ```
 
 ### 실행
@@ -81,7 +81,7 @@ coordinator 가 Agent tool 로 lens subagent 추가 nested spawn.
 ```yaml
 execution_topology_priority:
   - cc-teams-agent-subagent
-review_mode: light
+review_mode: core-axis
 ```
 
 ### 실행
@@ -109,7 +109,7 @@ TeamCreate teamlead 는 Claude agent, lens 는 codex CLI subprocess.
 ```yaml
 execution_topology_priority:
   - cc-teams-codex-subprocess
-review_mode: light
+review_mode: core-axis
 codex:
   model: gpt-5.4
   effort: medium
@@ -137,7 +137,7 @@ TeamCreate teamlead + LiteLLM HTTP per lens.
 ```yaml
 execution_topology_priority:
   - cc-teams-litellm-sessions
-review_mode: light
+review_mode: core-axis
 llm_base_url: http://localhost:4000
 litellm:
   model: llama-8b
@@ -164,7 +164,7 @@ litellm:
 execution_topology_priority:
   - cc-teams-lens-agent-deliberation
 lens_agent_teams_mode: true
-review_mode: light
+review_mode: core-axis
 ```
 
 ### 기대 동작

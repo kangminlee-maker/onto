@@ -43,7 +43,7 @@ fi
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
 execution_topology_priority:
   - cc-teams-litellm-sessions
-review_mode: light
+review_mode: core-axis
 llm_base_url: ${LITELLM_URL}
 litellm:
   model: llama-8b

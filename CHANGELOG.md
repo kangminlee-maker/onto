@@ -2,6 +2,76 @@
 
 ## Unreleased
 
+### BREAKING — `review_mode: light` → `core-axis` rename (2026-04-18)
+
+**Mental model 정렬**: 옛 이름 `light` 는 부수 효과 ("비용 절감, 축소판") 만 전달하고 본질 ("meta-level 4 축 — logic / pragmatics / evolution / axiology") 을 가리지 않았음. 새 이름 `core-axis` 는 선정 근거를 직접 전달.
+
+#### BREAKING
+
+- `authority/core-lens-registry.yaml` 의 필드 `light_review_lens_ids` 가 `core_axis_lens_ids` 로 rename
+- `ReviewMode` union: `'light' | 'full'` → `'core-axis' | 'full'`
+- CLI flag value: `--review-mode light` → `--review-mode core-axis`
+- Config field value: `review_mode: light` → `review_mode: core-axis`
+- `ComplexityAssessmentResult.suggestLight` → `suggestCoreAxis`
+- LLM JSON response key: `suggest_light` → `suggest_core_axis`
+
+#### Migration
+
+`.onto/config.yml` 또는 CLI invoke 에 다음과 같이 변경:
+
+```diff
+- review_mode: light
++ review_mode: core-axis
+```
+
+```diff
+- onto review target.md "intent" --review-mode light
++ onto review target.md "intent" --review-mode core-axis
+```
+
+옛 이름 (`light`, `light_review_lens_ids`) 은 **즉시 에러**. dual-read / alias 미제공 (옵션 A big-bang 채택 — 본 시점 외부 채택 미확인 + beta 단계).
+
+#### Consumer migration matrix
+
+각 소비 seat 별 필요 action / backward-read 동작 / 실패 증상:
+
+| Consumer | Required action | Backward-read behavior | Failure symptom |
+|---|---|---|---|
+| `.onto/config.yml` (`review_mode` field) | `review_mode: light` → `review_mode: core-axis` | 옛 값은 parser 단에서 **즉시 거부** | stderr: `\`review_mode: 'light'\` was renamed to \`'core-axis'\` in v0.2.0 (PR #127). Update \`.onto/config.yml\` or CLI flag to \`core-axis\`.` |
+| CLI flag (`--review-mode`) | `--review-mode light` → `--review-mode core-axis` | 동일 — friendly error | stderr: `\`--review-mode light\` was renamed to \`--review-mode core-axis\` in v0.2.0 (PR #127).` |
+| Historical review artifacts (`.onto/review/<session>/execution-result.yaml`, `review-record.yaml`) | **변경 불요** (artifact freeze) | reader 에서 `light` → `core-axis` silent normalize (원본 yaml 보존) | 없음 — backward-readable. 원본 artifact 에는 `light` 그대로 남아 있음 (historical fact) |
+| `review-log.ts` / progressiveness 분석 | 자동 | normalize 결과 `review_mode: core-axis` 로 집계 통합 | 없음 |
+| Session watcher (`onto-review-watch.sh`, `npm run review:watch`) | 변경 불요 | raw string 표시 (normalize X) | watch UI 에서 옛 세션이 `light` 로 표시 — informational (historical record 보존) |
+| `npm install onto-core` (third-party TS consumer) | `ReviewMode` type + field 참조 갱신 (`ReviewMode = 'core-axis' \| 'full'`, `light_review_lens_ids` → `core_axis_lens_ids`) | 없음 (type breakage) | TypeScript compile error on import — rename 필요 |
+| LLM 응답 consumer (Step 1.5 complexity-assessment mock / production) | JSON schema 갱신: `suggest_light` → `suggest_core_axis` | 옛 key 보유 시 `parsed.suggest_core_axis === true` 가 undefined → `suggestCoreAxis: false` (safe fallback) | 없음 — silent fallback to full review |
+
+#### Legacy persisted-state policy
+
+옛 sessions (rename 이전 생성된 `.onto/review/<session>/`) 의 `execution-result.yaml` 은 `review_mode: light` 를 보존. 정책:
+
+- **Reader-only normalize**: `review-log.ts` 가 read 시 `light` → `core-axis` 로 silent normalize. progressiveness / audit 분석에서 historical sessions 가 끊기지 않음
+- **원본 artifact freeze**: `.onto/review/<session>/` 의 yaml 파일 자체는 변경하지 않음 (historical record 의미 유지)
+- **Replay 미지원**: rename 이후 옛 session 을 재실행 (예: `--resume`) 하는 경로는 rename 의 의미적 명료성을 위해 미지원. 신규 session 으로 재시작 권장
+- 새 input 으로 옛 `light` 가 들어오면 (config 또는 CLI flag) 친절한 stale-input error 메시지로 rename 안내 (`requireReviewMode` validator 3 곳)
+
+#### Stakeholder impact uncertainty
+
+본 BREAKING change 의 "외부 사용자 부재" 가정은 **bounded evidence 기반이 아닌 추론**:
+
+- onto-core 가 npm 패키지로 publish 되어 있고 `bin: onto` entry 존재
+- `package.json` 의 `onto_release_channel: "beta"` + `onto_release_label: "onto-harness"` 는 정식 배포 전 단계
+- 외부 채택 사례에 대한 **직접 검색 / 입증은 수행되지 않음**
+- 만약 외부 사용자가 있다면 CHANGELOG 의 본 BREAKING 표기 + stale-input error 메시지 + version `0.2.0` 의 minor bump (semver 0.x 의 breaking 신호) 로 1차 인지 가능
+- stakeholder 우려는 본 PR / release notes 에 직접 제기 가능 (issues, PR comment)
+
+PR #127 의 9-lens review 에서 axiology lens 가 본 가정을 "bounded record 안에서 입증되지 않음" 으로 명시 — 정직한 보존을 위해 본 절에 caveat 명시.
+
+#### Reference
+
+- Design proposal: `development-records/evolve/20260418-light-to-core-axis-rename-proposal.md` (PR #126)
+- Trigger: PR #122 SSOT 주석이 mental model 까지 도달 못 함을 진단
+- 9-lens review session: `.onto/review/20260419-32926f57/final-output.md` (Immediate Actions 4-6 + axiology-3 disagreement 반영)
+
 ### Added — Phase 2 wiring: subagent_llm config + auto executor selection (2026-04-17)
 
 **Phase 2 wiring** — `subagent_llm` config 설정 또는 `host_runtime: standalone` 감지 시 `inline-http-review-unit-executor` 가 자동 선택되도록 wiring.

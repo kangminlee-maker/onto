@@ -36,7 +36,7 @@ fi
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
 execution_topology_priority:
   - cc-teams-agent-subagent
-review_mode: light
+review_mode: core-axis
 EOF
 
 # ── Execute ────────────────────────────────────────────────────────────────

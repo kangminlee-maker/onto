@@ -872,7 +872,7 @@ terms:
     korean_label: "lens 선택 계획"
     axis: "review_structure"
     term_status: "active"
-    definition: "Interpretation-owned plan that recommends full/light review and the lens set to execute."
+    definition: "Interpretation-owned plan that recommends full/core-axis review and the lens set to execute."
   - term_id: "domain_final_selection"
     canonical_label: "DomainFinalSelection"
     korean_label: "도메인 최종 선택"

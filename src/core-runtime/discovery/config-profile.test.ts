@@ -255,11 +255,11 @@ describe("buildBothIncompleteError", () => {
 describe("mergeOrthogonalFields", () => {
   it("last-wins for scalars (project over home)", () => {
     const merged = mergeOrthogonalFields(
-      { output_language: "en", review_mode: "light" },
+      { output_language: "en", review_mode: "core-axis" },
       { output_language: "ko" },
     );
     expect(merged.output_language).toBe("ko");
-    expect(merged.review_mode).toBe("light");
+    expect(merged.review_mode).toBe("core-axis");
   });
 
   it("union-merges excluded_names", () => {
@@ -308,7 +308,7 @@ describe("regression — migrated sketch v3 config", () => {
             "codex-nested-subprocess",
           ],
           codex: { model: "gpt-5.4", effort: "medium" },
-          review_mode: "light",
+          review_mode: "core-axis",
         },
       ),
     );

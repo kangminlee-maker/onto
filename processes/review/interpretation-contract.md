@@ -74,7 +74,7 @@
 5. `domain_selection_required`
    - 추천 후 주체자 확인이 필요한지
 6. `review_mode_recommendation`
-   - `light` 또는 `full`
+   - `core-axis` 또는 `full`
 7. `lens_selection_plan`
    - 특히 중요하게 보아야 할 lens 와 recommended lens set
    - shape: `always_include`, `recommended_lenses`, `rationale`

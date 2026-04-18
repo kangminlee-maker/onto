@@ -69,7 +69,7 @@ host가 아래를 받는다.
 - intent가 무엇인지
 - domain recommendation이 필요한지
 - `lens 선택 계획 (LensSelectionPlan)`이 무엇인지
-- `light/full` recommendation이 필요한지
+- `core-axis/full` recommendation이 필요한지
 
 prompt-backed path에서도 이 단계의 결과는 최종적으로
 `interpretation.yaml`로 materialize되어야 한다.
@@ -79,7 +79,7 @@ prompt-backed path에서도 이 단계의 결과는 최종적으로
 필요한 경우 아래를 주체자와 확정한다.
 
 - `도메인 최종 선택 (DomainFinalSelection)`
-- `light/full`
+- `core-axis/full`
 - explicit override
 
 이 단계는 semantic recommendation과 deterministic binding의 중간에서

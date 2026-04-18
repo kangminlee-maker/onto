@@ -1314,15 +1314,15 @@ function callMockProvider(
       q2_rationale: "mock — defaulting to full review (cross-verification critical)",
       q3_miss_risk_acceptable: false,
       q3_rationale: "mock — defaulting to full review (risk not acceptable)",
-      suggest_light: false,
+      suggest_core_axis: false,
     });
   } else if (
     systemPrompt.startsWith("You are a review lens selector")
   ) {
-    // Phase 3: Step 1.5 lens selection mock — default light set
+    // Phase 3: Step 1.5 lens selection mock — default core-axis set
     text = JSON.stringify({
       selected_lens_ids: ["axiology", "logic", "pragmatics", "evolution"],
-      rationale: "mock — default light review lens set",
+      rationale: "mock — default core-axis review lens set",
     });
   } else if (
     systemPrompt.startsWith("You are executing a single bounded review unit")

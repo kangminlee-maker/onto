@@ -82,7 +82,7 @@ async function attemptResolve(): Promise<{ ok: true; text: string } | { ok: fals
 describe("resolveLearningProviderConfig", () => {
   it("T16: CLI overrides beat OntoConfig for every field", () => {
     const config: LearningProviderConfigInputs = {
-      api_provider: "litellm",
+      external_http_provider: "litellm",
       llm_base_url: "http://config:4000/v1",
       model: "config-model",
     };
@@ -99,7 +99,7 @@ describe("resolveLearningProviderConfig", () => {
 
   it("falls back to config when CLI overrides absent", () => {
     const out = resolveLearningProviderConfig({
-      config: { api_provider: "codex", model: "gpt-5", codex: { model: "codex-x", effort: "high" } },
+      config: { external_http_provider: "codex", model: "gpt-5", codex: { model: "codex-x", effort: "high" } },
     });
     expect(out.provider).toBe("codex");
     // codex uses config.codex.model override over config.model
@@ -110,7 +110,7 @@ describe("resolveLearningProviderConfig", () => {
   it("per-provider model override applies for anthropic", () => {
     const out = resolveLearningProviderConfig({
       config: {
-        api_provider: "anthropic",
+        external_http_provider: "anthropic",
         anthropic: { model: "claude-sonnet-4" },
         model: "generic-fallback",
       },
@@ -121,21 +121,21 @@ describe("resolveLearningProviderConfig", () => {
 
   it("per-provider model override applies for openai", () => {
     const out = resolveLearningProviderConfig({
-      config: { api_provider: "openai", openai: { model: "gpt-4o" }, model: "other" },
+      config: { external_http_provider: "openai", openai: { model: "gpt-4o" }, model: "other" },
     });
     expect(out.model_id).toBe("gpt-4o");
   });
 
   it("per-provider model override applies for litellm", () => {
     const out = resolveLearningProviderConfig({
-      config: { api_provider: "litellm", litellm: { model: "local-llama" }, model: "other" },
+      config: { external_http_provider: "litellm", litellm: { model: "local-llama" }, model: "other" },
     });
     expect(out.model_id).toBe("local-llama");
   });
 
   it("falls back to top-level model when per-provider absent", () => {
     const out = resolveLearningProviderConfig({
-      config: { api_provider: "openai", model: "fallback-model" },
+      config: { external_http_provider: "openai", model: "fallback-model" },
     });
     expect(out.model_id).toBe("fallback-model");
   });
@@ -169,7 +169,7 @@ describe("resolveLearningProviderConfig", () => {
   });
 
   it("reasoning_effort passes through regardless of provider being explicit", () => {
-    // codex.effort must reach dispatch even when api_provider isn't set,
+    // codex.effort must reach dispatch even when external_http_provider isn't set,
     // since cost-order may still pick codex.
     const out = resolveLearningProviderConfig({
       config: { codex: { effort: "high" } },
@@ -189,8 +189,8 @@ describe("resolveLearningProviderConfig", () => {
     }
   });
 
-  it("narrows invalid api_provider values to undefined", () => {
-    const out = resolveLearningProviderConfig({ config: { api_provider: "main-model" } });
+  it("narrows invalid external_http_provider values to undefined", () => {
+    const out = resolveLearningProviderConfig({ config: { external_http_provider: "main-model" } });
     expect(out.provider).toBeUndefined();
   });
 
@@ -239,7 +239,7 @@ describe("callLlm resolveProvider cost-order", () => {
       caught = err instanceof Error ? err : new Error(String(err));
     }
     expect(caught).not.toBeNull();
-    expect(caught!.message).toContain("api_provider=anthropic");
+    expect(caught!.message).toContain("external_http_provider=anthropic");
     expect(caught!.message).toContain("ANTHROPIC_API_KEY");
   });
 
@@ -280,7 +280,7 @@ describe("callLlm resolveProvider cost-order", () => {
   });
 
   it("bridge narrows main-model to undefined (execution realization axis, not provider)", () => {
-    const out = resolveLearningProviderConfig({ config: { api_provider: "main-model" } });
+    const out = resolveLearningProviderConfig({ config: { external_http_provider: "main-model" } });
     expect(out.provider).toBeUndefined();
   });
 
@@ -312,7 +312,7 @@ describe("callLlm resolveProvider cost-order", () => {
     }
   });
 
-  it("B1: no notice when user sets api_provider explicitly", async () => {
+  it("B1: no notice when user sets external_http_provider explicitly", async () => {
     writeAuthJson(tmp!.home, { auth_mode: "chatgpt", tokens: { access_token: "tok" } });
     process.env.ANTHROPIC_API_KEY = "sk-fake-anthropic";
     const captured: string[] = [];

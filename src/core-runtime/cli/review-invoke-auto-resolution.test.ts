@@ -175,11 +175,12 @@ describe("resolveExecutionRealizationHandoff", () => {
     }
   });
 
-  it("E2 explicit config host_runtime=claude → coordinator_start with agent-teams default", () => {
+  it("E2 env ONTO_HOST_RUNTIME=claude → coordinator_start with agent-teams default", () => {
+    process.env.ONTO_HOST_RUNTIME = "claude";
     const out = resolveExecutionRealizationHandoff({
       explicitCodex: false,
       prepareOnly: false,
-      ontoConfig: { host_runtime: "claude" },
+      ontoConfig: {},
     });
     expect(out.type).toBe("coordinator_start");
     if (out.type === "coordinator_start") {
@@ -187,23 +188,12 @@ describe("resolveExecutionRealizationHandoff", () => {
     }
   });
 
-  it("E2b explicit config host=claude + execution_realization=subagent → flat path", () => {
+  it("E2c env ONTO_HOST_RUNTIME=codex → self", () => {
+    process.env.ONTO_HOST_RUNTIME = "codex";
     const out = resolveExecutionRealizationHandoff({
       explicitCodex: false,
       prepareOnly: false,
-      ontoConfig: { host_runtime: "claude", execution_realization: "subagent" },
-    });
-    expect(out.type).toBe("coordinator_start");
-    if (out.type === "coordinator_start") {
-      expect(out.profile.execution_realization).toBe("subagent");
-    }
-  });
-
-  it("E2c explicit config host_runtime=codex → self", () => {
-    const out = resolveExecutionRealizationHandoff({
-      explicitCodex: false,
-      prepareOnly: false,
-      ontoConfig: { host_runtime: "codex" },
+      ontoConfig: {},
     });
     expect(out.type).toBe("self");
     if (out.type === "self") {
@@ -278,15 +268,19 @@ describe("resolveExecutionRealizationHandoff", () => {
     expect(out).toEqual({ type: "no_host" });
   });
 
-  it("E7 explicit host_runtime=litellm → ts_inline_http self-execute (Phase 2 wiring)", () => {
-    // LiteLLM wiring is live in Phase 2 — `resolveExecutionProfile` routes
-    // litellm/anthropic/openai to ts_inline_http and the handoff returns
-    // `self` so the invoking process runs the executor in-band. The earlier
-    // fail-fast expectation (2026-04-16) pre-dated Phase 2 wiring.
+  it("E7 external_http_provider=litellm → ts_inline_http self-execute", () => {
+    // LiteLLM wiring is live via the P4 auto-detection branch —
+    // `resolveExecutionPlan` sees `external_http_provider` set, routes to
+    // the S1 external HTTP path, and the handoff returns `self` so the
+    // invoking process runs the executor in-band.
     const out = resolveExecutionRealizationHandoff({
       explicitCodex: false,
       prepareOnly: false,
-      ontoConfig: { host_runtime: "litellm" },
+      ontoConfig: {
+        external_http_provider: "litellm",
+        llm_base_url: "http://proxy.local",
+        litellm: { model: "llama-8b" },
+      },
     });
     expect(out).toEqual({
       type: "self",

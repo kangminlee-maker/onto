@@ -9,14 +9,15 @@ import {
 } from "./config-profile.js";
 
 // ---------------------------------------------------------------------------
-// Atomic profile adoption invariants — Review Recovery PR-1 addendum
+// Atomic profile adoption invariants — Review Recovery PR-1 addendum (post-PR-K).
 // ---------------------------------------------------------------------------
 //
 // These tests assert three invariants:
 //
-//   (1) Completeness is a provider-aware check — claude/codex are self-
-//       sufficient, anthropic/openai need a model, litellm needs a model
-//       AND a base_url, standalone re-routes to an inner provider.
+//   (1) Completeness hinges on `execution_topology_priority`. Principals who
+//       have migrated to sketch v3 are "complete" at the adoption layer;
+//       per-provider compatibility validation moves to
+//       `execution-topology-resolver.ts` and the executor spawn path.
 //
 //   (2) Adoption is atomic — one source owns the full profile slice.
 //       No frankenstein merges where profile fields from different sources
@@ -48,101 +49,60 @@ describe("validateProfileCompleteness — untouched", () => {
   });
 });
 
-describe("validateProfileCompleteness — per provider", () => {
-  it("host=claude → complete (host session provides model)", () => {
-    const v = validateProfileCompleteness({ host_runtime: "claude" });
+describe("validateProfileCompleteness — topology_priority is the canonical signal", () => {
+  it("execution_topology_priority set → complete, touched", () => {
+    const v = validateProfileCompleteness({
+      execution_topology_priority: ["cc-main-agent-subagent"],
+    });
     expect(v.complete).toBe(true);
     expect(v.touched).toBe(true);
+    expect(v.reasons).toEqual([]);
   });
 
-  it("host=codex → complete (codex CLI picks default)", () => {
-    const v = validateProfileCompleteness({ host_runtime: "codex" });
-    expect(v.complete).toBe(true);
-  });
-
-  it("host=anthropic without model → incomplete with specific reason", () => {
-    const v = validateProfileCompleteness({ host_runtime: "anthropic" });
-    expect(v.complete).toBe(false);
-    expect(v.touched).toBe(true);
-    expect(v.reasons[0]).toContain("anthropic.model");
-  });
-
-  it("host=anthropic + anthropic.model → complete", () => {
+  it("topology_priority + per-provider block → complete (topology resolver validates at runtime)", () => {
     const v = validateProfileCompleteness({
-      host_runtime: "anthropic",
-      anthropic: { model: "claude-haiku-4-5" },
+      execution_topology_priority: ["codex-main-subprocess"],
+      codex: { model: "gpt-5.4", effort: "high" },
     });
     expect(v.complete).toBe(true);
   });
 
-  it("host=anthropic + top-level model → complete", () => {
+  it("topology_priority + litellm block → complete", () => {
     const v = validateProfileCompleteness({
-      host_runtime: "anthropic",
-      model: "claude-sonnet-4-6",
-    });
-    expect(v.complete).toBe(true);
-  });
-
-  it("host=litellm missing base_url → incomplete", () => {
-    const v = validateProfileCompleteness({
-      host_runtime: "litellm",
-      litellm: { model: "llama-8b" },
-    });
-    expect(v.complete).toBe(false);
-    expect(v.reasons.some((r) => r.includes("llm_base_url"))).toBe(true);
-  });
-
-  it("host=litellm + model + base_url → complete", () => {
-    const v = validateProfileCompleteness({
-      host_runtime: "litellm",
+      execution_topology_priority: ["cc-teams-litellm-sessions"],
       litellm: { model: "llama-8b" },
       llm_base_url: "http://localhost:4000",
     });
     expect(v.complete).toBe(true);
   });
 
-  it("host=standalone without provider → incomplete", () => {
-    const v = validateProfileCompleteness({ host_runtime: "standalone" });
+  it("empty topology_priority array → falls through to per-profile check", () => {
+    const v = validateProfileCompleteness({
+      execution_topology_priority: [],
+    });
     expect(v.complete).toBe(false);
-    expect(
-      v.reasons.some((r) => r.includes("external_http_provider")),
-    ).toBe(true);
+    expect(v.touched).toBe(false);
   });
+});
 
-  it("host=standalone + external_http_provider=anthropic + model → complete", () => {
+describe("validateProfileCompleteness — profile fields without topology_priority", () => {
+  it("per-provider block touched but no topology_priority → incomplete with migration hint", () => {
     const v = validateProfileCompleteness({
-      host_runtime: "standalone",
-      external_http_provider: "anthropic",
-      anthropic: { model: "claude-haiku-4-5" },
-    });
-    expect(v.complete).toBe(true);
-  });
-
-  it("host=standalone + external_http_provider=litellm + model + base_url → complete", () => {
-    const v = validateProfileCompleteness({
-      host_runtime: "standalone",
-      external_http_provider: "litellm",
-      litellm: { model: "llama-8b" },
-      llm_base_url: "http://localhost:4000",
-    });
-    expect(v.complete).toBe(true);
-  });
-
-  it("host not set but other profile field touched → incomplete", () => {
-    const v = validateProfileCompleteness({
-      model: "gpt-5.4", // touches profile without host
+      codex: { model: "gpt-5.4" },
     });
     expect(v.complete).toBe(false);
     expect(v.touched).toBe(true);
-    expect(v.reasons[0]).toContain("host_runtime");
+    expect(v.reasons[0]).toContain("execution_topology_priority");
+    expect(v.reasons[0]).toContain("migration");
   });
 
-  it("unknown host_runtime value → incomplete with allowlist", () => {
+  it("model field touched but nothing else → incomplete with migration hint", () => {
     const v = validateProfileCompleteness({
-      host_runtime: "mystery" as string,
+      model: "gpt-5.4",
     });
     expect(v.complete).toBe(false);
-    expect(v.reasons[0]).toContain("인식되지 않는");
+    expect(v.touched).toBe(true);
+    expect(v.reasons[0]).toContain("execution_topology_priority");
   });
 });
 
@@ -150,18 +110,14 @@ describe("validateProfileCompleteness — per provider", () => {
 
 describe("extractProfileFields", () => {
   it("returns only profile fields, not orthogonal", () => {
-    // PR-K: use raw Record to allow legacy `host_runtime` field which is
-    // no longer in the OntoConfig type post-removal.
-    const cfg: Record<string, unknown> = {
-      host_runtime: "anthropic",
+    const cfg: OntoConfig = {
       anthropic: { model: "claude-haiku-4-5" },
+      reasoning_effort: "high",
       output_language: "ko", // orthogonal
       domains: ["se"], // orthogonal
       review_mode: "full", // orthogonal
-      reasoning_effort: "high", // profile
     };
     const extracted = extractProfileFields(cfg);
-    expect(extracted.host_runtime).toBe("anthropic");
     expect(extracted.anthropic).toEqual({ model: "claude-haiku-4-5" });
     expect(extracted.reasoning_effort).toBe("high");
     expect((extracted as { output_language?: string }).output_language).toBeUndefined();
@@ -175,35 +131,42 @@ describe("extractProfileFields", () => {
 const HOME_PATH = "/home/.onto/config.yml";
 const PROJECT_PATH = "/project/.onto/config.yml";
 
-function buildArgs(
-  home: OntoConfig | Record<string, unknown>,
-  project: OntoConfig | Record<string, unknown>,
-) {
+function buildArgs(home: OntoConfig, project: OntoConfig) {
   return { home, project, homePath: HOME_PATH, projectPath: PROJECT_PATH, sameRoot: false };
 }
 
-describe("adoptProfile — 6 decision branches", () => {
-  it("Case 1: project complete → source=project, no notice", () => {
+describe("adoptProfile — decision branches", () => {
+  it("Case 1: project complete via topology_priority → source=project, no notice", () => {
     const adoption = adoptProfile(
       buildArgs(
-        { host_runtime: "codex", model: "gpt-5.4", reasoning_effort: "high" },
-        { host_runtime: "anthropic", anthropic: { model: "claude-haiku-4-5" } },
+        {
+          execution_topology_priority: ["codex-main-subprocess"],
+          codex: { model: "gpt-5.4" },
+          reasoning_effort: "high",
+        },
+        {
+          execution_topology_priority: ["cc-main-agent-subagent"],
+          anthropic: { model: "claude-haiku-4-5" },
+        },
       ),
     );
     expect(adoption.source).toBe("project");
     expect(adoption.source_path).toBe(PROJECT_PATH);
     expect(adoption.notice).toBeUndefined();
-    expect(adoption.profile.host_runtime).toBe("anthropic");
+    expect(adoption.profile.anthropic).toEqual({ model: "claude-haiku-4-5" });
     // Crucially: home's codex-flavored fields must NOT appear.
-    expect(adoption.profile.model).toBeUndefined();
-    expect(adoption.profile.reasoning_effort).toBeUndefined();
+    expect((adoption.profile as { reasoning_effort?: string }).reasoning_effort).toBeUndefined();
+    expect(adoption.profile.codex).toBeUndefined();
   });
 
   it("Case 2: project touched-but-incomplete + home complete → source=global, notice emitted", () => {
     const adoption = adoptProfile(
       buildArgs(
-        { host_runtime: "codex", model: "gpt-5.4", reasoning_effort: "high" },
-        { host_runtime: "anthropic" /* missing model */ },
+        {
+          execution_topology_priority: ["codex-main-subprocess"],
+          codex: { model: "gpt-5.4" },
+        },
+        { anthropic: { model: "claude-haiku-4-5" } /* missing topology_priority */ },
       ),
     );
     expect(adoption.source).toBe("global");
@@ -212,41 +175,44 @@ describe("adoptProfile — 6 decision branches", () => {
     expect(adoption.notice).toContain("Project config 가 불완전");
     expect(adoption.notice).toContain(PROJECT_PATH);
     expect(adoption.notice).toContain(HOME_PATH);
-    expect(adoption.notice).toContain("anthropic.model");
+    expect(adoption.notice).toContain("execution_topology_priority");
     // Adopted profile is from HOME atomically
-    expect(adoption.profile.host_runtime).toBe("codex");
-    expect(adoption.profile.model).toBe("gpt-5.4");
+    expect(adoption.profile.codex).toEqual({ model: "gpt-5.4" });
+    // Home's topology_priority is orthogonal, NOT part of the profile slice.
+    expect(adoption.profile.execution_topology_priority).toBeUndefined();
   });
 
   it("Case 3: project absent + home complete → source=global, no notice", () => {
     const adoption = adoptProfile(
       buildArgs(
-        { host_runtime: "codex", codex: { model: "gpt-5.4" } },
+        {
+          execution_topology_priority: ["codex-main-subprocess"],
+          codex: { model: "gpt-5.4" },
+        },
         {}, // absent / empty
       ),
     );
     expect(adoption.source).toBe("global");
     expect(adoption.notice).toBeUndefined();
-    expect(adoption.profile.host_runtime).toBe("codex");
+    expect(adoption.profile.codex).toEqual({ model: "gpt-5.4" });
   });
 
   it("Case 4: project complete + home incomplete → source=project (project owns)", () => {
     const adoption = adoptProfile(
       buildArgs(
-        { host_runtime: "anthropic" /* missing model */ },
-        { host_runtime: "codex" },
+        { anthropic: { model: "claude-haiku-4-5" } /* touched, no topology */ },
+        { execution_topology_priority: ["codex-main-subprocess"] },
       ),
     );
     expect(adoption.source).toBe("project");
-    expect(adoption.profile.host_runtime).toBe("codex");
     expect(adoption.notice).toBeUndefined();
   });
 
   it("Case 5: both incomplete → source=none (caller throws)", () => {
     const adoption = adoptProfile(
       buildArgs(
-        { host_runtime: "anthropic" /* missing model */ },
-        { host_runtime: "litellm" /* missing model AND base_url */ },
+        { anthropic: { model: "claude-haiku-4-5" } /* missing topology */ },
+        { litellm: { model: "llama-8b" } /* missing topology */ },
       ),
     );
     expect(adoption.source).toBe("none");
@@ -264,21 +230,22 @@ describe("adoptProfile — 6 decision branches", () => {
 // ─── buildBothIncompleteError ───
 
 describe("buildBothIncompleteError", () => {
-  it("includes all 4 canonical profile options + both paths + per-side reasons", () => {
+  it("includes all 4 canonical topology options + both paths + per-side reasons + migration guide", () => {
     const err = buildBothIncompleteError(
-      buildArgs({}, { host_runtime: "anthropic" }),
-      { complete: false, touched: true, reasons: ["anthropic.model 없음"] },
+      buildArgs({}, { anthropic: { model: "claude-haiku-4-5" } }),
+      { complete: false, touched: true, reasons: ["execution_topology_priority 가 없음"] },
       { complete: false, touched: false, reasons: [] },
     );
     const msg = err.message;
     expect(msg).toContain("Review profile 을 해소할 수 없습니다");
     expect(msg).toContain(PROJECT_PATH);
     expect(msg).toContain(HOME_PATH);
-    expect(msg).toContain("anthropic.model 없음");
+    expect(msg).toContain("execution_topology_priority 가 없음");
     expect(msg).toContain("파일이 없거나"); // for home untouched
-    expect(msg).toContain("Option A — Anthropic");
-    expect(msg).toContain("Option B — Codex");
-    expect(msg).toContain("Option C — Claude Code");
+    expect(msg).toContain("topology-migration-guide.md");
+    expect(msg).toContain("Option A — Codex");
+    expect(msg).toContain("Option B — Claude Code Agent");
+    expect(msg).toContain("Option C — Claude Code TeamCreate");
     expect(msg).toContain("Option D — LiteLLM");
   });
 });
@@ -308,44 +275,44 @@ describe("mergeOrthogonalFields", () => {
 
   it("drops profile fields entirely", () => {
     const merged = mergeOrthogonalFields(
-      { host_runtime: "codex", model: "gpt-5.4", output_language: "ko" },
+      { codex: { model: "gpt-5.4" }, output_language: "ko" },
       { anthropic: { model: "claude-haiku-4-5" }, review_mode: "full" },
     );
-    expect((merged as { host_runtime?: string }).host_runtime).toBeUndefined();
-    expect((merged as { model?: string }).model).toBeUndefined();
+    expect((merged as { codex?: unknown }).codex).toBeUndefined();
     expect((merged as { anthropic?: unknown }).anthropic).toBeUndefined();
     expect(merged.output_language).toBe("ko");
     expect(merged.review_mode).toBe("full");
   });
+
+  it("passes execution_topology_priority through as orthogonal", () => {
+    const merged = mergeOrthogonalFields(
+      { execution_topology_priority: ["codex-main-subprocess"] },
+      { execution_topology_priority: ["cc-main-agent-subagent"] },
+    );
+    // Last-wins: project overrides home.
+    expect(merged.execution_topology_priority).toEqual(["cc-main-agent-subagent"]);
+  });
 });
 
-// ─── Regression: the exact frankenstein from the user's actual state ───
+// ─── Regression: post-PR-K migrated config should be adoptable ───
 
-describe("regression — real-world frankenstein scenario", () => {
-  it("home=codex/gpt-5.4/subagent/high + project=anthropic/sonnet-4-6 → project owns, no codex orphans", () => {
+describe("regression — migrated sketch v3 config", () => {
+  it("project declares topology_priority + codex block → project owns without host_runtime", () => {
     const adoption = adoptProfile(
       buildArgs(
+        {}, // empty global
         {
-          host_runtime: "codex",
-          execution_realization: "subagent",
-          model: "gpt-5.4",
-          review_mode: "full",
-          reasoning_effort: "high",
-          output_language: "ko",
-        } as OntoConfig,
-        {
-          host_runtime: "anthropic",
-          anthropic: { model: "claude-sonnet-4-6" },
+          execution_topology_priority: [
+            "cc-main-codex-subprocess",
+            "codex-main-subprocess",
+            "codex-nested-subprocess",
+          ],
+          codex: { model: "gpt-5.4", effort: "medium" },
+          review_mode: "light",
         },
       ),
     );
     expect(adoption.source).toBe("project");
-    // Profile slice from project only
-    expect(adoption.profile.host_runtime).toBe("anthropic");
-    expect(adoption.profile.anthropic?.model).toBe("claude-sonnet-4-6");
-    // NO codex-era orphans
-    expect(adoption.profile.execution_realization).toBeUndefined();
-    expect(adoption.profile.model).toBeUndefined();
-    expect(adoption.profile.reasoning_effort).toBeUndefined();
+    expect(adoption.profile.codex).toEqual({ model: "gpt-5.4", effort: "medium" });
   });
 });

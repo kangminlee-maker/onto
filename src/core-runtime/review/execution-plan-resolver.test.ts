@@ -61,12 +61,12 @@ describe("resolveExecutionPlan — P0 mock", () => {
 });
 
 describe("resolveExecutionPlan — P1 explicit", () => {
-  it("P1a --codex flag wins over everything", () => {
+  it("P1a --codex flag wins over claudeHost auto-detection", () => {
     const res = resolveExecutionPlan({
       explicitCodex: true,
-      ontoConfig: { host_runtime: "claude" }, // would otherwise match P1c
+      ontoConfig: {},
       env: {},
-      claudeHost: true,
+      claudeHost: true, // would otherwise match P2
       codexAvailable: false,
     });
     const resolved = expectResolved(res);
@@ -76,36 +76,15 @@ describe("resolveExecutionPlan — P1 explicit", () => {
     expect(resolved.plan.plan_trace[0]).toContain("P1 explicit-codex");
   });
 
-  it("P1c host_runtime=claude defaults to agent-teams", () => {
+  it("P1f env ONTO_HOST_RUNTIME=litellm forces ts_inline_http with matching provider", () => {
     const res = resolveExecutionPlan({
       explicitCodex: false,
-      ontoConfig: { host_runtime: "claude" },
-      env: {},
-      claudeHost: false,
-      codexAvailable: false,
-    });
-    const resolved = expectResolved(res);
-    expect(resolved.plan.execution_realization).toBe("agent-teams");
-    expect(resolved.plan.separation_rank).toBe("S2");
-  });
-
-  it("P1c host_runtime=claude + execution_realization=subagent → flat", () => {
-    const res = resolveExecutionPlan({
-      explicitCodex: false,
-      ontoConfig: { host_runtime: "claude", execution_realization: "subagent" },
-      env: {},
-      claudeHost: false,
-      codexAvailable: false,
-    });
-    const resolved = expectResolved(res);
-    expect(resolved.plan.execution_realization).toBe("subagent");
-  });
-
-  it("P1d host_runtime=litellm forces ts_inline_http with matching provider", () => {
-    const res = resolveExecutionPlan({
-      explicitCodex: false,
-      ontoConfig: { host_runtime: "litellm", llm_base_url: "http://proxy.local" },
-      env: {},
+      ontoConfig: {
+        external_http_provider: "litellm",
+        llm_base_url: "http://proxy.local",
+        litellm: { model: "llama-8b" },
+      },
+      env: { ONTO_HOST_RUNTIME: "litellm" },
       claudeHost: false,
       codexAvailable: false,
     });
@@ -216,9 +195,9 @@ describe("resolveExecutionPlan — observability", () => {
   it("emits [plan] prefix for every decision line", () => {
     resolveExecutionPlan({
       explicitCodex: false,
-      ontoConfig: { host_runtime: "claude" },
+      ontoConfig: {},
       env: {},
-      claudeHost: false,
+      claudeHost: true,
       codexAvailable: false,
     });
     const calls = stderrSpy.mock.calls.map((c: unknown[]) => String(c[0]));
@@ -260,13 +239,12 @@ describe("resolveExecutionPlan — observability", () => {
 });
 
 describe("resolveExecutionPlan — provider resolution priority", () => {
-  it("external_http_provider > api_provider", () => {
+  it("external_http_provider > subagent_llm.provider", () => {
     const res = resolveExecutionPlan({
       explicitCodex: false,
       ontoConfig: {
-        host_runtime: "standalone",
         external_http_provider: "anthropic",
-        api_provider: "openai", // loser
+        subagent_llm: { provider: "litellm" }, // loser
         anthropic: { model: "claude-x" },
       },
       env: {},
@@ -275,23 +253,6 @@ describe("resolveExecutionPlan — provider resolution priority", () => {
     });
     const resolved = expectResolved(res);
     expect(resolved.plan.provider_identity).toBe("anthropic");
-  });
-
-  it("api_provider > subagent_llm.provider", () => {
-    const res = resolveExecutionPlan({
-      explicitCodex: false,
-      ontoConfig: {
-        host_runtime: "standalone",
-        api_provider: "openai",
-        subagent_llm: { provider: "litellm" }, // loser
-        openai: { model: "gpt-x" },
-      },
-      env: {},
-      claudeHost: false,
-      codexAvailable: false,
-    });
-    const resolved = expectResolved(res);
-    expect(resolved.plan.provider_identity).toBe("openai");
   });
 });
 

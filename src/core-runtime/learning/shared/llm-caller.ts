@@ -11,7 +11,7 @@
  *
  * Cost-order provider resolution ladder (lower priority number = higher priority):
  *   1. Caller-explicit: callLlm(..., { provider }) — overrides any auto-resolution
- *   2. Config-explicit: OntoConfig.api_provider — user override, wins over cost-order
+ *   2. Config-explicit: OntoConfig.external_http_provider — user override, wins over cost-order
  *   3. codex CLI OAuth subscription (declared_billing_mode=subscription)
  *      Requires ~/.codex/auth.json chatgpt mode + codex binary on PATH.
  *      Invokes `codex exec --ephemeral -` as subprocess; OAuth token goes to
@@ -185,7 +185,7 @@ export interface LlmCallConfig {
  * Kept narrow to avoid learning→discovery coupling; callers pass a shape-compatible object.
  */
 export interface LearningProviderConfigInputs {
-  api_provider?: string;
+  external_http_provider?: string;
   model?: string;
   llm_base_url?: string;
   codex?: { model?: string; effort?: string };
@@ -226,8 +226,8 @@ export function resolveLearningProviderConfig(args: {
   const config = args.config ?? {};
   const cli = args.cliOverrides ?? {};
 
-  // provider: CLI > config.api_provider (narrowed to valid enum)
-  const configProvider = narrowProvider(config.api_provider);
+  // provider: CLI > config.external_http_provider (narrowed to valid enum)
+  const configProvider = narrowProvider(config.external_http_provider);
   const provider = cli.provider ?? configProvider;
 
   // model: CLI > config.{provider}.model (when provider is known) > config.model.
@@ -322,7 +322,7 @@ const DEFAULT_MAX_RETRIES = 1;
 //
 // Priority (lower number = higher priority):
 //   1. Caller-explicit (config.provider argument to callLlm — handled in callLlm itself)
-//   2. Config-explicit api_provider (via Partial<LlmCallConfig>.provider — handled in callLlm)
+//   2. Config-explicit external_http_provider (via Partial<LlmCallConfig>.provider — handled in callLlm)
 //   3. codex CLI OAuth subscription — ~/.codex/auth.json chatgpt mode + codex binary on PATH
 //   4. LiteLLM — llm_base_url resolved via config/env
 //   5. Anthropic API key — ANTHROPIC_API_KEY env
@@ -489,12 +489,12 @@ function explicitProviderMissingCredentialError(
 ): string {
   const envVar = provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
   return [
-    `api_provider=${provider} 명시적으로 선택되었으나 ${envVar}가 환경변수에 없습니다.`,
+    `external_http_provider=${provider} 명시적으로 선택되었으나 ${envVar}가 환경변수에 없습니다.`,
     ...(provider === "openai"
       ? ["(~/.codex/auth.json의 OPENAI_API_KEY 필드도 비어 있거나 없음)"]
       : []),
     `명시적 provider override를 사용하려면 ${envVar}를 export하세요.`,
-    "cost-order 자동 해소를 원하면 .onto/config.yml에서 api_provider를 제거하세요.",
+    "cost-order 자동 해소를 원하면 .onto/config.yml 에서 external_http_provider 를 제거하세요.",
   ].join("\n");
 }
 
@@ -609,7 +609,7 @@ function maybeEmitCodexInstallNotice(opts: {
     "  설치 후 `codex --version` 으로 PATH 인식 확인.",
     "",
     `지금은 다음 cost-order 경로로 폴백합니다: ${opts.fallbackProvider} (declared_billing_mode=${opts.fallbackBillingMode}).`,
-    "명시적으로 다른 provider를 쓰려면 .onto/config.yml에 api_provider를 지정하세요.",
+    "명시적으로 다른 provider를 쓰려면 .onto/config.yml 에 external_http_provider 를 지정하세요.",
     "세션당 1회만 표시됩니다. `suppress_codex_install_notice: true`로 끌 수 있습니다.",
     "",
   ].join("\n");
@@ -624,7 +624,7 @@ function maybeEmitCodexInstallNotice(opts: {
  * auth.json OPENAI_API_KEY field), the old code path would have picked the
  * API key. Letting this transition happen silently can surprise users who
  * weren't expecting a provider switch. Emit a single STDERR notice so they
- * can opt-out explicitly by setting api_provider.
+ * can opt-out explicitly by setting external_http_provider.
  *
  * Only fires when:
  *   - resolved provider is "codex" or "litellm" (cost-order newer slots)
@@ -655,7 +655,7 @@ function maybeEmitCostOrderTransitionNotice(resolved: ResolvedProvider): void {
     `[onto] provider resolution changed by cost-order: would have used ${wouldHaveBeen} (per-token), now using ${resolved.provider} (${
       resolved.provider === "codex" ? "subscription" : "variable; typically per-token audit"
     }).`,
-    `기존 동작을 유지하려면 .onto/config.yml 에 \`api_provider: ${wouldHaveBeen}\` 를 명시하세요.`,
+    `기존 동작을 유지하려면 .onto/config.yml 에 \`external_http_provider: ${wouldHaveBeen}\` 를 명시하세요.`,
     "세션당 1회만 표시됩니다. ONTO_SUPPRESS_COST_ORDER_NOTICE=1 로 끌 수 있습니다.",
     "",
   ].join("\n");
@@ -1079,7 +1079,7 @@ export async function callLlm(
     const baseUrl = config.base_url ?? process.env.LITELLM_BASE_URL;
     if (!baseUrl) {
       throw new Error(
-        "api_provider=litellm requires base_url (set via LlmCallConfig.base_url, env LITELLM_BASE_URL, or .onto/config.yml llm_base_url)",
+        "external_http_provider=litellm requires base_url (set via LlmCallConfig.base_url, env LITELLM_BASE_URL, or .onto/config.yml llm_base_url)",
       );
     }
     const modelId = config.model_id ?? config.models_per_provider?.litellm;

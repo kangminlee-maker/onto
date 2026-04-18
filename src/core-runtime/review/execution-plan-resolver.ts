@@ -134,12 +134,7 @@ export type ExecutionPlanResolution =
 export interface ResolveExecutionPlanArgs {
   /** --codex CLI flag explicitly requested. */
   explicitCodex: boolean;
-  // PR-K (2026-04-18): ontoConfig accepts raw object too, so callers
-  // (tests, CLI entry reading YAML) can pass configs with legacy fields
-  // no longer in the OntoConfig type. Internally we cast to OntoConfig
-  // when reading typed fields and use `Record<string, unknown>` casts
-  // for the 5 removed legacy keys.
-  ontoConfig: OntoConfig | Record<string, unknown>;
+  ontoConfig: OntoConfig;
   /**
    * Environment variable snapshot. Defaults to process.env. Tests inject a
    * controlled map so ladder decisions are reproducible without mutating
@@ -222,12 +217,18 @@ function readCodexAuthState(): CodexAuthState {
  *
  * Priority (higher rank = preferred, matches sketch §3.2):
  *   P0  Mock (ONTO_LLM_MOCK=1)                        — test only
- *   P1  Explicit config override (api_provider / host_runtime)
- *   P2  Codex CLI subprocess (S0) — --codex flag or detected + chatgpt OAuth
- *   P3  External HTTP API (S1) — requires explicit external_http_provider
- *       field; 3a anthropic, 3b openai, 3c litellm
- *   P4  Host nested spawn (S2) — opt-in via execution_realization=agent-teams
+ *   P1a Explicit --codex CLI flag                      — subprocess (S0)
+ *   P1f env ONTO_HOST_RUNTIME override                 — any rank
+ *   P2  Auto-detected Claude Code host (CLAUDECODE=1)  — host nested spawn (S2)
+ *   P3  Auto-detected codex binary + auth.json         — subprocess (S0)
+ *   P4  subagent_llm / external_http_provider config   — external HTTP (S1)
  *   Fail-fast when nothing is viable.
+ *
+ * Historical note: the legacy `host_runtime` / `execution_realization` /
+ * `api_provider` fields that previously drove P1b-P1e config branches
+ * were removed from `OntoConfig` by PR-K (2026-04-18, sketch v3 §7.4 Phase D
+ * stage 3). `execution_topology_priority` is the canonical seat for these
+ * decisions now; legacy configs fail at load via `LegacyFieldRemovedError`.
  */
 export function resolveExecutionPlan(
   args: ResolveExecutionPlanArgs,
@@ -265,70 +266,10 @@ export function resolveExecutionPlan(
     };
   }
 
-  // PR-K (2026-04-18): `host_runtime` / `execution_realization` were
-  // removed from the OntoConfig type (sketch v3 §7.4 Phase D stage 3).
-  // These P1 branches are unreachable in practice because PR-J throws
-  // `LegacyFieldRemovedError` at config load for any config using these
-  // fields without a companion `execution_topology_priority`. Reads here
-  // are via `Record<string, unknown>` cast purely to preserve the code
-  // structure until a follow-up refactor removes the legacy ladder.
-  const rawConfig = args.ontoConfig as unknown as Record<string, unknown>;
-  const configHost = typeof rawConfig.host_runtime === "string" ? rawConfig.host_runtime : undefined;
-  const configRealization = typeof rawConfig.execution_realization === "string" ? rawConfig.execution_realization : undefined;
-
   // P1a: Explicit --codex flag. Overrides all other inputs.
   if (args.explicitCodex) {
     log("P1 explicit-codex: matched (--codex flag)");
     return resolveCodexPlan(log, trace, retry_policy, args.ontoConfig);
-  }
-
-  // P1b: config.host_runtime=codex. Semantically identical to --codex.
-  if (configHost === "codex") {
-    log("P1 explicit-config: matched (host_runtime=codex)");
-    return resolveCodexPlan(log, trace, retry_policy, args.ontoConfig);
-  }
-
-  // P1c: config.host_runtime=claude. Host nested spawn (S2).
-  if (configHost === "claude") {
-    const realization: ExecutionRealization =
-      configRealization === "subagent" || configRealization === "agent-teams"
-        ? (configRealization as ExecutionRealization)
-        : "agent-teams";
-    log(
-      `P1 explicit-config: matched (host_runtime=claude, realization=${realization})`,
-    );
-    return {
-      type: "resolved",
-      plan: {
-        separation_rank: "S2",
-        execution_realization: realization,
-        host_runtime: "claude",
-        provider_identity: "claude-code",
-        retry_policy,
-        plan_trace: trace,
-      },
-    };
-  }
-
-  // P1d: config.host_runtime explicitly names an external HTTP provider.
-  if (
-    configHost === "litellm" ||
-    configHost === "anthropic" ||
-    configHost === "openai"
-  ) {
-    log(
-      `P1 explicit-config: matched (host_runtime=${configHost} → ts_inline_http)`,
-    );
-    return resolveExternalHttpPlan(log, trace, retry_policy, args.ontoConfig, {
-      forcedProvider: configHost,
-    });
-  }
-
-  // P1e: config.host_runtime=standalone. Forces ts_inline_http; provider
-  // resolution follows external_http_provider / api_provider lookup.
-  if (configHost === "standalone") {
-    log("P1 explicit-config: host_runtime=standalone → ts_inline_http path");
-    return resolveExternalHttpPlan(log, trace, retry_policy, args.ontoConfig);
   }
 
   // P1f: env ONTO_HOST_RUNTIME override.
@@ -401,11 +342,9 @@ export function resolveExecutionPlan(
   log("P3 auto: codex binary unavailable → skip");
 
   // P4: subagent_llm config or external_http_provider makes ts_inline_http viable.
-  // PR-K: args.ontoConfig may be raw Record; cast for typed access.
-  const typedOntoConfig = args.ontoConfig as OntoConfig;
-  if (typedOntoConfig.subagent_llm?.provider || hasExternalHttpConfig(typedOntoConfig)) {
+  if (args.ontoConfig.subagent_llm?.provider || hasExternalHttpConfig(args.ontoConfig)) {
     log("P4 auto: subagent_llm or external_http_provider present → ts_inline_http");
-    return resolveExternalHttpPlan(log, trace, retry_policy, typedOntoConfig);
+    return resolveExternalHttpPlan(log, trace, retry_policy, args.ontoConfig);
   }
 
   log("final: no viable path → no_host");
@@ -508,18 +447,10 @@ function pickExternalProviderField(
   opts?: { forcedProvider?: "litellm" | "anthropic" | "openai" },
 ): ProviderFieldResult {
   if (opts?.forcedProvider) {
-    return { provider: opts.forcedProvider, source: "forced (config.host_runtime or env)" };
+    return { provider: opts.forcedProvider, source: "forced (env ONTO_HOST_RUNTIME)" };
   }
-  const ext = narrowExternalProvider(
-    (config as { external_http_provider?: string }).external_http_provider,
-  );
+  const ext = narrowExternalProvider(config.external_http_provider);
   if (ext) return { provider: ext, source: "external_http_provider" };
-  // PR-K: api_provider removed from OntoConfig type — read via cast.
-  const rawConfig = config as unknown as Record<string, unknown>;
-  const api = narrowExternalProvider(
-    typeof rawConfig.api_provider === "string" ? rawConfig.api_provider : undefined,
-  );
-  if (api) return { provider: api, source: "api_provider" };
   const subagent = narrowExternalProvider(config.subagent_llm?.provider);
   if (subagent) return { provider: subagent, source: "subagent_llm.provider" };
   return { provider: null, source: "(none)" };
@@ -535,11 +466,8 @@ function narrowExternalProvider(
 }
 
 function hasExternalHttpConfig(config: OntoConfig): boolean {
-  // PR-K: api_provider removed from OntoConfig type — read via cast.
-  const rawConfig = config as unknown as Record<string, unknown>;
   return (
-    Boolean((config as { external_http_provider?: string }).external_http_provider) ||
-    Boolean(typeof rawConfig.api_provider === "string" && rawConfig.api_provider.length > 0) ||
+    Boolean(config.external_http_provider) ||
     Boolean(config.subagent_llm?.provider)
   );
 }
@@ -551,14 +479,14 @@ function hasExternalHttpConfig(config: OntoConfig): boolean {
 function buildNoHostReason(): string {
   return [
     "Review execution plan을 해소할 수 없습니다.",
-    "현재 감지 결과: Claude Code 세션 아님(CLAUDECODE unset), codex 바이너리 또는 ~/.codex/auth.json 부재, subagent_llm/external_http_provider/api_provider 모두 미설정.",
+    "현재 감지 결과: Claude Code 세션 아님(CLAUDECODE unset), codex 바이너리 또는 ~/.codex/auth.json 부재, subagent_llm / external_http_provider 미설정.",
     "",
     "다음 중 한 가지로 해결하세요:",
     "  1. Claude Code 세션에서 `onto review` 재실행",
     "  2. codex CLI 설치 + `codex login` 후 재실행",
     "  3. `--codex` 플래그로 codex subprocess 강제",
-    "  4. `.onto/config.yml` 에 host_runtime: claude 또는 codex 명시",
-    "  5. `.onto/config.yml` 에 host_runtime: standalone + external_http_provider: <anthropic|openai|litellm>",
+    "  4. `.onto/config.yml` 에 execution_topology_priority: [canonical topology id] 지정 (docs/topology-migration-guide.md 참고)",
+    "  5. `.onto/config.yml` 에 external_http_provider: <anthropic|openai|litellm> + per-provider model 설정",
     "  6. `ONTO_HOST_RUNTIME=standalone` env + external_http_provider config",
   ].join("\n");
 }
@@ -568,8 +496,6 @@ function buildMissingExternalProviderReason(): string {
     "External HTTP provider 미지정.",
     "`.onto/config.yml` 에 다음 중 하나를 추가하세요:",
     "  external_http_provider: anthropic    # 또는 openai | litellm",
-    "  # 또는 기존 필드",
-    "  api_provider: anthropic",
     "  # 또는",
     "  subagent_llm: { provider: anthropic, model: <model-id> }",
   ].join("\n");

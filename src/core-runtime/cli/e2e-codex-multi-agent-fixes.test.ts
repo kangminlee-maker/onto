@@ -1,7 +1,7 @@
 /**
  * Codex multi-agent fixes — E2E test suite.
  *
- * Run: `npx tsx src/core-runtime/cli/e2e-codex-multi-agent-fixes.test.ts`
+ * Run: `npx vitest run src/core-runtime/cli/e2e-codex-multi-agent-fixes.test.ts`
  *
  * Covers:
  *   B. OntoConfig codex namespace (config-chain.ts)
@@ -14,37 +14,26 @@
  *   Each test builds minimal tmpdir fixtures. Tests that exercise the
  *   prompt execution runner build a full session directory with a mock
  *   execution-plan.yaml and mock prompt packets.
+ *
+ * Format history:
+ *   Converted from a tsx-run custom minimal test runner to vitest in
+ *   2026-04-18 (handoff §2 Priority 2 Phase C). Fixture update included:
+ *   B-1~B-6 now declare `execution_topology_priority` so atomic profile
+ *   adoption (PR #96 + PR #113) does not reject the partial-profile
+ *   fixtures that predated sketch v3.
  */
 
+import { describe, it, afterAll } from "vitest";
 import fs from "node:fs";
 import fsAsync from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+
+import { resolveConfigChain } from "../discovery/config-chain.js";
 
 // ---------------------------------------------------------------------------
-// Minimal test runner (matching project convention)
+// Test helpers
 // ---------------------------------------------------------------------------
-
-let passCount = 0;
-let failCount = 0;
-const failures: string[] = [];
-
-async function test(
-  name: string,
-  fn: () => void | Promise<void>,
-): Promise<void> {
-  try {
-    await fn();
-    process.stdout.write(`  PASS  ${name}\n`);
-    passCount += 1;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    process.stdout.write(`  FAIL  ${name}\n        ${message}\n`);
-    failures.push(`${name}: ${message}`);
-    failCount += 1;
-  }
-}
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -164,20 +153,22 @@ function trackCleanup(dir: string): string {
 // B. OntoConfig codex namespace (config-chain.ts)
 // ---------------------------------------------------------------------------
 
-async function testConfigChainCodexNamespace(): Promise<void> {
-  process.stdout.write("\n── B. config-chain codex namespace ──\n");
+describe("B. config-chain codex namespace", () => {
+  // Fixture note (post-PR #96 + PR #113 atomic profile adoption):
+  // Each config.yml must declare `execution_topology_priority` so the
+  // profile is "complete" per `validateProfileCompleteness`. Without
+  // it, `resolveConfigChain` throws `buildBothIncompleteError`. The
+  // topology value doesn't affect what these tests assert — they verify
+  // that the orthogonal/profile merge correctly surfaces the `codex:`
+  // namespace and top-level `model` / `reasoning_effort` values.
 
-  const { resolveConfigChain } = await import(
-    "../discovery/config-chain.js"
-  );
-
-  await test("B-1: codex namespace parsed from project config", async () => {
+  it("B-1: codex namespace parsed from project config", async () => {
     const homeDir = trackCleanup(makeTmpDir("b1h"));
     const projDir = trackCleanup(makeTmpDir("b1p"));
     fs.mkdirSync(path.join(projDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(projDir, ".onto", "config.yml"),
-      "codex:\n  model: gpt-5.4\n  effort: xhigh\n",
+      "execution_topology_priority:\n  - codex-main-subprocess\ncodex:\n  model: gpt-5.4\n  effort: xhigh\n",
       "utf8",
     );
     const config = await resolveConfigChain(homeDir, projDir);
@@ -185,19 +176,19 @@ async function testConfigChainCodexNamespace(): Promise<void> {
     assertEqual(config.codex?.effort, "xhigh", "codex.effort parsed");
   });
 
-  await test("B-2: project codex namespace overrides home", async () => {
+  it("B-2: project codex namespace overrides home", async () => {
     const homeDir = trackCleanup(makeTmpDir("b2h"));
     const projDir = trackCleanup(makeTmpDir("b2p"));
     fs.mkdirSync(path.join(homeDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(homeDir, ".onto", "config.yml"),
-      "codex:\n  model: gpt-5.3\n  effort: high\n",
+      "execution_topology_priority:\n  - codex-main-subprocess\ncodex:\n  model: gpt-5.3\n  effort: high\n",
       "utf8",
     );
     fs.mkdirSync(path.join(projDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(projDir, ".onto", "config.yml"),
-      "codex:\n  model: gpt-5.4\n  effort: xhigh\n",
+      "execution_topology_priority:\n  - codex-main-subprocess\ncodex:\n  model: gpt-5.4\n  effort: xhigh\n",
       "utf8",
     );
     const config = await resolveConfigChain(homeDir, projDir);
@@ -205,13 +196,13 @@ async function testConfigChainCodexNamespace(): Promise<void> {
     assertEqual(config.codex?.effort, "xhigh", "project codex.effort wins");
   });
 
-  await test("B-3: top-level model coexists with codex namespace", async () => {
+  it("B-3: top-level model coexists with codex namespace", async () => {
     const homeDir = trackCleanup(makeTmpDir("b3h"));
     const projDir = trackCleanup(makeTmpDir("b3p"));
     fs.mkdirSync(path.join(projDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(projDir, ".onto", "config.yml"),
-      "model: claude-sonnet-4-20250514\nreasoning_effort: medium\ncodex:\n  model: gpt-5.4\n  effort: xhigh\n",
+      "execution_topology_priority:\n  - codex-main-subprocess\nmodel: claude-sonnet-4-20250514\nreasoning_effort: medium\ncodex:\n  model: gpt-5.4\n  effort: xhigh\n",
       "utf8",
     );
     const config = await resolveConfigChain(homeDir, projDir);
@@ -221,26 +212,26 @@ async function testConfigChainCodexNamespace(): Promise<void> {
     assertEqual(config.codex?.effort, "xhigh", "codex.effort");
   });
 
-  await test("B-4: missing codex namespace → undefined", async () => {
+  it("B-4: missing codex namespace → undefined", async () => {
     const homeDir = trackCleanup(makeTmpDir("b4h"));
     const projDir = trackCleanup(makeTmpDir("b4p"));
     fs.mkdirSync(path.join(projDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(projDir, ".onto", "config.yml"),
-      "model: claude-sonnet-4-20250514\n",
+      "execution_topology_priority:\n  - codex-main-subprocess\nmodel: claude-sonnet-4-20250514\n",
       "utf8",
     );
     const config = await resolveConfigChain(homeDir, projDir);
     assertEqual(config.codex, undefined, "codex absent → undefined");
   });
 
-  await test("B-5: empty codex namespace → empty object", async () => {
+  it("B-5: empty codex namespace → empty object", async () => {
     const homeDir = trackCleanup(makeTmpDir("b5h"));
     const projDir = trackCleanup(makeTmpDir("b5p"));
     fs.mkdirSync(path.join(projDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(projDir, ".onto", "config.yml"),
-      "codex: {}\n",
+      "execution_topology_priority:\n  - codex-main-subprocess\ncodex: {}\n",
       "utf8",
     );
     const config = await resolveConfigChain(homeDir, projDir);
@@ -249,13 +240,13 @@ async function testConfigChainCodexNamespace(): Promise<void> {
     assertEqual(config.codex?.effort, undefined, "codex.effort undefined");
   });
 
-  await test("B-6: home codex used when project has no config", async () => {
+  it("B-6: home codex used when project has no config", async () => {
     const homeDir = trackCleanup(makeTmpDir("b6h"));
     const projDir = trackCleanup(makeTmpDir("b6p"));
     fs.mkdirSync(path.join(homeDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(homeDir, ".onto", "config.yml"),
-      "codex:\n  model: gpt-5.3\n  effort: high\n",
+      "execution_topology_priority:\n  - codex-main-subprocess\ncodex:\n  model: gpt-5.3\n  effort: high\n",
       "utf8",
     );
     // No .onto/config.yml in project
@@ -263,7 +254,7 @@ async function testConfigChainCodexNamespace(): Promise<void> {
     assertEqual(config.codex?.model, "gpt-5.3", "home codex.model used");
     assertEqual(config.codex?.effort, "high", "home codex.effort used");
   });
-}
+});
 
 // ---------------------------------------------------------------------------
 // C. appendExecutorModelArgs codex fallback (review-invoke.ts)
@@ -276,13 +267,10 @@ async function testConfigChainCodexNamespace(): Promise<void> {
 // For isolated unit testing, we duplicate the function's logic and verify.
 // ---------------------------------------------------------------------------
 
-async function testCodexConfigFallback(): Promise<void> {
-  process.stdout.write("\n── C. codex config fallback ──\n");
+import { readSingleOptionValueFromArgv } from "../review/review-artifact-utils.js";
 
+describe("C. codex config fallback", () => {
   // Reproduce appendExecutorModelArgs logic to test the resolution chain
-  const { readSingleOptionValueFromArgv } = await import(
-    "../review/review-artifact-utils.js"
-  );
   type OntoConfig = {
     model?: string;
     reasoning_effort?: string;
@@ -313,7 +301,7 @@ async function testCodexConfigFallback(): Promise<void> {
     );
   }
 
-  await test("C-1: CLI flag wins over everything (model)", () => {
+  it("C-1: CLI flag wins over everything (model)", () => {
     const config: OntoConfig = {
       model: "claude-sonnet-4-20250514",
       codex: { model: "gpt-5.3" },
@@ -322,7 +310,7 @@ async function testCodexConfigFallback(): Promise<void> {
     assertEqual(result, "gpt-5.4", "CLI flag wins");
   });
 
-  await test("C-2: top-level config wins over codex namespace", () => {
+  it("C-2: top-level config wins over codex namespace", () => {
     const config: OntoConfig = {
       model: "claude-sonnet-4-20250514",
       codex: { model: "gpt-5.4" },
@@ -331,7 +319,7 @@ async function testCodexConfigFallback(): Promise<void> {
     assertEqual(result, "claude-sonnet-4-20250514", "top-level wins");
   });
 
-  await test("C-3: codex namespace used when top-level absent (model)", () => {
+  it("C-3: codex namespace used when top-level absent (model)", () => {
     const config: OntoConfig = {
       codex: { model: "gpt-5.4" },
     };
@@ -339,7 +327,7 @@ async function testCodexConfigFallback(): Promise<void> {
     assertEqual(result, "gpt-5.4", "codex.model fallback");
   });
 
-  await test("C-4: codex effort used when reasoning_effort absent", () => {
+  it("C-4: codex effort used when reasoning_effort absent", () => {
     const config: OntoConfig = {
       codex: { effort: "xhigh" },
     };
@@ -347,7 +335,7 @@ async function testCodexConfigFallback(): Promise<void> {
     assertEqual(result, "xhigh", "codex.effort fallback");
   });
 
-  await test("C-5: top-level reasoning_effort wins over codex effort", () => {
+  it("C-5: top-level reasoning_effort wins over codex effort", () => {
     const config: OntoConfig = {
       reasoning_effort: "medium",
       codex: { effort: "xhigh" },
@@ -356,7 +344,7 @@ async function testCodexConfigFallback(): Promise<void> {
     assertEqual(result, "medium", "top-level effort wins");
   });
 
-  await test("C-6: CLI reasoning-effort wins over all", () => {
+  it("C-6: CLI reasoning-effort wins over all", () => {
     const config: OntoConfig = {
       reasoning_effort: "medium",
       codex: { effort: "xhigh" },
@@ -365,17 +353,17 @@ async function testCodexConfigFallback(): Promise<void> {
     assertEqual(result, "low", "CLI flag wins");
   });
 
-  await test("C-7: all absent → undefined", () => {
+  it("C-7: all absent → undefined", () => {
     const config: OntoConfig = {};
     assertEqual(resolveModel([], config), undefined, "model undefined");
     assertEqual(resolveEffort([], config), undefined, "effort undefined");
   });
 
-  await test("C-8: undefined config → undefined", () => {
+  it("C-8: undefined config → undefined", () => {
     assertEqual(resolveModel([], undefined), undefined, "model no config");
     assertEqual(resolveEffort([], undefined), undefined, "effort no config");
   });
-}
+});
 
 // ---------------------------------------------------------------------------
 // D. Synthesize retry (run-review-prompt-execution.ts)
@@ -386,17 +374,11 @@ async function testCodexConfigFallback(): Promise<void> {
 // with 8s backoff = too slow for E2E tests).
 // ---------------------------------------------------------------------------
 
-async function testSynthesizeRetry(): Promise<void> {
-  process.stdout.write("\n── D. Synthesize retry ──\n");
+import { executeReviewPromptExecution } from "./run-review-prompt-execution.js";
+import { writeYamlDocument } from "../review/review-artifact-utils.js";
 
+describe("D. Synthesize retry", () => {
   const projectRoot = process.cwd();
-
-  const { executeReviewPromptExecution } = await import(
-    "./run-review-prompt-execution.js"
-  );
-  const { writeYamlDocument } = await import(
-    "../review/review-artifact-utils.js"
-  );
 
   const BOUNDARY_DECISION = {
     requested_policy: "denied",
@@ -533,7 +515,7 @@ fs.writeFileSync(outputPath, output, "utf8");
   }
 
   // ── D-1: synthesize succeeds on first attempt ──
-  await test("D-1: synthesize succeeds on first attempt", async () => {
+  it("D-1: synthesize succeeds on first attempt", async () => {
     const { sessionRoot } = await buildMinimalSession("d1");
     const execDir = trackCleanup(makeTmpDir("d1-exec"));
     const succeedScript = createSucceedScript(execDir);
@@ -550,7 +532,7 @@ fs.writeFileSync(outputPath, output, "utf8");
   });
 
   // ── D-2: synthesize fails first, succeeds on retry ──
-  await test("D-2: synthesize fails then succeeds on retry", async () => {
+  it("D-2: synthesize fails then succeeds on retry", async () => {
     const { sessionRoot } = await buildMinimalSession("d2");
     const execDir = trackCleanup(makeTmpDir("d2-exec"));
     const succeedScript = createSucceedScript(execDir);
@@ -576,7 +558,7 @@ fs.writeFileSync(outputPath, output, "utf8");
   });
 
   // ── D-3: synthesize fails both attempts → halt ──
-  await test("D-3: synthesize fails both attempts → halted", async () => {
+  it("D-3: synthesize fails both attempts → halted", async () => {
     const { sessionRoot } = await buildMinimalSession("d3");
     const execDir = trackCleanup(makeTmpDir("d3-exec"));
     const succeedScript = createSucceedScript(execDir);
@@ -600,7 +582,7 @@ fs.writeFileSync(outputPath, output, "utf8");
   });
 
   // ── D-4: execution-result artifact written on synthesize halt ──
-  await test("D-4: execution-result artifact written on synth halt", async () => {
+  it("D-4: execution-result artifact written on synth halt", async () => {
     const { sessionRoot } = await buildMinimalSession("d4");
     const execDir = trackCleanup(makeTmpDir("d4-exec"));
     const succeedScript = createSucceedScript(execDir);
@@ -623,7 +605,7 @@ fs.writeFileSync(outputPath, output, "utf8");
   });
 
   // ── D-5: successful retry still produces correct execution-result ──
-  await test("D-5: successful retry produces correct execution-result", async () => {
+  it("D-5: successful retry produces correct execution-result", async () => {
     const { sessionRoot } = await buildMinimalSession("d5");
     const execDir = trackCleanup(makeTmpDir("d5-exec"));
     const succeedScript = createSucceedScript(execDir);
@@ -645,15 +627,13 @@ fs.writeFileSync(outputPath, output, "utf8");
     assertIncludes(resultText, "completed", "status is completed");
     assertNotIncludes(resultText, "halted_partial", "not halted");
   });
-}
+});
 
 // ---------------------------------------------------------------------------
 // E. Coordinator agent prompt — Write tool removed
 // ---------------------------------------------------------------------------
 
-async function testCoordinatorPrompt(): Promise<void> {
-  process.stdout.write("\n── E. Coordinator agent prompt ──\n");
-
+describe("E. Coordinator agent prompt", () => {
   // Read the coordinator source to verify prompt template
   const coordinatorSource = fs.readFileSync(
     path.join(
@@ -663,7 +643,7 @@ async function testCoordinatorPrompt(): Promise<void> {
     "utf8",
   );
 
-  await test("E-1: prompt does NOT contain 'using the Write tool'", () => {
+  it("E-1: prompt does NOT contain 'using the Write tool'", () => {
     // Extract the AGENT_PROMPT_TEMPLATE string
     const templateMatch = coordinatorSource.match(
       /const AGENT_PROMPT_TEMPLATE = `([\s\S]*?)`;/,
@@ -678,7 +658,7 @@ async function testCoordinatorPrompt(): Promise<void> {
     );
   });
 
-  await test("E-2: prompt still instructs writing to output path", () => {
+  it("E-2: prompt still instructs writing to output path", () => {
     const templateMatch = coordinatorSource.match(
       /const AGENT_PROMPT_TEMPLATE = `([\s\S]*?)`;/,
     );
@@ -691,7 +671,7 @@ async function testCoordinatorPrompt(): Promise<void> {
     );
   });
 
-  await test("E-3: prompt contains all required rule keywords", () => {
+  it("E-3: prompt contains all required rule keywords", () => {
     const templateMatch = coordinatorSource.match(
       /const AGENT_PROMPT_TEMPLATE = `([\s\S]*?)`;/,
     );
@@ -710,7 +690,7 @@ async function testCoordinatorPrompt(): Promise<void> {
     }
   });
 
-  await test("E-4: buildAgentPrompt replaces all placeholders", () => {
+  it("E-4: buildAgentPrompt replaces all placeholders", () => {
     // Import and call the actual function
     // Since buildAgentPrompt is not exported, verify via template regex
     const templateMatch = coordinatorSource.match(
@@ -736,21 +716,19 @@ async function testCoordinatorPrompt(): Promise<void> {
       );
     }
   });
-}
+});
 
 // ---------------------------------------------------------------------------
 // F. process.md ToolSearch instruction
 // ---------------------------------------------------------------------------
 
-async function testProcessMdToolSearch(): Promise<void> {
-  process.stdout.write("\n── F. process.md ToolSearch ──\n");
-
+describe("F. process.md ToolSearch", () => {
   const processContent = fs.readFileSync(
     path.join(process.cwd(), "process.md"),
     "utf8",
   );
 
-  await test("F-1: ToolSearch instruction exists before Team Creation", () => {
+  it("F-1: ToolSearch instruction exists before Team Creation", () => {
     const toolSearchPos = processContent.indexOf(
       'ToolSearch("select:TeamCreate,SendMessage,TeamDelete")',
     );
@@ -764,7 +742,7 @@ async function testProcessMdToolSearch(): Promise<void> {
     );
   });
 
-  await test("F-2: ToolSearch section marked as mandatory", () => {
+  it("F-2: ToolSearch section marked as mandatory", () => {
     assertIncludes(
       processContent,
       "Tool Availability Check (mandatory",
@@ -772,7 +750,7 @@ async function testProcessMdToolSearch(): Promise<void> {
     );
   });
 
-  await test("F-3: deferred tools explanation present", () => {
+  it("F-3: deferred tools explanation present", () => {
     assertIncludes(
       processContent,
       "deferred tools",
@@ -780,7 +758,7 @@ async function testProcessMdToolSearch(): Promise<void> {
     );
   });
 
-  await test("F-4: fallback instruction on ToolSearch failure", () => {
+  it("F-4: fallback instruction on ToolSearch failure", () => {
     // Find the ToolSearch section
     const sectionStart = processContent.indexOf("#### Tool Availability Check");
     const sectionEnd = processContent.indexOf("#### Team Creation");
@@ -793,7 +771,7 @@ async function testProcessMdToolSearch(): Promise<void> {
     );
   });
 
-  await test("F-5: once-per-session note present", () => {
+  it("F-5: once-per-session note present", () => {
     assertIncludes(
       processContent,
       "once per conversation session",
@@ -801,7 +779,7 @@ async function testProcessMdToolSearch(): Promise<void> {
     );
   });
 
-  await test("F-6: ToolSearch targets all three team tools", () => {
+  it("F-6: ToolSearch targets all three team tools", () => {
     const toolSearchLine = processContent.match(
       /ToolSearch\("select:([^"]+)"\)/,
     );
@@ -811,43 +789,14 @@ async function testProcessMdToolSearch(): Promise<void> {
     assert(tools.includes("SendMessage"), "SendMessage in ToolSearch");
     assert(tools.includes("TeamDelete"), "TeamDelete in ToolSearch");
   });
-}
+});
 
 // ---------------------------------------------------------------------------
-// Main
+// Cleanup
 // ---------------------------------------------------------------------------
 
-async function main(): Promise<number> {
-  process.stdout.write("Codex multi-agent fixes E2E\n");
-  process.stdout.write("===========================\n");
-
-  await testConfigChainCodexNamespace();
-  await testCodexConfigFallback();
-  await testSynthesizeRetry();
-  await testCoordinatorPrompt();
-  await testProcessMdToolSearch();
-
-  // Cleanup
+afterAll(() => {
   for (const dir of cleanupDirs) {
     rmDir(dir);
   }
-
-  process.stdout.write(`\nResults: ${passCount} passed, ${failCount} failed\n`);
-  if (failures.length > 0) {
-    process.stdout.write("\nFailures:\n");
-    for (const failure of failures) {
-      process.stdout.write(`  - ${failure}\n`);
-    }
-  }
-  return failCount > 0 ? 1 : 0;
-}
-
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().then(
-    (exitCode) => process.exit(exitCode),
-    (error: unknown) => {
-      console.error(error instanceof Error ? error.message : String(error));
-      process.exit(1);
-    },
-  );
-}
+});

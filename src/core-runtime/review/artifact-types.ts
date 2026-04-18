@@ -425,6 +425,26 @@ export interface CoordinatorStateFile {
   halt_reason: string | null;
   error_message: string | null;
   transitions: CoordinatorStateTransition[];
+  /**
+   * Realization self-reported by the orchestrator (e.g. Claude Code
+   * session, coordinator subagent). Recorded on first `coordinator next`
+   * call that carries `--orchestrator-reported-realization <value>`.
+   *
+   * Distinct from `resolved_execution_realization` in `binding.yaml`
+   * (which records plan-time preference from the resolver). This field
+   * records what the caller actually did — closing the gap observed in
+   * development-records/benchmark/20260418-topology-smoke-full-e2e-results.md §"주목할 관찰 1".
+   *
+   * Values are free-form strings for forward compatibility. Examples:
+   *   - `claude-agent-tool-flat` (주체자가 Agent tool 로 flat spawn)
+   *   - `claude-teamcreate-nested` (TeamCreate 로 coordinator + nested spawn)
+   *   - `codex-subprocess` (codex CLI subprocess per lens)
+   *   - `litellm-http` (LiteLLM endpoint 로 HTTP dispatch)
+   *
+   * Absent when orchestrator did not self-report. Idempotent — first
+   * value wins, subsequent calls with different values are ignored.
+   */
+  orchestrator_reported_realization?: string;
 }
 
 export interface CoordinatorAgentInstruction {

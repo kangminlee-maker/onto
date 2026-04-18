@@ -128,14 +128,24 @@ function parseRegistryYaml(text: string): ExternalRenderRegistry {
 
     const listMatch = /^\s{2}-\s+(\w+):\s*(.*)$/.exec(line);
     if (listMatch) {
-      flush();
-      current = {};
-      (current as Record<string, string>)[listMatch[1]] = unquote(listMatch[2]);
+      const key = listMatch[1];
+      const rawValue = listMatch[2];
+      // Both capture groups are mandatory in the regex; this guard narrows the
+      // `string | undefined` inference under noUncheckedIndexedAccess.
+      if (key !== undefined && rawValue !== undefined) {
+        flush();
+        current = {};
+        (current as Record<string, string>)[key] = unquote(rawValue);
+      }
       continue;
     }
     const fieldMatch = /^\s{4,}(\w+):\s*(.*)$/.exec(line);
     if (fieldMatch && current !== null) {
-      (current as Record<string, string>)[fieldMatch[1]] = unquote(fieldMatch[2]);
+      const key = fieldMatch[1];
+      const rawValue = fieldMatch[2];
+      if (key !== undefined && rawValue !== undefined) {
+        (current as Record<string, string>)[key] = unquote(rawValue);
+      }
       continue;
     }
   }

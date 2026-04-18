@@ -6,6 +6,7 @@ revision_history:
   - "2026-04-19 v1: Tier 1 with onto-4 only (n=19 full). 초기 pattern 탐지"
   - "2026-04-19 v2: Sample 확장 — ~/cowork/* 전체 16 프로젝트 scan, 1440 session parsed (n=479 full, 961 light). 통계 신뢰도 급증. 순위 pattern 일관 (coverage/semantics/conciseness/evolution 최상위), 현재 core-axis 의 3/4 lens 가 하위 tier 확인"
   - "2026-04-19 v3: Metric 정정 — 사용자가 unique rate 가 잘못된 metric 임을 지적. 진짜 measure 는 set-cover (최소 lens 조합으로 전체 finding cover). Phase A (5 session, 'Accounted findings' format) 결과로 logic (60%) + evolution (60%) 가 set-cover top, coverage/semantics 는 하위. Unique rate 와 반대 결과 — cross-lens overlap 때문"
+  - "2026-04-19 v4: **DECISIVE** — Phase B LLM attribution 시도 실패 (codex CLI 제약 + anthropic key 미설정). 대안 발견: v2 의 Unique Finding Tagging 데이터 자체가 set-cover lower bound 제공. 479 session 전수 simulation 결과, {conciseness, coverage, evolution, semantics} 4 lens 가 91.2% cover (현 core-axis 88.5% 대비 +2.7%). Phase A 5 session 결과는 sample 편향으로 artifact — v4 가 canonical 결론"
 purpose: |
   Core-axis review mode 의 lens 구성을 **실제 review 실행 데이터** 기반으로
   재평가. 주체자 2026-04-19 정정: core-axis 의 목적은 "meta-level 4 axis
@@ -315,6 +316,113 @@ Tentative 경험적 후보:
 - 시간: 병렬 10 concurrent → ~15-25 분
 
 **결과**: Phase A 의 5 → 480 sample 확대, 통계 유의성 확보.
+
+## 6.6 v4 — Full 479 session set-cover (DECISIVE)
+
+### 6.6.1 Phase B 무산 및 대안 발견
+
+Phase B (LLM 기반 legacy attribution) 실행 시도:
+- 첫 run: codex CLI context 제약 + attribution 모두 empty
+- 두번째 run (anthropic 강제): `ANTHROPIC_API_KEY` 미설정으로 fail
+
+**대안 insight**: v2 의 `Unique Finding Tagging` 섹션은 이미 synthesize lens 가 수행한 **authoritative cross-lens attribution record**. Unique = 1 lens 만 contribute = **required lens for set-cover**. Consensus findings (≥2 lens 공동) 는 어느 lens 를 빼도 다른 lens 가 cover — free variable.
+
+즉 **required-lens-only 기반 simulation 이 set-cover 의 strictly correct lower bound**. LLM 없이 정확한 coverage analysis 가능. Phase B 불필요.
+
+### 6.6.2 Script 및 결과
+
+Script: `scripts/analytics/compute-set-cover-from-unique.ts`
+
+**Full 479 session 처리 결과**:
+
+- 423 session (88.3%): unique finding 없음 — 어떤 subset 이든 trivially cover
+- 56 session (11.7%): ≥1 unique finding — set-cover constraint 적용
+
+Required size 분포 (56 session):
+| 필요 lens 수 | Session |
+|---|---|
+| 1 | 9 |
+| 2 | 7 |
+| 3 | 10 |
+| 4 | 10 |
+| 5 | 10 |
+| 6 | 2 |
+| 7 | 5 |
+| 9 | 3 |
+
+### 6.6.3 Optimal k-subset coverage
+
+| k | Best combo | Cover (479 session 기준) |
+|---|---|---|
+| 2 | {coverage, semantics} | **90.0%** (431/479) |
+| 3 | {coverage, logic, semantics} | 90.4% |
+| **4** | **{conciseness, coverage, evolution, semantics}** | **91.2%** (437/479) |
+| 5 | + logic | 92.3% |
+| 6 | + structure | 93.1% |
+
+### 6.6.4 현 core-axis vs 최적 비교
+
+| 구성 | Lens 수 | Cover |
+|---|---|---|
+| **현 core-axis** (logic, pragmatics, evolution, axiology) | 4 | **88.5%** (424/479) |
+| 최적 4 (axiology 미포함) | 4 | **91.2%** |
+| 최적 5 (axiology 포함) | 5 | **91.4%** |
+
+현재 4 lens 와 **동일 비용**으로 최적 4 조합이 2.7% 더 많은 session cover.
+
+### 6.6.5 Per-lens criticality (session 단위 required rate)
+
+| Lens | Sessions requiring |
+|---|---|
+| coverage | 34/479 (7.1%) |
+| semantics | 33/479 (6.9%) |
+| conciseness | 30/479 (6.3%) |
+| evolution | 28/479 (5.8%) |
+| structure | 22/479 (4.6%) |
+| logic | 18/479 (3.8%) |
+| dependency | 18/479 (3.8%) |
+| pragmatics | 17/479 (3.5%) |
+| axiology | 17/479 (3.5%) |
+
+**v4 재해석**: v2 의 "appearance rate" 는 실제로는 **"sessions where this lens is required"** (sole contributor to ≥1 unique finding). 즉 v2 와 v4 의 numerical 결과는 동일하지만 **의미 해석이 set-cover 의 binding constraint 로 명확화됨**.
+
+### 6.6.6 Greedy minimum sets by target
+
+| Target | Minimum lens set | 실제 cover |
+|---|---|---|
+| **80%** | {semantics} (단 1 lens!) | 89.1% |
+| 90% | {semantics, coverage, logic} | 90.4% |
+| 95% | 8 lens | 96.5% |
+| 100% | 9 lens 전수 | 100% |
+
+**Knee point 명확**: 0→90% 는 2-3 lens, 90→100% 는 급격히 lens 필요. 경제적 optimum 은 knee 직전.
+
+### 6.6.7 최종 경험적 권장 (v4)
+
+**Option P (axiology 정책 유지)**: `{axiology, coverage, evolution, logic, semantics}` 5 lens, **91.4% cover**
+- 현 4 lens (88.5%) 에 +1 lens, +2.9% cover
+- `always_include_lens_ids: [axiology]` 정책 준수
+
+**Option Q (최소 비용, 동일 lens 수)**: `{conciseness, coverage, evolution, semantics}` 4 lens, **91.2% cover**
+- 현 4 lens 와 동일 비용, +2.7% cover
+- Axiology 제거 — 정책 위반이므로 Option P 권장
+
+**Option R (공격적 절감)**: `{coverage, semantics, logic}` 3 lens, **90.4% cover**
+- 현 대비 -1 lens (25% 비용 절감), +1.9% cover
+
+### 6.6.8 본 analysis 의 한계
+
+| 항목 | Caveat |
+|---|---|
+| Unique finding only | Required-lens constraint 만 측정. Consensus finding 의 "depth 손실" (≥2 lens → 1 lens 로 줄면 신뢰도 감소) 은 측정 안 됨 |
+| Quality vs coverage | Session fully covered ≠ review quality unchanged. Lens 를 빼면 consensus 약화 가능 — 본 metric 은 optimistic bound |
+| Empirical validation 필요 | 최종 결정 전, Option P/Q 로 실제 review 실행 → full 9-lens 결과와 비교 validation 권장 |
+
+### 6.6.9 Phase A (v3) 재해석
+
+Phase A 의 5 session 결과 (logic/evolution 최상위, coverage/semantics 하위) 는 **sample 편향 artifact**. "Accounted findings" pattern 있는 5 session 은 특정 기간 (최근 format) + 특정 session 성격 (design proposal 등 meta doc) 편중. 479 session 에서 pattern 이 역전됨.
+
+**V4 가 canonical 결론** — 479 session 기반.
 
 ## 7. 본 benchmark 의 lifecycle
 

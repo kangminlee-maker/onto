@@ -59,6 +59,17 @@ import {
 const MAX_ITERATIONS = 12;
 const MAX_TOKENS_PER_TURN = 4096;
 
+/**
+ * Model-call observability — mirrors `emitModelCallLog` in llm-caller.ts.
+ * Duplicated here to avoid a cyclic import (llm-caller imports nothing from
+ * this loop module, and this loop module is the companion seat for the
+ * `callLlmWithTools` entry point). Review Recovery PR-1 (R5) extends the
+ * `[model-call]` prefix coverage to both tool-native and inline paths.
+ */
+function emitModelCallLog(line: string): void {
+  process.stderr.write(`[model-call] ${line}\n`);
+}
+
 export type ToolLoopProvider = "anthropic" | "openai" | "litellm";
 
 export interface ToolLoopConfig {
@@ -161,15 +172,36 @@ async function runAnthropicToolLoop(
   let finalText = "";
 
   for (let iteration = 0; iteration < cap; iteration++) {
-    const response = await client.messages.create({
-      model: config.model_id,
-      max_tokens: config.max_tokens ?? MAX_TOKENS_PER_TURN,
-      system: systemPrompt,
-      tools: anthropicTools,
-      messages: messages as never,
-    });
+    emitModelCallLog(
+      `anthropic tool-loop call: model="${config.model_id}" iteration=${iteration + 1}/${cap} max_tokens=${config.max_tokens ?? MAX_TOKENS_PER_TURN} tool_count=${anthropicTools.length}`,
+    );
+    let response;
+    try {
+      response = await client.messages.create({
+        model: config.model_id,
+        max_tokens: config.max_tokens ?? MAX_TOKENS_PER_TURN,
+        system: systemPrompt,
+        tools: anthropicTools,
+        messages: messages as never,
+      });
+    } catch (err) {
+      const e = err as {
+        status?: number;
+        name?: string;
+        message?: string;
+        error?: { type?: string; message?: string };
+        request_id?: string;
+      };
+      emitModelCallLog(
+        `anthropic tool-loop call FAILED: model="${config.model_id}" iteration=${iteration + 1} status=${e.status ?? "?"} type=${e.error?.type ?? e.name ?? "?"} message="${e.error?.message ?? e.message ?? String(err)}" request_id=${e.request_id ?? "?"}`,
+      );
+      throw err;
+    }
     totalIn += response.usage.input_tokens;
     totalOut += response.usage.output_tokens;
+    emitModelCallLog(
+      `anthropic tool-loop response: model_id=${response.model ?? config.model_id} iteration=${iteration + 1} stop_reason=${response.stop_reason ?? "?"} input_tokens=${response.usage.input_tokens} output_tokens=${response.usage.output_tokens}`,
+    );
 
     const blocks = response.content as AnthropicContentBlock[];
     const assistantBlocks: AnthropicContentBlock[] = [];
@@ -281,14 +313,35 @@ async function runOpenAIToolLoop(
   let finalText = "";
 
   for (let iteration = 0; iteration < cap; iteration++) {
-    const response = await client.chat.completions.create({
-      model: config.model_id,
-      max_tokens: config.max_tokens ?? MAX_TOKENS_PER_TURN,
-      messages: messages as never,
-      tools: openaiTools,
-    });
+    emitModelCallLog(
+      `${isLiteLLM ? "litellm" : "openai"} tool-loop call: model="${config.model_id}" iteration=${iteration + 1}/${cap} max_tokens=${config.max_tokens ?? MAX_TOKENS_PER_TURN} tool_count=${openaiTools.length}${baseURL ? ` base_url=${baseURL}` : ""}`,
+    );
+    let response;
+    try {
+      response = await client.chat.completions.create({
+        model: config.model_id,
+        max_tokens: config.max_tokens ?? MAX_TOKENS_PER_TURN,
+        messages: messages as never,
+        tools: openaiTools,
+      });
+    } catch (err) {
+      const e = err as {
+        status?: number;
+        name?: string;
+        message?: string;
+        error?: { type?: string; message?: string };
+        request_id?: string;
+      };
+      emitModelCallLog(
+        `${isLiteLLM ? "litellm" : "openai"} tool-loop call FAILED: model="${config.model_id}" iteration=${iteration + 1} status=${e.status ?? "?"} type=${e.error?.type ?? e.name ?? "?"} message="${e.error?.message ?? e.message ?? String(err)}" request_id=${e.request_id ?? "?"}`,
+      );
+      throw err;
+    }
     totalIn += response.usage?.prompt_tokens ?? 0;
     totalOut += response.usage?.completion_tokens ?? 0;
+    emitModelCallLog(
+      `${isLiteLLM ? "litellm" : "openai"} tool-loop response: model_id=${response.model ?? config.model_id} iteration=${iteration + 1} finish_reason=${response.choices[0]?.finish_reason ?? "?"} input_tokens=${response.usage?.prompt_tokens ?? 0} output_tokens=${response.usage?.completion_tokens ?? 0}`,
+    );
 
     const choice = response.choices[0];
     if (!choice) {

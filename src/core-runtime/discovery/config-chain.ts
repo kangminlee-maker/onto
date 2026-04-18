@@ -1,5 +1,10 @@
 import path from "node:path";
 import { fileExists, readYamlDocument } from "../review/review-artifact-utils.js";
+import {
+  adoptProfile,
+  buildBothIncompleteError,
+  mergeOrthogonalFields,
+} from "./config-profile.js";
 
 export interface OntoConfig {
   /** Conceptual execution model: subagent | agent-teams */
@@ -13,10 +18,26 @@ export interface OntoConfig {
    * API provider for background task LLM calls: anthropic | openai | litellm | codex
    * - anthropic/openai: SDK direct call, per-token billing
    * - litellm: OpenAI-compatible proxy; requires llm_base_url
-   * - codex: codex CLI OAuth subprocess (subscription); requires ~/.codex/auth.json chatgpt mode + codex binary
-   * If omitted, resolveProvider uses cost-order auto-resolution.
+   * - codex: codex CLI OAuth subscription; requires ~/.codex/auth.json chatgpt mode + codex binary
+   *
+   * Consumed by llm-caller.ts (legacy path) and execution-plan-resolver.ts
+   * as the fallback when `external_http_provider` is unset.
    */
   api_provider?: string;
+  /**
+   * External HTTP API provider selection (sketch v2 §4.1 A).
+   *
+   * When `host_runtime: standalone` (or auto-detection lands on ts_inline_http),
+   * this field picks the external-HTTP sub-path explicitly. Unlike the legacy
+   * `api_provider`, this is scoped to the HTTP-API tier only — codex subprocess
+   * is never expressed here (use host_runtime: codex instead).
+   *
+   * Accepted values: anthropic | openai | litellm
+   *
+   * Resolution priority (execution-plan-resolver.ts):
+   *   external_http_provider > api_provider > subagent_llm.provider
+   */
+  external_http_provider?: "anthropic" | "openai" | "litellm";
   /** LLM model to use (e.g. gpt-5.4, claude-sonnet-4-20250514) */
   model?: string;
   /**
@@ -158,47 +179,66 @@ async function readConfigAt(dir: string): Promise<OntoConfig> {
 }
 
 /**
- * 4-tier config merge (last-wins: later application overrides earlier).
+ * Config chain resolver (home + project) with atomic profile adoption.
  *
- * Application order (each step overrides the previous):
- * 1. Built-in defaults (not in this function — caller provides)
- * 2. {ontoHome}/.onto/config.yml — installation-level defaults
- * 3. {projectRoot}/.onto/config.yml — project-specific overrides (wins over ontoHome)
- * 4. CLI flags — handled upstream by the caller (wins over everything)
+ * As of Review Recovery PR-1 (2026-04-18), provider-coupled fields
+ * (host_runtime, execution_realization, per-provider model blocks, etc.)
+ * are NO LONGER merged field-by-field. Instead:
  *
- * Merge strategy:
- * - Scalar keys: last-wins (project overrides onto-home)
- * - Array keys: replacement (project replaces onto-home entirely)
- *   Exception: excluded_names uses union (concat + dedup)
+ *   - Project profile **complete**  → project owns the profile atomically.
+ *   - Project profile **incomplete** (touched-but-invalid) + home complete
+ *                                    → global profile adopted + STDERR
+ *                                      notice explaining why and how to fix.
+ *   - Project absent + home complete → global profile adopted silently.
+ *   - **Both incomplete / absent**   → fail-fast with a detailed setup guide
+ *                                      (buildBothIncompleteError).
+ *
+ * Orthogonal fields (output_language, domains, review_mode, listing limits,
+ * learning_extract_mode, etc.) continue to merge last-wins — they do not
+ * carry cross-provider semantics.
+ *
+ * Rationale: previously the last-wins merge silently produced frankenstein
+ * profiles (e.g., home's codex `execution_realization=subagent` +
+ * `reasoning_effort=high` inherited over project's `host_runtime=anthropic`).
+ * The orphan fields were either ignored or mismatched downstream, masking
+ * real config drift. Atomic adoption makes the ownership explicit.
+ *
+ * Design: see `discovery/config-profile.ts` for the adoption policy details.
  */
 export async function resolveConfigChain(
   ontoHome: string,
   projectRoot: string,
 ): Promise<OntoConfig> {
   const homeConfig = await readConfigAt(ontoHome);
-  if (ontoHome === projectRoot) {
-    return homeConfig;
+  const sameRoot = ontoHome === projectRoot;
+  const projectConfig = sameRoot ? homeConfig : await readConfigAt(projectRoot);
+
+  const homePath = path.join(ontoHome, ".onto", "config.yml");
+  const projectPath = path.join(projectRoot, ".onto", "config.yml");
+
+  const adoption = adoptProfile({
+    home: homeConfig,
+    project: projectConfig,
+    homePath,
+    projectPath,
+    sameRoot,
+  });
+
+  // Fail-fast when neither side declares a complete profile. The error
+  // carries the full setup manual (4 canonical profile options) so the
+  // operator has everything needed to fix the state in one read.
+  if (adoption.source === "none") {
+    throw buildBothIncompleteError(
+      { home: homeConfig, project: projectConfig, homePath, projectPath, sameRoot },
+      adoption.project_validation,
+      adoption.home_validation,
+    );
   }
-  const projectConfig = await readConfigAt(projectRoot);
 
-  const merged: OntoConfig = { ...homeConfig };
-
-  for (const [key, value] of Object.entries(projectConfig)) {
-    if (value === undefined || value === null) continue;
-
-    if (key === "excluded_names") {
-      // Union merge for excluded_names
-      const homeNames = Array.isArray(homeConfig.excluded_names)
-        ? homeConfig.excluded_names
-        : [];
-      const projectNames = Array.isArray(value) ? value : [];
-      const union = [...new Set([...homeNames, ...projectNames])];
-      (merged as Record<string, unknown>)[key] = union;
-    } else {
-      // All other keys: last-wins (replacement)
-      (merged as Record<string, unknown>)[key] = value;
-    }
+  if (adoption.notice) {
+    process.stderr.write(adoption.notice);
   }
 
-  return merged;
+  const orthogonal = mergeOrthogonalFields(homeConfig, projectConfig);
+  return { ...orthogonal, ...adoption.profile } as OntoConfig;
 }

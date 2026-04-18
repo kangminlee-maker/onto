@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
+import type { OntoConfig } from "../discovery/config-chain.js";
 import type {
   DeliberationStatus,
   EffectiveBoundaryState,
@@ -23,7 +24,9 @@ import {
   readYamlDocument,
   writeYamlDocument,
 } from "../review/review-artifact-utils.js";
+import type { ExecutionTopology } from "../review/execution-topology-resolver.js";
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
+import { executeReviewViaCodexNested } from "./codex-nested-dispatch.js";
 
 export interface ReviewUnitExecutorConfig {
   bin: string;
@@ -397,6 +400,23 @@ export async function executeReviewPromptExecution(
     defaultExecutorConfig: ReviewUnitExecutorConfig;
     synthesizeExecutorConfig?: ReviewUnitExecutorConfig;
     maxConcurrentLenses?: number;
+    /**
+     * PR-L (2026-04-18): resolved topology from `runReviewInvokeCli`.
+     * When `topology.id === "codex-nested-subprocess"`, the lens dispatch
+     * phase is handled by `executeReviewViaCodexNested` (PR-H bridge)
+     * instead of the per-lens worker pool — one outer codex teamlead
+     * + nested inner codex per lens. Synthesize step continues through
+     * the regular per-unit dispatch (uses `synthesizeExecutorConfig`).
+     *
+     * When undefined or any other topology id: existing per-lens worker
+     * pool behavior (backward compatible).
+     */
+    topology?: ExecutionTopology;
+    /**
+     * PR-L: OntoConfig for codex-nested dispatch (model / reasoning_effort
+     * forwarded to outer codex teamlead). Ignored for non-nested paths.
+     */
+    ontoConfig?: OntoConfig;
   },
 ): Promise<ReviewPromptExecutionResult> {
   const projectRoot = path.resolve(params.projectRoot);
@@ -560,12 +580,106 @@ export async function executeReviewPromptExecution(
     }
   }
 
-  await Promise.all(
-    Array.from(
-      { length: Math.min(maxConcurrentLenses, lensDispatches.length) },
-      async (_, workerIndex) => runLensWorker(workerIndex),
-    ),
-  );
+  // PR-L (2026-04-18): codex-nested-subprocess topology bypasses the per-lens
+  // worker pool. One outer codex teamlead is spawned (PR-H bridge) which in
+  // turn spawns nested codex per lens inside its own shell. Outcomes from the
+  // bridge are mapped into the same `executionOutcomes[]` shape so the post-
+  // dispatch code (halt check, synthesize, result artifact) stays identical.
+  if (params.topology?.id === "codex-nested-subprocess") {
+    console.log(
+      `[review runner] topology=codex-nested-subprocess → outer codex teamlead dispatch (bypasses per-lens worker pool)`,
+    );
+    await appendExecutionProgress(
+      executionPlan.error_log_path,
+      "runner topology dispatch: codex-nested-subprocess",
+      [
+        `teamlead_location: ${params.topology.teamlead_location}`,
+        `lens_spawn_mechanism: ${params.topology.lens_spawn_mechanism}`,
+        `transport_rank: ${params.topology.transport_rank}`,
+        `planned_lens_count: ${lensDispatches.length}`,
+      ],
+    );
+    const nestedStartedAtMs = Date.now();
+    const nestedResult = await executeReviewViaCodexNested({
+      sessionRoot,
+      projectRoot,
+      ontoConfig: params.ontoConfig ?? {},
+    });
+    const nestedCompletedAtMs = Date.now();
+    // Map PR-H outcomes into executionOutcomes[] in lensDispatches order.
+    // `participating_lens_ids` is the authoritative success set (orchestrator
+    // ok AND output file exists + non-empty). Missing / failed → record as
+    // ExecutionFailure; also remove empty output files for consistency with
+    // worker-pool cleanup path.
+    for (let i = 0; i < lensDispatches.length; i += 1) {
+      const dispatch = lensDispatches[i]!;
+      const reported = nestedResult.nested_raw.outcomes[i];
+      const participating = nestedResult.participating_lens_ids.includes(
+        dispatch.unit_id,
+      );
+      if (participating) {
+        console.log(`[review runner] completed ${dispatch.unit_kind}: ${dispatch.unit_id}`);
+        await appendExecutionProgress(
+          executionPlan.error_log_path,
+          `runner nested dispatch completed: ${dispatch.unit_id}`,
+          [
+            `unit_id: ${dispatch.unit_id}`,
+            `unit_kind: ${dispatch.unit_kind}`,
+            `output_path: ${dispatch.output_path}`,
+          ],
+        );
+        executionOutcomes[i] = {
+          dispatch,
+          success: true,
+          startedAtMs: nestedStartedAtMs,
+          completedAtMs: nestedCompletedAtMs,
+        };
+      } else {
+        const message =
+          reported?.status === "fail" && reported.error
+            ? reported.error
+            : nestedResult.halt_reason ??
+              "codex-nested dispatch failed (output missing or orchestrator rejected)";
+        const failure: ExecutionFailure = {
+          unit_id: dispatch.unit_id,
+          unit_kind: dispatch.unit_kind,
+          packet_path: dispatch.packet_path,
+          output_path: dispatch.output_path,
+          message,
+        };
+        await removeFileIfExists(dispatch.output_path);
+        await appendExecutionFailure(
+          executionPlan.error_log_path,
+          failure,
+          executionPlan.effective_boundary_state,
+        );
+        executionOutcomes[i] = {
+          dispatch,
+          success: false,
+          startedAtMs: nestedStartedAtMs,
+          completedAtMs: nestedCompletedAtMs,
+          failure,
+        };
+      }
+    }
+    // Capture outer teamlead halt_reason for the post-dispatch halt check
+    // (synthesize may still run if enough lenses participated, matching the
+    // worker-pool semantics).
+    if (nestedResult.halt_reason) {
+      await appendExecutionProgress(
+        executionPlan.error_log_path,
+        "runner nested teamlead halt",
+        [nestedResult.halt_reason],
+      );
+    }
+  } else {
+    await Promise.all(
+      Array.from(
+        { length: Math.min(maxConcurrentLenses, lensDispatches.length) },
+        async (_, workerIndex) => runLensWorker(workerIndex),
+      ),
+    );
+  }
 
   const successfulLensDispatches = executionOutcomes
     .filter(isSuccessfulOutcome)

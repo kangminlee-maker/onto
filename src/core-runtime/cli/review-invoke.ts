@@ -2039,6 +2039,19 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     setup.ontoHome,
   );
 
+  // PR-L (2026-04-18): resolve topology once so codex-nested-subprocess
+  // takes the PR-H bridge path inside executeReviewPromptExecution.
+  // Non-nested topologies (or opt-in unset) behave as before — the param
+  // is ignored when topology.id is not "codex-nested-subprocess".
+  const topologyForDispatch =
+    setup.ontoConfig.execution_topology_priority &&
+    setup.ontoConfig.execution_topology_priority.length > 0
+      ? (() => {
+          const res = resolveExecutionTopology({ ontoConfig: setup.ontoConfig });
+          return res.type === "resolved" ? res.topology : undefined;
+        })()
+      : undefined;
+
   const promptExecutionResult = await executeReviewPromptExecution({
     projectRoot: resolvedProjectRoot,
     sessionRoot,
@@ -2049,6 +2062,8 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
       JSON.stringify(defaultExecutorConfig.args)
       ? {}
       : { synthesizeExecutorConfig }),
+    ...(topologyForDispatch ? { topology: topologyForDispatch } : {}),
+    ontoConfig: setup.ontoConfig,
   });
 
   const completeSessionResult = await completeReviewSession([

@@ -171,13 +171,14 @@ lens_agent_teams_mode: true  # 3중 opt-in 의 프로젝트 단 신설 필드
 
 ## 4. Deprecation 단계
 
-**현재 PR-J (2026-04-18): error stage**. Legacy 필드 사용 시 fail-fast.
+**현재 PR-K (2026-04-18): removal stage** (sketch v3 §7.4 Phase D 완료).
+Legacy 5 필드가 OntoConfig 타입에서 제거됨 + Runtime 에서도 throw.
 
 | Stage | When | 동작 |
 |---|---|---|
 | Warning | PR-E (#103) | Legacy 필드 사용 시 `[onto:deprecation]` STDERR. 동작 유지. |
-| **Error (현재)** | **PR-J (2026-04-18)** | **Legacy 필드 + `execution_topology_priority` 없음 → `LegacyFieldRemovedError` throw. Config 로드 실패 → review 중단.** |
-| Removal (후속) | 미정 | OntoConfig 타입에서 필드 제거 (type-level breaking). |
+| Error | PR-J (#110) | Legacy 필드 + `execution_topology_priority` 없음 → `LegacyFieldRemovedError` throw. Config 로드 실패 → review 중단. |
+| **Removal (현재)** | **PR-K (2026-04-18)** | **OntoConfig 타입에서 5 legacy 필드 제거. TypeScript 코드에서 `config.host_runtime` 같은 접근은 컴파일 에러. YAML 에서는 여전히 감지 가능 (Record cast 경로) — PR-J 의 throw 동작 유지.** |
 
 ### Error stage 이해
 

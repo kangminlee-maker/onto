@@ -79,26 +79,33 @@ export interface LegacyUsageDetection {
 // ---------------------------------------------------------------------------
 
 /**
- * Scan a config for legacy field presence. Pure — no side effects, no
- * `process.stderr.write`. Callers decide whether to warn based on the
- * detection shape + their policy.
+ * Scan a config for legacy field presence. Pure — no side effects.
+ *
+ * Accepts `OntoConfig` OR raw `Record<string, unknown>`. Post-PR-K the
+ * 5 legacy fields are no longer part of the `OntoConfig` type but still
+ * appear in YAML-parsed raw objects, so loosening the parameter type
+ * here lets callers (including tests) pass either shape without verbose
+ * casts at every call site.
  *
  * Presence definition: `typeof value === "string"` AND `value.length > 0`.
  * An empty string or `undefined` does not count. This matches how the
  * legacy resolvers (`resolveExecutionPlan` P1 branches, `resolveExecutorConfig`)
- * treat these fields — empty string is ignored.
+ * treated these fields.
  */
-export function detectLegacyFieldUsage(config: OntoConfig): LegacyUsageDetection {
+export function detectLegacyFieldUsage(
+  config: OntoConfig | Record<string, unknown>,
+): LegacyUsageDetection {
   const detected: LegacyProfileField[] = [];
+  const raw = config as Record<string, unknown>;
   for (const field of LEGACY_PROFILE_FIELDS) {
-    const value = (config as Record<string, unknown>)[field];
+    const value = raw[field];
     if (typeof value === "string" && value.length > 0) {
       detected.push(field);
     }
   }
+  const priorityValue = raw.execution_topology_priority;
   const topology_priority_set =
-    Array.isArray(config.execution_topology_priority) &&
-    config.execution_topology_priority.length > 0;
+    Array.isArray(priorityValue) && priorityValue.length > 0;
   return { detected, topology_priority_set };
 }
 
@@ -194,14 +201,15 @@ export class LegacyFieldRemovedError extends Error {
  * than emits — semantic shift but API signature (void return) unchanged.
  */
 export function emitLegacyFieldDeprecation(
-  config: OntoConfig,
+  config: OntoConfig | Record<string, unknown>,
   detection: LegacyUsageDetection,
 ): void {
   if (detection.detected.length === 0) return;
   if (detection.topology_priority_set) return;
 
+  const raw = config as Record<string, unknown>;
   const suggestions = detection.detected.map((field) => {
-    const value = String((config as Record<string, unknown>)[field]);
+    const value = String(raw[field]);
     return { field, value, suggestion: suggestTopologyFor(field, value) };
   });
   throw new LegacyFieldRemovedError(detection.detected, suggestions);
@@ -212,7 +220,9 @@ export function emitLegacyFieldDeprecation(
  * `resolveConfigChain()`. Propagates `LegacyFieldRemovedError` when the
  * config uses legacy fields without topology priority.
  */
-export function checkAndEmitLegacyDeprecation(config: OntoConfig): LegacyUsageDetection {
+export function checkAndEmitLegacyDeprecation(
+  config: OntoConfig | Record<string, unknown>,
+): LegacyUsageDetection {
   const detection = detectLegacyFieldUsage(config);
   emitLegacyFieldDeprecation(config, detection);
   return detection;

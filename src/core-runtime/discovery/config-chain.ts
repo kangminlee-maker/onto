@@ -8,23 +8,26 @@ import {
 import { checkAndEmitLegacyDeprecation } from "./legacy-field-deprecation.js";
 
 export interface OntoConfig {
-  /** Conceptual execution model: subagent | agent-teams */
-  execution_realization?: string;
-  host_runtime?: string;
-  /** Legacy alias for execution_realization */
-  execution_mode?: string;
-  /** Specific executor to use: subagent | agent-teams | codex | api | mock */
-  executor_realization?: string;
-  /**
-   * API provider for background task LLM calls: anthropic | openai | litellm | codex
-   * - anthropic/openai: SDK direct call, per-token billing
-   * - litellm: OpenAI-compatible proxy; requires llm_base_url
-   * - codex: codex CLI OAuth subscription; requires ~/.codex/auth.json chatgpt mode + codex binary
-   *
-   * Consumed by llm-caller.ts (legacy path) and execution-plan-resolver.ts
-   * as the fallback when `external_http_provider` is unset.
-   */
-  api_provider?: string;
+  // PR-K (2026-04-18, sketch v3 §7.4 Phase D stage 3): the five legacy
+  // provider-profile fields below were REMOVED from the OntoConfig type:
+  //   host_runtime, execution_realization, execution_mode,
+  //   executor_realization, api_provider
+  //
+  // Runtime behavior:
+  //   - YAML configs that still set these fields parse into the object at
+  //     read time (via `Record<string, unknown>` cast inside `readConfigAt`),
+  //     so `legacy-field-deprecation.ts` can still DETECT them and throw
+  //     `LegacyFieldRemovedError` (PR-J / stage 2). This preserves the
+  //     fail-fast message even when the type no longer contains the field.
+  //   - Downstream code that previously read these fields is now either
+  //     dead (unreachable post-PR-J throw) or reads via
+  //     `(config as Record<string, unknown>)[key]` when legacy detection
+  //     still needs to see them.
+  //
+  // Net effect: principals writing NEW code against `OntoConfig` can't
+  // accidentally reintroduce the silent-divergence class PR #96 closed,
+  // while legacy YAML configs still produce a structured error rather than
+  // a cryptic type failure.
   /**
    * External HTTP API provider selection (sketch v2 §4.1 A).
    *

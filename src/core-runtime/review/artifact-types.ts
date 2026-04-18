@@ -440,6 +440,22 @@ export interface CoordinatorStartResult {
   session_root: string;
   request_text: string;
   agents: CoordinatorAgentInstruction[];
+  /**
+   * Maximum number of lens agents the orchestrator (caller) may dispatch
+   * in parallel in a single batch. Orchestrator must split `agents[]` into
+   * batches of this size, dispatch each batch, wait for all agents in the
+   * batch to complete, then dispatch the next batch.
+   *
+   * Value resolution order:
+   *   1. `execution_topology_overrides.<topology_id>.max_concurrent_lenses`
+   *      in the project config (per-topology override).
+   *   2. The resolved topology's catalog default (TOPOLOGY_CATALOG entry
+   *      in `execution-topology-resolver.ts`).
+   *
+   * Zero/negative override values are ignored and the catalog default
+   * applies instead.
+   */
+  max_concurrent_lenses: number;
 }
 
 export interface CoordinatorNextResult {

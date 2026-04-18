@@ -233,6 +233,7 @@ export async function coordinatorStart(
       session_root: sessionRoot,
       request_text: requestText,
       agents: buildLensAgentInstructions(executionPlan),
+      max_concurrent_lenses: executionPlan.max_concurrent_lenses ?? 5,
     };
   } catch (error) {
     if (sessionRoot) {

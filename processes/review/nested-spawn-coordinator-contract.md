@@ -184,11 +184,28 @@ onto coordinator start <target> <intent> [@domain] [options]
 
 Returns JSON with `state: "awaiting_lens_dispatch"`, `session_root`, `agents[]`.
 
-### Step 2: Lens Dispatch
+### Step 2: Lens Dispatch (batch-by-N)
 
-Caller reads `agents[]` from Step 1 output. Each agent has `lens_id`, `prompt`, `output_path`, `packet_path`.
+Caller reads `agents[]` 와 `max_concurrent_lenses` (N) from Step 1 output. 각 agent 에 `lens_id`, `prompt`, `output_path`, `packet_path`.
 
-Caller dispatches all lens agents in parallel (Agent tool, single message).
+Caller 는 `agents[]` 를 **N 개씩 batch 로 나누어 dispatch**:
+
+1. 남은 agent 중 첫 `min(N, remaining)` 개를 parallel dispatch (단일 메시지에 Agent tool use 블록 N 개).
+2. Batch 의 모든 agent 응답을 대기.
+3. `remaining > 0` 이면 step 1 반복.
+4. 전원 완료 → `onto coordinator next`.
+
+**근거**: orchestrator 실행 환경 (Claude Code Agent tool / TeamCreate 등) 의 parallel 상한 과 정합. 상한 초과 시 harness 가 초과분을 silent drop 할 risk. batch-by-N 패턴으로 lens 전수 실행 보장.
+
+**Config 조정**: project `.onto/config.yml` 에서 per-topology override:
+
+```yaml
+execution_topology_overrides:
+  cc-main-agent-subagent:
+    max_concurrent_lenses: 6
+```
+
+0 또는 음수 override 는 resolver 가 무시하고 catalog 기본값을 사용. 상세 프로토콜은 §17 참조.
 
 ### Step 3: Validate + Get Synthesize Instruction
 
@@ -431,3 +448,60 @@ Deliberation 완료 후 `completing` auto state 에서 synthesizer 가 소비할
 - PR #102 (PR-D): `src/core-runtime/cli/teamcreate-lens-deliberation-executor.ts`
 - PR #102 tests: `src/core-runtime/cli/teamcreate-lens-deliberation-executor.test.ts`
 - Sketch v3 §3.1 option 1-0, §6.4 triple opt-in 근거
+
+---
+
+## 17. Orchestrator Batch Dispatch Protocol
+
+§5 Step 2 의 batch-by-N dispatch 를 수행하는 orchestrator (주체자 세션 또는 coordinator subagent) 의 의무 contract.
+
+### 17.1 배치 구성
+
+1. `onto coordinator start` 출력에서 `max_concurrent_lenses` (N) 을 읽는다.
+2. `agents[]` 를 순서대로 N 개씩 배치로 나눈다.
+3. 각 배치는 **단일 메시지에 N 개 Agent tool use 블록** 으로 parallel dispatch.
+
+### 17.2 Batch 완료 대기
+
+4. 각 Agent tool use 의 응답이 모두 도착할 때까지 다음 배치 dispatch 를 보류.
+5. Agent 완료 여부는 `output_path` 파일 존재 + 비공 으로 `validating_lenses` auto state 가 후속 판정 — orchestrator 가 직접 확인하지 않음.
+
+### 17.3 다음 배치
+
+6. 남은 agent 수 > 0 → step 17.1 의 3 반복.
+7. 전원 완료 → `onto coordinator next --session-root <session_root>` 호출.
+
+### 17.4 `max_concurrent_lenses` resolution 순서
+
+1. **Project config**: `.onto/config.yml` 의 `execution_topology_overrides.<topology_id>.max_concurrent_lenses` (per-topology override)
+2. **Topology catalog 기본값**: `src/core-runtime/review/execution-topology-resolver.ts` 의 `TOPOLOGY_CATALOG` 내 entry
+
+0/음수 override 는 resolver 가 무시 + catalog 기본값 적용 (resolver 가 경고 로그 emit).
+
+### 17.5 Silent drop 방지
+
+- orchestrator 는 `agents[]` 길이가 N 을 초과해도 **단일 메시지에 전수 spawn 금지**. 초과분이 Claude Code harness 의 parallel limit 에 도달하면 silent drop → `validating_lenses` 에서 `halted_partial` 로 귀결될 risk.
+- orchestrator 실행 환경의 자체 parallel limit 이 N 보다 낮을 경우 **min(N, 환경 limit)** 을 사용.
+
+### 17.6 Topology 별 기본값 (참고)
+
+| topology | 기본 N | 근거 |
+|---|---|---|
+| `cc-teams-litellm-sessions` | 1 | LiteLLM 프록시 단일 큐 가정 |
+| `cc-teams-codex-subprocess` | 5 | codex CLI subprocess pool 안전 상한 |
+| `cc-main-codex-subprocess` | 5 | 동일 |
+| `cc-main-agent-subagent` | 10 | Claude Agent tool 일반 안전 상한 |
+| `cc-teams-agent-subagent` | 10 | 동일 |
+| `cc-teams-lens-agent-deliberation` | 10 | 동일 |
+
+`codex-main-subprocess` / `codex-nested-subprocess` 는 onto TS 의 worker pool (계열 A) 에서 관리되며 본 contract 의 orchestrator 책임 밖.
+
+### 17.7 Rationale
+
+"single message 에 all agents parallel" 패턴은 orchestrator 환경의 parallel 상한을 가정하지 않음. 실제로는 Claude Code / Codex / 기타 harness 가 상한을 강제하며, 상한 초과 시 silent drop / rate limit error / queue 처리 등 구현 상세에 달림. 이는 외부 행위에 coordinator pipeline 의 성공 여부가 의존하게 만드는 취약 — batch-by-N 패턴은 이 의존을 제거하고 orchestrator 가 상한 내에서 전수 실행을 보장하도록 contract 로 명시.
+
+### 17.8 Empirical 검증 상태
+
+- Light review (4 lens) + Claude Agent tool 환경: 2026-04-18 Full E2E 에서 4 parallel 무난 처리 확인 (PR #119). N 초과 상황 없어 batch-by-N 효과 미관측.
+- Full review (9 lens) + N < 9 환경: **미검증**. 본 contract 개정 후 별도 세션에서 empirical 검증 필요.
+- 배경 분석 memory: `project_agent_concurrency_full_execution.md`.

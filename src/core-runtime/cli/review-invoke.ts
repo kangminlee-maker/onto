@@ -34,6 +34,8 @@ import { resolveExecutionTopology } from "../review/execution-topology-resolver.
 import {
   hasStandaloneLensExecutor,
   mapTopologyToExecutorConfig,
+  toCoordinatorTopologyDescriptor,
+  type CoordinatorTopologyDescriptor,
 } from "./topology-executor-mapping.js";
 import { assessComplexity, selectLenses } from "./complexity-assessment.js";
 
@@ -609,10 +611,35 @@ function buildNoHostDetectedError(): Error {
   );
 }
 
+/**
+ * Resolve a coordinator topology descriptor from OntoConfig for handoff
+ * payload inclusion (PR-G, 2026-04-18).
+ *
+ * Returns `null` — "do not include a topology field in the handoff" —
+ * when the principal has not opted into sketch v3 dispatch (no
+ * `execution_topology_priority` set). This keeps the handoff payload
+ * schema additive: existing coordinator state machines that pre-date
+ * sketch v3 see no new required field.
+ *
+ * When the topology resolves, the returned descriptor is the
+ * `plan_trace`-stripped subset suitable for JSON transmission
+ * (see `toCoordinatorTopologyDescriptor`).
+ */
+export function tryResolveTopologyForHandoff(
+  ontoConfig: OntoConfig | undefined,
+): CoordinatorTopologyDescriptor | null {
+  if (!ontoConfig?.execution_topology_priority) return null;
+  if (ontoConfig.execution_topology_priority.length === 0) return null;
+  const resolution = resolveExecutionTopology({ ontoConfig });
+  if (resolution.type !== "resolved") return null;
+  return toCoordinatorTopologyDescriptor(resolution.topology);
+}
+
 function emitCoordinatorStartHandoff(args: {
   preferredRealization: "subagent" | "agent-teams" | "ts_inline_http";
   requestedTarget: string;
   requestText: string;
+  topology?: CoordinatorTopologyDescriptor | null;
 }): void {
   // Shell-escape: wrap in double quotes and escape embedded double quotes/backslashes.
   const q = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
@@ -622,11 +649,35 @@ function emitCoordinatorStartHandoff(args: {
   //   onto child process cannot introspect the subject session's capability.
   //   coordinator-state-machine then records the realized path into session
   //   artifacts (binding.yaml / execution-plan.yaml / session-metadata.yaml).
-  const payload = {
+  //
+  // PR-G (2026-04-18): when the principal has set `execution_topology_priority`
+  // and the resolver chose a canonical topology, it is included here as a
+  // first-class `topology` field. The coordinator state machine can then
+  // consume `topology.id` / `topology.teamlead_location` /
+  // `topology.lens_spawn_mechanism` as authoritative, rather than inferring
+  // from the preferred_realization heuristic alone.
+  const payload: {
+    handoff: "coordinator-start";
+    host_runtime: "claude";
+    preferred_realization: typeof args.preferredRealization;
+    actual_realization: "deferred_to_subject_session";
+    requested_target: string;
+    request_text: string;
+    topology?: CoordinatorTopologyDescriptor;
+    next_action: {
+      cli: string;
+      orchestration_guidance: {
+        preferred: string;
+        fallback: string;
+        recording_note: string;
+        topology_note?: string;
+      };
+    };
+  } = {
     handoff: "coordinator-start",
-    host_runtime: "claude" as const,
+    host_runtime: "claude",
     preferred_realization: args.preferredRealization,
-    actual_realization: "deferred_to_subject_session" as const,
+    actual_realization: "deferred_to_subject_session",
     requested_target: args.requestedTarget,
     request_text: args.requestText,
     next_action: {
@@ -641,6 +692,15 @@ function emitCoordinatorStartHandoff(args: {
       },
     },
   };
+  if (args.topology) {
+    payload.topology = args.topology;
+    payload.next_action.orchestration_guidance.topology_note =
+      `principal 이 execution_topology_priority 로 topology="${args.topology.id}" 를 지정했습니다. ` +
+      `teamlead_location="${args.topology.teamlead_location}", ` +
+      `lens_spawn_mechanism="${args.topology.lens_spawn_mechanism}", ` +
+      `deliberation_channel="${args.topology.deliberation_channel}". ` +
+      `preferred/fallback 힌트 대신 이 topology 를 canonical 로 따르세요.`;
+  }
   console.log(JSON.stringify(payload, null, 2));
 }
 
@@ -1901,10 +1961,16 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     throw buildNoHostDetectedError();
   }
   if (handoff.type === "coordinator_start") {
+    // PR-G (2026-04-18): when principal opted into sketch v3 via
+    // `execution_topology_priority`, pass the resolved topology
+    // descriptor so the coordinator state machine can follow it as
+    // canonical rather than inferring from preferred_realization alone.
+    const topologyDescriptor = tryResolveTopologyForHandoff(setup.ontoConfig);
     emitCoordinatorStartHandoff({
       preferredRealization: handoff.profile.execution_realization,
       requestedTarget: setup.resolvedInvokeInputs.requestedTarget,
       requestText: setup.resolvedInvokeInputs.requestText,
+      topology: topologyDescriptor,
     });
     return 0;
   }

@@ -1,6 +1,7 @@
 ---
 as_of: 2026-04-18
-status: active
+status: superseded
+superseded_by_completion: "Priority 1 + Priority 2 (Phase A/B/C) 완료 2026-04-18"
 functional_area: sketch-v3-post-merge-cleanup-and-e2e-migration
 purpose: |
   Sketch v3 track 13 PR (#99~#111) 전수 merge 완료 후 남은 cleanup,
@@ -16,6 +17,38 @@ source_refs:
   memory_sketch_v3_deferred: "project_sketch_v3_deferred.md (5 deferred 항목, 모두 COMPLETED)"
   memory_e2e_migration: "project_e2e_test_migration.md (3 E2E 파일 개선 플랜)"
 ---
+
+## Completion Summary — 2026-04-18 second session
+
+Priority 1 + Priority 2 (Phase A/B/C) 전수 완료. 머지된 PR 4건:
+
+| PR | Priority | 제목 | Commit |
+|---|---|---|---|
+| #113 | 1 | runtime dead legacy reads 제거 + validateProfileCompleteness topology-first 전환 | ce115cd |
+| #114 | 2A | e2e-promote 를 vitest describe/it 포맷으로 변환 | 5f145e0 |
+| #115 | 2B | resolveOrthogonalConfigChain 추가로 extract mode 회귀 해소 + vitest 포맷 변환 | b54fdc8 |
+| #116 | 2C | e2e-codex-multi-agent-fixes fixture 재해석 + vitest 포맷 변환 | 250700a |
+
+### 결과 수치
+
+- `npx vitest run` 전체: **1763 passed / 5 skipped, 0 file failures** (이전 1568 passed / 3 file failures)
+- Test Files: **81 passed / 0 failed** (이전 78 / 3)
+- Net LOC: Priority 1 -324 줄, Phase A -34, Phase B +12 (신규 helper 포함), Phase C -51. 합 **-397 줄 순감소**.
+
+### 주요 발견 (세션 중 진단)
+
+- **Priority 1**: validateProfileCompleteness 가 host_runtime 필수로 가정해, migrated 사용자 (execution_topology_priority + per-provider block) 가 buildBothIncompleteError 로 막히는 **잠재 버그** 발견·해소. smoke test (PR-M) 가 이 상태로는 실패했을 가능성.
+- **Phase B (real regression)**: resolveReviewSessionExtractMode 가 learning_extract_mode (orthogonal) 만 필요하지만 resolveConfigChain 을 경유 → PR #96 이후 profile 부재 시 throw → try/catch 로 swallow → extract mode 값 silent loss. `resolveOrthogonalConfigChain` 신규 seat 추가로 해소.
+- **Phase C 계약 전환**: B-1~B-6 의 의미 명제가 "partial profile tolerance" 에서 "complete profile 의 codex namespace surface" 로 전환됨 (atomic profile adoption 계약 반영).
+
+### 남은 우선순위 (next session)
+
+**Priority 3** (자동 deliberation state machine) 과 **Priority 4** (real smoke execution) 는 §2 그대로 유효. 성격:
+- Priority 3: prompt engineering + Claude 수동 smoke test 필요, risk 높음
+- Priority 4: 주체자 승인 필요 (비용 이슈, Claude/ChatGPT 구독 소비)
+
+Handoff §3 권장 대로 Priority 3/4 는 별도 세션에서 진행.
+
 
 # Cleanup & Refactor Handoff — 2026-04-18 → Next Session
 

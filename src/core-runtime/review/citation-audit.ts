@@ -169,7 +169,9 @@ function classifyAttribution(
     const m = precedingText.match(re);
     if (m) {
       const lens = m.slice(1).find((g): g is string => typeof g === "string" && g.length > 0);
-      return { is_attribution: true, attributed_lens: lens?.toLowerCase() };
+      return lens
+        ? { is_attribution: true, attributed_lens: lens.toLowerCase() }
+        : { is_attribution: true };
     }
   }
   return { is_attribution: false };
@@ -201,7 +203,12 @@ export function extractSignificantQuotes(
     const offset = m.index ?? 0;
     const preceding = precedingContext(text, offset);
     const { is_attribution, attributed_lens } = classifyAttribution(preceding);
-    out.push({ text: body, offset, is_attribution, attributed_lens });
+    out.push({
+      text: body,
+      offset,
+      is_attribution,
+      ...(attributed_lens !== undefined ? { attributed_lens } : {}),
+    });
   }
 
   const backtickRe = /`([^`\n]+)`/g;
@@ -213,7 +220,12 @@ export function extractSignificantQuotes(
     const offset = m.index ?? 0;
     const preceding = precedingContext(text, offset);
     const { is_attribution, attributed_lens } = classifyAttribution(preceding);
-    out.push({ text: body, offset, is_attribution, attributed_lens });
+    out.push({
+      text: body,
+      offset,
+      is_attribution,
+      ...(attributed_lens !== undefined ? { attributed_lens } : {}),
+    });
   }
 
   out.sort((a, b) => a.offset - b.offset);

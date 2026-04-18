@@ -411,7 +411,13 @@ function appendSubagentLlmArgs(
   const args = [...config.args];
   const sub = ontoConfig?.subagent_llm;
 
-  const provider = sub?.provider ?? ontoConfig?.api_provider;
+  // PR-K (2026-04-18): api_provider removed from OntoConfig type;
+  // read via cast for legacy YAML configs (PR-J catches these at load).
+  const rawOntoConfig = ontoConfig as unknown as Record<string, unknown> | undefined;
+  const legacyApiProvider = typeof rawOntoConfig?.api_provider === "string"
+    ? (rawOntoConfig.api_provider as string)
+    : undefined;
+  const provider = sub?.provider ?? legacyApiProvider;
   if (typeof provider === "string" && provider.length > 0) {
     args.push("--provider", provider);
   }
@@ -517,7 +523,8 @@ export function detectCodexAvailable(): boolean {
  */
 export function resolveExecutionProfile(args: {
   explicitCodex: boolean;
-  ontoConfig: OntoConfig;
+  // PR-K: ontoConfig accepts raw Record too for legacy YAML configs.
+  ontoConfig: OntoConfig | Record<string, unknown>;
 }): ExecutionProfileResolution {
   const resolution = resolveExecutionPlan({
     explicitCodex: args.explicitCodex,
@@ -536,7 +543,9 @@ export function resolveExecutionProfile(args: {
   let host_runtime: ResolvedExecutionProfile["host_runtime"] =
     plan.host_runtime === "mock" ? "standalone" : plan.host_runtime;
   if (plan.execution_realization === "ts_inline_http") {
-    const configHost = args.ontoConfig.host_runtime;
+    // PR-K: host_runtime removed from OntoConfig type — read via cast.
+    const rawConfig = args.ontoConfig as unknown as Record<string, unknown>;
+    const configHost = typeof rawConfig.host_runtime === "string" ? rawConfig.host_runtime : undefined;
     const envHost = process.env.ONTO_HOST_RUNTIME?.trim().toLowerCase();
     const configDeclaredStandalone =
       configHost === "standalone" ||
@@ -577,7 +586,8 @@ export function resolveExecutionProfile(args: {
 export function resolveExecutionRealizationHandoff(args: {
   explicitCodex: boolean;
   prepareOnly: boolean;
-  ontoConfig: OntoConfig;
+  // PR-K: ontoConfig accepts raw Record too.
+  ontoConfig: OntoConfig | Record<string, unknown>;
 }): ExecutionRealizationHandoff {
   const profile = resolveExecutionProfile({
     explicitCodex: args.explicitCodex,
@@ -820,7 +830,11 @@ function resolveExecutorConfig(
     return appendExecutorModelArgs(withSubagent, argv, ontoConfig);
   }
 
-  const configRealization = ontoConfig?.executor_realization;
+  // PR-K: executor_realization removed from OntoConfig type — read via cast.
+  const rawOntoConfigForExecutor = ontoConfig as unknown as Record<string, unknown> | undefined;
+  const configRealization = typeof rawOntoConfigForExecutor?.executor_realization === "string"
+    ? (rawOntoConfigForExecutor.executor_realization as string)
+    : undefined;
   if (configRealization === "codex" || configRealization === "mock" || configRealization === "ts_inline_http") {
     return appendExecutorModelArgs(
       buildExecutorConfigFromRealization(configRealization as ExecutorRealization, ontoHome),
@@ -848,7 +862,10 @@ function resolveExecutorConfig(
   // Precedence: this check comes AFTER explicit --executor-realization and config
   // executor_realization, so explicit choices always win.
   const subagentLlm = ontoConfig?.subagent_llm;
-  const hostRuntime = ontoConfig?.host_runtime;
+  // PR-K: host_runtime removed from OntoConfig type — read via cast.
+  const hostRuntime = typeof rawOntoConfigForExecutor?.host_runtime === "string"
+    ? (rawOntoConfigForExecutor.host_runtime as string)
+    : undefined;
   if (
     (subagentLlm && typeof subagentLlm.provider === "string" && subagentLlm.provider.length > 0) ||
     hostRuntime === "standalone" ||
@@ -1438,7 +1455,13 @@ async function resolveReviewInvokeInputs(
   // Phase 3: standalone LLM-based complexity assessment (Step 1.5)
   // When no explicit review-mode or lens-id is set AND host is standalone/direct-call,
   // call main_llm to assess whether light review is appropriate.
-  const hostRuntimeForAssessment = ontoConfig.host_runtime ?? process.env.ONTO_HOST_RUNTIME;
+  // PR-K: host_runtime removed from OntoConfig type — read via cast.
+  const rawOntoConfigForAssessment = ontoConfig as unknown as Record<string, unknown>;
+  const hostRuntimeForAssessment =
+    (typeof rawOntoConfigForAssessment.host_runtime === "string"
+      ? (rawOntoConfigForAssessment.host_runtime as string)
+      : undefined)
+    ?? process.env.ONTO_HOST_RUNTIME;
   const isStandaloneHost = hostRuntimeForAssessment === "standalone" ||
     hostRuntimeForAssessment === "litellm" ||
     hostRuntimeForAssessment === "anthropic" ||

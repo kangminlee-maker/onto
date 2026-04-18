@@ -134,7 +134,12 @@ export type ExecutionPlanResolution =
 export interface ResolveExecutionPlanArgs {
   /** --codex CLI flag explicitly requested. */
   explicitCodex: boolean;
-  ontoConfig: OntoConfig;
+  // PR-K (2026-04-18): ontoConfig accepts raw object too, so callers
+  // (tests, CLI entry reading YAML) can pass configs with legacy fields
+  // no longer in the OntoConfig type. Internally we cast to OntoConfig
+  // when reading typed fields and use `Record<string, unknown>` casts
+  // for the 5 removed legacy keys.
+  ontoConfig: OntoConfig | Record<string, unknown>;
   /**
    * Environment variable snapshot. Defaults to process.env. Tests inject a
    * controlled map so ladder decisions are reproducible without mutating
@@ -260,8 +265,16 @@ export function resolveExecutionPlan(
     };
   }
 
-  const configHost = args.ontoConfig.host_runtime;
-  const configRealization = args.ontoConfig.execution_realization;
+  // PR-K (2026-04-18): `host_runtime` / `execution_realization` were
+  // removed from the OntoConfig type (sketch v3 §7.4 Phase D stage 3).
+  // These P1 branches are unreachable in practice because PR-J throws
+  // `LegacyFieldRemovedError` at config load for any config using these
+  // fields without a companion `execution_topology_priority`. Reads here
+  // are via `Record<string, unknown>` cast purely to preserve the code
+  // structure until a follow-up refactor removes the legacy ladder.
+  const rawConfig = args.ontoConfig as unknown as Record<string, unknown>;
+  const configHost = typeof rawConfig.host_runtime === "string" ? rawConfig.host_runtime : undefined;
+  const configRealization = typeof rawConfig.execution_realization === "string" ? rawConfig.execution_realization : undefined;
 
   // P1a: Explicit --codex flag. Overrides all other inputs.
   if (args.explicitCodex) {
@@ -388,9 +401,11 @@ export function resolveExecutionPlan(
   log("P3 auto: codex binary unavailable → skip");
 
   // P4: subagent_llm config or external_http_provider makes ts_inline_http viable.
-  if (args.ontoConfig.subagent_llm?.provider || hasExternalHttpConfig(args.ontoConfig)) {
+  // PR-K: args.ontoConfig may be raw Record; cast for typed access.
+  const typedOntoConfig = args.ontoConfig as OntoConfig;
+  if (typedOntoConfig.subagent_llm?.provider || hasExternalHttpConfig(typedOntoConfig)) {
     log("P4 auto: subagent_llm or external_http_provider present → ts_inline_http");
-    return resolveExternalHttpPlan(log, trace, retry_policy, args.ontoConfig);
+    return resolveExternalHttpPlan(log, trace, retry_policy, typedOntoConfig);
   }
 
   log("final: no viable path → no_host");
@@ -499,7 +514,11 @@ function pickExternalProviderField(
     (config as { external_http_provider?: string }).external_http_provider,
   );
   if (ext) return { provider: ext, source: "external_http_provider" };
-  const api = narrowExternalProvider(config.api_provider);
+  // PR-K: api_provider removed from OntoConfig type — read via cast.
+  const rawConfig = config as unknown as Record<string, unknown>;
+  const api = narrowExternalProvider(
+    typeof rawConfig.api_provider === "string" ? rawConfig.api_provider : undefined,
+  );
   if (api) return { provider: api, source: "api_provider" };
   const subagent = narrowExternalProvider(config.subagent_llm?.provider);
   if (subagent) return { provider: subagent, source: "subagent_llm.provider" };
@@ -516,9 +535,11 @@ function narrowExternalProvider(
 }
 
 function hasExternalHttpConfig(config: OntoConfig): boolean {
+  // PR-K: api_provider removed from OntoConfig type — read via cast.
+  const rawConfig = config as unknown as Record<string, unknown>;
   return (
     Boolean((config as { external_http_provider?: string }).external_http_provider) ||
-    Boolean(config.api_provider) ||
+    Boolean(typeof rawConfig.api_provider === "string" && rawConfig.api_provider.length > 0) ||
     Boolean(config.subagent_llm?.provider)
   );
 }

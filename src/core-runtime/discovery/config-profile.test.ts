@@ -150,7 +150,9 @@ describe("validateProfileCompleteness — per provider", () => {
 
 describe("extractProfileFields", () => {
   it("returns only profile fields, not orthogonal", () => {
-    const cfg: OntoConfig = {
+    // PR-K: use raw Record to allow legacy `host_runtime` field which is
+    // no longer in the OntoConfig type post-removal.
+    const cfg: Record<string, unknown> = {
       host_runtime: "anthropic",
       anthropic: { model: "claude-haiku-4-5" },
       output_language: "ko", // orthogonal
@@ -173,7 +175,10 @@ describe("extractProfileFields", () => {
 const HOME_PATH = "/home/.onto/config.yml";
 const PROJECT_PATH = "/project/.onto/config.yml";
 
-function buildArgs(home: OntoConfig, project: OntoConfig) {
+function buildArgs(
+  home: OntoConfig | Record<string, unknown>,
+  project: OntoConfig | Record<string, unknown>,
+) {
   return { home, project, homePath: HOME_PATH, projectPath: PROJECT_PATH, sameRoot: false };
 }
 

@@ -45,6 +45,27 @@ Onto review supports **세 가지 canonical 실행 경로** (`execution_realizat
 
 이외 경로 — Claude CLI subagent, API executor, 3-Tier fallback — 는 2026-04-13 정책 확정과 함께 **전부 제거되었다**. Claude CLI 인증 환경이 불안정하여 위 세 canonical 경로만 안정적으로 운용한다.
 
+### Sketch v3 Topology-Aware Execution (opt-in, 2026-04-18)
+
+위 세 경로는 **3 canonical combinations** — sketch v3 (PR #99~#106) 은 이것을 **10 canonical topology 옵션** 으로 확장하고 `.onto/config.yml` 의 `execution_topology_priority: [...]` 배열로 주체자가 우선순위 지정 가능하게 만든다.
+
+```yaml
+# .onto/config.yml 예
+execution_topology_priority:
+  - cc-main-codex-subprocess       # 1st: Claude Code 세션 내 codex lens
+  - codex-main-subprocess          # 2nd: Codex CLI 세션 폴백
+  - codex-nested-subprocess        # 3rd: plain terminal 폴백
+```
+
+Principal 이 이 field 를 설정하면:
+- `onto review` auto-resolution 이 topology resolver 를 추가 호출 → 환경 시그널 (`CLAUDECODE`, codex binary, LiteLLM endpoint) 에 맞는 첫 옵션 채택
+- Coordinator-start handoff JSON 에 `topology` descriptor 필드 포함 → coordinator subagent 가 `topology.id` / `lens_spawn_mechanism` / `deliberation_channel` 을 canonical 로 해석
+- 상세 topology 별 orchestration 지침: `processes/review/nested-spawn-coordinator-contract.md` §2.2
+
+Opt-in 안 한 주체자는 3-path legacy 동작 그대로 유지. Migration guide: `docs/topology-migration-guide.md`.
+
+Legacy 필드 (`host_runtime` / `execution_realization` / `execution_mode` / `executor_realization` / `api_provider`) 사용 시 `[onto:deprecation]` STDERR 경고 출력 (PR #103) — 동작은 유지, 마이그레이션 권장.
+
 ### Codex 경로의 자동 가시성 (live watcher)
 
 `--codex` 경로는 lens 진행을 LLM 토큰 없이 주체자에게 보여주기 위해 **runtime이 자동으로 watcher pane을 띄운다**:

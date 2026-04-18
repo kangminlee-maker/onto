@@ -117,7 +117,10 @@ function renderConsensusHeading(
   if (reviewMode === "full") {
     return `### Consensus (${participatingLensCount}/${plannedLensCount})`;
   }
-  return `### Consensus (${participatingLensCount}/${plannedLensCount}, light mode)`;
+  if (reviewMode === "core-axis") {
+    return `### Consensus (${participatingLensCount}/${plannedLensCount}, core-axis mode)`;
+  }
+  return `### Consensus (${participatingLensCount}/${plannedLensCount}, ${reviewMode} mode)`;
 }
 
 export async function runRenderReviewFinalOutputCli(

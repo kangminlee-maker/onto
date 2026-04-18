@@ -5,6 +5,7 @@ functional_area: review-mode-naming
 revision_history:
   - "2026-04-18: initial proposal (light → core-axis rename, 5 후보 평가, 3 migration 옵션, big-bang 권장)"
   - "2026-04-18: approved — 주체자 권장안 6 항목 (§8) 전수 채택. 후속 implementation PR 진입"
+  - "2026-04-19: §4.3 추가 (historical persisted-state handling) — PR #127 의 2 차 9-lens review (.onto/review/20260419-cab9b358) 가 발견한 coverage-F1 informational gap 해소. 이미 구현에는 반영됨 (PR #127 commit 54d8166 reader-only normalize + 후속 PR evolution-F1 centralization)"
 purpose: |
   `review_mode: light` 의 이름이 선정 근거를 전달하지 않는 문제를 해결하기 위한
   rename proposal. 현재 light 는 4 lens (logic / pragmatics / evolution / axiology)
@@ -129,6 +130,23 @@ Rename 대상이 한 덩어리로 보이지만 **두 개의 독립 surface** 가
 |---|---|---|
 | **Records (이력)** | `development-records/benchmark/20260418-topology-smoke-*.md`, `development-records/evolve/20260330-optimization-4features.md`, `development-records/evolve/20260413-onto-todo.md`, `development-records/plan/20260418-session3-handoff.md` | 시점 freeze. 과거 시점에서는 `light` 이름이 사용된 사실 자체가 기록 |
 | **dist.bak-20260418/** | 모든 .js | backup snapshot, 코드 빌드 산출물 |
+
+### 4.3 Historical persisted-state handling
+
+옛 세션 (rename 이전 생성) 의 `.onto/review/<session>/execution-result.yaml` 과 `review-record.yaml` 은 `review_mode: light` 를 보존한다. 본 proposal 은 이 persisted-state 를 **rename scope 와 별도의 coverage area** 로 명시한다 (§4.1 의 source-level 변경 대상과 구분).
+
+정책 (PR #127 commit 54d8166 + 후속 evolution-F1 centralization PR 에 구현):
+
+| Consumer | 동작 | 근거 |
+|---|---|---|
+| 원본 yaml artifact | **freeze** (변경 X) | Historical fact 보존 — 그 시점의 의미가 `light` 였다는 기록은 audit 가치 |
+| `review-log.ts` reader | **silent normalize** `light` → `core-axis` (read 시) | progressiveness / audit 분석의 연속성 확보. 원본은 그대로 |
+| Session watcher (`onto-review-watch.sh`) | **raw string 그대로** 표시 | Real-time 단일 세션 관점은 historical fact 보존 의미 |
+| Replay (`--resume` 류) | **미지원** | Rename 의 의미적 명료성 위해. 신규 session 으로 재시작 권장 |
+
+**centralization seat**: `src/core-runtime/review/legacy-mode-policy.ts` (evolution-F1 backlog 의 후속 PR 에서 신설). map + helper (isLegacyReviewMode / getLegacyReplacement / formatLegacyMigrationError / normalizeLegacyReviewMode) 를 단일 seat 에 집약하여 미래 rename 시 drift 방지.
+
+상세 migration 안내는 `CHANGELOG.md` 의 "Legacy persisted-state policy" + "Consumer migration matrix" 참조.
 
 ## 5. Migration 전략 3 옵션
 

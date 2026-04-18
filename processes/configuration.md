@@ -159,8 +159,26 @@ Background task (learning extraction, governance check, promote) 는 review lens
 #### `review_mode`
 - 용도: review lens set 선택 — `core-axis` 는 meta-level 고정 4 lens (logic / pragmatics / evolution / axiology), `full` 은 전수 9 lens. 비용은 부수 효과
 - 유효값: `core-axis` | `full`
-- 기본값: `full` (explicit/config 모두 없을 때 fallback). host-facing positional invoke (예: `/onto:review`) 는 별도 path 로 `core-axis` 진입
-- 참고: `host_runtime: standalone | litellm | anthropic | openai` + no-explicit-mode 시 Step 1.5 Complexity Assessment 가 `core-axis` 를 자동 제안할 수 있음 (LLM 으로 dynamic lens 선택, axiology 항상 포함)
+
+##### Default resolution by invocation path
+
+Default 는 단일 값이 아니라 **invocation path + environment** 에 따라 결정된다. 우선순위 ladder (높은 우선순위가 승리):
+
+| 우선순위 | Trigger | 결정 | 소스 |
+|---|---|---|---|
+| 1 | CLI `--review-mode <X>` 명시 | `<X>` 그대로 사용 | `review-invoke.ts:1162` resolveReviewMode |
+| 2 | Config `review_mode: <X>` 명시 (CLI 없음) | `<X>` 그대로 사용 | `review-invoke.ts:1167` |
+| 3 | `host_runtime: standalone \| litellm \| anthropic \| openai` + no explicit mode + no `--lens-id` | Step 1.5 Complexity Assessment 가 LLM 으로 동적 판정 → `core-axis` (4 axes 또는 dynamic selection) 또는 `full` | `review-invoke.ts:1426` + `complexity-assessment.ts` |
+| 4 | 위 모두 불일치 (absolute fallback) | `full` | `review-invoke.ts:1171` |
+
+**실용 요약**:
+- 대부분의 사용자 — `.onto/config.yml` 에 `review_mode: core-axis` 명시 → 매일 review 가 core-axis 로 고정 (우선순위 2)
+- 자동 판정 원하는 경우 — `host_runtime: standalone/anthropic/…` + `review_mode` 미설정 → Step 1.5 가 target 별로 판정 (우선순위 3)
+- 명시 없으면 안전 fallback — `full` 9-lens (우선순위 4)
+
+**주의**:
+- 옛 `review_mode: light` 입력 시 stale-input friendly error 발생 (우선순위 ladder 진입 전 rejection). 자세한 migration 은 CHANGELOG.md 의 Consumer migration matrix 참조
+- Host-facing positional invoke (예: `/onto:review <target> <intent>`) 는 위 ladder 를 그대로 사용하지만, interactive interpretation 경로에서 principal 이 `--review-mode-recommendation` 으로 override 가능
 
 #### `max_concurrent_lenses`
 - 용도: lens 병렬 실행 상한

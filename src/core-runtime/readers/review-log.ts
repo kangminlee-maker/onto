@@ -21,6 +21,7 @@ import type {
   ReviewExecutionRealization,
   ReviewHostRuntime,
 } from "../review/artifact-types.js";
+import { normalizeLegacyReviewMode } from "../review/legacy-mode-policy.js";
 
 // ─── Public Types ───
 
@@ -266,12 +267,14 @@ function parseSession(
   }
 
   // Legacy persisted-state policy (PR #127, v0.2.0):
-  // Sessions created before the rename store `review_mode: "light"` in their
-  // execution-result.yaml. Normalize to "core-axis" at read time so historical
-  // sessions remain readable in progressiveness/audit views without rewriting
-  // the original artifacts (which stay as historical record).
-  const rawReviewMode = execResult.review_mode as string;
-  const normalizedReviewMode = (rawReviewMode === "light" ? "core-axis" : rawReviewMode) as ReviewMode;
+  // Sessions created before a rename cycle store the old ReviewMode value
+  // in their execution-result.yaml. Normalize at read time via the centralized
+  // legacy-mode-policy seat so historical sessions remain readable in
+  // progressiveness/audit views without rewriting the original artifacts
+  // (which stay as historical record).
+  const normalizedReviewMode = normalizeLegacyReviewMode(
+    execResult.review_mode as string,
+  ) as ReviewMode;
 
   return {
     session_id: execResult.session_id,

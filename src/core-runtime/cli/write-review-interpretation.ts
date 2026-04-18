@@ -10,6 +10,10 @@ import {
   parseBooleanFlag,
 } from "../review/review-artifact-utils.js";
 import { writeInvocationInterpretationArtifact } from "../review/materializers.js";
+import {
+  formatLegacyMigrationError,
+  isLegacyReviewMode,
+} from "../review/legacy-mode-policy.js";
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 
 function requireString(
@@ -37,11 +41,8 @@ function requireReviewMode(value: string): ReviewMode {
   if (value === "core-axis" || value === "full") {
     return value;
   }
-  if (value === "light") {
-    throw new Error(
-      "`--review-mode-recommendation light` was renamed to `--review-mode-recommendation core-axis` in v0.2.0 (PR #127). " +
-        "See CHANGELOG.md for migration.",
-    );
+  if (isLegacyReviewMode(value)) {
+    throw new Error(formatLegacyMigrationError("--review-mode-recommendation", value));
   }
   throw new Error(`Invalid --review-mode-recommendation: ${value}`);
 }

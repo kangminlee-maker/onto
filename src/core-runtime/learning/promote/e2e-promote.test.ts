@@ -1,7 +1,7 @@
 /**
  * Phase 3 Promote — Focused E2E test suite (Step 13).
  *
- * Run: `npx tsx src/core-runtime/learning/promote/e2e-promote.test.ts`
+ * Run: `npx vitest run src/core-runtime/learning/promote/e2e-promote.test.ts`
  *
  * Scope:
  *   - Critical path coverage without LLM dependencies. Tests use synthetic
@@ -15,8 +15,16 @@
  * Test naming:
  *   E-PNNN — matches the design test ids when applicable. Tests added beyond
  *   the design enumeration use the prefix E-PX (extra).
+ *
+ * Format history:
+ *   Originally ran via `npx tsx` with a custom minimal test runner (passCount /
+ *   failCount + process.exit). Converted to vitest describe/it in 2026-04-18
+ *   (handoff §2 Priority 2 Phase A) so CI picks up the suite via
+ *   `npx vitest run`. Assert helpers (`assert` / `assertEqual`) are kept as-is;
+ *   they throw on failure and vitest converts exceptions into test failures.
  */
 
+import { describe, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -92,29 +100,8 @@ import type {
 import type { AuditState } from "../shared/audit-state.js";
 
 // ---------------------------------------------------------------------------
-// Test runner
+// Test helpers
 // ---------------------------------------------------------------------------
-
-let passCount = 0;
-let failCount = 0;
-const failures: string[] = [];
-
-function test(name: string, fn: () => void | Promise<void>): Promise<void> {
-  return Promise.resolve()
-    .then(fn)
-    .then(
-      () => {
-        process.stdout.write(`  PASS  ${name}\n`);
-        passCount += 1;
-      },
-      (error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        process.stdout.write(`  FAIL  ${name}\n        ${message}\n`);
-        failures.push(`${name}: ${message}`);
-        failCount += 1;
-      },
-    );
-}
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -190,12 +177,9 @@ function syntheticReview(verdict: "promote" | "defer" | "reject"): PanelMemberRe
 // Tests
 // ---------------------------------------------------------------------------
 
-async function main(): Promise<void> {
-  process.stdout.write("Phase 3 promote E2E (focused)\n");
-  process.stdout.write("=================================\n");
-
+describe("Phase 3 Promote E2E (focused)", () => {
   // E-P1 — collector mode dispatch promote
-  await test("E-P1 collector promote mode filters out [insight] from project", () => {
+  it("E-P1 collector promote mode filters out [insight] from project", () => {
     const projectRoot = makeTmpDir("e-p1");
     const projDir = path.join(projectRoot, ".onto", "learnings");
     writeLearningFile(
@@ -214,7 +198,7 @@ async function main(): Promise<void> {
   });
 
   // E-P2 — collector reclassify-insights mode
-  await test("E-P2 collector reclassify-insights mode targets only [insight]", () => {
+  it("E-P2 collector reclassify-insights mode targets only [insight]", () => {
     const projectRoot = makeTmpDir("e-p2");
     // Empty project; everything in fake home (override via HOME)
     const fakeHome = makeTmpDir("e-p2-home");
@@ -245,7 +229,7 @@ async function main(): Promise<void> {
   });
 
   // E-P3 — baseline hash round-trip
-  await test("E-P3 verifyBaselineHash detects unchanged files", () => {
+  it("E-P3 verifyBaselineHash detects unchanged files", () => {
     const projectRoot = makeTmpDir("e-p3");
     writeLearningFile(
       path.join(projectRoot, ".onto", "learnings"),
@@ -258,7 +242,7 @@ async function main(): Promise<void> {
   });
 
   // E-P4 — baseline hash detects content drift
-  await test("E-P4 verifyBaselineHash detects content_sha256 drift", () => {
+  it("E-P4 verifyBaselineHash detects content_sha256 drift", () => {
     const projectRoot = makeTmpDir("e-p4");
     const filePath = writeLearningFile(
       path.join(projectRoot, ".onto", "learnings"),
@@ -273,7 +257,7 @@ async function main(): Promise<void> {
   });
 
   // E-P5 — retirement: 2+ markers triggers candidate
-  await test("E-P5 retirement candidate when 2+ event markers post-cutoff", () => {
+  it("E-P5 retirement candidate when 2+ event markers post-cutoff", () => {
     const item = syntheticItem({
       event_markers: [
         "<!-- applied-then-found-invalid: 2026-04-01, x, target:abc -->",
@@ -286,7 +270,7 @@ async function main(): Promise<void> {
   });
 
   // E-P6 — retention-confirmed cutoff excludes prior markers
-  await test("E-P6 retention-confirmed cutoff excludes pre-cutoff markers", () => {
+  it("E-P6 retention-confirmed cutoff excludes pre-cutoff markers", () => {
     const item = syntheticItem({
       event_markers: [
         "<!-- applied-then-found-invalid: 2026-04-01, x, target:abc -->",
@@ -299,14 +283,14 @@ async function main(): Promise<void> {
   });
 
   // E-P7 — degraded state severity tier
-  await test("E-P7 panel_minimum_unmet is blocking severity", () => {
+  it("E-P7 panel_minimum_unmet is blocking severity", () => {
     assertEqual(severityOf("panel_minimum_unmet"), "blocking", "blocking");
     assertEqual(severityOf("member_unreachable"), "degraded", "degraded");
     assertEqual(severityOf("criterion_6_waived"), "informational", "informational");
   });
 
   // E-P8 — degraded state summary aggregation
-  await test("E-P8 summarizeDegradedStates aggregates by tier", () => {
+  it("E-P8 summarizeDegradedStates aggregates by tier", () => {
     const entries: DegradedStateEntry[] = [
       { kind: "panel_minimum_unmet", detail: "x", affected_candidates: ["c1"], occurred_at: "now" },
       { kind: "member_unreachable", detail: "y", occurred_at: "now" },
@@ -320,14 +304,14 @@ async function main(): Promise<void> {
   });
 
   // E-P9 — ULID format
-  await test("E-P9 generateUlid produces 26-char Crockford base32", () => {
+  it("E-P9 generateUlid produces 26-char Crockford base32", () => {
     const id = generateUlid();
     assertEqual(id.length, 26, "ulid length");
     assert(/^[0-9A-HJKMNP-TV-Z]+$/.test(id), "ulid alphabet");
   });
 
   // E-P10 — apply state lifecycle
-  await test("E-P10 apply-state lifecycle init → applied → completed", () => {
+  it("E-P10 apply-state lifecycle init → applied → completed", () => {
     let state = initApplyState({
       sessionId: "test",
       pendingDecisions: [{ decision_kind: "promotion", decision_id: "p1" }],
@@ -349,7 +333,7 @@ async function main(): Promise<void> {
   });
 
   // E-P11 — apply state rejects state_persistence_failed
-  await test("E-P11 transitionStatus rejects state_persistence_failed", () => {
+  it("E-P11 transitionStatus rejects state_persistence_failed", () => {
     const state = initApplyState({
       sessionId: "test",
       pendingDecisions: [],
@@ -364,7 +348,7 @@ async function main(): Promise<void> {
   });
 
   // E-P12 — apply state markFailed unknown decision throws
-  await test("E-P12 markFailed throws on unknown decision_id", () => {
+  it("E-P12 markFailed throws on unknown decision_id", () => {
     const state = initApplyState({
       sessionId: "test",
       pendingDecisions: [{ decision_kind: "promotion", decision_id: "p1" }],
@@ -385,7 +369,7 @@ async function main(): Promise<void> {
   });
 
   // E-P13 — panel composition produces 3-agent
-  await test("E-P13 composePanel returns 3-agent for non-axiology origin", () => {
+  it("E-P13 composePanel returns 3-agent for non-axiology origin", () => {
     const home = makeTmpDir("e-p13-home");
     const globalDir = path.join(home, ".onto", "learnings");
     fs.mkdirSync(globalDir, { recursive: true });
@@ -402,7 +386,7 @@ async function main(): Promise<void> {
   });
 
   // E-P14 — panel validator coherence: all-yes + non-promote → fail
-  await test("E-P14 panel validator rejects all-yes + non-promote verdict", () => {
+  it("E-P14 panel validator rejects all-yes + non-promote verdict", () => {
     const review = syntheticReview("promote");
     review.verdict = "defer";
     const result = validatePanelMemberReview(review);
@@ -414,13 +398,13 @@ async function main(): Promise<void> {
   });
 
   // E-P15 — DD-12 hard gate: 1 member → panel_minimum_unmet
-  await test("E-P15 aggregateConsensus 1 member → panel_minimum_unmet", () => {
+  it("E-P15 aggregateConsensus 1 member → panel_minimum_unmet", () => {
     const consensus = aggregateConsensus([syntheticReview("promote")]);
     assertEqual(consensus, "panel_minimum_unmet", "hard gate");
   });
 
   // E-P16 — consensus 3/3 promote
-  await test("E-P16 aggregateConsensus 3/3 → promote_3_3", () => {
+  it("E-P16 aggregateConsensus 3/3 → promote_3_3", () => {
     const consensus = aggregateConsensus([
       syntheticReview("promote"),
       syntheticReview("promote"),
@@ -430,7 +414,7 @@ async function main(): Promise<void> {
   });
 
   // E-P17 — judgment audit eligibility
-  await test("E-P17 audit eligibility: count_threshold ≥10", () => {
+  it("E-P17 audit eligibility: count_threshold ≥10", () => {
     const items: ParsedLearningItem[] = [];
     for (let i = 0; i < 11; i++) {
       items.push(syntheticItem({ agent_id: "structure", type: "judgment", line_number: i }));
@@ -442,7 +426,7 @@ async function main(): Promise<void> {
   });
 
   // E-P18 — domain doc slot stability
-  await test("E-P18 deriveSlotId is deterministic", () => {
+  it("E-P18 deriveSlotId is deterministic", () => {
     const a = deriveSlotId("promo-1", "concepts.md", "finance");
     const b = deriveSlotId("promo-1", "concepts.md", "finance");
     const c = deriveSlotId("promo-1", "concepts.md", "business");
@@ -451,7 +435,7 @@ async function main(): Promise<void> {
   });
 
   // E-P19 — domain doc fan-out
-  await test("E-P19 identifyDomainDocCandidates fans out per domain tag", () => {
+  it("E-P19 identifyDomainDocCandidates fans out per domain tag", () => {
     const item = syntheticItem({
       agent_id: "semantics",
       applicability_tags: ["methodology", "domain/finance", "domain/business"],
@@ -472,7 +456,7 @@ async function main(): Promise<void> {
   });
 
   // E-P20 — health snapshot pcts sum to <=100 (rounding allows minor drift)
-  await test("E-P20 health snapshot axis percentages sum within tolerance", () => {
+  it("E-P20 health snapshot axis percentages sum within tolerance", () => {
     const items = [
       syntheticItem({ applicability_tags: ["methodology"] }),
       syntheticItem({ applicability_tags: ["domain/x"] }),
@@ -497,7 +481,7 @@ async function main(): Promise<void> {
   });
 
   // E-P21 — session-root-guard new user case writes marker
-  await test("E-P21 ensureSessionRootsMigrated writes marker for new user", () => {
+  it("E-P21 ensureSessionRootsMigrated writes marker for new user", () => {
     const projectRoot = makeTmpDir("e-p21");
     const status = ensureSessionRootsMigrated(projectRoot, "enforce");
     assert(status.marker_present, "marker written");
@@ -505,7 +489,7 @@ async function main(): Promise<void> {
   });
 
   // E-P22 — session-root-guard legacy without marker → throws
-  await test("E-P22 legacy sessions without marker → MigrationRequiredError", () => {
+  it("E-P22 legacy sessions without marker → MigrationRequiredError", () => {
     const projectRoot = makeTmpDir("e-p22");
     const sessionsDir = path.join(projectRoot, ".onto", "sessions");
     fs.mkdirSync(path.join(sessionsDir, "20260101-deadbeef"), { recursive: true });
@@ -519,7 +503,7 @@ async function main(): Promise<void> {
   });
 
   // E-P23 — migrate-session-roots dry run
-  await test("E-P23 migrateSessionRoots dry-run does not move files", () => {
+  it("E-P23 migrateSessionRoots dry-run does not move files", () => {
     const projectRoot = makeTmpDir("e-p23");
     const sessionsDir = path.join(projectRoot, ".onto", "sessions");
     const legacyDir = path.join(sessionsDir, "20260101-aabbcc");
@@ -532,7 +516,7 @@ async function main(): Promise<void> {
   });
 
   // E-P24 — migrate-session-roots actual run + idempotent re-run
-  await test("E-P24 migrateSessionRoots moves files and is idempotent", () => {
+  it("E-P24 migrateSessionRoots moves files and is idempotent", () => {
     const projectRoot = makeTmpDir("e-p24");
     const sessionsDir = path.join(projectRoot, ".onto", "sessions");
     const legacyDir = path.join(sessionsDir, "20260101-aabbcc");
@@ -550,7 +534,7 @@ async function main(): Promise<void> {
   });
 
   // E-P25 — promoter Phase A end-to-end (skipPanel + skipAudit)
-  await test("E-P25 runPromoter assembles report without LLM calls", async () => {
+  it("E-P25 runPromoter assembles report without LLM calls", async () => {
     const projectRoot = makeTmpDir("e-p25");
     writeLearningFile(
       path.join(projectRoot, ".onto", "learnings"),
@@ -576,7 +560,7 @@ async function main(): Promise<void> {
   });
 
   // E-P26 — promote-executor stale_baseline path
-  await test("E-P26 runPromoteExecutor returns stale_baseline when source drifts", async () => {
+  it("E-P26 runPromoteExecutor returns stale_baseline when source drifts", async () => {
     const projectRoot = makeTmpDir("e-p26");
     const learnFile = writeLearningFile(
       path.join(projectRoot, ".onto", "learnings"),
@@ -632,7 +616,7 @@ async function main(): Promise<void> {
   });
 
   // E-P27 — promote-executor no_decisions path
-  await test("E-P27 runPromoteExecutor returns no_decisions when nothing approved", async () => {
+  it("E-P27 runPromoteExecutor returns no_decisions when nothing approved", async () => {
     const projectRoot = makeTmpDir("e-p27");
     writeLearningFile(
       path.join(projectRoot, ".onto", "learnings"),
@@ -681,7 +665,7 @@ async function main(): Promise<void> {
   });
 
   // E-P28 — promote-executor end-to-end apply (single promotion)
-  await test("E-P28 runPromoteExecutor applies a single approved promotion", async () => {
+  it("E-P28 runPromoteExecutor applies a single approved promotion", async () => {
     const projectRoot = makeTmpDir("e-p28");
     const projectLine =
       "- [fact] [methodology] [foundation] e2e body (source: p, d, 2026-01-01) [impact:normal]";
@@ -748,7 +732,7 @@ async function main(): Promise<void> {
   });
 
   // E-P29 — inspect mode does not write marker
-  await test("E-P29 inspect mode does not auto-write marker", () => {
+  it("E-P29 inspect mode does not auto-write marker", () => {
     const projectRoot = makeTmpDir("e-p29");
     const status = inspectMigrationStatus(projectRoot);
     assertEqual(status.marker_present, false, "no marker initially");
@@ -766,7 +750,7 @@ async function main(): Promise<void> {
   process.env.ONTO_LLM_MOCK = "1";
 
   // E-P30 — runPromoter Phase A end-to-end with mock panel + audit
-  await test("E-P30 runPromoter assembles report with panel + audit via mock LLM", async () => {
+  it("E-P30 runPromoter assembles report with panel + audit via mock LLM", async () => {
     const projectRoot = makeTmpDir("e-p30");
     const fakeOnto = makeTmpDir("e-p30-home");
 
@@ -833,7 +817,7 @@ async function main(): Promise<void> {
   });
 
   // E-P31 — judgment-auditor handles mock LLM provider unreachable gracefully
-  await test("E-P31 audit blocks gracefully on provider error", async () => {
+  it("E-P31 audit blocks gracefully on provider error", async () => {
     // Disable mock and use a synthetic state with a pending obligation
     delete process.env.ONTO_LLM_MOCK;
     process.env.ONTO_LLM_MOCK = "0";
@@ -881,7 +865,7 @@ async function main(): Promise<void> {
   });
 
   // E-P32 — insight reclassifier with mock LLM
-  await test("E-P32 insight reclassifier classifies via mock LLM", async () => {
+  it("E-P32 insight reclassifier classifies via mock LLM", async () => {
     const projectRoot = makeTmpDir("e-p32");
     const fakeOnto = makeTmpDir("e-p32-home");
     writeLearningFile(
@@ -915,7 +899,7 @@ async function main(): Promise<void> {
   });
 
   // E-P33 — domain doc applicator writes file via mock LLM
-  await test("E-P33 promote-executor applies domain doc update via mock LLM", async () => {
+  it("E-P33 promote-executor applies domain doc update via mock LLM", async () => {
     const projectRoot = makeTmpDir("e-p33");
     const fakeOnto = makeTmpDir("e-p33-home");
 
@@ -1029,7 +1013,7 @@ async function main(): Promise<void> {
   });
 
   // E-P34 — domain doc applicator skips already-written slot (idempotency)
-  await test("E-P34 domain doc applicator skips already-written slot", async () => {
+  it("E-P34 domain doc applicator skips already-written slot", async () => {
     const projectRoot = makeTmpDir("e-p34");
     const fakeOnto = makeTmpDir("e-p34-home");
     const projectLine =
@@ -1133,7 +1117,7 @@ async function main(): Promise<void> {
   });
 
   // E-P35 — cross_agent_dedup applicator consolidates entries
-  await test("E-P35 cross_agent_dedup applicator consolidates and marks members", async () => {
+  it("E-P35 cross_agent_dedup applicator consolidates and marks members", async () => {
     const projectRoot = makeTmpDir("e-p35");
     const fakeOnto = makeTmpDir("e-p35-home");
 
@@ -1284,7 +1268,7 @@ async function main(): Promise<void> {
   });
 
   // E-P36 — append-only resolution_history (NQ-21)
-  await test("E-P36 saveRecoveryResolution appends to resolution_history", () => {
+  it("E-P36 saveRecoveryResolution appends to resolution_history", () => {
     const projectRoot = makeTmpDir("e-p36");
     const sessionId = "test-36";
 
@@ -1349,7 +1333,7 @@ async function main(): Promise<void> {
   });
 
   // E-P37 — recovery resolution applied during --resume
-  await test("E-P37 resolveRecoveryTruth honors saved RecoveryResolution", async () => {
+  it("E-P37 resolveRecoveryTruth honors saved RecoveryResolution", async () => {
     const projectRoot = makeTmpDir("e-p37");
     const sessionId = "test-37";
 
@@ -1389,7 +1373,7 @@ async function main(): Promise<void> {
   });
 
   // E-P38 — collector skip behavior (parse_errors don't crash promoter)
-  await test("E-P38 collector parse errors surface as warnings without crash", async () => {
+  it("E-P38 collector parse errors surface as warnings without crash", async () => {
     const projectRoot = makeTmpDir("e-p38");
     writeLearningFile(
       path.join(projectRoot, ".onto", "learnings"),
@@ -1426,7 +1410,7 @@ async function main(): Promise<void> {
   });
 
   // E-P39a — judgment-auditor chunks large agents (B-4 production fix)
-  await test("E-P39a judgment-auditor chunks ≥13 items into multiple batches", async () => {
+  it("E-P39a judgment-auditor chunks ≥13 items into multiple batches", async () => {
     const projectRoot = makeTmpDir("e-p39a");
     const fakeOnto = makeTmpDir("e-p39a-home");
     // 25 judgment items in one agent — should split into 3 batches (12+12+1)
@@ -1475,7 +1459,7 @@ async function main(): Promise<void> {
   });
 
   // E-P39b — failed_agents surfaces blocked audits in summary
-  await test("E-P39b audit failures appear in summary.failed_agents", async () => {
+  it("E-P39b audit failures appear in summary.failed_agents", async () => {
     // We use the mock provider but force a non-mock prompt path that the
     // mock doesn't recognize, so it returns "ok" which is not valid JSON.
     // The mock only matches on system prompt prefix; the audit prompt
@@ -1537,7 +1521,7 @@ async function main(): Promise<void> {
   });
 
   // E-P39 — promote-executor enumerates cross_agent_dedup pending decisions
-  await test("E-P39 cross_agent_dedup_approvals enumerated as pending", async () => {
+  it("E-P39 cross_agent_dedup_approvals enumerated as pending", async () => {
     // Verifies the enumerate function picks up cross_agent_dedup approvals
     // which were previously skipped pre-C-3.
     const projectRoot = makeTmpDir("e-p39");
@@ -1598,7 +1582,7 @@ async function main(): Promise<void> {
   // -------------------------------------------------------------------------
 
   // E-P40 — B-A: resume path filters already-applied decisions
-  await test("E-P40 resume skips already-applied decisions (no double-write)", async () => {
+  it("E-P40 resume skips already-applied decisions (no double-write)", async () => {
     const projectRoot = makeTmpDir("e-p40");
     const fakeOnto = makeTmpDir("e-p40-home");
     const projectLine =
@@ -1682,7 +1666,7 @@ async function main(): Promise<void> {
   });
 
   // E-P41 — M-A: cross-agent dedup preflight rejects on missing member
-  await test("E-P41 cross_agent_dedup preflight fails on missing member file", async () => {
+  it("E-P41 cross_agent_dedup preflight fails on missing member file", async () => {
     const projectRoot = makeTmpDir("e-p41");
     const fakeOnto = makeTmpDir("e-p41-home");
     const lineA =
@@ -1785,7 +1769,7 @@ async function main(): Promise<void> {
   });
 
   // E-P42 — M-A: cross-agent dedup is idempotent on retry
-  await test("E-P42 cross_agent_dedup skips re-application via cluster_id marker", async () => {
+  it("E-P42 cross_agent_dedup skips re-application via cluster_id marker", async () => {
     const projectRoot = makeTmpDir("e-p42");
     const fakeOnto = makeTmpDir("e-p42-home");
     const lineA =
@@ -1904,7 +1888,7 @@ async function main(): Promise<void> {
   });
 
   // E-P43 — M-C: validator accepts c4=no with non-promote verdict
-  await test("E-P43 validator allows c4=no + verdict=defer", () => {
+  it("E-P43 validator allows c4=no + verdict=defer", () => {
     const review = syntheticReview("promote");
     review.verdict = "defer";
     // c1-c3 yes, c4 no, c5 yes — coherent: defer because axis tags need work
@@ -1920,7 +1904,7 @@ async function main(): Promise<void> {
   });
 
   // E-P44 — m-1: 2-member unanimous panel returns promote_2_3
-  await test("E-P44 2-member unanimous panel returns promote_2_3 not promote_3_3", () => {
+  it("E-P44 2-member unanimous panel returns promote_2_3 not promote_3_3", () => {
     const a = syntheticReview("promote");
     a.member = { agent_id: "structure", role: "originator", reachable: true };
     const b = syntheticReview("promote");
@@ -1929,7 +1913,7 @@ async function main(): Promise<void> {
   });
 
   // E-P45 — m-2: empty resolution_history input throws
-  await test("E-P45 saveRecoveryResolution rejects empty resolution_history", () => {
+  it("E-P45 saveRecoveryResolution rejects empty resolution_history", () => {
     const projectRoot = makeTmpDir("e-p45");
     fs.mkdirSync(
       path.join(projectRoot, ".onto", "sessions", "promote", "test-45"),
@@ -1957,7 +1941,7 @@ async function main(): Promise<void> {
   });
 
   // E-P46 — m-3: failed_chunks_count surfaces alongside total
-  await test("E-P46 failed_agents.failed_chunks_count exposes failed batch count", async () => {
+  it("E-P46 failed_agents.failed_chunks_count exposes failed batch count", async () => {
     const previousMock = process.env.ONTO_LLM_MOCK;
     delete process.env.ONTO_LLM_MOCK;
     process.env.ONTO_LLM_MOCK = "0";
@@ -2001,7 +1985,7 @@ async function main(): Promise<void> {
   });
 
   // E-P47 — m-4: invalid reflection_form is rejected
-  await test("E-P47 domain doc applicator rejects invalid reflection_form", async () => {
+  it("E-P47 domain doc applicator rejects invalid reflection_form", async () => {
     // Use mock LLM with a custom override — the easiest way to inject an
     // invalid reflection_form is to monkey-patch process.env to put the
     // mock into a known-bad state. Since the mock returns "add_term"
@@ -2104,7 +2088,7 @@ async function main(): Promise<void> {
   });
 
   // E-P48 — N-1: mock LLM throws on unknown prompt
-  await test("E-P48 mock LLM rejects unknown system prompt", async () => {
+  it("E-P48 mock LLM rejects unknown system prompt", async () => {
     const { callLlm } = await import("../shared/llm-caller.js");
     let threw = false;
     try {
@@ -2126,7 +2110,7 @@ async function main(): Promise<void> {
   // cost-order path when the codex binary is available. When the binary is
   // missing and no other credential is configured, the fail message must
   // guide the user to install codex rather than claim OAuth is unsupported.
-  await test("E-P49 llm-caller guides to install codex when OAuth present but binary missing", async () => {
+  it("E-P49 llm-caller guides to install codex when OAuth present but binary missing", async () => {
     const fakeHome = makeTmpDir("e-p49-home");
     fs.mkdirSync(path.join(fakeHome, ".codex"), { recursive: true });
     fs.writeFileSync(
@@ -2187,7 +2171,7 @@ async function main(): Promise<void> {
   });
 
   // E-P50 — llm-caller still accepts auth.json with real OPENAI_API_KEY field
-  await test("E-P50 llm-caller accepts auth.json OPENAI_API_KEY field (api-key mode)", async () => {
+  it("E-P50 llm-caller accepts auth.json OPENAI_API_KEY field (api-key mode)", async () => {
     const fakeHome = makeTmpDir("e-p50-home");
     fs.mkdirSync(path.join(fakeHome, ".codex"), { recursive: true });
     // Real api-key mode: auth.json has OPENAI_API_KEY string field
@@ -2238,7 +2222,7 @@ async function main(): Promise<void> {
   // -------------------------------------------------------------------------
 
   // E-P51 — UnregisteredArtifactKindError surfaces the known set in the message
-  await test("E-P51 REGISTRY.get(unknown kind) → UnregisteredArtifactKindError", () => {
+  it("E-P51 REGISTRY.get(unknown kind) → UnregisteredArtifactKindError", () => {
     let caught: unknown = null;
     try {
       REGISTRY.get("totally_made_up_kind_xyz");
@@ -2253,7 +2237,7 @@ async function main(): Promise<void> {
 
   // E-P52 — Lazy init: fresh singleton with no explicit init call populates specs
   //        on first use (no need to call ensureRegistryReady()).
-  await test("E-P52 REGISTRY lazy init on first use populates builtin specs", () => {
+  it("E-P52 REGISTRY lazy init on first use populates builtin specs", () => {
     // Preserve the wired registrar across __resetForTest since that helper
     // only clears specs/initialized/cachedInitError. The registrar closure
     // wired by artifact-registry-init.ts module-load must still be present.
@@ -2277,7 +2261,7 @@ async function main(): Promise<void> {
 
   // E-P53 — NQ-19: after a failed init, every subsequent call throws the SAME
   //        cached RegistryInitError instance (process-scoped, no retry).
-  await test("E-P53 Registry init failure is cached: same error on retries (NQ-19)", () => {
+  it("E-P53 Registry init failure is cached: same error on retries (NQ-19)", () => {
     const internal = REGISTRY as unknown as {
       builtinRegistrar: (() => void) | null;
     };
@@ -2322,7 +2306,7 @@ async function main(): Promise<void> {
 
   // E-P54 — saveToFile runs validate() first and surfaces InvalidArtifactError
   //        when required fields are missing.
-  await test("E-P54 saveToFile InvalidArtifactError when validate() fails (SYN-CC1)", () => {
+  it("E-P54 saveToFile InvalidArtifactError when validate() fails (SYN-CC1)", () => {
     const dir = makeTmpDir("e-p54");
     const target = path.join(dir, "audit-state.yaml");
     // audit_state spec requires `obligations: [...]` — missing it triggers
@@ -2340,7 +2324,7 @@ async function main(): Promise<void> {
   });
 
   // E-P55 — SYN-CONS-03: undefined schema_version on save → InvalidArtifactError.
-  await test("E-P55 saveToFile rejects undefined schema_version (SYN-CONS-03)", () => {
+  it("E-P55 saveToFile rejects undefined schema_version (SYN-CONS-03)", () => {
     const dir = makeTmpDir("e-p55");
     const target = path.join(dir, "audit-state.yaml");
     // Structurally valid obligations, but NO schema_version at all.
@@ -2362,7 +2346,7 @@ async function main(): Promise<void> {
   });
 
   // E-P56 — SYN-CC1: schema_version present but != spec.current → rejected.
-  await test("E-P56 saveToFile rejects schema_version mismatch", () => {
+  it("E-P56 saveToFile rejects schema_version mismatch", () => {
     const dir = makeTmpDir("e-p56");
     const target = path.join(dir, "audit-state.yaml");
     // Validator checks schema_version === "1". A different string fails.
@@ -2382,7 +2366,7 @@ async function main(): Promise<void> {
   });
 
   // E-P57 — Format binding from extension: unsupported .txt → Error before write.
-  await test("E-P57 saveToFile rejects unsupported extension", () => {
+  it("E-P57 saveToFile rejects unsupported extension", () => {
     const dir = makeTmpDir("e-p57");
     const target = path.join(dir, "audit-state.txt"); // not yaml/json
     const data: AuditStateJSON = {
@@ -2405,7 +2389,7 @@ async function main(): Promise<void> {
   });
 
   // E-P58 — UF-COV-01: pre-v7 artifact (no schema_version) → IncompatibleVersionError on load.
-  await test("E-P58 loadFromFile rejects pre-v7 artifact with clear guidance", () => {
+  it("E-P58 loadFromFile rejects pre-v7 artifact with clear guidance", () => {
     const dir = makeTmpDir("e-p58");
     const target = path.join(dir, "audit-state.yaml");
     // Legacy shape: obligations array but NO schema_version field.
@@ -2490,7 +2474,7 @@ async function main(): Promise<void> {
   }
 
   // E-P59 — gatherRecoveryContext reads apply_state written via REGISTRY
-  await test("E-P59 gatherRecoveryContext reads a valid apply_state file", async () => {
+  it("E-P59 gatherRecoveryContext reads a valid apply_state file", async () => {
     const projectRoot = makeTmpDir("e-p59");
     const sessionId = "sess-59";
     const sessionRoot = path.join(
@@ -2532,7 +2516,7 @@ async function main(): Promise<void> {
   });
 
   // E-P60 — gatherRecoveryContext with nothing → all-null context (not thrown)
-  await test("E-P60 gatherRecoveryContext with no sources returns all-null context", async () => {
+  it("E-P60 gatherRecoveryContext with no sources returns all-null context", async () => {
     const projectRoot = makeTmpDir("e-p60");
     const context = await gatherRecoveryContext("sess-60", projectRoot);
     assert(context.apply_state === null, "apply_state null");
@@ -2542,7 +2526,7 @@ async function main(): Promise<void> {
   });
 
   // E-P61 — corrupt apply_state file → helper is best-effort, null
-  await test("E-P61 gatherRecoveryContext treats corrupt apply_state as absent", async () => {
+  it("E-P61 gatherRecoveryContext treats corrupt apply_state as absent", async () => {
     const projectRoot = makeTmpDir("e-p61");
     const sessionId = "sess-61";
     const sessionRoot = path.join(
@@ -2565,7 +2549,7 @@ async function main(): Promise<void> {
   });
 
   // E-P62 — resolveRecoveryTruth with no sources → no_recovery_data
-  await test("E-P62 resolveRecoveryTruth empty context → no_recovery_data", () => {
+  it("E-P62 resolveRecoveryTruth empty context → no_recovery_data", () => {
     const context = synthContext("sess-62", null);
     const truth = resolveRecoveryTruth(context, "/tmp/unused");
     assertEqual(truth.kind, "no_recovery_data", "no sources handled");
@@ -2573,7 +2557,7 @@ async function main(): Promise<void> {
 
   // E-P63 — resolveRecoveryTruth single attempt, multiple sources at different
   //          generations → latest generation wins (within-attempt ordering)
-  await test("E-P63 resolveRecoveryTruth single attempt picks latest generation", () => {
+  it("E-P63 resolveRecoveryTruth single attempt picks latest generation", () => {
     const attemptId = "01SINGLEATTEMPTTEST0000000";
     const low = synthApplyStateSource("sess-63", attemptId, 2, "2026-04-08T09:00:00Z");
     // Use another apply_state entry for the "latest" source. We only need
@@ -2602,7 +2586,7 @@ async function main(): Promise<void> {
   // E-P64 — two different attempt_ids + default policy → manual_escalation_required
   //          We exercise this via checkpoint_manifest + apply_state to get
   //          two different sources with different attempt_ids.
-  await test("E-P64 resolveRecoveryTruth 2 attempt_ids default policy → manual escalation", () => {
+  it("E-P64 resolveRecoveryTruth 2 attempt_ids default policy → manual escalation", () => {
     const apply = synthApplyStateSource(
       "sess-64",
       "01AAAAA_attempt_a_00000000",
@@ -2666,7 +2650,7 @@ async function main(): Promise<void> {
   // E-P65 — two different attempt_ids + auto_resolve → canonical ULID wins
   //          ULID lexicographic == chronological. "01B..." > "01A..." so
   //          attempt B should become canonical.
-  await test("E-P65 resolveRecoveryTruth auto_resolve picks lexicographically latest attempt", () => {
+  it("E-P65 resolveRecoveryTruth auto_resolve picks lexicographically latest attempt", () => {
     const apply = synthApplyStateSource(
       "sess-65",
       "01AAAAA_attempt_a_00000000",
@@ -2729,7 +2713,7 @@ async function main(): Promise<void> {
 
   // E-P66 — operator resolution present and referencing apply_state attempt →
   //          returns operator_resolution pointing at that attempt's sources
-  await test("E-P66 resolveRecoveryTruth honors operator resolution (selected attempt exists)", () => {
+  it("E-P66 resolveRecoveryTruth honors operator resolution (selected attempt exists)", () => {
     const projectRoot = makeTmpDir("e-p66");
     const sessionId = "sess-66";
     fs.mkdirSync(
@@ -2812,7 +2796,7 @@ async function main(): Promise<void> {
 
   // E-P67 — operator resolution references an attempt that no longer has any
   //          source → must escalate again (fail-close safety)
-  await test("E-P67 resolveRecoveryTruth re-escalates when operator attempt is stale", () => {
+  it("E-P67 resolveRecoveryTruth re-escalates when operator attempt is stale", () => {
     const projectRoot = makeTmpDir("e-p67");
     const sessionId = "sess-67";
     fs.mkdirSync(
@@ -2893,7 +2877,7 @@ async function main(): Promise<void> {
 
   // E-P68 — buildEscalationMessage includes artifact_path for each attempt +
   //          exposes all three CLI/edit options
-  await test("E-P68 buildEscalationMessage includes artifact_path + all resolution options", () => {
+  it("E-P68 buildEscalationMessage includes artifact_path + all resolution options", () => {
     const escalation: ManualEscalationRequired = {
       kind: "manual_escalation_required",
       conflicting_attempts: [
@@ -2930,7 +2914,7 @@ async function main(): Promise<void> {
   // E-P69 — saveRecoveryResolution merge: prior history preserved + top-level updated
   //          (companion to E-P36 which checks appending; this one checks that
   //          the top-level fields reflect the LATEST entry after merge.)
-  await test("E-P69 saveRecoveryResolution merge updates top-level to latest decision", () => {
+  it("E-P69 saveRecoveryResolution merge updates top-level to latest decision", () => {
     const projectRoot = makeTmpDir("e-p69");
     const sessionId = "sess-69";
     fs.mkdirSync(
@@ -2999,7 +2983,7 @@ async function main(): Promise<void> {
 
   // E-P70 — apply-state attempt_id lifecycle: fresh init → unique ULID,
   //          generation=0. markApplied bumps generation but preserves attempt_id.
-  await test("E-P70 initApplyState fresh attempt_id is unique + markApplied preserves it", () => {
+  it("E-P70 initApplyState fresh attempt_id is unique + markApplied preserves it", () => {
     const a = initApplyState({
       sessionId: "sess-70a",
       pendingDecisions: [
@@ -3044,7 +3028,7 @@ async function main(): Promise<void> {
   // E-P71 — Constructor invariant #1: explicit empty status_history →
   //          InvariantViolatedError. The default path constructs a single
   //          "pending" entry; passing [] must be refused.
-  await test("E-P71 AuditObligation constructor rejects empty status_history", async () => {
+  it("E-P71 AuditObligation constructor rejects empty status_history", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const { InvariantViolatedError } = await import("../shared/audit-obligation-kernel.js");
     let caught: unknown = null;
@@ -3072,7 +3056,7 @@ async function main(): Promise<void> {
   // E-P72 — Constructor invariant #2: declared status must match the last
   //          history entry's `to`. A divergent declared status must throw,
   //          because it means the serialized data was corrupted.
-  await test("E-P72 AuditObligation constructor rejects status ↔ last history mismatch", async () => {
+  it("E-P72 AuditObligation constructor rejects status ↔ last history mismatch", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const { InvariantViolatedError } = await import("../shared/audit-obligation-kernel.js");
     let caught: unknown = null;
@@ -3110,7 +3094,7 @@ async function main(): Promise<void> {
   // E-P73 — fromJSON missing required field → InvariantViolatedError with the
   //          field name surfaced. Prevents corrupted ledger entries from
   //          silently deserializing.
-  await test("E-P73 AuditObligation.fromJSON rejects missing required field", async () => {
+  it("E-P73 AuditObligation.fromJSON rejects missing required field", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const { InvariantViolatedError } = await import("../shared/audit-obligation-kernel.js");
     // Missing "status" field — deserialization must refuse.
@@ -3142,7 +3126,7 @@ async function main(): Promise<void> {
 
   // E-P74 — transition() rejects illegal edges via the kernel's LEGAL_TRANSITIONS
   //          matrix. `pending → fulfilled` is invalid (must pass through in_progress).
-  await test("E-P74 AuditObligation.transition rejects illegal pending → fulfilled", async () => {
+  it("E-P74 AuditObligation.transition rejects illegal pending → fulfilled", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const { IllegalTransitionError } = await import("../shared/audit-obligation-kernel.js");
     const ob = new AuditObligation({
@@ -3173,7 +3157,7 @@ async function main(): Promise<void> {
   // E-P75 — transition() allows pending → expired_unattended (v6 EXPIRED-
   //          UNATTENDED-01 legal edge). After transition, status mirrors
   //          the last history entry (cache invariant).
-  await test("E-P75 AuditObligation pending → expired_unattended is legal", async () => {
+  it("E-P75 AuditObligation pending → expired_unattended is legal", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const ob = new AuditObligation({
       obligation_id: "ob-75",
@@ -3204,7 +3188,7 @@ async function main(): Promise<void> {
   // E-P76 — SYN-CONS-01 regression: transition() must capture `from` BEFORE
   //          mutating #status. A waive from pending must record from=pending,
   //          NOT from=waived (which was the v5 bug).
-  await test("E-P76 transition captures `from` before mutation (SYN-CONS-01 regression)", async () => {
+  it("E-P76 transition captures `from` before mutation (SYN-CONS-01 regression)", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const ob = new AuditObligation({
       obligation_id: "ob-76",
@@ -3271,7 +3255,7 @@ async function main(): Promise<void> {
   // E-P77 — active_session protected backup survives pruning when policy
   //          would otherwise remove it (keep_last_n = 0, keep_for_days = 0,
   //          storage budget = 0 → would prune EVERYTHING unprotected).
-  await test("E-P77 pruneBackups respects active_session protection", async () => {
+  it("E-P77 pruneBackups respects active_session protection", async () => {
     const { pruneBackups } = await import("../shared/recoverability.js");
     const fakeRoot = makeTmpDir("e-p77-backups");
     writeFakeBackup(fakeRoot, {
@@ -3309,7 +3293,7 @@ async function main(): Promise<void> {
   // E-P78 — failed_unrecoverable is ALSO a protection reason: even though
   //          the session is finished, the operator needs the backup for
   //          manual recovery.
-  await test("E-P78 pruneBackups respects failed_unrecoverable protection", async () => {
+  it("E-P78 pruneBackups respects failed_unrecoverable protection", async () => {
     const { pruneBackups } = await import("../shared/recoverability.js");
     const fakeRoot = makeTmpDir("e-p78-backups");
     writeFakeBackup(fakeRoot, {
@@ -3334,7 +3318,7 @@ async function main(): Promise<void> {
 
   // E-P79 — keep_last_n exceeded: oldest unprotected backups pruned.
   //          Create 5 unprotected backups with distinct mtimes; policy keeps 2.
-  await test("E-P79 pruneBackups enforces keep_last_n and prunes oldest first", async () => {
+  it("E-P79 pruneBackups enforces keep_last_n and prunes oldest first", async () => {
     const { pruneBackups } = await import("../shared/recoverability.js");
     const fakeRoot = makeTmpDir("e-p79-backups");
     const now = Date.now();
@@ -3365,7 +3349,7 @@ async function main(): Promise<void> {
   // E-P80 — storage_max_bytes exceeded: after keep_last_n trim, additional
   //          pressure pass prunes oldest of the remaining unprotected until
   //          the total fits under budget.
-  await test("E-P80 pruneBackups enforces storage_max_bytes as secondary pressure", async () => {
+  it("E-P80 pruneBackups enforces storage_max_bytes as secondary pressure", async () => {
     const { pruneBackups } = await import("../shared/recoverability.js");
     const fakeRoot = makeTmpDir("e-p80-backups");
     const now = Date.now();
@@ -3406,7 +3390,7 @@ async function main(): Promise<void> {
 
   // E-P81 — Prune log entries are appended per pruned session with correct
   //          reason and bytes_freed. Check the .prune-log.jsonl file directly.
-  await test("E-P81 pruneBackups appends .prune-log.jsonl entry per pruned session", async () => {
+  it("E-P81 pruneBackups appends .prune-log.jsonl entry per pruned session", async () => {
     const { pruneBackups } = await import("../shared/recoverability.js");
     const fakeRoot = makeTmpDir("e-p81-backups");
     const now = Date.now();
@@ -3439,7 +3423,7 @@ async function main(): Promise<void> {
   // E-P82 — setBackupProtection toggles protection on/off; pruneBackups
   //          picks up the new state. Verifies that lifting protection
   //          makes a formerly protected backup eligible for pruning.
-  await test("E-P82 setBackupProtection toggle flows through to pruneBackups", async () => {
+  it("E-P82 setBackupProtection toggle flows through to pruneBackups", async () => {
     const { setBackupProtection, pruneBackups } = await import(
       "../shared/recoverability.js"
     );
@@ -3485,7 +3469,7 @@ async function main(): Promise<void> {
 
   // E-P83 — processCarryForward increments count but keeps pending obligations
   //          that are still under their max_carry_forward threshold.
-  await test("E-P83 processCarryForward increments count without expiring under max", async () => {
+  it("E-P83 processCarryForward increments count without expiring under max", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const { processCarryForward, countCarriedForward } = await import(
       "../shared/audit-state.js"
@@ -3509,7 +3493,7 @@ async function main(): Promise<void> {
   // E-P84 — Carry-forward exhausted → expired_unattended. max_carry_forward=2
   //          means: after pass 3, count=3 > max=2, transitions to expired.
   //          v9 semantics: hasExceededCarryForward is strict > (not >=).
-  await test("E-P84 processCarryForward expires on carry-forward exhaustion", async () => {
+  it("E-P84 processCarryForward expires on carry-forward exhaustion", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const { processCarryForward, getExpiredUnattended, getActiveObligations } =
       await import("../shared/audit-state.js");
@@ -3546,7 +3530,7 @@ async function main(): Promise<void> {
 
   // E-P85 — blocked → pending auto re-entry on next promote pass.
   //          Mirrors the "transient failure recovers on retry" path.
-  await test("E-P85 processCarryForward re-enters blocked → pending automatically", async () => {
+  it("E-P85 processCarryForward re-enters blocked → pending automatically", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const { processCarryForward } = await import("../shared/audit-state.js");
     const ob = new AuditObligation({
@@ -3578,7 +3562,7 @@ async function main(): Promise<void> {
   // E-P86 — Terminal obligations (fulfilled, waived, no_eligible_agents) are
   //          untouched by processCarryForward. The filter only processes
   //          pending/blocked entries.
-  await test("E-P86 processCarryForward skips terminal obligations", async () => {
+  it("E-P86 processCarryForward skips terminal obligations", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const { processCarryForward, getActiveObligations } = await import(
       "../shared/audit-state.js"
@@ -3624,7 +3608,7 @@ async function main(): Promise<void> {
   // E-P87 — AuditState round-trip through YAML preserves class semantics.
   //          After save → load, the obligation is an AuditObligation instance
   //          (not just a plain object), status is private, transition() works.
-  await test("E-P87 AuditState save/load round-trip preserves DD-21 class semantics", async () => {
+  it("E-P87 AuditState save/load round-trip preserves DD-21 class semantics", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const { saveAuditState, loadAuditState } = await import(
       "../shared/audit-state.js"
@@ -3666,7 +3650,7 @@ async function main(): Promise<void> {
 
   // E-P88 — loadAuditState returns an empty ledger when the file doesn't
   //          exist (fresh user bootstrap). Must not throw.
-  await test("E-P88 loadAuditState returns empty ledger for missing file", async () => {
+  it("E-P88 loadAuditState returns empty ledger for missing file", async () => {
     const { loadAuditState } = await import("../shared/audit-state.js");
     const dir = makeTmpDir("e-p88");
     const filePath = path.join(dir, "nonexistent.yaml");
@@ -3679,7 +3663,7 @@ async function main(): Promise<void> {
   //          v6 EXPIRED-UNATTENDED-01 intent: expired_unattended is
   //          "visible but not strictly terminal" — LEGAL_TRANSITIONS lists
   //          waived as the one allowed outgoing edge.
-  await test("E-P89 expired_unattended → waived is legal (operator resolution)", async () => {
+  it("E-P89 expired_unattended → waived is legal (operator resolution)", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const ob = new AuditObligation({
       obligation_id: "ob-89",
@@ -3703,7 +3687,7 @@ async function main(): Promise<void> {
   // E-P90 — Ledger filter helpers return the right subsets. Build a ledger
   //          with 4 obligations spanning active/inactive/terminal/expired,
   //          then check each helper picks its target set.
-  await test("E-P90 audit-state filter helpers partition the ledger correctly", async () => {
+  it("E-P90 audit-state filter helpers partition the ledger correctly", async () => {
     const { AuditObligation } = await import("./audit-obligation.js");
     const {
       getActiveObligations,
@@ -3798,7 +3782,7 @@ async function main(): Promise<void> {
   // E-P91 — deriveSlotId tuple sensitivity: changing any single tuple
   //          component (promotion id, target doc, domain) changes the slot_id.
   //          Complements E-P18 which only checks determinism for a fixed tuple.
-  await test("E-P91 deriveSlotId tuple sensitivity across all three components", () => {
+  it("E-P91 deriveSlotId tuple sensitivity across all three components", () => {
     const base = deriveSlotId("prom-1", "concepts.md", "software-engineering");
     const diffPromo = deriveSlotId("prom-2", "concepts.md", "software-engineering");
     const diffDoc = deriveSlotId("prom-1", "competency_qs.md", "software-engineering");
@@ -3818,7 +3802,7 @@ async function main(): Promise<void> {
   //          verdicts must produce stable slot_ids but distinct instance_ids.
   //          This is the lineage contract: slot_id says "which slot",
   //          instance_id says "which generation attempt". Re-run is safe.
-  await test("E-P92 DD-19 regeneration: stable slot_id + distinct instance_id", () => {
+  it("E-P92 DD-19 regeneration: stable slot_id + distinct instance_id", () => {
     const verdicts = [
       buildVerdict("prom-92a", "semantics", ["domain/software-engineering"], "promote_3_3"),
       buildVerdict("prom-92b", "pragmatics", ["domain/business"], "promote_2_3"),
@@ -3863,7 +3847,7 @@ async function main(): Promise<void> {
   //          are NOT mapped to target docs. They're excluded even with
   //          promote_3_3 consensus + domain tag. Only semantics, pragmatics,
   //          coverage are doc-generating per AGENT_TO_TARGET.
-  await test("E-P93 identifyDomainDocCandidates excludes non-accumulable agents", () => {
+  it("E-P93 identifyDomainDocCandidates excludes non-accumulable agents", () => {
     const verdicts = [
       buildVerdict("prom-93a", "structure", ["domain/software-engineering"], "promote_3_3"),
       buildVerdict("prom-93b", "logic", ["domain/software-engineering"], "promote_3_3"),
@@ -3882,7 +3866,7 @@ async function main(): Promise<void> {
   // E-P94 — Non-promote verdicts (defer, reject, split) produce no candidates
   //          even when the originating agent IS accumulable. The filter is
   //          consensus-first.
-  await test("E-P94 identifyDomainDocCandidates excludes defer/reject/split verdicts", () => {
+  it("E-P94 identifyDomainDocCandidates excludes defer/reject/split verdicts", () => {
     const verdicts = [
       buildVerdict("prom-94a", "semantics", ["domain/software-engineering"], "defer_majority"),
       buildVerdict("prom-94b", "pragmatics", ["domain/software-engineering"], "reject_majority"),
@@ -3894,7 +3878,7 @@ async function main(): Promise<void> {
 
   // E-P95 — Methodology-only items (no domain/X tag) produce no candidates.
   //          DD-19 requires at least one domain tag to fan out against.
-  await test("E-P95 identifyDomainDocCandidates excludes methodology-only items", () => {
+  it("E-P95 identifyDomainDocCandidates excludes methodology-only items", () => {
     const verdicts = [
       // Methodology tag only — no domain tag
       buildVerdict("prom-95a", "semantics", ["methodology"], "promote_3_3"),
@@ -3910,7 +3894,7 @@ async function main(): Promise<void> {
   // E-P96 — Output ordering is deterministic across calls. Shuffled inputs
   //          produce the same sorted output. Ordering key: (approved_promotion_id,
   //          target_doc, domain).
-  await test("E-P96 identifyDomainDocCandidates output is deterministically sorted", () => {
+  it("E-P96 identifyDomainDocCandidates output is deterministically sorted", () => {
     const ordered = [
       buildVerdict("prom-a", "semantics", ["domain/a-first"], "promote_3_3"),
       buildVerdict("prom-a", "semantics", ["domain/b-second"], "promote_3_3"),
@@ -3938,7 +3922,7 @@ async function main(): Promise<void> {
   //          values used by the Phase 3 design contracts. A silent change
   //          here would drift judgment_threshold (currently 10 per DD-13)
   //          or the obligation_max_carry_forward (3 per DD-17).
-  await test("E-P97 DEFAULT_AUDIT_POLICY values match Phase 3 design contracts", () => {
+  it("E-P97 DEFAULT_AUDIT_POLICY values match Phase 3 design contracts", () => {
     assertEqual(
       DEFAULT_AUDIT_POLICY.judgment_threshold,
       10,
@@ -3979,7 +3963,7 @@ async function main(): Promise<void> {
   //          come from project scope only. Items declared in the global
   //          scope MUST NOT leak into candidate_items even if they share
   //          content with project items.
-  await test("E-P98 collector promote mode: candidate_items disjoint from global_items", () => {
+  it("E-P98 collector promote mode: candidate_items disjoint from global_items", () => {
     const fakeHome = makeTmpDir("e-p98-home");
     const projectRoot = makeTmpDir("e-p98-proj");
     // Global scope: one [fact] learning under the fake HOME
@@ -4032,7 +4016,7 @@ async function main(): Promise<void> {
   // E-P99 — Event marker capture: 2 markers attached to one learning are
   //          both stored in event_markers as full comment text. retirement.ts
   //          needs the full `<!-- ... -->` string to parse dates.
-  await test("E-P99 collector captures all event markers on a learning", () => {
+  it("E-P99 collector captures all event markers on a learning", () => {
     const fakeHome = makeTmpDir("e-p99-home");
     const projectRoot = makeTmpDir("e-p99-proj");
     writeLearningFile(
@@ -4078,7 +4062,7 @@ async function main(): Promise<void> {
   // E-P100 — retention_confirmed_at capture: dedicated `<!-- retention-confirmed: YYYY-MM-DD -->`
   //          is stored on the item separately from event_markers.
   //          retirement.ts uses this as the cutoff for counting event markers.
-  await test("E-P100 collector captures retention_confirmed_at without mixing into event_markers", () => {
+  it("E-P100 collector captures retention_confirmed_at without mixing into event_markers", () => {
     const fakeHome = makeTmpDir("e-p100-home");
     const projectRoot = makeTmpDir("e-p100-proj");
     writeLearningFile(
@@ -4113,7 +4097,7 @@ async function main(): Promise<void> {
   // E-P101 — learning_id capture from comment annotation.
   //          `<!-- learning_id: abc123 -->` following a learning line sets
   //          item.learning_id. Used for cross-agent dedup member matching.
-  await test("E-P101 collector captures learning_id from comment annotation", () => {
+  it("E-P101 collector captures learning_id from comment annotation", () => {
     const fakeHome = makeTmpDir("e-p101-home");
     const projectRoot = makeTmpDir("e-p101-proj");
     writeLearningFile(
@@ -4142,7 +4126,7 @@ async function main(): Promise<void> {
   // E-P102 — Lenient parser: malformed lines are recorded in parse_errors,
   //          valid lines in the same file are still parsed. Supplements
   //          E-P38 which checks the promoter runs through parse errors.
-  await test("E-P102 collector records parse errors without skipping surrounding valid lines", () => {
+  it("E-P102 collector records parse errors without skipping surrounding valid lines", () => {
     const fakeHome = makeTmpDir("e-p102-home");
     const projectRoot = makeTmpDir("e-p102-proj");
     writeLearningFile(
@@ -4189,7 +4173,7 @@ async function main(): Promise<void> {
   //          file discovered, baseline_files contains (path, scope, agent_id,
   //          size_bytes, content_sha256, line_count). Critical for
   //          verifyBaselineHash drift detection.
-  await test("E-P103 collector baseline hash captures per-file metadata", () => {
+  it("E-P103 collector baseline hash captures per-file metadata", () => {
     const fakeHome = makeTmpDir("e-p103-home");
     const projectRoot = makeTmpDir("e-p103-proj");
     const fileContents =
@@ -4260,7 +4244,7 @@ async function main(): Promise<void> {
   //          top-level fields. This guards against shape drift in
   //          writeEmergencyLogEntry (if a new field is added to
   //          ApplyExecutionState, the spec must be updated in lockstep).
-  await test("E-P104 EmergencyLogSpec.validate rejects entries missing required fields", async () => {
+  it("E-P104 EmergencyLogSpec.validate rejects entries missing required fields", async () => {
     const { EmergencyLogSpec } = await import(
       "../shared/specs/emergency-log-spec.js"
     );
@@ -4304,7 +4288,7 @@ async function main(): Promise<void> {
   // E-P105 — EmergencyLogSpec.parse rejects pre-v7 shapes (no schema_version).
   //          Historical emergency-log.jsonl files from before Phase 3 get
   //          surfaced as UF-COV-01 incompatibility, not silently accepted.
-  await test("E-P105 EmergencyLogSpec.parse rejects pre-v7 entries", async () => {
+  it("E-P105 EmergencyLogSpec.parse rejects pre-v7 entries", async () => {
     const { EmergencyLogSpec } = await import(
       "../shared/specs/emergency-log-spec.js"
     );
@@ -4331,7 +4315,7 @@ async function main(): Promise<void> {
   //          (no trailing newline — framing is the registry's job). This
   //          is the invariant the spec header documents: appendToFile
   //          adds the newline, serialize does not.
-  await test("E-P106 EmergencyLogSpec.serialize emits one-line JSON without trailing newline", async () => {
+  it("E-P106 EmergencyLogSpec.serialize emits one-line JSON without trailing newline", async () => {
     const { EmergencyLogSpec } = await import(
       "../shared/specs/emergency-log-spec.js"
     );
@@ -4350,7 +4334,7 @@ async function main(): Promise<void> {
 
   // E-P107 — REGISTRY.appendToFile writes JSONL with \n framing. Two
   //          appends produce exactly two lines, each readable independently.
-  await test("E-P107 REGISTRY.appendToFile frames entries as JSONL", async () => {
+  it("E-P107 REGISTRY.appendToFile frames entries as JSONL", async () => {
     const dir = makeTmpDir("e-p107");
     const logPath = path.join(dir, "emergency-log.jsonl");
 
@@ -4386,7 +4370,7 @@ async function main(): Promise<void> {
   // E-P108 — REGISTRY.appendToFile refuses to write entries with wrong
   //          schema_version (SYN-CC1 discipline). The append path runs
   //          the same validate() + schema_version check as saveToFile.
-  await test("E-P108 REGISTRY.appendToFile rejects wrong schema_version", async () => {
+  it("E-P108 REGISTRY.appendToFile rejects wrong schema_version", async () => {
     const dir = makeTmpDir("e-p108");
     const logPath = path.join(dir, "emergency-log.jsonl");
 
@@ -4413,7 +4397,7 @@ async function main(): Promise<void> {
   //          read the log back, verify entries are in append order (not
   //          re-sorted on disk). Recovery path relies on append order
   //          to replay events.
-  await test("E-P109 appendToFile preserves append order for multi-entry JSONL", async () => {
+  it("E-P109 appendToFile preserves append order for multi-entry JSONL", async () => {
     const dir = makeTmpDir("e-p109");
     const logPath = path.join(dir, "emergency-log.jsonl");
 
@@ -4454,7 +4438,7 @@ async function main(): Promise<void> {
   // E-P110 — retention_confirmed_at === marker date is NOT "strictly after".
   //          The cutoff is strict, so a marker dated the same day as the
   //          retention confirmation is treated as already reviewed.
-  await test("E-P110 retirement cutoff is strict (equal date → excluded)", () => {
+  it("E-P110 retirement cutoff is strict (equal date → excluded)", () => {
     const item: ParsedLearningItem = syntheticItem({
       scope: "global",
       event_markers: [
@@ -4482,7 +4466,7 @@ async function main(): Promise<void> {
 
   // E-P111 — Undated event markers are dropped from the count but noted in
   //          the `reason` field for operator transparency.
-  await test("E-P111 retirement drops undated markers but surfaces them in reason", () => {
+  it("E-P111 retirement drops undated markers but surfaces them in reason", () => {
     const item = syntheticItem({
       scope: "global",
       event_markers: [
@@ -4507,7 +4491,7 @@ async function main(): Promise<void> {
 
   // E-P112 — Custom threshold override lets 1-marker items through when
   //          callers want a lower bar (e.g., aggressive pruning mode).
-  await test("E-P112 retirement threshold=1 includes single-marker items", () => {
+  it("E-P112 retirement threshold=1 includes single-marker items", () => {
     const items = [
       syntheticItem({
         content: "single-marker-item",
@@ -4533,7 +4517,7 @@ async function main(): Promise<void> {
 
   // E-P113 — Retirement sort ordering: severity descending by marker_count.
   //          Operator report shows hot spots at the top.
-  await test("E-P113 retirement candidates sorted by marker_count descending", () => {
+  it("E-P113 retirement candidates sorted by marker_count descending", () => {
     const items = [
       syntheticItem({
         content: "three-markers",
@@ -4576,7 +4560,7 @@ async function main(): Promise<void> {
   // E-P114 — Session-root-guard Case 3: marker present + legacy sessions
   //          still exist → the guard emits a warning to stderr but does
   //          NOT throw. Operator should re-run migration but is not blocked.
-  await test("E-P114 session-root-guard Case 3: marker + legacy → warn, not throw", () => {
+  it("E-P114 session-root-guard Case 3: marker + legacy → warn, not throw", () => {
     const projectRoot = makeTmpDir("e-p114");
     // Write a valid layout marker (Case 4 compat)
     fs.mkdirSync(path.join(projectRoot, ".onto", "sessions"), { recursive: true });
@@ -4625,7 +4609,7 @@ async function main(): Promise<void> {
   //          REGISTRY with raw fs.writeFileSync. inspectMigrationStatus's
   //          catch block fires, marker_compatible stays false, and the guard
   //          throws IncompatibleLayoutError.
-  await test("E-P115 session-root-guard rejects incompatible layout marker", async () => {
+  it("E-P115 session-root-guard rejects incompatible layout marker", async () => {
     const { IncompatibleLayoutError } = await import(
       "../../cli/session-root-guard.js"
     );
@@ -4662,7 +4646,7 @@ async function main(): Promise<void> {
   //          NOT write a marker even when the project has no marker yet.
   //          Matches E-P29 (inspect mode does not auto-write) but via the
   //          dedicated inspectMigrationStatus() entry instead of the guard.
-  await test("E-P116 inspectMigrationStatus never writes a marker", () => {
+  it("E-P116 inspectMigrationStatus never writes a marker", () => {
     const projectRoot = makeTmpDir("e-p116");
     fs.mkdirSync(path.join(projectRoot, ".onto"), { recursive: true });
     // Verify no marker pre-call
@@ -4689,7 +4673,7 @@ async function main(): Promise<void> {
   // E-P117 — Jaccard pre-filter: items with zero token overlap are NOT
   //          grouped even if cross-agent. The union-find never unions them,
   //          so buildShortlists returns an empty list → zero LLM calls.
-  await test("E-P117 cross-agent dedup pre-filter skips items with no token overlap", async () => {
+  it("E-P117 cross-agent dedup pre-filter skips items with no token overlap", async () => {
     const { __testExports } = await import("./panel-reviewer.js");
     const { buildShortlists } = __testExports;
     const items: ParsedLearningItem[] = [
@@ -4709,7 +4693,7 @@ async function main(): Promise<void> {
 
   // E-P118 — Jaccard pre-filter: cross-agent items with high token overlap
   //          DO group into a shortlist. Same-agent pairs never get unioned.
-  await test("E-P118 cross-agent dedup pre-filter groups overlapping cross-agent items", async () => {
+  it("E-P118 cross-agent dedup pre-filter groups overlapping cross-agent items", async () => {
     const { __testExports } = await import("./panel-reviewer.js");
     const { buildShortlists } = __testExports;
     const items: ParsedLearningItem[] = [
@@ -4748,7 +4732,7 @@ async function main(): Promise<void> {
   // E-P119 — Empty input / single item / single-agent pool never produces
   //          a shortlist. These are the degenerate cases that must
   //          short-circuit without calling LLM.
-  await test("E-P119 cross-agent dedup buildShortlists handles degenerate inputs", async () => {
+  it("E-P119 cross-agent dedup buildShortlists handles degenerate inputs", async () => {
     const { __testExports } = await import("./panel-reviewer.js");
     const { buildShortlists } = __testExports;
     assertEqual(buildShortlists([]).shortlists.length, 0, "empty input → empty");
@@ -4772,7 +4756,7 @@ async function main(): Promise<void> {
   // E-P120 — discoverCrossAgentDedupClusters end-to-end happy path via
   //          mock LLM. Two cross-agent overlapping items → one confirmed
   //          cluster with member_items + cluster_id + consolidated_line.
-  await test("E-P120 discoverCrossAgentDedupClusters returns a cluster via mock LLM", async () => {
+  it("E-P120 discoverCrossAgentDedupClusters returns a cluster via mock LLM", async () => {
     const { discoverCrossAgentDedupClusters } = await import(
       "./panel-reviewer.js"
     );
@@ -4815,7 +4799,7 @@ async function main(): Promise<void> {
   // E-P121 — Cluster id determinism: the same input produces the same
   //          cluster_id across runs. The caller relies on this for
   //          idempotent applicator marker matching.
-  await test("E-P121 discoverCrossAgentDedupClusters cluster_id is deterministic", async () => {
+  it("E-P121 discoverCrossAgentDedupClusters cluster_id is deterministic", async () => {
     const { discoverCrossAgentDedupClusters } = await import(
       "./panel-reviewer.js"
     );
@@ -4857,7 +4841,7 @@ async function main(): Promise<void> {
 
   // E-P122 — rewriteInsightRoleTag pure function: concrete role replaces
   //          [insight] bracket; drop_role removes the bracket + adjacent space.
-  await test("E-P122 rewriteInsightRoleTag covers concrete + drop_role cases", async () => {
+  it("E-P122 rewriteInsightRoleTag covers concrete + drop_role cases", async () => {
     const { rewriteInsightRoleTag } = await import("./insight-reclassifier.js");
 
     const base =
@@ -4897,7 +4881,7 @@ async function main(): Promise<void> {
   // E-P123 — applyInsightReclassifications happy path: one agent file with
   //          two insight entries, both have proposed roles → two lines
   //          rewritten on disk.
-  await test("E-P123 applyInsightReclassifications rewrites role tags end-to-end", async () => {
+  it("E-P123 applyInsightReclassifications rewrites role tags end-to-end", async () => {
     const { applyInsightReclassifications } = await import(
       "./insight-reclassifier.js"
     );
@@ -4973,7 +4957,7 @@ async function main(): Promise<void> {
   // E-P124 — Idempotency: running apply twice on the same report is safe.
   //          First run rewrites, second run sees no matching raw_line so
   //          every entry becomes skipped_already_applied.
-  await test("E-P124 applyInsightReclassifications is idempotent on repeat runs", async () => {
+  it("E-P124 applyInsightReclassifications is idempotent on repeat runs", async () => {
     const { applyInsightReclassifications } = await import(
       "./insight-reclassifier.js"
     );
@@ -5025,7 +5009,7 @@ async function main(): Promise<void> {
   // E-P125 — proposed_role=null (unclassified) → skipped_no_proposal.
   //          Reclassified entries left unclassified by Phase A must not
   //          be touched by apply.
-  await test("E-P125 applyInsightReclassifications skips entries without proposed_role", async () => {
+  it("E-P125 applyInsightReclassifications skips entries without proposed_role", async () => {
     const { applyInsightReclassifications } = await import(
       "./insight-reclassifier.js"
     );
@@ -5070,7 +5054,7 @@ async function main(): Promise<void> {
 
   // E-P126 — Dry-run does not write. In-memory entries record the would-be
   //          changes but the file on disk stays at its original content.
-  await test("E-P126 applyInsightReclassifications dry-run does not write", async () => {
+  it("E-P126 applyInsightReclassifications dry-run does not write", async () => {
     const { applyInsightReclassifications } = await import(
       "./insight-reclassifier.js"
     );
@@ -5131,7 +5115,7 @@ async function main(): Promise<void> {
   });
 
   // E-P127 — Source file missing → failed entry. Rest of the run continues.
-  await test("E-P127 applyInsightReclassifications surfaces missing-file failure", async () => {
+  it("E-P127 applyInsightReclassifications surfaces missing-file failure", async () => {
     const { applyInsightReclassifications } = await import(
       "./insight-reclassifier.js"
     );
@@ -5204,7 +5188,7 @@ async function main(): Promise<void> {
   // E-P128 — MAX_SHORTLISTS_PER_RUN cap enforcement: construct more than 20
   //          independent cross-agent groups and verify buildShortlists
   //          returns exactly 20. Production cost bound.
-  await test("E-P128 cross-agent dedup buildShortlists caps shortlist count", async () => {
+  it("E-P128 cross-agent dedup buildShortlists caps shortlist count", async () => {
     const { __testExports } = await import("./panel-reviewer.js");
     const { buildShortlists, MAX_SHORTLISTS_PER_RUN } = __testExports;
 
@@ -5254,7 +5238,7 @@ async function main(): Promise<void> {
   // E-P129 — MAX_ITEMS_PER_SHORTLIST cap: a single connected component
   //          larger than the limit is capped at MAX_ITEMS_PER_SHORTLIST.
   //          Ensures one cluster can't dominate the LLM prompt.
-  await test("E-P129 cross-agent dedup caps items per shortlist", async () => {
+  it("E-P129 cross-agent dedup caps items per shortlist", async () => {
     const { __testExports } = await import("./panel-reviewer.js");
     const { buildShortlists, MAX_ITEMS_PER_SHORTLIST } = __testExports;
 
@@ -5297,7 +5281,7 @@ async function main(): Promise<void> {
   // E-P130 — applyInsightReclassifications multi-file batch: entries
   //          spanning two different source_paths each get their own file
   //          write. Neither file contaminates the other.
-  await test("E-P130 applyInsightReclassifications rewrites multiple files in one run", async () => {
+  it("E-P130 applyInsightReclassifications rewrites multiple files in one run", async () => {
     const { applyInsightReclassifications } = await import(
       "./insight-reclassifier.js"
     );
@@ -5363,7 +5347,7 @@ async function main(): Promise<void> {
   // E-P131 — Entries array preserves full metadata per outcome so callers
   //          can render a human report. Each entry carries agent_id,
   //          source_path, line_number, raw_line, outcome, new_line, error.
-  await test("E-P131 applyInsightReclassifications entries carry full per-outcome metadata", async () => {
+  it("E-P131 applyInsightReclassifications entries carry full per-outcome metadata", async () => {
     const { applyInsightReclassifications } = await import(
       "./insight-reclassifier.js"
     );
@@ -5471,7 +5455,7 @@ async function main(): Promise<void> {
   //          resulting cluster lands in report.cross_agent_dedup_clusters.
   //          Validates the wiring between promoter.ts and the new
   //          discoverCrossAgentDedupClusters implementation.
-  await test("E-P132 runPromoter surfaces cross_agent_dedup_clusters via mock LLM", async () => {
+  it("E-P132 runPromoter surfaces cross_agent_dedup_clusters via mock LLM", async () => {
     const previousMock = process.env.ONTO_LLM_MOCK;
     process.env.ONTO_LLM_MOCK = "1";
 
@@ -5528,7 +5512,7 @@ async function main(): Promise<void> {
   // E-P133 — Token helper edge cases: empty content and stopword-only
   //          content produce empty token sets; Jaccard on empty sets is 0.
   //          Degenerate inputs must not NaN or crash the pre-filter.
-  await test("E-P133 significantTokens + jaccard handle empty/stopword-only content", async () => {
+  it("E-P133 significantTokens + jaccard handle empty/stopword-only content", async () => {
     const { __testExports } = await import("./panel-reviewer.js");
     const { significantTokens, jaccard } = __testExports;
 
@@ -5569,7 +5553,7 @@ async function main(): Promise<void> {
   // E-P134 — C1: Cross-agent dedup applicator uses source_path so project-
   //          scope members get marked in their project file, not the global
   //          file. Validates the mixed-scope apply contract.
-  await test("E-P134 cross_agent_dedup applicator honors project source_path (C1)", async () => {
+  it("E-P134 cross_agent_dedup applicator honors project source_path (C1)", async () => {
     const projectRoot = makeTmpDir("e-p134-proj");
     const fakeOnto = makeTmpDir("e-p134-home");
     const fakeAuditStatePath = path.join(fakeOnto, "audit-state.yaml");
@@ -5706,7 +5690,7 @@ async function main(): Promise<void> {
 
   // E-P135 — C2: primary_owner_agent not in shortlist → cluster dropped with
   //          primary_owner_not_in_shortlist failure metric.
-  await test("E-P135 dedup rejects cluster when LLM primary_owner is off-shortlist (C2)", async () => {
+  it("E-P135 dedup rejects cluster when LLM primary_owner is off-shortlist (C2)", async () => {
     // Mock the llm-caller directly via a stub that returns a bogus owner
     const { discoverCrossAgentDedupClusters } = await import(
       "./panel-reviewer.js"
@@ -5750,7 +5734,7 @@ async function main(): Promise<void> {
   //          drifted but the post-rewrite form is at the recorded line, that
   //          is evidence-based idempotency (skipped_already_applied via
   //          anchor_resolution="line_number_only").
-  await test("E-P136 insight apply evidence-based idempotency via line_number anchor (C3)", async () => {
+  it("E-P136 insight apply evidence-based idempotency via line_number anchor (C3)", async () => {
     const { applyInsightReclassifications } = await import(
       "./insight-reclassifier.js"
     );
@@ -5810,7 +5794,7 @@ async function main(): Promise<void> {
   // E-P137 — C3: ambiguous_raw_line → skipped_source_drift. Two verbatim
   //          matches for raw_line with a wrong line_number anchor is treated
   //          as drift, not silent success.
-  await test("E-P137 insight apply surfaces ambiguous raw_line as source drift (CC1)", async () => {
+  it("E-P137 insight apply surfaces ambiguous raw_line as source drift (CC1)", async () => {
     const { applyInsightReclassifications } = await import(
       "./insight-reclassifier.js"
     );
@@ -5884,7 +5868,7 @@ async function main(): Promise<void> {
   //          tokenizer's granularity. A proper morpheme analyzer is a
   //          future improvement; for pre-filter purposes, space-level
   //          tokens carry enough signal to form shortlists.
-  await test("E-P138 significantTokens preserves Korean characters (U4)", async () => {
+  it("E-P138 significantTokens preserves Korean characters (U4)", async () => {
     const { __testExports } = await import("./panel-reviewer.js");
     const { significantTokens, jaccard, buildShortlists } = __testExports;
 
@@ -5927,7 +5911,7 @@ async function main(): Promise<void> {
   //          backup scope tracks mutation scope. Previously, overriding
   //          ontoHome left the checkpoint enumerating ~/.onto instead of
   //          the overridden directory.
-  await test("E-P139 createRecoverabilityCheckpoint honors ontoHome override (U3)", async () => {
+  it("E-P139 createRecoverabilityCheckpoint honors ontoHome override (U3)", async () => {
     const { createRecoverabilityCheckpoint } = await import(
       "../shared/recoverability.js"
     );
@@ -5970,7 +5954,7 @@ async function main(): Promise<void> {
   // E-P140 — U7: CLI --apply smoke test (direct function invocation).
   //          Previously only the library path was covered; this exercises
   //          the argv routing in handleReclassifyInsights.
-  await test("E-P140 onto reclassify-insights --apply routes argv through handler (U7)", async () => {
+  it("E-P140 onto reclassify-insights --apply routes argv through handler (U7)", async () => {
     // The handler is keyed off argv containing `--apply <report-path>`.
     // We cannot invoke handleReclassifyInsights directly because src/cli.ts
     // doesn't export it. Instead we verify the argv-parsing boundary via
@@ -6026,7 +6010,7 @@ async function main(): Promise<void> {
   //          runtime guard AND the failure metric is incremented. Uses the
   //          ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER env hook to force the negative
   //          path without requiring module-level mock injection.
-  await test("E-P141 dedup drops cluster + bumps metric when LLM returns off-shortlist owner (CG3)", async () => {
+  it("E-P141 dedup drops cluster + bumps metric when LLM returns off-shortlist owner (CG3)", async () => {
     const { discoverCrossAgentDedupClusters } = await import(
       "./panel-reviewer.js"
     );
@@ -6075,7 +6059,7 @@ async function main(): Promise<void> {
   // E-P142 — UF2: same_principle=false is counted as a valid negative
   //          outcome (same_principle_rejected), NOT as an llm_failure.
   //          Forces the path via ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE.
-  await test("E-P142 same_principle=false counted outside llm_failures (UF2)", async () => {
+  it("E-P142 same_principle=false counted outside llm_failures (UF2)", async () => {
     const { discoverCrossAgentDedupClusters } = await import(
       "./panel-reviewer.js"
     );
@@ -6123,7 +6107,7 @@ async function main(): Promise<void> {
   // E-P143 — UF3: bounded-loss warnings reach report.warnings end-to-end
   //          via runPromoter. Force LLM failure using the bogus-owner hook
   //          and verify report.warnings contains "cross_agent_dedup:" prefix.
-  await test("E-P143 runPromoter surfaces cross_agent_dedup warnings end-to-end (UF3)", async () => {
+  it("E-P143 runPromoter surfaces cross_agent_dedup warnings end-to-end (UF3)", async () => {
     const previousMock = process.env.ONTO_LLM_MOCK;
     const previousBogus = process.env.ONTO_LLM_MOCK_DEDUP_BOGUS_OWNER;
     process.env.ONTO_LLM_MOCK = "1";
@@ -6190,7 +6174,7 @@ async function main(): Promise<void> {
   //          agent. All non-primary siblings (including the same-agent
   //          second structure member) must be marked, not just the
   //          other-agent member.
-  await test("E-P144 cross_agent_dedup marks same-agent siblings (CG1 transitive)", async () => {
+  it("E-P144 cross_agent_dedup marks same-agent siblings (CG1 transitive)", async () => {
     const projectRoot = makeTmpDir("e-p144-proj");
     const fakeOnto = makeTmpDir("e-p144-home");
 
@@ -6364,7 +6348,7 @@ async function main(): Promise<void> {
   //          preflight when line_number anchor does not resolve.
   //          Previously applyCrossAgentDedup would replace the first
   //          verbatim match silently, now it fails-closed.
-  await test("E-P145 cross_agent_dedup preflight rejects ambiguous duplicate raw_line (CG2)", async () => {
+  it("E-P145 cross_agent_dedup preflight rejects ambiguous duplicate raw_line (CG2)", async () => {
     const projectRoot = makeTmpDir("e-p145-proj");
     const fakeOnto = makeTmpDir("e-p145-home");
     const structureLine =
@@ -6499,7 +6483,7 @@ async function main(): Promise<void> {
   //          members sharing IDENTICAL raw_line must still be distinguishable
   //          via primary_member_index. Only the one at the primary index is
   //          skipped from marking; the other is marked consolidated.
-  await test("E-P146 cross_agent_dedup index-based identity handles identical raw_line members (SYN-C1)", async () => {
+  it("E-P146 cross_agent_dedup index-based identity handles identical raw_line members (SYN-C1)", async () => {
     const projectRoot = makeTmpDir("e-p146-proj");
     const fakeOnto = makeTmpDir("e-p146-home");
 
@@ -6637,7 +6621,7 @@ async function main(): Promise<void> {
   //          TWO verbatim copies of raw_line and the line_number anchor
   //          points at the SECOND one, mutation must land on line 2 (the
   //          anchored one), NOT line 1 (first verbatim match).
-  await test("E-P147 replaceLineAtIndex honors resolved anchor, not first verbatim match (SYN-C2)", async () => {
+  it("E-P147 replaceLineAtIndex honors resolved anchor, not first verbatim match (SYN-C2)", async () => {
     const projectRoot = makeTmpDir("e-p147-proj");
     const fakeOnto = makeTmpDir("e-p147-home");
 
@@ -6762,7 +6746,7 @@ async function main(): Promise<void> {
 
   // E-P148 — SYN-CC1 contract: cluster marker absent + some members already
   //          consolidated → fail-closed with manual recovery guidance.
-  await test("E-P148 cross_agent_dedup fails closed on partial-apply state (SYN-CC1)", async () => {
+  it("E-P148 cross_agent_dedup fails closed on partial-apply state (SYN-CC1)", async () => {
     const projectRoot = makeTmpDir("e-p148-proj");
     const fakeOnto = makeTmpDir("e-p148-home");
 
@@ -6901,7 +6885,7 @@ async function main(): Promise<void> {
   });
 
   // E-P149 — SYN-D1 / SYN-U2: pickPrimaryMemberIndex edge cases.
-  await test("E-P149 pickPrimaryMemberIndex edge cases (SYN-D1, SYN-U2)", async () => {
+  it("E-P149 pickPrimaryMemberIndex edge cases (SYN-D1, SYN-U2)", async () => {
     const { __testExports } = await import("./panel-reviewer.js");
     const { pickPrimaryMemberIndex } = __testExports;
 
@@ -6999,7 +6983,7 @@ async function main(): Promise<void> {
 
   // E-P150 — SYN-U3: same_principle_rejected reaches report.warnings via
   //          runPromoter (end-to-end operator visibility).
-  await test("E-P150 same_principle_rejected surfaces in report.warnings (SYN-U3)", async () => {
+  it("E-P150 same_principle_rejected surfaces in report.warnings (SYN-U3)", async () => {
     const previousMock = process.env.ONTO_LLM_MOCK;
     const previousFlag = process.env.ONTO_LLM_MOCK_DEDUP_SAME_PRINCIPLE_FALSE;
     process.env.ONTO_LLM_MOCK = "1";
@@ -7064,7 +7048,7 @@ async function main(): Promise<void> {
   //          applyPromotion also uses appendLearningLine. Verify that when
   //          the target global file has no trailing newline, the promoted
   //          line does NOT collide with the last existing line.
-  await test("E-P151 trailing-newline guard protects applyPromotion path (SYN-U4)", async () => {
+  it("E-P151 trailing-newline guard protects applyPromotion path (SYN-U4)", async () => {
     const projectRoot = makeTmpDir("e-p151-proj");
     const fakeOnto = makeTmpDir("e-p151-home");
     const fakeAuditStatePath = path.join(fakeOnto, "audit-state.yaml");
@@ -7182,7 +7166,7 @@ async function main(): Promise<void> {
 
   // E-P152 — 4-C1: legacy schema_version="1" promote_report load produces
   //          dedicated migration guidance, not generic "unsupported version".
-  await test("E-P152 PromoteReportSpec rejects legacy schema v1 with regenerate guidance (4-C1)", async () => {
+  it("E-P152 PromoteReportSpec rejects legacy schema v1 with regenerate guidance (4-C1)", async () => {
     const { PromoteReportSpec } = await import(
       "../shared/specs/promote-report-spec.js"
     );
@@ -7249,7 +7233,7 @@ async function main(): Promise<void> {
   //          line at the expected index does NOT match expectedLine
   //          (simulating a race), the helper returns false and the file
   //          is untouched. Direct positive + negative test.
-  await test("E-P153 replaceLineAtIndex fail-closes on post-preflight drift", async () => {
+  it("E-P153 replaceLineAtIndex fail-closes on post-preflight drift", async () => {
     // replaceLineAtIndex is not exported — exercise it via the cross-agent
     // dedup path by anchoring at a line that doesn't match expectedLine.
     const projectRoot = makeTmpDir("e-p153-proj");
@@ -7390,7 +7374,7 @@ async function main(): Promise<void> {
   // E-P154 — 4-D2(a): SYN-CC1 error message contains checkpoint manifest
   //          path AND rerun command. Extends E-P148 which only checked the
   //          general "Manual recovery required" substring.
-  await test("E-P154 SYN-CC1 error message includes concrete recovery guidance (4-D2(a))", async () => {
+  it("E-P154 SYN-CC1 error message includes concrete recovery guidance (4-D2(a))", async () => {
     const projectRoot = makeTmpDir("e-p154-proj");
     const fakeOnto = makeTmpDir("e-p154-home");
 
@@ -7536,7 +7520,7 @@ async function main(): Promise<void> {
   //          Direct spec.validate() tests for negative, non-integer, and
   //          out-of-range values. PromoteReportSpec must refuse all of
   //          them with a named field error.
-  await test("E-P155 PromoteReportSpec rejects malformed primary_member_index values (4-Rec1)", async () => {
+  it("E-P155 PromoteReportSpec rejects malformed primary_member_index values (4-Rec1)", async () => {
     const { PromoteReportSpec } = await import(
       "../shared/specs/promote-report-spec.js"
     );
@@ -7630,7 +7614,7 @@ async function main(): Promise<void> {
   //          "holder" that creates the lockfile manually, then attempt
   //          an apply — it must time out with the "could not acquire lock"
   //          message, NOT silently succeed or hang forever.
-  await test("E-P156 withFileLock fails fast when another holder occupies the lock", async () => {
+  it("E-P156 withFileLock fails fast when another holder occupies the lock", async () => {
     // The withFileLock helper is not exported; exercise it indirectly
     // through applyCrossAgentDedup by placing a sibling .lock file before
     // the apply runs. The apply should time out at the lock acquisition
@@ -7799,7 +7783,7 @@ async function main(): Promise<void> {
   //          null source_date AND the ambient sort would randomly reorder
   //          them, the slot-index tiebreaker ensures a deterministic pick.
   //          Direct test of pickPrimaryMemberIndex with all-equal keys.
-  await test("E-P157 pickPrimaryMemberIndex uses explicit slot tiebreaker (4-Rec3)", async () => {
+  it("E-P157 pickPrimaryMemberIndex uses explicit slot tiebreaker (4-Rec3)", async () => {
     const { __testExports } = await import("./panel-reviewer.js");
     const { pickPrimaryMemberIndex } = __testExports;
 
@@ -7848,7 +7832,7 @@ async function main(): Promise<void> {
   //          Place a lockfile containing a demonstrably-dead PID, wait for
   //          the stale threshold, then run an apply — the helper reclaims
   //          and succeeds instead of timing out.
-  await test("E-P158 withFileLock reclaims stale lock when holder PID is dead", async () => {
+  it("E-P158 withFileLock reclaims stale lock when holder PID is dead", async () => {
     const projectRoot = makeTmpDir("e-p158-proj");
     const fakeOnto = makeTmpDir("e-p158-home");
 
@@ -7990,7 +7974,7 @@ async function main(): Promise<void> {
   //          promotion decisions from prior apply-state on resume, so
   //          the promotion side-effect (appended line in global file)
   //          does not duplicate on a rerun.
-  await test("E-P159 isPending filter prevents promotion replay on resume (narrow proof)", async () => {
+  it("E-P159 isPending filter prevents promotion replay on resume (narrow proof)", async () => {
     const projectRoot = makeTmpDir("e-p159-proj");
     const fakeOnto = makeTmpDir("e-p159-home");
     const fakeAuditStatePath = path.join(fakeOnto, "audit-state.yaml");
@@ -8209,7 +8193,7 @@ async function main(): Promise<void> {
   //          withFileLock import. The wrapped fn throws an error; the
   //          lockfile MUST be unlinked in the finally block so future
   //          acquirers can get the lock without waiting for stale reclaim.
-  await test("E-P160 withFileLock releases lock even when wrapped fn throws", async () => {
+  it("E-P160 withFileLock releases lock even when wrapped fn throws", async () => {
     const { __testExports: execExports } = await import(
       "./promote-executor.js"
     );
@@ -8264,7 +8248,7 @@ async function main(): Promise<void> {
   //          measure wall time AND approximate CPU time during the wait.
   //          A busy-spin would burn ~100% CPU for the full wait; Atomics.wait
   //          should keep CPU near zero.
-  await test("E-P161 withFileLock wait is non-spinning (Atomics.wait, low CPU)", async () => {
+  it("E-P161 withFileLock wait is non-spinning (Atomics.wait, low CPU)", async () => {
     const { __testExports: execExports } = await import(
       "./promote-executor.js"
     );
@@ -8365,7 +8349,7 @@ async function main(): Promise<void> {
   //          wants to claim broader reclaim-branch coverage, it must
   //          exercise the OUTER branches separately (ESRCH vs EPERM vs
   //          indeterminate null from isPidAlive), not parser variants.
-  await test("E-P162 withFileLock refuses reclaim across malformed-PID parser shapes (6-SYN-U1)", async () => {
+  it("E-P162 withFileLock refuses reclaim across malformed-PID parser shapes (6-SYN-U1)", async () => {
     const { __testExports: execExports } = await import(
       "./promote-executor.js"
     );
@@ -8458,22 +8442,4 @@ async function main(): Promise<void> {
     }
   });
 
-  // -------------------------------------------------------------------------
-  // Summary
-  // -------------------------------------------------------------------------
-  process.stdout.write("\n");
-  process.stdout.write(`Results: ${passCount} passed, ${failCount} failed\n`);
-  if (failCount > 0) {
-    process.stdout.write("\nFailures:\n");
-    for (const f of failures) process.stdout.write(`  - ${f}\n`);
-    process.exit(1);
-  }
-  process.exit(0);
-}
-
-main().catch((error: unknown) => {
-  process.stderr.write(
-    `Test runner crashed: ${error instanceof Error ? error.message : String(error)}\n`,
-  );
-  process.exit(1);
 });

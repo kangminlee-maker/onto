@@ -155,6 +155,7 @@ Runs `preparing` auto state → returns `CoordinatorStartResult` with lens agent
 
 ```
 onto coordinator next --session-root <session_root> [--project-root <path>]
+  [--orchestrator-reported-realization <value>]
 ```
 
 | 현재 state | 동작 | 가능한 출력 state |
@@ -163,6 +164,8 @@ onto coordinator next --session-root <session_root> [--project-root <path>]
 | `awaiting_synthesize_dispatch` | `completing` auto 실행 | `completed`, `failed` |
 | `awaiting_deliberation` | `completing` auto 실행 (미구현) | `completed`, `failed` |
 | terminal states | 에러 반환 | — ("session already terminated") |
+
+**Optional `--orchestrator-reported-realization <value>`**: orchestrator 가 실제로 lens agents 를 dispatch 한 mechanism 을 자기 보고 — state file 의 `orchestrator_reported_realization` 필드에 기록. Idempotent (첫 값이 유지). 상세는 §18.
 
 ### `onto coordinator status`
 
@@ -505,3 +508,59 @@ Deliberation 완료 후 `completing` auto state 에서 synthesizer 가 소비할
 - Light review (4 lens) + Claude Agent tool 환경: 2026-04-18 Full E2E 에서 4 parallel 무난 처리 확인 (PR #119). N 초과 상황 없어 batch-by-N 효과 미관측.
 - Full review (9 lens) + N < 9 환경: **미검증**. 본 contract 개정 후 별도 세션에서 empirical 검증 필요.
 - 배경 분석 memory: `project_agent_concurrency_full_execution.md`.
+
+---
+
+## 18. Orchestrator Self-Reporting Protocol
+
+Orchestrator (주체자 세션 또는 coordinator subagent) 가 실제로 사용한 dispatch mechanism 을 state file 에 자기 보고하는 선택적 protocol.
+
+### 18.1 문제
+
+Plan-time `resolved_execution_realization` (binding.yaml 에 기록) 은 resolver 가 handoff payload 의 `preferred_realization` 기반으로 결정한 값. 실제 orchestrator 가 그 preferred 에 따라 dispatch 했는지, 다른 mechanism (예: TeamCreate 대신 flat Agent tool) 을 선택했는지는 coordinator state machine 이 알 수 없음. 2026-04-18 Full E2E (PR #119) 에서 topology 1 (flat) / 2 (TeamCreate nested) 모두 `resolved_execution_realization: agent-teams` 로 기록된 것이 이 gap 의 empirical 증거.
+
+### 18.2 해결
+
+`onto coordinator next` 에 optional flag 추가:
+
+```
+onto coordinator next --session-root <session_root> \
+  --orchestrator-reported-realization <value>
+```
+
+값이 전달되면 state machine 이 `coordinator-state.yaml` 의 `orchestrator_reported_realization` 필드에 기록. 없으면 필드 부재 (기존 동작 유지).
+
+### 18.3 Idempotency
+
+첫 호출의 값이 유지. 후속 호출에서 다른 값이 오더라도 무시 — 한 세션 내에서 orchestrator 가 mechanism 을 중간에 바꾸는 건 drift 로 간주. 명시적 변경이 필요하면 새 세션 시작.
+
+### 18.4 Value 예시
+
+Free-form string (forward compatibility). 권장 예시:
+
+- `claude-agent-tool-flat` — 주체자 세션이 Agent tool 로 flat parallel spawn
+- `claude-teamcreate-nested` — TeamCreate 로 coordinator subagent spawn → coordinator 가 Agent tool 로 lens nested spawn
+- `codex-subprocess` — per-lens codex CLI subprocess
+- `litellm-http` — LiteLLM endpoint HTTP dispatch
+- 기타 orchestrator 환경 고유 값
+
+### 18.5 소비
+
+- `coordinator-state.yaml` 에 필드로 보존 (orchestrator 자체 보고이므로 authoritative 성격; binding.yaml 의 plan-time 값과 구분).
+- 후속 PR 에서 `review-record.yaml` 또는 final-output.md 의 Verification Context 섹션에 반영 가능 (scope 밖, 선택 사항).
+- 분석 / 감사 용도 — 실제로 어떤 mechanism 이 사용됐는지 post-hoc 확인.
+
+### 18.6 현재 상태
+
+- State file 기록 로직: `src/core-runtime/cli/coordinator-state-machine.ts` `coordinatorNext(sessionRoot, projectRoot, orchestratorReportedRealization?)` 구현됨.
+- Type: `src/core-runtime/review/artifact-types.ts` `CoordinatorStateFile.orchestrator_reported_realization?: string`.
+- CLI: `cliNext` 의 parseArgs options 에 `orchestrator-reported-realization: { type: "string" }` 추가됨.
+- Review-record 반영 / final-output 표시: 후속 PR.
+
+### 18.7 Orchestrator 의무 여부
+
+**의무 아님 (optional)**. orchestrator 가 self-report 하지 않으면 gap 은 남지만 session 은 정상 완료. 단 다음 세 경우 self-report 권장:
+
+- 주체자가 handoff 의 `preferred_realization` 과 다른 mechanism 을 선택했을 때
+- 여러 topology 에 대해 동일 orchestration pattern 을 사용하는 환경 (예: Claude Code 가 항상 flat Agent tool 사용 — 모든 세션에 동일 값 self-report)
+- CI / 감사 환경에서 실행 mechanism trace 가 필요할 때

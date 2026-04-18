@@ -274,8 +274,21 @@ export async function coordinatorStart(
 export async function coordinatorNext(
   sessionRoot: string,
   projectRoot: string,
+  orchestratorReportedRealization?: string,
 ): Promise<CoordinatorNextResult> {
   const stateFile = await readStateFile(sessionRoot);
+
+  // Orchestrator self-reporting: record on first provided value (idempotent).
+  // Closes the gap between binding.yaml's plan-time resolved_execution_realization
+  // and the caller's actual dispatch mechanism. Contract §18.
+  if (
+    orchestratorReportedRealization &&
+    !stateFile.orchestrator_reported_realization
+  ) {
+    stateFile.orchestrator_reported_realization = orchestratorReportedRealization;
+    await writeStateFile(sessionRoot, stateFile);
+  }
+
   const currentState = stateFile.current_state;
 
   if (TERMINAL_STATES.includes(currentState)) {
@@ -551,6 +564,7 @@ async function cliNext(argv: string[]): Promise<number> {
     options: {
       "session-root": { type: "string" },
       "project-root": { type: "string", default: "." },
+      "orchestrator-reported-realization": { type: "string" },
     },
     strict: true,
     allowPositionals: false,
@@ -563,9 +577,16 @@ async function cliNext(argv: string[]): Promise<number> {
   const projectRoot = path.resolve(
     requireString(values["project-root"], "project-root"),
   );
+  const orchestratorReportedRealization = values[
+    "orchestrator-reported-realization"
+  ] as string | undefined;
 
   try {
-    const result = await coordinatorNext(sessionRoot, projectRoot);
+    const result = await coordinatorNext(
+      sessionRoot,
+      projectRoot,
+      orchestratorReportedRealization,
+    );
     console.log(JSON.stringify(result, null, 2));
     return 0;
   } catch (error) {

@@ -1,7 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { OntoConfig } from "./config-chain.js";
 import {
   LEGACY_PROFILE_FIELDS,
+  LegacyFieldRemovedError,
   checkAndEmitLegacyDeprecation,
   detectLegacyFieldUsage,
   emitLegacyFieldDeprecation,
@@ -86,95 +87,130 @@ describe("detectLegacyFieldUsage", () => {
 // emitLegacyFieldDeprecation
 // ---------------------------------------------------------------------------
 
-describe("emitLegacyFieldDeprecation", () => {
-  let stderrSpy: ReturnType<typeof vi.spyOn>;
-  beforeEach(() => {
-    stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-  });
-  afterEach(() => {
-    stderrSpy.mockRestore();
-  });
+// ---------------------------------------------------------------------------
+// emitLegacyFieldDeprecation (PR-J: now throws, formerly STDERR warning)
+// ---------------------------------------------------------------------------
 
-  function stderrOutput(): string {
-    return stderrSpy.mock.calls.map((c: unknown[]) => String(c[0])).join("");
-  }
-
-  it("silent when nothing detected", () => {
-    emitLegacyFieldDeprecation({}, { detected: [], topology_priority_set: false });
-    expect(stderrSpy).not.toHaveBeenCalled();
+describe("emitLegacyFieldDeprecation (error stage)", () => {
+  it("silent (no throw) when nothing detected", () => {
+    expect(() =>
+      emitLegacyFieldDeprecation({}, { detected: [], topology_priority_set: false }),
+    ).not.toThrow();
   });
 
-  it("silent when topology_priority is already set (migrated principal)", () => {
-    emitLegacyFieldDeprecation(
-      {
-        host_runtime: "codex",
-        execution_topology_priority: ["cc-main-codex-subprocess"],
-      },
-      { detected: ["host_runtime"], topology_priority_set: true },
-    );
-    expect(stderrSpy).not.toHaveBeenCalled();
+  it("silent (no throw) when topology_priority_set (migrated principal)", () => {
+    expect(() =>
+      emitLegacyFieldDeprecation(
+        {
+          host_runtime: "codex",
+          execution_topology_priority: ["cc-main-codex-subprocess"],
+        },
+        { detected: ["host_runtime"], topology_priority_set: true },
+      ),
+    ).not.toThrow();
   });
 
-  it("emits per-field [onto:deprecation] lines when legacy used without topology", () => {
-    emitLegacyFieldDeprecation(
-      { host_runtime: "codex", api_provider: "codex" },
-      { detected: ["host_runtime", "api_provider"], topology_priority_set: false },
-    );
-    const out = stderrOutput();
-    expect(out).toContain("[onto:deprecation]");
-    expect(out).toContain("host_runtime=codex");
-    expect(out).toContain("api_provider=codex");
+  it("throws LegacyFieldRemovedError when legacy used without topology", () => {
+    expect(() =>
+      emitLegacyFieldDeprecation(
+        { host_runtime: "codex", api_provider: "codex" },
+        { detected: ["host_runtime", "api_provider"], topology_priority_set: false },
+      ),
+    ).toThrow(LegacyFieldRemovedError);
   });
 
-  it("message suggests the topology priority replacement for host_runtime=codex", () => {
-    emitLegacyFieldDeprecation(
-      { host_runtime: "codex" },
-      { detected: ["host_runtime"], topology_priority_set: false },
-    );
-    expect(stderrOutput()).toContain("cc-main-codex-subprocess");
+  it("error message includes per-field entries + suggestion", () => {
+    try {
+      emitLegacyFieldDeprecation(
+        { host_runtime: "codex", api_provider: "codex" },
+        { detected: ["host_runtime", "api_provider"], topology_priority_set: false },
+      );
+      expect.fail("expected throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(LegacyFieldRemovedError);
+      const msg = (err as Error).message;
+      expect(msg).toContain("[onto:legacy-removed]");
+      expect(msg).toContain("host_runtime=codex");
+      expect(msg).toContain("api_provider=codex");
+    }
   });
 
-  it("message suggests cc-main-agent-subagent for host_runtime=claude", () => {
-    emitLegacyFieldDeprecation(
-      { host_runtime: "claude" },
-      { detected: ["host_runtime"], topology_priority_set: false },
-    );
-    expect(stderrOutput()).toContain("cc-main-agent-subagent");
+  it("suggests cc-main-codex-subprocess for host_runtime=codex", () => {
+    try {
+      emitLegacyFieldDeprecation(
+        { host_runtime: "codex" },
+        { detected: ["host_runtime"], topology_priority_set: false },
+      );
+      expect.fail("expected throw");
+    } catch (err) {
+      expect((err as Error).message).toContain("cc-main-codex-subprocess");
+    }
   });
 
-  it("message points to the migration guide", () => {
-    emitLegacyFieldDeprecation(
-      { host_runtime: "codex" },
-      { detected: ["host_runtime"], topology_priority_set: false },
-    );
-    expect(stderrOutput()).toContain("docs/topology-migration-guide.md");
+  it("suggests cc-main-agent-subagent for host_runtime=claude", () => {
+    try {
+      emitLegacyFieldDeprecation(
+        { host_runtime: "claude" },
+        { detected: ["host_runtime"], topology_priority_set: false },
+      );
+      expect.fail("expected throw");
+    } catch (err) {
+      expect((err as Error).message).toContain("cc-main-agent-subagent");
+    }
   });
 
-  it("message explicitly states backward compatibility is preserved (no sudden break)", () => {
-    emitLegacyFieldDeprecation(
-      { host_runtime: "codex" },
-      { detected: ["host_runtime"], topology_priority_set: false },
-    );
-    expect(stderrOutput()).toContain("호환 유지");
+  it("error message points to the migration guide", () => {
+    try {
+      emitLegacyFieldDeprecation(
+        { host_runtime: "codex" },
+        { detected: ["host_runtime"], topology_priority_set: false },
+      );
+      expect.fail("expected throw");
+    } catch (err) {
+      expect((err as Error).message).toContain("docs/topology-migration-guide.md");
+    }
   });
 
-  it("legacy standalone + anthropic/openai flags 'current canonical topology 없음' path", () => {
-    emitLegacyFieldDeprecation(
-      { host_runtime: "anthropic" },
-      { detected: ["host_runtime"], topology_priority_set: false },
-    );
-    const out = stderrOutput();
-    expect(out).toContain("host_runtime=anthropic");
-    // Preserve legacy HTTP path — no false migration suggestion
-    expect(out.toLowerCase()).toMatch(/legacy http|canonical topology 없음/);
+  it("LegacyFieldRemovedError exposes detected + suggestions for programmatic handlers", () => {
+    try {
+      emitLegacyFieldDeprecation(
+        { host_runtime: "codex", api_provider: "openai" },
+        { detected: ["host_runtime", "api_provider"], topology_priority_set: false },
+      );
+      expect.fail("expected throw");
+    } catch (err) {
+      const e = err as LegacyFieldRemovedError;
+      expect(e.detected).toEqual(["host_runtime", "api_provider"]);
+      expect(e.suggestions.length).toBe(2);
+      expect(e.suggestions[0]!.field).toBe("host_runtime");
+      expect(e.suggestions[0]!.suggestion).toContain("cc-main-codex-subprocess");
+    }
   });
 
-  it("executor_realization=codex → cc-main-codex-subprocess suggestion", () => {
-    emitLegacyFieldDeprecation(
-      { executor_realization: "codex" },
-      { detected: ["executor_realization"], topology_priority_set: false },
-    );
-    expect(stderrOutput()).toContain("cc-main-codex-subprocess");
+  it("legacy standalone + anthropic is still structured in the thrown message", () => {
+    try {
+      emitLegacyFieldDeprecation(
+        { host_runtime: "anthropic" },
+        { detected: ["host_runtime"], topology_priority_set: false },
+      );
+      expect.fail("expected throw");
+    } catch (err) {
+      const msg = (err as Error).message;
+      expect(msg).toContain("host_runtime=anthropic");
+      expect(msg.toLowerCase()).toMatch(/legacy http|canonical topology 없음/);
+    }
+  });
+
+  it("executor_realization=codex triggers throw with cc-main-codex-subprocess suggestion", () => {
+    try {
+      emitLegacyFieldDeprecation(
+        { executor_realization: "codex" },
+        { detected: ["executor_realization"], topology_priority_set: false },
+      );
+      expect.fail("expected throw");
+    } catch (err) {
+      expect((err as Error).message).toContain("cc-main-codex-subprocess");
+    }
   });
 });
 
@@ -182,22 +218,14 @@ describe("emitLegacyFieldDeprecation", () => {
 // checkAndEmitLegacyDeprecation — convenience wrapper
 // ---------------------------------------------------------------------------
 
-describe("checkAndEmitLegacyDeprecation", () => {
-  let stderrSpy: ReturnType<typeof vi.spyOn>;
-  beforeEach(() => {
-    stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-  });
-  afterEach(() => {
-    stderrSpy.mockRestore();
+describe("checkAndEmitLegacyDeprecation (error stage)", () => {
+  it("throws when legacy used without topology priority", () => {
+    expect(() => checkAndEmitLegacyDeprecation({ host_runtime: "codex" })).toThrow(
+      LegacyFieldRemovedError,
+    );
   });
 
-  it("detects AND emits in one call", () => {
-    const detection = checkAndEmitLegacyDeprecation({ host_runtime: "codex" });
-    expect(detection.detected).toEqual(["host_runtime"]);
-    expect(stderrSpy).toHaveBeenCalled();
-  });
-
-  it("returns the detection structure for inspection", () => {
+  it("returns detection silently when topology priority is set (migrated)", () => {
     const detection = checkAndEmitLegacyDeprecation({
       host_runtime: "claude",
       api_provider: "anthropic",
@@ -205,13 +233,11 @@ describe("checkAndEmitLegacyDeprecation", () => {
     });
     expect(detection.detected).toEqual(["host_runtime", "api_provider"]);
     expect(detection.topology_priority_set).toBe(true);
-    // Silent because topology is set
-    expect(stderrSpy).not.toHaveBeenCalled();
   });
 
-  it("clean config triggers no emission and returns empty detection", () => {
+  it("clean config returns empty detection without throwing", () => {
     const detection = checkAndEmitLegacyDeprecation({});
     expect(detection.detected).toEqual([]);
-    expect(stderrSpy).not.toHaveBeenCalled();
+    expect(detection.topology_priority_set).toBe(false);
   });
 });

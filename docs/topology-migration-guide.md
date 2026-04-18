@@ -171,16 +171,37 @@ lens_agent_teams_mode: true  # 3중 opt-in 의 프로젝트 단 신설 필드
 
 ## 4. Deprecation 단계
 
-현재 PR-E (2026-04-18) 에서는 **warning stage**. 이후 단계:
+**현재 PR-J (2026-04-18): error stage**. Legacy 필드 사용 시 fail-fast.
 
 | Stage | When | 동작 |
 |---|---|---|
-| Warning (현재) | PR-E merge 직후 | Legacy 필드 사용 시 `[onto:deprecation]` STDERR. 동작 유지. |
-| Error (후속 PR) | 주체자 충분 migration 확인 후 | Legacy 필드 사용 시 fail-fast + migration 강제. |
-| Removal (그 다음 PR) | Error stage 안정화 후 | OntoConfig 에서 필드 제거 (breaking). |
+| Warning | PR-E (#103) | Legacy 필드 사용 시 `[onto:deprecation]` STDERR. 동작 유지. |
+| **Error (현재)** | **PR-J (2026-04-18)** | **Legacy 필드 + `execution_topology_priority` 없음 → `LegacyFieldRemovedError` throw. Config 로드 실패 → review 중단.** |
+| Removal (후속) | 미정 | OntoConfig 타입에서 필드 제거 (type-level breaking). |
 
-본 migration guide 는 warning stage 에 맞춰 작성됨. Error / removal stage
-진입 시 갱신된다.
+### Error stage 이해
+
+`.onto/config.yml` 에 다음 중 하나가 있으면 error stage 에서 fail-fast:
+
+- `host_runtime: <값>`
+- `execution_realization: <값>`
+- `execution_mode: <값>`
+- `executor_realization: <값>`
+- `api_provider: <값>`
+
+**단, `execution_topology_priority` 가 함께 있으면 허용** (silent). Migration
+하는 주체자가 legacy 필드를 참고용으로 남길 수 있도록.
+
+Error 메시지 예:
+
+```
+[onto:legacy-removed] Legacy provider profile 필드는 이제 error-stage 입니다 (PR-J, sketch v3 §7.4 Phase D).
+[onto:legacy-removed] 사용된 필드:
+[onto:legacy-removed]   - host_runtime=codex → 권장 topology: [cc-main-codex-subprocess, codex-main-subprocess, codex-nested-subprocess]
+[onto:legacy-removed]   - api_provider=codex → 권장 topology: [codex-main-subprocess, codex-nested-subprocess]
+[onto:legacy-removed] 해결: .onto/config.yml 에 `execution_topology_priority: [옵션]` 추가 후 legacy 필드 제거.
+[onto:legacy-removed] Migration guide: docs/topology-migration-guide.md
+```
 
 ## 5. FAQ
 

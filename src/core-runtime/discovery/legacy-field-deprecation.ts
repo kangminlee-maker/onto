@@ -1,44 +1,48 @@
 /**
- * Legacy config field deprecation — PR-E (2026-04-18).
+ * Legacy config field deprecation — PR-E → PR-J (2026-04-18).
  *
  * # What this module is
  *
  * A single seat that scans an `OntoConfig` for legacy provider-profile
  * fields (`host_runtime`, `execution_realization`, `execution_mode`,
- * `executor_realization`, `api_provider`) and emits a structured
- * deprecation warning to STDERR when any are present without a
- * companion `execution_topology_priority` entry.
+ * `executor_realization`, `api_provider`) and **throws a fail-fast
+ * error** when any are present without a companion
+ * `execution_topology_priority` entry. As of PR-J (2026-04-18), the
+ * prior warning-stage behavior (STDERR `[onto:deprecation]` only) has
+ * been escalated to error-stage — legacy-field usage now halts the
+ * review run.
  *
  * # Why it exists
  *
  * Sketch v3 (PR #98) + PR-A (PR #99) introduced `execution_topology_priority`
  * as the canonical seat for selecting a review execution topology. Legacy
- * fields remain functional for backward compatibility, but continuing to
- * use them masks the topology-aware routing path wired in PR-B/C/D and
- * re-creates the silent divergence class PR-1 (PR #96) just closed.
+ * fields re-create the silent divergence class PR-1 (PR #96) just closed.
+ * PR-E (PR #103) introduced the warning-stage deprecation; PR-J promotes
+ * it to error-stage now that migration guide + coordinator prompt
+ * (PR #107) and dispatch integration (PR #104, #108) are complete —
+ * principals have a full migration path.
  *
- * The deprecation warning is the **first migration stage** (sketch v3 §7.4
- * Phase D). Subsequent stages:
- *   - Warning → error: future PR can upgrade `emitLegacyFieldDeprecation`
- *     from `process.stderr.write` to `throw`.
- *   - Field removal: the OntoConfig legacy fields (JSDoc + PROFILE_FIELDS
- *     entries) get deleted once the warning-phase sunset lands.
+ * # Stages (sketch v3 §7.4 Phase D)
+ *
+ *   Stage 1 (PR-E / PR #103): STDERR warning, review continues
+ *   Stage 2 (PR-J / THIS PR): throws `LegacyFieldRemovedError`, review halts
+ *   Stage 3 (PR-K / next):   OntoConfig type fields removed entirely
  *
  * # How it relates
  *
  * - Called once per process from `resolveConfigChain()` after atomic
- *   profile adoption, so the warning is emitted for each legacy-config
- *   review run regardless of which config source (home / project) owned
- *   the profile.
- * - `execution_topology_priority` presence short-circuits the warning —
- *   principals who have migrated don't see repeated nags even if they
- *   kept a legacy field for reference (e.g., documentation).
+ *   profile adoption. Legacy-config review runs now fail at config load
+ *   — the principal sees a structured error directing them to the
+ *   migration guide before any lens dispatch.
+ * - `execution_topology_priority` presence short-circuits the throw —
+ *   principals who have migrated can keep legacy fields as historical
+ *   artifacts (e.g., documentation) without being blocked.
  *
  * # Design reference
  *
  * - Sketch v3 §6.2 (legacy 호환 adapter 유지), §7.4 Phase D
- * - Handoff §7.1 / §7.3: verification requires a "deprecation error
- *   메시지" visible to the operator
+ * - Handoff §7.1 / §7.3: verification required a "deprecation error
+ *   메시지" — PR-J realizes this as a true throw rather than a warning
  * - Migration guide: docs/topology-migration-guide.md
  */
 
@@ -138,12 +142,56 @@ function suggestTopologyFor(field: LegacyProfileField, value: string): string {
 }
 
 /**
- * Emit the deprecation warning to STDERR. Format mirrors the
- * `[onto:config]` / `[topology]` prefix conventions used elsewhere.
+ * Thrown by `emitLegacyFieldDeprecation` when legacy provider-profile
+ * fields are used without a companion `execution_topology_priority`.
+ * PR-J (2026-04-18) escalated the prior STDERR warning to a throw.
  *
- * Silent when `topology_priority_set` — the principal has migrated and
- * may retain legacy fields as historical artifacts. Silent when nothing
- * is detected.
+ * `detected` / `suggestions` / `migrationGuide` are exposed so test
+ * harnesses and CLI error handlers can render structured messages.
+ */
+export class LegacyFieldRemovedError extends Error {
+  constructor(
+    public readonly detected: LegacyProfileField[],
+    public readonly suggestions: Array<{ field: LegacyProfileField; value: string; suggestion: string }>,
+    public readonly migrationGuide: string = "docs/topology-migration-guide.md",
+  ) {
+    const lines: string[] = [];
+    lines.push(
+      "[onto:legacy-removed] Legacy provider profile 필드는 이제 error-stage 입니다 (PR-J, sketch v3 §7.4 Phase D).",
+    );
+    lines.push(
+      "[onto:legacy-removed] 사용된 필드:",
+    );
+    for (const sug of suggestions) {
+      lines.push(
+        `[onto:legacy-removed]   - ${sug.field}=${sug.value} → 권장 topology: ${sug.suggestion}`,
+      );
+    }
+    lines.push(
+      "[onto:legacy-removed] 해결: .onto/config.yml 에 `execution_topology_priority: [옵션]` 추가 후 legacy 필드 제거.",
+    );
+    lines.push(
+      `[onto:legacy-removed] Migration guide: ${migrationGuide}`,
+    );
+    lines.push(
+      "[onto:legacy-removed] Principal 이 이미 marshalled topology_priority 를 남겼다면 legacy 필드를 유지해도 무방 (silent) — 그렇지 않은 경우 본 에러 발생.",
+    );
+    super(lines.join("\n"));
+    this.name = "LegacyFieldRemovedError";
+  }
+}
+
+/**
+ * Throw `LegacyFieldRemovedError` when legacy fields are used without
+ * topology priority. Silent when `topology_priority_set` (migrated
+ * principal) or when nothing is detected.
+ *
+ * Prior behavior (PR-E / warning stage): wrote `[onto:deprecation]` to
+ * STDERR and continued. Post-PR-J: throws to halt the review run.
+ *
+ * The function name is kept as `emitLegacyFieldDeprecation` for
+ * backward compatibility with callers. Function body now throws rather
+ * than emits — semantic shift but API signature (void return) unchanged.
  */
 export function emitLegacyFieldDeprecation(
   config: OntoConfig,
@@ -152,29 +200,17 @@ export function emitLegacyFieldDeprecation(
   if (detection.detected.length === 0) return;
   if (detection.topology_priority_set) return;
 
-  const lines: string[] = [];
-  lines.push(
-    "[onto:deprecation] Legacy provider profile 필드가 사용되었습니다. " +
-      "Sketch v3 기반의 `execution_topology_priority` 로 마이그레이션 하세요.",
-  );
-  for (const field of detection.detected) {
+  const suggestions = detection.detected.map((field) => {
     const value = String((config as Record<string, unknown>)[field]);
-    lines.push(
-      `[onto:deprecation]   - ${field}=${value} → 권장 topology: ${suggestTopologyFor(field, value)}`,
-    );
-  }
-  lines.push(
-    "[onto:deprecation] Migration guide: docs/topology-migration-guide.md",
-  );
-  lines.push(
-    "[onto:deprecation] 현재 호환 유지 중 — 필드 제거 시점은 후속 PR 에서 공지.",
-  );
-  process.stderr.write(lines.join("\n") + "\n");
+    return { field, value, suggestion: suggestTopologyFor(field, value) };
+  });
+  throw new LegacyFieldRemovedError(detection.detected, suggestions);
 }
 
 /**
- * Convenience wrapper: detect + emit in one call. Intended entrypoint for
- * `resolveConfigChain()`.
+ * Convenience wrapper: detect + throw-if-needed. Intended entrypoint for
+ * `resolveConfigChain()`. Propagates `LegacyFieldRemovedError` when the
+ * config uses legacy fields without topology priority.
  */
 export function checkAndEmitLegacyDeprecation(config: OntoConfig): LegacyUsageDetection {
   const detection = detectLegacyFieldUsage(config);

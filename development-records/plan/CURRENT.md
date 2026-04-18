@@ -1,16 +1,22 @@
 # Current Planning Artifacts
 
-Last updated: 2026-04-17 (Output Language Boundary Track 완결 + Active 잔여 8 건 handoff 추가)
+Last updated: 2026-04-18 (Sketch v3 13 PR 완결 + cleanup/refactor handoff 추가)
 
 이 파일은 `plan/` 디렉토리 각 artifact 계열의 최신 active 버전 경로를 명시한다. M-08 refresh protocol이 매 갱신 시 업데이트한다.
 
 ## Active Artifacts
 
 ### Next Session Startup Handoff
-- **Current**: `20260417-active-remaining-work-handoff.md`
+- **Current**: `20260418-cleanup-and-refactor-handoff.md`
 - **Status**: active
-- **Scope**: 2026-04-17 세션 종료 후 active 잔여 8 건의 session-restart handoff. `/clear` 직후 첫 명령 + 8 items 상태·verify 명령·권장 순서·anti-patterns
-- **Supersede 조건**: 다음 세션이 §3 옵션 중 하나 착수 + 첫 PR 생성 시
+- **Scope**: 2026-04-18 세션 (Sketch v3 13 PR 전수 merge) 종료 후 cleanup/refactor 4 우선순위 handoff. `/clear` 직후 첫 명령 + Priority 1~4 (dead code / E2E migration / 자동 deliberation / real smoke) + 의존성 그래프 + anti-patterns
+- **Supersede 조건**: 다음 세션이 §2 Priority 중 하나 착수 + 첫 PR 생성 시
+
+### Prior Startup Handoff (superseded)
+- **Current**: `20260418-sketch-v3-implementation-handoff.md`
+- **Status**: superseded (13 PR 전수 merged)
+- **Scope**: 2026-04-18 sketch v3 PR-A~E 계획 — Priority 구현 완료 후 superseded
+- **Chain**: `20260417-active-remaining-work-handoff.md` → `20260418-sketch-v3-implementation-handoff.md` → **`20260418-cleanup-and-refactor-handoff.md` (현재)**
 
 ### M-00 실행 준비 답변서
 - **Current**: `20260413-m00-preparation-qa.md`

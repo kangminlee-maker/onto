@@ -1,9 +1,10 @@
 ---
 as_of: 2026-04-18
-status: design-proposal
+status: approved
 functional_area: review-mode-naming
 revision_history:
   - "2026-04-18: initial proposal (light → core-axis rename, 5 후보 평가, 3 migration 옵션, big-bang 권장)"
+  - "2026-04-18: approved — 주체자 권장안 6 항목 (§8) 전수 채택. 후속 implementation PR 진입"
 purpose: |
   `review_mode: light` 의 이름이 선정 근거를 전달하지 않는 문제를 해결하기 위한
   rename proposal. 현재 light 는 4 lens (logic / pragmatics / evolution / axiology)
@@ -251,6 +252,21 @@ Rename 대상이 한 덩어리로 보이지만 **두 개의 독립 surface** 가
 | **Version bump** | `0.1.0` → `0.2.0` | `0.1.0` → `0.1.1` (breaking 미신호) |
 
 주체자가 권장과 다른 선택을 하면 본 proposal 을 갱신 (revision_history 추가) 한 후 구현 PR 진입.
+
+### 8.1 승인 결과 (2026-04-18)
+
+주체자가 §8 의 **6 결정 항목 전수를 권장대로 승인**. 채택 내용:
+
+| # | 결정 | 채택값 |
+|---|---|---|
+| 1 | `light` 새 이름 | `core-axis` |
+| 2 | `full` 처리 | 유지 |
+| 3 | Migration | 옵션 A (big-bang) |
+| 4 | Field/value | 동시 rename |
+| 5 | 외부 영향 평가 | "미확인 + beta 단계 용인" |
+| 6 | Version bump | `0.1.0` → `0.2.0` |
+
+후속: §7 의 6 step 을 implementation PR 에서 실행. 분할 vs 단일 PR 결정은 implementation PR 작성 시점.
 
 ## 9. 참조
 

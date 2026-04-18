@@ -68,4 +68,24 @@ smoke_assert_file_contains "${STDOUT_LOG}" \
   "\"id\": \"cc-teams-agent-subagent\"" \
   "handoff topology.id"
 
+# (4) teamlead_location per TOPOLOGY_CATALOG.
+smoke_assert_file_contains "${STDOUT_LOG}" \
+  "\"teamlead_location\": \"claude-teamcreate\"" \
+  "handoff topology.teamlead_location"
+
+# (5) lens_spawn_mechanism per TOPOLOGY_CATALOG.
+smoke_assert_file_contains "${STDOUT_LOG}" \
+  "\"lens_spawn_mechanism\": \"claude-agent-tool\"" \
+  "handoff topology.lens_spawn_mechanism"
+
+# (6) deliberation_channel per TOPOLOGY_CATALOG.
+smoke_assert_file_contains "${STDOUT_LOG}" \
+  "\"deliberation_channel\": \"synthesizer-only\"" \
+  "handoff topology.deliberation_channel"
+
+# (7) max_concurrent_lenses per TOPOLOGY_CATALOG default (override 없을 때).
+smoke_assert_file_contains "${STDOUT_LOG}" \
+  "\"max_concurrent_lenses\": 10" \
+  "handoff topology.max_concurrent_lenses"
+
 smoke_pass

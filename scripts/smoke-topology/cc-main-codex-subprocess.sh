@@ -96,4 +96,14 @@ smoke_assert_file_contains "${STDOUT_LOG}" \
   "\"lens_spawn_mechanism\": \"codex-subprocess\"" \
   "handoff topology.lens_spawn_mechanism"
 
+# (6) deliberation_channel per TOPOLOGY_CATALOG.
+smoke_assert_file_contains "${STDOUT_LOG}" \
+  "\"deliberation_channel\": \"synthesizer-only\"" \
+  "handoff topology.deliberation_channel"
+
+# (7) max_concurrent_lenses per TOPOLOGY_CATALOG default (override 없을 때).
+smoke_assert_file_contains "${STDOUT_LOG}" \
+  "\"max_concurrent_lenses\": 5" \
+  "handoff topology.max_concurrent_lenses"
+
 smoke_pass

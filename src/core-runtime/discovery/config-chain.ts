@@ -5,6 +5,7 @@ import {
   buildBothIncompleteError,
   mergeOrthogonalFields,
 } from "./config-profile.js";
+import { checkAndEmitLegacyDeprecation } from "./legacy-field-deprecation.js";
 
 export interface OntoConfig {
   /** Conceptual execution model: subagent | agent-teams */
@@ -304,5 +305,14 @@ export async function resolveConfigChain(
   }
 
   const orthogonal = mergeOrthogonalFields(homeConfig, projectConfig);
-  return { ...orthogonal, ...adoption.profile } as OntoConfig;
+  const merged = { ...orthogonal, ...adoption.profile } as OntoConfig;
+
+  // PR-E (2026-04-18): emit `[onto:deprecation]` warnings when the
+  // resolved config still uses legacy provider-profile fields without a
+  // companion `execution_topology_priority`. Silent when the principal
+  // has migrated. See `discovery/legacy-field-deprecation.ts` +
+  // `docs/topology-migration-guide.md`.
+  checkAndEmitLegacyDeprecation(merged);
+
+  return merged;
 }

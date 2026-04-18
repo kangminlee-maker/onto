@@ -143,7 +143,7 @@ later hardened implementation에서 identity policy가 바뀌더라도,
 원칙:
 
 - `lens_result_refs`는 lens id를 key로 가지는 mapping이어야 한다
-- `light` 모드와 degraded case를 구분할 수 있어야 한다
+- `core-axis` 모드와 degraded case를 구분할 수 있어야 한다
 - `axiology`는 canonical lens set에 항상 포함되어야 한다
 - degraded case가 발생하면 later audit가 그 원인을 다시 읽을 수 있어야 한다
 - `error-log.md`가 boundary/conformance state만 담는 경우에는 `degradation_notes_ref`로 간주하지 않는다

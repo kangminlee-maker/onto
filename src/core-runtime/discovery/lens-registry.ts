@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 interface CoreLensRegistry {
   full_review_lens_ids: string[];
-  light_review_lens_ids: string[];
+  core_axis_lens_ids: string[];
   core_role_ids: string[];
   always_include_lens_ids: string[];
 }
@@ -56,7 +56,7 @@ export function loadCoreLensRegistry(): CoreLensRegistry {
   const raw = parseYamlSimple(text);
   cached = {
     full_review_lens_ids: (raw.full_review_lens_ids ?? []).map(canonicalizeLensId),
-    light_review_lens_ids: (raw.light_review_lens_ids ?? []).map(canonicalizeLensId),
+    core_axis_lens_ids: (raw.core_axis_lens_ids ?? []).map(canonicalizeLensId),
     core_role_ids: (raw.core_role_ids ?? []).map(canonicalizeLensId),
     always_include_lens_ids: (raw.always_include_lens_ids ?? []).map(canonicalizeLensId),
   };

@@ -35,7 +35,7 @@ cat > "${SMOKE_CONFIG_FILE}" <<EOF
 execution_topology_priority:
   - cc-teams-lens-agent-deliberation
 lens_agent_teams_mode: true
-review_mode: light
+review_mode: core-axis
 EOF
 
 # ── Execute ────────────────────────────────────────────────────────────────

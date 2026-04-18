@@ -2,17 +2,19 @@
  * Phase 3: Step 1.5 Complexity Assessment — standalone LLM-based review mode selection.
  *
  * When `host_runtime` is standalone (no interactive host LLM session), the TS
- * process must decide `review_mode` (light vs full) and select relevant lenses
- * by calling `main_llm` directly.
+ * process must decide `review_mode` (core-axis vs full) and select relevant
+ * lenses by calling `main_llm` directly.
  *
  * Two-step process:
- *   1. Q2/Q3 assessment: cheap triggers to decide whether light review is appropriate
- *   2. Lens selection: §7 Reverse Application to select relevant lenses (only if light)
+ *   1. Q2/Q3 assessment: cheap triggers to decide whether core-axis review
+ *      (4 meta-level axes) is appropriate vs full 9-lens
+ *   2. Lens selection: §7 Reverse Application to select relevant lenses
+ *      (only if core-axis suggested)
  *
  * # When this is used
  *
  * - `host_runtime: standalone` AND `--review-mode` not explicitly set
- * - `host_runtime: standalone` AND `--review-mode light` AND `--lens-id` not set
+ * - `host_runtime: standalone` AND `--review-mode core-axis` AND `--lens-id` not set
  *
  * # When this is NOT used
  *
@@ -38,7 +40,7 @@ import {
 // ---------------------------------------------------------------------------
 
 export interface ComplexityAssessmentResult {
-  suggestLight: boolean;
+  suggestCoreAxis: boolean;
   q2Rationale: string;
   q3Rationale: string;
 }
@@ -83,7 +85,7 @@ function resolveMainLlmConfig(ontoConfig: OntoConfig): Partial<LlmCallConfig> {
 // Q2/Q3 Complexity Assessment
 // ---------------------------------------------------------------------------
 
-const COMPLEXITY_SYSTEM_PROMPT = `You are a review complexity assessor. You will be given a review target description and must answer two questions to determine whether a lightweight review (fewer lenses) is appropriate.
+const COMPLEXITY_SYSTEM_PROMPT = `You are a review complexity assessor. You will be given a review target description and must answer two questions to determine whether a core-axis review (4 meta-level axes only: logic, pragmatics, evolution, axiology) is appropriate vs a full 9-lens review.
 
 Answer in JSON format:
 {
@@ -91,7 +93,7 @@ Answer in JSON format:
   "q2_rationale": "...",
   "q3_miss_risk_acceptable": true/false,
   "q3_rationale": "...",
-  "suggest_light": true/false
+  "suggest_core_axis": true/false
 }
 
 Q2: Is cross-verification between multiple review dimensions secondary (not critical)?
@@ -102,7 +104,7 @@ Q3: Is the risk of missing a finding acceptable?
 - Risk is HIGH for: pre-implementation final verification, safety mechanism design, changes affecting existing users
 - Risk is LOW for: exploratory questions, early direction setting, internal documentation, post-review follow-up checks
 
-suggest_light = true only if BOTH q2 AND q3 are true.`;
+suggest_core_axis = true only if BOTH q2 AND q3 are true.`;
 
 export async function assessComplexity(
   targetDescription: string,
@@ -122,24 +124,24 @@ export async function assessComplexity(
     // Extract JSON from response (may be wrapped in markdown code block)
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return { suggestLight: false, q2Rationale: "JSON parse failed — defaulting to full", q3Rationale: "" };
+      return { suggestCoreAxis: false, q2Rationale: "JSON parse failed — defaulting to full", q3Rationale: "" };
     }
     const parsed = JSON.parse(jsonMatch[0]) as {
       q2_cross_verification_secondary?: boolean;
       q2_rationale?: string;
       q3_miss_risk_acceptable?: boolean;
       q3_rationale?: string;
-      suggest_light?: boolean;
+      suggest_core_axis?: boolean;
     };
 
     return {
-      suggestLight: parsed.suggest_light === true,
+      suggestCoreAxis: parsed.suggest_core_axis === true,
       q2Rationale: parsed.q2_rationale ?? "",
       q3Rationale: parsed.q3_rationale ?? "",
     };
   } catch {
     // Parse failure → default to full review (safe fallback)
-    return { suggestLight: false, q2Rationale: "JSON parse failed — defaulting to full", q3Rationale: "" };
+    return { suggestCoreAxis: false, q2Rationale: "JSON parse failed — defaulting to full", q3Rationale: "" };
   }
 }
 
@@ -189,7 +191,7 @@ export async function selectLenses(
   try {
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return { selectedLensIds: ["axiology", "logic", "pragmatics", "evolution"], rationale: "JSON parse failed — using default light set" };
+      return { selectedLensIds: ["axiology", "logic", "pragmatics", "evolution"], rationale: "JSON parse failed — using default core-axis set" };
     }
     const parsed = JSON.parse(jsonMatch[0]) as {
       selected_lens_ids?: string[];
@@ -205,7 +207,7 @@ export async function selectLenses(
     }
 
     if (selectedIds.length < 2) {
-      return { selectedLensIds: ["axiology", "logic", "pragmatics", "evolution"], rationale: "Too few valid lenses selected — using default light set" };
+      return { selectedLensIds: ["axiology", "logic", "pragmatics", "evolution"], rationale: "Too few valid lenses selected — using default core-axis set" };
     }
 
     return {
@@ -213,6 +215,6 @@ export async function selectLenses(
       rationale: parsed.rationale ?? "",
     };
   } catch {
-    return { selectedLensIds: ["axiology", "logic", "pragmatics", "evolution"], rationale: "JSON parse failed — using default light set" };
+    return { selectedLensIds: ["axiology", "logic", "pragmatics", "evolution"], rationale: "JSON parse failed — using default core-axis set" };
   }
 }

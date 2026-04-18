@@ -33,7 +33,7 @@ source "$(dirname "$0")/fixture.sh"
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
 execution_topology_priority:
   - cc-main-agent-subagent
-review_mode: light
+review_mode: core-axis
 EOF
 
 # ── Execute ────────────────────────────────────────────────────────────────

@@ -49,7 +49,7 @@ function requireTargetScopeKind(value: string): ReviewTargetScopeKind {
 }
 
 function requireReviewMode(value: string): ReviewMode {
-  if (value === "light" || value === "full") {
+  if (value === "core-axis" || value === "full") {
     return value;
   }
   throw new Error(`Invalid review mode: ${value}`);

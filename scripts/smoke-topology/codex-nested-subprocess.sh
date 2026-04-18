@@ -35,7 +35,7 @@ fi
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
 execution_topology_priority:
   - codex-nested-subprocess
-review_mode: light
+review_mode: core-axis
 codex:
   model: gpt-5.4
   effort: medium

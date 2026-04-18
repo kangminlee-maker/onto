@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### BREAKING — `review_mode: light` → `core-axis` rename (2026-04-18)
+
+**Mental model 정렬**: 옛 이름 `light` 는 부수 효과 ("비용 절감, 축소판") 만 전달하고 본질 ("meta-level 4 축 — logic / pragmatics / evolution / axiology") 을 가리지 않았음. 새 이름 `core-axis` 는 선정 근거를 직접 전달.
+
+#### BREAKING
+
+- `authority/core-lens-registry.yaml` 의 필드 `light_review_lens_ids` 가 `core_axis_lens_ids` 로 rename
+- `ReviewMode` union: `'light' | 'full'` → `'core-axis' | 'full'`
+- CLI flag value: `--review-mode light` → `--review-mode core-axis`
+- Config field value: `review_mode: light` → `review_mode: core-axis`
+- `ComplexityAssessmentResult.suggestLight` → `suggestCoreAxis`
+- LLM JSON response key: `suggest_light` → `suggest_core_axis`
+
+#### Migration
+
+`.onto/config.yaml` 또는 CLI invoke 에 다음과 같이 변경:
+
+```diff
+- review_mode: light
++ review_mode: core-axis
+```
+
+```diff
+- onto review target.md "intent" --review-mode light
++ onto review target.md "intent" --review-mode core-axis
+```
+
+옛 이름 (`light`, `light_review_lens_ids`) 은 **즉시 에러**. dual-read / alias 미제공 (옵션 A big-bang 채택 — 본 시점 외부 채택 미확인 + beta 단계).
+
+#### Reference
+
+- Design proposal: `development-records/evolve/20260418-light-to-core-axis-rename-proposal.md` (PR #126)
+- Trigger: PR #122 SSOT 주석이 mental model 까지 도달 못 함을 진단
+
 ### Added — Phase 2 wiring: subagent_llm config + auto executor selection (2026-04-17)
 
 **Phase 2 wiring** — `subagent_llm` config 설정 또는 `host_runtime: standalone` 감지 시 `inline-http-review-unit-executor` 가 자동 선택되도록 wiring.

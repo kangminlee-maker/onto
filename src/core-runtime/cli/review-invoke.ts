@@ -51,7 +51,7 @@ import { assessComplexity, selectLenses } from "./complexity-assessment.js";
  */
 type ExecutorRealization = "codex" | "mock" | "ts_inline_http";
 type ReviewTargetScopeKind = "file" | "directory" | "bundle";
-type ReviewMode = "light" | "full";
+type ReviewMode = "core-axis" | "full";
 type BoundaryDecisionAction = "approve_external_boundary" | "rerun_target" | "cancel";
 
 // PrepareOnlyResult is imported from artifact-types.ts (canonical type authority)
@@ -102,7 +102,7 @@ interface ReviewInvokeRouteSummary {
 // Lens IDs derived from authority/core-lens-registry.yaml (single source of truth)
 const _registry = loadCoreLensRegistry();
 const FULL_REVIEW_LENS_IDS = _registry.full_review_lens_ids;
-const LIGHT_REVIEW_LENS_IDS = _registry.light_review_lens_ids;
+const CORE_AXIS_LENS_IDS = _registry.core_axis_lens_ids;
 
 const KNOWN_PASSTHROUGH_OPTION_NAMES = [
   "project-root",
@@ -1161,11 +1161,11 @@ async function resolveDomainSelection(
 
 function resolveReviewMode(argv: string[], ontoConfig?: OntoConfig): ReviewMode {
   const explicitValue = readSingleOptionValueFromArgv(argv, "review-mode");
-  if (explicitValue === "light" || explicitValue === "full") {
+  if (explicitValue === "core-axis" || explicitValue === "full") {
     return explicitValue;
   }
   const configValue = ontoConfig?.review_mode;
-  if (configValue === "light" || configValue === "full") {
+  if (configValue === "core-axis" || configValue === "full") {
     return configValue;
   }
   return "full";
@@ -1177,13 +1177,13 @@ function resolveLensDefaultsForReviewMode(reviewMode: ReviewMode): {
   recommendedLensIds: string[];
   rationale: string[];
 } {
-  if (reviewMode === "light") {
+  if (reviewMode === "core-axis") {
     return {
-      resolvedLensIds: [...LIGHT_REVIEW_LENS_IDS],
+      resolvedLensIds: [...CORE_AXIS_LENS_IDS],
       alwaysIncludeLensIds: [..._registry.always_include_lens_ids],
       recommendedLensIds: ["logic", "pragmatics", "evolution"],
       rationale: [
-        "host-facing positional invoke currently defaults light review to logic, pragmatics, evolution, and axiology.",
+        "host-facing positional invoke currently defaults core-axis review to logic, pragmatics, evolution, and axiology (meta-level 4 axes).",
       ],
     };
   }
@@ -1407,8 +1407,8 @@ async function resolveReviewInvokeInputs(
   // Phase 3: standalone LLM-based complexity assessment (Step 1.5)
   // When no explicit review-mode or lens-id is set AND the principal is
   // running against a direct-call external HTTP provider (env override or
-  // external_http_provider config), call main_llm to assess whether light
-  // review is appropriate.
+  // external_http_provider config), call main_llm to assess whether
+  // core-axis review (4 meta-level axes) is appropriate vs full 9-lens.
   const envHostRuntime = process.env.ONTO_HOST_RUNTIME?.trim().toLowerCase();
   const isStandaloneHost =
     envHostRuntime === "standalone" ||
@@ -1428,11 +1428,11 @@ async function resolveReviewInvokeInputs(
     const targetDesc = typeof requestedTarget === "string" ? requestedTarget : "(bundle)";
     try {
       const assessment = await assessComplexity(targetDesc, requestText ?? "", ontoConfig);
-      if (assessment.suggestLight) {
-        reviewMode = "light";
+      if (assessment.suggestCoreAxis) {
+        reviewMode = "core-axis";
         const lensSelection = await selectLenses(targetDesc, requestText ?? "", ontoConfig);
         resolvedLensIds = lensSelection.selectedLensIds;
-        console.error(`[onto] Step 1.5: light review suggested (Q2: ${assessment.q2Rationale.slice(0, 80)}). Lenses: ${resolvedLensIds.join(", ")}`);
+        console.error(`[onto] Step 1.5: core-axis review suggested (Q2: ${assessment.q2Rationale.slice(0, 80)}). Lenses: ${resolvedLensIds.join(", ")}`);
       } else {
         reviewMode = "full";
         resolvedLensIds = [...FULL_REVIEW_LENS_IDS];
@@ -1543,7 +1543,7 @@ async function resolveReviewInvokeInputs(
 
   if (resolvedLensIds.length === 0) {
     throw new Error(
-      "No lens IDs resolved. Specify at least one --lens-id or use --review-mode full|light.",
+      "No lens IDs resolved. Specify at least one --lens-id or use --review-mode full|core-axis.",
     );
   }
 

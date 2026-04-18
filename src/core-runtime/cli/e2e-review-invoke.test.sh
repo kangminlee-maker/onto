@@ -141,7 +141,7 @@ echo "── Happy Path ──"
 
 run_expect_pass "T1: file/light/mock" \
   src/core-runtime/cli/review-invoke.ts "security check" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "T2: dir/full/mock" \
   . "architecture review" \
@@ -153,12 +153,12 @@ run_expect_pass "T3: external-dir/auto-approve" \
 
 run_expect_pass "T4: domain-token" \
   src/ @llm-native-development "ontology check" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "T5: diff-range" \
   . "changes review" \
   --diff-range ad8ce13..c19e107 \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "T6: custom-lenses" \
   src/core-runtime/cli/ "logic only" \
@@ -174,7 +174,7 @@ run_expect_pass "T9: bundle" \
 
 run_expect_pass "T12: max-concurrent" \
   src/ "parallelism test" \
-  --executor-realization mock --max-concurrent-lenses 2 --review-mode light
+  --executor-realization mock --max-concurrent-lenses 2 --review-mode core-axis
 
 echo ""
 
@@ -207,10 +207,10 @@ run_expect_fail "E1: diff-range-injection" \
 
 echo "=== E2: session-id-collision ==="
 FIRST_OUT=$(npm run review:invoke -- src/core-runtime/cli/review-invoke.ts "first" \
-  --executor-realization mock --session-id e2e-collision-test --review-mode light 2>&1)
+  --executor-realization mock --session-id e2e-collision-test --review-mode core-axis 2>&1)
 FIRST_EXIT=$?
 SECOND_OUT=$(npm run review:invoke -- src/core-runtime/cli/review-invoke.ts "second" \
-  --executor-realization mock --session-id e2e-collision-test --review-mode light 2>&1)
+  --executor-realization mock --session-id e2e-collision-test --review-mode core-axis 2>&1)
 SECOND_EXIT=$?
 if [ $FIRST_EXIT -eq 0 ] && [ $SECOND_EXIT -ne 0 ]; then
   echo "  PASS  E2: session-id-collision (first=ok second=blocked)"
@@ -222,7 +222,7 @@ fi
 
 run_expect_fail "E3: unsupported-executor-realization-api" \
   src/ "test" \
-  --executor-realization api --review-mode light
+  --executor-realization api --review-mode core-axis
 
 echo ""
 
@@ -235,7 +235,7 @@ echo "── Input Validation ──"
 echo "=== E4: request-text-truncation ==="
 LONG_TEXT=$(python3 -c "print('x' * 3000)")
 E4_OUT=$(npm run review:invoke -- src/core-runtime/cli/review-invoke.ts "$LONG_TEXT" \
-  --executor-realization mock --review-mode light 2>&1)
+  --executor-realization mock --review-mode core-axis 2>&1)
 E4_EXIT=$?
 if [ $E4_EXIT -eq 0 ]; then
   echo "  PASS  E4: request-text-truncation"
@@ -247,7 +247,7 @@ fi
 
 run_expect_pass "E5: max-embed-lines-zero" \
   src/core-runtime/cli/review-invoke.ts "test" \
-  --executor-realization mock --review-mode light --max-embed-lines=1
+  --executor-realization mock --review-mode core-axis --max-embed-lines=1
 
 echo ""
 
@@ -259,54 +259,54 @@ echo "── Input Boundary ──"
 
 run_expect_pass "E6: binary-file" \
   "$FIXTURE_DIR/binary.png" "binary test" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "E7: empty-file" \
   "$FIXTURE_DIR/empty.ts" "empty test" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "E8: korean-path" \
   "$FIXTURE_DIR/한글폴더/test.ts" "korean test" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_fail "E9: diff-no-git" \
   "$FIXTURE_DIR/no-git" "test" \
   --diff-range HEAD~1 \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_fail "E10: invalid-commit" \
   . "test" \
   --diff-range "0000000..fffffff" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "E12: non-utf8" \
   "$FIXTURE_DIR/euckr.txt" "encoding test" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "E13: symlink-loop-dir" \
   "$FIXTURE_DIR" "symlink test" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "E15: large-directory" \
   "$FIXTURE_DIR/large-dir" "large test" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "E17: deep-nested" \
   "$FIXTURE_DIR/a/b/c/d/e/f/g/h/i/j/deep.ts" "deep test" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "E18: spaces-in-path" \
   "$FIXTURE_DIR/space dir/my file.ts" "space test" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "E19: dotfile" \
   "$FIXTURE_DIR/.env" "dotfile test" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_fail "E20: diff-empty-range" \
   . "no change" \
   --diff-range "HEAD..HEAD" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 echo ""
 
@@ -318,31 +318,31 @@ echo "── Config ──"
 
 run_expect_pass "E21: no-domain-default" \
   src/core-runtime/cli/review-invoke.ts "no domain" \
-  --executor-realization mock --review-mode light
+  --executor-realization mock --review-mode core-axis
 
 run_expect_pass "E22: explicit-no-domain (legacy @- syntax)" \
   src/core-runtime/cli/review-invoke.ts "no domain" \
-  --executor-realization mock --review-mode light \
+  --executor-realization mock --review-mode core-axis \
   --requested-domain-token "@-"
 
 run_expect_pass "E22a: --no-domain canonical flag" \
   src/core-runtime/cli/review-invoke.ts "no domain" \
-  --executor-realization mock --review-mode light \
+  --executor-realization mock --review-mode core-axis \
   --no-domain
 
 run_expect_pass "E22b: --domain canonical option" \
   src/core-runtime/cli/review-invoke.ts "explicit domain" \
-  --executor-realization mock --review-mode light \
+  --executor-realization mock --review-mode core-axis \
   --domain software-engineering
 
 run_expect_fail "E22c: --domain conflicts with --no-domain" \
   src/core-runtime/cli/review-invoke.ts "conflict" \
-  --executor-realization mock --review-mode light \
+  --executor-realization mock --review-mode core-axis \
   --domain software-engineering --no-domain
 
 run_expect_fail "E23: unknown-executor-rejected" \
   src/ "test" \
-  --executor-realization banana --review-mode light
+  --executor-realization banana --review-mode core-axis
 
 echo ""
 
@@ -363,7 +363,7 @@ run_expect_pass "E24: diff+bundle-priority" \
 
 run_expect_pass "E25: light+9lenses-override" \
   src/ "override test" \
-  --executor-realization mock --review-mode light \
+  --executor-realization mock --review-mode core-axis \
   --lens-id logic --lens-id structure --lens-id dependency \
   --lens-id semantics --lens-id pragmatics --lens-id evolution \
   --lens-id coverage --lens-id conciseness --lens-id axiology
@@ -383,7 +383,7 @@ echo "── State / Recovery ──"
 
 run_expect_fail "E11: write-permission" \
   src/core-runtime/cli/review-invoke.ts "test" \
-  --executor-realization mock --review-mode light \
+  --executor-realization mock --review-mode core-axis \
   --project-root /nonexistent-readonly
 
 echo "=== E14: partial-session-complete ==="
@@ -440,10 +440,10 @@ echo "── Concurrency ──"
 
 echo "=== E29: parallel-reviews ==="
 npm run review:invoke -- src/ "parallel-A" \
-  --executor-realization mock --review-mode light > /tmp/onto-e2e-a.out 2>&1 &
+  --executor-realization mock --review-mode core-axis > /tmp/onto-e2e-a.out 2>&1 &
 PID_A=$!
 npm run review:invoke -- src/ "parallel-B" \
-  --executor-realization mock --review-mode light > /tmp/onto-e2e-b.out 2>&1 &
+  --executor-realization mock --review-mode core-axis > /tmp/onto-e2e-b.out 2>&1 &
 PID_B=$!
 wait $PID_A; EXIT_A=$?
 wait $PID_B; EXIT_B=$?
@@ -467,7 +467,7 @@ echo "── Prepare-Only ──"
 echo "=== E38: prepare-only ==="
 E38_OUT=$(npm run review:invoke -- \
   src/ "prepare only test" \
-  --executor-realization mock --review-mode light --prepare-only 2>&1)
+  --executor-realization mock --review-mode core-axis --prepare-only 2>&1)
 E38_EXIT=$?
 E38_PREPARE=$(echo "$E38_OUT" | grep '"prepare_only"' | head -1)
 E38_SESSION_ROOT=$(echo "$E38_OUT" | grep '"session_root"' | head -1 | sed 's/.*: "//;s/".*//')
@@ -527,7 +527,7 @@ fi
 # E40: onto review with mock executor via global CLI
 echo "=== E40: onto-review-mock ==="
 E40_OUT=$(onto review src/ "global cli mock test" \
-  --executor-realization mock --review-mode light \
+  --executor-realization mock --review-mode core-axis \
   --project-root "$PROJECT_ROOT" 2>&1)
 E40_EXIT=$?
 E40_STATUS=$(echo "$E40_OUT" | grep '"record_status"' | head -1 | sed 's/.*: "//;s/".*//')
@@ -543,7 +543,7 @@ fi
 # E41: onto review --prepare-only via global CLI
 echo "=== E41: onto-prepare-only ==="
 E41_OUT=$(onto review src/ "global cli prepare test" \
-  --executor-realization mock --review-mode light --prepare-only \
+  --executor-realization mock --review-mode core-axis --prepare-only \
   --project-root "$PROJECT_ROOT" 2>&1)
 E41_EXIT=$?
 E41_PREPARE=$(echo "$E41_OUT" | grep '"prepare_only"' | head -1)
@@ -576,7 +576,7 @@ echo "=== E43: trust-boundary-reject ==="
 E43_TMPDIR=$(mktemp -d)
 mkdir -p "$E43_TMPDIR/.git"  # make it look like a project
 E43_OUT=$(onto review "$E43_TMPDIR/test.txt" "trust test" \
-  --executor-realization mock --review-mode light \
+  --executor-realization mock --review-mode core-axis \
   --project-root "$E43_TMPDIR" 2>&1)
 E43_EXIT=$?
 
@@ -595,7 +595,7 @@ E44_TMPDIR=$(mktemp -d)
 mkdir -p "$E44_TMPDIR/.git"
 echo "test content" > "$E44_TMPDIR/test.txt"
 E44_OUT=$(onto review "$E44_TMPDIR/test.txt" "trust allow test" \
-  --executor-realization mock --review-mode light \
+  --executor-realization mock --review-mode core-axis \
   --project-root "$E44_TMPDIR" --allow-onto-init 2>&1)
 E44_EXIT=$?
 
@@ -620,7 +620,7 @@ echo "── Coordinator State Machine ──"
 echo "=== E45: coordinator-start ==="
 E45_OUT=$(onto coordinator start \
   src/ "coordinator test" \
-  --executor-realization mock --review-mode light \
+  --executor-realization mock --review-mode core-axis \
   --project-root "$PROJECT_ROOT" 2>&1)
 E45_EXIT=$?
 E45_STATE=$(echo "$E45_OUT" | grep '"state"' | head -1 | sed 's/.*: "//;s/".*//')
@@ -696,7 +696,7 @@ fi
 echo "=== E49: coordinator-full-cycle ==="
 E49_START_OUT=$(onto coordinator start \
   src/core-runtime/cli/review-invoke.ts "full cycle test" \
-  --executor-realization mock --review-mode light \
+  --executor-realization mock --review-mode core-axis \
   --project-root "$PROJECT_ROOT" 2>&1)
 E49_START_EXIT=$?
 E49_SESSION_ROOT=$(echo "$E49_START_OUT" | grep '"session_root"' | head -1 | sed 's/.*: "//;s/".*//')

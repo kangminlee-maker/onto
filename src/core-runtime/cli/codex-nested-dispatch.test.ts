@@ -58,7 +58,7 @@ function buildPlan(
     session_root: sessionRoot,
     execution_realization: "subagent",
     host_runtime: "codex",
-    review_mode: "light",
+    review_mode: "core-axis",
     interpretation_artifact_path: path.join(sessionRoot, "interpretation.yaml"),
     binding_output_path: path.join(sessionRoot, "binding.yaml"),
     session_metadata_path: path.join(sessionRoot, "session-metadata.yaml"),

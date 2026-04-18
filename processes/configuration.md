@@ -158,9 +158,9 @@ Background task (learning extraction, governance check, promote) 는 review lens
 
 #### `review_mode`
 - 용도: review verbosity
-- 유효값: `light` | `full`
+- 유효값: `core-axis` | `full`
 - 기본값: `full`
-- 참고: Step 1.5 Complexity Assessment 가 `light` 를 자동 제안할 수 있음
+- 참고: Step 1.5 Complexity Assessment 가 `core-axis` 를 자동 제안할 수 있음
 
 #### `max_concurrent_lenses`
 - 용도: lens 병렬 실행 상한

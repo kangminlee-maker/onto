@@ -31,7 +31,7 @@ export type ReviewExecutionRealization = "subagent" | "agent-teams" | "ts_inline
  * See authority/core-lexicon.yaml:LlmAgentSpawnRealization for semantic definitions.
  */
 export type ReviewHostRuntime = "codex" | "claude" | "litellm" | "anthropic" | "openai" | "standalone";
-export type ReviewMode = "light" | "full";
+export type ReviewMode = "core-axis" | "full";
 export type BoundaryAccessPolicy = "allowed" | "denied";
 export type BoundaryGuaranteeLevel =
   | "prompt_declared_only"

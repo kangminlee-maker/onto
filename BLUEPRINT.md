@@ -129,7 +129,7 @@ Terms used throughout this document. All definitions follow `authority/core-lexi
 | **ContextIsolatedReasoningUnit** | A reasoning unit that does not share main-context state, consumes contract-bounded input, and produces contract-bounded output independently. Typical realizations: Agent Teams teammate, subagent, MCP-isolated LLM, external model worker |
 | **execution_realization** | Structural realization used to execute review units. Values: `subagent`, `agent-teams` |
 | **host_runtime** | Concrete host environment running a chosen execution realization. Values: `codex`, `claude` |
-| **LensSelectionPlan** | Interpretation-owned plan that recommends full/light review and the lens set to execute |
+| **LensSelectionPlan** | Interpretation-owned plan that recommends full/core-axis review and the lens set to execute |
 | **DomainFinalSelection** | Final domain value after explicit token parsing and user confirmation |
 | **DeterministicStateEnforcer** | Runtime state machine that deterministically enforces review process state transitions. States and edges defined in `authority/core-lexicon.yaml` 📐 |
 | **domain document** | Documents defining verification criteria for a specific domain. Types defined in `process.md` Domain Documents table. Referenced by lenses during judgment |
@@ -339,10 +339,10 @@ user request
 
 #### Step Details
 
-**Step 1 — InvocationInterpretation** ✅: LLM interprets the user's natural-language request to determine entrypoint, target scope candidates, intent, domain recommendation, LensSelectionPlan (full/light), and any ambiguity.
+**Step 1 — InvocationInterpretation** ✅: LLM interprets the user's natural-language request to determine entrypoint, target scope candidates, intent, domain recommendation, LensSelectionPlan (full/core-axis), and any ambiguity.
 Output: `interpretation.yaml`
 
-**Step 2 — User confirmation** ✅: If needed, the user confirms domain selection (DomainFinalSelection), full/light mode, and any overrides. This is the point where the user exercises final authority between semantic recommendation and deterministic binding.
+**Step 2 — User confirmation** ✅: If needed, the user confirms domain selection (DomainFinalSelection), full/core-axis mode, and any overrides. This is the point where the user exercises final authority between semantic recommendation and deterministic binding.
 
 **Step 3 — InvocationBinding** ✅: Runtime deterministically binds the interpretation to concrete values: resolved target scope, final domain, execution realization, host runtime, review mode, lens set, session root, and all artifact paths.
 Output: `binding.yaml`
@@ -376,7 +376,7 @@ Review mode is determined during InvocationInterpretation (LensSelectionPlan) an
 | Mode | Lens set | When to use |
 |---|---|---|
 | **full** | All lenses defined in `full_review_lens_ids` (canonical set in `authority/core-lens-registry.yaml`) | Default. Comprehensive multi-perspective verification |
-| **light** | Subset defined in `light_review_lens_ids` (same registry) | Quick-pass review when time or token budget is limited. Fewer lenses, same process |
+| **core-axis** | Subset defined in `core_axis_lens_ids` (same registry) — 4 meta-level axes (logic / pragmatics / evolution / axiology) | Default for small targets when meta-level judgment is sufficient. Token cost is roughly half of full as a side effect |
 
 Both modes follow the same canonical live path. The only difference is which lenses execute in Step 5. axiology is always included regardless of mode (`always_include_lens_ids` in the registry).
 

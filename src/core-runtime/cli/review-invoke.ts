@@ -30,6 +30,11 @@ import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.j
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
 import { resolveExecutionPlan } from "../review/execution-plan-resolver.js";
+import { resolveExecutionTopology } from "../review/execution-topology-resolver.js";
+import {
+  hasStandaloneLensExecutor,
+  mapTopologyToExecutorConfig,
+} from "./topology-executor-mapping.js";
 import { assessComplexity, selectLenses } from "./complexity-assessment.js";
 
 /**
@@ -639,6 +644,52 @@ function emitCoordinatorStartHandoff(args: {
   console.log(JSON.stringify(payload, null, 2));
 }
 
+/**
+ * Attempt topology-first executor selection (PR-F, 2026-04-18).
+ *
+ * Activated only when `ontoConfig.execution_topology_priority` is set —
+ * this is the principal's explicit opt-in to the sketch v3 dispatch
+ * path. When the resolved topology has a standalone lens executor binary
+ * (codex-subprocess or litellm-http mechanism), the mapping is returned
+ * directly; the caller then applies `appendSubagentLlmArgs` /
+ * `appendExecutorModelArgs` as usual.
+ *
+ * Returns `null` — "fall through to legacy" — in four cases:
+ *   1. `execution_topology_priority` unset or empty
+ *   2. `ontoHome` unavailable (required to resolve executor paths)
+ *   3. Topology resolver returns `no_host` (no canonical option matched)
+ *   4. Topology resolved but its mechanism has no standalone binary
+ *      (claude-agent-tool → coordinator handoff is the right seat;
+ *       claude-teamcreate-member → PR-D protocol; codex-nested-subprocess
+ *       → PR-H dispatch branch; generic-* → future adapter)
+ *
+ * The intent is minimally invasive: existing users without the new
+ * config field see no behaviour change. Opt-in users get topology
+ * dispatch with a `[plan:executor]` log line so they can verify.
+ */
+export function tryTopologyDerivedExecutor(
+  ontoConfig: OntoConfig | undefined,
+  ontoHome: string | undefined,
+): ReviewUnitExecutorConfig | null {
+  if (!ontoConfig?.execution_topology_priority) return null;
+  if (ontoConfig.execution_topology_priority.length === 0) return null;
+  if (!ontoHome) return null;
+  const resolution = resolveExecutionTopology({ ontoConfig });
+  if (resolution.type !== "resolved") return null;
+  const topology = resolution.topology;
+  if (!hasStandaloneLensExecutor(topology)) return null;
+  try {
+    const base = mapTopologyToExecutorConfig(topology, ontoHome, ontoConfig);
+    process.stderr.write(
+      `[plan:executor] topology=${topology.id} bin=${base.bin} ` +
+        `args[0]=${base.args[0] ?? "(none)"}\n`,
+    );
+    return base;
+  } catch {
+    return null;
+  }
+}
+
 function resolveExecutorConfig(
   argv: string[],
   optionPrefix: "" | "synthesize-",
@@ -686,6 +737,27 @@ function resolveExecutorConfig(
       `Unsupported --${optionPrefixLabel}executor-realization: ${explicitRealization}. ` +
         `Supported values: codex, mock, ts_inline_http. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected. See authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
     );
+  }
+
+  // PR-F (2026-04-18): topology-first opt-in. When the principal has
+  // declared `execution_topology_priority` they have explicitly upgraded
+  // to sketch v3 dispatch — take their topology over the legacy
+  // `executor_realization` field that follows.
+  //
+  // Only activated when the resolved topology has a standalone binary;
+  // other cases fall through to legacy behaviour (see
+  // `tryTopologyDerivedExecutor` for the fallthrough rationale). For
+  // codex-nested-subprocess + claude-teamcreate-member the caller
+  // should branch ABOVE this function (PR-H / PR-D integrations); this
+  // resolver stays scoped to subprocess-executor dispatch.
+  const topologyDerived = tryTopologyDerivedExecutor(ontoConfig, ontoHome);
+  if (topologyDerived) {
+    // Topology's lens_spawn_mechanism="litellm-http" → inline-http
+    // executor needs subagent_llm / legacy provider args; codex-
+    // subprocess → codex executor needs model/reasoning-effort args.
+    // The existing append helpers handle both paths.
+    const withSubagent = appendSubagentLlmArgs(topologyDerived, ontoConfig);
+    return appendExecutorModelArgs(withSubagent, argv, ontoConfig);
   }
 
   const configRealization = ontoConfig?.executor_realization;

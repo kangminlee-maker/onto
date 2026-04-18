@@ -46,7 +46,7 @@ import { assessComplexity, selectLenses } from "./complexity-assessment.js";
  * - "mock":            in-process deterministic stub (mock-review-unit-executor.ts)
  * - "ts_inline_http":  TS process directly calls LLM HTTP endpoint (Phase 2 of host
  *                      runtime decoupling). Selected automatically when
- *                      OntoConfig.subagent_llm is set or host_runtime is "standalone".
+ *                      OntoConfig.subagent_llm or OntoConfig.external_http_provider is set.
  *                      See `inline-http-review-unit-executor.ts`.
  */
 type ExecutorRealization = "codex" | "mock" | "ts_inline_http";
@@ -399,10 +399,10 @@ function appendExecutorModelArgs(
  *   subagent_llm.max_tokens → --max-tokens
  *   subagent_llm.embed_domain_docs → --embed-domain-docs
  *
- * Falls back to top-level api_provider/model/llm_base_url when subagent_llm
- * fields are unset — so a user with `api_provider: litellm; model: llama-8b`
- * and `host_runtime: standalone` (no subagent_llm block) still gets a
- * working executor.
+ * Falls back to top-level `external_http_provider` / `model` / `llm_base_url`
+ * when `subagent_llm` fields are unset — so a user with
+ * `external_http_provider: litellm; litellm: { model: llama-8b }` (no
+ * subagent_llm block) still gets a working executor.
  */
 function appendSubagentLlmArgs(
   config: ReviewUnitExecutorConfig,
@@ -411,13 +411,7 @@ function appendSubagentLlmArgs(
   const args = [...config.args];
   const sub = ontoConfig?.subagent_llm;
 
-  // PR-K (2026-04-18): api_provider removed from OntoConfig type;
-  // read via cast for legacy YAML configs (PR-J catches these at load).
-  const rawOntoConfig = ontoConfig as unknown as Record<string, unknown> | undefined;
-  const legacyApiProvider = typeof rawOntoConfig?.api_provider === "string"
-    ? (rawOntoConfig.api_provider as string)
-    : undefined;
-  const provider = sub?.provider ?? legacyApiProvider;
+  const provider = sub?.provider ?? ontoConfig?.external_http_provider;
   if (typeof provider === "string" && provider.length > 0) {
     args.push("--provider", provider);
   }
@@ -456,8 +450,13 @@ function appendSubagentLlmArgs(
 // off to the Claude host via `onto coordinator start`. Three inputs matter:
 //
 //   - explicit CLI `--codex` flag                        → self (codex path)
-//   - OntoConfig.host_runtime / execution_realization    → explicit override
-//   - auto detection (CLAUDECODE=1 / codex on PATH)      → stay-in-host
+//   - env ONTO_HOST_RUNTIME override                     → explicit override
+//   - auto detection (CLAUDECODE=1 / codex on PATH /
+//       external_http_provider / subagent_llm)            → stay-in-host
+//
+// Sketch v3 canonical seat is `execution_topology_priority` (see
+// `review/execution-topology-resolver.ts`); this ladder is the fallback
+// path used when no topology is declared.
 //
 // Priority rank between hosts is NOT hardcoded here — user situation varies
 // (subscription mix, context headroom, local hardware). Default policy prefers
@@ -523,8 +522,7 @@ export function detectCodexAvailable(): boolean {
  */
 export function resolveExecutionProfile(args: {
   explicitCodex: boolean;
-  // PR-K: ontoConfig accepts raw Record too for legacy YAML configs.
-  ontoConfig: OntoConfig | Record<string, unknown>;
+  ontoConfig: OntoConfig;
 }): ExecutionProfileResolution {
   const resolution = resolveExecutionPlan({
     explicitCodex: args.explicitCodex,
@@ -535,30 +533,18 @@ export function resolveExecutionProfile(args: {
   }
   const plan = resolution.plan;
 
-  // Legacy ts_inline_http surface exposes `standalone` when the user asked for
-  // it explicitly (host_runtime: standalone) or when auto-detection landed on
-  // external-HTTP with no concrete provider name in config. The unified plan
-  // always names the concrete provider when it can; reverse the mapping for
-  // backward compatibility with the existing session-artifact schema.
+  // Legacy ts_inline_http surface exposes `standalone` when auto-detection
+  // landed on external-HTTP with no concrete provider name in config (env
+  // ONTO_HOST_RUNTIME=standalone or no external_http_provider). The unified
+  // plan always names the concrete provider when it can; reverse the mapping
+  // for backward compatibility with the session-artifact schema.
   let host_runtime: ResolvedExecutionProfile["host_runtime"] =
     plan.host_runtime === "mock" ? "standalone" : plan.host_runtime;
   if (plan.execution_realization === "ts_inline_http") {
-    // PR-K: host_runtime removed from OntoConfig type — read via cast.
-    const rawConfig = args.ontoConfig as unknown as Record<string, unknown>;
-    const configHost = typeof rawConfig.host_runtime === "string" ? rawConfig.host_runtime : undefined;
     const envHost = process.env.ONTO_HOST_RUNTIME?.trim().toLowerCase();
-    const configDeclaredStandalone =
-      configHost === "standalone" ||
-      envHost === "standalone" ||
-      (configHost === undefined && envHost === undefined);
     if (
-      configDeclaredStandalone &&
-      configHost !== "litellm" &&
-      configHost !== "anthropic" &&
-      configHost !== "openai" &&
-      envHost !== "litellm" &&
-      envHost !== "anthropic" &&
-      envHost !== "openai"
+      envHost === "standalone" ||
+      (envHost === undefined && !args.ontoConfig.external_http_provider)
     ) {
       host_runtime = "standalone";
     }
@@ -586,8 +572,7 @@ export function resolveExecutionProfile(args: {
 export function resolveExecutionRealizationHandoff(args: {
   explicitCodex: boolean;
   prepareOnly: boolean;
-  // PR-K: ontoConfig accepts raw Record too.
-  ontoConfig: OntoConfig | Record<string, unknown>;
+  ontoConfig: OntoConfig;
 }): ExecutionRealizationHandoff {
   const profile = resolveExecutionProfile({
     explicitCodex: args.explicitCodex,
@@ -608,14 +593,14 @@ function buildNoHostDetectedError(): Error {
   return new Error(
     [
       "Review execution realization을 해소할 수 없습니다.",
-      "현재 host 감지 결과: Claude Code 세션 아님(CLAUDECODE unset), codex CLI 미설치 또는 ~/.codex/auth.json 부재, subagent_llm 미설정.",
+      "현재 host 감지 결과: Claude Code 세션 아님(CLAUDECODE unset), codex CLI 미설치 또는 ~/.codex/auth.json 부재, subagent_llm / external_http_provider 미설정.",
       "",
       "다음 중 한 가지로 해결하세요:",
       "  1. Claude Code 세션에서 `onto review` 재실행 (CLAUDECODE=1 감지 시 coordinator-start 안내)",
       "  2. codex CLI 설치 + `codex login` 후 재실행",
       "  3. `--codex` 플래그로 codex path 강제 (auth·binary 있어야 성공)",
-      "  4. `.onto/config.yml` 에 host_runtime: claude 또는 codex 명시",
-      "  5. `.onto/config.yml` 에 host_runtime: standalone + subagent_llm: { provider, model } 설정 (LiteLLM/Anthropic/OpenAI 직접 호출)",
+      "  4. `.onto/config.yml` 에 execution_topology_priority: [canonical topology id] 지정 (docs/topology-migration-guide.md 참고)",
+      "  5. `.onto/config.yml` 에 external_http_provider + subagent_llm: { provider, model } 설정 (LiteLLM/Anthropic/OpenAI 직접 호출)",
       "  6. `ONTO_HOST_RUNTIME=standalone` env var + `subagent_llm` config 설정",
     ].join("\n"),
   );
@@ -830,49 +815,16 @@ function resolveExecutorConfig(
     return appendExecutorModelArgs(withSubagent, argv, ontoConfig);
   }
 
-  // PR-K: executor_realization removed from OntoConfig type — read via cast.
-  const rawOntoConfigForExecutor = ontoConfig as unknown as Record<string, unknown> | undefined;
-  const configRealization = typeof rawOntoConfigForExecutor?.executor_realization === "string"
-    ? (rawOntoConfigForExecutor.executor_realization as string)
-    : undefined;
-  if (configRealization === "codex" || configRealization === "mock" || configRealization === "ts_inline_http") {
-    return appendExecutorModelArgs(
-      buildExecutorConfigFromRealization(configRealization as ExecutorRealization, ontoHome),
-      argv,
-      ontoConfig,
-    );
-  }
-  if (typeof configRealization === "string" && configRealization.length > 0) {
-    throw new Error(
-      `Unsupported executor_realization in config: ${configRealization}. ` +
-        `Supported values: codex, mock, ts_inline_http. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected. See authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
-    );
-  }
-
-  // Phase 2 wiring: auto-select ts_inline_http executor when any of:
-  //   1. subagent_llm config is set (user explicitly wants cross-host subagent)
-  //   2. host_runtime is standalone (no host tool ecosystem → must use direct call)
-  //   3. host_runtime is a direct-call provider (litellm/anthropic/openai).
-  //      Previously this branch only accepted `standalone`, causing a visible
-  //      inconsistency with resolveExecutionProfile (which already routes
-  //      litellm/anthropic/openai to ts_inline_http). The asymmetry made
-  //      session-metadata.yaml record `ts_inline_http + litellm` while the
-  //      spawned subprocess fell back to codex — the exact symptom observed
-  //      in the 2026-04-17 local-MLX session.
-  // Precedence: this check comes AFTER explicit --executor-realization and config
-  // executor_realization, so explicit choices always win.
+  // Auto-select ts_inline_http executor when the principal has declared
+  // an external HTTP provider — either explicitly via external_http_provider,
+  // or via subagent_llm.provider for the cross-host subagent pattern.
+  // Precedence: this check comes AFTER explicit --executor-realization
+  // (CLI flag wins) and topology-first dispatch, so explicit choices always win.
   const subagentLlm = ontoConfig?.subagent_llm;
-  // PR-K: host_runtime removed from OntoConfig type — read via cast.
-  const hostRuntime = typeof rawOntoConfigForExecutor?.host_runtime === "string"
-    ? (rawOntoConfigForExecutor.host_runtime as string)
-    : undefined;
-  if (
+  const hasExternalProvider =
     (subagentLlm && typeof subagentLlm.provider === "string" && subagentLlm.provider.length > 0) ||
-    hostRuntime === "standalone" ||
-    hostRuntime === "litellm" ||
-    hostRuntime === "anthropic" ||
-    hostRuntime === "openai"
-  ) {
+    Boolean(ontoConfig?.external_http_provider);
+  if (hasExternalProvider) {
     return appendSubagentLlmArgs(
       buildExecutorConfigFromRealization("ts_inline_http", ontoHome),
       ontoConfig,
@@ -1453,19 +1405,17 @@ async function resolveReviewInvokeInputs(
   const explicitLensIds = readMultiOptionValuesFromArgv(argv, "lens-id");
 
   // Phase 3: standalone LLM-based complexity assessment (Step 1.5)
-  // When no explicit review-mode or lens-id is set AND host is standalone/direct-call,
-  // call main_llm to assess whether light review is appropriate.
-  // PR-K: host_runtime removed from OntoConfig type — read via cast.
-  const rawOntoConfigForAssessment = ontoConfig as unknown as Record<string, unknown>;
-  const hostRuntimeForAssessment =
-    (typeof rawOntoConfigForAssessment.host_runtime === "string"
-      ? (rawOntoConfigForAssessment.host_runtime as string)
-      : undefined)
-    ?? process.env.ONTO_HOST_RUNTIME;
-  const isStandaloneHost = hostRuntimeForAssessment === "standalone" ||
-    hostRuntimeForAssessment === "litellm" ||
-    hostRuntimeForAssessment === "anthropic" ||
-    hostRuntimeForAssessment === "openai";
+  // When no explicit review-mode or lens-id is set AND the principal is
+  // running against a direct-call external HTTP provider (env override or
+  // external_http_provider config), call main_llm to assess whether light
+  // review is appropriate.
+  const envHostRuntime = process.env.ONTO_HOST_RUNTIME?.trim().toLowerCase();
+  const isStandaloneHost =
+    envHostRuntime === "standalone" ||
+    envHostRuntime === "litellm" ||
+    envHostRuntime === "anthropic" ||
+    envHostRuntime === "openai" ||
+    Boolean(ontoConfig.external_http_provider);
   const noExplicitMode = !readSingleOptionValueFromArgv(argv, "review-mode");
   const noExplicitLens = explicitLensIds.length === 0;
 

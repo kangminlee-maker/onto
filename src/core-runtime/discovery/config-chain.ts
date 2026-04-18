@@ -284,6 +284,26 @@ export async function resolveConfigChain(
   const homePath = path.join(ontoHome, ".onto", "config.yml");
   const projectPath = path.join(projectRoot, ".onto", "config.yml");
 
+  // Run the legacy-field check against each raw source BEFORE atomic
+  // profile adoption. Reason: post-PR-K `validateProfileCompleteness` no
+  // longer recognizes legacy fields (host_runtime etc.), so a legacy-only
+  // config would be reported as "untouched" and the operator would receive
+  // the generic `buildBothIncompleteError` setup guide instead of the
+  // structured `LegacyFieldRemovedError` with per-field migration hints.
+  //
+  // Silent path: principals who have migrated to `execution_topology_priority`
+  // in EITHER side (home or project) can retain legacy fields as historical
+  // artifacts. We inspect a pseudo-merged priority presence for this.
+  const topologyPriorityPresent =
+    (Array.isArray(homeConfig.execution_topology_priority) &&
+      homeConfig.execution_topology_priority.length > 0) ||
+    (Array.isArray(projectConfig.execution_topology_priority) &&
+      projectConfig.execution_topology_priority.length > 0);
+  const legacyCheckTarget = topologyPriorityPresent
+    ? ({ execution_topology_priority: ["__silent__"] } as unknown as OntoConfig)
+    : ({ ...homeConfig, ...projectConfig } as OntoConfig);
+  checkAndEmitLegacyDeprecation(legacyCheckTarget);
+
   const adoption = adoptProfile({
     home: homeConfig,
     project: projectConfig,
@@ -309,13 +329,6 @@ export async function resolveConfigChain(
 
   const orthogonal = mergeOrthogonalFields(homeConfig, projectConfig);
   const merged = { ...orthogonal, ...adoption.profile } as OntoConfig;
-
-  // PR-E (2026-04-18): emit `[onto:deprecation]` warnings when the
-  // resolved config still uses legacy provider-profile fields without a
-  // companion `execution_topology_priority`. Silent when the principal
-  // has migrated. See `discovery/legacy-field-deprecation.ts` +
-  // `docs/topology-migration-guide.md`.
-  checkAndEmitLegacyDeprecation(merged);
 
   return merged;
 }

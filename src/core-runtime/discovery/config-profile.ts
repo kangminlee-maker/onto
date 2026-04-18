@@ -6,10 +6,10 @@
  * A policy module that enforces **atomic profile ownership** when merging
  * project `.onto/config.yml` over global `~/.onto/config.yml`:
  *
- *   - Provider-coupled fields (host_runtime, execution_realization,
- *     reasoning_effort, per-provider blocks, etc.) belong to ONE source only.
- *     Either the project owns the whole profile, or the global does —
- *     never a frankenstein merge.
+ *   - Provider-coupled fields (per-provider model blocks, subagent_llm,
+ *     external_http_provider, lens_agent_teams_mode, etc.) belong to ONE
+ *     source only. Either the project owns the whole profile, or the global
+ *     does — never a frankenstein merge.
  *   - Orthogonal fields (output_language, domains, review_mode, etc.) remain
  *     free to merge field-by-field because they carry no cross-provider
  *     semantics.
@@ -17,19 +17,10 @@
  * # Why it exists
  *
  * The prior `resolveConfigChain` merged scalar-by-scalar with last-wins
- * semantics. When the global declared one complete profile (e.g., codex with
- * `execution_realization=subagent, model=gpt-5.4, reasoning_effort=high`)
- * and the project declared a different provider (e.g.,
- * `host_runtime=anthropic`) without re-declaring the orphaned coupling,
- * the merge produced a silently incoherent profile:
- *
- *   - host_runtime: anthropic            (project)
- *   - execution_realization: subagent    (inherited from global's codex slot)
- *   - model: gpt-5.4                     (inherited; anthropic would reject this)
- *   - reasoning_effort: high             (codex-only field; anthropic ignores)
- *
- * Downstream dispatch then silently dropped the orphans ("invalid model" was
- * masked by per-provider lookup) — producing drift nobody could see.
+ * semantics. When the global declared one complete profile and the project
+ * declared a different provider without re-declaring the orphaned coupling,
+ * the merge produced a silently incoherent profile — downstream dispatch
+ * silently dropped the orphans, producing drift nobody could see.
  *
  * # How it relates
  *
@@ -37,32 +28,18 @@
  * adopted profile fields (one source), whether a notice should be emitted,
  * and whether the adoption failed entirely (both sides incomplete/absent).
  * `resolveConfigChain()` is the single integration seat for review callers.
+ *
+ * # Sketch v3 / PR-K note
+ *
+ * Post-PR-K (2026-04-18, sketch v3 §7.4 Phase D stage 3) the canonical seat
+ * for provider-profile selection is `execution_topology_priority` (declared
+ * as orthogonal and consumed by `execution-topology-resolver.ts`). The
+ * completeness check here accepts `topology_priority` as a complete signal
+ * — runtime validation of per-provider compatibility lives in the topology
+ * resolver and the executor spawn path, not in profile adoption.
  */
 
 import type { OntoConfig } from "./config-chain.js";
-
-// ---------------------------------------------------------------------------
-// Legacy field reader (PR-K, 2026-04-18)
-// ---------------------------------------------------------------------------
-
-/**
- * Read a legacy profile field name from a raw config object without
- * requiring it to be in the OntoConfig type. PR-K removed 5 legacy
- * fields from the type definition (stage 3 of sketch v3 §7.4 Phase D),
- * but YAML configs may still contain them pre-migration — and PR-J's
- * structured `LegacyFieldRemovedError` depends on detecting them.
- *
- * This helper performs an unchecked cast to `Record<string, unknown>` and
- * narrows to `string | undefined` since all 5 legacy fields were
- * originally typed as `string | undefined`.
- */
-function readLegacyField(
-  config: OntoConfig | Record<string, unknown>,
-  key: string,
-): string | undefined {
-  const value = (config as unknown as Record<string, unknown>)[key];
-  return typeof value === "string" ? value : undefined;
-}
 
 // ---------------------------------------------------------------------------
 // Profile vs orthogonal field partitioning
@@ -72,27 +49,7 @@ function readLegacyField(
  * Top-level OntoConfig keys whose semantics are coupled to the provider choice.
  * A single source owns the entire set per adoption cycle.
  */
-// PR-K (2026-04-18): PROFILE_FIELDS loosened from `Set<keyof OntoConfig>`
-// to `Set<string>`. Rationale: the 5 legacy fields (host_runtime /
-// execution_realization / execution_mode / executor_realization /
-// api_provider) were removed from the OntoConfig interface (stage 3 of
-// sketch v3 §7.4 Phase D) but their NAMES must still appear in
-// PROFILE_FIELDS so runtime profile-completeness detection on raw YAML
-// objects (which may still contain these fields pre-migration) continues
-// to work. Using `Set<string>` permits string literals that are no longer
-// in `keyof OntoConfig`.
-export const PROFILE_FIELDS = new Set<string>([
-  // Legacy profile fields (removed from OntoConfig type but still detected
-  // via raw object reads — see `legacy-field-deprecation.ts`). Included
-  // here so `adoptProfile` / `validateProfileCompleteness` recognize
-  // these keys when present in a raw YAML config, letting PR-J's
-  // fail-fast fire with a structured error rather than silent ignore.
-  "host_runtime",
-  "execution_realization",
-  "execution_mode",
-  "executor_realization",
-  "api_provider",
-  // Current profile fields (present in OntoConfig interface):
+export const PROFILE_FIELDS = new Set<keyof OntoConfig>([
   "external_http_provider",
   "model",
   "reasoning_effort",
@@ -142,124 +99,43 @@ export interface ProfileValidation {
 /**
  * Determine whether a config declares a complete provider profile.
  *
- * Completeness rules (per host_runtime):
- *   - claude:   complete (host session provides model context)
- *   - codex:    complete (codex CLI picks default model when absent)
- *   - anthropic: needs anthropic.model or top-level model
- *   - openai:    needs openai.model or top-level model
- *   - litellm:   needs litellm.model or top-level model AND llm_base_url
- *   - standalone: needs one of {external_http_provider, api_provider,
- *     subagent_llm.provider} + corresponding model (and base_url for litellm)
- *   - (unset) + any profile field touched: incomplete (missing host_runtime)
+ * Post-PR-K completeness rules:
+ *   1. `execution_topology_priority` set (length > 0) → complete. The
+ *      topology resolver owns per-provider validation at run time; profile
+ *      adoption only needs to know that the principal has declared a
+ *      canonical topology seat.
+ *   2. Otherwise if any profile field is touched → incomplete, with a
+ *      migration hint. Reaching this branch without `topology_priority`
+ *      typically means legacy config or a partial migration — legacy
+ *      configs throw at config load (see `legacy-field-deprecation.ts`),
+ *      so this branch catches the residual partial-migration case.
+ *   3. Untouched → not complete, not touched (empty reasons).
  */
 export function validateProfileCompleteness(
-  config: OntoConfig | Record<string, unknown>,
+  config: OntoConfig,
 ): ProfileValidation {
-  // PR-K: accept `Record<string, unknown>` so callers (tests, raw YAML
-  // parsers) can pass objects with legacy fields that no longer exist
-  // on the OntoConfig type.
-  const typedConfig = config as OntoConfig;
-  const touched = hasAnyProfileField(typedConfig);
+  const topologyPriority = config.execution_topology_priority;
+  if (Array.isArray(topologyPriority) && topologyPriority.length > 0) {
+    return { complete: true, touched: true, reasons: [] };
+  }
+
+  const touched = hasAnyProfileField(config);
   if (!touched) {
     return { complete: false, touched: false, reasons: [] };
   }
 
-  const reasons: string[] = [];
-  const host = readLegacyField(config, "host_runtime");
-
-  if (!host) {
-    reasons.push(
-      "host_runtime 이 없음 (필수: claude | codex | anthropic | openai | litellm | standalone)",
-    );
-    return { complete: false, touched, reasons };
-  }
-
-  if (host === "claude" || host === "codex") {
-    return { complete: true, touched, reasons: [] };
-  }
-
-  if (host === "anthropic") {
-    if (!typedConfig.anthropic?.model && !typedConfig.model) {
-      reasons.push(
-        "host_runtime=anthropic 인데 anthropic.model 또는 top-level model 이 없음",
-      );
-    }
-    return { complete: reasons.length === 0, touched, reasons };
-  }
-
-  if (host === "openai") {
-    if (!typedConfig.openai?.model && !typedConfig.model) {
-      reasons.push(
-        "host_runtime=openai 인데 openai.model 또는 top-level model 이 없음",
-      );
-    }
-    return { complete: reasons.length === 0, touched, reasons };
-  }
-
-  if (host === "litellm") {
-    if (!typedConfig.litellm?.model && !typedConfig.model) {
-      reasons.push(
-        "host_runtime=litellm 인데 litellm.model 또는 top-level model 이 없음",
-      );
-    }
-    if (!typedConfig.llm_base_url) {
-      reasons.push("host_runtime=litellm 인데 llm_base_url 이 없음");
-    }
-    return { complete: reasons.length === 0, touched, reasons };
-  }
-
-  if (host === "standalone") {
-    const provider =
-      typedConfig.external_http_provider ??
-      narrow(readLegacyField(typedConfig, "api_provider")) ??
-      narrow(typedConfig.subagent_llm?.provider);
-    if (!provider) {
-      reasons.push(
-        "host_runtime=standalone 인데 external_http_provider / api_provider / subagent_llm.provider 모두 없음",
-      );
-      return { complete: false, touched, reasons };
-    }
-    if (provider === "anthropic" && !typedConfig.anthropic?.model && !typedConfig.model) {
-      reasons.push(
-        "standalone+anthropic 인데 anthropic.model 또는 top-level model 이 없음",
-      );
-    }
-    if (provider === "openai" && !typedConfig.openai?.model && !typedConfig.model) {
-      reasons.push(
-        "standalone+openai 인데 openai.model 또는 top-level model 이 없음",
-      );
-    }
-    if (provider === "litellm") {
-      if (!typedConfig.litellm?.model && !typedConfig.model) {
-        reasons.push(
-          "standalone+litellm 인데 litellm.model 또는 top-level model 이 없음",
-        );
-      }
-      if (!typedConfig.llm_base_url) {
-        reasons.push("standalone+litellm 인데 llm_base_url 이 없음");
-      }
-    }
-    return { complete: reasons.length === 0, touched, reasons };
-  }
-
-  reasons.push(
-    `host_runtime=${host} 는 인식되지 않는 값 (허용: claude | codex | anthropic | openai | litellm | standalone)`,
-  );
-  return { complete: false, touched, reasons };
+  return {
+    complete: false,
+    touched,
+    reasons: [
+      "execution_topology_priority 가 없음. sketch v3 migration 필요 (docs/topology-migration-guide.md 참고).",
+    ],
+  };
 }
 
-function narrow(
-  value: string | undefined,
-): "anthropic" | "openai" | "litellm" | null {
-  if (value === "anthropic" || value === "openai" || value === "litellm") {
-    return value;
-  }
-  return null;
-}
-
-function hasAnyProfileField(config: OntoConfig | Record<string, unknown>): boolean {
+function hasAnyProfileField(config: OntoConfig): boolean {
   for (const field of PROFILE_FIELDS) {
-    const value = (config as Record<string, unknown>)[field];
+    const value = (config as Record<string, unknown>)[field as string];
     if (value === undefined || value === null) continue;
     if (typeof value === "object" && !Array.isArray(value)) {
       // Skip empty objects (e.g., `anthropic: {}` written but empty)
@@ -278,20 +154,17 @@ function hasAnyProfileField(config: OntoConfig | Record<string, unknown>): boole
  * Extract only profile-scoped fields from a config. Orthogonal fields are
  * dropped — this is the "profile slice" that adoption transfers atomically.
  */
-// PR-K: return type intersects with Record<string, unknown> so callers
-// (tests, downstream merge) can read legacy field names no longer in
-// the OntoConfig type.
 export function extractProfileFields(
-  config: OntoConfig | Record<string, unknown>,
-): Partial<OntoConfig> & Record<string, unknown> {
+  config: OntoConfig,
+): Partial<OntoConfig> {
   const out: Record<string, unknown> = {};
   for (const field of PROFILE_FIELDS) {
-    const value = (config as Record<string, unknown>)[field];
+    const value = (config as Record<string, unknown>)[field as string];
     if (value !== undefined && value !== null) {
-      out[field] = value;
+      out[field as string] = value;
     }
   }
-  return out as Partial<OntoConfig> & Record<string, unknown>;
+  return out as Partial<OntoConfig>;
 }
 
 // ---------------------------------------------------------------------------
@@ -299,10 +172,8 @@ export function extractProfileFields(
 // ---------------------------------------------------------------------------
 
 export interface ProfileAdoptionInputs {
-  // PR-K: home/project accept `Record<string, unknown>` to allow YAML
-  // configs containing legacy fields not in the OntoConfig type.
-  home: OntoConfig | Record<string, unknown>;
-  project: OntoConfig | Record<string, unknown>;
+  home: OntoConfig;
+  project: OntoConfig;
   /** Path where home config is expected (displayed in notices/errors). */
   homePath: string;
   /** Path where project config is expected (displayed in notices/errors). */
@@ -313,8 +184,7 @@ export interface ProfileAdoptionInputs {
 
 export interface ProfileAdoption {
   /** Profile fields from exactly one source (or empty when neither viable). */
-  // PR-K: intersect with Record to allow legacy field reads from tests.
-  profile: Partial<OntoConfig> & Record<string, unknown>;
+  profile: Partial<OntoConfig>;
   /** Which side owns the adopted profile. "none" when both incomplete/absent. */
   source: "project" | "global" | "none";
   /** Absolute path to the source config file (for traceability). */
@@ -433,7 +303,7 @@ function buildProjectIncompleteNotice(
   lines.push("");
   lines.push(`  Project config 수정 방법: ${args.projectPath} 편집.`);
   lines.push(
-    "  예: 완전한 profile 1개를 설정하거나, 파일에서 profile 필드 전체를 제거해 global 을 사용합니다.",
+    "  예: execution_topology_priority 를 설정하거나, 파일에서 profile 필드 전체를 제거해 global 을 사용합니다.",
   );
   lines.push("");
   return lines.join("\n") + "\n";
@@ -479,32 +349,31 @@ export function buildBothIncompleteError(
   lines.push(
     "다음 중 한 쪽에 완전한 profile 1개를 설정하세요 (project 가 우선, 없으면 global).",
   );
+  lines.push("Migration guide: docs/topology-migration-guide.md");
   lines.push("");
-  lines.push("Option A — Anthropic SDK (per-token):");
-  lines.push("  host_runtime: anthropic");
-  lines.push("  anthropic:");
-  lines.push("    model: claude-haiku-4-5-20251001");
-  lines.push("  # env: export ANTHROPIC_API_KEY=...");
-  lines.push("");
-  lines.push("Option B — Codex CLI (ChatGPT OAuth subscription):");
-  lines.push("  host_runtime: codex");
+  lines.push("Option A — Codex CLI (ChatGPT OAuth subscription):");
+  lines.push("  execution_topology_priority:");
+  lines.push("    - cc-main-codex-subprocess");
+  lines.push("    - codex-main-subprocess");
+  lines.push("    - codex-nested-subprocess");
   lines.push("  codex:");
   lines.push("    model: gpt-5.4");
   lines.push("    effort: high");
-  lines.push(
-    "  # 전제: codex 바이너리 설치 + `codex login` 으로 ~/.codex/auth.json 구성",
-  );
+  lines.push("  # 전제: codex 바이너리 설치 + `codex login`");
   lines.push("");
-  lines.push("Option C — Claude Code host (nested spawn):");
-  lines.push("  host_runtime: claude");
-  lines.push("  execution_realization: agent-teams");
-  lines.push(
-    "  # 전제: Claude Code 세션 안에서 실행 (CLAUDECODE=1 자동 감지)",
-  );
+  lines.push("Option B — Claude Code Agent tool (nested subagent):");
+  lines.push("  execution_topology_priority:");
+  lines.push("    - cc-main-agent-subagent");
+  lines.push("  # 전제: Claude Code 세션 안에서 실행");
+  lines.push("");
+  lines.push("Option C — Claude Code TeamCreate (experimental):");
+  lines.push("  execution_topology_priority:");
+  lines.push("    - cc-teams-agent-subagent");
+  lines.push("  # 전제: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1");
   lines.push("");
   lines.push("Option D — LiteLLM proxy (로컬 모델 등):");
-  lines.push("  host_runtime: standalone");
-  lines.push("  external_http_provider: litellm");
+  lines.push("  execution_topology_priority:");
+  lines.push("    - cc-teams-litellm-sessions");
   lines.push("  llm_base_url: http://localhost:4000");
   lines.push("  litellm:");
   lines.push("    model: llama-8b");
@@ -519,24 +388,22 @@ export function buildBothIncompleteError(
 
 function summarizeProfile(config: OntoConfig): string | null {
   const parts: string[] = [];
-  const host = readLegacyField(config, "host_runtime");
-  const apiProvider = readLegacyField(config, "api_provider");
-  const executionRealization = readLegacyField(config, "execution_realization");
-  if (host) parts.push(`host_runtime=${host}`);
   if (config.external_http_provider)
     parts.push(`external_http_provider=${config.external_http_provider}`);
-  if (apiProvider) parts.push(`api_provider=${apiProvider}`);
+  if (config.execution_topology_priority?.length) {
+    parts.push(
+      `topology_priority=[${config.execution_topology_priority.join(",")}]`,
+    );
+  }
   const modelForHost =
-    (host === "anthropic" && config.anthropic?.model) ||
-    (host === "openai" && config.openai?.model) ||
-    (host === "litellm" && config.litellm?.model) ||
-    (host === "codex" && config.codex?.model) ||
+    config.anthropic?.model ||
+    config.openai?.model ||
+    config.litellm?.model ||
+    config.codex?.model ||
     config.model;
   if (modelForHost) parts.push(`model=${modelForHost}`);
   if (config.reasoning_effort)
     parts.push(`reasoning_effort=${config.reasoning_effort}`);
-  if (executionRealization)
-    parts.push(`execution_realization=${executionRealization}`);
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
@@ -549,11 +416,9 @@ function summarizeProfile(config: OntoConfig): string | null {
  * semantics, same as legacy behavior. `excluded_names` uses union merge
  * (historical exception preserved).
  */
-// PR-K: accept raw Record for home/project too — callers may pass raw
-// YAML objects containing legacy fields no longer in the OntoConfig type.
 export function mergeOrthogonalFields(
-  home: OntoConfig | Record<string, unknown>,
-  project: OntoConfig | Record<string, unknown>,
+  home: OntoConfig,
+  project: OntoConfig,
 ): Partial<OntoConfig> {
   const merged: Partial<OntoConfig> = {};
   for (const [key, value] of Object.entries(home)) {

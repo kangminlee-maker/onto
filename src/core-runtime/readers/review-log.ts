@@ -265,12 +265,20 @@ function parseSession(
     provSummary[synthProv]++;
   }
 
+  // Legacy persisted-state policy (PR #127, v0.2.0):
+  // Sessions created before the rename store `review_mode: "light"` in their
+  // execution-result.yaml. Normalize to "core-axis" at read time so historical
+  // sessions remain readable in progressiveness/audit views without rewriting
+  // the original artifacts (which stay as historical record).
+  const rawReviewMode = execResult.review_mode as string;
+  const normalizedReviewMode = (rawReviewMode === "light" ? "core-axis" : rawReviewMode) as ReviewMode;
+
   return {
     session_id: execResult.session_id,
     created_at: reviewRecord?.created_at ?? execResult.execution_started_at,
     review_target_refs: targetRefs,
     request_text: reviewRecord?.request_text ?? "",
-    review_mode: execResult.review_mode,
+    review_mode: normalizedReviewMode,
     execution_realization: execResult.execution_realization,
     host_runtime: execResult.host_runtime,
     execution_status: execResult.execution_status,

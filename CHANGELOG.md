@@ -31,10 +31,32 @@
 
 옛 이름 (`light`, `light_review_lens_ids`) 은 **즉시 에러**. dual-read / alias 미제공 (옵션 A big-bang 채택 — 본 시점 외부 채택 미확인 + beta 단계).
 
+#### Legacy persisted-state policy
+
+옛 sessions (rename 이전 생성된 `.onto/review/<session>/`) 의 `execution-result.yaml` 은 `review_mode: light` 를 보존. 정책:
+
+- **Reader-only normalize**: `review-log.ts` 가 read 시 `light` → `core-axis` 로 silent normalize. progressiveness / audit 분석에서 historical sessions 가 끊기지 않음
+- **원본 artifact freeze**: `.onto/review/<session>/` 의 yaml 파일 자체는 변경하지 않음 (historical record 의미 유지)
+- **Replay 미지원**: rename 이후 옛 session 을 재실행 (예: `--resume`) 하는 경로는 rename 의 의미적 명료성을 위해 미지원. 신규 session 으로 재시작 권장
+- 새 input 으로 옛 `light` 가 들어오면 (config 또는 CLI flag) 친절한 stale-input error 메시지로 rename 안내 (`requireReviewMode` validator 3 곳)
+
+#### Stakeholder impact uncertainty
+
+본 BREAKING change 의 "외부 사용자 부재" 가정은 **bounded evidence 기반이 아닌 추론**:
+
+- onto-core 가 npm 패키지로 publish 되어 있고 `bin: onto` entry 존재
+- `package.json` 의 `onto_release_channel: "beta"` + `onto_release_label: "onto-harness"` 는 정식 배포 전 단계
+- 외부 채택 사례에 대한 **직접 검색 / 입증은 수행되지 않음**
+- 만약 외부 사용자가 있다면 CHANGELOG 의 본 BREAKING 표기 + stale-input error 메시지 + version `0.2.0` 의 minor bump (semver 0.x 의 breaking 신호) 로 1차 인지 가능
+- stakeholder 우려는 본 PR / release notes 에 직접 제기 가능 (issues, PR comment)
+
+PR #127 의 9-lens review 에서 axiology lens 가 본 가정을 "bounded record 안에서 입증되지 않음" 으로 명시 — 정직한 보존을 위해 본 절에 caveat 명시.
+
 #### Reference
 
 - Design proposal: `development-records/evolve/20260418-light-to-core-axis-rename-proposal.md` (PR #126)
 - Trigger: PR #122 SSOT 주석이 mental model 까지 도달 못 함을 진단
+- 9-lens review session: `.onto/review/20260419-32926f57/final-output.md` (Immediate Actions 4-6 + axiology-3 disagreement 반영)
 
 ### Added — Phase 2 wiring: subagent_llm config + auto executor selection (2026-04-17)
 

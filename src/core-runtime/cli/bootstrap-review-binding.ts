@@ -124,6 +124,12 @@ function requireReviewMode(value: string): ReviewMode {
   if (value === "core-axis" || value === "full") {
     return value;
   }
+  if (value === "light") {
+    throw new Error(
+      "`--review-mode light` was renamed to `--review-mode core-axis` in v0.2.0 (PR #127). " +
+        "See CHANGELOG.md for migration.",
+    );
+  }
   throw new Error(`Invalid --review-mode: ${value}`);
 }
 

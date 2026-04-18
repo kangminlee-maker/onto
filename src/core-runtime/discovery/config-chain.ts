@@ -164,6 +164,70 @@ export interface OntoConfig {
     base_url?: string;
     max_tokens?: number;
   };
+
+  /**
+   * Execution topology priority (sketch v3 / PR-A, 2026-04-18).
+   *
+   * Ordered array of canonical topology ids (e.g. "cc-main-agent-subagent",
+   * "codex-nested-subprocess"). `resolveExecutionTopology` walks this list
+   * top-to-bottom, selecting the first option whose detection signals
+   * (CLAUDECODE, codex binary, LiteLLM endpoint, etc.) are satisfied.
+   *
+   * When unset, `DEFAULT_TOPOLOGY_PRIORITY` in
+   * `src/core-runtime/review/execution-topology-resolver.ts` applies.
+   *
+   * Valid ids (sketch v3 §3):
+   *   cc-teams-lens-agent-deliberation, cc-teams-agent-subagent,
+   *   cc-teams-codex-subprocess, cc-main-agent-subagent,
+   *   cc-main-codex-subprocess, cc-teams-litellm-sessions,
+   *   codex-nested-subprocess, codex-main-subprocess,
+   *   generic-nested-subagent, generic-main-subagent
+   *
+   * Orthogonal to the provider profile: this field does not participate
+   * in atomic profile adoption (see `discovery/config-profile.ts`).
+   */
+  execution_topology_priority?: string[];
+
+  /**
+   * Double opt-in for topology `cc-teams-lens-agent-deliberation` (sketch v3 §3).
+   *
+   * Even when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is set in the
+   * Claude Code environment, the deliberation-enabled topology activates
+   * only if this field is `true` — because keeping lens agents alive for
+   * SendMessage A2A deliberation rounds materially changes memory and
+   * latency characteristics, so we require explicit per-project consent.
+   *
+   * Profile-coupled: adopts atomically with the rest of the provider
+   * profile (see `config-profile.ts` PROFILE_FIELDS).
+   */
+  lens_agent_teams_mode?: boolean;
+
+  /**
+   * Principal declaration that the host LLM supports nested subagent
+   * spawning (sketch v3 §4). When `true`, `generic-nested-subagent`
+   * becomes eligible in the topology ladder.
+   *
+   * Defaults to `false`. The generic host adapter contract is reserved
+   * (sketch v3 §8 TBD) and pending separate design.
+   *
+   * Profile-coupled: capability declarations belong to the active profile.
+   */
+  generic_nested_spawn_supported?: boolean;
+
+  /**
+   * Per-topology `max_concurrent_lenses` override. Other topology
+   * attributes (teamlead location, spawn mechanism, transport rank,
+   * deliberation channel) are immutable by design — change the topology
+   * id to change them.
+   *
+   * Example:
+   *   execution_topology_overrides:
+   *     cc-main-agent-subagent:
+   *       max_concurrent_lenses: 6
+   *
+   * Orthogonal: does not participate in atomic profile adoption.
+   */
+  execution_topology_overrides?: Record<string, { max_concurrent_lenses?: number }>;
 }
 
 async function readConfigAt(dir: string): Promise<OntoConfig> {

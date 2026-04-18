@@ -53,6 +53,7 @@ import path from "node:path";
 
 import type { OntoConfig } from "../discovery/config-chain.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
+import type { TopologyId } from "./execution-topology-resolver.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -104,6 +105,20 @@ export interface ExecutionPlan {
   retry_policy: RetryPolicy;
   /** Ordered list of decision points; emitted to STDERR and available for session artifacts. */
   plan_trace: string[];
+  /**
+   * Sketch v3 / PR-A (2026-04-18): reverse-mapped canonical topology id
+   * for this plan. Populated when the P0-P4 ladder's decision aligns with
+   * one of the 10 canonical topologies in
+   * `src/core-runtime/review/execution-topology-resolver.ts`; left
+   * undefined for legacy HTTP paths (standalone + anthropic/openai/litellm
+   * without Claude Code) that sketch v3 does not cover directly.
+   *
+   * This is observational in PR-A — downstream dispatch (PR-B/C/D/E)
+   * reads it to route to topology-specific spawn paths. Populating it
+   * here keeps the old P0-P4 ladder as the source of truth while
+   * progressively shifting to topology-driven dispatch.
+   */
+  topology_id?: TopologyId;
 }
 
 export interface RetryPolicy {

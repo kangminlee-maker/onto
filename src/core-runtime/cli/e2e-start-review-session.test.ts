@@ -1,7 +1,7 @@
 /**
  * start-review-session — focused E2E test suite.
  *
- * Run: `npx tsx src/core-runtime/cli/e2e-start-review-session.test.ts`
+ * Run: `npx vitest run src/core-runtime/cli/e2e-start-review-session.test.ts`
  *
  * Scope:
  *   Direct tests for resolveReviewSessionExtractMode — the helper that
@@ -17,8 +17,15 @@
  *   to use the fake ontoHome instead of walking up from the test's
  *   script directory (which would find the real repo and pick up the
  *   repo's live config.yml).
+ *
+ * Format history:
+ *   Converted from a tsx-run custom minimal test runner to vitest in
+ *   2026-04-18 (handoff §2 Priority 2 Phase B). See commit message for
+ *   diagnosis of the PR #96 / PR #113 regression fixed alongside this
+ *   conversion (resolveOrthogonalConfigChain).
  */
 
+import { describe, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -26,28 +33,8 @@ import path from "node:path";
 import { resolveReviewSessionExtractMode } from "./start-review-session.js";
 
 // ---------------------------------------------------------------------------
-// Minimal test runner
+// Test helpers
 // ---------------------------------------------------------------------------
-
-let passCount = 0;
-let failCount = 0;
-const failures: string[] = [];
-
-async function test(
-  name: string,
-  fn: () => void | Promise<void>,
-): Promise<void> {
-  try {
-    await fn();
-    process.stdout.write(`  PASS  ${name}\n`);
-    passCount += 1;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    process.stdout.write(`  FAIL  ${name}\n        ${message}\n`);
-    failures.push(`${name}: ${message}`);
-    failCount += 1;
-  }
-}
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -151,14 +138,11 @@ function withEnvExtractMode<T>(
 // Tests
 // ---------------------------------------------------------------------------
 
-async function main(): Promise<void> {
-  process.stdout.write("start-review-session E2E\n");
-  process.stdout.write("=========================\n");
-
+describe("start-review-session E2E", () => {
   // E-SRS-1 — env var set → env var wins even if config has a different value.
   //           Primary proof that ONTO_LEARNING_EXTRACT_MODE has highest
   //           precedence.
-  await test("E-SRS-1 env var wins over project config", async () => {
+  it("E-SRS-1 env var wins over project config", async () => {
     const ontoHome = makeFakeOntoHome("e-srs-1-home");
     const projectRoot = makeProjectRoot("e-srs-1-proj", "active");
     const argv = ["--onto-home", ontoHome];
@@ -170,7 +154,7 @@ async function main(): Promise<void> {
 
   // E-SRS-2 — env var unset, project config has learning_extract_mode: shadow
   //           → resolver picks the config value.
-  await test("E-SRS-2 project config value used when env var is unset", async () => {
+  it("E-SRS-2 project config value used when env var is unset", async () => {
     const ontoHome = makeFakeOntoHome("e-srs-2-home");
     const projectRoot = makeProjectRoot("e-srs-2-proj", "shadow");
     const argv = ["--onto-home", ontoHome];
@@ -183,7 +167,7 @@ async function main(): Promise<void> {
   // E-SRS-3 — env var set to the empty string → treated the same as unset.
   //           The check `envExtractMode.length === 0` is what makes an
   //           empty env var fall through to config.
-  await test("E-SRS-3 empty env var falls through to project config", async () => {
+  it("E-SRS-3 empty env var falls through to project config", async () => {
     const ontoHome = makeFakeOntoHome("e-srs-3-home");
     const projectRoot = makeProjectRoot("e-srs-3-proj", "active");
     const argv = ["--onto-home", ontoHome];
@@ -195,7 +179,7 @@ async function main(): Promise<void> {
 
   // E-SRS-4 — env var unset + project config has NO learning_extract_mode
   //           field → falls through to validateExtractMode's default "disabled".
-  await test("E-SRS-4 missing config field defaults to disabled", async () => {
+  it("E-SRS-4 missing config field defaults to disabled", async () => {
     const ontoHome = makeFakeOntoHome("e-srs-4-home");
     const projectRoot = makeProjectRoot("e-srs-4-proj", "<MISSING_FIELD>");
     const argv = ["--onto-home", ontoHome];
@@ -207,7 +191,7 @@ async function main(): Promise<void> {
 
   // E-SRS-5 — env var unset + project has NO .onto/config.yml file at all
   //           → readConfigAt returns {}, resolver falls through to default.
-  await test("E-SRS-5 no project config file defaults to disabled", async () => {
+  it("E-SRS-5 no project config file defaults to disabled", async () => {
     const ontoHome = makeFakeOntoHome("e-srs-5-home");
     const projectRoot = makeProjectRoot("e-srs-5-proj"); // no config.yml
     const argv = ["--onto-home", ontoHome];
@@ -220,7 +204,7 @@ async function main(): Promise<void> {
   // E-SRS-6 — project config has an INVALID learning_extract_mode value →
   //           resolver throws via validateExtractMode. Fail-fast, no silent
   //           fallback to default.
-  await test("E-SRS-6 invalid config value fails fast", async () => {
+  it("E-SRS-6 invalid config value fails fast", async () => {
     const ontoHome = makeFakeOntoHome("e-srs-6-home");
     const projectRoot = makeProjectRoot("e-srs-6-proj", "not-a-real-mode");
     const argv = ["--onto-home", ontoHome];
@@ -246,7 +230,7 @@ async function main(): Promise<void> {
   // E-SRS-7 — env var set to an INVALID value → resolver throws. Regression:
   //           this was the existing behavior before the config field was
   //           added, verify it still holds when config is ALSO present.
-  await test("E-SRS-7 invalid env var fails fast (overrides config)", async () => {
+  it("E-SRS-7 invalid env var fails fast (overrides config)", async () => {
     const ontoHome = makeFakeOntoHome("e-srs-7-home");
     const projectRoot = makeProjectRoot("e-srs-7-proj", "shadow"); // valid config
     const argv = ["--onto-home", ontoHome];
@@ -269,7 +253,7 @@ async function main(): Promise<void> {
   //           project wins (resolveConfigChain merge order). Exercises the
   //           4-tier merge so this test also pins the chain semantics for
   //           the new field.
-  await test("E-SRS-8 project config overrides home config for extract mode", async () => {
+  it("E-SRS-8 project config overrides home config for extract mode", async () => {
     const ontoHome = makeFakeOntoHome("e-srs-8-home", "shadow");
     const projectRoot = makeProjectRoot("e-srs-8-proj", "active");
     const argv = ["--onto-home", ontoHome];
@@ -282,7 +266,7 @@ async function main(): Promise<void> {
   // E-SRS-9 — home-level config has shadow + project config missing field →
   //           home value is used (merge surfaces homeConfig's value when
   //           projectConfig has no field to override with).
-  await test("E-SRS-9 home config value used when project has no field", async () => {
+  it("E-SRS-9 home config value used when project has no field", async () => {
     const ontoHome = makeFakeOntoHome("e-srs-9-home", "shadow");
     const projectRoot = makeProjectRoot("e-srs-9-proj", "<MISSING_FIELD>");
     const argv = ["--onto-home", ontoHome];
@@ -298,7 +282,7 @@ async function main(): Promise<void> {
   //            exception-boundary contract: resolveOntoHome is called OUTSIDE
   //            the swallowed try, so invalid --onto-home surfaces as a startup
   //            error. Regression lock for the 9-lens consensus finding.
-  await test("E-SRS-10 invalid --onto-home fails fast (not swallowed)", async () => {
+  it("E-SRS-10 invalid --onto-home fails fast (not swallowed)", async () => {
     // A real directory that is NOT an onto root (no package.json with
     // name "onto-core", no roles/, no authority/).
     const bogusOntoHome = makeTmpDir("e-srs-10-bogus-home");
@@ -328,7 +312,7 @@ async function main(): Promise<void> {
   //            narrowed try/catch contract: only config read/parse is
   //            best-effort. Regression lock for the review's coverage gap:
   //            previously no test directly exercised the catch branch.
-  await test("E-SRS-11 malformed project config falls through to default", async () => {
+  it("E-SRS-11 malformed project config falls through to default", async () => {
     const ontoHome = makeFakeOntoHome("e-srs-11-home");
     const projectRoot = makeTmpDir("e-srs-11-proj");
     fs.mkdirSync(path.join(projectRoot, ".onto"), { recursive: true });
@@ -350,22 +334,4 @@ async function main(): Promise<void> {
     });
   });
 
-  // ---------------------------------------------------------------------
-  // Summary
-  // ---------------------------------------------------------------------
-  process.stdout.write("\n");
-  process.stdout.write(`Results: ${passCount} passed, ${failCount} failed\n`);
-  if (failCount > 0) {
-    process.stdout.write("\nFailures:\n");
-    for (const f of failures) process.stdout.write(`  - ${f}\n`);
-    process.exit(1);
-  }
-  process.exit(0);
-}
-
-main().catch((error: unknown) => {
-  process.stderr.write(
-    `Test runner crashed: ${error instanceof Error ? error.message : String(error)}\n`,
-  );
-  process.exit(1);
 });

@@ -13,10 +13,26 @@ export interface OntoConfig {
    * API provider for background task LLM calls: anthropic | openai | litellm | codex
    * - anthropic/openai: SDK direct call, per-token billing
    * - litellm: OpenAI-compatible proxy; requires llm_base_url
-   * - codex: codex CLI OAuth subprocess (subscription); requires ~/.codex/auth.json chatgpt mode + codex binary
-   * If omitted, resolveProvider uses cost-order auto-resolution.
+   * - codex: codex CLI OAuth subscription; requires ~/.codex/auth.json chatgpt mode + codex binary
+   *
+   * Consumed by llm-caller.ts (legacy path) and execution-plan-resolver.ts
+   * as the fallback when `external_http_provider` is unset.
    */
   api_provider?: string;
+  /**
+   * External HTTP API provider selection (sketch v2 §4.1 A).
+   *
+   * When `host_runtime: standalone` (or auto-detection lands on ts_inline_http),
+   * this field picks the external-HTTP sub-path explicitly. Unlike the legacy
+   * `api_provider`, this is scoped to the HTTP-API tier only — codex subprocess
+   * is never expressed here (use host_runtime: codex instead).
+   *
+   * Accepted values: anthropic | openai | litellm
+   *
+   * Resolution priority (execution-plan-resolver.ts):
+   *   external_http_provider > api_provider > subagent_llm.provider
+   */
+  external_http_provider?: "anthropic" | "openai" | "litellm";
   /** LLM model to use (e.g. gpt-5.4, claude-sonnet-4-20250514) */
   model?: string;
   /**

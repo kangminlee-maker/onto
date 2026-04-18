@@ -474,6 +474,20 @@ export async function runInlineHttpReviewUnitExecutorCli(
     cliOverrides,
   });
 
+  // Review Recovery PR-1 (R1 observability symmetry): each executor subprocess
+  // emits `[plan:executor]` once at startup so the parent's `[plan]` lines and
+  // the subprocess's LLM-call lines are stitchable into a single stderr trace.
+  // Before PR-1, the subprocess boundary was a blind spot: the parent resolved
+  // a provider, but the subprocess could silently re-resolve differently and
+  // operators had no way to see it.
+  process.stderr.write(
+    `[plan:executor] kind=inline-http unit_id=${unitId} provider=${
+      llmPartial.provider ?? "(unresolved)"
+    } model=${llmPartial.model_id ?? "(unresolved)"} base_url=${
+      llmPartial.base_url ?? "(default)"
+    } tool_mode_request=${values["tool-mode"] ?? "auto"}\n`,
+  );
+
   // Tool-mode resolution: CLI flag > config.subagent_llm.tool_mode > "auto".
   // We read subagent_llm tool_mode lazily so this stays a thin overlay on
   // the existing config-load path.

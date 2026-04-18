@@ -165,6 +165,23 @@ export async function runCodexReviewUnitExecutorCli(
   const unitKind = requireString(values["unit-kind"], "unit-kind");
   const packetPath = path.resolve(requireString(values["packet-path"], "packet-path"));
   const outputPath = path.resolve(requireString(values["output-path"], "output-path"));
+
+  // Review Recovery PR-1 (R1 observability symmetry). The codex executor does
+  // NOT go through callLlm — it spawns `codex exec` directly — so the PR-1
+  // [model-call] logs in llm-caller.ts cover the background-task path only.
+  // This single startup emit gives parent-process log correlators a breadcrumb
+  // for the lens-execution codex subprocess too, so a 5-lens review produces
+  // one [plan:executor] line per lens regardless of provider identity.
+  process.stderr.write(
+    `[plan:executor] kind=codex unit_id=${unitId} model=${
+      typeof values.model === "string" && values.model.length > 0
+        ? values.model
+        : "(codex default)"
+    } sandbox=${values["sandbox-mode"] ?? "read-only"} effort=${
+      values["reasoning-effort"] ?? "low"
+    }\n`,
+  );
+
   const packetText = await fs.readFile(packetPath, "utf8");
   const boundedPrompt = buildBoundedPrompt(
     packetPath,

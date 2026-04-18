@@ -29,6 +29,7 @@ import { resolveOntoHome } from "../discovery/onto-home.js";
 import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.js";
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
+import { resolveExecutionPlan } from "../review/execution-plan-resolver.js";
 import { assessComplexity, selectLenses } from "./complexity-assessment.js";
 
 /**
@@ -490,82 +491,70 @@ export function detectCodexAvailable(): boolean {
 }
 
 /**
- * Resolves the (execution_realization, host_runtime) profile without deciding
- * action (handoff vs self-execute). This is the single seat that writes
- * {realization, host} into session artifacts so Claude-host runs don't get
- * recorded as `subagent + codex` anymore.
+ * Resolves the (execution_realization, host_runtime) profile.
  *
- * host_runtime ∈ {litellm, anthropic, openai} is now wired: the profile
- * resolves to ts_inline_http and `resolveExecutorConfig` picks the matching
- * subprocess. Keep both seats in sync when extending the accepted set.
+ * As of Review Recovery PR-1 (2026-04-18) this function is a thin adapter
+ * over `resolveExecutionPlan` in `src/core-runtime/review/execution-plan-resolver.ts`
+ * — the unified resolver that also governs provider identity, retry policy,
+ * and emits `[plan]` observability. The adapter preserves this legacy public
+ * API so existing call-sites (coordinator-state-machine, session artifact
+ * writers, the review-invoke-auto-resolution test suite) keep working while
+ * the ts_inline_http / standalone host_runtime mapping is normalized.
+ *
+ * Semantic normalization: when the unified plan selects an external HTTP
+ * path (separation_rank=S1), it sets host_runtime to the concrete provider
+ * (anthropic / openai / litellm). For the historical case where the user
+ * wrote `host_runtime: standalone` (or left it unset with subagent_llm
+ * configured and no external_http_provider), legacy callers expect the
+ * `standalone` token — we detect that case here and project it back.
  */
 export function resolveExecutionProfile(args: {
   explicitCodex: boolean;
   ontoConfig: OntoConfig;
 }): ExecutionProfileResolution {
-  if (args.explicitCodex) {
-    return { type: "resolved", profile: { execution_realization: "subagent", host_runtime: "codex" } };
+  const resolution = resolveExecutionPlan({
+    explicitCodex: args.explicitCodex,
+    ontoConfig: args.ontoConfig,
+  });
+  if (resolution.type === "no_host") {
+    return { type: "no_host" };
+  }
+  const plan = resolution.plan;
+
+  // Legacy ts_inline_http surface exposes `standalone` when the user asked for
+  // it explicitly (host_runtime: standalone) or when auto-detection landed on
+  // external-HTTP with no concrete provider name in config. The unified plan
+  // always names the concrete provider when it can; reverse the mapping for
+  // backward compatibility with the existing session-artifact schema.
+  let host_runtime: ResolvedExecutionProfile["host_runtime"] =
+    plan.host_runtime === "mock" ? "standalone" : plan.host_runtime;
+  if (plan.execution_realization === "ts_inline_http") {
+    const configHost = args.ontoConfig.host_runtime;
+    const envHost = process.env.ONTO_HOST_RUNTIME?.trim().toLowerCase();
+    const configDeclaredStandalone =
+      configHost === "standalone" ||
+      envHost === "standalone" ||
+      (configHost === undefined && envHost === undefined);
+    if (
+      configDeclaredStandalone &&
+      configHost !== "litellm" &&
+      configHost !== "anthropic" &&
+      configHost !== "openai" &&
+      envHost !== "litellm" &&
+      envHost !== "anthropic" &&
+      envHost !== "openai"
+    ) {
+      host_runtime = "standalone";
+    }
   }
 
-  const configHost = args.ontoConfig.host_runtime;
-  const configRealization = args.ontoConfig.execution_realization;
+  const execution_realization: ResolvedExecutionProfile["execution_realization"] =
+    plan.execution_realization === "mock" ? "ts_inline_http" : plan.execution_realization;
 
-  // Phase 2 wiring: litellm and other direct-call hosts are now valid.
-  // Route to ts_inline_http executor (same as standalone).
-  if (configHost === "litellm" || configHost === "anthropic" || configHost === "openai") {
-    return { type: "resolved", profile: { execution_realization: "ts_inline_http", host_runtime: configHost as "litellm" | "anthropic" | "openai" } };
-  }
-
-  if (configHost === "claude") {
-    const realization =
-      configRealization === "subagent" || configRealization === "agent-teams"
-        ? configRealization
-        : "agent-teams";
-    return { type: "resolved", profile: { execution_realization: realization, host_runtime: "claude" } };
-  }
-  if (configHost === "codex") {
-    return { type: "resolved", profile: { execution_realization: "subagent", host_runtime: "codex" } };
-  }
-  if (configHost === "standalone") {
-    return { type: "resolved", profile: { execution_realization: "ts_inline_http", host_runtime: "standalone" } };
-  }
-
-  // ONTO_HOST_RUNTIME env var: explicit override that wins over auto-detection.
-  // This bridges Phase 1 host-detection (discovery/host-detection.ts) with
-  // the execution profile resolution. Without this, a user inside a Claude Code
-  // session cannot force standalone mode via env var — CLAUDECODE=1 always wins.
-  const envHostRuntime = process.env.ONTO_HOST_RUNTIME?.trim().toLowerCase();
-  if (envHostRuntime === "standalone") {
-    return { type: "resolved", profile: { execution_realization: "ts_inline_http", host_runtime: "standalone" } };
-  }
-  if (envHostRuntime === "litellm" || envHostRuntime === "anthropic" || envHostRuntime === "openai") {
-    return { type: "resolved", profile: { execution_realization: "ts_inline_http", host_runtime: envHostRuntime as "litellm" | "anthropic" | "openai" } };
-  }
-  if (envHostRuntime === "claude") {
-    return { type: "resolved", profile: { execution_realization: "agent-teams", host_runtime: "claude" } };
-  }
-  if (envHostRuntime === "codex") {
-    return { type: "resolved", profile: { execution_realization: "subagent", host_runtime: "codex" } };
-  }
-
-  // Auto-resolution (stay-in-host). Within Claude host, agent_teams_claude is
-  // the default preferred; the subject session falls to subagent_claude (flat)
-  // if TeamCreate is unavailable — that decision is the subject's, not onto's.
-  if (detectClaudeCodeHost()) {
-    return { type: "resolved", profile: { execution_realization: "agent-teams", host_runtime: "claude" } };
-  }
-  if (detectCodexAvailable()) {
-    return { type: "resolved", profile: { execution_realization: "subagent", host_runtime: "codex" } };
-  }
-
-  // Phase 2 wiring: when no host signal is detected AND subagent_llm config
-  // exists, treat as standalone (TS process orchestrates with direct LLM call).
-  // Without subagent_llm, we can't meaningfully execute — fall through to no_host.
-  if (args.ontoConfig.subagent_llm?.provider) {
-    return { type: "resolved", profile: { execution_realization: "ts_inline_http", host_runtime: "standalone" } };
-  }
-
-  return { type: "no_host" };
+  return {
+    type: "resolved",
+    profile: { execution_realization, host_runtime },
+  };
 }
 
 /**

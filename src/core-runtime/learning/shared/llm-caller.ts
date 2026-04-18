@@ -133,6 +133,19 @@ export function logLiteLLMIssue(
   }
 }
 
+/**
+ * Structural subset of ExecutionPlan that callLlm reads. Accepts either the
+ * canonical `ExecutionPlan` from `review/execution-plan-resolver.ts` or a
+ * hand-built shape for unit tests — the runtime only touches these fields.
+ * Kept as an interface to avoid a cyclic import from llm-caller (background
+ * task seat) → review (lens seat).
+ */
+export interface ResolvedPlanLike {
+  provider_identity: "anthropic" | "openai" | "litellm" | "codex" | "claude-code" | "mock";
+  model_id?: string;
+  base_url?: string;
+}
+
 export interface LlmCallConfig {
   provider: "anthropic" | "openai" | "litellm" | "codex";
   model_id: string;
@@ -141,6 +154,16 @@ export interface LlmCallConfig {
   base_url?: string;
   /** codex-only: reasoning effort passed as `model_reasoning_effort`. Ignored by other providers. */
   reasoning_effort?: string;
+  /**
+   * Pre-resolved ExecutionPlan (Review Recovery PR-1, 2026-04-18).
+   *
+   * When set, callLlm skips the internal cost-order `resolveProvider` ladder
+   * and dispatches directly using the plan's `provider_identity` / `model_id` /
+   * `base_url`. This is the canonical path for code that has already passed
+   * through `resolveExecutionPlan`; the legacy ladder remains as fallback for
+   * callers that have not been migrated yet.
+   */
+  plan?: ResolvedPlanLike;
   /**
    * Per-provider model overrides. Consumed by dispatch AFTER resolveProvider
    * determines the actual provider, so these apply to both explicit and
@@ -834,6 +857,10 @@ async function callCodexCli(
 
   const combinedPrompt = `${systemPrompt}\n\n---\n\n${userPrompt}`;
 
+  emitModelCallLog(
+    `codex call: model="${modelId ?? "(codex default)"}" effort="${reasoningEffort ?? "(unset)"}" timeout_ms=${DEFAULT_TIMEOUT_MS}`,
+  );
+
   const child = spawn("codex", args, {
     stdio: ["pipe", "pipe", "pipe"],
   });
@@ -875,12 +902,18 @@ async function callCodexCli(
   });
 
   if (timedOut) {
+    emitModelCallLog(
+      `codex call FAILED: model="${modelId ?? "(codex default)"}" reason=timeout timeout_ms=${DEFAULT_TIMEOUT_MS}`,
+    );
     throw new Error(`codex CLI call timed out after ${DEFAULT_TIMEOUT_MS}ms`);
   }
   if (exitCode !== 0) {
     const combined = [stderr.trim(), stdout.trim()]
       .filter((m) => m.length > 0)
       .join("\n");
+    emitModelCallLog(
+      `codex call FAILED: model="${modelId ?? "(codex default)"}" exit_code=${exitCode} message="${combined.slice(0, 200).replace(/\n/g, " ")}"`,
+    );
     // A1: chatgpt account model allowlist rejection — augment with actionable hint.
     // codex emits errors like:
     //   "The 'gpt-4o-mini' model is not supported when using Codex with a ChatGPT account."
@@ -911,15 +944,94 @@ async function callCodexCli(
   // codex exec does not return usage metadata in stdout; estimate by char count.
   // LlmCallResult carries these as approximate; audit may flag via declared_billing_mode=subscription.
   const estimateTokens = (s: string) => Math.max(1, Math.ceil(s.length / 4));
+  const in_tokens = estimateTokens(combinedPrompt);
+  const out_tokens = estimateTokens(text);
+
+  emitModelCallLog(
+    `codex success: model_id=${modelId ?? "codex-default"} input_tokens~=${in_tokens} output_tokens~=${out_tokens}`,
+  );
 
   return {
     text,
-    input_tokens: estimateTokens(combinedPrompt),
-    output_tokens: estimateTokens(text),
+    input_tokens: in_tokens,
+    output_tokens: out_tokens,
     model_id: modelId ?? "codex-default",
     effective_base_url: "codex-cli://oauth",
     declared_billing_mode: "subscription",
   };
+}
+
+// ---------------------------------------------------------------------------
+// Plan-aware dispatch (Review Recovery PR-1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Dispatch an LLM call using a pre-resolved ExecutionPlan shape. The plan
+ * carries `provider_identity`, `model_id`, and `base_url`; credentials are
+ * still read from env (ANTHROPIC_API_KEY / OPENAI_API_KEY / LITELLM_API_KEY)
+ * since secrets never enter the plan by design.
+ *
+ * Why credentials stay in env:
+ *   The plan is written to session artifacts (`execution-plan.yaml`) for
+ *   reproducibility and audit. Including API keys would leak them; env-sourced
+ *   credentials keep the plan portable while the runtime still has enough to
+ *   authenticate.
+ */
+async function dispatchByPlan(
+  systemPrompt: string,
+  userPrompt: string,
+  config: Partial<LlmCallConfig> & { plan: ResolvedPlanLike },
+): Promise<LlmCallResult> {
+  const { plan } = config;
+  const maxTokens = config.max_tokens ?? 1024;
+
+  if (plan.provider_identity === "mock") {
+    return callMockProvider(systemPrompt, userPrompt);
+  }
+  if (plan.provider_identity === "claude-code") {
+    throw new Error(
+      "callLlm: ExecutionPlan.provider_identity=claude-code is orchestrator-only; background LLM calls cannot dispatch through the host nested spawn path.",
+    );
+  }
+  if (plan.provider_identity === "codex") {
+    const modelId = config.model_id ?? plan.model_id ?? config.models_per_provider?.codex;
+    return callCodexCli(systemPrompt, userPrompt, modelId, config.reasoning_effort);
+  }
+  if (plan.provider_identity === "litellm") {
+    const baseUrl = plan.base_url ?? config.base_url ?? process.env.LITELLM_BASE_URL;
+    if (!baseUrl) {
+      throw new Error(
+        "ExecutionPlan.provider_identity=litellm requires base_url (plan.base_url, config.base_url, or LITELLM_BASE_URL env)",
+      );
+    }
+    const modelId = config.model_id ?? plan.model_id ?? config.models_per_provider?.litellm;
+    if (!modelId) throw missingModelError("litellm");
+    const apiKey = process.env.LITELLM_API_KEY ?? "sk-litellm-placeholder";
+    return callOpenAI(systemPrompt, userPrompt, apiKey, modelId, maxTokens, baseUrl, "litellm");
+  }
+  if (plan.provider_identity === "anthropic") {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error(explicitProviderMissingCredentialError("anthropic"));
+    }
+    const modelId = config.model_id ?? plan.model_id ?? config.models_per_provider?.anthropic;
+    if (!modelId) throw missingModelError("anthropic");
+    return callAnthropic(systemPrompt, userPrompt, apiKey, modelId, maxTokens);
+  }
+  if (plan.provider_identity === "openai") {
+    const envKey = process.env.OPENAI_API_KEY;
+    const codexAuth = readCodexAuthState();
+    const apiKey = envKey ?? codexAuth.openaiApiKey ?? null;
+    if (!apiKey) {
+      throw new Error(explicitProviderMissingCredentialError("openai"));
+    }
+    const modelId = config.model_id ?? plan.model_id ?? config.models_per_provider?.openai;
+    if (!modelId) throw missingModelError("openai");
+    return callOpenAI(systemPrompt, userPrompt, apiKey, modelId, maxTokens);
+  }
+  throw new Error(
+    `dispatchByPlan: unexpected provider_identity=${String((plan as { provider_identity: unknown }).provider_identity)}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -938,6 +1050,18 @@ export async function callLlm(
   // Test-only mock provider — gated by ONTO_LLM_MOCK=1.
   if (process.env.ONTO_LLM_MOCK === "1") {
     return callMockProvider(systemPrompt, userPrompt);
+  }
+
+  // PR-1 plan-aware dispatch: when an ExecutionPlan is supplied, skip the
+  // internal cost-order ladder entirely and dispatch using the plan's fields.
+  // This is the canonical path after Review Recovery PR-1 (2026-04-18) — the
+  // cost-order ladder below remains as backward-compatible fallback only.
+  if (config?.plan) {
+    return dispatchByPlan(
+      systemPrompt,
+      userPrompt,
+      config as Partial<LlmCallConfig> & { plan: ResolvedPlanLike },
+    );
   }
 
   // Caller-explicit codex (priority 1) → subprocess spawn, no credential resolution.

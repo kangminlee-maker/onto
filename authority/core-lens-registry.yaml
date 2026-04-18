@@ -63,7 +63,10 @@ full_review_lens_ids:
   - conciseness
   - axiology
 
-# `core_axis_lens_ids` — 4 lens. review_mode 가 `core-axis` 일 때 실행 (default).
+# `core_axis_lens_ids` — 4 lens. review_mode 가 `core-axis` 일 때 실행.
+# Default 결정은 invocation path 별 다름 (registry 단독으로 결정 X):
+#   - explicit `--review-mode` / config `review_mode` 없으면 → `full` (review-invoke.ts:1171 fallback)
+#   - host-facing positional invoke (예: /onto:review) → `core-axis` (Step 1.5 dynamic 또는 fixed 4-lens, host_runtime 분기)
 #
 # 선정 근거 (design intent):
 #   onto 의 "meta-level 판단 축" 4 개 — 대상의 의도 / 목적 / 판단에 관한

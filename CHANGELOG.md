@@ -17,7 +17,7 @@
 
 #### Migration
 
-`.onto/config.yaml` 또는 CLI invoke 에 다음과 같이 변경:
+`.onto/config.yml` 또는 CLI invoke 에 다음과 같이 변경:
 
 ```diff
 - review_mode: light

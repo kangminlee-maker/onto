@@ -157,10 +157,10 @@ Background task (learning extraction, governance check, promote) 는 review lens
 ### 4.5 Review-specific
 
 #### `review_mode`
-- 용도: review verbosity
+- 용도: review lens set 선택 — `core-axis` 는 meta-level 고정 4 lens (logic / pragmatics / evolution / axiology), `full` 은 전수 9 lens. 비용은 부수 효과
 - 유효값: `core-axis` | `full`
-- 기본값: `full`
-- 참고: Step 1.5 Complexity Assessment 가 `core-axis` 를 자동 제안할 수 있음
+- 기본값: `full` (explicit/config 모두 없을 때 fallback). host-facing positional invoke (예: `/onto:review`) 는 별도 path 로 `core-axis` 진입
+- 참고: `host_runtime: standalone | litellm | anthropic | openai` + no-explicit-mode 시 Step 1.5 Complexity Assessment 가 `core-axis` 를 자동 제안할 수 있음 (LLM 으로 dynamic lens 선택, axiology 항상 포함)
 
 #### `max_concurrent_lenses`
 - 용도: lens 병렬 실행 상한

@@ -73,7 +73,7 @@ full_review_lens_ids:
   - axiology
 
 # `core_axis_lens_ids` — review_mode 가 `core-axis` 일 때 실행되는 고정
-# lens set. v0.2.1 (schema_version=2) 부터 empirical Pareto-optimal
+# lens set. v0.2.1 (schema_version=2) 부터 cost-constrained Pareto-optimal
 # (coverage × depth × items-lost × cost 4-axis) 6 lens.
 #
 # Default 결정은 invocation path 별 다름 (registry 단독 결정 X):
@@ -91,12 +91,18 @@ full_review_lens_ids:
 #       development-records/evolve/20260419-core-axis-empirical-recomposition.md
 #   - Benchmark (수치 SSOT):
 #       development-records/benchmark/20260419-lens-contribution-analysis.md
-#   - Rename 이력 (v0.2.0):
-#       development-records/evolve/20260418-light-to-core-axis-rename-proposal.md
 #
 # 이력 (세대 변경 시 본 section 1 줄 추가, schema_version 함께 bump):
-#   - 세대 1 (v0.2.0): 4 lens (logic / pragmatics / evolution / axiology) — meta-level axis 잠정
+#   - 세대 1 (v0.2.0, PR #127 light→core-axis rename): 4 lens (logic / pragmatics / evolution / axiology) — meta-level axis 잠정
 #   - 세대 2 (v0.2.1): 6 lens empirical recomposition — 본 seat
+#
+# Recomposition procedure (세대 N → N+1 시 본 6 step 을 단일 PR 에 묶어 실행):
+#   1. `core_axis_lens_ids` array 갱신
+#   2. `schema_version: N+1` bump
+#   3. 본 "이력" 블록에 "세대 N+1" 한 줄 추가
+#   4. lens-registry.test.ts 의 content assertion (정확 집합) + raw-text schema_version guard 갱신
+#   5. 신규 proposal 파일 생성 `development-records/evolve/YYYYMMDD-<topic>.md` (rationale + alternative + empirical 근거)
+#   6. 본 yaml "참조" 블록의 proposal pointer 를 신규 파일로 교체 (또는 append)
 core_axis_lens_ids:
   - axiology
   - coverage
@@ -122,6 +128,7 @@ core_role_ids:
 # `always_include_lens_ids` — 어떤 lens set 에도 반드시 포함되는 lens.
 # 현재는 axiology 뿐 (가치 정합성은 모든 review 의 최상위 판단 축이므로).
 # core_axis_lens_ids 에 axiology 가 들어있는 것은 결과적 일치 — always_include
-# 규칙과 core-axis mode 의 meta-axis 선정이 각각 독립 이유로 axiology 를 채택.
+# 규칙과 core-axis mode 의 empirical 선정 (v0.2.1 cost-constrained Pareto)
+# 이 각각 독립 이유로 axiology 를 채택.
 always_include_lens_ids:
   - axiology

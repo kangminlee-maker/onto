@@ -376,7 +376,7 @@ Review mode is determined during InvocationInterpretation (LensSelectionPlan) an
 | Mode | Lens set | When to use |
 |---|---|---|
 | **full** | All lenses defined in `full_review_lens_ids` (canonical set in `authority/core-lens-registry.yaml`) | Default. Comprehensive multi-perspective verification |
-| **core-axis** | Subset defined in `core_axis_lens_ids` (same registry) — 6 cost-constrained Pareto-optimal lenses (axiology / coverage / evolution / logic / semantics / structure) | Default for small targets. Empirically selected via 479-session set-cover + consensus depth benchmark under coverage × depth × items-lost × cost trade-off. Token cost is ~67% of full. (수치 근거: `development-records/benchmark/20260419-lens-contribution-analysis.md` §6.6-6.7) |
+| **core-axis** | Subset defined in `core_axis_lens_ids` (same registry) — 6 cost-constrained Pareto-optimal lenses (axiology / coverage / evolution / logic / semantics / structure) | Default for small targets. Empirically selected via v5 benchmark (243 valid full-session pool + 24 consensus depth items) under coverage × depth × items-lost × cost trade-off. Token cost is ~67% of full. (수치 근거: `development-records/benchmark/20260419-lens-contribution-analysis.md` §6.6-6.7) |
 
 Both modes follow the same canonical live path. The only difference is which lenses execute in Step 5. axiology is always included regardless of mode (`always_include_lens_ids` in the registry).
 

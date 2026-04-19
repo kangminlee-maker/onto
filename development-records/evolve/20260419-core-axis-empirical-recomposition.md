@@ -28,7 +28,7 @@ source_refs:
   rename_proposal: "development-records/evolve/20260418-light-to-core-axis-rename-proposal.md (PR #126/#127/#128)"
   mitigation_proposal: "development-records/evolve/20260419-core-axis-silent-failure-mitigation.md (PR #129 signal proposal — superseded by empirical findings)"
   user_redefinition: "2026-04-19 세션 — core-axis 목적 재정의 (경제성 + full 근사 coverage)"
-  ssot: "authority/core-lens-registry.yaml:66-94"
+  ssot: "authority/core-lens-registry.yaml (section `core_axis_lens_ids`)"
 ---
 
 # Core-Axis Empirical Recomposition — Design Proposal (2026-04-19)
@@ -167,7 +167,17 @@ Option P' 은 k=6 best subset {conciseness, coverage, evolution, logic, semantic
 4. **사용자 원칙 부합**: "mece 하지 않음이 품질 보증" 과 일치. Broad (logic/evolution/axiology) + niche (coverage/semantics/structure) 혼합 — overlap 유지
 5. **Policy compatible**: Axiology always_include 유지
 
-### 4.3 비용 변화
+### 4.3 제외 lens 근거
+
+3 lens (pragmatics / dependency / conciseness) 는 6-set 에 미포함:
+
+- **pragmatics**: k=5~9 에서 marginal contribution 이 semantics/coverage 대비 낮음. 동일 session 에서 semantics 또는 coverage 가 pragmatics 의 finding 을 sub-set 으로 cover 하는 경향. CLI `--lens-id pragmatics` 는 유지 — 필요 시 explicit invocation.
+- **dependency**: core-axis target (작은 scope) 에서 dependency cycle 출현 빈도 낮음. structure lens 가 깨진 경로 / 고립 요소 감지의 broad 역할 담당. Full 9-lens 에서만 의미 있는 contribution.
+- **conciseness**: set-cover 에서 unique contribution 최소 (k=6 best subset 에 포함됐으나 axiology always_include 로 교체). Duplication 감지는 review 품질 보증보다 housekeeping 성격.
+
+제외 lens 재포함은 k=7~9 로 confirm — 이 경우 Pareto-dominated.
+
+### 4.4 비용 변화
 
 - Lens count: 4 → 6 (**+50% LLM call**)
 - Full 9 lens 대비: 67% 비용
@@ -181,7 +191,7 @@ Option P' 은 k=6 best subset {conciseness, coverage, evolution, logic, semantic
 
 Cov/Cost 는 current 가 높지만 **depth retention** (51.5% vs 67.6%) 을 감안하면 Option P' 의 quality 이득이 1.5x cost 를 정당화.
 
-### 4.4 대안 Option P (5 lens) 과의 비교
+### 4.5 대안 Option P (5 lens) 과의 비교
 
 | 지표 | P (5 lens) | P' (6 lens) |
 |---|---|---|
@@ -278,34 +288,14 @@ V5 round1 validation 에서 synthesize quality 는 accurate 로 확인됐지만 
 
 ## 9. 후속 research 제안
 
-각 항목은 `{owner, trigger}` 쌍을 갖는다. Owner 미정은 주체자 승인 대기. Trigger 는 실행 조건.
+모든 항목은 별도 PR 로 진행 (주체자 승인 선행). 각 항목의 trigger 만 명시.
 
-### 9.1 Direct comparison 실험
-- 같은 target 에 Option P' vs full 9 lens 실행 후 finding 일치도 측정
-- "Option P' 이 full 의 86-90% finding 을 포착하는가" empirical 확인
-- 비용: full 실행 × N + Option P' × N, claude-sonnet 기준 $2-5
-- **Owner**: 주체자 (실험 승인) + 주 세션 (실행)
-- **Trigger**: PR #131 (본 구현) merge 후 새 session data ≥ 10 축적 시
-
-### 9.2 Synthesize contract 개정
-- 모든 review 에서 "Accounted findings" pattern 필수화
-- 이후 수집된 data 는 depth measurement 가능
-- Option P'/P/Q 중 re-analysis 대상 확장
-- **Owner**: 별도 설계 PR (주체자 승인 선행)
-- **Trigger**: (9.1) 결과가 Option P' validate 시 — 즉 empirical foundation 이 안정화된 후
-
-### 9.3 Lens role refinement
-- 본 분석으로 "structure / coverage / semantics 의 non-substitutability" 확인
-- 이 insight 를 authority/core-lens-registry.yaml 의 purpose 주석에 empirical note 추가
-- 미래 lens 추가 시 "complementary domain 확인" 를 policy 화
-- **Owner**: 별도 PR (SSOT comment 갱신)
-- **Trigger**: (9.1) + (9.2) 완료 후 — lens role 의 empirical role 특성이 확정된 이후
-
-### 9.4 Schema version loader 확장
-- `core-lens-registry.yaml` 의 `schema_version` 필드 (v0.2.1 도입) 를 `lens-registry.ts` loader 에서 읽도록 확장
-- Consumer (review-invoke.ts 등) 가 특정 세대 assume 시 runtime 검증
-- **Owner**: 별도 PR (runtime 변경)
-- **Trigger**: 3rd recomposition (schema_version=3) 필요 시 — 현재는 consumer 가 내용만 검증하므로 선제 구현 가치 낮음
+| # | 항목 | Trigger | 1-line |
+|---|---|---|---|
+| 9.1 | Direct comparison 실험 | PR #131 merge + 새 session ≥ 10 | Option P' vs full 실행 후 finding 일치도 측정 ($2-5) |
+| 9.2 | Synthesize contract 개정 | §9.1 결과 | "Accounted findings" pattern 필수화 → depth measurement 가능 |
+| 9.3 | Lens role refinement | §9.1 + §9.2 | structure/coverage/semantics non-substitutability 를 SSOT purpose 주석에 정착 |
+| 9.4 | Schema version loader 확장 | 3rd recomposition 필요 시 | schema_version runtime 소비 (현재는 raw-text test guard 로 충분) |
 
 ## 10. 참조
 

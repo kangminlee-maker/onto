@@ -4,7 +4,7 @@
 
 ### Changed — `core-axis` lens set recomposed from 4 → 6 (v0.2.1, 2026-04-19)
 
-**Empirical recomposition**: 기존 `core-axis` 구성 (meta-level 4 axis: logic / pragmatics / evolution / axiology) 을 **479 full session set-cover + 24 consensus depth item** empirical analysis 기반으로 cost-constrained Pareto-optimal 6 lens 조합으로 재구성. Cost 를 4번째 축으로 포함해야 하는 이유 — coverage/depth 만 비교하면 k=9 (full) 이 항상 dominate; trade-off 의 의미 있는 분석은 비용을 포함해야 성립.
+**Empirical recomposition**: 기존 `core-axis` 구성 (meta-level 4 axis: logic / pragmatics / evolution / axiology) 을 **v5 benchmark (243 valid full-session pool + 24 consensus depth items)** empirical analysis 기반으로 cost-constrained Pareto-optimal 6 lens 조합으로 재구성. Pool filter 과정 (1743 원본 → 497 halted/incomplete 제외 → 243 valid) 은 benchmark §6.7.3 참조. Cost 를 4번째 축으로 포함해야 하는 이유 — coverage/depth 만 비교하면 k=9 (full) 이 항상 dominate; trade-off 의 의미 있는 분석은 비용을 포함해야 성립.
 
 #### Changed
 
@@ -21,7 +21,7 @@
 | Depth retention [*] (consensus cross-lens redundancy) | 51.5% | 67.6% | **+16.1%p** |
 | Items lost entirely | 5/24 | 2/24 | **-3 items** |
 
-[*] Depth retention 수치는 24 items / 5 session 의 작은 sample 기반 — 하단 "Depth sample 한계" 주의 사항 참조.
+[*] 아래 Consumer migration 의 "Depth sample 한계" 참조.
 
 #### Cost impact
 

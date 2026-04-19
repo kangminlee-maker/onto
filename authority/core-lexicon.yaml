@@ -692,7 +692,7 @@ entities:
         note: "canonicalize 전이 (framework §6.3). Tier 1 learning · Tier 2 ontology/medium_reference/domain_document 중 하나를 source 로 받아 snapshot copy. R2-IA-4 — target 을 4 종 전체로 확장."
     execution_rules_ref:
       authoring_path: "본문 배치는 design-principles/*.md (rank 2-4) 와 processes/*.md (rank 5). 본문 수정은 Principal 승인 또는 W-ID 기반 authoring. Tier 3 canonicalize 경로 (framework §6.3)."
-      lifecycle_transition: "principle 본문 자체는 lifecycle_status 속성을 가지지 않음 — 등재되면 active. deprecated/retired 는 CLAUDE.md 위계 재편 시 별도 W-ID."
+      lifecycle_transition: "principle entity 는 shared_attributes.lifecycle_status 를 보유 (seed→candidate→provisional→promoted→deprecated→retired). 기존에 등재된 instance (본 commit 시점의 design-principles/*, processes/*) 는 v0.15.0 기준 promoted 로 간주. deprecated/retired 전이의 canonical owner 는 M-08 refresh protocol (development-records/plan/20260413-refresh-protocol.md)."
       consumption_rule: "모든 onto 활동이 실행 전 관련 principle 을 ref. 위반 시 활동이 거부되거나 Principal 승인 요구."
       govern_zone: "framework v1.0 §11.1 zone matrix — 모든 T3 cell 은 govern 강제 zone."
     notes:
@@ -1461,14 +1461,17 @@ terms:
     canonical_label: "learning scope promotion"
     korean_label: "학습 스코프 승격"
     axis: "lifecycle_nomenclature"
-    term_status: "active"
-    definition: "project-level learning (`{project}/.onto/learnings/{agent}.md`) 이 panel 3-agent 검증 PASS + Principal 승인을 거쳐 user-level scope (`~/.onto/learnings/{agent}.md`) 로 이동하는 lifecycle 전이. 이동 후 글로벌 소비 가능."
+    term_status: "deprecated"
+    deprecated_in: "v0.15.0 (2026-04-20) — framework v1.0 sync"
+    definition: "(deprecated v0.15.0) 기존 정의: project-level learning (`{project}/.onto/learnings/{agent}.md`) 이 panel 검증 + Principal 승인 후 user-level scope (`~/.onto/learnings/{agent}.md`) 로 이동하는 lifecycle 전이. framework v1.0 의 새 scope vocabulary (product/medium/domain/methodology) 에서 `project` · `user` 가 legacy identifier 로 retire 됐으므로 본 term 의 경로 의미도 deprecated."
     allowed_values: []
+    replacement:
+      transition_kind: "promote_and_generalize"
+      note: "framework v1.0 §6.4 — product Experience → 다른 scope (medium/domain) 의 Learning 으로 이동. legacy project→user 의 1-step 저장 경계 이동이 아니라 적용 범위 축 자체가 변하는 전이. canonical vocabulary 는 shared_attributes.transition_kind.values."
     notes:
-      - "W-D-05 (2026-04-16) 신설 — 'promoted' 용어 3분리 중 2/3 (Semantic drift 해소)."
-      - "Source of truth: processes/learn/promote.md."
-      - "Consumer: src/core-runtime/loader.ts (promoted learning 만 user scope 로드), loader consumption filter."
-      - "본 term 은 learning artifact 의 저장 경계 (project → user) 이동만 지칭. learning 내용 자체의 변환이나 principle 승격과는 구별됨."
+      - "W-D-05 (2026-04-16) 신설 — 'promoted' 용어 3분리 중 2/3."
+      - "v0.15.0 (2026-04-20) deprecated — framework v1.0 의 4-scope model (product/medium/domain/methodology) 은 project→user 1-step path 와 semantics 가 다름. runtime 소비자 (src/core-runtime/learning/loader.ts, src/core-runtime/learning/shared/paths.ts) 의 scope migration 은 framework §12.6 에 따라 별도 PR 에서 집행. 해당 migration 이 완료되면 본 term 은 retire 로 전이."
+      - "소비 정책: deprecated term 은 authority file 내 참조만 허용. 신규 문서·코드는 transition_kind=promote_and_generalize 를 사용하고 primary_scope/secondary_scopes 로 scope 축을 표현."
 
   - term_id: "learning_to_principle_promotion"
     canonical_label: "learning-to-principle promotion"

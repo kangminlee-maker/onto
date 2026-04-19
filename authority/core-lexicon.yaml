@@ -1,10 +1,11 @@
-lexicon_version: "0.15.0"
+lexicon_version: "0.16.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
   - "This lexicon is the concept SSOT for the productization track."
   - "This file owns the concept INVENTORY. Naming RULES are owned by ontology-as-code-naming-charter.md."
   - "Structure: authoring_rules → shared_attributes → entities → terms."
+  - "v0.16.0 additive (re-review 20260420-b74e947f fixes, 2026-04-20): (1) learning_scope_promotion.replacement refine (promote_and_generalize → generalize — standalone scope axis move, logic F1 반영). (2) review_process.creates 재조정 — learning → experience (Tier 1 lifecycle graph-satisfiability, logic F2·dependency F3 반영). (3) relation_type_vocabulary 확장 — 11 신규 relation type 등재 (implemented_with, belongs_to, described_by, realizes, contains, promoted_to, promoted_from, generalized_to, canonicalized_to, canonicalized_from, describes). 인용되던 type 이 vocabulary 에 없던 gap 해소 (structure F2·dependency F1). (4) legacy_alias_governance.scope_migration[legacy=user] 를 label_rename + instance_routing 으로 분기 분리 (semantics F1·evolution F1·coverage F-C2). canonical-advancing."
   - "v0.15.0 additive (framework v1.0 sync, 2026-04-20): 7 신규 entity (product, experience, medium, medium_reference, domain, methodology, ontology) + 3 entity refine (learning, domain_document, principle) + shared_attributes.scope 4값 재정의 + transition_kind/normative_tier 신설. framework v1.0 (`development-records/evolve/20260419-knowledge-framework.md`) §8 의 전수 반영. scope legacy values (user, project) 는 legacy_alias_governance 에서 migration 기록. canonical-advancing."
   - "v0.6.0 additive (M-04 Phase A, 2026-04-13): activity_enum + axis_enum terms added. §1 정본 §1.2 (5 활동) + §1.5 (4 축) canonical seat. DR-M04-01 (DL-013 resolved) owning."
   - "v0.6.1 additive (M-04 Phase A v1.1, 2026-04-13): 9-lens review `20260413-a9e93dd7` CONDITIONAL 해소. activity_enum.legacy_aliases 구조 확장 (retire_kind + canonical_replacement), E/D/R/L/G 단축 코드 alias, axis_enum.legacy_aliases slot 신설, entrypoint.instances.build/ask notes cross-ref (C-06/D-01/S-3)."
@@ -36,9 +37,22 @@ legacy_alias_governance:
     rule: "shared_attributes.scope.values 가 재정의됨. legacy identifier 는 semantic 이 다른 canonical value 로 mapping."
     migrations:
       - legacy: "user"
-        canonical: "methodology"
-        reason: "framework v1.0 §2.4 — 'user scope' 의 기존 의미 (~/.onto/ 저장 경로) 는 framework 의 적용 범위 축과 orthogonal. cross-everything 지식의 귀속 frame 은 'methodology' 로 명명 rename."
-        semantics_change: "저장 경계 레이블 → 적용 범위 frame. 기존 instance 중 '모든 onto 활동에 적용' 이면 methodology 로 migrate, 특정 product 에 한정이면 product/medium/domain 중 재분류 필요."
+        path_type: "split"
+        label_rename:
+          from_canonical: "user"
+          to_canonical: "methodology"
+          reason: "framework v1.0 §2.4 — 'user scope' 의 저장 경로 label (~/.onto/) 은 framework 의 적용 범위 축과 orthogonal. cross-everything 지식의 귀속 frame label 로 rename. label 층에서는 1:1 mapping 성립."
+        instance_routing:
+          reason: "legacy user-scope 항목 각각의 적용 범위는 내용 기준 결정. label rename 만으로 canonical scope 가 unique 하게 도출되지 않는다 (re-review 20260420-b74e947f semantics F1·evolution F1·coverage F-C2 반영)."
+          decision_rule:
+            default_target: "methodology"
+            default_condition: "내용이 product/medium/domain 중 어느 것에도 고정되지 않은 cross-everything 지식인 경우 (예: review 9-lens taxonomy, axis_enum)."
+            narrower_scope_triggers:
+              product: "특정 product context ({product}/.onto/ 하위에서만 의미) 에서만 참조되면 product 로 재분류."
+              medium: "특정 medium (excel, claude-code-skill 등) pattern/pitfall 에만 적용되면 medium 으로 재분류."
+              domain: "특정 domain (software-engineering, ui-design 등) 검증 기준에만 적용되면 domain 으로 재분류."
+          holding_state: "routing 결정 보류 시 primary_scope=methodology + secondary_scopes=[] 로 holding. 6개월 (framework §10.3 deferred) 내 재평가. deterministic migration artifact (source path / legacy scope / resolved primary_scope / rationale / migrated_at) 는 다음 PR 에서 도입 (re-review recommendation 3)."
+        semantics_change: "저장 경계 label → 적용 범위 frame. label layer 는 1:1 rename 이지만 instance layer 는 분기 routing (branch rule)."
       - legacy: "project"
         canonical: "product"
         reason: "framework v1.0 §2.1 — Principal 의 작동 실체 단위를 'product' 로 통합 (productization-charter 정합)."
@@ -85,7 +99,20 @@ authoring_rules:
     references: "source가 target을 검증 기준 또는 맥락으로 참조한다. target을 변경하지 않는다."
     produces: "source가 target artifact를 산출물로 생성한다. creates와 달리 lifecycle 관리 대상이 아닌 artifact."
     dispatches: "source가 target을 독립적 실행 책임 단위(process, lens, stage)로 호출한다."
-    extension: "새 relation type 도입 시: (1) 기존 5종 각각과의 의미 경계를 1문장으로 기술, (2) 이 vocabulary 블록에 추가, (3) lexicon_version minor bump."
+    # Framework v1.0 scope axis relation types (v0.16.0, 2026-04-20)
+    implemented_with: "source(product) 가 target(medium) 을 구현 수단으로 사용한다. m:n 허용. composition manifest (implemented_with.yaml) 가 원천 seat. framework §7.1."
+    belongs_to: "source 가 target 의 하위 또는 구성원으로 귀속된다. many-to-one (single primary). 예: product→domain, domain_document→domain."
+    described_by: "source (product) 가 target (ontology) 에 의해 기술되는 관계. target 이 기술 주체, source 가 대상. 한 product 에 여러 ontology aspect 가능 (one-to-many)."
+    realizes: "source (medium) 가 target (product) 의 구현체가 된다. implemented_with 의 inverse. v0.16.0 는 authored 유지; Inverse-edge dual authority 해소는 별도 PR scope."
+    contains: "source (domain) 가 target (domain_document) instance 를 포함한다. one-to-many."
+    # Framework v1.0 transition relation types (provenance/snapshot pointers)
+    promoted_to: "source (experience) 가 promote 또는 promote_and_generalize 전이로 target (learning) 이 됐다. framework §6.1, §6.4. forward pointer."
+    promoted_from: "source (learning) 가 target (experience) 의 promote 결과로 생성됐다. historical snapshot pointer — promoted_to 의 inverse (provenance 대칭, CR-6). live reference 아님."
+    generalized_to: "source (learning) 가 generalize 전이를 거쳐 다른 scope 의 target (learning) 으로 확장된다. framework §6.2. v1 manual only."
+    canonicalized_to: "source (Tier 1 learning / Tier 2 ontology·medium_reference·domain_document) 가 canonicalize 전이를 거쳐 target (principle) 로 snapshot copy 된다. framework §6.3. Tier 축 이동."
+    canonicalized_from: "source (principle) 가 target (learning / ontology / medium_reference / domain_document) 의 canonicalize 결과로 생성됐다. snapshot_reference — canonicalized_to 의 inverse. historical, not live reference."
+    describes: "source (ontology) 가 target (product) 을 기술한다. described_by 의 inverse. v0.16.0 는 authored 유지; Inverse-edge dual authority 해소는 별도 PR scope."
+    extension: "새 relation type 도입 시: (1) 기존 types 각각과의 의미 경계를 1문장으로 기술, (2) 이 vocabulary 블록에 추가, (3) lexicon_version minor bump, (4) Inverse-edge 인 경우 authoring 정책 (relation_ownership: inverse는 derived) 과의 관계 명시 또는 별도 policy exception 기록."
   relation_note_interpretation: >
     relation의 note는 정보 제공 목적이며 규범적 실행 규칙이 아니다.
     실행 규칙은 반드시 execution_rules_ref로 위임한다.
@@ -572,11 +599,11 @@ entities:
         target: synthesize_stage
         note: "전체 lens 결과를 통합하는 비-lens 단계. lens 완료 후 순차 실행"
       - type: creates
-        target: learning
-        note: "lens 실행 중 생성. ReviewRecord는 별도의 primary artifact이며 learning 생성을 매개하지 않는다. lifecycle transition은 learning.execution_rules_ref.lifecycle_transition 참조"
+        target: experience
+        note: "lens 실행 중 raw 관찰 생성 (Tier 1, maturity=Experience). learning 승격은 별도 promote flow 의 책임 (framework v1.0 §6.1, processes/learn/promote.md). review_process 는 experience 생성까지만 담당. ReviewRecord 는 별도의 primary artifact 이며 experience 생성을 매개하지 않는다. (v0.16.0 재조정, re-review 20260420-b74e947f logic F2·dependency F3 반영: 기존 `creates learning` 은 learning 의 'promoted post-verdict' 정의와 graph-satisfiability 충돌.)"
       - type: consumes
         target: learning
-        note: "consumption precondition은 learning.execution_rules_ref.consumption_precondition 참조"
+        note: "consumption precondition 은 learning.execution_rules_ref.consumption_precondition 참조. promoted learning 만 소비 대상."
       - type: references
         target: domain_document
         note: "resolution order는 domain_document.execution_rules_ref.resolution_order 참조"
@@ -1466,12 +1493,14 @@ terms:
     definition: "(deprecated v0.15.0) 기존 정의: project-level learning (`{project}/.onto/learnings/{agent}.md`) 이 panel 검증 + Principal 승인 후 user-level scope (`~/.onto/learnings/{agent}.md`) 로 이동하는 lifecycle 전이. framework v1.0 의 새 scope vocabulary (product/medium/domain/methodology) 에서 `project` · `user` 가 legacy identifier 로 retire 됐으므로 본 term 의 경로 의미도 deprecated."
     allowed_values: []
     replacement:
-      transition_kind: "promote_and_generalize"
-      note: "framework v1.0 §6.4 — product Experience → 다른 scope (medium/domain) 의 Learning 으로 이동. legacy project→user 의 1-step 저장 경계 이동이 아니라 적용 범위 축 자체가 변하는 전이. canonical vocabulary 는 shared_attributes.transition_kind.values."
+      transition_kind: "generalize"
+      note: "framework v1.0 §6.2 — 이미 Learning 상태인 항목의 scope 축 이동 (standalone generalize). v1 manual only. legacy project→user 경로는 '이미 project-level 에 축적된 Learning 을 user-level 로 확장' 의 의미이므로 maturity 축이 아닌 scope 축 이동이 정확한 canonical mapping. promote_and_generalize (Experience → 다른 scope 의 Learning) 가 아님 (v0.16.0, re-review session 20260420-b74e947f logic F1 반영)."
+      methodology_target_legacy: "legacy user-scope 중 methodology (cross-everything frame) 로 재분류되는 case 는 v1 active transition 없음 — Principal manual 등재만 가능 (framework §6.4). 이 재분류 자체는 transition_kind 없이 legacy_alias_governance.scope_migration.migrations[legacy=user] 의 instance_routing 으로 처리."
     notes:
       - "W-D-05 (2026-04-16) 신설 — 'promoted' 용어 3분리 중 2/3."
       - "v0.15.0 (2026-04-20) deprecated — framework v1.0 의 4-scope model (product/medium/domain/methodology) 은 project→user 1-step path 와 semantics 가 다름. runtime 소비자 (src/core-runtime/learning/loader.ts, src/core-runtime/learning/shared/paths.ts) 의 scope migration 은 framework §12.6 에 따라 별도 PR 에서 집행. 해당 migration 이 완료되면 본 term 은 retire 로 전이."
-      - "소비 정책: deprecated term 은 authority file 내 참조만 허용. 신규 문서·코드는 transition_kind=promote_and_generalize 를 사용하고 primary_scope/secondary_scopes 로 scope 축을 표현."
+      - "v0.16.0 (2026-04-20) replacement refine — re-review (20260420-b74e947f) 의 logic F1 지적 반영. promote_and_generalize (Exp→Learn) 가 아니라 generalize (already-Learning scope 축 이동) 가 semantic mapping. methodology-target legacy 는 transition 없이 scope_migration instance_routing 경로로 분리."
+      - "소비 정책: deprecated term 은 authority file 내 참조만 허용. 신규 문서·코드는 transition_kind=generalize 를 사용하고 primary_scope/secondary_scopes 로 scope 축을 표현."
 
   - term_id: "learning_to_principle_promotion"
     canonical_label: "learning-to-principle promotion"

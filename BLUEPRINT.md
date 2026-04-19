@@ -682,7 +682,7 @@ create-domain → seed in drafts/
 
 ### 6.1 Storage Model (2-Path + Axis Tags)
 
-**Project Locality Principle**: 학습은 항상 프로젝트(`{project}/.onto/learnings/`)에 먼저 기록된다. 글로벌 설치만 존재하는 경우에도 동일하다. 글로벌 학습(`~/.onto/learnings/`)은 `onto promote`를 통해 프로젝트 학습에서 승격된다. 전체 원칙은 `design-principles/project-locality-principle.md` 참조.
+**Product Locality Principle**: 학습은 항상 product (`{product}/.onto/learnings/`) 에 먼저 기록된다. 글로벌 설치만 존재하는 경우에도 동일하다. 글로벌 학습(`~/.onto/learnings/`)은 `onto promote`를 통해 product 학습에서 승격된다. 전체 원칙은 `design-principles/product-locality-principle.md` 참조.
 
 | Path | Scope | Contents |
 |---|---|---|

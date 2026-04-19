@@ -74,7 +74,7 @@ Upon user approval, execute the following:
 1. **Move directory**: `~/.onto/drafts/{domain}/` → `~/.onto/domains/{domain}/`
    - This includes `feedback-log.md` if it exists — the feedback history travels with the domain.
 
-2. **Update config.yml**: Add `{domain}` to the `domains:` list in `{project}/.onto/config.yml`.
+2. **Update config.yml**: Add `{domain}` to the `domains:` list in `{product}/.onto/config.yml`.
    - **Idempotent**: If `{domain}` is already in the list, do not add a duplicate entry.
    - If `config.yml` or `domains:` key does not exist, inform the user that manual configuration may be needed.
 

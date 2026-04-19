@@ -6,7 +6,7 @@
 ### 1. Target Determination
 
 - `$ARGUMENTS` 없음 → 글로벌 학습 (`~/.onto/learnings/*.md`)
-- `$ARGUMENTS` = "project" → 프로젝트 학습 (`{project}/.onto/learnings/*.md`)
+- `$ARGUMENTS` = "product" → product 학습 (`{product}/.onto/learnings/*.md`). legacy alias `"project"` 도 수용 (framework v1.0 §8.5 retire, legacy_alias_governance.scope_migration 참조)
 
 ### 2. Data Collection
 

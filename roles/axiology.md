@@ -35,7 +35,7 @@
 | 2 | `design-principles/productization-charter.md` | 제품 방향. 시스템이 왜 존재하는가 |
 | 2 | `design-principles/ontology-as-code-guideline.md` | OaC 원칙 |
 | 2 | `design-principles/llm-native-development-guideline.md` | LLM-native 원칙 |
-| 2 | `design-principles/project-locality-principle.md` | 프로젝트 우선 원칙 |
+| 2 | `design-principles/product-locality-principle.md` | product 우선 원칙 |
 | 3 | `development-records/evolve/<onto-direction>.md` 최신 정본 | 상위 목표 · 4 축 · 완료 기준 |
 | 4 | 세션 binding `session_domain` 이 non-none 이면 해당 `domains/{domain}/` 의 purpose-critical 규정 | domain-specific 가치 commitments |
 

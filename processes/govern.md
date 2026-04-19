@@ -1,6 +1,6 @@
 # Govern Process (v0, bounded minimum surface)
 
-> 프로젝트 규범의 변경 제안 + 문서-코드 drift 감지 항목을 큐로 관리하고,
+> product 규범의 변경 제안 + 문서-코드 drift 감지 항목을 큐로 관리하고,
 > 주체자(principal)의 판정을 이벤트 로그로 기록하는 프로세스.
 > v0 는 기록 인터페이스만 제공. 승인 강제 차단과 drift 자동 감지는 W-C-02.
 
@@ -16,7 +16,7 @@
 
 | 질문 | 답 |
 |---|---|
-| 무엇인가 | 프로젝트 규범 변경·drift 를 큐로 축적하고, 주체자 판정을 기록하는 프로세스 |
+| 무엇인가 | product 규범 변경·drift 를 큐로 축적하고, 주체자 판정을 기록하는 프로세스 |
 | 왜 존재하는가 | 규범 변경·drift 가 흩어지면 언제 무슨 판단이 있었는지 추적 불가 → 반복 재논의 비용 증가. 이력 존재가 드러나야 시간·비용 최소화 (이용자 관점 가치) 가능 |
 | 다른 활동과의 관계 | review 는 산출물 검증, reconstruct 는 지식 재구조화, evolve 는 새 설계, learn 은 학습 축적. govern 은 **규범 자체의 변경을 관리**하며 위 4개 활동의 메타 레이어 |
 
@@ -68,7 +68,7 @@ v0 는 재판정 불가. `decide` 는 pending 상태에서만 허용.
 
 ## 7. Storage (event-sourced)
 
-- 파일: `.onto/govern/queue.ndjson` (프로젝트 로컬, **project-locality-principle 준수**)
+- 파일: `.onto/govern/queue.ndjson` (product-local, **product-locality-principle 준수**)
 - 포맷: JSON Lines (append-only)
 - 이벤트 타입:
   - `submit`: base entry. id 생성, 필수 필드 기록.
@@ -82,12 +82,12 @@ projection: 모든 이벤트를 id 별로 그룹핑. `submit` 이 base, `decide`
 
 ### v0 = 현 레포 한정
 
-본 v0 는 **현 프로젝트 내부 규범** (authority/, processes/, commands/, design-principles/, roles/ 등) 의 변경 관리에만 적용한다. 다음은 범위 밖:
+본 v0 는 **현 product 내부 규범** (authority/, processes/, commands/, design-principles/, roles/ 등) 의 변경 관리에만 적용한다. 다음은 범위 밖:
 
 | 범위 밖 | 이유 | 처리 경로 |
 |---|---|---|
-| 글로벌 메타 규범 (onto 자체의 교차 프로젝트 원칙) | 전역 저장소 (~/.onto/govern/) 설계 필요 | **W-C-03** |
-| 다른 레포의 규범 변경 | 프로젝트 간 의존 관계 모델링 필요 | **W-C-03** |
+| 글로벌 메타 규범 (onto 자체의 cross-product 원칙) | 전역 저장소 (~/.onto/govern/) 설계 필요 | **W-C-03** |
+| 다른 product 레포의 규범 변경 | product 간 의존 관계 모델링 필요 | **W-C-03** |
 | 승인 후 자동 파일 수정 | diff 정확도 + rollback + 동시성 설계 필요 | **W-C-02** |
 | drift 자동 감지 | 문서-코드 비교 엔진 필요 | **W-C-02** |
 | pre-commit / CI / merge gate 차단 | 차단 지점 실측 기반 선정 필요 | **W-C-02** |
@@ -206,7 +206,7 @@ v0 구현은 **수준 1 도달 조건** 을 충족한다:
 | canonical term | 대상 | 출발 | 도착 | 기준 문서 |
 |---|---|---|---|---|
 | `lexicon_term_promotion` | lexicon term | `provisional_terms` 섹션 | `terms` 섹션 | `authority/core-lexicon.yaml#provisional_lifecycle` |
-| `learning_scope_promotion` | learning artifact | `{project}/.onto/learnings/{agent}.md` | `~/.onto/learnings/{agent}.md` | `processes/learn/promote.md` |
+| `learning_scope_promotion` (deprecated v0.15.0) | learning artifact | `{product}/.onto/learnings/{agent}.md` | `~/.onto/learnings/{agent}.md` | `processes/learn/promote.md` |
 | `learning_to_principle_promotion` | promoted learning → principle | `~/.onto/learnings/{agent}.md` 의 항목 | `design-principles/*.md` 또는 `processes/*.md` 의 본문 | W-C-03 (미구현, §1.1/§1.2 "보류 중") |
 
 ### 12.2 의존 그래프
@@ -288,7 +288,7 @@ flowchart LR
 
 ### 13.2 Threshold Config
 
-`.onto/govern/thresholds.yaml` (project-local). 파일 편집으로 즉시 조정. 부재 시 hardcoded default:
+`.onto/govern/thresholds.yaml` (product-local). 파일 편집으로 즉시 조정. 부재 시 hardcoded default:
 
 ```yaml
 mode: any

@@ -262,9 +262,35 @@ function main() {
   }
   console.log();
 
-  // k-subset optimal
-  for (const k of [3, 4, 5]) {
-    console.log(`## k=${k} top subsets\n`);
+  // k-subset optimal (all k from 3 to 9)
+  // Pre-compute per-item contributor sets for depth calculation
+  const itemContribs: Lens[][] = [];
+  const sessionsWithDepthFull = fullSessions.filter((s) => s.consensusDepths.length > 0);
+  for (const s of sessionsWithDepthFull) {
+    const finalText = fs.readFileSync(path.join(s.session_dir, "final-output.md"), "utf-8");
+    for (const sec of [
+      extractSection(finalText, "Consensus"),
+      extractSection(finalText, "Conditional Consensus"),
+      extractSection(finalText, "Disagreement"),
+    ]) {
+      for (const line of sec.split("\n")) {
+        if (/Accounted findings:/i.test(line)) {
+          const lenses = parseAccountedLineLenses(line);
+          if (lenses.length > 0) itemContribs.push(lenses);
+        }
+      }
+    }
+  }
+  const totalOrigDepth = itemContribs.reduce((a, c) => a + c.length, 0);
+  const avgOrigDepth = itemContribs.length > 0 ? totalOrigDepth / itemContribs.length : 0;
+
+  console.log(`## k-subset comparison (k=3 through 9)\n`);
+  console.log(`Best-coverage subset at each k, with depth retention measured on ${itemContribs.length} consensus items.\n`);
+  console.log(
+    `| k | Best coverage subset | Coverage | Avg depth | Depth retention | Items lost |`,
+  );
+  console.log(`|---|---|---|---|---|---|`);
+  for (const k of [3, 4, 5, 6, 7, 8, 9]) {
     const combos = kCombinations([...CORE_LENSES], k);
     const results: { combo: Lens[]; covered: number }[] = [];
     for (const combo of combos) {
@@ -276,10 +302,44 @@ function main() {
       results.push({ combo, covered });
     }
     results.sort((a, b) => b.covered - a.covered);
-    console.log(`| Combo | Covered | % |`);
-    console.log(`|---|---|---|`);
-    for (const r of results.slice(0, 5)) {
-      console.log(`| ${r.combo.sort().join(", ")} | ${r.covered}/${fullSessions.length} | ${((r.covered / fullSessions.length) * 100).toFixed(1)}% |`);
+    const best = results[0];
+    const bestSet = new Set(best.combo);
+    // Depth on this subset
+    const reducedDepthSum = itemContribs.reduce(
+      (a, c) => a + c.filter((l) => bestSet.has(l)).length,
+      0,
+    );
+    const itemsLost = itemContribs.filter((c) => !c.some((l) => bestSet.has(l))).length;
+    const avgDepth = itemContribs.length > 0 ? reducedDepthSum / itemContribs.length : 0;
+    const retention =
+      totalOrigDepth > 0 ? ((reducedDepthSum / totalOrigDepth) * 100).toFixed(1) : "n/a";
+    const cov = ((best.covered / fullSessions.length) * 100).toFixed(1);
+    console.log(
+      `| ${k} | ${best.combo.sort().join(", ")} | ${best.covered}/${fullSessions.length} (${cov}%) | ${avgDepth.toFixed(2)} | ${retention}% | ${itemsLost}/${itemContribs.length} |`,
+    );
+  }
+
+  console.log(`\n## k-subset — top-5 subsets per k (detail)\n`);
+  for (const k of [3, 4, 5, 6, 7, 8, 9]) {
+    console.log(`### k=${k}\n`);
+    const combos = kCombinations([...CORE_LENSES], k);
+    const results: { combo: Lens[]; covered: number }[] = [];
+    for (const combo of combos) {
+      const set = new Set(combo);
+      let covered = 0;
+      for (const s of fullSessions) {
+        if ([...s.required].every((l) => set.has(l))) covered++;
+      }
+      results.push({ combo, covered });
+    }
+    results.sort((a, b) => b.covered - a.covered);
+    console.log(`| Combo | Coverage |`);
+    console.log(`|---|---|`);
+    const topN = k === 9 ? 1 : 5;
+    for (const r of results.slice(0, topN)) {
+      console.log(
+        `| ${r.combo.sort().join(", ")} | ${r.covered}/${fullSessions.length} (${((r.covered / fullSessions.length) * 100).toFixed(1)}%) |`,
+      );
     }
     console.log();
   }

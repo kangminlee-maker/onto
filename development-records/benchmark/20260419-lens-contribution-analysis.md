@@ -551,7 +551,57 @@ Avg depth: 2.83 lenses per item. 평균 review 의 defect 은 ~3 lens 가 독립
 - **추가**: coverage, semantics
 - **유지**: axiology, logic, evolution
 
-### 6.7.10 Sample 한계
+### 6.7.10 k=3~9 전수 비교 (사용자 요청)
+
+| k | Best subset | Coverage | Avg depth | Depth retention | Items lost |
+|---|---|---|---|---|---|
+| 3 | coverage, logic, semantics | 81.1% | 1.00 | 35.3% | 8/24 |
+| 4 | conciseness, coverage, evolution, semantics | 82.7% | 1.13 | 39.7% | 7/24 |
+| **5** | conciseness, coverage, evolution, logic, semantics | 84.8% | 1.58 | 55.9% | 5/24 |
+| **6** | + structure | **86.4%** | 1.92 | **67.6%** | **2/24** |
+| 7 | + dependency | 89.3% | 2.21 | 77.9% | 2/24 |
+| 8 | + pragmatics | 93.0% | 2.58 | 91.2% | 2/24 |
+| 9 | + axiology | 100% | 2.83 | 100% | 0/24 |
+
+#### Pattern A — Coverage marginal gain 비선형
+
+k=8→9 에서 axiology 추가 시 **7.0% 점프** (다른 구간의 3배). Axiology 의 17 sole-contributor session 이 다른 lens 로 대체 불가 — **always_include 정책의 empirical 정당화**.
+
+#### Pattern B — Depth retention k=4→5 가 breakthrough
+
+Logic 추가가 depth **+16.2%**. Logic 이 broad lens (많은 item 에 partial contribute) — 4 lens 까지 niche-heavy 구성의 depth 손실을 logic 합류로 회복.
+
+#### Pattern C — Items lost k=5→6 급감
+
+Structure 추가로 lost **5→2 (-3 items)**. K=6~8 stable (2 items), k=9 에서만 0. 그 2 items 는 **axiology-only** — k=9 에서만 복원.
+
+#### Knee point 식별
+
+| 전환 | Coverage Δ | Depth Δ | Items lost Δ | Cost-effectiveness |
+|---|---|---|---|---|
+| 4→5 | +2.1% | **+16.2%** | -2 | 고 |
+| **5→6** | +1.6% | **+11.7%** | **-3** | **최고** |
+| 6→7 | +2.9% | +10.3% | 0 | 중 |
+| 7→8 | +3.7% | +13.3% | 0 | 중 |
+| 8→9 | **+7.0%** | +8.8% | -2 | 고 (axiology 의 unique category) |
+
+**k=5→6 이 new knee** — items lost 급감 + depth 대폭 향상.
+
+#### 최종 후보 재조정
+
+Axiology always_include 정책 하에서:
+
+| 구성 | Lens 수 | Coverage | Depth | Items lost | Pareto |
+|---|---|---|---|---|---|
+| Current (logic/pragmatics/evolution/axiology) | 4 | 77.4% | 51.5% | 5 | dominated |
+| Option P (+ coverage, semantics, - pragmatics) | 5 | 84.8% | 57.4% | 4 | previous knee |
+| **Option P' (Option P + structure)** | 6 | **86.4%** | **67.6%** | **2** | **new Pareto-optimal** |
+
+Option P' = {axiology, coverage, evolution, logic, semantics, structure} 6 lens
+- 현 대비: coverage +9.0%, depth +16.1%, items lost -3
+- k=6 이 Pareto front 의 sweet spot
+
+### 6.7.11 Sample 한계
 
 - Depth 분석: **5 session / 24 items** — 작음. 특히 1 session 의 8-lens outlier 영향
 - "Accounted findings" pattern 은 최근 format — 1743 중 5 만 보유

@@ -1,7 +1,6 @@
 # onto runtime data (sessions, build outputs, learnings)
 .onto/
 .onto-review/
-.claude-plugin/
 .claude/
 
 # evolve scope artifacts (ephemeral design sessions)

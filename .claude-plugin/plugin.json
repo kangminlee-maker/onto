@@ -1,0 +1,11 @@
+{
+  "name": "onto",
+  "version": "0.1.0",
+  "description": "Multi-host LLM runtime for multi-perspective verification of logical systems (9-lens review + synthesize) and ontology reconstruction. Runs as a Claude Code plugin, a Codex CLI subagent, or a standalone CLI process.",
+  "author": {
+    "name": "kangmin",
+    "email": "kangmin.lee@day1company.co.kr"
+  },
+  "homepage": "https://github.com/kangminlee-maker/onto",
+  "repository": "https://github.com/kangminlee-maker/onto"
+}

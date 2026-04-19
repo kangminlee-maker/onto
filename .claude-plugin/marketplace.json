@@ -1,0 +1,14 @@
+{
+  "name": "onto",
+  "owner": {
+    "name": "kangmin",
+    "email": "kangmin.lee@day1company.co.kr"
+  },
+  "plugins": [
+    {
+      "name": "onto",
+      "source": "./",
+      "description": "Ontology verification harness: 9-lens review (core-axis 6 default + full 9) with a synthesize stage, plus evolve/reconstruct/govern/create-domain/learn activities. Runs as a Claude Code plugin, a Codex CLI subagent, or a standalone CLI."
+    }
+  ]
+}

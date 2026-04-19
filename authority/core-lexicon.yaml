@@ -1,10 +1,11 @@
-lexicon_version: "0.17.0"
+lexicon_version: "0.18.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
   - "This lexicon is the concept SSOT for the productization track."
   - "This file owns the concept INVENTORY. Naming RULES are owned by ontology-as-code-naming-charter.md."
   - "Structure: authoring_rules → shared_attributes → entities → terms."
+  - "v0.18.0 corrective (framework v1.0.1 Inverse-edge single-owner 복원, 2026-04-20): 순수 inverse 3 pair (product.described_by / medium.realizes / domain.contains) 삭제 — authoring_rules.relation_ownership 원칙 (Entity-centric model 의 single canonical owner) 복원. canonical owner 는 각각 ontology.describes · product.implemented_with · domain_document.belongs_to. relation_type_vocabulary 에서 described_by/realizes/contains 3 type 제거. snapshot/provenance pair (learning.promoted_from · principle.canonicalized_from) 는 self-outbound provenance 로 원칙 준수 케이스 — 유지. relation_ownership_interpretation 신설로 경계 명시. re-review 20260420-b74e947f structure F1 / dependency F2 / conciseness C1 해소. canonical-advancing."
   - "v0.17.0 additive (PR C prose migration sync, 2026-04-20): path references 갱신 — design-principles/project-locality-principle.md → product-locality-principle.md (§9 rename 완료). 4 참조 지점 업데이트 (learning.execution_rules_ref.data_accumulation/consumption_precondition, domain_document.execution_rules_ref.resolution_order, govern_process.notes storage). 의미 변경 없음, 순수 path 정합. canonical-advancing."
   - "v0.16.0 additive (re-review 20260420-b74e947f fixes, 2026-04-20): (1) learning_scope_promotion.replacement refine (promote_and_generalize → generalize — standalone scope axis move, logic F1 반영). (2) review_process.creates 재조정 — learning → experience (Tier 1 lifecycle graph-satisfiability, logic F2·dependency F3 반영). (3) relation_type_vocabulary 확장 — 11 신규 relation type 등재 (implemented_with, belongs_to, described_by, realizes, contains, promoted_to, promoted_from, generalized_to, canonicalized_to, canonicalized_from, describes). 인용되던 type 이 vocabulary 에 없던 gap 해소 (structure F2·dependency F1). (4) legacy_alias_governance.scope_migration[legacy=user] 를 label_rename + instance_routing 으로 분기 분리 (semantics F1·evolution F1·coverage F-C2). canonical-advancing."
   - "v0.15.0 additive (framework v1.0 sync, 2026-04-20): 7 신규 entity (product, experience, medium, medium_reference, domain, methodology, ontology) + 3 entity refine (learning, domain_document, principle) + shared_attributes.scope 4값 재정의 + transition_kind/normative_tier 신설. framework v1.0 (`development-records/evolve/20260419-knowledge-framework.md`) §8 의 전수 반영. scope legacy values (user, project) 는 legacy_alias_governance 에서 migration 기록. canonical-advancing."
@@ -89,6 +90,15 @@ authoring_rules:
     required_slots: [term_id, canonical_label, korean_label, definition, term_status]
     optional_slots: [axis, allowed_values, notes, legacy_aliases, contract_ref]
   relation_ownership: "source entity(및 그 instances)가 outbound relation만 소유. inverse는 derived, authored하지 않음."
+  relation_ownership_interpretation: >
+    "inverse 는 derived" 의 의미 명확화 (v0.18.0, framework v1.0.1 sync).
+    동일 edge 의 반대 방향 해석을 의미 — 예: product.implemented_with 가 authored 되면
+    medium 방향에서 본 "realizes" 는 derived. 따라서 medium entity 에 realizes 를 authored
+    하지 않는다. 반면 learning.promoted_from, principle.canonicalized_from 처럼 snapshot 시점
+    provenance 를 기록하는 relation 은 source entity (experience/learning 등) 의 outbound 의
+    inverse 가 아니라 **self-outbound** (Learning·Principle 이 자기 자신의 historical pointer
+    를 보관) 이므로 본 rule 의 위반이 아니다. 시점 정보 (source_commit_sha, snapshot_reference
+    semantics) 가 동반되는 것이 self-outbound provenance 의 징표.
   relation_target_resolution: "relation target은 entities의 key 또는 terms의 term_id로 resolve된다."
   relation_execution_rules_ref: >
     relation 객체 내 execution_rules_ref는 단일 문자열을 허용한다.
@@ -100,12 +110,10 @@ authoring_rules:
     references: "source가 target을 검증 기준 또는 맥락으로 참조한다. target을 변경하지 않는다."
     produces: "source가 target artifact를 산출물로 생성한다. creates와 달리 lifecycle 관리 대상이 아닌 artifact."
     dispatches: "source가 target을 독립적 실행 책임 단위(process, lens, stage)로 호출한다."
-    # Framework v1.0 scope axis relation types (v0.16.0, 2026-04-20)
-    implemented_with: "source(product) 가 target(medium) 을 구현 수단으로 사용한다. m:n 허용. composition manifest (implemented_with.yaml) 가 원천 seat. framework §7.1."
-    belongs_to: "source 가 target 의 하위 또는 구성원으로 귀속된다. many-to-one (single primary). 예: product→domain, domain_document→domain."
-    described_by: "source (product) 가 target (ontology) 에 의해 기술되는 관계. target 이 기술 주체, source 가 대상. 한 product 에 여러 ontology aspect 가능 (one-to-many)."
-    realizes: "source (medium) 가 target (product) 의 구현체가 된다. implemented_with 의 inverse. v0.16.0 는 authored 유지; Inverse-edge dual authority 해소는 별도 PR scope."
-    contains: "source (domain) 가 target (domain_document) instance 를 포함한다. one-to-many."
+    # Framework v1.0 scope axis relation types (v0.16.0 신설, v0.18.0 정비)
+    implemented_with: "source(product) 가 target(medium) 을 구현 수단으로 사용한다. m:n 허용. composition manifest (implemented_with.yaml) 가 원천 seat. framework §7.1. medium 방향 inverse (`realizes`) 는 derived — authored 하지 않음."
+    belongs_to: "source 가 target 의 하위 또는 구성원으로 귀속된다. many-to-one (single primary). 예: product→domain, domain_document→domain. domain 방향 inverse (`contains`) 는 derived."
+    # Framework v1.0 transition relation types (provenance/snapshot pointers)
     # Framework v1.0 transition relation types (provenance/snapshot pointers)
     promoted_to: "source (experience) 가 promote 또는 promote_and_generalize 전이로 target (learning) 이 됐다. framework §6.1, §6.4. forward pointer."
     promoted_from: "source (learning) 가 target (experience) 의 promote 결과로 생성됐다. historical snapshot pointer — promoted_to 의 inverse (provenance 대칭, CR-6). live reference 아님."
@@ -926,13 +934,10 @@ entities:
       - type: belongs_to
         target: domain
         cardinality: "many-to-one"
-      - type: described_by
-        target: ontology
-        cardinality: "one-to-many"
-        note: "한 product 가 여러 ontology aspect 가능 (framework §8.6)."
     notes:
       - "framework v1.0 §2.1 에서 entity 격상. onto-direction §1 의 'product' prose 정의와 정합."
       - "legacy 어휘 'project' (전역) 는 본 entity 로 통합 — framework §8.5 retire."
+      - "v0.18.0 (2026-04-20, framework v1.0.1 sync): `described_by` relation 제거 — `ontology.describes` 가 canonical owner (single owner 원칙). 소비자는 ontology.describes 에서 derived 읽기."
 
   experience:
     canonical_label: "experience"
@@ -963,14 +968,12 @@ entities:
     korean_label: "구현 수단"
     definition: "product 의 구현 수단 (excel, claude-code-skill, cli 등). scope axis 의 값으로 쓰일 수 있는 cross-product frame (framework v1.0 §2.2)."
     core_value: "이 개념이 없으면 같은 medium 에서 반복되는 패턴·pitfall 을 product 별로 재발견해야 하고, medium 차원의 cost-saver 를 축적할 좌표가 없다."
-    relations:
-      - type: realizes
-        target: product
-        cardinality: "many-to-many"
-        note: "한 medium 이 여러 product 를 구현. product.implemented_with 의 inverse (framework §7.1)."
+    # relations 블록 없음 (v0.18.0, framework v1.0.1 sync). product.implemented_with 가 canonical owner.
+    # "어느 medium 이 어느 product 를 구현하는가" 는 product.implemented_with 에서 derived 읽기.
     notes:
       - "framework v1.0 §2.2 에서 entity 격상. 기존 어휘 'artifact' 의 'means' 용법은 본 entity 로 rename — framework §8.5 retire. 'artifact' 의 '산출물 instance' 의미 (produces, review_artifact, provenance) 는 보존."
       - "medium 의 Tier 2 reference doc 묶음은 medium_reference entity 가 소유. example: /excel-workbook-editing skill."
+      - "v0.18.0 (2026-04-20, framework v1.0.1 sync): 기존 `realizes → product` relation 제거 — 순수 inverse 이므로 product.implemented_with 가 canonical owner. 이 entity 는 현재 outbound relation 없음 (scope axis label 역할 + Tier 2 연결은 medium_reference 쪽)."
 
   medium_reference:
     canonical_label: "medium_reference"
@@ -994,13 +997,11 @@ entities:
     korean_label: "도메인"
     definition: "product 가 속한 분야 frame (software-engineering, ui-design 등). scope axis 의 값으로 쓰일 수 있는 cross-product frame (framework v1.0 §2.3)."
     core_value: "이 개념이 없으면 분야 차원에서 누적되는 검증 기준·패턴·pitfall 이 product-local 에 묻혀 재사용 불가해진다."
-    relations:
-      - type: contains
-        target: domain_document
-        cardinality: "one-to-many"
-        note: "한 domain 은 기본 8 유형 domain_document 를 담음 (framework §12.3)."
+    # relations 블록 없음 (v0.18.0, framework v1.0.1 sync). domain_document.belongs_to 가 canonical owner.
+    # "domain 에 어떤 domain_document 들이 속하는가" 는 domain_document.belongs_to 에서 derived 읽기.
     notes:
       - "framework v1.0 §2.3 에서 entity 격상. 기존 shared_attributes.scope.values.domain 은 본 entity 의 scope label 로서의 참조."
+      - "v0.18.0 (2026-04-20, framework v1.0.1 sync): 기존 `contains → domain_document` relation 제거 — 순수 inverse 이므로 domain_document.belongs_to 가 canonical owner."
 
   methodology:
     canonical_label: "methodology"

@@ -1,8 +1,15 @@
 ---
 as_of: 2026-04-19
 status: canonical
-status_note: "2026-04-20 PR C (prose migration + rank 2-5 sync) 에서 lexicon-sync 완결 후 승격 (v0.15.0/v0.16.0 merged + product-locality-principle rename 완료). UF-axiology-upstream-status-drift 해소."
-framework_version: v1.0
+status_note: "2026-04-20 PR C (prose migration + rank 2-5 sync) 에서 lexicon-sync 완결 후 승격 (v0.15.0/v0.16.0 merged + product-locality-principle rename 완료). UF-axiology-upstream-status-drift 해소. v1.0.1 patch (Inverse-edge single-owner 복원) 2026-04-20 동일 세션."
+framework_version: v1.0.1
+framework_version_log:
+  - version: v1.0
+    date: 2026-04-19
+    change: "Initial canonical framework landing (4 scope × 3 tier + transitions + scope axis entities)."
+  - version: v1.0.1
+    date: 2026-04-20
+    change: "§8.6 Single canonical owner 원칙 복원 — 순수 inverse 3 pair (medium.realizes, product.described_by, domain.contains) 축소. authoring_rules.relation_ownership 과의 정합성 복원. snapshot pair (promoted_from, canonicalized_from) 는 self-outbound provenance 로 원칙 준수 케이스, 유지."
 functional_area: knowledge-framework
 purpose: |
   onto 의 지식 항목을 빠짐없이·중복없이 분류·저장·전이하기 위한 framework 정본.
@@ -660,6 +667,12 @@ normative_tier:
 
 ### §8.6 relation 신규 등재 (IA-3 + REC-7 반영)
 
+**Single canonical owner 원칙** (v1.0.1 재정비, 2026-04-20 re-review 20260420-b74e947f structure F1 / dependency F2 / conciseness C1 해소): `authoring_rules.relation_ownership` 이 정의하는 "source entity 가 outbound 만 소유. inverse 는 derived, authored 하지 않음" 원칙을 복원. **순수 inverse** (동일 edge 의 반대 방향 해석) 는 한 쪽에서만 authored 한다. 다만 `promoted_from`, `canonicalized_from` 같은 **self-outbound provenance** (Learning/Principle 이 자기 snapshot 시점 provenance 를 기록) 은 source entity 의 inverse 복제가 아니라 다른 종류의 edge 이므로 원칙 준수 케이스 — 별도 처리 불필요.
+
+- `product.described_by` ↔ `ontology.describes`: `ontology.describes` 를 canonical owner 로 유지 (기술 주체). `product.described_by` 삭제
+- `product.implemented_with` ↔ `medium.realizes`: `product.implemented_with` 를 canonical owner 로 유지 (구현 수단 선택 주체). `medium.realizes` 삭제
+- `domain.contains` ↔ `domain_document.belongs_to`: `domain_document.belongs_to` 를 canonical owner 로 유지 (귀속 주체). `domain.contains` 삭제
+
 ```yaml
 product:
   attributes:
@@ -673,21 +686,15 @@ product:
     - type: belongs_to
       target: domain
       cardinality: "many-to-one"
-    - type: described_by
-      target: ontology
-      cardinality: "one-to-many"    # 한 product 여러 ontology 가능
+    # described_by 삭제 (v1.0.1). ontology.describes 가 canonical owner.
 
 medium:
-  relations:
-    - type: realizes
-      target: product
-      cardinality: "many-to-many"
+  # relations 블록 삭제 (v1.0.1). product.implemented_with 가 canonical owner.
+  # medium 의 구현 수단으로서의 역할은 product 의 outbound 에서 derived.
 
 domain:
-  relations:
-    - type: contains
-      target: domain_document
-      cardinality: "one-to-many"
+  # relations 블록 삭제 (v1.0.1). domain_document.belongs_to 가 canonical owner.
+  # domain 의 containment 는 domain_document 의 outbound 에서 derived.
 
 experience:
   attributes:

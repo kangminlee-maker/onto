@@ -67,12 +67,14 @@ async function runCodexSubagent(
     projectRoot,
     "-s",
     requireString(sandboxMode, "sandbox-mode"),
-    "-c",
-    `model_reasoning_effort="${requireString(reasoningEffort, "reasoning-effort")}"`,
     "-o",
     outputPath,
     "--skip-git-repo-check",
   ];
+
+  if (typeof reasoningEffort === "string" && reasoningEffort.length > 0) {
+    codexArgs.push("-c", `model_reasoning_effort="${reasoningEffort}"`);
+  }
 
   if (typeof model === "string" && model.length > 0) {
     codexArgs.push("-m", model);
@@ -150,7 +152,7 @@ export async function runCodexReviewUnitExecutorCli(
       "output-path": { type: "string" },
       model: { type: "string" },
       "sandbox-mode": { type: "string", default: "read-only" },
-      "reasoning-effort": { type: "string", default: "low" },
+      "reasoning-effort": { type: "string" },
       "config-override": { type: "string", multiple: true, default: [] },
     },
     strict: true,
@@ -178,7 +180,9 @@ export async function runCodexReviewUnitExecutorCli(
         ? values.model
         : "(codex default)"
     } sandbox=${values["sandbox-mode"] ?? "read-only"} effort=${
-      values["reasoning-effort"] ?? "low"
+      typeof values["reasoning-effort"] === "string" && values["reasoning-effort"].length > 0
+        ? values["reasoning-effort"]
+        : "(codex default)"
     }\n`,
   );
 

@@ -1,10 +1,11 @@
-lexicon_version: "0.14.0"
+lexicon_version: "0.15.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
   - "This lexicon is the concept SSOT for the productization track."
   - "This file owns the concept INVENTORY. Naming RULES are owned by ontology-as-code-naming-charter.md."
   - "Structure: authoring_rules → shared_attributes → entities → terms."
+  - "v0.15.0 additive (framework v1.0 sync, 2026-04-20): 7 신규 entity (product, experience, medium, medium_reference, domain, methodology, ontology) + 3 entity refine (learning, domain_document, principle) + shared_attributes.scope 4값 재정의 + transition_kind/normative_tier 신설. framework v1.0 (`development-records/evolve/20260419-knowledge-framework.md`) §8 의 전수 반영. scope legacy values (user, project) 는 legacy_alias_governance 에서 migration 기록. canonical-advancing."
   - "v0.6.0 additive (M-04 Phase A, 2026-04-13): activity_enum + axis_enum terms added. §1 정본 §1.2 (5 활동) + §1.5 (4 축) canonical seat. DR-M04-01 (DL-013 resolved) owning."
   - "v0.6.1 additive (M-04 Phase A v1.1, 2026-04-13): 9-lens review `20260413-a9e93dd7` CONDITIONAL 해소. activity_enum.legacy_aliases 구조 확장 (retire_kind + canonical_replacement), E/D/R/L/G 단축 코드 alias, axis_enum.legacy_aliases slot 신설, entrypoint.instances.build/ask notes cross-ref (C-06/D-01/S-3)."
   - "v0.9.0 additive (W-A-70, 2026-04-13): principal term → entity 승격. dispatches→entrypoint relation 추가. §1.1 주체자 core concept 정합. canonical-advancing."
@@ -30,6 +31,36 @@ legacy_alias_governance:
   lifecycle: "A legacy alias is retired when zero prototype files reference it."
   retire_gate: "Dual-read fallback code (lens-registry.ts canonicalizeLensId, paths.ts resolveWithFallback) may be removed when: (1) zero onto_* learning files exist in project AND user seats (active review/promote sessions 제외), AND (2) at least one successful full review session has run with bare IDs."
   relation_to_translation_reference: "translation-reference.yaml is a NON-AUTHORITATIVE onboarding aid. This governance block is the canonical bridge."
+  scope_migration:
+    introduced_in: "v0.15.0 (2026-04-20) — framework v1.0 sync"
+    rule: "shared_attributes.scope.values 가 재정의됨. legacy identifier 는 semantic 이 다른 canonical value 로 mapping."
+    migrations:
+      - legacy: "user"
+        canonical: "methodology"
+        reason: "framework v1.0 §2.4 — 'user scope' 의 기존 의미 (~/.onto/ 저장 경로) 는 framework 의 적용 범위 축과 orthogonal. cross-everything 지식의 귀속 frame 은 'methodology' 로 명명 rename."
+        semantics_change: "저장 경계 레이블 → 적용 범위 frame. 기존 instance 중 '모든 onto 활동에 적용' 이면 methodology 로 migrate, 특정 product 에 한정이면 product/medium/domain 중 재분류 필요."
+      - legacy: "project"
+        canonical: "product"
+        reason: "framework v1.0 §2.1 — Principal 의 작동 실체 단위를 'product' 로 통합 (productization-charter 정합)."
+        semantics_change: "저장 경계 레이블 → Principal 작동 실체. 대부분의 기존 'project' 참조는 product 로 직접 mapping 가능."
+      - legacy: "domain"
+        canonical: "domain"
+        reason: "identifier 보존. 의미만 '저장 경계 레이블' 에서 '적용 범위 frame' 으로 재정의."
+        semantics_change: "저장 경계 → 분야 frame. 기존 instance 는 그대로 유효 (분야 차원 지식)."
+    fallback_read_rule: "legacy value 를 참조하는 코드·문서는 본 mapping 에 따라 canonical 로 dual-read. runtime 소비자 (src/core-runtime/) 마이그레이션은 framework §12.6 에 따라 별도 PR."
+  deprecated_vocabulary:
+    introduced_in: "v0.15.0 (2026-04-20)"
+    items:
+      - name: "learning_applicability"
+        prior_seat: "entities.learning.attributes.local.learning_applicability (values: methodology, domain/{name})"
+        deprecated_at: "v0.15.0"
+        replacement: "entities.learning.attributes.local.primary_scope + secondary_scopes"
+        reason: "framework v1.0 §8.4 — scope 축이 단일 shared_attributes.scope (4 값) 로 통합되면서 별도 applicability enum 은 중복."
+      - name: "inline tag [methodology] / [domain/X] / [medium/X]"
+        prior_seat: "learning 파일 본문 tag 표기"
+        deprecated_at: "v0.15.0"
+        replacement: "frontmatter primary_scope + secondary_scopes (framework §7.4)"
+        reason: "framework v1.0 §8.4 — frontmatter scope 가 canonical, inline tag 는 legacy fallback 해석 대상 (framework §7.6)."
 # review_taxonomy_migration: removed in v0.2.0. Canonical aliases are owned by each entity/term's legacy_aliases field.
 
 # ---------------------------------------------------------------------------
@@ -110,15 +141,40 @@ shared_attributes:
       - "전이 모델과 소비 문서는 각 entity의 execution_rules_ref에서 확인"
       - "W-D-05 (2026-04-16): deprecated/retired 관리 분산 drift 해소 — M-08 refresh protocol 이 canonical owner."
   scope:
-    definition: "Storage ownership boundary of a knowledge asset."
+    definition: "적용 범위 축. 항목이 어느 대상 전반에 유효한가를 분할하는 classifying dimension (framework v1.0 §2)."
     values:
-      user: "전역 홈 스코프 (~/.onto/)"
-      project: "프로젝트 범위 ({project}/.onto/)"
-      domain: "특정 도메인 범위 (~/.onto/domains/{domain}/ 또는 {project}/.onto/domains/{domain}/)"
+      product: "Principal 이 시간·비용 투입해 만든 작동 실체 범위. 단일 product 내부 전체 ({product}/.onto/)"
+      medium: "한 product 의 구현 수단 (excel, claude-code-skill, cli 등) 전반. cross-product 축 (~/.onto/mediums/{medium}/)"
+      domain: "한 분야 (software-engineering, ui-design 등) 전반. cross-product 축 (~/.onto/domains/{domain}/)"
+      methodology: "cross-everything 지식 frame. v1 은 definition only (instance 0, framework §2.4)"
     notes:
-      - >
-        scope.values의 식별자(user, project, domain)는 저장 경계 레이블이며 실행 주체(principal)와 별개 개념이다.
-        user scope는 OS home directory 관례를 따르는 저장 경로일 뿐, principal을 가리키지 않는다.
+      - "본 scope 는 knowledge framework v1.0 (development-records/evolve/20260419-knowledge-framework.md) §2 의 적용 범위 축. 저장 경계는 좌표로부터 도출되는 결과물 (framework §1 REC-5 · §4.2 · §5)."
+      - "legacy values [user, project] 는 framework v1.0 정합 시 재정의됨 — user → methodology (cross-everything frame), project → product (Principal 의 작동 실체). migration 기록은 legacy_alias_governance.scope_migration 참조."
+      - "scope.values 의 식별자는 적용 범위 레이블이며 실행 주체 (principal) 와 별개 개념이다."
+  transition_kind:
+    definition: "항목의 세 축 (tier / maturity / scope) 이동을 식별하는 전이 종류 enum. framework v1.0 §6 전이 정의의 lexicon 표상."
+    values:
+      promote: "Tier 1 maturity 이동 (Experience → Learning). same scope. 자동화 대상 (product)."
+      generalize: "scope 축 이동 (standalone). 이미 Learning 상태인 항목의 scope 확장. v1 manual only."
+      promote_and_generalize: "compound — product Experience → 다른 scope 의 Learning (medium 또는 domain). panel verdict 한 번으로 두 축 동시 이동. v1 active."
+      canonicalize: "tier 축 이동 (Tier 1·2 → Tier 3). snapshot copy — source commit SHA 기록 (framework §6.3)."
+      norm_update: "Tier 1 domain Learning → Tier 2 domain document 갱신. active (promote.md Step 7 권고)."
+      medium_norm_update: "Tier 1 medium Learning → Tier 2 medium reference 갱신. definition only."
+      ontology_update: "Tier 1 product Learning → Tier 2 ontology 갱신. definition only."
+      re_classification: "medium ↔ domain primary scope 재분류 (framework §7.3)."
+      retire: "lifecycle 종료. M-08 refresh protocol 담당."
+    notes:
+      - "activation 상태 (active / definition only) 의 canonical SSOT 는 framework v1.0 §6.6 전이 요약표."
+      - "compound verb 의 target=methodology 는 v1 enum 에 정의되지 않는다 (framework §6.4). methodology Learning 직접 생성 금지."
+  normative_tier:
+    definition: "항목의 강제력 축 값. framework v1.0 §3 의 3 tier 구분."
+    values:
+      "1_cost_saver": "Tier 1 — 실용 cost-saver. Experience (raw 관찰) + Learning (promoted 검증된 cost-saver)."
+      "2_reference": "Tier 2 — 서술적 reference. ontology / medium_reference / domain_document. soft guardrail, normative 아님."
+      "3_obligation": "Tier 3 — 의무 obligation. principle. canonicalize 경로로만 편집 가능. govern 강제 zone."
+    notes:
+      - "저장 디렉토리 결정은 (tier, primary_scope) 쌍. Tier 1 은 추가로 maturity 축에 따라 experiences/ · learnings/ 로 분화 (framework §12.7 storage 도출 규칙)."
+      - "Tier 2 는 descriptive soft guardrail 이지 normative artifact 가 아님. Tier 3 만 onto-direction §1.2 의 normative artifact 에 해당 (framework §11.2)."
 
 # ---------------------------------------------------------------------------
 # Provisional Lifecycle (W-D-01, D0 Bootstrap)
@@ -432,14 +488,20 @@ entities:
   learning:
     canonical_label: "learning"
     korean_label: "학습"
-    definition: "onto 활동에서 축적된 경험 지식. 이후 활동의 탐색/실패 비용을 줄인다"
+    definition: "promoted 검증된 cost-saver. Tier 1 의 maturity=Learning 좌표 (framework v1.0 §3.1). panel verdict 통과 후 소비 가능한 상태."
     core_value: "이 개념이 없으면 동일한 실패를 반복하고, 특정 경로로만 접근 가능했던 지식을 매번 재탐색해야 한다"
     attributes:
-      shared: [lifecycle_status, scope]
+      shared: [lifecycle_status]
       local:
-        learning_applicability:
-          definition: "학습 항목의 내용 적용 범위. scope(저장 소유 경계)와 직교"
-          values: ["methodology", "domain/{name}"]
+        primary_scope:
+          definition: "한 Learning 항목의 적용 범위 축 값 (framework §2, primary). 저장 디렉토리 결정의 주 인자."
+          values: ["product", "medium", "domain", "methodology"]
+        secondary_scopes:
+          definition: "보조 적용 범위. 비어있을 수 있음 (framework §1 REC-5, m:n 적용 범위)."
+          type: "array of {scope_type: scope_value}"
+        source_experience_ref:
+          definition: "promote 시점 source Experience 의 entry marker. historical pointer (CR-6 / CON-3)."
+          type: "string"
         learning_role:
           definition: "학습 항목의 목적 분류"
           values: ["guardrail", "foundation", "convention"]
@@ -448,12 +510,27 @@ entities:
           values:
             high: "이 학습이 없으면 critical 수준의 실패가 반복되거나, 복구 비용이 매우 높은 경우"
             normal: "유용하지만 부재 시 영향이 high 미만인 경우"
+    relations:
+      - type: promoted_from
+        target: experience
+        cardinality: "many-to-one"
+        semantics: "historical pointer to source Experience (snapshot at promote time)"
+        note: "experience.promoted_to 의 inverse. provenance 대칭 확보 (CR-6)."
+      - type: generalized_to
+        target: learning
+        note: "standalone generalize 전이 (framework §6.2). scope 가 다른 Learning 간 이동. v1 manual only."
+      - type: canonicalized_to
+        target: principle
+        note: "canonicalize 전이 (framework §6.3). snapshot copy 로 Tier 3 Principle 생성."
     execution_rules_ref:
-      data_accumulation: "design-principles/project-locality-principle.md §2.2"
+      data_accumulation: "design-principles/project-locality-principle.md §2.2 (rename → product-locality 예정, §9 phasing)"
       consumption_precondition: "design-principles/project-locality-principle.md §2.2"
       lifecycle_transition: "processes/learn/promote.md"
+      storage_derivation: "framework v1.0 §12.7 — (tier, primary_scope) + maturity 로 디렉토리 결정. 예: primary_scope=product → {product}/.onto/learnings/, primary_scope=medium → ~/.onto/mediums/{X}/learnings/"
     notes:
-      - "법칙이 아니라, 상황에 따라 유용한 정보. 있으면 좋지만 risk를 질 필요는 없는 항목"
+      - "framework v1.0 §8.2 에서 refine: 정의를 'promoted 검증된 cost-saver' 로 좁힘 (기존 '축적된 경험 지식' 에서 범위 축소). Experience 는 별도 entity 로 분리."
+      - "법칙이 아니라, 상황에 따라 유용한 정보. 있으면 좋지만 risk를 질 필요는 없는 항목."
+      - "v0.15.0 (2026-04-20): learning_applicability local attribute 제거 (framework §8.4 deprecate). primary_scope + secondary_scopes 가 대체. shared [scope] 제거 — framework 의 scope 는 항목당 primary 1 + secondary 다수 구조라 local 표상이 정합."
 
   review_lens:
     canonical_label: "review_lens"
@@ -534,15 +611,28 @@ entities:
   domain_document:
     canonical_label: "domain_document"
     korean_label: "도메인 문서"
-    definition: "특정 도메인의 검증 기준을 정의하는 문서. concepts, logic_rules, dependency_rules 등 8개 유형으로 구성"
+    definition: "한 도메인의 Tier 2 reference. 기본 8 유형 (concepts, competency_qs, conciseness_rules, dependency_rules, domain_scope, extension_cases, logic_rules, structure_spec) + domain-specific custom 유형 허용 (framework v1.0 §12.3). grain: 1 file = 1 instance."
     core_value: "이 개념이 없으면 검증이 도메인 맥락 없이 수행되어 실용적 판단이 불가능하다"
     attributes:
-      shared: [lifecycle_status, scope]
+      shared: [lifecycle_status]
+      local:
+        doc_type:
+          definition: "domain document 의 기본 유형. framework §12.3 의 기본 8 유형. domain-specific 추가 시 'custom:{type_name}' 형식."
+          values: ["concepts", "competency_qs", "conciseness_rules", "dependency_rules", "domain_scope", "extension_cases", "logic_rules", "structure_spec"]
+    relations:
+      - type: belongs_to
+        target: domain
+        cardinality: "many-to-one"
+        note: "각 domain_document 는 정확히 한 domain 에 귀속. domain.contains 의 inverse."
+      - type: canonicalized_to
+        target: principle
+        note: "Tier 2 → Tier 3 승격. snapshot copy (framework §6.3)."
     execution_rules_ref:
-      resolution_order: "design-principles/project-locality-principle.md §2.3"
+      resolution_order: "design-principles/project-locality-principle.md §2.3 (rename → product-locality 예정)"
       lifecycle_transition: "processes/learn/promote-domain.md"
     notes:
-      - "도메인 귀속은 파일 경로 규약({domain}/ 디렉토리)에 의해 결정됨"
+      - "도메인 귀속은 파일 경로 규약 ({domain}/ 디렉토리) 에 의해 결정됨."
+      - "framework v1.0 §8.2 refine (2026-04-20, v0.15.0): grain 명확화 (1 file = 1 instance). doc_type local attribute 추가. belongs_to domain 및 canonicalized_to principle relation 명시. shared [scope] 제거 — primary_scope 는 belongs_to domain 으로 implicit, framework scope 는 domain 으로 고정."
 
   review_record:
     canonical_label: "ReviewRecord"
@@ -565,7 +655,8 @@ entities:
     canonical_label: "principle"
     korean_label: "규범"
     definition: >
-      규범적 결정으로 확정된 상위 층. 모든 onto 활동이 준수해야 할 제약.
+      규범적 결정으로 확정된 Tier 3 의무 obligation (framework v1.0 §3.3).
+      모든 onto 활동이 준수해야 할 제약. canonicalize 경로로만 편집 가능 (snapshot copy).
       본문은 design-principles/ (rank 2-4) 와 processes/ (rank 5) 에 존재한다.
       authority/core-lexicon.yaml (rank 1) 은 principle entity 정의만 담고 본문은 담지 않는다.
       promoted term 과는 별개 층 — promoted term 은 lexicon inventory (개념 식별) 이고,
@@ -573,18 +664,42 @@ entities:
     core_value: >
       이 개념이 없으면 '준수해야 할 규범' 과 '참조할 개념' 이 구별되지 않아 authority/ 가 behaviour policy 도
       담도록 팽창한다. rank 1 (개념 SSOT) 과 rank 2 (개발 원칙) 의 CLAUDE.md 위계 구분이 흐려져 drift 누적.
+    attributes:
+      shared: [lifecycle_status]
+      local:
+        primary_scope:
+          definition: "한 principle 항목의 적용 범위 축 값. 저장 디렉토리 결정 (framework §5, §12.7)."
+          values: ["product", "medium", "domain", "methodology"]
+        secondary_scopes:
+          definition: "보조 적용 범위. 비어있을 수 있음."
+          type: "array of {scope_type: scope_value}"
+        source_commit_sha:
+          definition: "canonicalize 시점 source 항목의 commit SHA. Tier 1·2 → Tier 3 snapshot 의 historical anchor (framework §6.3)."
+          type: "string"
+        source_ref:
+          definition: "source 항목 (learning / ontology / medium_reference / domain_document) 의 식별자. historical pointer, not live reference."
+          type: "string"
+        enforcement_state:
+          definition: "principle 의 강제력 상태. 선언만 된 상태 vs 실제 강제 (pre-commit/CI/merge gate) 상태 구별 (Next-IA-3)."
+          values:
+            declared_only: "본문에 선언됐으나 실제 기계적 강제는 없음. govern 경로 승인만 필요한 상태."
+            enforceable: "drift engine · pre-commit · CI gate 중 하나 이상이 기계적으로 차단하는 상태 (framework §11.3 Stage 2 설계 대상)."
     relations:
-      - type: references
-        target: learning
-        note: "principle 은 learning 을 출처(provenance)로 가질 수 있다. W-C-03 의 learning_to_principle_promotion 경로를 통해 promoted learning 이 principle 로 승격 가능 (구체 기준은 W-C-03 설계)."
+      - type: canonicalized_from
+        target: [learning, ontology, medium_reference, domain_document]
+        cardinality: "many-to-one"
+        semantics: "snapshot_reference (historical, not live)"
+        note: "canonicalize 전이 (framework §6.3). Tier 1 learning · Tier 2 ontology/medium_reference/domain_document 중 하나를 source 로 받아 snapshot copy. R2-IA-4 — target 을 4 종 전체로 확장."
     execution_rules_ref:
-      authoring_path: "본문 배치는 design-principles/*.md (rank 2-4) 와 processes/*.md (rank 5). 본문 수정은 Principal 승인 또는 W-ID 기반 authoring."
-      lifecycle_transition: "principle 본문 자체는 lifecycle_status 속성을 가지지 않음 — 등재되면 active. deprecated/retired 는 CLAUDE.md 위계 재편 시 별도 W-ID."
+      authoring_path: "본문 배치는 design-principles/*.md (rank 2-4) 와 processes/*.md (rank 5). 본문 수정은 Principal 승인 또는 W-ID 기반 authoring. Tier 3 canonicalize 경로 (framework §6.3)."
+      lifecycle_transition: "principle entity 는 shared_attributes.lifecycle_status 를 보유 (seed→candidate→provisional→promoted→deprecated→retired). 기존에 등재된 instance (본 commit 시점의 design-principles/*, processes/*) 는 v0.15.0 기준 promoted 로 간주. deprecated/retired 전이의 canonical owner 는 M-08 refresh protocol (development-records/plan/20260413-refresh-protocol.md)."
       consumption_rule: "모든 onto 활동이 실행 전 관련 principle 을 ref. 위반 시 활동이 거부되거나 Principal 승인 요구."
+      govern_zone: "framework v1.0 §11.1 zone matrix — 모든 T3 cell 은 govern 강제 zone."
     notes:
       - "W-D-05 (2026-04-16) 신설. lifecycle 통합 재정의 5 sub-task 중 S4."
+      - "v0.15.0 (2026-04-20, framework v1.0 sync): attributes 확장 (primary_scope + secondary_scopes + source_commit_sha + source_ref + enforcement_state). canonicalized_from relation 신설 — 기존 'references learning' 을 더 정밀한 canonicalize snapshot 의미로 대체. target 을 Tier 1·2 의 4 entity (learning, ontology, medium_reference, domain_document) 로 확장."
       - "본 entity 는 principle 의 정의와 principle vs promoted term 구별 규칙만 담는다. 기존 promoted term (activity_enum, axis_enum 등) 의 principle-tier 재분류는 별도 W-ID (scope creep 방지)."
-      - "instance 본문 (각 design-principles 파일, 각 process 파일) 은 파일 시스템 배치로 식별. lexicon 은 이들을 개별 entity 로 등재하지 않음 (domain_document, learning 패턴과 동일 — 개념 정의만 lexicon, 인스턴스 본문은 파일)."
+      - "instance 본문 (각 design-principles 파일, 각 process 파일) 은 파일 시스템 배치로 식별. lexicon 은 이들을 개별 entity 로 등재하지 않음 (domain_document, learning 패턴과 동일)."
       - "구별 규칙 (principle vs promoted term, Q2 Fix): principle 은 execution_rules (무엇을 해야 하는가) 를 포함. term 은 definition (무엇인가) 만 포함. execution_rules_ref 보유 여부가 1차 구분 단서."
 
   principal:
@@ -756,6 +871,137 @@ entities:
       - "Provider resolution 축(LlmBillingMode, LlmCompatibleProxy)과 직교 — background task의 단일-턴 API call 경로와 review의 agentic 실행 경로는 서로 영향 주지 않음"
       - "host_runtime에 litellm 값이 타입 공간(artifact-types.ts)에 열려 있으며, subagent_litellm 조합은 후속 설계에서 wiring"
       - "TeamCreate 가용성은 onto child process가 introspect할 수 없으므로 nested(agent_teams_claude) vs flat(subagent_claude) 최종 선택은 주체자 세션의 판단. onto는 handoff JSON의 orchestration_guidance로 힌트만 제공"
+
+  # -------------------------------------------------------------------------
+  # Framework v1.0 entities (§8.1, §8.6) — scope axis + Tier 1/2 types
+  # Added in lexicon v0.15.0 (2026-04-20) per
+  # development-records/evolve/20260419-knowledge-framework.md.
+  # -------------------------------------------------------------------------
+
+  product:
+    canonical_label: "product"
+    korean_label: "프로덕트"
+    definition: "Principal 이 시간·비용 투입해 만든 작동 실체. onto 작업의 일차 단위 (framework v1.0 §2.1)."
+    core_value: "이 개념이 없으면 '무엇에 속한 지식인가' 의 소유 경계가 모호해지고, product-local 학습·규범·ontology 의 저장 boundary 가 성립하지 않는다."
+    attributes:
+      shared: []
+      local:
+        mediums:
+          definition: "product 를 구현하는 medium 참조 목록. composition manifest (implemented_with.yaml) 가 원천."
+          type: "array of medium references"
+          source: "implemented_with.yaml"
+    relations:
+      - type: implemented_with
+        target: medium
+        cardinality: "many-to-many"
+        note: "한 product 가 여러 medium 으로 구현 가능. framework §7.1 m:n relation + single primary + multi-axis frontmatter."
+      - type: belongs_to
+        target: domain
+        cardinality: "many-to-one"
+      - type: described_by
+        target: ontology
+        cardinality: "one-to-many"
+        note: "한 product 가 여러 ontology aspect 가능 (framework §8.6)."
+    notes:
+      - "framework v1.0 §2.1 에서 entity 격상. onto-direction §1 의 'product' prose 정의와 정합."
+      - "legacy 어휘 'project' (전역) 는 본 entity 로 통합 — framework §8.5 retire."
+
+  experience:
+    canonical_label: "experience"
+    korean_label: "경험"
+    definition: "onto 활동에서 자동 수집된 raw 관찰. Tier 1, maturity=Experience. panel verdict 이전 상태 (framework v1.0 §3.1)."
+    core_value: "이 개념이 없으면 review/reconstruct 과정의 중간 관찰이 기록되지 못해 cost-saver 로 승격할 후보 자체가 사라진다."
+    attributes:
+      shared: [lifecycle_status]
+      local:
+        primary_scope:
+          definition: "한 항목의 적용 범위 축 값 (framework §2, primary)."
+          values: ["product", "medium", "domain", "methodology"]
+        secondary_scopes:
+          definition: "보조 적용 범위. 비어있을 수 있음. framework §1 REC-5 (m:n 적용 범위)."
+          type: "array of {scope_type: scope_value}"
+    relations:
+      - type: promoted_to
+        target: learning
+        cardinality: "many-to-one"
+        note: "promote 또는 promote_and_generalize 전이의 도착지 (framework §6.1, §6.4)."
+    execution_rules_ref:
+      storage_derivation: "framework v1.0 §12.7 — (tier, primary_scope) + maturity 로 디렉토리 결정. 예: primary_scope=product → {product}/.onto/experiences/"
+    notes:
+      - "framework v1.0 §3.1 Tier 1 Experience cell 의 lexicon 표상. Tier 1 한정으로 성숙도 축 (Experience/Learning) 분화."
+
+  medium:
+    canonical_label: "medium"
+    korean_label: "구현 수단"
+    definition: "product 의 구현 수단 (excel, claude-code-skill, cli 등). scope axis 의 값으로 쓰일 수 있는 cross-product frame (framework v1.0 §2.2)."
+    core_value: "이 개념이 없으면 같은 medium 에서 반복되는 패턴·pitfall 을 product 별로 재발견해야 하고, medium 차원의 cost-saver 를 축적할 좌표가 없다."
+    relations:
+      - type: realizes
+        target: product
+        cardinality: "many-to-many"
+        note: "한 medium 이 여러 product 를 구현. product.implemented_with 의 inverse (framework §7.1)."
+    notes:
+      - "framework v1.0 §2.2 에서 entity 격상. 기존 어휘 'artifact' 의 'means' 용법은 본 entity 로 rename — framework §8.5 retire. 'artifact' 의 '산출물 instance' 의미 (produces, review_artifact, provenance) 는 보존."
+      - "medium 의 Tier 2 reference doc 묶음은 medium_reference entity 가 소유. example: /excel-workbook-editing skill."
+
+  medium_reference:
+    canonical_label: "medium_reference"
+    korean_label: "medium 참조 문서"
+    definition: "한 medium 의 Tier 2 reference doc 묶음. 기본 6 유형 (concepts, patterns, conventions, pitfalls, tooling, validation) 또는 medium-specific 자유 구성 (framework v1.0 §4.2 cell 6, R2-IA-2 신설)."
+    core_value: "이 개념이 없으면 medium 차원의 서술적 guardrail 과 pitfall 을 체계적으로 적재할 좌표가 없다."
+    attributes:
+      shared: [lifecycle_status]
+    relations:
+      - type: references
+        target: medium
+        cardinality: "many-to-one"
+      - type: canonicalized_to
+        target: principle
+        note: "Tier 2 → Tier 3 승격. snapshot copy (framework §6.3 canonicalize)."
+    notes:
+      - "framework v1.0 §12.4 에서 기본 6 유형 정의. medium-specific 유형 추가 허용 (예: excel 의 formula_audit). domain_document 보다 자유도 높음."
+
+  domain:
+    canonical_label: "domain"
+    korean_label: "도메인"
+    definition: "product 가 속한 분야 frame (software-engineering, ui-design 등). scope axis 의 값으로 쓰일 수 있는 cross-product frame (framework v1.0 §2.3)."
+    core_value: "이 개념이 없으면 분야 차원에서 누적되는 검증 기준·패턴·pitfall 이 product-local 에 묻혀 재사용 불가해진다."
+    relations:
+      - type: contains
+        target: domain_document
+        cardinality: "one-to-many"
+        note: "한 domain 은 기본 8 유형 domain_document 를 담음 (framework §12.3)."
+    notes:
+      - "framework v1.0 §2.3 에서 entity 격상. 기존 shared_attributes.scope.values.domain 은 본 entity 의 scope label 로서의 참조."
+
+  methodology:
+    canonical_label: "methodology"
+    korean_label: "방법론"
+    definition: "cross-everything 지식의 귀속 frame. product/medium/domain 경계를 넘어 항상 유효한 지식의 scope 값. v1 instance 0 (definition only, framework v1.0 §2.4 REC-1)."
+    core_value: "이 개념이 없으면 특정 scope 로 귀속 불가한 매우 일반적 지식 (예: review 9-lens taxonomy 자체) 의 좌표가 미정이 된다."
+    attributes:
+      shared: [lifecycle_status]
+    notes:
+      - "v1 은 instance 0 (definition only). 첫 instance 발생 시 framework §6 generalize 경로 재평가 (framework §10.3 deferred)."
+      - "legacy scope value 'user' 의 의미는 본 entity ('methodology') 로 rename 됨 — framework §8.4 deprecate."
+      - "compound verb (promote_and_generalize) 의 target=methodology 는 v1 enum 에서 미정의 — methodology Learning 직접 생성 금지 (framework §6.4)."
+
+  ontology:
+    canonical_label: "ontology"
+    korean_label: "온톨로지"
+    definition: "한 product 의 개념·실체·관계 망. onto-direction §1 prose 를 lexicon entity 로 격상. scope=product 한정, Tier 2 (framework v1.0 §8.2)."
+    core_value: "이 개념이 없으면 product-local 개념 체계가 분산된 문서·코드에만 존재하고, 중앙 reference 로 canonicalize 할 SSOT 가 없다."
+    attributes:
+      shared: [lifecycle_status]
+    relations:
+      - type: describes
+        target: product
+        cardinality: "many-to-one"
+      - type: canonicalized_to
+        target: principle
+        note: "Tier 2 → Tier 3 승격. Principal 직접만 (framework §6.3)."
+    notes:
+      - "framework v1.0 §8.2 에서 entity 격상. 본 lexicon (authority/core-lexicon.yaml) 자체가 onto repo product 의 primary ontology instance."
 
 # ---------------------------------------------------------------------------
 # Terms
@@ -1215,14 +1461,17 @@ terms:
     canonical_label: "learning scope promotion"
     korean_label: "학습 스코프 승격"
     axis: "lifecycle_nomenclature"
-    term_status: "active"
-    definition: "project-level learning (`{project}/.onto/learnings/{agent}.md`) 이 panel 3-agent 검증 PASS + Principal 승인을 거쳐 user-level scope (`~/.onto/learnings/{agent}.md`) 로 이동하는 lifecycle 전이. 이동 후 글로벌 소비 가능."
+    term_status: "deprecated"
+    deprecated_in: "v0.15.0 (2026-04-20) — framework v1.0 sync"
+    definition: "(deprecated v0.15.0) 기존 정의: project-level learning (`{project}/.onto/learnings/{agent}.md`) 이 panel 검증 + Principal 승인 후 user-level scope (`~/.onto/learnings/{agent}.md`) 로 이동하는 lifecycle 전이. framework v1.0 의 새 scope vocabulary (product/medium/domain/methodology) 에서 `project` · `user` 가 legacy identifier 로 retire 됐으므로 본 term 의 경로 의미도 deprecated."
     allowed_values: []
+    replacement:
+      transition_kind: "promote_and_generalize"
+      note: "framework v1.0 §6.4 — product Experience → 다른 scope (medium/domain) 의 Learning 으로 이동. legacy project→user 의 1-step 저장 경계 이동이 아니라 적용 범위 축 자체가 변하는 전이. canonical vocabulary 는 shared_attributes.transition_kind.values."
     notes:
-      - "W-D-05 (2026-04-16) 신설 — 'promoted' 용어 3분리 중 2/3 (Semantic drift 해소)."
-      - "Source of truth: processes/learn/promote.md."
-      - "Consumer: src/core-runtime/loader.ts (promoted learning 만 user scope 로드), loader consumption filter."
-      - "본 term 은 learning artifact 의 저장 경계 (project → user) 이동만 지칭. learning 내용 자체의 변환이나 principle 승격과는 구별됨."
+      - "W-D-05 (2026-04-16) 신설 — 'promoted' 용어 3분리 중 2/3."
+      - "v0.15.0 (2026-04-20) deprecated — framework v1.0 의 4-scope model (product/medium/domain/methodology) 은 project→user 1-step path 와 semantics 가 다름. runtime 소비자 (src/core-runtime/learning/loader.ts, src/core-runtime/learning/shared/paths.ts) 의 scope migration 은 framework §12.6 에 따라 별도 PR 에서 집행. 해당 migration 이 완료되면 본 term 은 retire 로 전이."
+      - "소비 정책: deprecated term 은 authority file 내 참조만 허용. 신규 문서·코드는 transition_kind=promote_and_generalize 를 사용하고 primary_scope/secondary_scopes 로 scope 축을 표현."
 
   - term_id: "learning_to_principle_promotion"
     canonical_label: "learning-to-principle promotion"

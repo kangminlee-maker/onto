@@ -344,11 +344,13 @@ function main() {
     console.log();
   }
 
-  // Current core-axis
-  const currentCore = new Set<Lens>(["logic", "pragmatics", "evolution", "axiology"]);
-  const currentCovered = fullSessions.filter((s) => [...s.required].every((l) => currentCore.has(l))).length;
+  // v0.2.0 baseline core-axis (pre-recomposition). v0.2.1 배포 이후 SSOT 는
+  // authority/core-lens-registry.yaml 의 6-lens 구성 — 본 비교는 historical
+  // baseline 보존 목적으로만 유지.
+  const v020BaselineCore = new Set<Lens>(["logic", "pragmatics", "evolution", "axiology"]);
+  const v020Covered = fullSessions.filter((s) => [...s.required].every((l) => v020BaselineCore.has(l))).length;
   console.log(
-    `## Current core-axis {logic, pragmatics, evolution, axiology}: ${currentCovered}/${fullSessions.length} (${((currentCovered / fullSessions.length) * 100).toFixed(1)}%)\n`,
+    `## v0.2.0 baseline core-axis {logic, pragmatics, evolution, axiology}: ${v020Covered}/${fullSessions.length} (${((v020Covered / fullSessions.length) * 100).toFixed(1)}%)\n`,
   );
 
   // Depth analysis — sessions with Accounted findings
@@ -377,7 +379,7 @@ function main() {
   // Depth loss for Option P/Q/R
   console.log(`\n## Depth loss under reduced lens sets\n`);
   const options: { name: string; set: Lens[] }[] = [
-    { name: "Current (logic, pragmatics, evolution, axiology)", set: ["logic", "pragmatics", "evolution", "axiology"] },
+    { name: "v0.2.0 baseline (logic, pragmatics, evolution, axiology)", set: ["logic", "pragmatics", "evolution", "axiology"] },
     { name: "Option P (axiology, coverage, evolution, logic, semantics)", set: ["axiology", "coverage", "evolution", "logic", "semantics"] },
     { name: "Option Q (conciseness, coverage, evolution, semantics)", set: ["conciseness", "coverage", "evolution", "semantics"] },
     { name: "Option R (coverage, semantics, logic)", set: ["coverage", "semantics", "logic"] },

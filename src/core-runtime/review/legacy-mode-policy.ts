@@ -6,7 +6,7 @@
  * Before v0.2.0, `ReviewMode` values were `'light' | 'full'`. PR #127
  * (2026-04-19) renamed `'light'` → `'core-axis'` to align the mode name with
  * its selection rationale (at that time: meta-level 4 axes; revised in
- * v0.2.1 to empirical Pareto-optimal core lens set — registry is SSOT).
+ * v0.2.1 to cost-constrained Pareto-optimal core lens set — registry is SSOT).
  * The rename is big-bang (dual-read 미제공) but the runtime still needs to:
  *
  *   1. Reject new inputs that carry old values with a friendly migration

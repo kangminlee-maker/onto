@@ -7,7 +7,7 @@
  *
  * Two-step process:
  *   1. Q2/Q3 assessment: cheap triggers to decide whether core-axis review
- *      (empirical Pareto-optimal core lens set) is appropriate vs full 9-lens
+ *      (cost-constrained Pareto-optimal core lens set) is appropriate vs full 9-lens
  *   2. Lens selection: §7 Reverse Application to select relevant lenses
  *      (only if core-axis suggested)
  *
@@ -38,7 +38,7 @@ import {
 
 // Load core-axis composition from SSOT at module init — keeps prompt text
 // and fallback set in sync with authority/core-lens-registry.yaml (v0.2.1:
-// 6 empirical Pareto-optimal lenses).
+// 6 cost-constrained Pareto-optimal lenses).
 const CORE_LENS_REGISTRY = loadCoreLensRegistry();
 const CORE_AXIS_LENS_IDS = CORE_LENS_REGISTRY.core_axis_lens_ids;
 const CORE_AXIS_LENS_DESC = CORE_AXIS_LENS_IDS.join(", ");
@@ -96,7 +96,7 @@ function resolveMainLlmConfig(ontoConfig: OntoConfig): Partial<LlmCallConfig> {
 // Q2/Q3 Complexity Assessment
 // ---------------------------------------------------------------------------
 
-const COMPLEXITY_SYSTEM_PROMPT = `You are a review complexity assessor. You will be given a review target description and must answer two questions to determine whether a core-axis review (empirical Pareto-optimal ${CORE_AXIS_LENS_COUNT} lenses: ${CORE_AXIS_LENS_DESC}) is appropriate vs a full 9-lens review.
+const COMPLEXITY_SYSTEM_PROMPT = `You are a review complexity assessor. You will be given a review target description and must answer two questions to determine whether a core-axis review (cost-constrained Pareto-optimal ${CORE_AXIS_LENS_COUNT} lenses: ${CORE_AXIS_LENS_DESC}) is appropriate vs a full 9-lens review.
 
 Answer in JSON format:
 {

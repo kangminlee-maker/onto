@@ -7,11 +7,10 @@
 # Canonical label owner: this file owns the canonical bare lens/role IDs (logic, structure, …).
 # Concept ownership is in core-lexicon.yaml; this file owns the runtime-facing ID labels.
 #
-# `schema_version`: 이 registry 의 semantic 세대. 동일 yaml 구조(필드 이름·배열)를 유지하면서 lens 집합
-# 의 의미 (core-axis composition, rationale taxonomy) 가 바뀌면 bump. Consumer 가 특정 세대를 가정해야
-# 하는 경우 이 필드로 판정.
-#   - 1: v0.2.0 rename. `core_axis_lens_ids` = meta-level 4 axis (logic/pragmatics/evolution/axiology)
-#   - 2: v0.2.1 empirical recomposition. `core_axis_lens_ids` = cost-constrained Pareto-optimal 6 lens
+# `schema_version`: 이 registry 의 semantic 세대.
+# Bump 규칙: yaml 구조(필드 이름·배열)는 유지하면서 lens 집합의 의미
+# (core-axis composition, selection rationale) 가 바뀔 때 bump.
+# 세대 이력은 `core_axis_lens_ids` 아래 "이력" 블록에 누적.
 schema_version: 2
 
 lens_definitions:
@@ -73,59 +72,31 @@ full_review_lens_ids:
   - conciseness
   - axiology
 
-# `core_axis_lens_ids` — 6 lens. review_mode 가 `core-axis` 일 때 실행.
-# Default 결정은 invocation path 별 다름 (registry 단독으로 결정 X):
-#   - explicit `--review-mode` / config `review_mode` 없으면 → `full` (review-invoke.ts:1171 fallback)
-#   - host-facing positional invoke (예: /onto:review) → `core-axis` (Step 1.5 dynamic 또는 fixed 6-lens, host_runtime 분기)
+# `core_axis_lens_ids` — review_mode 가 `core-axis` 일 때 실행되는 고정
+# lens set. v0.2.1 (schema_version=2) 부터 empirical Pareto-optimal
+# (coverage × depth × items-lost × cost 4-axis) 6 lens.
 #
-# 선정 근거 (empirical, v5 benchmark 기반):
-#   479 session set-cover + 24 consensus depth items 의 empirical simulation
-#   결과, 본 6 lens 조합이 cost-constrained Pareto-optimal (4 축:
-#   coverage × depth retention × items-lost × cost). Cost 를 포함해야 하는
-#   이유 — coverage/depth 만 관찰하면 k=9 (full) 가 항상 dominate; 본
-#   분석의 가치 판단은 "품질 vs LLM call 비용" trade-off 이므로 4번째 축
-#   cost 가 필수. 구체 수치는 benchmark §6.6-6.7 참조.
-#   k=3~9 전수 비교에서 k=6 이 유일 cost-constrained Pareto front.
+# Default 결정은 invocation path 별 다름 (registry 단독 결정 X):
+#   - explicit `--review-mode` / config `review_mode` 없으면 → `full`
+#   - host-facing positional invoke (예: /onto:review) → `core-axis`
 #
-# Broad lens (logic / evolution / axiology) 과 niche lens
-# (coverage / semantics / structure) 의 혼합 — MECE 하지 않음이 품질
-# 보증 (다중 독립 검증). 각 lens 의 실측 기여:
-#   - logic: 논리 일관성 — broad coverage contributor
-#   - structure: 구조 완결성 — niche, 깨진 경로/고립 요소 감지
-#   - semantics: 이름-의미 정렬 — niche, 동의어/동형어 감지
-#   - evolution: 시간 변화 / 확장성 — broad coverage contributor
-#   - coverage: 도메인 누락 / 개념 편향 — niche, "놓친 영역" 감지
-#   - axiology: 가치 / 목적 정합성 — broad, always_include 와 결과 일치
-#
-# 제외: pragmatics / dependency / conciseness (3) — empirical marginal
-# contribution 이 본 6 개 대비 낮음. 재포함 시 k=7~9 구간에서
-# Pareto-dominated.
-#
-# Cost:
-#   - LLM call 수: core-axis 실행 시 6 (vs full 9) — full 대비 67%
-#   - v0.2.0 (4 lens) 대비 +50% call 증가, coverage/depth trade-off 에서
-#     우위 (사용자 benchmark v5 §6.6-6.7 참조)
-#
-# 이름 `core-axis` 의 의미 shift (PR #127 → PR #131):
-#   PR #127 에서 `light` → `core-axis` rename 의 근거는 "이름이 선정 근거
-#   를 직접 전달해야 한다" 원칙. 당시 '선정 근거' = meta-level 4 axis core.
-#   v0.2.1 에서는 '선정 근거' 가 empirical Pareto-optimal core lens set 으
-#   로 전환됐으나, "이름이 선정 근거를 전달" 원칙은 유지. 즉 `axis` 의 의
-#   미가 "meta-level 판단 축" → "empirical core lens" 로 shift 했다. 이름
-#   재rename 은 불필요 — core-axis 는 여전히 "core 여섯 축" 으로 읽을 수
-#   있으며, 구체 구성의 근거가 design-intent 에서 empirical 로 바뀌었을
-#   뿐. PR #127 의 rename 원칙과 정합.
-#
-# 이력:
-#   - PR #127 (v0.2.0): `light_review_lens_ids` → `core_axis_lens_ids` rename
-#     (당시 4 lens: logic / pragmatics / evolution / axiology — meta-level 축)
-#   - PR ??? (v0.2.1): 4 → 6 lens empirical recomposition + axis 의미 shift
-#     제거: pragmatics. 추가: coverage / semantics / structure
+# 선정 근거 · 각 lens 의 empirical 역할 · 이름 `core-axis` 의 의미 shift
+# (PR #127 meta-level axis → PR #131 empirical core lens) · rejected
+# alternative 분석 은 아래 proposal §1.1.1 (이름 shift) / §1.1.2 (Pareto
+# 용어) / §3.2 (Pareto frontier) / §4 (권장안 근거) 에 기술.
+# 수치 (coverage / depth / items-lost / cost) SSOT 는 benchmark 파일.
 #
 # 참조:
-#   - development-records/benchmark/20260419-lens-contribution-analysis.md (v5)
-#   - development-records/evolve/20260419-core-axis-empirical-recomposition.md
-#   - development-records/evolve/20260418-light-to-core-axis-rename-proposal.md
+#   - Proposal (설계 rationale + 이름 의미 shift):
+#       development-records/evolve/20260419-core-axis-empirical-recomposition.md
+#   - Benchmark (수치 SSOT):
+#       development-records/benchmark/20260419-lens-contribution-analysis.md
+#   - Rename 이력 (v0.2.0):
+#       development-records/evolve/20260418-light-to-core-axis-rename-proposal.md
+#
+# 이력 (세대 변경 시 본 section 1 줄 추가, schema_version 함께 bump):
+#   - 세대 1 (v0.2.0): 4 lens (logic / pragmatics / evolution / axiology) — meta-level axis 잠정
+#   - 세대 2 (v0.2.1): 6 lens empirical recomposition — 본 seat
 core_axis_lens_ids:
   - axiology
   - coverage

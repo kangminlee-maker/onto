@@ -18,8 +18,10 @@
 | Metric | Before (4) | After (6) | Delta |
 |---|---|---|---|
 | Coverage (fully-coverable session cover rate) | 77.4% | 86.4% | **+9.0%p** |
-| Depth retention (consensus cross-lens redundancy) | 51.5% | 67.6% | **+16.1%p** |
+| Depth retention [*] (consensus cross-lens redundancy) | 51.5% | 67.6% | **+16.1%p** |
 | Items lost entirely | 5/24 | 2/24 | **-3 items** |
+
+[*] Depth retention 수치는 24 items / 5 session 의 작은 sample 기반 — 하단 "Depth sample 한계" 주의 사항 참조.
 
 #### Cost impact
 

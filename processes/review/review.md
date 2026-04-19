@@ -386,7 +386,7 @@ npm run review:materialize-execution-preparation -- \
 - description: `Agent Panel Review: {review target summary}`
 
 **Step 4 — Create all teammates**: After TeamCreate, create all teammates **simultaneously in a single message** via Agent tool. The initial prompt combines identity + self-loading + task directives. Each review lens is realized as a `ContextIsolatedReasoningUnit`. Review lenses begin Round 1 immediately; `synthesize` waits until Step 3.
-- **core-axis 모드**: 고정 6 lens (`axiology` / `coverage` / `evolution` / `logic` / `semantics` / `structure`) + `synthesize`를 생성한다. Empirical Pareto-optimal 구성 (v5 benchmark 기반). 단, `host_runtime: standalone | litellm | anthropic | openai` 인 경우 Step 1.5 dynamic lens selection (`selectLenses`) 이 활성화되어 LLM 이 2-6 lens 를 선택할 수 있다 (이 경우에도 `axiology` 는 항상 포함).
+- **core-axis 모드**: 고정 6 lens (`axiology` / `coverage` / `evolution` / `logic` / `semantics` / `structure`) + `synthesize`를 생성한다. Cost-constrained Pareto-optimal 구성 (v5 benchmark 기반, 4-axis trade-off). 단, `host_runtime: standalone | litellm | anthropic | openai` 인 경우 Step 1.5 dynamic lens selection (`selectLenses`) 이 활성화되어 LLM 이 2-6 lens 를 선택할 수 있다 (이 경우에도 `axiology` 는 항상 포함).
 - **전원 모드 (full) 또는 Complexity Assessment 미수행**: 8명 기존 검증 lens + `axiology` + `synthesize`를 생성한다.
 - Each teammate's `name`: agent-id (e.g., `logic`, `synthesize`)
 - Each teammate's `team_name`: team_name created in Step 3

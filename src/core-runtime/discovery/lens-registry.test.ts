@@ -1,5 +1,20 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import { canonicalizeLensId, loadCoreLensRegistry } from "./lens-registry.js";
+
+function resolveRegistryPath(): string {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  let cur = here;
+  const root = path.parse(cur).root;
+  while (cur !== root) {
+    const candidate = path.join(cur, "authority", "core-lens-registry.yaml");
+    if (fs.existsSync(candidate)) return candidate;
+    cur = path.dirname(cur);
+  }
+  throw new Error("authority/core-lens-registry.yaml not found");
+}
 
 describe("canonicalizeLensId — Phase 0 dual-read (W-A-01)", () => {
   it("strips onto_ prefix from legacy IDs", () => {
@@ -64,5 +79,13 @@ describe("loadCoreLensRegistry — core-axis composition contract (v0.2.1)", () 
     for (const id of registry.always_include_lens_ids) {
       expect(registry.core_axis_lens_ids).toContain(id);
     }
+  });
+
+  // F-E1 (2nd review): loader currently does not consume `schema_version`.
+  // Assert the raw field exists at the registry seat — forces any future
+  // recomposition to bump the field together with contents.
+  it("registry file declares schema_version: 2 (raw-text guard)", () => {
+    const text = fs.readFileSync(resolveRegistryPath(), "utf8");
+    expect(text).toMatch(/^schema_version:\s*2\b/m);
   });
 });

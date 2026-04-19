@@ -1321,8 +1321,8 @@ function callMockProvider(
     systemPrompt.startsWith("You are a review lens selector")
   ) {
     // Phase 3: Step 1.5 lens selection mock — default core-axis set.
-    // SSOT: authority/core-lens-registry.yaml (v0.2.1: empirical Pareto-
-    // optimal lenses). Imported at module init (see top of file).
+    // SSOT: authority/core-lens-registry.yaml (v0.2.1: cost-constrained
+    // Pareto-optimal lenses). Imported at module init (see top of file).
     text = JSON.stringify({
       selected_lens_ids: loadCoreLensRegistry().core_axis_lens_ids,
       rationale: "mock — default core-axis review lens set",

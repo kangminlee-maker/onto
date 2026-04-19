@@ -1183,7 +1183,7 @@ function resolveLensDefaultsForReviewMode(reviewMode: ReviewMode): {
       alwaysIncludeLensIds: [..._registry.always_include_lens_ids],
       recommendedLensIds: [...CORE_AXIS_LENS_IDS],
       rationale: [
-        `host-facing positional invoke defaults core-axis review to the empirical Pareto-optimal core lens set (${CORE_AXIS_LENS_IDS.join(", ")}) from authority/core-lens-registry.yaml.`,
+        `host-facing positional invoke defaults core-axis review to the cost-constrained Pareto-optimal core lens set (${CORE_AXIS_LENS_IDS.join(", ")}) from authority/core-lens-registry.yaml.`,
       ],
     };
   }
@@ -1408,7 +1408,7 @@ async function resolveReviewInvokeInputs(
   // When no explicit review-mode or lens-id is set AND the principal is
   // running against a direct-call external HTTP provider (env override or
   // external_http_provider config), call main_llm to assess whether
-  // core-axis review (empirical Pareto-optimal core lens set from registry)
+  // core-axis review (cost-constrained Pareto-optimal core lens set from registry)
   // is appropriate vs full 9-lens.
   const envHostRuntime = process.env.ONTO_HOST_RUNTIME?.trim().toLowerCase();
   const isStandaloneHost =

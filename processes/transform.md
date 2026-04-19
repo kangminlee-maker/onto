@@ -1,14 +1,14 @@
 # Ontology Transform Process
 
 > Converts the Raw Ontology into the user's desired format.
-> Related: Input is the Raw Ontology built via `/onto:build`. After transform, verification is possible via `/onto:review`.
+> Related: Input is the Raw Ontology built via `/onto:reconstruct`. After transform, verification is possible via `/onto:review`.
 
 Converts the Raw Ontology (`.onto/builds/{session ID}/raw.yml`) into the user's desired format.
 
 ### 1. Source Verification
 
 - Reads the file specified by $ARGUMENTS, or `{project}/.onto/builds/{session ID}/raw.yml`.
-- If the file does not exist, inform the user and halt: "Please run `/onto:build` first to build the Raw Ontology."
+- If the file does not exist, inform the user and halt: "Please run `/onto:reconstruct` first to build the Raw Ontology."
 - Also reads schema.yml to understand the ontology structure.
 
 ### 2. Output Format Negotiation

@@ -7,6 +7,7 @@ revision_history:
   - "2026-04-19 v2: Sample 확장 — ~/cowork/* 전체 16 프로젝트 scan, 1440 session parsed (n=479 full, 961 light). 통계 신뢰도 급증. 순위 pattern 일관 (coverage/semantics/conciseness/evolution 최상위), 현재 core-axis 의 3/4 lens 가 하위 tier 확인"
   - "2026-04-19 v3: Metric 정정 — 사용자가 unique rate 가 잘못된 metric 임을 지적. 진짜 measure 는 set-cover (최소 lens 조합으로 전체 finding cover). Phase A (5 session, 'Accounted findings' format) 결과로 logic (60%) + evolution (60%) 가 set-cover top, coverage/semantics 는 하위. Unique rate 와 반대 결과 — cross-lens overlap 때문"
   - "2026-04-19 v4: **DECISIVE** — Phase B LLM attribution 시도 실패 (codex CLI 제약 + anthropic key 미설정). 대안 발견: v2 의 Unique Finding Tagging 데이터 자체가 set-cover lower bound 제공. 479 session 전수 simulation 결과, {conciseness, coverage, evolution, semantics} 4 lens 가 91.2% cover (현 core-axis 88.5% 대비 +2.7%). Phase A 5 session 결과는 sample 편향으로 artifact — v4 가 canonical 결론"
+  - "2026-04-19 v5: **FINAL** — 사용자 methodology 지적 (synthesize 기반 분석 한계) 에 따라 (1) 3 agent round1 direct validation + (2) halted-session filter + (3) consensus depth metric 추가. 결과: synthesize attribution 정확 validation 통과. 1743 session 중 56% (981) halted/incomplete filter — valid 448 (full 243). Per-lens 순위 v4 와 동일, 절대값 2x. **Depth dimension 이 결정적**: Option Q (coverage 82.7%) 가 depth 39.7% 로 현 core-axis 51.5% 보다 나쁨. Option P (5 lens, 84.8% cover + 57.4% depth) 가 유일 Pareto-optimal. V5 가 canonical 결론"
 purpose: |
   Core-axis review mode 의 lens 구성을 **실제 review 실행 데이터** 기반으로
   재평가. 주체자 2026-04-19 정정: core-axis 의 목적은 "meta-level 4 axis
@@ -423,6 +424,138 @@ Required size 분포 (56 session):
 Phase A 의 5 session 결과 (logic/evolution 최상위, coverage/semantics 하위) 는 **sample 편향 artifact**. "Accounted findings" pattern 있는 5 session 은 특정 기간 (최근 format) + 특정 session 성격 (design proposal 등 meta doc) 편중. 479 session 에서 pattern 이 역전됨.
 
 **V4 가 canonical 결론** — 479 session 기반.
+
+## 6.7 v5 — Round1 validation + halted filter + depth dimension (FINAL)
+
+### 6.7.1 V4 의 methodology 한계 (사용자 지적)
+
+사용자가 "synthesize 결과를 보고 분석한건가?" 질문으로 핵심 한계 노출:
+- V1-V4 모두 `final-output.md` 의 `Unique Finding Tagging` 을 분석 — **synthesize 가 이미 수행한 cross-lens attribution 의 재분석**
+- Round1 의 original lens output 은 직접 분석 안 함
+- Synthesize 가 정확한지 검증 안 됨 → circular validation 위험
+
+### 6.7.2 Round1 direct validation (3 sessions, Claude Agent)
+
+3 session 의 round1/*.md 9 파일 각각 직접 읽어 cross-lens overlap 재판정:
+
+| Session | Result |
+|---|---|
+| self-review 20260419-32926f57 | ✓ synthesize 정확 |
+| onto/20260408-ee929b92 | ✓ 정확 — 6 cluster + 4 UF 일치 (8-lens overlap cluster 포함) |
+| onto/20260413-a872a35c | ✓ 정확 — 6 cluster + 4 UF 일치 |
+| AI-data-dashboard/20260406-2f3bfd08 | **N/A** — halted_partial, round1 비어있음, degraded fallback template |
+
+**발견**:
+1. Synthesize attribution 은 2 external sessions + 1 self-review 에서 정확
+2. 대규모 consensus overlap empirical 확인 (**8-lens, 7-lens, 6-lens overlap cluster 존재**)
+3. **Halted_partial session 이 pool 에 섞여 있음** — final-output.md 의 Unique Finding Tagging 이 "lens ID echo boilerplate" 인 경우 존재
+
+### 6.7.3 Halted filter 적용 (A1)
+
+Script: `scripts/analytics/v5-filtered-set-cover.ts`
+
+Filter 조건: `execution_status == completed` AND `synthesis_executed == true` AND `executed_lens_count >= 2`
+
+| 분류 | Count |
+|---|---|
+| Total session dirs | 1743 |
+| No execution-result.yaml | 314 |
+| **Halted / incomplete / mock / <2 lens** | **981 (56%)** |
+| **Valid pool** | **448** (full 243 + light 205) |
+
+내 v4 의 479 full pool 은 halted/incomplete 으로 **inflated** 되어 있었음.
+
+### 6.7.4 Appearance rate v4 vs v5 (순위 동일, 절대값 2x)
+
+| Lens | v4 (479) | v5 (243 valid full) |
+|---|---|---|
+| coverage | 7.1% | **14.0%** |
+| semantics | 6.9% | **13.6%** |
+| conciseness | 6.3% | 12.3% |
+| evolution | 5.8% | 11.5% |
+| structure | 4.6% | 9.1% |
+| logic | 3.8% | 7.4% |
+| dependency | 3.8% | 7.4% |
+| pragmatics | 3.5% | 7.0% |
+| axiology | 3.5% | 7.0% |
+
+순위 완전 동일 — v4 pattern 은 valid, 단 base rate 는 해석 주의.
+
+### 6.7.5 Set-cover 재계산 (valid pool)
+
+| 구성 | Lens | Coverage |
+|---|---|---|
+| **Current** (logic, pragmatics, evolution, axiology) | 4 | **77.4%** |
+| Q (conciseness, coverage, evolution, semantics) | 4 | 82.7% |
+| **P** (axiology, coverage, evolution, logic, semantics) | 5 | **84.8%** |
+
+현 core-axis 와 optimal 의 gap 이 valid pool 에서 더 크게 보임.
+
+### 6.7.6 Depth dimension (A2) — 결정적 발견
+
+24 consensus items (5 session 에 Accounted findings 있음) 의 contributing-lens 수 분포:
+
+| Depth | Items | Note |
+|---|---|---|
+| 1 | 5 | 단일 lens unique |
+| 2 | 11 | 2 lens consensus |
+| 3 | 2 | |
+| 4 | 1 | |
+| 5 | 1 | |
+| 6 | 3 | |
+| **8** | **1** | Session 1 SYN-CONS-02 (manual_escalation) |
+
+Avg depth: 2.83 lenses per item. 평균 review 의 defect 은 ~3 lens 가 독립 발견.
+
+**Lens subset 축소 시 depth 손실**:
+
+| Option | Lens 수 | Avg depth | Retention | Items lost entirely |
+|---|---|---|---|---|
+| **Current** | 4 | 1.46 | 51.5% | 5/24 |
+| **P** (5) | 5 | **1.63** | **57.4%** | **4/24** |
+| Q (4) | 4 | 1.13 | 39.7% | 7/24 |
+| R (3) | 3 | 1.00 | 35.3% | 8/24 |
+
+**반전**: Option Q 가 coverage (82.7%) 는 최고이지만 **depth 는 현재 core-axis 보다 나쁨** (39.7% vs 51.5%). Items lost 도 더 많음 (7 vs 5).
+
+### 6.7.7 Coverage ↔ Depth trade-off
+
+- **Niche lens** (coverage/semantics/conciseness — high unique rate): coverage 좋지만 특정 defect 집중 → depth 낮음
+- **Broad lens** (logic/pragmatics/evolution/axiology — low unique rate): 여러 defect partial contribute → depth 높음, coverage 낮음
+- **Option P 는 혼합** — broad (axiology/logic/evolution) + niche (coverage/semantics) = 양 dimension 모두 개선
+
+### 6.7.8 Option P 의 Pareto-optimality
+
+| 지표 | Current | **P** | Q |
+|---|---|---|---|
+| Coverage | 77.4% | **84.8%** | 82.7% |
+| Depth retention | 51.5% | **57.4%** | 39.7% |
+| Items lost | 5 | **4** | 7 |
+| Lens count | 4 | 5 | 4 |
+
+**Option P 가 두 dimension 모두에서 Current, Q 를 이김**. +1 lens 투자로 coverage +7.4% + depth +5.9%. Option Q 는 Current 대비 coverage 는 좋지만 **depth 악화** — 품질 저하 risk.
+
+### 6.7.9 최종 경험적 권장
+
+**Option P: `{axiology, coverage, evolution, logic, semantics}` 5 lens**
+
+근거:
+- Valid pool 기준 **coverage 84.8%** (Current 77.4% 대비 +7.4%)
+- **Depth retention 57.4%** (Current 51.5% 대비 +5.9%)
+- Items lost **4/24** (Current 5 대비 -1)
+- **Pareto-optimal**: 두 dimension 모두에서 Current 및 Q 이상
+- Broad (axiology/logic/evolution) + niche (coverage/semantics) 혼합 — 사용자 "mece 하지 않음이 품질 보증" 원칙과 부합
+
+현 core-axis 대비 변화:
+- **제거**: pragmatics
+- **추가**: coverage, semantics
+- **유지**: axiology, logic, evolution
+
+### 6.7.10 Sample 한계
+
+- Depth 분석: **5 session / 24 items** — 작음. 특히 1 session 의 8-lens outlier 영향
+- "Accounted findings" pattern 은 최근 format — 1743 중 5 만 보유
+- **미래 방향**: synthesize contract 에 "Accounted findings 필수" 추가 → 향후 모든 review 가 depth measurable
 
 ## 7. 본 benchmark 의 lifecycle
 

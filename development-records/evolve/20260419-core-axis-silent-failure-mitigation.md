@@ -1,9 +1,11 @@
 ---
 as_of: 2026-04-19
-status: design-proposal
+status: superseded
+superseded_by: "development-records/evolve/20260419-core-axis-empirical-recomposition.md"
 functional_area: core-axis-silent-failure-mitigation
 revision_history:
   - "2026-04-19: initial proposal (core-axis 의 (b) dependency 누락 + (c) coverage 누락 완화). 5 approach 평가, 옵션 B (자동 감지 + signal emit) 권장"
+  - "2026-04-19 SUPERSEDED: 본 proposal 의 전제가 주체자 정정으로 무너짐. core-axis 의 목적은 'meta-level 4 axis 보존' 이 아니라 '경제성 + full 근사 coverage' 임이 확인됨. (b)(c) 의 해결책도 signal 이 아니라 lens 구성 자체의 empirical 재설계. 후속: `20260419-core-axis-empirical-recomposition.md` (Option P' 6 lens 권장)"
 purpose: |
   core-axis review mode 의 2 silent failure (dependency lens 누락 + coverage
   lens 누락) 를 완화한다. 본 proposal 은 memory `project_light_review_lens_design.md`

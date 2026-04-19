@@ -1,10 +1,11 @@
-lexicon_version: "0.18.0"
+lexicon_version: "0.19.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
   - "This lexicon is the concept SSOT for the productization track."
   - "This file owns the concept INVENTORY. Naming RULES are owned by ontology-as-code-naming-charter.md."
   - "Structure: authoring_rules → shared_attributes → entities → terms."
+  - "v0.19.0 additive (UF 5a/5b/5c cleanup, 2026-04-20): re-review 20260420-b74e947f unique findings 3건 일괄 해소. (1) conciseness UF-C1: `product.attributes.local.mediums` 제거 — `implemented_with → medium` relation 이 canonical owner (single-owner 원칙의 attribute 층 확장). (2) semantics UF: `domain_document.doc_type` 에 `extension_pattern: custom:{type_name}` + `extension_rule` 필드 신설 — framework §12.3 의 open-closed enum 구조를 schema 에 표상 (기존 `values` 닫힘 + prose '자유 추가' 간 내부 모순 해소). (3) evolution UF: `medium_reference.execution_rules_ref.lifecycle_transition_seat` 및 `ontology.execution_rules_ref.lifecycle_transition_seat` 예약 — `transition_kind` enum 에 정의된 `medium_norm_update` / `ontology_update` 의 target-entity 실행 좌표 확보 (v1 은 `state: definition_only`, `path: null`). canonical-advancing."
   - "v0.18.0 corrective (framework v1.0.1 Inverse-edge single-owner 복원, 2026-04-20): 순수 inverse 3 pair (product.described_by / medium.realizes / domain.contains) 삭제 — authoring_rules.relation_ownership 원칙 (Entity-centric model 의 single canonical owner) 복원. canonical owner 는 각각 ontology.describes · product.implemented_with · domain_document.belongs_to. relation_type_vocabulary 에서 described_by/realizes/contains 3 type 제거. snapshot/provenance pair (learning.promoted_from · principle.canonicalized_from) 는 self-outbound provenance 로 원칙 준수 케이스 — 유지. relation_ownership_interpretation 신설로 경계 명시. re-review 20260420-b74e947f structure F1 / dependency F2 / conciseness C1 해소. canonical-advancing."
   - "v0.17.0 additive (PR C prose migration sync, 2026-04-20): path references 갱신 — design-principles/project-locality-principle.md → product-locality-principle.md (§9 rename 완료). 4 참조 지점 업데이트 (learning.execution_rules_ref.data_accumulation/consumption_precondition, domain_document.execution_rules_ref.resolution_order, govern_process.notes storage). 의미 변경 없음, 순수 path 정합. canonical-advancing."
   - "v0.16.0 additive (re-review 20260420-b74e947f fixes, 2026-04-20): (1) learning_scope_promotion.replacement refine (promote_and_generalize → generalize — standalone scope axis move, logic F1 반영). (2) review_process.creates 재조정 — learning → experience (Tier 1 lifecycle graph-satisfiability, logic F2·dependency F3 반영). (3) relation_type_vocabulary 확장 — 11 신규 relation type 등재 (implemented_with, belongs_to, described_by, realizes, contains, promoted_to, promoted_from, generalized_to, canonicalized_to, canonicalized_from, describes). 인용되던 type 이 vocabulary 에 없던 gap 해소 (structure F2·dependency F1). (4) legacy_alias_governance.scope_migration[legacy=user] 를 label_rename + instance_routing 으로 분기 분리 (semantics F1·evolution F1·coverage F-C2). canonical-advancing."
@@ -653,8 +654,10 @@ entities:
       shared: [lifecycle_status]
       local:
         doc_type:
-          definition: "domain document 의 기본 유형. framework §12.3 의 기본 8 유형. domain-specific 추가 시 'custom:{type_name}' 형식."
+          definition: "domain document 의 유형. framework §12.3 의 기본 8 유형 (closed base set) + domain-specific custom 유형 (open extension) 의 open-closed enum."
           values: ["concepts", "competency_qs", "conciseness_rules", "dependency_rules", "domain_scope", "extension_cases", "logic_rules", "structure_spec"]
+          extension_pattern: "custom:{type_name}"
+          extension_rule: "values 외의 유형 필요 시 'custom:{type_name}' 형식. type_name 은 snake_case, 한 domain 내 unique. 기계 검증은 (a) values membership OR (b) extension_pattern regex 매칭 중 하나 만족 시 accept."
     relations:
       - type: belongs_to
         target: domain
@@ -669,6 +672,7 @@ entities:
     notes:
       - "도메인 귀속은 파일 경로 규약 ({domain}/ 디렉토리) 에 의해 결정됨."
       - "framework v1.0 §8.2 refine (2026-04-20, v0.15.0): grain 명확화 (1 file = 1 instance). doc_type local attribute 추가. belongs_to domain 및 canonicalized_to principle relation 명시. shared [scope] 제거 — primary_scope 는 belongs_to domain 으로 implicit, framework scope 는 domain 으로 고정."
+      - "v0.19.0 (2026-04-20, UF-semantics 해소): doc_type 에 `extension_pattern` + `extension_rule` 신설 — framework §12.3 이 명시한 `custom:{type_name}` 개방 규칙을 schema 에 드러냄. 기존 definition prose 는 'values 닫힘 + 자유 추가' 로 내부 모순이었음. re-review 20260420-b74e947f unique finding semantics 해소."
 
   review_record:
     canonical_label: "ReviewRecord"
@@ -921,16 +925,14 @@ entities:
     core_value: "이 개념이 없으면 '무엇에 속한 지식인가' 의 소유 경계가 모호해지고, product-local 학습·규범·ontology 의 저장 boundary 가 성립하지 않는다."
     attributes:
       shared: []
-      local:
-        mediums:
-          definition: "product 를 구현하는 medium 참조 목록. composition manifest (implemented_with.yaml) 가 원천."
-          type: "array of medium references"
-          source: "implemented_with.yaml"
+      # local attributes 없음 (v0.19.0, 2026-04-20).
+      # 기존 `local.mediums` 는 implemented_with relation 과 중복 — single-owner 원칙에 따라 제거.
+      # "한 product 의 medium 목록" 은 implemented_with.yaml manifest + product.implemented_with relation 으로 derived.
     relations:
       - type: implemented_with
         target: medium
         cardinality: "many-to-many"
-        note: "한 product 가 여러 medium 으로 구현 가능. framework §7.1 m:n relation + single primary + multi-axis frontmatter."
+        note: "한 product 가 여러 medium 으로 구현 가능. framework §7.1 m:n relation + single primary + multi-axis frontmatter. implemented_with.yaml manifest 가 원천."
       - type: belongs_to
         target: domain
         cardinality: "many-to-one"
@@ -938,6 +940,7 @@ entities:
       - "framework v1.0 §2.1 에서 entity 격상. onto-direction §1 의 'product' prose 정의와 정합."
       - "legacy 어휘 'project' (전역) 는 본 entity 로 통합 — framework §8.5 retire."
       - "v0.18.0 (2026-04-20, framework v1.0.1 sync): `described_by` relation 제거 — `ontology.describes` 가 canonical owner (single owner 원칙). 소비자는 ontology.describes 에서 derived 읽기."
+      - "v0.19.0 (2026-04-20, UF-C1 해소): `local.mediums` attribute 제거 — `implemented_with → medium` relation 과 동일 정보를 중복 표상. single-owner 원칙을 attribute 층으로 확장. re-review 20260420-b74e947f unique finding conciseness C1 해소."
 
   experience:
     canonical_label: "experience"
@@ -989,8 +992,15 @@ entities:
       - type: canonicalized_to
         target: principle
         note: "Tier 2 → Tier 3 승격. snapshot copy (framework §6.3 canonicalize)."
+    execution_rules_ref:
+      lifecycle_transition_seat:
+        transition_kind: "medium_norm_update"
+        state: "definition_only"
+        path: null
+        note: "framework §6.6 전이 (Tier 1 medium Learning → Tier 2 medium reference 갱신) 의 실행 좌표. v1 은 definition only — activation 시 processes/learn/ 하위에 promote-medium.md (또는 동류 파일) 신설하여 path 지정."
     notes:
       - "framework v1.0 §12.4 에서 기본 6 유형 정의. medium-specific 유형 추가 허용 (예: excel 의 formula_audit). domain_document 보다 자유도 높음."
+      - "v0.19.0 (2026-04-20, UF-evolution 해소): medium_norm_update transition 의 execution_rules_ref.lifecycle_transition_seat 예약 — transition_kind enum 에 정의된 이름에 대응하는 target entity 좌표 확보. re-review 20260420-b74e947f unique finding evolution 해소."
 
   domain:
     canonical_label: "domain"
@@ -1029,8 +1039,15 @@ entities:
       - type: canonicalized_to
         target: principle
         note: "Tier 2 → Tier 3 승격. Principal 직접만 (framework §6.3)."
+    execution_rules_ref:
+      lifecycle_transition_seat:
+        transition_kind: "ontology_update"
+        state: "definition_only"
+        path: null
+        note: "framework §6.6 전이 (Tier 1 product Learning → Tier 2 ontology 갱신) 의 실행 좌표. v1 은 definition only. 본 lexicon 자체가 onto product 의 primary ontology 이므로, activation 설계 시 lexicon 편집 governance 와 연동 고려 필요."
     notes:
       - "framework v1.0 §8.2 에서 entity 격상. 본 lexicon (authority/core-lexicon.yaml) 자체가 onto repo product 의 primary ontology instance."
+      - "v0.19.0 (2026-04-20, UF-evolution 해소): ontology_update transition 의 execution_rules_ref.lifecycle_transition_seat 예약. medium_reference 와 대칭 구조로 확장 anchor 확보."
 
 # ---------------------------------------------------------------------------
 # Terms

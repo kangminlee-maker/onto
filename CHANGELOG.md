@@ -2,6 +2,53 @@
 
 ## Unreleased
 
+### Changed — `core-axis` lens set recomposed from 4 → 6 (v0.2.1, 2026-04-19)
+
+**Empirical recomposition**: 기존 `core-axis` 구성 (meta-level 4 axis: logic / pragmatics / evolution / axiology) 을 **v5 benchmark (243 valid full-session pool + 24 consensus depth items)** empirical analysis 기반으로 cost-constrained Pareto-optimal 6 lens 조합으로 재구성. Pool filter 과정 (1743 원본 → 497 halted/incomplete 제외 → 243 valid) 은 benchmark §6.7.3 참조. Cost 를 4번째 축으로 포함해야 하는 이유 — coverage/depth 만 비교하면 k=9 (full) 이 항상 dominate; trade-off 의 의미 있는 분석은 비용을 포함해야 성립.
+
+#### Changed
+
+- `authority/core-lens-registry.yaml` 의 `core_axis_lens_ids`:
+  - Before: `[logic, pragmatics, evolution, axiology]` (4)
+  - After: `[axiology, coverage, evolution, logic, semantics, structure]` (6)
+- 제거: `pragmatics` (1). 추가: `coverage`, `semantics`, `structure` (3).
+
+#### Quality impact (v5 benchmark)
+
+| Metric | Before (4) | After (6) | Delta |
+|---|---|---|---|
+| Coverage (fully-coverable session cover rate) | 77.4% | 86.4% | **+9.0%p** |
+| Depth retention [*] (consensus cross-lens redundancy) | 51.5% | 67.6% | **+16.1%p** |
+| Items lost entirely | 5/24 | 2/24 | **-3 items** |
+
+[*] 아래 Consumer migration 의 "Depth sample 한계" 참조.
+
+#### Cost impact
+
+- LLM call 수: `core-axis` mode 실행 시 **4 → 6 lens (+50%)**
+- Full 9-lens 대비 cost ratio: **44% → 67%**
+- Coverage/Cost trade-off 은 depth dimension (신뢰도) 감안 시 우위
+
+#### Rationale
+
+- k=3~9 전수 cost-constrained Pareto 비교에서 **k=6 이 유일 Pareto front** (4 축: coverage × depth × items-lost × cost)
+- Broad lens (logic / evolution / axiology) + niche lens (coverage / semantics / structure) 의 혼합 — MECE 비(非)보장이 다중 독립 검증으로 품질 보증
+- Benchmark (수치 SSOT): `development-records/benchmark/20260419-lens-contribution-analysis.md` (v5 FINAL)
+- Proposal: `development-records/evolve/20260419-core-axis-empirical-recomposition.md` (Option P')
+
+#### Consumer migration
+
+- **Breaking 아님** (surface compatibility only) — `review_mode: core-axis` config 와 `--review-mode core-axis` CLI 는 그대로. Action 불필요 (zero-action upgrade). Behavior 는 변경 (lens 구성).
+- **`--lens-id pragmatics` 는 여전히 사용 가능** — pragmatics lens 는 `full_review_lens_ids` + `core_role_ids` 에 유지. Core-axis 기본 구성에서만 제외.
+- **Budget 영향**: `core-axis` 모드 사용 중이라면 LLM call 이 round 당 +50% 증가. 주의.
+- **Depth sample 한계**: 24 items / 5 session 기반 — generalizability 제한. 후속 direct comparison 실험으로 validate 권장.
+
+#### Version bump 정책
+
+`0.2.0 → 0.2.1` (patch) 는 onto_release_channel = `beta` 에서의 behavior 변경을 허용하는 정책 하에서 선택. Semver 의 엄격 적용 (behavior 변경 = minor) 을 따르면 `0.3.0` 이 맞으나, beta 단계에서 minor 의 의미를 보수적으로 (API surface 변경 시) 운용. 외부 consumer 의 config/CLI 는 영향 없음 (상기 "Breaking 아님").
+
+---
+
 ### BREAKING — `review_mode: light` → `core-axis` rename (2026-04-18)
 
 **Mental model 정렬**: 옛 이름 `light` 는 부수 효과 ("비용 절감, 축소판") 만 전달하고 본질 ("meta-level 4 축 — logic / pragmatics / evolution / axiology") 을 가리지 않았음. 새 이름 `core-axis` 는 선정 근거를 직접 전달.

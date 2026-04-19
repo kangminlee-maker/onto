@@ -137,13 +137,15 @@ function main() {
     console.log();
   }
 
-  // How many sessions would current core-axis cover?
-  const currentCore = new Set<Lens>(["logic", "pragmatics", "evolution", "axiology"]);
-  const currentCovered = sessions.filter((s) =>
-    [...s.required].every((l) => currentCore.has(l)),
+  // How many sessions would the v0.2.0 baseline core-axis cover?
+  // (v0.2.1 부터 SSOT 는 authority/core-lens-registry.yaml — 본 비교는
+  // pre-recomposition baseline 보존 목적.)
+  const v020BaselineCore = new Set<Lens>(["logic", "pragmatics", "evolution", "axiology"]);
+  const v020Covered = sessions.filter((s) =>
+    [...s.required].every((l) => v020BaselineCore.has(l)),
   ).length;
   console.log(
-    `## Current core-axis (logic, pragmatics, evolution, axiology) coverage: ${currentCovered}/${sessions.length} (${((currentCovered / sessions.length) * 100).toFixed(1)}%)`,
+    `## v0.2.0 baseline core-axis (logic, pragmatics, evolution, axiology) coverage: ${v020Covered}/${sessions.length} (${((v020Covered / sessions.length) * 100).toFixed(1)}%)`,
   );
 
   // Per-lens "criticality": for each lens, how many sessions require it?

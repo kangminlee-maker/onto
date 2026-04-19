@@ -157,7 +157,7 @@ Background task (learning extraction, governance check, promote) 는 review lens
 ### 4.5 Review-specific
 
 #### `review_mode`
-- 용도: review lens set 선택 — `core-axis` 는 meta-level 고정 4 lens (logic / pragmatics / evolution / axiology), `full` 은 전수 9 lens. 비용은 부수 효과
+- 용도: review lens set 선택 — `core-axis` 는 cost-constrained Pareto-optimal 고정 6 lens (axiology / coverage / evolution / logic / semantics / structure), `full` 은 전수 9 lens. 4-axis (coverage × depth × items-lost × cost) 경험적 trade-off 분석 근거. 비용은 부수 효과 (core-axis 는 full 대비 ~67%). 수치 상세: `development-records/benchmark/20260419-lens-contribution-analysis.md`
 - 유효값: `core-axis` | `full`
 
 ##### Default resolution by invocation path
@@ -168,7 +168,7 @@ Default 는 단일 값이 아니라 **invocation path + environment** 에 따라
 |---|---|---|---|
 | 1 | CLI `--review-mode <X>` 명시 | `<X>` 그대로 사용 | `review-invoke.ts:1162` resolveReviewMode |
 | 2 | Config `review_mode: <X>` 명시 (CLI 없음) | `<X>` 그대로 사용 | `review-invoke.ts:1167` |
-| 3 | `host_runtime: standalone \| litellm \| anthropic \| openai` + no explicit mode + no `--lens-id` | Step 1.5 Complexity Assessment 가 LLM 으로 동적 판정 → `core-axis` (4 axes 또는 dynamic selection) 또는 `full` | `review-invoke.ts:1426` + `complexity-assessment.ts` |
+| 3 | `host_runtime: standalone \| litellm \| anthropic \| openai` + no explicit mode + no `--lens-id` | Step 1.5 Complexity Assessment 가 LLM 으로 동적 판정 → `core-axis` (6 empirical lenses 또는 dynamic selection) 또는 `full` | `review-invoke.ts:1426` + `complexity-assessment.ts` |
 | 4 | 위 모두 불일치 (absolute fallback) | `full` | `review-invoke.ts:1171` |
 
 **실용 요약**:

@@ -208,7 +208,21 @@ govern v1 ↔ learn v1 은 **단일 설계 세션에서 양쪽 계약 동시 합
 - 수준 1 사이클 카운트 + drift metric false positive/negative 수집
 - 수준 2 선언 기준 정량화
 
-## 4. 합의 대기 지점 (주체자 결정 필요)
+## 4. 주체자 합의 결과 (2026-04-19)
+
+Q1~Q7 전원 결정. 이후 섹션은 각 옵션과 함께 확정된 답변 표시.
+
+| Q | 결정 | 근거 |
+|---|---|---|
+| Q1 | **Phase 4 scope 전체 동의** | 5 활동 v1 (review 는 유지) + 수준 1 공고화 |
+| Q2 | **옵션 A: Track C/D 동시 → B → A** | 순환 의존 먼저 해소 (권장) |
+| Q3 | **옵션 B: 수준 2 는 Phase 5** | Phase 4 scope 관리 (권장) |
+| Q4 | **옵션 A: 기존 축 (W-A/B/C/D) 에 v1 W-ID 추가** | 연속성, 최소 변경 |
+| Q5 | **옵션 B: /clear 후 focused session** | 순환 의존 설계 집중력 (권장) |
+| Q6 | **옵션 A: Mandatory dogfood** | 주체자 확정 2026-04-19 |
+| Q7 | **옵션 A: aggregated only public** | 주체자 확정 2026-04-19 — `.onto/dogfood/` gitignored, `development-records/dogfood/` dashboard 만 commit |
+
+## 5. 원 합의 대기 지점 (archive — §4 에서 결정 완료)
 
 ### Q1: Phase 4 scope 전체 동의?
 
@@ -248,12 +262,12 @@ govern v1 ↔ learn v1 은 **단일 설계 세션에서 양쪽 계약 동시 합
 - 옵션 B: 전체 commit (full transparency)
 - 옵션 C: aggregated dashboard 조차 private (외부 auditor 없음)
 
-## 5. 현 세션에서 추가 가능한 작업
+## 6. 현 세션에서 추가 가능한 작업
 
-Phase 4 정식 설계는 별도 세션. 현 세션에서 할 수 있는 것:
+Phase 4 정식 설계는 별도 세션 (§4 Q5 결정: /clear 후 focused). 현 세션에서 할 수 있는 것:
 
-1. 본 design-input 문서 commit (Phase 4 진입점 등록)
-2. 주체자 Q1~Q5 답변 수집 (Phase 4 scope 확정)
-3. 다음 세션 startup handoff 작성 (/clear 후 즉시 설계 진입 가능하도록)
+1. ✅ 본 design-input 문서 commit (본 PR 로 진행)
+2. ✅ 주체자 Q1~Q7 답변 수집 완료 (2026-04-19)
+3. 다음 세션 startup handoff 작성 — `development-records/plan/20260419-phase4-handoff.md` 별 파일
 
-본 단계에서 **구현** 은 불가 — 설계 합의가 선행되어야 함.
+본 단계에서 **구현** 은 불가 — 설계 합의 (Stage 2 Track C/D 동시) 가 선행되어야 함.

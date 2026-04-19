@@ -8,7 +8,7 @@
 | 2 | 개발 원칙: OaC | design-principles/ontology-as-code-guideline.md |
 | 2 | 개발 원칙: LLM-Native | design-principles/llm-native-development-guideline.md |
 | 2 | 개발 원칙: 비전문가 소통 | design-principles/non-specialist-communication-guideline.md |
-| 2 | 개발 원칙: 프로젝트 우선 | design-principles/project-locality-principle.md |
+| 2 | 개발 원칙: product 우선 | design-principles/product-locality-principle.md |
 | 3 | 제품 방향 | design-principles/productization-charter.md |
 | 4 | 인터페이스 명세 | design-principles/llm-runtime-interface-principles.md |
 | 4 | 이름 규칙 | design-principles/ontology-as-code-naming-charter.md |

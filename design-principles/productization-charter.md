@@ -31,6 +31,8 @@
 
 를 동시에 가진 전환 레포다.
 
+**어휘 경계 (framework v1.0 sync, 2026-04-20)**: 본 레포는 knowledge framework v1.0 (`development-records/evolve/20260419-knowledge-framework.md`) §2.1 의 product 정의 — Principal 이 시간·비용 투입해 만든 작동 실체 — 하의 **단일 product instance** 다. 본 문서가 말하는 '제품화 (productization)' 는 이 product 의 **productization trajectory** (prototype → productized live path → productized runtime) 를 가리킨다. framework 의 scope value `product` 와 본 문서의 productization 어휘는 같은 단어를 두 layer 로 사용 — 전자는 instance 분류 (path/authority 의 scope 축), 후자는 그 instance 가 따라가는 개발 궤적. 두 layer 는 서로를 참조하되 의미가 다름을 유의.
+
 ---
 
 ## 2. Product Goal

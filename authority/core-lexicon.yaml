@@ -1,10 +1,11 @@
-lexicon_version: "0.16.0"
+lexicon_version: "0.17.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
   - "This lexicon is the concept SSOT for the productization track."
   - "This file owns the concept INVENTORY. Naming RULES are owned by ontology-as-code-naming-charter.md."
   - "Structure: authoring_rules → shared_attributes → entities → terms."
+  - "v0.17.0 additive (PR C prose migration sync, 2026-04-20): path references 갱신 — design-principles/project-locality-principle.md → product-locality-principle.md (§9 rename 완료). 4 참조 지점 업데이트 (learning.execution_rules_ref.data_accumulation/consumption_precondition, domain_document.execution_rules_ref.resolution_order, govern_process.notes storage). 의미 변경 없음, 순수 path 정합. canonical-advancing."
   - "v0.16.0 additive (re-review 20260420-b74e947f fixes, 2026-04-20): (1) learning_scope_promotion.replacement refine (promote_and_generalize → generalize — standalone scope axis move, logic F1 반영). (2) review_process.creates 재조정 — learning → experience (Tier 1 lifecycle graph-satisfiability, logic F2·dependency F3 반영). (3) relation_type_vocabulary 확장 — 11 신규 relation type 등재 (implemented_with, belongs_to, described_by, realizes, contains, promoted_to, promoted_from, generalized_to, canonicalized_to, canonicalized_from, describes). 인용되던 type 이 vocabulary 에 없던 gap 해소 (structure F2·dependency F1). (4) legacy_alias_governance.scope_migration[legacy=user] 를 label_rename + instance_routing 으로 분기 분리 (semantics F1·evolution F1·coverage F-C2). canonical-advancing."
   - "v0.15.0 additive (framework v1.0 sync, 2026-04-20): 7 신규 entity (product, experience, medium, medium_reference, domain, methodology, ontology) + 3 entity refine (learning, domain_document, principle) + shared_attributes.scope 4값 재정의 + transition_kind/normative_tier 신설. framework v1.0 (`development-records/evolve/20260419-knowledge-framework.md`) §8 의 전수 반영. scope legacy values (user, project) 는 legacy_alias_governance 에서 migration 기록. canonical-advancing."
   - "v0.6.0 additive (M-04 Phase A, 2026-04-13): activity_enum + axis_enum terms added. §1 정본 §1.2 (5 활동) + §1.5 (4 축) canonical seat. DR-M04-01 (DL-013 resolved) owning."
@@ -550,8 +551,8 @@ entities:
         target: principle
         note: "canonicalize 전이 (framework §6.3). snapshot copy 로 Tier 3 Principle 생성."
     execution_rules_ref:
-      data_accumulation: "design-principles/project-locality-principle.md §2.2 (rename → product-locality 예정, §9 phasing)"
-      consumption_precondition: "design-principles/project-locality-principle.md §2.2"
+      data_accumulation: "design-principles/product-locality-principle.md §2.2"
+      consumption_precondition: "design-principles/product-locality-principle.md §2.2"
       lifecycle_transition: "processes/learn/promote.md"
       storage_derivation: "framework v1.0 §12.7 — (tier, primary_scope) + maturity 로 디렉토리 결정. 예: primary_scope=product → {product}/.onto/learnings/, primary_scope=medium → ~/.onto/mediums/{X}/learnings/"
     notes:
@@ -655,7 +656,7 @@ entities:
         target: principle
         note: "Tier 2 → Tier 3 승격. snapshot copy (framework §6.3)."
     execution_rules_ref:
-      resolution_order: "design-principles/project-locality-principle.md §2.3 (rename → product-locality 예정)"
+      resolution_order: "design-principles/product-locality-principle.md §2.3"
       lifecycle_transition: "processes/learn/promote-domain.md"
     notes:
       - "도메인 귀속은 파일 경로 규약 ({domain}/ 디렉토리) 에 의해 결정됨."
@@ -1526,7 +1527,7 @@ terms:
       - "Introduced by W-C-01 (2026-04-16) bounded minimum surface."
       - "Origin → tag deterministic mapping: human → norm_change, system → drift."
       - "사람이 drift 를 계기로 올린 제안: tag=norm_change + prompted_by_drift_id 로 원본 drift entry 를 링크."
-      - "Storage: .onto/govern/queue.ndjson (project-local, project-locality-principle 준수). Cross-project 규범은 W-C-03 에서 설계."
+      - "Storage: .onto/govern/queue.ndjson (product-local, product-locality-principle 준수). Cross-product 규범은 W-C-03 에서 설계."
       - "Event types: submit (base), decide (pending → decided transition). Append-only."
       - "Schema location (code SSOT): src/core-runtime/govern/types.ts (GovernSubmitEvent, GovernDecideEvent, GovernQueueEntry)."
       - "Consumers: govern_process (dispatches from govern entrypoint instance), drift engine (src/core-runtime/govern/drift-engine.ts — W-C-02 v0 producer for origin=system entries), processes/govern.md §7 (storage contract) + §11 (drift engine)."

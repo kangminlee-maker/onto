@@ -10,39 +10,39 @@
 >
 > **W-D-05 용어 정렬 (2026-04-16)**: 본 프로세스의 활동 1 (승격) 은 `learning_scope_promotion`
 > canonical term 으로 지칭한다 (authority/core-lexicon.yaml#learning_scope_promotion). 대상은
-> learning artifact 의 저장 경계 (project → user scope) 이동만 포함. lexicon term 대상의 이동은
+> learning artifact 의 저장 경계 이동만 포함 — legacy `project → user` path (framework v1.0 §8.5 에서 retire, lexicon legacy_alias_governance.scope_migration 참조) 는 framework 의 `generalize` 전이에 대응. lexicon term 대상의 이동은
 > `lexicon_term_promotion`, knowledge → principle 본문 승격은 `learning_to_principle_promotion`
 > (W-C-03 미구현) 로 분리된다. 세 `*_promotion` term 의 의존 그래프는 `processes/govern.md §12` 참조.
 
-학습 품질 보증(LQA)을 수행한다. Project-level learnings (`{project}/.onto/learnings/`)의 global-level 승격, 기존 global 학습의 축 태그 재평가와 교차 에이전트 중복 제거, judgment 학습 재검증 및 event marker 보유 학습 퇴역 검토를 포함한다.
+학습 품질 보증(LQA)을 수행한다. product-scope learnings (`{product}/.onto/learnings/`)의 global-level 승격, 기존 global 학습의 축 태그 재평가와 교차 에이전트 중복 제거, judgment 학습 재검증 및 event marker 보유 학습 퇴역 검토를 포함한다.
 
 ### Prerequisites
 
-- The `{project}/.onto/learnings/` directory must exist.
-- At least one project learning file must exist.
+- The `{product}/.onto/learnings/` directory must exist.
+- At least one product-scope learning file must exist.
 - If prerequisites are not met, inform the user and halt.
 
 **Domain resolution**: Promote does not use session domain selection. Domains are automatically determined from learning tags' `[domain/X]`. Learnings without domain tags are promoted as methodology-only.
 
-**Note**: 활동 1(승격)은 project learnings 존재를 필요로 한다. 활동 2(큐레이션)와
-활동 3(감사)은 global learnings를 대상으로 하므로 project learnings 없이도
+**Note**: 활동 1(승격)은 product-scope learnings 존재를 필요로 한다. 활동 2(큐레이션)와
+활동 3(감사)은 global learnings를 대상으로 하므로 product-scope learnings 없이도
 원칙적으로 실행 가능하나, 현재는 promote 전체가 단일 트리거로 실행되므로
-project learnings 존재를 전제로 한다. 이것은 의도적 결합이다.
+product-scope learnings 존재를 전제로 한다. 이것은 의도적 결합이다.
 
 ### 1. Target Collection
 
 **If $ARGUMENTS is provided**: Collects only the specified agent's learning file.
-- Example: `/promote-learnings logic` → only `{project}/.onto/learnings/logic.md` is targeted
+- Example: `/promote-learnings logic` → only `{product}/.onto/learnings/logic.md` is targeted
 
 **If $ARGUMENTS is not provided**: Collects all `*.md` files under `.onto/learnings/`.
 
 For each file:
-- Project learning: each entry in `{project}/.onto/learnings/{agent-id}.md`
+- Product-scope learning: each entry in `{product}/.onto/learnings/{agent-id}.md`
 - Global learning: existing entries in `~/.onto/learnings/{agent-id}.md`
 
 ### 2. Pre-Analysis
 
-Compares each project learning entry against global learnings and classifies:
+Compares each product-scope learning entry against global learnings and classifies:
 
 | Classification | Criteria | Action |
 |---|---|---|
@@ -227,7 +227,7 @@ Processes only user-approved items:
   - Changes the source to `(source: promoted from {project name}, {original source}, {promotion date})`.
 - **Contradiction replacement**: Replaces the existing global entry with the new entry.
   - Preserves the replaced entry as `<!-- replaced ({date}): {original content} -->` in a comment.
-- **Project learning cleanup**: Tags promoted entries with `(-> promoted to global, {date})`. Does not delete them.
+- **Product-scope learning cleanup**: Tags promoted entries with `(-> promoted to global, {date})`. Does not delete them.
 
 ### 7. Domain Document Update Proposal
 

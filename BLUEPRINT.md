@@ -376,7 +376,7 @@ Review mode is determined during InvocationInterpretation (LensSelectionPlan) an
 | Mode | Lens set | When to use |
 |---|---|---|
 | **full** | All lenses defined in `full_review_lens_ids` (canonical set in `authority/core-lens-registry.yaml`) | Default. Comprehensive multi-perspective verification |
-| **core-axis** | Subset defined in `core_axis_lens_ids` (same registry) — 4 meta-level axes (logic / pragmatics / evolution / axiology) | Default for small targets when meta-level judgment is sufficient. Token cost is roughly half of full as a side effect |
+| **core-axis** | Subset defined in `core_axis_lens_ids` (same registry) — 6 empirical Pareto-optimal lenses (axiology / coverage / evolution / logic / semantics / structure) | Default for small targets. Empirically selected via 479-session set-cover + consensus depth benchmark (coverage 86.4%, depth retention 67.6%). Token cost is ~67% of full |
 
 Both modes follow the same canonical live path. The only difference is which lenses execute in Step 5. axiology is always included regardless of mode (`always_include_lens_ids` in the registry).
 

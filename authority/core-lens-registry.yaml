@@ -63,40 +63,55 @@ full_review_lens_ids:
   - conciseness
   - axiology
 
-# `core_axis_lens_ids` — 4 lens. review_mode 가 `core-axis` 일 때 실행.
+# `core_axis_lens_ids` — 6 lens. review_mode 가 `core-axis` 일 때 실행.
 # Default 결정은 invocation path 별 다름 (registry 단독으로 결정 X):
 #   - explicit `--review-mode` / config `review_mode` 없으면 → `full` (review-invoke.ts:1171 fallback)
-#   - host-facing positional invoke (예: /onto:review) → `core-axis` (Step 1.5 dynamic 또는 fixed 4-lens, host_runtime 분기)
+#   - host-facing positional invoke (예: /onto:review) → `core-axis` (Step 1.5 dynamic 또는 fixed 6-lens, host_runtime 분기)
 #
-# 선정 근거 (design intent):
-#   onto 의 "meta-level 판단 축" 4 개 — 대상의 의도 / 목적 / 판단에 관한
-#   lens. 대상 크기에 무관하게 적용 가치 유지. `project_onto_direction.md`
-#   의 "네 축 재정의" 와 어휘 정렬.
-#     - logic: 논리 일관성 / 추론 오류
-#     - pragmatics: 목적 / 맥락에의 실용성
-#     - evolution: 시간에 따른 변화 / 확장성
-#     - axiology: 가치 체계 / 우선순위
+# 선정 근거 (empirical, v5 benchmark 기반):
+#   479 session set-cover + 24 consensus depth items 의 empirical simulation
+#   결과, 본 6 lens 조합이 Pareto-optimal:
+#     - Coverage 86.4% (fully-coverable session cover rate)
+#     - Depth retention 67.6% (consensus cross-lens redundancy)
+#     - Items lost 2/24 (axiology-only sole contributor 2 개)
+#   k=3~9 전수 비교에서 k=6 이 유일 Pareto front.
 #
-# 제외된 5 (structure / dependency / semantics / coverage / conciseness) 는
-# "content-level 분석 축" — 대상의 표면 속성 검증. 작은 target 에서는 검증
-# 가치 작아짐. 또한 이들을 제외함으로써 core-axis mode 의 LLM 호출이 9 →
-# 4 로 줄어들어 토큰 비용 절반 이하 (부수 효과).
+# Broad lens (logic / evolution / axiology) 과 niche lens
+# (coverage / semantics / structure) 의 혼합 — MECE 하지 않음이 품질
+# 보증 (다중 독립 검증). 각 lens 의 실측 기여:
+#   - logic: 논리 일관성 — broad coverage contributor
+#   - structure: 구조 완결성 — niche, 깨진 경로/고립 요소 감지
+#   - semantics: 이름-의미 정렬 — niche, 동의어/동형어 감지
+#   - evolution: 시간 변화 / 확장성 — broad coverage contributor
+#   - coverage: 도메인 누락 / 개념 편향 — niche, "놓친 영역" 감지
+#   - axiology: 가치 / 목적 정합성 — broad, always_include 와 결과 일치
 #
-# Silent failure risk (별도 design 으로 다룸):
-#   - dependency lens 누락: 작은 md 라도 파일 참조가 깨져 있으면 core-axis
-#     에서 침묵. full 전환 없이는 미검증
-#   - coverage lens 누락: "놓친 영역" 감지 부재. core-axis 반복 사용 시
-#     누락 누적
+# 제외: pragmatics / dependency / conciseness (3) — empirical marginal
+# contribution 이 본 6 개 대비 낮음. 재포함 시 k=7~9 구간에서
+# Pareto-dominated.
 #
-# Rename 이력: 본 필드는 PR #126 (2026-04-18) 까지 `light_review_lens_ids`
-# 로 명명. mental model 정렬 (이름이 부수 효과 "비용 절감" 만 전달하고
-# 본질 "meta-level 4 axis core" 를 가리지 않도록) 위해 rename.
-# 참조: `development-records/evolve/20260418-light-to-core-axis-rename-proposal.md`
+# Cost:
+#   - LLM call 수: core-axis 실행 시 6 (vs full 9) — full 대비 67%
+#   - v0.2.0 (4 lens) 대비 +50% call 증가, coverage/depth trade-off 에서
+#     우위 (사용자 benchmark v5 §6.6-6.7 참조)
+#
+# 이력:
+#   - PR #127 (v0.2.0): `light_review_lens_ids` → `core_axis_lens_ids` rename
+#     (당시 4 lens: logic / pragmatics / evolution / axiology)
+#   - PR ??? (v0.2.1): 4 → 6 lens empirical recomposition (본 PR)
+#     제거: pragmatics. 추가: coverage / semantics / structure
+#
+# 참조:
+#   - development-records/benchmark/20260419-lens-contribution-analysis.md (v5)
+#   - development-records/evolve/20260419-core-axis-empirical-recomposition.md
+#   - development-records/evolve/20260418-light-to-core-axis-rename-proposal.md
 core_axis_lens_ids:
-  - logic
-  - pragmatics
-  - evolution
   - axiology
+  - coverage
+  - evolution
+  - logic
+  - semantics
+  - structure
 
 # Core role IDs: these lenses have system-level role definitions in ontoHome/roles/.
 # Project override is forbidden for these roles.

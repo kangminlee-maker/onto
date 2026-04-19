@@ -1181,9 +1181,9 @@ function resolveLensDefaultsForReviewMode(reviewMode: ReviewMode): {
     return {
       resolvedLensIds: [...CORE_AXIS_LENS_IDS],
       alwaysIncludeLensIds: [..._registry.always_include_lens_ids],
-      recommendedLensIds: ["logic", "pragmatics", "evolution"],
+      recommendedLensIds: [...CORE_AXIS_LENS_IDS],
       rationale: [
-        "host-facing positional invoke currently defaults core-axis review to logic, pragmatics, evolution, and axiology (meta-level 4 axes).",
+        `host-facing positional invoke defaults core-axis review to the empirical Pareto-optimal core lens set (${CORE_AXIS_LENS_IDS.join(", ")}) from authority/core-lens-registry.yaml.`,
       ],
     };
   }
@@ -1408,7 +1408,8 @@ async function resolveReviewInvokeInputs(
   // When no explicit review-mode or lens-id is set AND the principal is
   // running against a direct-call external HTTP provider (env override or
   // external_http_provider config), call main_llm to assess whether
-  // core-axis review (4 meta-level axes) is appropriate vs full 9-lens.
+  // core-axis review (empirical Pareto-optimal core lens set from registry)
+  // is appropriate vs full 9-lens.
   const envHostRuntime = process.env.ONTO_HOST_RUNTIME?.trim().toLowerCase();
   const isStandaloneHost =
     envHostRuntime === "standalone" ||

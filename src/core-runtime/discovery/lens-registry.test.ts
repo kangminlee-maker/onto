@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canonicalizeLensId } from "./lens-registry.js";
+import { canonicalizeLensId, loadCoreLensRegistry } from "./lens-registry.js";
 
 describe("canonicalizeLensId — Phase 0 dual-read (W-A-01)", () => {
   it("strips onto_ prefix from legacy IDs", () => {
@@ -29,5 +29,40 @@ describe("canonicalizeLensId — Phase 0 dual-read (W-A-01)", () => {
     expect(canonicalizeLensId("ontology")).toBe("ontology");
     expect(canonicalizeLensId("onto-logic")).toBe("onto-logic");
     expect(canonicalizeLensId("custom_logic")).toBe("custom_logic");
+  });
+});
+
+describe("loadCoreLensRegistry — core-axis composition contract (v0.2.1)", () => {
+  // These assertions lock the v0.2.1 cost-constrained Pareto-optimal
+  // composition into a test so that any future registry edit that changes
+  // the core-axis set must also update this test (intentional checkpoint).
+  // SSOT: authority/core-lens-registry.yaml; empirical basis:
+  // development-records/benchmark/20260419-lens-contribution-analysis.md.
+  const registry = loadCoreLensRegistry();
+
+  it("core_axis_lens_ids contains exactly the v0.2.1 6-lens set", () => {
+    expect(registry.core_axis_lens_ids).toHaveLength(6);
+    expect([...registry.core_axis_lens_ids].sort()).toEqual([
+      "axiology",
+      "coverage",
+      "evolution",
+      "logic",
+      "semantics",
+      "structure",
+    ]);
+  });
+
+  it("full_review_lens_ids remains 9-lens", () => {
+    expect(registry.full_review_lens_ids).toHaveLength(9);
+  });
+
+  it("always_include_lens_ids is [axiology]", () => {
+    expect(registry.always_include_lens_ids).toEqual(["axiology"]);
+  });
+
+  it("every always_include lens is present in core_axis composition", () => {
+    for (const id of registry.always_include_lens_ids) {
+      expect(registry.core_axis_lens_ids).toContain(id);
+    }
   });
 });

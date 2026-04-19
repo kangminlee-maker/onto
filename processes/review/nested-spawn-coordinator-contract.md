@@ -505,8 +505,8 @@ Deliberation 완료 후 `completing` auto state 에서 synthesizer 가 소비할
 
 ### 17.8 Empirical 검증 상태
 
-- Light review (4 lens) + Claude Agent tool 환경: 2026-04-18 Full E2E 에서 4 parallel 무난 처리 확인 (PR #119). N 초과 상황 없어 batch-by-N 효과 미관측.
-- Full review (9 lens) + N < 9 환경: **미검증**. 본 contract 개정 후 별도 세션에서 empirical 검증 필요.
+- Core-axis review (과거 4 lens, v0.2.1 이후 6 lens per `authority/core-lens-registry.yaml`) + Claude Agent tool 환경: 2026-04-18 Full E2E 에서 4 parallel 무난 처리 확인 (PR #119, 당시 4 lens 구성). v0.2.1 6-lens 구성에서의 재검증은 미수행 — 본 세션 full review (9 parallel) 가 첫 empirical 관측이 됨.
+- Full review (9 lens) + N < 9 환경: **부분 검증** (본 세션 9 parallel Agent spawn 성공). 추가 batch-by-N 효과 관측은 별도 세션에서.
 - 배경 분석 memory: `project_agent_concurrency_full_execution.md`.
 
 ---

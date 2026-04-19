@@ -50,6 +50,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { loadCoreLensRegistry } from "../../discovery/lens-registry.js";
 
 // ---------------------------------------------------------------------------
 // LiteLLM issue log (opt-in)
@@ -1319,9 +1320,11 @@ function callMockProvider(
   } else if (
     systemPrompt.startsWith("You are a review lens selector")
   ) {
-    // Phase 3: Step 1.5 lens selection mock — default core-axis set
+    // Phase 3: Step 1.5 lens selection mock — default core-axis set.
+    // SSOT: authority/core-lens-registry.yaml (v0.2.1: empirical Pareto-
+    // optimal lenses). Imported at module init (see top of file).
     text = JSON.stringify({
-      selected_lens_ids: ["axiology", "logic", "pragmatics", "evolution"],
+      selected_lens_ids: loadCoreLensRegistry().core_axis_lens_ids,
       rationale: "mock — default core-axis review lens set",
     });
   } else if (

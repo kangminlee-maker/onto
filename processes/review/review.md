@@ -194,7 +194,7 @@ Select [a]:
 | 도메인 커버리지 | coverage + semantics + pragmatics |
 | 코드/구현 | logic + structure + evolution |
 
-이 표는 §7 판정의 근거가 아니다. 각 리뷰 실제 lens set 은 §7.1 의 target 본문 sampling 기반 판정을 따른다.
+이 표는 §7 판정의 근거가 아니다. 각 리뷰 실제 lens set 은 §7.1 의 target 본문 sampling 기반 판정을 따른다. v0.2.1 empirical 분석 (`development-records/benchmark/20260419-lens-contribution-analysis.md`) 는 target 성격과 무관하게 broad lens (logic / evolution / axiology) 와 niche lens (structure / semantics / coverage) 의 혼합이 cost-constrained Pareto-optimal 임을 보였다. 본 표의 3-lens 제시는 "핵심 관련성" 의 직관 안내이며, 실제 core-axis 실행은 `authority/core-lens-registry.yaml` 의 6-lens 구성에 따른다.
 
 ---
 

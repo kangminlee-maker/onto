@@ -6,6 +6,13 @@
 # Adding a new core lens: add it here. The runtime derives FULL/LIGHT/CORE sets from this file.
 # Canonical label owner: this file owns the canonical bare lens/role IDs (logic, structure, …).
 # Concept ownership is in core-lexicon.yaml; this file owns the runtime-facing ID labels.
+#
+# `schema_version`: 이 registry 의 semantic 세대. 동일 yaml 구조(필드 이름·배열)를 유지하면서 lens 집합
+# 의 의미 (core-axis composition, rationale taxonomy) 가 바뀌면 bump. Consumer 가 특정 세대를 가정해야
+# 하는 경우 이 필드로 판정.
+#   - 1: v0.2.0 rename. `core_axis_lens_ids` = meta-level 4 axis (logic/pragmatics/evolution/axiology)
+#   - 2: v0.2.1 empirical recomposition. `core_axis_lens_ids` = cost-constrained Pareto-optimal 6 lens
+schema_version: 2
 
 lens_definitions:
   logic:
@@ -50,8 +57,11 @@ lens_definitions:
     role_ref: "roles/synthesize.md"
 
 # `full_review_lens_ids` — 9 lens 전수. review_mode 가 `full` 일 때 실행.
-# Content-level (structure / dependency / semantics / coverage / conciseness)
-# 과 meta-level (logic / pragmatics / evolution / axiology) 를 모두 포함.
+# 9 lens 는 다양한 관점 (논리 / 구조 / 의존 / 의미 / 실용 / 진화 / 커버리지 /
+# 간결 / 가치) 을 독립적으로 검증. 분류 (meta-level vs content-level) 는
+# v0.2.0 의 design-intent 잠정 분류였으나 v0.2.1 empirical 재구성 이후
+# 이 taxonomy 는 SSOT 에서 제거 — 실제 선정 근거는 core_axis_lens_ids
+# 섹션의 empirical 주석 및 benchmark 참조.
 full_review_lens_ids:
   - logic
   - structure
@@ -70,11 +80,12 @@ full_review_lens_ids:
 #
 # 선정 근거 (empirical, v5 benchmark 기반):
 #   479 session set-cover + 24 consensus depth items 의 empirical simulation
-#   결과, 본 6 lens 조합이 Pareto-optimal:
-#     - Coverage 86.4% (fully-coverable session cover rate)
-#     - Depth retention 67.6% (consensus cross-lens redundancy)
-#     - Items lost 2/24 (axiology-only sole contributor 2 개)
-#   k=3~9 전수 비교에서 k=6 이 유일 Pareto front.
+#   결과, 본 6 lens 조합이 cost-constrained Pareto-optimal (4 축:
+#   coverage × depth retention × items-lost × cost). Cost 를 포함해야 하는
+#   이유 — coverage/depth 만 관찰하면 k=9 (full) 가 항상 dominate; 본
+#   분석의 가치 판단은 "품질 vs LLM call 비용" trade-off 이므로 4번째 축
+#   cost 가 필수. 구체 수치는 benchmark §6.6-6.7 참조.
+#   k=3~9 전수 비교에서 k=6 이 유일 cost-constrained Pareto front.
 #
 # Broad lens (logic / evolution / axiology) 과 niche lens
 # (coverage / semantics / structure) 의 혼합 — MECE 하지 않음이 품질
@@ -95,10 +106,20 @@ full_review_lens_ids:
 #   - v0.2.0 (4 lens) 대비 +50% call 증가, coverage/depth trade-off 에서
 #     우위 (사용자 benchmark v5 §6.6-6.7 참조)
 #
+# 이름 `core-axis` 의 의미 shift (PR #127 → PR #131):
+#   PR #127 에서 `light` → `core-axis` rename 의 근거는 "이름이 선정 근거
+#   를 직접 전달해야 한다" 원칙. 당시 '선정 근거' = meta-level 4 axis core.
+#   v0.2.1 에서는 '선정 근거' 가 empirical Pareto-optimal core lens set 으
+#   로 전환됐으나, "이름이 선정 근거를 전달" 원칙은 유지. 즉 `axis` 의 의
+#   미가 "meta-level 판단 축" → "empirical core lens" 로 shift 했다. 이름
+#   재rename 은 불필요 — core-axis 는 여전히 "core 여섯 축" 으로 읽을 수
+#   있으며, 구체 구성의 근거가 design-intent 에서 empirical 로 바뀌었을
+#   뿐. PR #127 의 rename 원칙과 정합.
+#
 # 이력:
 #   - PR #127 (v0.2.0): `light_review_lens_ids` → `core_axis_lens_ids` rename
-#     (당시 4 lens: logic / pragmatics / evolution / axiology)
-#   - PR ??? (v0.2.1): 4 → 6 lens empirical recomposition (본 PR)
+#     (당시 4 lens: logic / pragmatics / evolution / axiology — meta-level 축)
+#   - PR ??? (v0.2.1): 4 → 6 lens empirical recomposition + axis 의미 shift
 #     제거: pragmatics. 추가: coverage / semantics / structure
 #
 # 참조:

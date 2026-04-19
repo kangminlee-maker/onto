@@ -157,7 +157,7 @@ Background task (learning extraction, governance check, promote) 는 review lens
 ### 4.5 Review-specific
 
 #### `review_mode`
-- 용도: review lens set 선택 — `core-axis` 는 empirical Pareto-optimal 고정 6 lens (axiology / coverage / evolution / logic / semantics / structure), `full` 은 전수 9 lens. v5 benchmark 근거 (coverage 86.4%, depth retention 67.6%). 비용은 부수 효과 (core-axis 는 full 대비 ~67%)
+- 용도: review lens set 선택 — `core-axis` 는 cost-constrained Pareto-optimal 고정 6 lens (axiology / coverage / evolution / logic / semantics / structure), `full` 은 전수 9 lens. 4-axis (coverage × depth × items-lost × cost) 경험적 trade-off 분석 근거. 비용은 부수 효과 (core-axis 는 full 대비 ~67%). 수치 상세: `development-records/benchmark/20260419-lens-contribution-analysis.md`
 - 유효값: `core-axis` | `full`
 
 ##### Default resolution by invocation path

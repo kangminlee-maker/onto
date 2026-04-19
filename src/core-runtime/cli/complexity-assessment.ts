@@ -7,7 +7,7 @@
  *
  * Two-step process:
  *   1. Q2/Q3 assessment: cheap triggers to decide whether core-axis review
- *      (4 meta-level axes) is appropriate vs full 9-lens
+ *      (empirical Pareto-optimal core lens set) is appropriate vs full 9-lens
  *   2. Lens selection: §7 Reverse Application to select relevant lenses
  *      (only if core-axis suggested)
  *
@@ -29,11 +29,22 @@
  */
 
 import type { OntoConfig } from "../discovery/config-chain.js";
+import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import {
   callLlm,
   resolveLearningProviderConfig,
   type LlmCallConfig,
 } from "../learning/shared/llm-caller.js";
+
+// Load core-axis composition from SSOT at module init — keeps prompt text
+// and fallback set in sync with authority/core-lens-registry.yaml (v0.2.1:
+// 6 empirical Pareto-optimal lenses).
+const CORE_LENS_REGISTRY = loadCoreLensRegistry();
+const CORE_AXIS_LENS_IDS = CORE_LENS_REGISTRY.core_axis_lens_ids;
+const CORE_AXIS_LENS_DESC = CORE_AXIS_LENS_IDS.join(", ");
+const CORE_AXIS_LENS_COUNT = CORE_AXIS_LENS_IDS.length;
+const MIN_LENS_SELECTION = 2;
+const MAX_LENS_SELECTION = CORE_AXIS_LENS_COUNT;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -85,7 +96,7 @@ function resolveMainLlmConfig(ontoConfig: OntoConfig): Partial<LlmCallConfig> {
 // Q2/Q3 Complexity Assessment
 // ---------------------------------------------------------------------------
 
-const COMPLEXITY_SYSTEM_PROMPT = `You are a review complexity assessor. You will be given a review target description and must answer two questions to determine whether a core-axis review (4 meta-level axes only: logic, pragmatics, evolution, axiology) is appropriate vs a full 9-lens review.
+const COMPLEXITY_SYSTEM_PROMPT = `You are a review complexity assessor. You will be given a review target description and must answer two questions to determine whether a core-axis review (empirical Pareto-optimal ${CORE_AXIS_LENS_COUNT} lenses: ${CORE_AXIS_LENS_DESC}) is appropriate vs a full 9-lens review.
 
 Answer in JSON format:
 {
@@ -151,7 +162,7 @@ export async function assessComplexity(
 
 const LENS_SELECTION_SYSTEM_PROMPT = `You are a review lens selector. Given a review target, select which review lenses are most relevant.
 
-Available lenses (select 2-4 from this list):
+Available lenses (select ${MIN_LENS_SELECTION}-${MAX_LENS_SELECTION} from this list):
 - logic: Logical consistency — contradictions, type conflicts, constraint clashes
 - structure: Structural completeness — isolated elements, broken paths, missing relations
 - dependency: Dependency integrity — circular, reverse, diamond dependencies
@@ -170,7 +181,7 @@ Answer in JSON format:
 
 Rules:
 - ALWAYS include "axiology" (purpose alignment is mandatory for every review)
-- Select 2-4 lenses total (including axiology)
+- Select ${MIN_LENS_SELECTION}-${MAX_LENS_SELECTION} lenses total (including axiology)
 - Choose lenses whose verification dimension is most relevant to the target
 - Prefer fewer lenses when the target is narrow in scope`;
 
@@ -191,23 +202,25 @@ export async function selectLenses(
   try {
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return { selectedLensIds: ["axiology", "logic", "pragmatics", "evolution"], rationale: "JSON parse failed — using default core-axis set" };
+      return { selectedLensIds: [...CORE_AXIS_LENS_IDS], rationale: "JSON parse failed — using default core-axis set" };
     }
     const parsed = JSON.parse(jsonMatch[0]) as {
       selected_lens_ids?: string[];
       rationale?: string;
     };
 
-    const validLenses = ["logic", "structure", "dependency", "semantics", "pragmatics", "evolution", "coverage", "conciseness", "axiology"];
+    const validLenses = CORE_LENS_REGISTRY.full_review_lens_ids;
     const selectedIds = (parsed.selected_lens_ids ?? []).filter((id) => validLenses.includes(id));
 
-    // Ensure axiology is always included
-    if (!selectedIds.includes("axiology")) {
-      selectedIds.push("axiology");
+    // Ensure always_include lenses are present (axiology, per registry)
+    for (const mandatory of CORE_LENS_REGISTRY.always_include_lens_ids) {
+      if (!selectedIds.includes(mandatory)) {
+        selectedIds.push(mandatory);
+      }
     }
 
-    if (selectedIds.length < 2) {
-      return { selectedLensIds: ["axiology", "logic", "pragmatics", "evolution"], rationale: "Too few valid lenses selected — using default core-axis set" };
+    if (selectedIds.length < MIN_LENS_SELECTION) {
+      return { selectedLensIds: [...CORE_AXIS_LENS_IDS], rationale: "Too few valid lenses selected — using default core-axis set" };
     }
 
     return {
@@ -215,6 +228,6 @@ export async function selectLenses(
       rationale: parsed.rationale ?? "",
     };
   } catch {
-    return { selectedLensIds: ["axiology", "logic", "pragmatics", "evolution"], rationale: "JSON parse failed — using default core-axis set" };
+    return { selectedLensIds: [...CORE_AXIS_LENS_IDS], rationale: "JSON parse failed — using default core-axis set" };
   }
 }

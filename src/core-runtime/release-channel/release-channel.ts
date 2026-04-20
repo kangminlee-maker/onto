@@ -7,6 +7,7 @@ type OntoReleaseChannel = "stable" | "beta";
 interface OntoPackageMetadata {
   onto_release_channel?: string;
   onto_release_label?: string;
+  version?: string;
 }
 
 export interface OntoReleaseChannelInfo {
@@ -67,6 +68,35 @@ export async function readOntoReleaseChannelInfo(): Promise<OntoReleaseChannelIn
     cachedChannelInfoPromise = loadReleaseChannelInfo();
   }
   return cachedChannelInfoPromise;
+}
+
+/**
+ * Read the installation's `package.json` version (onto-core semver).
+ * Walks up from this module's directory — same strategy as release channel info.
+ * Returns "unknown" if package.json cannot be located or parsed (non-fatal
+ * fallback; callers log the string as-is).
+ *
+ * Cached once per process to avoid repeated fs reads on hot paths like `onto --version`.
+ */
+let cachedVersionPromise: Promise<string> | undefined;
+export async function readOntoVersion(): Promise<string> {
+  if (!cachedVersionPromise) {
+    cachedVersionPromise = (async () => {
+      const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+      const packageJsonPath = await findPackageJsonPath(moduleDir);
+      if (!packageJsonPath) return "unknown";
+      try {
+        const text = await fs.readFile(packageJsonPath, "utf8");
+        const pkg = JSON.parse(text) as OntoPackageMetadata;
+        return typeof pkg.version === "string" && pkg.version.length > 0
+          ? pkg.version
+          : "unknown";
+      } catch {
+        return "unknown";
+      }
+    })();
+  }
+  return cachedVersionPromise;
 }
 
 export async function printOntoReleaseChannelNotice(): Promise<void> {

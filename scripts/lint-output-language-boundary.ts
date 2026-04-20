@@ -25,6 +25,17 @@
  *       validated) — those fall back to the runtime check.
  *       See design-principles/output-language-boundary.md §8/§9.
  *
+ *   R3/R4/R5. Translation policy consistency (output-language-boundary §9
+ *       Layer 4). Enforces the lexicon (core-lexicon.yaml) ↔ translation
+ *       glossary (authority/translation-glossary/{lang}.yaml) contract:
+ *         R3. Lexicon entry with explicit translation_mode=preserved|bilingual
+ *             MUST have a corresponding entry in the glossary.
+ *         R4. Glossary entry's mode MUST match the lexicon's declared mode.
+ *         R5. Glossary entry's term_id MUST exist as a lexicon entity key
+ *             or term_id.
+ *       translated (default) entries are implicit and not enforced here —
+ *       they fall back to lexicon's korean_label at render time.
+ *
  * Usage:
  *   npx tsx scripts/lint-output-language-boundary.ts
  *   npm run lint:output-language-boundary
@@ -179,6 +190,223 @@ function loadRegisteredRenderPointIds(): Set<string> {
 
 const REGISTERED_IDS = loadRegisteredRenderPointIds();
 
+// ─── R3/R4/R5: Translation policy consistency ───
+
+const LEXICON_PATH = "authority/core-lexicon.yaml";
+const GLOSSARY_DIR = "authority/translation-glossary";
+const SUPPORTED_LANGS: readonly string[] = ["ko"];
+
+type TranslationMode = "preserved" | "translated" | "bilingual";
+
+interface LexiconTerm {
+  key: string; // entity key OR term_id
+  mode: TranslationMode | null;
+  sourceLine: number;
+}
+
+interface GlossaryEntry {
+  term_id: string;
+  mode: TranslationMode | null;
+  sourceLine: number;
+}
+
+/**
+ * Parse core-lexicon.yaml for entity-level and term-level translation_mode
+ * declarations. Handles both `- term_id: "X"` (terms) and top-level `  X:`
+ * (entities) + their `translation_mode: "Y"` lines by proximity scan.
+ */
+function loadLexiconTranslationModes(): LexiconTerm[] {
+  const lexiconAbs = path.join(REPO_ROOT, LEXICON_PATH);
+  const terms: LexiconTerm[] = [];
+  let content: string;
+  try {
+    content = fs.readFileSync(lexiconAbs, "utf8");
+  } catch {
+    return terms;
+  }
+
+  const lines = content.split(/\r?\n/);
+
+  // Entity section: indent-2 keys inside `entities:` block.
+  let inEntities = false;
+  let currentEntityKey: string | null = null;
+  let currentEntityLine = 0;
+
+  // Term section: `- term_id: "X"` inside `terms:` block.
+  let currentTermId: string | null = null;
+  let currentTermLine = 0;
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const raw = lines[i] ?? "";
+    const line = raw.replace(/#.*$/, "").trimEnd();
+
+    if (/^entities:\s*$/.test(line)) {
+      inEntities = true;
+      continue;
+    }
+    if (/^terms:\s*$/.test(line)) {
+      inEntities = false;
+      continue;
+    }
+
+    // Entity header: `  {entity_key}:` at exactly 2 spaces
+    const entityMatch = inEntities ? /^  ([a-z_][a-z0-9_]*):\s*$/.exec(line) : null;
+    if (entityMatch && entityMatch[1] !== undefined) {
+      if (currentEntityKey !== null) {
+        terms.push({ key: currentEntityKey, mode: null, sourceLine: currentEntityLine });
+      }
+      currentEntityKey = entityMatch[1];
+      currentEntityLine = i + 1;
+      continue;
+    }
+
+    // Term header: `- term_id: "X"`
+    const termMatch = /^\s*-\s*term_id:\s*"([^"]+)"/.exec(line);
+    if (termMatch && termMatch[1] !== undefined) {
+      if (currentTermId !== null) {
+        terms.push({ key: currentTermId, mode: null, sourceLine: currentTermLine });
+      }
+      currentTermId = termMatch[1];
+      currentTermLine = i + 1;
+      continue;
+    }
+
+    // translation_mode: "X" — attach to closest preceding header
+    const modeMatch = /^\s*translation_mode:\s*"([a-z]+)"/.exec(line);
+    if (modeMatch && modeMatch[1] !== undefined) {
+      const mode = modeMatch[1] as TranslationMode;
+      // Prefer the most recent header (entity or term — whichever is closer)
+      if (
+        currentTermId !== null &&
+        currentTermLine > currentEntityLine
+      ) {
+        terms.push({ key: currentTermId, mode, sourceLine: currentTermLine });
+        currentTermId = null;
+      } else if (currentEntityKey !== null) {
+        terms.push({ key: currentEntityKey, mode, sourceLine: currentEntityLine });
+        currentEntityKey = null;
+      }
+    }
+  }
+
+  // Flush trailing headers without mode
+  if (currentEntityKey !== null) {
+    terms.push({ key: currentEntityKey, mode: null, sourceLine: currentEntityLine });
+  }
+  if (currentTermId !== null) {
+    terms.push({ key: currentTermId, mode: null, sourceLine: currentTermLine });
+  }
+
+  return terms;
+}
+
+/**
+ * Parse authority/translation-glossary/{lang}.yaml entries.
+ */
+function loadGlossary(lang: string): GlossaryEntry[] {
+  const glossaryAbs = path.join(REPO_ROOT, GLOSSARY_DIR, `${lang}.yaml`);
+  const entries: GlossaryEntry[] = [];
+  let content: string;
+  try {
+    content = fs.readFileSync(glossaryAbs, "utf8");
+  } catch {
+    return entries;
+  }
+
+  const lines = content.split(/\r?\n/);
+  let current: Partial<GlossaryEntry> | null = null;
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const raw = lines[i] ?? "";
+    const line = raw.replace(/#.*$/, "").trimEnd();
+
+    const termIdMatch = /^\s*-\s*term_id:\s*"([^"]+)"/.exec(line);
+    if (termIdMatch && termIdMatch[1] !== undefined) {
+      if (current !== null && current.term_id !== undefined) {
+        entries.push(current as GlossaryEntry);
+      }
+      current = { term_id: termIdMatch[1], mode: null, sourceLine: i + 1 };
+      continue;
+    }
+
+    const modeMatch = /^\s*mode:\s*"([a-z]+)"/.exec(line);
+    if (modeMatch && modeMatch[1] !== undefined && current !== null) {
+      current.mode = modeMatch[1] as TranslationMode;
+    }
+  }
+
+  if (current !== null && current.term_id !== undefined) {
+    entries.push(current as GlossaryEntry);
+  }
+  return entries;
+}
+
+function checkTranslationPolicy(violations: Violation[]): void {
+  const lexiconTerms = loadLexiconTranslationModes();
+  const lexiconMap = new Map<string, LexiconTerm>();
+  for (const t of lexiconTerms) lexiconMap.set(t.key, t);
+
+  for (const lang of SUPPORTED_LANGS) {
+    const glossary = loadGlossary(lang);
+    const glossaryMap = new Map<string, GlossaryEntry>();
+    for (const e of glossary) glossaryMap.set(e.term_id, e);
+
+    const glossaryFile = path.join(GLOSSARY_DIR, `${lang}.yaml`);
+
+    // R3: lexicon with preserved|bilingual MUST have glossary entry
+    for (const t of lexiconTerms) {
+      if (t.mode !== "preserved" && t.mode !== "bilingual") continue;
+      if (!glossaryMap.has(t.key)) {
+        violations.push({
+          rule: "R3",
+          file: LEXICON_PATH,
+          line: t.sourceLine,
+          excerpt: `${t.key}: translation_mode=${t.mode}`,
+          guidance: `Lexicon declares translation_mode=${t.mode} for "${t.key}" but no entry in ${glossaryFile}. Add glossary entry or remove the lexicon declaration.`,
+        });
+      }
+    }
+
+    // R4: glossary entry mode MUST match lexicon declared mode
+    for (const e of glossary) {
+      const lexEntry = lexiconMap.get(e.term_id);
+      if (lexEntry === undefined) continue; // R5 handles this
+      if (lexEntry.mode === null) {
+        violations.push({
+          rule: "R4",
+          file: glossaryFile,
+          line: e.sourceLine,
+          excerpt: `${e.term_id}: mode=${e.mode} (lexicon has no explicit mode)`,
+          guidance: `Glossary declares mode="${e.mode}" for "${e.term_id}" but lexicon has no explicit translation_mode. Add translation_mode to the lexicon entry or remove the glossary entry.`,
+        });
+        continue;
+      }
+      if (lexEntry.mode !== e.mode) {
+        violations.push({
+          rule: "R4",
+          file: glossaryFile,
+          line: e.sourceLine,
+          excerpt: `${e.term_id}: mode=${e.mode} vs lexicon=${lexEntry.mode}`,
+          guidance: `Glossary mode "${e.mode}" does not match lexicon mode "${lexEntry.mode}" for "${e.term_id}". Align the two.`,
+        });
+      }
+    }
+
+    // R5: glossary term_id MUST exist in lexicon
+    for (const e of glossary) {
+      if (!lexiconMap.has(e.term_id)) {
+        violations.push({
+          rule: "R5",
+          file: glossaryFile,
+          line: e.sourceLine,
+          excerpt: `${e.term_id} (not found in lexicon)`,
+          guidance: `Glossary references term_id "${e.term_id}" but no such entity key or term_id exists in ${LEXICON_PATH}.`,
+        });
+      }
+    }
+  }
+}
+
 function scanFile(absolutePath: string, violations: Violation[]): void {
   const rel = repoRelative(absolutePath);
 
@@ -245,6 +473,9 @@ function main(): void {
 
   const violations: Violation[] = [];
   for (const file of allFiles) scanFile(file, violations);
+
+  // R3/R4/R5: translation policy consistency (lexicon ↔ glossary)
+  checkTranslationPolicy(violations);
 
   if (violations.length === 0) {
     process.stdout.write(

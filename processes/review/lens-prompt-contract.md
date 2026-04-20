@@ -240,6 +240,47 @@ structured lens artifact의 source가 된다.
 현재 기준의 aggregate primary artifact는
 `processes/review/record-contract.md`에서 정의하는 `ReviewRecord`다.
 
+### 8.5 Internal Body vs Principal Summary (Output Structural Split)
+
+> **Status**: contract established, implementation deferred. 본 절은 trigger 도달 시 (Phase 2 번역 backend + 비영어 review 소비 요구) 구현 PR 이 참조할 stable contract 을 선언한다. 실제 lens prompt 변경 + test validation 은 후속 PR scope. 현재 동작은 "§8.1 전체가 English" 로 유지.
+
+#### 8.5.1 두 층의 경계
+
+| 층 | 섹션 범위 | 소비자 | 언어 정책 |
+|---|---|---|---|
+| **Internal Body** | §8.1 의 7 항목 전체 (structural inspection / findings / rationale / newly learned / applied learnings / domain constraints used / domain context assumptions) | synthesize (다음 agent), experience capture, audit, learning extraction | English 고정. `output_language` 영향 받지 않음 |
+| **Principal Summary** (선택적 신설 섹션) | `## Principal Summary` — 주요 finding 의 prose 요약 | Principal 직접 소비 | `output_language` 에 따라 translation target. `en` 일 때는 섹션 생략 가능 |
+
+#### 8.5.2 왜 structural split 인가
+
+Experience 수집 + learn 파이프라인 전수에서 **"어느 섹션이 canonical observation 인가"** 를 deterministic 으로 확정하기 위함. 본 split 없이 lens output 이 혼재 언어로 생성되면:
+
+1. Experience capture 가 mixed-language body 를 저장 → learning 의 언어 drift
+2. Lexicon term 은 영어 canonical 이므로 비영어 learning 은 `lexicon-citation-check` 회피 → 개념 SSOT 와의 연결 단절
+3. Cross-session pattern 비교 (learning extraction / audit) 가 언어별로 fragment
+
+즉 본 split 은 Phase 2 번역 기능의 prerequisite 가 아니라 **experience → learn 체인 의 언어 일관성 장치**.
+
+#### 8.5.3 Contract invariant (구현 시)
+
+- **Internal Body 는 English 단일 언어**. 다음 agent hand-off 경로에 있으므로 `design-principles/output-language-boundary.md §3.1` 의 Internal 범주.
+- **Principal Summary 는 Internal Body 의 요약 재서술** 이지 새 정보원이 아님. Internal Body 에 없는 claim 을 Principal Summary 에 도입 금지.
+- Translation 은 `src/core-runtime/translate/render-for-user.ts` 의 render seat 를 통해서만. renderPointId 는 본 섹션 활성 시점에 `authority/external-render-points.yaml` 에 `review_lens_principal_summary` 신설.
+- `output_language: en` 일 때 Principal Summary 섹션은 **선택적 생략** — Internal Body 자체가 이미 영어이므로 중복.
+
+#### 8.5.4 Lexicon term 취급 (translation policy 연동)
+
+Principal Summary 에서 lexicon term 등장 시 `authority/core-lexicon.yaml §authoring_rules.translation_policy` 규칙 따라 번역:
+- `translation_mode: preserved` → 원어 유지 (예: `ontology`, `entrypoint`)
+- `translation_mode: translated` → korean_label 치환
+- `translation_mode: bilingual` → 첫 등장 병기 (예: `principle (규범)`)
+
+#### 8.5.5 ReviewRecord 영향
+
+`processes/review/record-contract.md` 의 `ReviewRecord.lens_results` 는 Internal Body 만 source 로 본다. Principal Summary 는 **runtime-derived** (필요 시 render-for-user 호출로 재생성). 따라서 ReviewRecord 에 별도 필드 추가 불필요 — Internal Body 의 canonical 성이 보존됨.
+
+선택: `lens_results[].has_principal_summary: boolean` optional 힌트 필드 (기본 false). 본 필드는 runtime-coordinator 가 summary 재생성 시 decision 에 참고.
+
 ---
 
 ## 9. Lens-Specific Perspective Source

@@ -6,7 +6,7 @@ on:
   pull_request:
     paths:
       - 'processes/**'
-      - 'commands/**'
+      - '.onto/commands/**'
       - 'design-principles/**'
       - 'authority/external-render-points.yaml'
       - 'roles/**'

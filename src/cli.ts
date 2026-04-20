@@ -5,7 +5,10 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { resolveOntoHome } from "./core-runtime/discovery/onto-home.js";
 import { resolveProjectRoot } from "./core-runtime/discovery/project-root.js";
-import { printOntoReleaseChannelNotice } from "./core-runtime/release-channel/release-channel.js";
+import {
+  printOntoReleaseChannelNotice,
+  readOntoVersion,
+} from "./core-runtime/release-channel/release-channel.js";
 import {
   readSingleOptionValueFromArgv,
 } from "./core-runtime/review/review-artifact-utils.js";
@@ -597,13 +600,14 @@ async function handleReclassifyInsights(
 async function handleInfo(ontoHome: string): Promise<number> {
   const projectRoot = resolveProjectRoot();
   const installationMode = detectInstallationMode(ontoHome, projectRoot);
+  const version = await readOntoVersion();
   console.log(
     JSON.stringify(
       {
         onto_home: ontoHome,
         project_root: projectRoot,
         installation_mode: installationMode,
-        version: "0.1.0",
+        version,
         cwd: process.cwd(),
         node_version: process.version,
       },
@@ -688,9 +692,11 @@ async function main(): Promise<number> {
       return 1;
 
     case "--version":
-    case "-v":
-      console.log("onto-core 0.1.0");
+    case "-v": {
+      const version = await readOntoVersion();
+      console.log(`onto-core ${version}`);
       return 0;
+    }
 
     case "--help":
     case "-h":

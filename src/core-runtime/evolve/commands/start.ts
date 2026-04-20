@@ -989,7 +989,7 @@ function discoverAuthoritySources(projectRoot: string): Array<{ path: string; ra
     { rel: "design-principles/ontology-as-code-guideline.md", rank: 2, desc: "개발 원칙: OaC" },
     { rel: "design-principles/llm-native-development-guideline.md", rank: 2, desc: "개발 원칙: LLM-Native" },
     { rel: "design-principles/non-specialist-communication-guideline.md", rank: 2, desc: "개발 원칙: 비전문가 소통" },
-    { rel: "design-principles/project-locality-principle.md", rank: 2, desc: "개발 원칙: 프로젝트 우선" },
+    { rel: "design-principles/product-locality-principle.md", rank: 2, desc: "개발 원칙: product 우선" },
     { rel: "design-principles/productization-charter.md", rank: 3, desc: "제품 방향" },
     { rel: "design-principles/llm-runtime-interface-principles.md", rank: 4, desc: "인터페이스 명세" },
     { rel: "design-principles/ontology-as-code-naming-charter.md", rank: 4, desc: "이름 규칙" },

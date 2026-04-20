@@ -127,7 +127,7 @@ const LENS_DOMAIN_FILE_MAP: Record<string, string> = {
 };
 
 /**
- * Resolve domain directory per the Project Locality Principle §2.3:
+ * Resolve domain directory per the Product Locality Principle §2.3:
  *
  * Resolution order (project-override rule):
  * 1. Project-level domain: {project}/.onto/domains/{domain}/

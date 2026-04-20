@@ -5,7 +5,7 @@
  * 본 모듈은 산출물 (review record, learning, ontology) 이 **재사용** 되는 이벤트를 기록하고,
  * 재사용 횟수·비율을 산출하는 계측 seat.
  *
- * 저장: .onto/eval/persistence-log.ndjson (project-local, append-only event log)
+ * 저장: .onto/eval/persistence-log.ndjson (product-local, append-only event log)
  *
  * 이벤트 타입:
  *   - artifact_reuse: 기존 산출물이 새 session 에서 소비됨 (예: learning load, ontology reference)

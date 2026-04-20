@@ -60,7 +60,7 @@ describe("paths — Phase 0 dual-read (W-A-01)", () => {
       expect(result.write_path).not.toMatch(/onto_evolution\.md$/);
     });
 
-    it("write_scope is product per Project Locality Principle", () => {
+    it("write_scope is product per Product Locality Principle", () => {
       const result = resolveWritePaths("coverage", tmpProject);
       expect(result.write_scope).toBe("product");
     });

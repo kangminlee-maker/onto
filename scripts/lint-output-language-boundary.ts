@@ -16,6 +16,15 @@
  *       directs an LLM to respond in a variable language, which is exactly
  *       what the principle forbids inside agent hand-off paths.
  *
+ *   R2. Static validation of `renderForUser({renderPointId: "X"})` calls:
+ *       every literal-string renderPointId in `src/` MUST exist in
+ *       `authority/external-render-points.yaml`. This duplicates the
+ *       runtime check in render-for-user.ts but catches violations at
+ *       CI time before they reach production. Dynamic (non-literal)
+ *       renderPointId arguments are skipped (can't be statically
+ *       validated) — those fall back to the runtime check.
+ *       See design-principles/output-language-boundary.md §8/§9.
+ *
  * Usage:
  *   npx tsx scripts/lint-output-language-boundary.ts
  *   npm run lint:output-language-boundary
@@ -55,6 +64,21 @@ const R1_GUIDANCE =
   "Agent prompts must not direct the LLM to respond in a variable language. " +
   "Replace with `Respond in English` + a note about the Runtime Coordinator's render seat. " +
   "See design-principles/output-language-boundary.md §3.1.";
+
+/**
+ * R2: renderForUser call with literal renderPointId string.
+ * Matches `renderForUser({renderPointId: "X"` or `renderForUser({renderPointId: 'X'`
+ * across line breaks (object literal may span lines). Captures the id value.
+ * Dynamic (variable/expression) renderPointId is NOT matched — skipped, runtime
+ * check protects those calls.
+ */
+const R2_CALL_PATTERN =
+  /renderForUser\s*\(\s*\{[^}]*?renderPointId\s*:\s*["']([a-zA-Z0-9_\-]+)["']/gs;
+const R2_REGISTRY_PATH = "authority/external-render-points.yaml";
+const R2_GUIDANCE_TEMPLATE = (id: string, known: string): string =>
+  `renderPointId "${id}" is not registered in ${R2_REGISTRY_PATH}. ` +
+  `Add an entry (rationale: post-call no agent consumption) or fix the id. ` +
+  `Known ids: ${known}. See design-principles/output-language-boundary.md §4.`;
 
 /**
  * Directories scanned by default. We deliberately skip `.onto/`, `dist/`,
@@ -123,9 +147,40 @@ function repoRelative(absolute: string): string {
   return path.relative(REPO_ROOT, absolute);
 }
 
+/**
+ * Parse `authority/external-render-points.yaml` to extract the set of
+ * registered `id:` values. Uses a minimal line-scan — the file is a simple
+ * points: list-of-records shape. Avoids adding a YAML dep.
+ */
+function loadRegisteredRenderPointIds(): Set<string> {
+  const registryAbs = path.join(REPO_ROOT, R2_REGISTRY_PATH);
+  const ids = new Set<string>();
+  let content: string;
+  try {
+    content = fs.readFileSync(registryAbs, "utf8");
+  } catch {
+    return ids; // empty set — registry missing is a separate concern
+  }
+  let inPoints = false;
+  for (const raw of content.split(/\r?\n/)) {
+    const line = raw.replace(/#.*$/, "").trimEnd();
+    if (/^points:\s*$/.test(line)) {
+      inPoints = true;
+      continue;
+    }
+    if (!inPoints) continue;
+    const idMatch = /^\s*-\s*id:\s*"?([a-zA-Z0-9_\-]+)"?/.exec(line);
+    if (idMatch && idMatch[1] !== undefined) {
+      ids.add(idMatch[1]);
+    }
+  }
+  return ids;
+}
+
+const REGISTERED_IDS = loadRegisteredRenderPointIds();
+
 function scanFile(absolutePath: string, violations: Violation[]): void {
   const rel = repoRelative(absolutePath);
-  if (R1_ALLOWLIST.includes(rel)) return;
 
   let content: string;
   try {
@@ -134,16 +189,43 @@ function scanFile(absolutePath: string, violations: Violation[]): void {
     return;
   }
 
-  const lines = content.split(/\r?\n/);
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-    if (R1_PATTERN.test(line)) {
+  // R1 — applies to non-allowlisted files only
+  if (!R1_ALLOWLIST.includes(rel)) {
+    const lines = content.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i];
+      if (R1_PATTERN.test(line)) {
+        violations.push({
+          rule: "R1",
+          file: rel,
+          line: i + 1,
+          excerpt: line.trim(),
+          guidance: R1_GUIDANCE,
+        });
+      }
+    }
+  }
+
+  // R2 — renderForUser call with unregistered literal renderPointId.
+  // Scanned only in src/ (TS callers). test fixtures that inject their own
+  // registry via setRegistryPathForTesting are excluded by path.
+  if (rel.startsWith("src/") && !rel.includes(".test.")) {
+    R2_CALL_PATTERN.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = R2_CALL_PATTERN.exec(content)) !== null) {
+      const id = match[1];
+      if (id === undefined) continue;
+      if (REGISTERED_IDS.has(id)) continue;
+      const lineNumber = content.slice(0, match.index).split(/\r?\n/).length;
+      const knownPreview = [...REGISTERED_IDS].slice(0, 3).join(", ") +
+        (REGISTERED_IDS.size > 3 ? ", ..." : "") +
+        (REGISTERED_IDS.size === 0 ? "(none)" : "");
       violations.push({
-        rule: "R1",
+        rule: "R2",
         file: rel,
-        line: i + 1,
-        excerpt: line.trim(),
-        guidance: R1_GUIDANCE,
+        line: lineNumber,
+        excerpt: match[0],
+        guidance: R2_GUIDANCE_TEMPLATE(id, knownPreview),
       });
     }
   }

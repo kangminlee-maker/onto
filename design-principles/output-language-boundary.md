@@ -107,6 +107,110 @@ Principal-facing translation happens at the Runtime Coordinator's render seat
 - `processes/review/lens-prompt-contract.md` §10 Example Prompt Skeleton
 - `processes/review/synthesize-prompt-contract.md` §7 Example Prompt Skeleton
 
+## 8. Phase 2 Decision Tree (번역 로직 착수 시)
+
+§5 에서 미확립으로 남은 "실제 번역 로직" 은 아래 trigger → backend → scope 의 순서로 결정한다.
+
+### 8.1 Trigger 판정
+
+| Trigger | 조건 | 발동 시 필요 판단 |
+|---|---|---|
+| T1. Principal 비영어 요구 | `output_language ≠ en` 로 실제 운영 + principal 이 English 잔존을 UX 불편으로 보고 | 지원 언어 allowlist, 번역 backend 선택 |
+| T2. Review/reconstruct 본문 비영어 소비 | principal 이 review 결과를 비영어로 읽고자 함 | E-2 (output structural split) 선행 필수 |
+| T3. 다국어 principal 팀 | 같은 프로젝트에 여러 언어 principal 공존 | 언어별 선언적 allowlist + 일관성 검증 |
+
+Trigger 미도달 시 Phase 2 미착수. passthrough 유지 자체가 보호 장치.
+
+### 8.2 Backend 선택
+
+| Backend | 적합 case | Trade-off |
+|---|---|---|
+| A. per-language template table (`authority/external-render-translations/{id}.{lang}.md`) | halt 메시지, 완료 리포트, help — 구조 고정 + 짧은 텍스트 | 정확성 높음 / add new point 시 전 언어 동시 작성 부담 |
+| B. LLM on-demand | Phase 3 user summary, review synthesize — 동적·긴 텍스트 | 유연성 높음 / latency·cost + semantic drift 재유입 risk |
+| C. Hybrid (per-point 모드 선언) | 혼재 필요 시 | registry schema 확대, 기여자 인지 부담 |
+
+### 8.3 진입 경로 (sketch `20260417-phase-2-translation-design-sketch.md` §7 반영)
+
+1. Minimal viable: T1 + Backend A 로 halt (6) + phase_5_report 만 지원
+2. 운영 측정 (수 주) 후 다른 render point 확장 판정
+3. Backend B 는 측정 근거 + 번역 품질 regression test 확립 후에만 도입
+
+### 8.4 구현 시 invariant
+
+- `renderForUser` signature 변경 금지 (현 호출자 안정)
+- 번역 실패 → English fallback (절대 halt 하지 않음)
+- 번역 결과 snapshot test 도입 (baseline 급변 시 CI fail)
+
+## 9. Translation Policy Layers (용어 번역 정책)
+
+Phase 2 번역 backend 가 도입되어도 **canonical identifier 의 번역 규칙** 없이는 개념 identity drift 가 발생한다 (예: `ontology`, `principle`, `review_record` 등이 실행마다 다른 번역어로 렌더). 이 drift 는 lexicon-citation-check 및 experience → learn 파이프라인의 cross-reference 를 무너뜨린다.
+
+본 §9 는 해당 공백에 대한 **4 layer 구조** 를 규범으로 고정한다. Layer 1/2/4 는 `project_framework_backlog_cleanup.md` 후속 PR (translation policy foundation) 에서 구체화, Layer 3 은 Phase 2 backend 도입 시점에 확정.
+
+### 9.1 Layer 1 — Lexicon `translation_mode` 필드 (SSOT)
+
+`authority/core-lexicon.yaml` 의 각 entity / term / principle 에 `translation_mode` 를 선언한다.
+
+| Mode | 규칙 | 예시 |
+|---|---|---|
+| `preserved` | 원어 유지. 번역 대상에서 제외 | `ontology`, `lexicon`, `Product Locality Principle`, `review_process` — 프로젝트 고유 개념. 번역하면 identity 손상 |
+| `translated` | `korean_label` 치환 | `review_record` → `리뷰 기록` — 일반 개념, 번역해도 무해 |
+| `bilingual` | 첫 등장 병기 `source (translated)`, 이후 원어 | `principle` → `principle (규범)` — 한국어 대응어의 의미가 넓어 초기 anchor 필요 |
+
+`translation_rationale` 필드 (선택) 로 mode 선택 근거 명시.
+
+### 9.2 Layer 2 — Translation glossary (언어별)
+
+`authority/translation-glossary/{lang}.yaml` 에 Layer 1 mode 와 일관된 번역 매핑을 유지한다.
+
+```yaml
+# authority/translation-glossary/ko.yaml 예시
+version: "1.0"
+language: "ko"
+schema_version: "1"
+entries:
+  - term_id: "ontology"
+    mode: "preserved"
+  - term_id: "review_record"
+    mode: "translated"
+    translated_label: "리뷰 기록"
+  - term_id: "principle"
+    mode: "bilingual"
+    translated_label: "규범"
+    bilingual_format: "{source} ({translated})"
+```
+
+**소유권**: lexicon = mode 의 SSOT. glossary = 언어별 실제 매핑. Layer 1 과 Layer 2 간 mode 불일치는 CI lint 대상.
+
+### 9.3 Layer 3 — 번역 엔진의 term-aware 규칙
+
+`renderForUser` 의 Phase 2 구현 시 반드시 다음 순서 적용:
+
+1. 입력 text 를 glossary 의 canonical_label 에 대해 token match (word boundary)
+2. 각 match 에 mode 적용 (preserved/translated/bilingual)
+3. File path / code identifier / 이미 번역된 segment 는 lookup 우회
+4. 나머지 일반 문장은 backend (A/B/C) 로 번역
+5. 후처리: bilingual mode 의 첫 등장 marking 상태 재확인
+
+### 9.4 Layer 4 — CI lint 로 drift 방어
+
+`scripts/lint-output-language-boundary.ts` 에 추가 규칙:
+
+- **R3**: lexicon 의 entity / term / principle 에 `translation_mode` 필드 누락 시 fail
+- **R4**: 지원 언어 glossary 에 해당 term_id 항목 누락 시 fail
+- **R5**: glossary 의 mode 가 lexicon 의 mode 와 불일치 시 fail
+
+이로 **신규 term 추가 PR 이 자동으로 translation policy 를 갱신하도록 강제**. policy 공백 없이 lexicon 이 성장.
+
+### 9.5 구현 분산
+
+| Layer | 구현 PR | Trigger |
+|---|---|---|
+| 1 (lexicon mode 필드) | Translation policy foundation PR | 즉시 (drift 선제 방어) |
+| 2 (ko glossary 스켈레톤) | 동일 PR | 즉시 (최소 skeleton) |
+| 3 (엔진 규칙) | Phase 2 backend 도입 PR | T1~T3 trigger 시 |
+| 4 (lint R3/R4/R5) | Translation policy foundation PR | 즉시 (Layer 1/2 무결성 강제) |
+
 ## 6. 관련 문서
 
 - `authority/external-render-points.yaml` — 허용된 render 지점 레지스트리

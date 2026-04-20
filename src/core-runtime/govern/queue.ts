@@ -1,7 +1,7 @@
 /**
  * govern queue — ndjson I/O + projection.
  *
- * File location: .onto/govern/queue.ndjson (project-local, per project-locality-principle).
+ * File location: .onto/govern/queue.ndjson (product-local, per product-locality-principle).
  * Format: one JSON event per line. Append-only (event-sourcing pattern, consistent with scope-runtime).
  *
  * Projection rule: group events by id. submit is the base entry.

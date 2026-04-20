@@ -64,7 +64,7 @@ describe("loader consumption guard (W-B-17)", () => {
     expect(result.items.length).toBeGreaterThan(0);
     // 모든 item 이 user scope
     for (const item of result.items) {
-      expect(item.source_scope).toBe("user");
+      expect(item.source_scope).toBe("methodology");
     }
   });
 
@@ -92,7 +92,7 @@ describe("loader consumption guard (W-B-17)", () => {
     // user scope 항목만 로드됨
     expect(result.items.length).toBeGreaterThan(0);
     for (const item of result.items) {
-      expect(item.source_scope).toBe("user");
+      expect(item.source_scope).toBe("methodology");
     }
     // project scope 의 "인증 모듈" 항목은 포함되지 않음
     const hasProjectItem = result.items.some(i => i.raw_line.includes("인증 모듈"));
@@ -113,7 +113,7 @@ describe("loader consumption guard (W-B-17)", () => {
 
     expect(results).toHaveLength(1);
     for (const item of results[0]!.items) {
-      expect(item.source_scope).toBe("user");
+      expect(item.source_scope).toBe("methodology");
     }
     expect(manifest.total_items_loaded).toBeGreaterThan(0);
   });

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveInstallationPath } from "./installation-paths.js";
 
 interface CoreLensRegistry {
   full_review_lens_ids: string[];
@@ -20,13 +21,19 @@ export function canonicalizeLensId(id: string): string {
 let cached: CoreLensRegistry | null = null;
 
 function findRegistryPath(): string {
-  // Walk up from this file to find authority/core-lens-registry.yaml
+  // Walk up from this file to find {installRoot}/{.onto/,}authority/core-lens-registry.yaml.
+  // Phase 0: resolveInstallationPath handles the dual-layout fallback per ancestor.
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   let current = __dirname;
   const root = path.parse(current).root;
   while (current !== root) {
-    const candidate = path.join(current, "authority", "core-lens-registry.yaml");
-    if (fs.existsSync(candidate)) return candidate;
+    try {
+      const authorityDir = resolveInstallationPath("authority", current);
+      const candidate = path.join(authorityDir, "core-lens-registry.yaml");
+      if (fs.existsSync(candidate)) return candidate;
+    } catch {
+      // This ancestor is not an install root — keep walking.
+    }
     current = path.dirname(current);
   }
   throw new Error("Cannot find authority/core-lens-registry.yaml");

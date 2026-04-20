@@ -1,3 +1,5 @@
+import type { FrameworkScope } from "../learning/shared/scope.js";
+
 export type ReviewEntrypoint = "review";
 export type ReviewTargetScopeKind = "file" | "directory" | "bundle";
 /**
@@ -545,7 +547,7 @@ export interface ClassifiedItemTrace {
   matched_existing_line?: string;
   reason: string;
   write_path: string | null;
-  write_scope: "user" | "project" | null;
+  write_scope: FrameworkScope | null;
   learning_id: string | null;
   persistence_result:
     | "written"

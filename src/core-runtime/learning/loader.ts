@@ -18,6 +18,7 @@ import {
   IMPACT_RE,
 } from "./shared/patterns.js";
 import { resolveLearningFilePaths } from "./shared/paths.js";
+import type { FrameworkScope } from "./shared/scope.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,9 +30,9 @@ export interface ParsedLearningItem {
   role: "guardrail" | "foundation" | "convention" | null;
   impact: "high" | "normal";
   raw_line: string;
-  source_scope: "user" | "project";
+  source_scope: FrameworkScope;
   agent_id: string;
-  /** Parse order index. Higher = newer. User-scope parsed first (lower index), project-scope after. */
+  /** Parse order index. Higher = newer. Methodology-scope parsed first (lower index), product-scope after. */
   order_index: number;
   /** True if included by C-3c cross-domain rule. C-2 initializes to false. */
   cross_domain: boolean;
@@ -94,7 +95,7 @@ const T1_TOKEN_WARN_RATIO = 0.5; // Warn if T1 tokens exceed 50% of budget
 
 function parseLearningLine(
   line: string,
-  sourceScope: "user" | "project",
+  sourceScope: FrameworkScope,
   agentId: string,
   orderIndex: number,
 ): ParsedLearningItem | null {
@@ -125,7 +126,7 @@ function parseLearningLine(
 
 function parseLearningFile(
   filePath: string,
-  sourceScope: "user" | "project",
+  sourceScope: FrameworkScope,
   agentId: string,
   startIndex: number,
 ): { items: ParsedLearningItem[]; skipped: number; warnings: string[] } {
@@ -379,7 +380,7 @@ export function loadLearningsForAgent(
   // Project-level learnings (seed, unpromoted) are excluded from consumption
   // to prevent drift. They serve as input for creation and promotion only.
   // See design-principles/project-locality-principle.md §2.2.
-  for (const [scope, filePath] of [["user", paths.user_path]] as const) {
+  for (const [scope, filePath] of [["methodology", paths.user_path]] as const) {
     if (!filePath) continue;
     filePaths.push(filePath);
     try {

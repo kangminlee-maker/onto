@@ -9,6 +9,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import type { FrameworkScope } from "./scope.js";
 
 // ---------------------------------------------------------------------------
 // Internal: ID canonicalization (Phase 0 dual-read)
@@ -89,7 +90,7 @@ export function resolveLearningFilePaths(
 
 export interface LearningWritePaths {
   write_path: string;
-  write_scope: "user" | "project";
+  write_scope: FrameworkScope;
   read_paths: string[];
 }
 
@@ -122,5 +123,5 @@ export function resolveWritePaths(
   if (!raw.projectDirExists) {
     fs.mkdirSync(raw.projectDir, { recursive: true });
   }
-  return { write_path: raw.projectPath, write_scope: "project", read_paths: readPaths };
+  return { write_path: raw.projectPath, write_scope: "product", read_paths: readPaths };
 }

@@ -60,9 +60,9 @@ describe("paths — Phase 0 dual-read (W-A-01)", () => {
       expect(result.write_path).not.toMatch(/onto_evolution\.md$/);
     });
 
-    it("write_scope is project per Project Locality Principle", () => {
+    it("write_scope is product per Project Locality Principle", () => {
       const result = resolveWritePaths("coverage", tmpProject);
-      expect(result.write_scope).toBe("project");
+      expect(result.write_scope).toBe("product");
     });
 
     it("read_paths includes both canonical and legacy when present", () => {
@@ -79,7 +79,7 @@ describe("paths — Phase 0 dual-read (W-A-01)", () => {
       try {
         const result = resolveWritePaths("structure", freshProject);
         expect(fs.existsSync(path.join(freshProject, ".onto", "learnings"))).toBe(true);
-        expect(result.write_scope).toBe("project");
+        expect(result.write_scope).toBe("product");
       } finally {
         fs.rmSync(freshProject, { recursive: true, force: true });
       }

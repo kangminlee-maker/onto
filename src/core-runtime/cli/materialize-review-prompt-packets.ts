@@ -32,6 +32,7 @@ import {
   renderNewlyLearnedInstructions,
   renderEventMarkerInstructions,
 } from "../learning/prompt-sections.js";
+import { resolveInstallationPath } from "../discovery/installation-paths.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -150,15 +151,26 @@ function resolveDomainDirectory(
   const userDomainPath = path.join(os.homedir(), ".onto", "domains", domain);
   if (fsSync.existsSync(userDomainPath)) return userDomainPath;
 
-  // 3. Installation default (ontoHome/domains/)
+  // 3. Installation default (ontoHome/{,.onto/}domains/)
+  // Phase 0: resolveInstallationPath picks .onto/domains/ if present, else domains/.
   if (typeof ontoHome === "string" && ontoHome.length > 0) {
-    const homePath = path.join(ontoHome, "domains", domain);
-    if (fsSync.existsSync(homePath)) return homePath;
+    try {
+      const domainsRoot = resolveInstallationPath("domains", ontoHome);
+      const homePath = path.join(domainsRoot, domain);
+      if (fsSync.existsSync(homePath)) return homePath;
+    } catch {
+      // No domains/ directory under ontoHome at all — skip to dev-mode fallback.
+    }
   }
 
-  // 4. Legacy fallback: projectRoot/domains/ (for development mode where projectRoot === ontoHome)
-  const legacyPath = path.join(projectRoot, "domains", domain);
-  if (fsSync.existsSync(legacyPath)) return legacyPath;
+  // 4. Dev-mode fallback: projectRoot acts as installRoot when running from the onto repo.
+  try {
+    const domainsRoot = resolveInstallationPath("domains", projectRoot);
+    const legacyPath = path.join(domainsRoot, domain);
+    if (fsSync.existsSync(legacyPath)) return legacyPath;
+  } catch {
+    // projectRoot has neither .onto/domains/ nor domains/ — terminal miss.
+  }
 
   return null;
 }

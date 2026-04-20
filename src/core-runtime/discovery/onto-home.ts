@@ -6,8 +6,10 @@ import { walkUpFor } from "./walk-up.js";
 /**
  * Validates whether a directory is an onto installation root.
  *
- * Marker: package.json with name "onto-core" AND
- * roles/ directory AND authority/ directory.
+ * Marker: package.json with name "onto-core" AND a roles dir AND an authority
+ * dir. Phase 0 of the repo-layout migration accepts both the legacy top-level
+ * layout (`roles/`, `authority/`) and the new `.onto/` layout — an install
+ * partway through migration is still a valid root.
  */
 function isOntoRoot(dir: string): boolean {
   try {
@@ -15,8 +17,14 @@ function isOntoRoot(dir: string): boolean {
     if (!fs.existsSync(pkgPath)) return false;
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
     if (pkg.name !== "onto-core") return false;
-    if (!fs.existsSync(path.join(dir, "roles"))) return false;
-    if (!fs.existsSync(path.join(dir, "authority"))) return false;
+    const rolesPresent =
+      fs.existsSync(path.join(dir, "roles")) ||
+      fs.existsSync(path.join(dir, ".onto", "roles"));
+    if (!rolesPresent) return false;
+    const authorityPresent =
+      fs.existsSync(path.join(dir, "authority")) ||
+      fs.existsSync(path.join(dir, ".onto", "authority"));
+    if (!authorityPresent) return false;
     return true;
   } catch {
     return false;

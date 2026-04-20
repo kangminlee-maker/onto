@@ -4,26 +4,32 @@
 # Consumer: src/core-runtime/translate/render-for-user.ts (Phase 2 backend 도입 시).
 # Layer: output-language-boundary.md §9 Layer 2.
 #
-# 본 파일은 **explicit non-default mode (preserved / bilingual)** entries 만 담는다.
-# translated (default) 항목은 lexicon 의 korean_label 로 implicit fallback.
+# v0.21.0 정책 (2026-04-20): bilingual mode 제거. default=preserved. 현재 2 mode 시스템:
+#   - preserved: 원어 유지 (default). rank 1-4 + command 어휘 전수 해당.
+#   - translated: korean_label 치환 (explicit opt-in). 현재 사용 항목 0.
+#
+# 본 파일의 역할 (v0.21.0 이후):
+#   - preserved 항목 (default 또는 explicit): rationale 기록용 (optional documentation)
+#   - translated 항목 (explicit opt-in): translated_label + rationale 필수 (lint R3 enforce)
 #
 # Lint: scripts/lint-output-language-boundary.ts R3/R4/R5 가 일관성 검증.
-#   R3: lexicon 의 translation_mode=preserved|bilingual 선언 시 본 파일에 대응 entry 존재
+#   R3: lexicon 의 translation_mode=translated explicit 선언 시 본 파일에 translated_label 포함 entry 필수
 #   R4: entry 의 mode 가 lexicon 의 declared mode 와 일치
 #   R5: entry 의 term_id 가 lexicon 에 존재하는 key 또는 term_id
 #
-# 신규 term 추가 흐름:
-#   1. lexicon 에 translation_mode 명시 (preserved/bilingual)
-#   2. 본 파일에 entry 추가 (mode + translated_label + rationale)
-#   3. lint pass 확인
+# 신규 term 추가 시:
+#   - 기본 (rank 1-4 정의 개념 또는 command): 아무 편집 불필요. default preserved 로 자동 적용.
+#   - 예외 (비-core 일반어로 translated 필요): lexicon 에 translation_mode=translated 명시 + 본 파일에 translated_label 추가.
 
-version: "1.0"
+version: "1.1"
 language: "ko"
 schema_version: "1"
 as_of: "2026-04-20"
 
 # ---------------------------------------------------------------------------
-# Preserved — 원어 유지. 프로젝트 고유 technical term.
+# Preserved — 원어 유지 rationale (documentation only).
+# 본 section 은 rank 1-4 + command 중 rationale 기록 가치가 큰 항목만 선별 등재.
+# 기록되지 않은 entity/term 도 동일하게 preserved default 적용.
 # ---------------------------------------------------------------------------
 entries:
   - term_id: "entrypoint"
@@ -51,41 +57,8 @@ entries:
     rationale: "reconstruct 활동의 10-value taxonomy. 각 value (entity/enum/property 등) 가 이미 영어 canonical."
 
 # ---------------------------------------------------------------------------
-# Bilingual — 첫 등장 병기 `source (translated)`, 이후 원어.
-# 한국어 대응어가 불충분하거나 broad 의미로 anchor 필요한 경우.
+# Translated — explicit opt-in (현재 0 entries).
+# 미래 rank 1-4 외부 일반어가 lexicon 에 등재되면서 translated 필요 시 추가.
+# 각 entry 는 translated_label + rationale 필수.
 # ---------------------------------------------------------------------------
-  - term_id: "principal"
-    mode: "bilingual"
-    translated_label: "주체자"
-    bilingual_format: "{source} ({translated})"
-    rationale: "한국어 '주체자' 는 onto 고유어로 정의됨 (이용자+기여자 통합). 첫 등장 병기로 원어-번역 대응 확립."
-
-  - term_id: "principle"
-    mode: "bilingual"
-    translated_label: "규범"
-    bilingual_format: "{source} ({translated})"
-    rationale: "영어 principle 은 '원칙' 과 '규범' 중간 의미. 한국어 '규범' 은 더 obligatory 뉘앙스. 첫 등장 병기로 의미 폭 보존."
-
-  - term_id: "product"
-    mode: "bilingual"
-    translated_label: "프로덕트"
-    bilingual_format: "{source} ({translated})"
-    rationale: "framework v1.0 §2.1 의 product 는 Principal 의 작동 실체 단위 — 일반 명사 '제품' 이나 '프로덕트' 와 scope 다름."
-
-  - term_id: "experience"
-    mode: "bilingual"
-    translated_label: "경험"
-    bilingual_format: "{source} ({translated})"
-    rationale: "framework §3.1 Tier 1 Experience 는 panel verdict 이전 raw 관찰. 일반 명사 '경험' 보다 기술적."
-
-  - term_id: "medium"
-    mode: "bilingual"
-    translated_label: "구현 수단"
-    bilingual_format: "{source} ({translated})"
-    rationale: "framework §2.2 의 medium — cross-product axis. 단순 '매체' 보다 '구현 수단' 이 scope 정합."
-
-  - term_id: "provenance"
-    mode: "bilingual"
-    translated_label: "출처"
-    bilingual_format: "{source} ({translated})"
-    rationale: "artifact 생성 경로·시점·근거 의미. 단순 '출처' 보다 넓은 LLM-native 시스템 용어."
+# (현재 빈 상태 — lexicon 전수가 preserved default 로 일관)

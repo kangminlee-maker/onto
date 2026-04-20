@@ -145,71 +145,83 @@ Trigger 미도달 시 Phase 2 미착수. passthrough 유지 자체가 보호 장
 
 Phase 2 번역 backend 가 도입되어도 **canonical identifier 의 번역 규칙** 없이는 개념 identity drift 가 발생한다 (예: `ontology`, `principle`, `review_record` 등이 실행마다 다른 번역어로 렌더). 이 drift 는 lexicon-citation-check 및 experience → learn 파이프라인의 cross-reference 를 무너뜨린다.
 
-본 §9 는 해당 공백에 대한 **4 layer 구조** 를 규범으로 고정한다. Layer 1/2/4 는 `project_framework_backlog_cleanup.md` 후속 PR (translation policy foundation) 에서 구체화, Layer 3 은 Phase 2 backend 도입 시점에 확정.
+본 §9 는 해당 공백에 대한 **4 layer 구조** 를 규범으로 고정한다. Layer 1/2/4 는 lexicon v0.20.0-v0.21.0 에서 구체화, Layer 3 은 Phase 2 backend 도입 시점에 확정.
+
+### 9.0 정책 핵심 (v0.21.0 flip)
+
+> **rank 1-4 authority 정의 개념 + command 어휘는 원어 통일 (preserved).**
+>
+> Lexicon entities/terms (rank 1) + design-principles/productization-charter/interface-specs (rank 2-4) + CLI command 어휘는 번역 대상에서 제외. Translation 은 비-core prose 에만 명시적 opt-in 으로 적용.
+
+이유:
+- rank 1-4 개념은 lexicon-citation-check, experience → learn 파이프라인, synthesize output 의 cross-reference 의 anchor. 번역되면 이 anchor 가 깨짐
+- 중간 지점 (bilingual 병기) 을 정책으로 유지하면 "언제 병기, 언제 원어" 의 런타임 state tracking 필요 — complexity 대비 실익 미미
+- korean_label 은 Korean-speaking 기여자의 개념 이해용 descriptive reference 로 유지 (렌더링에는 쓰이지 않음)
 
 ### 9.1 Layer 1 — Lexicon `translation_mode` 필드 (SSOT)
 
-`authority/core-lexicon.yaml` 의 각 entity / term / principle 에 `translation_mode` 를 선언한다.
+`authority/core-lexicon.yaml` 의 `authoring_rules.translation_policy` 가 정책 SSOT. 각 entity / term 은 필요 시 `translation_mode` 를 선언한다.
 
 | Mode | 규칙 | 예시 |
 |---|---|---|
-| `preserved` | 원어 유지. 번역 대상에서 제외 | `ontology`, `lexicon`, `Product Locality Principle`, `review_process` — 프로젝트 고유 개념. 번역하면 identity 손상 |
-| `translated` | `korean_label` 치환 | `review_record` → `리뷰 기록` — 일반 개념, 번역해도 무해 |
-| `bilingual` | 첫 등장 병기 `source (translated)`, 이후 원어 | `principle` → `principle (규범)` — 한국어 대응어의 의미가 넓어 초기 anchor 필요 |
+| `preserved` (default) | 원어 유지. 번역 대상에서 제외 | `ontology`, `review_process`, `principle`, `principal` — rank 1-4 정의 개념 전수 |
+| `translated` (explicit opt-in) | `korean_label` 또는 glossary `translated_label` 로 치환 | 현재 0 건. 미래 rank 1-4 밖 일반어가 lexicon 등재 + 번역 무해 시 사용 |
 
-`translation_rationale` 필드 (선택) 로 mode 선택 근거 명시.
+**bilingual mode 는 v0.21.0 에서 완전 제거**됨 (v0.20.0 에서 6 entries 시험 후 abolish).
 
 ### 9.2 Layer 2 — Translation glossary (언어별)
 
-`authority/translation-glossary/{lang}.yaml` 에 Layer 1 mode 와 일관된 번역 매핑을 유지한다.
+`authority/translation-glossary/{lang}.yaml` 에 Layer 1 mode 의 보조 정보를 유지한다.
 
 ```yaml
-# authority/translation-glossary/ko.yaml 예시
-version: "1.0"
+# authority/translation-glossary/ko.yaml 예시 (v0.21.0)
+version: "1.1"
 language: "ko"
 schema_version: "1"
 entries:
   - term_id: "ontology"
     mode: "preserved"
-  - term_id: "review_record"
-    mode: "translated"
-    translated_label: "리뷰 기록"
-  - term_id: "principle"
-    mode: "bilingual"
-    translated_label: "규범"
-    bilingual_format: "{source} ({translated})"
+    rationale: "project-specific technical term. 번역 시 identity 손상"
+  # translated 예시 (현재 사용 없음):
+  # - term_id: "some_generic_noun"
+  #   mode: "translated"
+  #   translated_label: "일반 명사"
+  #   rationale: "rank 1-4 외부 일반어. 번역 무해"
 ```
 
-**소유권**: lexicon = mode 의 SSOT. glossary = 언어별 실제 매핑. Layer 1 과 Layer 2 간 mode 불일치는 CI lint 대상.
+**역할 분담**:
+- lexicon = mode 의 SSOT
+- glossary = preserved 항목의 rationale 문서 (optional) + translated 항목의 translated_label 보유 (lint R3 enforce)
 
 ### 9.3 Layer 3 — 번역 엔진의 term-aware 규칙
 
 `renderForUser` 의 Phase 2 구현 시 반드시 다음 순서 적용:
 
 1. 입력 text 를 glossary 의 canonical_label 에 대해 token match (word boundary)
-2. 각 match 에 mode 적용 (preserved/translated/bilingual)
+2. 각 match 에 mode 적용:
+   - `preserved`: 치환 없음 (default 경로)
+   - `translated`: `translated_label` 치환 (없으면 lexicon `korean_label` fallback)
 3. File path / code identifier / 이미 번역된 segment 는 lookup 우회
-4. 나머지 일반 문장은 backend (A/B/C) 로 번역
-5. 후처리: bilingual mode 의 첫 등장 marking 상태 재확인
+4. 나머지 일반 문장은 backend 로 번역
 
 ### 9.4 Layer 4 — CI lint 로 drift 방어
 
-`scripts/lint-output-language-boundary.ts` 에 추가 규칙:
+`scripts/lint-output-language-boundary.ts` 의 규칙 (v0.21.0 재정의):
 
-- **R3**: lexicon 의 entity / term / principle 에 `translation_mode` 필드 누락 시 fail
-- **R4**: 지원 언어 glossary 에 해당 term_id 항목 누락 시 fail
-- **R5**: glossary 의 mode 가 lexicon 의 mode 와 불일치 시 fail
+- **R3**: lexicon 에 `translation_mode: translated` 가 explicit 선언된 경우, 지원 언어 glossary 에 translated_label 포함 entry 존재
+- **R4**: glossary entry 의 mode 가 lexicon 의 declared mode 와 일치
+- **R5**: glossary entry 의 term_id 가 lexicon 의 entity key 또는 term_id 에 존재
 
-이로 **신규 term 추가 PR 이 자동으로 translation policy 를 갱신하도록 강제**. policy 공백 없이 lexicon 이 성장.
+R3 은 v0.20.0 의 "preserved|bilingual 선언 시 glossary 필수" 에서 "translated 선언 시 translated_label 필수" 로 재정의됨 (default=preserved 기반 정합).
 
 ### 9.5 구현 분산
 
-| Layer | 구현 PR | Trigger |
+| Layer | 구현 PR | 상태 |
 |---|---|---|
-| 1 (lexicon mode 필드) | Translation policy foundation PR | 즉시 (drift 선제 방어) |
-| 2 (ko glossary 스켈레톤) | 동일 PR | 즉시 (최소 skeleton) |
-| 3 (엔진 규칙) | Phase 2 backend 도입 PR | T1~T3 trigger 시 |
-| 4 (lint R3/R4/R5) | Translation policy foundation PR | 즉시 (Layer 1/2 무결성 강제) |
+| 1 (lexicon translation_policy + default=preserved) | v0.21.0 | ✅ 확정 |
+| 2 (ko glossary — preserved rationale + translated opt-in slot) | v0.21.0 | ✅ seed 존재 |
+| 3 (엔진 term-aware 규칙) | Phase 2 backend 도입 PR | ⏳ deferred |
+| 4 (lint R3/R4/R5 v0.21.0 재정의) | 동일 v0.21.0 PR | ✅ 재정의 완료 |
 
 ## 6. 관련 문서
 

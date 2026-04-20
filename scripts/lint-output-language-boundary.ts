@@ -27,14 +27,16 @@
  *
  *   R3/R4/R5. Translation policy consistency (output-language-boundary §9
  *       Layer 4). Enforces the lexicon (core-lexicon.yaml) ↔ translation
- *       glossary (authority/translation-glossary/{lang}.yaml) contract:
- *         R3. Lexicon entry with explicit translation_mode=preserved|bilingual
- *             MUST have a corresponding entry in the glossary.
+ *       glossary (authority/translation-glossary/{lang}.yaml) contract.
+ *       v0.21.0 policy: default_mode=preserved. bilingual mode abolished.
+ *         R3. Lexicon entry with explicit translation_mode=translated MUST
+ *             have a glossary entry that includes `translated_label`
+ *             (renderer needs the substitution source).
  *         R4. Glossary entry's mode MUST match the lexicon's declared mode.
  *         R5. Glossary entry's term_id MUST exist as a lexicon entity key
  *             or term_id.
- *       translated (default) entries are implicit and not enforced here —
- *       they fall back to lexicon's korean_label at render time.
+ *       preserved entries (default or explicit) are documented in the
+ *       glossary for rationale purposes only — not enforced by lint.
  *
  * Usage:
  *   npx tsx scripts/lint-output-language-boundary.ts
@@ -196,7 +198,8 @@ const LEXICON_PATH = "authority/core-lexicon.yaml";
 const GLOSSARY_DIR = "authority/translation-glossary";
 const SUPPORTED_LANGS: readonly string[] = ["ko"];
 
-type TranslationMode = "preserved" | "translated" | "bilingual";
+// v0.21.0: bilingual mode abolished. default_mode=preserved.
+type TranslationMode = "preserved" | "translated";
 
 interface LexiconTerm {
   key: string; // entity key OR term_id
@@ -207,6 +210,7 @@ interface LexiconTerm {
 interface GlossaryEntry {
   term_id: string;
   mode: TranslationMode | null;
+  translated_label: string | null;
   sourceLine: number;
 }
 
@@ -325,13 +329,24 @@ function loadGlossary(lang: string): GlossaryEntry[] {
       if (current !== null && current.term_id !== undefined) {
         entries.push(current as GlossaryEntry);
       }
-      current = { term_id: termIdMatch[1], mode: null, sourceLine: i + 1 };
+      current = {
+        term_id: termIdMatch[1],
+        mode: null,
+        translated_label: null,
+        sourceLine: i + 1,
+      };
       continue;
     }
 
     const modeMatch = /^\s*mode:\s*"([a-z]+)"/.exec(line);
     if (modeMatch && modeMatch[1] !== undefined && current !== null) {
       current.mode = modeMatch[1] as TranslationMode;
+      continue;
+    }
+
+    const labelMatch = /^\s*translated_label:\s*"([^"]+)"/.exec(line);
+    if (labelMatch && labelMatch[1] !== undefined && current !== null) {
+      current.translated_label = labelMatch[1];
     }
   }
 
@@ -353,16 +368,29 @@ function checkTranslationPolicy(violations: Violation[]): void {
 
     const glossaryFile = path.join(GLOSSARY_DIR, `${lang}.yaml`);
 
-    // R3: lexicon with preserved|bilingual MUST have glossary entry
+    // R3 (v0.21.0): lexicon with explicit translation_mode=translated MUST
+    // have glossary entry with translated_label (renderer needs source).
+    // preserved entries are documentation-only, not enforced here.
     for (const t of lexiconTerms) {
-      if (t.mode !== "preserved" && t.mode !== "bilingual") continue;
-      if (!glossaryMap.has(t.key)) {
+      if (t.mode !== "translated") continue;
+      const entry = glossaryMap.get(t.key);
+      if (entry === undefined) {
         violations.push({
           rule: "R3",
           file: LEXICON_PATH,
           line: t.sourceLine,
-          excerpt: `${t.key}: translation_mode=${t.mode}`,
-          guidance: `Lexicon declares translation_mode=${t.mode} for "${t.key}" but no entry in ${glossaryFile}. Add glossary entry or remove the lexicon declaration.`,
+          excerpt: `${t.key}: translation_mode=translated`,
+          guidance: `Lexicon declares translation_mode=translated for "${t.key}" but no entry in ${glossaryFile}. Add a glossary entry with translated_label.`,
+        });
+        continue;
+      }
+      if (entry.translated_label === null || entry.translated_label.length === 0) {
+        violations.push({
+          rule: "R3",
+          file: glossaryFile,
+          line: entry.sourceLine,
+          excerpt: `${t.key}: mode=translated but translated_label missing`,
+          guidance: `Glossary entry for "${t.key}" has mode=translated but no translated_label. Add translated_label so the renderer can substitute.`,
         });
       }
     }

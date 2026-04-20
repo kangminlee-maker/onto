@@ -14,7 +14,7 @@
     "roles/",
     "domains/",
     "authority/",
-    "commands/",
+    ".onto/commands/",
     "processes/",
     "explorers/",
     "CLAUDE.md",

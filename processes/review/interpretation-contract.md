@@ -183,7 +183,7 @@ ambiguity_notes:
 
 현재 프로토타입에서는 아래가 interpretation source material이다.
 
-- `commands/review.md`
+- `.onto/commands/review.md`
 - `process.md`의 domain determination rules
 - `processes/review/review.md`의 Step 0, Step 1.5
 
@@ -244,5 +244,5 @@ prompt-backed path에서는 이 중 interpretation 결과를
 이 문서 다음 단계는 아래다.
 
 1. `검토 고정 계약 (review binding contract)`을 고정한다
-2. `commands/review.md`가 이 두 단계를 명시적으로 읽도록 바꾼다
+2. `.onto/commands/review.md`가 이 두 단계를 명시적으로 읽도록 바꾼다
 3. 이후 `processes/review/review.md` Step 0/1/1.5를 interpretation/binding 기준으로 다시 정리한다

@@ -1,5 +1,15 @@
-# onto runtime data (sessions, build outputs, learnings)
-.onto/
+# onto runtime data — per-session / ephemeral artifacts only.
+# Structural resources migrated under `.onto/` by the repo-layout migration
+# (Phase 1~6: commands/, domains/, roles/, processes/, principles/, authority/)
+# are versioned and intentionally NOT ignored. If a new runtime-ephemeral
+# subdirectory is added under `.onto/`, add its pattern here explicitly.
+.onto/review/
+.onto/builds/
+.onto/learnings/
+.onto/govern/
+.onto/reconstruct/
+.onto/temp/
+.onto/config.yml
 .onto-review/
 .claude-plugin/
 .claude/

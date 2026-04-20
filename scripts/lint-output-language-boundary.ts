@@ -94,13 +94,18 @@ const R2_GUIDANCE_TEMPLATE = (id: string, known: string): string =>
   `Known ids: ${known}. See design-principles/output-language-boundary.md §4.`;
 
 /**
- * Directories scanned by default. We deliberately skip `.onto/`, `dist/`,
- * `node_modules/`, `.git/`, and the temporary session artifacts under
- * `.onto/review/` — those are either gitignored or held ephemeral.
+ * Directories scanned by default. `.onto/commands/` is explicitly listed
+ * because the repo-layout migration (Phase 1, 2026-04-20) moved versioned
+ * command definitions under `.onto/`. The blanket `.onto/` entry in
+ * `IGNORED_DIRECTORIES` below still blocks walking *into* `.onto/` from
+ * above; the explicit scan root starts the walker one level deeper so the
+ * versioned files are scanned while ephemeral subdirs (e.g. `.onto/review/`)
+ * remain untouched. We still deliberately skip `dist/`, `node_modules/`,
+ * and `.git/` — those are either gitignored or held ephemeral.
  */
 const SCAN_ROOTS: readonly string[] = [
   "processes",
-  "commands",
+  ".onto/commands",
   "design-principles",
   "authority",
   "roles",

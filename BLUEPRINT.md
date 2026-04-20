@@ -875,7 +875,7 @@ onto/
 ├── roles/                   # Lens role definitions (10)
 │   ├── logic.md ... axiology.md
 │   └── synthesize.md
-├── commands/                # Command definitions
+├── .onto/commands/          # Command definitions (Phase 1 layout)
 ├── domains/                 # Domain base documents (9 domains × 8 files)
 ├── explorers/               # Explorer profiles (build only)
 ├── golden/                  # Golden examples per schema

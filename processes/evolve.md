@@ -285,13 +285,13 @@ prompt-backed reference 경로에서 evolve 진입은 **세 surface** 를 순차
 
 | Surface | 파일 | 실행 형태 (prompt-backed) | authority 역할 |
 |---|---|---|---|
-| **command** | `commands/evolve.md` | 주체자가 호출 문장으로 참조. 호출 인자·옵션·authority seat 포인터를 담는다 | 호출 계약 — 인자 형식과 default 경로 |
+| **command** | `.onto/commands/evolve.md` | 주체자가 호출 문장으로 참조. 호출 인자·옵션·authority seat 포인터를 담는다 | 호출 계약 — 인자 형식과 default 경로 |
 | **process** | `processes/evolve.md` | 호출 직후 LLM 이 context 로 로드. 6-Phase 계약·adapter 분기·4절 반복 설계·5절 대상 중립성 등 활동 전반 규칙 | 프로세스 계약 (이 문서) — evolve 의 canonical rule seat |
 | **overview** | `process.md` (repo 루트) | 세 번째로 로드. activity_enum, invocation_interpretation/binding, entrypoint 공통 정의 등 활동 간 공통 개념 | 공통 정의 — 복수 활동이 공유하는 개념 seat |
 
 ### 8.1 실행 순서
 
-1. command surface 가 호출 진입을 고정한다 (commands/evolve.md)
+1. command surface 가 호출 진입을 고정한다 (.onto/commands/evolve.md)
 2. LLM 은 command surface 의 "Read ... then execute" 지시에 따라 overview → process → learning-rules.md 순으로 로드한다
 3. 세 surface 로드 완료 후 6-Phase 실행이 시작된다
 
@@ -301,7 +301,7 @@ prompt-backed reference 경로에서 evolve 진입은 **세 surface** 를 순차
 
 ### 8.3 Non-prompt-backed 경로
 
-runtime-bound adapter (code-product) 는 prompt-backed reference 경로가 아니다. runtime 은 commands/evolve.md 의 CLI 인자만 해석하고 6-Phase 를 runtime 상태 머신으로 구동한다. 이 경우 overview surface 의 활동 간 공통 정의는 `src/core-runtime/scope-runtime/types.ts` 가 적용되는 구현으로 해석한다.
+runtime-bound adapter (code-product) 는 prompt-backed reference 경로가 아니다. runtime 은 .onto/commands/evolve.md 의 CLI 인자만 해석하고 6-Phase 를 runtime 상태 머신으로 구동한다. 이 경우 overview surface 의 활동 간 공통 정의는 `src/core-runtime/scope-runtime/types.ts` 가 적용되는 구현으로 해석한다.
 
 ---
 
@@ -314,13 +314,13 @@ entrypoint 가 호출될 때, 주체자가 실제로 접근하는 파일(`invoke
 | 개념 | 실체 | 역할 |
 |---|---|---|
 | **authority seat** | repo 의 `processes/evolve.md` (이 파일) | canonical rule 의 원천. 모든 버전 기준의 진실 |
-| **invoke surface** | `commands/evolve.md` (repo) 또는 `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/commands/evolve.md` (installed) | 주체자가 호출로 진입하는 표면. §8 command surface 와 동일 |
+| **invoke surface** | `.onto/commands/evolve.md` (repo) 또는 `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/.onto/commands/evolve.md` (installed) | 주체자가 호출로 진입하는 표면. §8 command surface 와 동일 |
 | **install surface** | `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/` 하위 설치 트리 | 활성 실행 시 invoke surface 가 읽는 실제 파일 위치. 기본 경로는 Claude Code install 위치이며, `ONTO_PLUGIN_DIR` 환경변수로 override 가능 |
 
 ### 9.2 Alignment 불변식
 
 1. **Mirror requirement**: install surface 는 authority seat 의 deterministic snapshot 이다. 설치 시점 이후 authority seat 가 개정되면 install surface 는 재설치 전까지 stale 이다.
-2. **Single-truth citation**: invoke surface (`commands/evolve.md`) 의 `Read ... then execute` 블록이 참조하는 경로는 install surface 상대 경로(`${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/...`) 로 통일한다. repo 상대 경로와 install 상대 경로가 한 블록 안에서 혼용되면 artifact truth 가 이원화된다. `ONTO_PLUGIN_DIR` 환경변수가 설정되면 그 값이 install surface root 가 되며, 미설정 시 기본값(`~/.claude/plugins/onto`) 으로 fallback 한다.
+2. **Single-truth citation**: invoke surface (`.onto/commands/evolve.md`) 의 `Read ... then execute` 블록이 참조하는 경로는 install surface 상대 경로(`${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/...`) 로 통일한다. repo 상대 경로와 install 상대 경로가 한 블록 안에서 혼용되면 artifact truth 가 이원화된다. `ONTO_PLUGIN_DIR` 환경변수가 설정되면 그 값이 install surface root 가 되며, 미설정 시 기본값(`~/.claude/plugins/onto`) 으로 fallback 한다.
 3. **Version parity**: install surface 와 authority seat 버전 차이는 재설치(또는 plugin update) 로만 해소된다. runtime 은 mismatch 를 감지할 책임이 없다 — 주체자가 install 절차로 보정한다.
 4. **Non-mutation**: install surface 에 대한 현장 수정은 금지한다. 실험은 repo 에서 수행하고 재설치로 반영한다. install surface 의 파일은 authority seat 의 materialization 일 뿐이며, 독립적 authority 를 갖지 않는다.
 

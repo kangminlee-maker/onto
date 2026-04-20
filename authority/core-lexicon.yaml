@@ -1,10 +1,11 @@
-lexicon_version: "0.19.0"
+lexicon_version: "0.20.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
   - "This lexicon is the concept SSOT for the productization track."
   - "This file owns the concept INVENTORY. Naming RULES are owned by ontology-as-code-naming-charter.md."
   - "Structure: authoring_rules → shared_attributes → entities → terms."
+  - "v0.20.0 additive (translation policy foundation, 2026-04-20): authoring_rules.translation_policy 신설 — 3 mode (preserved/translated/bilingual) + default=translated + explicit_declaration_required + glossary_seat + lint_rules (R3/R4/R5). 11 entity/term 에 explicit translation_mode 주입 — preserved: entrypoint/domain/ontology/activity_enum/axis_enum/fact_type (6), bilingual: principal/principle/product/experience/medium/provenance (6, principal 중복 제외 시 5 + bilingual 실 6). authority/translation-glossary/ko.yaml 신설 (12 entries). design-principles/output-language-boundary.md §9 Layer 1/2/4 에 대응. Phase 2 번역 backend 착수 시 Layer 3 추가 예정. canonical-advancing."
   - "v0.19.0 additive (UF 5a/5b/5c cleanup, 2026-04-20): re-review 20260420-b74e947f unique findings 3건 일괄 해소. (1) conciseness UF-C1: `product.attributes.local.mediums` 제거 — `implemented_with → medium` relation 이 canonical owner (single-owner 원칙의 attribute 층 확장). (2) semantics UF: `domain_document.doc_type` 에 `extension_pattern: custom:{type_name}` + `extension_rule` 필드 신설 — framework §12.3 의 open-closed enum 구조를 schema 에 표상 (기존 `values` 닫힘 + prose '자유 추가' 간 내부 모순 해소). (3) evolution UF: `medium_reference.execution_rules_ref.lifecycle_transition_seat` 및 `ontology.execution_rules_ref.lifecycle_transition_seat` 예약 — `transition_kind` enum 에 정의된 `medium_norm_update` / `ontology_update` 의 target-entity 실행 좌표 확보 (v1 은 `state: definition_only`, `path: null`). canonical-advancing."
   - "v0.18.0 corrective (framework v1.0.1 Inverse-edge single-owner 복원, 2026-04-20): 순수 inverse 3 pair (product.described_by / medium.realizes / domain.contains) 삭제 — authoring_rules.relation_ownership 원칙 (Entity-centric model 의 single canonical owner) 복원. canonical owner 는 각각 ontology.describes · product.implemented_with · domain_document.belongs_to. relation_type_vocabulary 에서 described_by/realizes/contains 3 type 제거. snapshot/provenance pair (learning.promoted_from · principle.canonicalized_from) 는 self-outbound provenance 로 원칙 준수 케이스 — 유지. relation_ownership_interpretation 신설로 경계 명시. re-review 20260420-b74e947f structure F1 / dependency F2 / conciseness C1 해소. canonical-advancing."
   - "v0.17.0 additive (PR C prose migration sync, 2026-04-20): path references 갱신 — design-principles/project-locality-principle.md → product-locality-principle.md (§9 rename 완료). 4 참조 지점 업데이트 (learning.execution_rules_ref.data_accumulation/consumption_precondition, domain_document.execution_rules_ref.resolution_order, govern_process.notes storage). 의미 변경 없음, 순수 path 정합. canonical-advancing."
@@ -89,7 +90,25 @@ authoring_rules:
   identifier_resolution: "entities key를 우선 resolve. 동명 term이 존재하면 entities가 canonical."
   term_frame:
     required_slots: [term_id, canonical_label, korean_label, definition, term_status]
-    optional_slots: [axis, allowed_values, notes, legacy_aliases, contract_ref]
+    optional_slots: [axis, allowed_values, notes, legacy_aliases, contract_ref, translation_mode]
+  translation_policy:
+    # 용어 번역 정책 (design-principles/output-language-boundary.md §9 Layer 1).
+    # Principal-facing 텍스트 번역 시 canonical identifier 가 mode 따라 처리됨.
+    introduced_in: "v0.20.0 (2026-04-20)"
+    modes:
+      preserved: "원어 유지. 번역 대상에서 제외. 프로젝트 고유 technical term."
+      translated: "korean_label 로 치환. default. 일반 개념, 번역 무해."
+      bilingual: "첫 등장 병기 `source (translated)`, 이후 원어. 한국어 대응어가 불충분한 경우."
+    default_mode: "translated"
+    explicit_declaration_required:
+      - "preserved 또는 bilingual mode 는 해당 entity/term 에 `translation_mode` 필드로 명시"
+      - "translated (default) 는 필드 생략 허용"
+    glossary_seat: "authority/translation-glossary/{lang}.yaml"
+    lint_rules:
+      R3: "entity/term 이 explicit translation_mode=preserved|bilingual 선언 시 glossary 에 대응 entry 존재"
+      R4: "glossary entry 의 mode 가 lexicon 의 declared mode 와 일치"
+      R5: "glossary term_id 가 lexicon 의 entity key 또는 term_id 에 존재"
+    non_default_inventory_location: "authority/translation-glossary/ko.yaml (v0.20.0 seed)"
   relation_ownership: "source entity(및 그 instances)가 outbound relation만 소유. inverse는 derived, authored하지 않음."
   relation_ownership_interpretation: >
     "inverse 는 derived" 의 의미 명확화 (v0.18.0, framework v1.0.1 sync).
@@ -694,6 +713,7 @@ entities:
   principle:
     canonical_label: "principle"
     korean_label: "규범"
+    translation_mode: "bilingual"
     definition: >
       규범적 결정으로 확정된 Tier 3 의무 obligation (framework v1.0 §3.3).
       모든 onto 활동이 준수해야 할 제약. canonicalize 경로로만 편집 가능 (snapshot copy).
@@ -745,6 +765,7 @@ entities:
   principal:
     canonical_label: "principal"
     korean_label: "주체자"
+    translation_mode: "bilingual"
     definition: "onto에 목적과 의도를 부여하고, 프로세스 결과의 가치를 판단하는 최종 권한 주체. entrypoint를 호출하여 실행을 개시한다"
     core_value: "이 개념이 없으면 onto의 실행 체인에 목적 부여자가 부재하여, 프로세스 결과의 가치 판단과 승인 권한이 귀속되지 않는다"
     relations:
@@ -763,6 +784,7 @@ entities:
   entrypoint:
     canonical_label: "entrypoint"
     korean_label: "진입점"
+    translation_mode: "preserved"
     definition: "주체자(principal)가 onto에 진입하는 최상위 의도"
     core_value: "이 개념이 없으면 주체자의 의도와 시스템 프로세스 사이에 해석 공백이 생긴다"
     notes:
@@ -921,6 +943,7 @@ entities:
   product:
     canonical_label: "product"
     korean_label: "프로덕트"
+    translation_mode: "bilingual"
     definition: "Principal 이 시간·비용 투입해 만든 작동 실체. onto 작업의 일차 단위 (framework v1.0 §2.1)."
     core_value: "이 개념이 없으면 '무엇에 속한 지식인가' 의 소유 경계가 모호해지고, product-local 학습·규범·ontology 의 저장 boundary 가 성립하지 않는다."
     attributes:
@@ -945,6 +968,7 @@ entities:
   experience:
     canonical_label: "experience"
     korean_label: "경험"
+    translation_mode: "bilingual"
     definition: "onto 활동에서 자동 수집된 raw 관찰. Tier 1, maturity=Experience. panel verdict 이전 상태 (framework v1.0 §3.1)."
     core_value: "이 개념이 없으면 review/reconstruct 과정의 중간 관찰이 기록되지 못해 cost-saver 로 승격할 후보 자체가 사라진다."
     attributes:
@@ -969,6 +993,7 @@ entities:
   medium:
     canonical_label: "medium"
     korean_label: "구현 수단"
+    translation_mode: "bilingual"
     definition: "product 의 구현 수단 (excel, claude-code-skill, cli 등). scope axis 의 값으로 쓰일 수 있는 cross-product frame (framework v1.0 §2.2)."
     core_value: "이 개념이 없으면 같은 medium 에서 반복되는 패턴·pitfall 을 product 별로 재발견해야 하고, medium 차원의 cost-saver 를 축적할 좌표가 없다."
     # relations 블록 없음 (v0.18.0, framework v1.0.1 sync). product.implemented_with 가 canonical owner.
@@ -1005,6 +1030,7 @@ entities:
   domain:
     canonical_label: "domain"
     korean_label: "도메인"
+    translation_mode: "preserved"
     definition: "product 가 속한 분야 frame (software-engineering, ui-design 등). scope axis 의 값으로 쓰일 수 있는 cross-product frame (framework v1.0 §2.3)."
     core_value: "이 개념이 없으면 분야 차원에서 누적되는 검증 기준·패턴·pitfall 이 product-local 에 묻혀 재사용 불가해진다."
     # relations 블록 없음 (v0.18.0, framework v1.0.1 sync). domain_document.belongs_to 가 canonical owner.
@@ -1028,6 +1054,7 @@ entities:
   ontology:
     canonical_label: "ontology"
     korean_label: "온톨로지"
+    translation_mode: "preserved"
     definition: "한 product 의 개념·실체·관계 망. onto-direction §1 prose 를 lexicon entity 로 격상. scope=product 한정, Tier 2 (framework v1.0 §8.2)."
     core_value: "이 개념이 없으면 product-local 개념 체계가 분산된 문서·코드에만 존재하고, 중앙 reference 로 canonicalize 할 SSOT 가 없다."
     attributes:
@@ -1319,6 +1346,7 @@ terms:
   - term_id: "activity_enum"
     canonical_label: "activity"
     korean_label: "활동"
+    translation_mode: "preserved"
     axis: "onto_taxonomy"
     term_status: "active"
     definition: "§1.2 에 정의된 onto 의 다섯 활동. work item / consolidated / inventory / ledger 의 activity field canonical enum. 본 term 이 enum 의 authority SSOT."
@@ -1389,6 +1417,7 @@ terms:
   - term_id: "axis_enum"
     canonical_label: "axis"
     korean_label: "축"
+    translation_mode: "preserved"
     axis: "onto_taxonomy"
     term_status: "active"
     definition: "§1.5 에 정의된 onto 의 네 축. work item ID (W-{axis}-{nn:02d}) 의 axis 토큰 canonical enum. 본 term 이 enum 의 authority SSOT."
@@ -1410,6 +1439,7 @@ terms:
   - term_id: "fact_type"
     canonical_label: "fact type"
     korean_label: "사실 유형"
+    translation_mode: "preserved"
     axis: "onto_taxonomy"
     term_status: "active"
     definition: "reconstruct 활동에서 Explorer 가 source (코드/스프레드시트/DB/문서) 를 traverse 하며 발견한 domain fact 의 분류. Delta (fact 보고 단위) 의 필수 속성. 본 term 이 enum 의 authority SSOT."
@@ -1472,6 +1502,7 @@ terms:
   - term_id: "provenance"
     canonical_label: "provenance"
     korean_label: "출처"
+    translation_mode: "bilingual"
     axis: "system_integrity"
     term_status: "active"
     definition: "artifact 의 생성 경로·시점·근거. '어디서 왔는가, 누가/무엇이 생성했는가, 어떤 근거를 가지는가' 를 기록한다. LLM-native 시스템의 runtime 신뢰성 확보 축."

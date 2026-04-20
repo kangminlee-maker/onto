@@ -1,0 +1,91 @@
+# authority/translation-glossary/ko.yaml
+#
+# 한국어 번역 glossary — canonical SSOT: authority/core-lexicon.yaml §authoring_rules.translation_policy.
+# Consumer: src/core-runtime/translate/render-for-user.ts (Phase 2 backend 도입 시).
+# Layer: output-language-boundary.md §9 Layer 2.
+#
+# 본 파일은 **explicit non-default mode (preserved / bilingual)** entries 만 담는다.
+# translated (default) 항목은 lexicon 의 korean_label 로 implicit fallback.
+#
+# Lint: scripts/lint-output-language-boundary.ts R3/R4/R5 가 일관성 검증.
+#   R3: lexicon 의 translation_mode=preserved|bilingual 선언 시 본 파일에 대응 entry 존재
+#   R4: entry 의 mode 가 lexicon 의 declared mode 와 일치
+#   R5: entry 의 term_id 가 lexicon 에 존재하는 key 또는 term_id
+#
+# 신규 term 추가 흐름:
+#   1. lexicon 에 translation_mode 명시 (preserved/bilingual)
+#   2. 본 파일에 entry 추가 (mode + translated_label + rationale)
+#   3. lint pass 확인
+
+version: "1.0"
+language: "ko"
+schema_version: "1"
+as_of: "2026-04-20"
+
+# ---------------------------------------------------------------------------
+# Preserved — 원어 유지. 프로젝트 고유 technical term.
+# ---------------------------------------------------------------------------
+entries:
+  - term_id: "entrypoint"
+    mode: "preserved"
+    rationale: "framework-specific entrypoint 개념. '진입점' 은 일반 용어라 onto 의 구조적 의미 (dispatches→process) 손상."
+
+  - term_id: "domain"
+    mode: "preserved"
+    rationale: "scope axis 의 값 + cross-product frame. '도메인' 이 일반 용어로 쓰이면 framework scope 와 혼동."
+
+  - term_id: "ontology"
+    mode: "preserved"
+    rationale: "product-local 개념·실체·관계 망. '온톨로지' 는 학술 용어로서 onto-direction §1 의 정밀 의미와 편차."
+
+  - term_id: "activity_enum"
+    mode: "preserved"
+    rationale: "§1.2 의 5 활동 canonical enum. 번역 시 enum identity 손상."
+
+  - term_id: "axis_enum"
+    mode: "preserved"
+    rationale: "§1.5 의 4 축 canonical enum. W-ID 축 토큰과 직결."
+
+  - term_id: "fact_type"
+    mode: "preserved"
+    rationale: "reconstruct 활동의 10-value taxonomy. 각 value (entity/enum/property 등) 가 이미 영어 canonical."
+
+# ---------------------------------------------------------------------------
+# Bilingual — 첫 등장 병기 `source (translated)`, 이후 원어.
+# 한국어 대응어가 불충분하거나 broad 의미로 anchor 필요한 경우.
+# ---------------------------------------------------------------------------
+  - term_id: "principal"
+    mode: "bilingual"
+    translated_label: "주체자"
+    bilingual_format: "{source} ({translated})"
+    rationale: "한국어 '주체자' 는 onto 고유어로 정의됨 (이용자+기여자 통합). 첫 등장 병기로 원어-번역 대응 확립."
+
+  - term_id: "principle"
+    mode: "bilingual"
+    translated_label: "규범"
+    bilingual_format: "{source} ({translated})"
+    rationale: "영어 principle 은 '원칙' 과 '규범' 중간 의미. 한국어 '규범' 은 더 obligatory 뉘앙스. 첫 등장 병기로 의미 폭 보존."
+
+  - term_id: "product"
+    mode: "bilingual"
+    translated_label: "프로덕트"
+    bilingual_format: "{source} ({translated})"
+    rationale: "framework v1.0 §2.1 의 product 는 Principal 의 작동 실체 단위 — 일반 명사 '제품' 이나 '프로덕트' 와 scope 다름."
+
+  - term_id: "experience"
+    mode: "bilingual"
+    translated_label: "경험"
+    bilingual_format: "{source} ({translated})"
+    rationale: "framework §3.1 Tier 1 Experience 는 panel verdict 이전 raw 관찰. 일반 명사 '경험' 보다 기술적."
+
+  - term_id: "medium"
+    mode: "bilingual"
+    translated_label: "구현 수단"
+    bilingual_format: "{source} ({translated})"
+    rationale: "framework §2.2 의 medium — cross-product axis. 단순 '매체' 보다 '구현 수단' 이 scope 정합."
+
+  - term_id: "provenance"
+    mode: "bilingual"
+    translated_label: "출처"
+    bilingual_format: "{source} ({translated})"
+    rationale: "artifact 생성 경로·시점·근거 의미. 단순 '출처' 보다 넓은 LLM-native 시스템 용어."

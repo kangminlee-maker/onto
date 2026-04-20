@@ -137,6 +137,38 @@ participation:
 - `run_status=insufficient` 이면 consensus / disagreement 섹션은 "data insufficient" marker 로 남기고 합의 claim 을 produce 하지 않는다
 - 이 frontmatter 는 degraded run 을 full consensus 로 오독하는 것을 방지하는 audit 근거다
 
+### 5.2.1 Internal Body vs Principal Summary (Output Structural Split)
+
+> **Status**: contract established, implementation deferred. 구현 trigger 조건 + scope 는 `processes/review/lens-prompt-contract.md §8.5` 와 동일 — 본 절은 lens 쪽 contract 의 synthesize 대응을 선언한다.
+
+#### 5.2.1.1 두 층의 경계
+
+| 층 | 섹션 범위 | 소비자 | 언어 정책 |
+|---|---|---|---|
+| **Internal Body** | §5.3 의 section list (1-12 번) 전체 | ReviewRecord assembler, learning extraction, audit | English 고정 |
+| **Principal Summary** (선택적 신설 섹션) | `## Principal Summary` — §5.3 의 items 중 Principal 직접 소비 가치가 있는 subset 의 prose 요약 | Principal | `output_language` 에 따라 translation target |
+
+#### 5.2.1.2 Synthesize 특유 rationale
+
+Synthesize 는 Principal 이 **primary 소비자**이지만, 구조 (frontmatter + section list + per-item provenance) 는 ReviewRecord / learning extraction 을 위해 고정되어 있다 (§5.3 canonical taxonomy, §5.5 provenance). 두 소비자를 동시에 서빙하려면:
+
+- Internal Body 는 §5.3 canonical taxonomy + §5.5 per-item provenance 유지 (machine-readable)
+- Principal Summary 는 Internal Body 의 key findings 을 prose 로 재진술 (human-readable)
+
+본 split 없이 synthesize output 전체를 번역하면 ReviewRecord / learning extraction 이 번역된 텍스트 기반이 되어 cross-session 비교 불가.
+
+#### 5.2.1.3 Contract invariant (구현 시)
+
+- Internal Body section list (§5.3) 는 변경되지 않음
+- Principal Summary 는 Internal Body 에 없는 claim 도입 금지 (재진술만)
+- renderPointId: `review_synthesize_principal_summary` (본 섹션 활성 시 `authority/external-render-points.yaml` 신설)
+- `output_language: en` 일 때 Principal Summary 생략 가능
+- lexicon term 취급: `authoring_rules.translation_policy` 규칙 (preserved/translated/bilingual) 적용
+
+#### 5.2.1.4 ReviewRecord 영향
+
+record-contract §4.5 Synthesis Layer 는 Internal Body 만 source. Principal Summary 는 runtime-derived (재생성 가능). 따라서 ReviewRecord schema 추가 필드 불필요.
+
 ### 5.3 Section list (canonical taxonomy)
 
 아래는 이 contract 가 정하는 **단독 canonical section 명칭** 이다. 동의어 / legacy alias 는 §5.4 alias map 을 따르며 이 list 로 정규화한다.

@@ -511,7 +511,7 @@ onto/
 |   +-- design/20260330-learning-lifecycle-management.md
 |   +-- design/20260330-optimization-4features.md
 |   +-- design/20260328-per-session-domain-selection.md
-+-- commands/                # Command definitions
++-- .onto/commands/          # Command definitions (Phase 1 layout)
 +-- setup-domains.sh         # Domain base document installation
 +-- migrate-sessions.sh      # Previous version data migration
 +-- migrate-learnings.sh     # Learning storage structure migration

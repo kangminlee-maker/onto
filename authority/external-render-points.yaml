@@ -85,5 +85,5 @@ points:
     rationale: "Onboard 의 모든 프롬프트·안내 메시지. principal 과 직접 대화."
 
   - id: help_command_output
-    file: commands/help.md
+    file: .onto/commands/help.md
     rationale: "/onto:help 출력. README 외 principal 이 직접 읽는 커맨드 reference."

@@ -306,7 +306,7 @@ subagent_llm:                    # lens 는 Anthropic Haiku 로 비용 절감
 
 - `processes/reconstruct.md` §"Build-time configuration" — reconstruct 가 소비하는 key 집합 + reconstruct-specific error handling
 - `processes/onboard.md` — config 생성 절차 (대화형 프롬프트)
-- `commands/review.md` — review 관련 key 사용 방식 (CLI flag 와 config 의 관계)
+- `.onto/commands/review.md` — review 관련 key 사용 방식 (CLI flag 와 config 의 관계)
 - `README.md` — 첫 진입자용 요약·quickstart
 - `CHANGELOG.md` — config 진화 이력
 

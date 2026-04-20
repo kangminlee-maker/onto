@@ -10,7 +10,7 @@
 |---|---|
 | 활동 분류 | 다섯 활동 (review / reconstruct / evolve / learn / **govern**) 중 하나. `authority/core-lexicon.yaml#activity_enum` 등재. |
 | onto-direction §1.4 | govern 완료 기준 = 규범 등재·갱신·폐기 추적 + drift 정책 + Principal 승인 강제. 본 v0 는 "기록 추적" 부분만 충족. |
-| Authority seat | 본 파일 (contract). commands/govern.md 가 entrypoint surface. `src/core-runtime/govern/` 이 구현 surface. |
+| Authority seat | 본 파일 (contract). .onto/commands/govern.md 가 entrypoint surface. `src/core-runtime/govern/` 이 구현 surface. |
 
 ## 1. Purpose
 

@@ -12,7 +12,7 @@ DL-013 activity taxonomy (2026-04-13) 이후 public activity name 은 **reconstr
 
 - **Activity name**: `reconstruct` (canonical, DL-013)
 - **Process filename**: `processes/reconstruct.md` (W-A-77 rename 완료, 2026-04-14)
-- **CLI entry**: `commands/reconstruct.md` (W-A-74 DL-020 해소, 2026-04-14)
+- **CLI entry**: `.onto/commands/reconstruct.md` (W-A-74 DL-020 해소, 2026-04-14)
 - **CLI handler**: `src/core-runtime/evolve/commands/reconstruct.ts`
 
 ### Bounded path (review 3-step 대응, W-A-74)

@@ -221,6 +221,23 @@ export interface ReviewExecutionPlan {
   effective_boundary_state: EffectiveBoundaryState;
 }
 
+/**
+ * Plan-time resolved LLM values for executor (effort persist Option A).
+ *
+ * Bootstrap 시점에 OntoConfig 로부터 도출된 model · reasoning_effort · provider.
+ * CLI override (`onto review --model=...`) 는 executor dispatch 층에서 추가 적용되므로
+ * 본 필드는 **project-level 의도** 를 기록한다 (세션별 override 와 별개).
+ *
+ * Stderr `[plan:executor]` 로그의 artifact 화 목적. codex global config fallthrough
+ * (v0.18.0 hardcoded override 제거 이후) 의 실제 값은 여기에 반영되지 않음 — 그 값은
+ * 로그로만 관찰 가능하다는 경계를 의식적으로 유지.
+ */
+export interface ResolvedLlmPlan {
+  model?: string;
+  reasoning_effort?: string;
+  provider?: string;
+}
+
 export interface ReviewSessionMetadata {
   session_id: string;
   entrypoint: ReviewEntrypoint;
@@ -234,6 +251,8 @@ export interface ReviewSessionMetadata {
   plugin_root: string;
   /** Phase 2: persisted extract mode (validated at session start). */
   learning_extract_mode?: string;
+  /** Effort persist (Option A): plan-time resolved LLM values from OntoConfig. */
+  resolved_llm_plan?: ResolvedLlmPlan;
 }
 
 export interface TargetSnapshotManifest {

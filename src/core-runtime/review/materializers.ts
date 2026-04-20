@@ -11,6 +11,7 @@ import type {
   ContextCandidateAssembly,
   InvocationBindingArtifact,
   InvocationInterpretationArtifact,
+  ResolvedLlmPlan,
   ReviewExecutionPlan,
   ReviewExecutionRealization,
   ReviewHostRuntime,
@@ -20,6 +21,10 @@ import type {
   ReviewTargetScopeKind,
   TargetSnapshotManifest,
 } from "./artifact-types.js";
+import {
+  resolveLearningProviderConfig,
+  type LearningProviderConfigInputs,
+} from "../learning/shared/llm-caller.js";
 import {
   ensureDirectory,
   isoNow,
@@ -81,6 +86,45 @@ export interface MaterializeReviewExecutionPreparationArtifactsParams {
   roleDefinitionRefs?: string[];
   executionRuleRefs?: string[];
   directoryListingOptions?: DirectoryListingOptions;
+}
+
+/**
+ * Load {projectRoot}/.onto/config.yml into the narrow subset that
+ * resolveLearningProviderConfig reads. Missing file → {}.
+ *
+ * Inline-http executor 의 loadOntoConfig 와 동일 패턴. 본 bootstrap 은 CLI
+ * override 를 받지 않으므로 config 단독으로 plan-time 값 도출.
+ */
+async function loadOntoConfigForPlan(
+  projectRoot: string,
+): Promise<LearningProviderConfigInputs> {
+  const configPath = path.join(projectRoot, ".onto", "config.yml");
+  try {
+    const text = await fs.readFile(configPath, "utf8");
+    const yaml = await import("yaml");
+    const parsed = yaml.parse(text);
+    if (parsed && typeof parsed === "object") {
+      return parsed as LearningProviderConfigInputs;
+    }
+  } catch {
+    // Missing or malformed config → empty plan. Non-fatal.
+  }
+  return {};
+}
+
+/**
+ * OntoConfig subset → ResolvedLlmPlan (effort persist Option A).
+ * Returns undefined if no fields are populated (avoid empty record noise).
+ */
+function derivePlanTimeLlmResolution(
+  config: LearningProviderConfigInputs,
+): ResolvedLlmPlan | undefined {
+  const partial = resolveLearningProviderConfig({ config });
+  const plan: ResolvedLlmPlan = {};
+  if (partial.model_id) plan.model = partial.model_id;
+  if (partial.reasoning_effort) plan.reasoning_effort = partial.reasoning_effort;
+  if (partial.provider) plan.provider = partial.provider;
+  return Object.keys(plan).length > 0 ? plan : undefined;
 }
 
 export function generateReviewSessionId(): string {
@@ -295,6 +339,9 @@ export async function bootstrapInvocationBindingArtifacts(
     ? path.resolve(params.pluginRoot)
     : path.resolve(projectRoot, ".claude-plugin");
 
+  const ontoConfigSubset = await loadOntoConfigForPlan(projectRoot);
+  const resolvedLlmPlan = derivePlanTimeLlmResolution(ontoConfigSubset);
+
   const reviewSessionMetadata: ReviewSessionMetadata = {
     session_id: sessionId,
     entrypoint: "review",
@@ -306,6 +353,7 @@ export async function bootstrapInvocationBindingArtifacts(
     requested_target: params.requestedTarget,
     requested_domain_token: params.requestedDomainToken ?? "",
     plugin_root: pluginRoot,
+    ...(resolvedLlmPlan ? { resolved_llm_plan: resolvedLlmPlan } : {}),
   };
 
   const boundaryPolicy = resolveBoundaryPolicy(

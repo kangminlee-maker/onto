@@ -30,7 +30,10 @@ import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.j
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
 import { resolveExecutionPlan } from "../review/execution-plan-resolver.js";
-import { resolveExecutionTopology } from "../review/execution-topology-resolver.js";
+import {
+  resolveExecutionTopology,
+  type ExecutionTopology,
+} from "../review/execution-topology-resolver.js";
 import {
   hasStandaloneLensExecutor,
   mapTopologyToExecutorConfig,
@@ -640,8 +643,17 @@ function buildNoHostDetectedError(): Error {
  */
 export function tryResolveTopologyForHandoff(
   ontoConfig: OntoConfig | undefined,
+  cached?: ExecutionTopology | null,
 ): CoordinatorTopologyDescriptor | null {
   if (ontoConfig === undefined) return null;
+  // P9.3-m1 (2026-04-21): accept a pre-resolved topology from the caller
+  // to avoid re-emitting the `[topology]` STDERR trace for the same
+  // invocation. `cached === undefined` preserves legacy single-argument
+  // behaviour (test harness compatibility); `cached === null` is the
+  // explicit signal that the caller already resolved and got `no_host`.
+  if (cached !== undefined) {
+    return cached === null ? null : toCoordinatorTopologyDescriptor(cached);
+  }
   const resolution = resolveExecutionTopology({ ontoConfig });
   if (resolution.type !== "resolved") return null;
   return toCoordinatorTopologyDescriptor(resolution.topology);
@@ -762,12 +774,24 @@ function emitCoordinatorStartHandoff(args: {
 export function tryTopologyDerivedExecutor(
   ontoConfig: OntoConfig | undefined,
   ontoHome: string | undefined,
+  cached?: ExecutionTopology | null,
 ): ReviewUnitExecutorConfig | null {
   if (ontoConfig === undefined) return null;
   if (!ontoHome) return null;
-  const resolution = resolveExecutionTopology({ ontoConfig });
-  if (resolution.type !== "resolved") return null;
-  const topology = resolution.topology;
+  // P9.3-m1 (2026-04-21): same caching contract as
+  // `tryResolveTopologyForHandoff` — `cached === undefined` preserves
+  // legacy two-argument behaviour; `cached === null` means caller
+  // already resolved and got `no_host`; `cached === ExecutionTopology`
+  // reuses the pre-resolved instance without re-running the resolver.
+  let topology: ExecutionTopology;
+  if (cached !== undefined) {
+    if (cached === null) return null;
+    topology = cached;
+  } else {
+    const resolution = resolveExecutionTopology({ ontoConfig });
+    if (resolution.type !== "resolved") return null;
+    topology = resolution.topology;
+  }
   if (!hasStandaloneLensExecutor(topology)) return null;
   try {
     const base = mapTopologyToExecutorConfig(topology, ontoHome, ontoConfig);
@@ -786,6 +810,7 @@ function resolveExecutorConfig(
   optionPrefix: "" | "synthesize-",
   ontoConfig?: OntoConfig,
   ontoHome?: string,
+  cachedTopology?: ExecutionTopology | null,
 ): ReviewUnitExecutorConfig {
   const optionPrefixLabel = optionPrefix.length > 0 ? optionPrefix : "";
   const explicitBin = readSingleOptionValueFromArgv(
@@ -841,7 +866,11 @@ function resolveExecutorConfig(
   // codex-nested-subprocess + claude-teamcreate-member the caller
   // should branch ABOVE this function (PR-H / PR-D integrations); this
   // resolver stays scoped to subprocess-executor dispatch.
-  const topologyDerived = tryTopologyDerivedExecutor(ontoConfig, ontoHome);
+  const topologyDerived = tryTopologyDerivedExecutor(
+    ontoConfig,
+    ontoHome,
+    cachedTopology,
+  );
   if (topologyDerived) {
     // Topology's lens_spawn_mechanism="litellm-http" → inline-http
     // executor needs subagent_llm / legacy provider args; codex-
@@ -1970,13 +1999,33 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   if (handoff.type === "no_host") {
     throw buildNoHostDetectedError();
   }
+
+  // P9.3-m1 (2026-04-21): resolve topology exactly once per invocation
+  // and thread the result through the 3 downstream consumers
+  // (tryResolveTopologyForHandoff, resolveExecutorConfig ×2,
+  // topologyForDispatch). Prior to this caching layer, each consumer
+  // re-called `resolveExecutionTopology` and re-emitted the full
+  // `[topology]` STDERR trace, producing 15+ duplicate trace lines per
+  // review run. `cachedTopology === null` is the explicit "caller
+  // resolved and got no_host" signal propagated to downstream helpers.
+  const cachedTopologyResolution = resolveExecutionTopology({
+    ontoConfig: setup.ontoConfig,
+  });
+  const cachedTopology: ExecutionTopology | null =
+    cachedTopologyResolution.type === "resolved"
+      ? cachedTopologyResolution.topology
+      : null;
+
   if (handoff.type === "coordinator_start") {
     // P9.3 (2026-04-21): resolver always attempts axis-first derivation,
     // so every coordinator handoff carries a topology descriptor (null
     // only when the resolver itself could not find a viable host). The
     // coordinator state machine follows it as canonical rather than
     // inferring from preferred_realization alone.
-    const topologyDescriptor = tryResolveTopologyForHandoff(setup.ontoConfig);
+    const topologyDescriptor = tryResolveTopologyForHandoff(
+      setup.ontoConfig,
+      cachedTopology,
+    );
     emitCoordinatorStartHandoff({
       preferredRealization: handoff.profile.execution_realization,
       requestedTarget: setup.resolvedInvokeInputs.requestedTarget,
@@ -2042,27 +2091,24 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     "",
     setup.ontoConfig,
     setup.ontoHome,
+    cachedTopology,
   );
   const synthesizeExecutorConfig = resolveExecutorConfig(
     argv,
     "synthesize-",
     setup.ontoConfig,
     setup.ontoHome,
+    cachedTopology,
   );
 
-  // P9.3 (2026-04-21): resolve topology unconditionally so every
-  // dispatch path sees a consistent descriptor. codex-nested-subprocess
-  // consumers use the PR-H bridge path inside
-  // `executeReviewPromptExecution`; other topology ids pass through as
-  // orthogonal metadata. Resolver returns `no_host` → `undefined` here
-  // when no viable host is reachable (degrade-fallback exhausted).
-  const topologyForDispatchRes = resolveExecutionTopology({
-    ontoConfig: setup.ontoConfig,
-  });
-  const topologyForDispatch =
-    topologyForDispatchRes.type === "resolved"
-      ? topologyForDispatchRes.topology
-      : undefined;
+  // P9.3-m1 (2026-04-21): reuse the cached topology instead of calling
+  // `resolveExecutionTopology` a fourth time. The cached value was
+  // resolved once at the top of this function from the same
+  // `setup.ontoConfig`, so the resolved descriptor is identical; the
+  // `null` branch corresponds to the prior `no_host` → `undefined`
+  // semantics expected by `executeReviewPromptExecution`.
+  const topologyForDispatch: ExecutionTopology | undefined =
+    cachedTopology ?? undefined;
 
   const promptExecutionResult = await executeReviewPromptExecution({
     projectRoot: resolvedProjectRoot,

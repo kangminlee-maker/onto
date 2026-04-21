@@ -31,13 +31,16 @@ if [[ ! -f "${HOME}/.codex/auth.json" ]]; then
 fi
 
 # ── Config ─────────────────────────────────────────────────────────────────
+# P9.2 (2026-04-21): legacy `execution_topology_priority` field removed.
+# Axis-first: main teamlead + main-native subagent under codex session
+# (CODEX_THREAD_ID set) derives shape `main_native` → codex-main-subprocess.
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
-execution_topology_priority:
-  - codex-main-subprocess
+review:
+  teamlead:
+    model: main
+  subagent:
+    provider: main-native
 review_mode: core-axis
-codex:
-  model: gpt-5.4
-  effort: medium
 EOF
 
 # ── Execute ────────────────────────────────────────────────────────────────
@@ -46,8 +49,11 @@ STDOUT_LOG="${SMOKE_TMP_ROOT}/review.stdout.log"
 
 cd "${SMOKE_TMP_ROOT}"
 # Set CODEX_THREAD_ID to simulate codex CLI session host (enables codex-B
-# requirement: codexSessionActive=true).
-CODEX_THREAD_ID="smoke-${SMOKE_TOPOLOGY_ID}-$(date +%s)" env -u CLAUDECODE -u CLAUDE_PROJECT_DIR \
+# requirement: codexSessionActive=true). All Claude env signals (including
+# CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS — see host-detection.ts
+# CLAUDE_ENV_SIGNALS) must be unset so claudeHost signal reads false.
+CODEX_THREAD_ID="smoke-${SMOKE_TOPOLOGY_ID}-$(date +%s)" \
+  env -u CLAUDECODE -u CLAUDE_PROJECT_DIR -u CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS \
   node "${ONTO_CLI}" \
     "$(basename "${SMOKE_TARGET_FILE}")" "${SMOKE_INTENT}" \
     --project-root "${SMOKE_TMP_ROOT}" \

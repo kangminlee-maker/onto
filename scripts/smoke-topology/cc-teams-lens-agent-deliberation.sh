@@ -31,10 +31,16 @@ if [[ -z "${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-}" ]]; then
 fi
 
 # ── Config ─────────────────────────────────────────────────────────────────
+# P9.2 (2026-04-21): legacy `execution_topology_priority` field removed.
+# Axis-first: `subagent.provider=main-native` + `lens_deliberation=sendmessage-a2a`
+# under Claude host + teams=true + lens_agent_teams_mode (double opt-in) derives
+# shape `main-teams_a2a` → cc-teams-lens-agent-deliberation.
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
-execution_topology_priority:
-  - cc-teams-lens-agent-deliberation
 lens_agent_teams_mode: true
+review:
+  subagent:
+    provider: main-native
+  lens_deliberation: sendmessage-a2a
 review_mode: core-axis
 EOF
 

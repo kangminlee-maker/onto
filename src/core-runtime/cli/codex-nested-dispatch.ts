@@ -130,6 +130,88 @@ const defaultInspector: OutputFileInspector = async (p) => {
 };
 
 // ---------------------------------------------------------------------------
+// Artifact archival
+// ---------------------------------------------------------------------------
+
+/**
+ * Persist the outer codex's captured stdout/stderr to files under
+ * `<sessionRoot>`. Used for post-hoc inspection of nested-dispatch
+ * diagnostics (ENV-BEFORE / ENV-AFTER / LENS_DISPATCH_SUMMARY) since the
+ * orchestrator result is not propagated through review-invoke's final
+ * JSON output.
+ *
+ * Silently swallows write errors — an artifact write failure must not
+ * mask the actual dispatch outcome. The archive is best-effort.
+ */
+async function archiveOuterStreams(
+  sessionRoot: string,
+  nestedResult: CodexNestedTeamleadResult,
+): Promise<void> {
+  const stdoutPath = path.join(sessionRoot, "nested-outer-stdout.log");
+  const stderrPath = path.join(sessionRoot, "nested-outer-stderr.log");
+  await Promise.all([
+    fs.writeFile(stdoutPath, nestedResult.outer_stdout ?? "").catch(() => {}),
+    fs.writeFile(stderrPath, nestedResult.outer_stderr ?? "").catch(() => {}),
+  ]);
+}
+
+// ---------------------------------------------------------------------------
+// Spawn-config resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the `model` / `effort` to pass to the codex-nested orchestrator.
+ *
+ * Review UX Redesign P2 moved user-facing config into `review:` axis block,
+ * but `codex-nested-dispatch` was still reading the legacy top-level
+ * `codex.*` / top-level `model` / `reasoning_effort`. When a smoke script
+ * (or real user) puts `effort: medium` under `review.subagent` (the P2
+ * canonical location), it silently fell through here and the nested codex
+ * ran with `~/.codex/config.toml` defaults (often `xhigh`), causing outer
+ * teamlead timeouts during multi-lens dispatch.
+ *
+ * Resolution priority (highest first):
+ *   1. `review.subagent` when `provider === "codex"` — the P2 canonical
+ *      location for the spawn target's config.
+ *   2. `review.teamlead.model` when it is an explicit `{ provider: "codex" }`
+ *      spec — relevant for ext-teamlead_native (codex-nested-subprocess)
+ *      where teamlead and subagent are the same codex provider.
+ *   3. Legacy top-level `codex.*` — pre-P2 configs still in the wild.
+ *   4. Legacy top-level `model` / `reasoning_effort` — even older shape.
+ *
+ * Returns `{}` when nothing resolves — caller omits both fields from the
+ * orchestrator input (codex picks its own defaults).
+ */
+export function resolveCodexSpawnConfig(
+  config: OntoConfig,
+): { model?: string; effort?: string } {
+  const sub = config.review?.subagent;
+  if (sub && sub.provider === "codex") {
+    return {
+      ...(sub.model_id ? { model: sub.model_id } : {}),
+      ...(sub.effort ? { effort: sub.effort } : {}),
+    };
+  }
+  const tl = config.review?.teamlead?.model;
+  if (tl && tl !== "main" && tl.provider === "codex") {
+    return {
+      ...(tl.model_id ? { model: tl.model_id } : {}),
+      ...(tl.effort ? { effort: tl.effort } : {}),
+    };
+  }
+  if (config.codex?.model || config.codex?.effort) {
+    return {
+      ...(config.codex.model ? { model: config.codex.model } : {}),
+      ...(config.codex.effort ? { effort: config.codex.effort } : {}),
+    };
+  }
+  return {
+    ...(config.model ? { model: config.model } : {}),
+    ...(config.reasoning_effort ? { effort: config.reasoning_effort } : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Main bridge function
 // ---------------------------------------------------------------------------
 
@@ -168,21 +250,24 @@ export async function executeReviewViaCodexNested(
     }),
   );
 
+  const spawnConfig = resolveCodexSpawnConfig(args.ontoConfig);
+
   const nestedResult = await runImpl({
     lenses,
-    ...(args.ontoConfig.codex?.model ?? args.ontoConfig.model
-      ? { model: args.ontoConfig.codex?.model ?? args.ontoConfig.model! }
-      : {}),
-    ...(args.ontoConfig.codex?.effort ?? args.ontoConfig.reasoning_effort
-      ? {
-          reasoning_effort:
-            args.ontoConfig.codex?.effort ?? args.ontoConfig.reasoning_effort!,
-        }
-      : {}),
+    ...(spawnConfig.model ? { model: spawnConfig.model } : {}),
+    ...(spawnConfig.effort ? { reasoning_effort: spawnConfig.effort } : {}),
     ...(args.projectRoot ? { project_root: args.projectRoot } : {}),
     ...(typeof args.timeout_ms === "number" ? { timeout_ms: args.timeout_ms } : {}),
     ...(args.codex_bin ? { codex_bin: args.codex_bin } : {}),
   });
+
+  // Archive the outer codex's stdout/stderr to session artifacts. The outer
+  // stream carries the ENV-BEFORE / ENV-AFTER diagnostics and the
+  // LENS_DISPATCH_SUMMARY sentinel — valuable for post-hoc auditing of
+  // "what environment each lens actually ran in". review-invoke's final
+  // JSON does not propagate `nested_raw`, so without this archive step
+  // the outer trace would be unrecoverable once the session ends.
+  await archiveOuterStreams(args.sessionRoot, nestedResult);
 
   const participating: string[] = [];
   const degraded: string[] = [];

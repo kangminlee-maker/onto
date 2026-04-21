@@ -37,13 +37,16 @@ if [[ ! -f "${HOME}/.codex/auth.json" ]]; then
 fi
 
 # ── Config ─────────────────────────────────────────────────────────────────
+# P9.2 (2026-04-21): legacy `execution_topology_priority` field removed.
+# Axis-first: `subagent.provider=codex` under Claude host + teams=true
+# derives shape `main-teams_foreign(codex)` → cc-teams-codex-subprocess.
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
-execution_topology_priority:
-  - cc-teams-codex-subprocess
+review:
+  subagent:
+    provider: codex
+    model_id: gpt-5.4
+    effort: medium
 review_mode: core-axis
-codex:
-  model: gpt-5.4
-  effort: medium
 EOF
 
 # ── Execute ────────────────────────────────────────────────────────────────

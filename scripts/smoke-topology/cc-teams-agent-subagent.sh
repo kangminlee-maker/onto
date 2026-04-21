@@ -33,9 +33,13 @@ if [[ -z "${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-}" ]]; then
 fi
 
 # ── Config ─────────────────────────────────────────────────────────────────
+# P9.2 (2026-04-21): legacy `execution_topology_priority` field removed.
+# Axis-first: `subagent.provider=main-native` under Claude host + teams=true
+# derives shape `main-teams_native` → cc-teams-agent-subagent.
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
-execution_topology_priority:
-  - cc-teams-agent-subagent
+review:
+  subagent:
+    provider: main-native
 review_mode: core-axis
 EOF
 

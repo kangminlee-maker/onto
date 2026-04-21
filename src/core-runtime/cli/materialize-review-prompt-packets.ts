@@ -248,11 +248,19 @@ function scanDomainFiles(domainDir: string): string[] {
 /**
  * Resolve a role file with dual-read: try canonical (bare) name first, then onto_ legacy.
  */
+/**
+ * Resolve a role file from an installation-shaped base directory.
+ *
+ * Fallback is **directory-level** (not per-file 4-way): the
+ * installation-paths resolver picks ONE of `{baseDir}/.onto/roles/` (Phase-3
+ * canonical) or `{baseDir}/roles/` (legacy, retained through Phase 7), and
+ * the onto_ prefix rename is a **file-level** fallback *inside that single
+ * chosen directory*. So the search sequence is:
+ *   - if `.onto/roles/` exists: check `.onto/roles/{id}.md` then `.onto/roles/onto_{id}.md`
+ *   - else if `roles/` exists: check `roles/{id}.md` then `roles/onto_{id}.md`
+ *   - else: return the canonical Phase-3 shape for the downstream error
+ */
 function resolveRoleFileWithFallback(baseDir: string, lensId: string): string {
-  // Phase 3: prefer `{baseDir}/.onto/roles/{id}.md`; resolver falls back to
-  // legacy `{baseDir}/roles/{id}.md` when the new layout is absent. If
-  // neither directory exists, return the canonical Phase-3 shape so the
-  // downstream error message points users at the expected location.
   let rolesDir: string;
   try {
     rolesDir = resolveInstallationPath("roles", baseDir);
@@ -261,7 +269,6 @@ function resolveRoleFileWithFallback(baseDir: string, lensId: string): string {
   }
   const barePath = path.resolve(rolesDir, `${lensId}.md`);
   if (fsSync.existsSync(barePath)) return barePath;
-  // onto_ prefix legacy (pre-Phase-3 rename, still supported as file-level fallback)
   const legacyPath = path.resolve(rolesDir, `onto_${lensId}.md`);
   if (fsSync.existsSync(legacyPath)) return legacyPath;
   return barePath; // canonical preferred even when neither exists
@@ -271,10 +278,14 @@ function resolveRoleFileWithFallback(baseDir: string, lensId: string): string {
  * Resolve role definition path per the Role/Domain policy:
  * - Core roles: ontoHome installation only. Project override forbidden.
  * - Custom roles: projectRoot → ontoHome fallback.
- * - Terminal failure: throw (no silent degradation).
- * Phase 3: canonical role dir is `.onto/roles/`; `resolveInstallationPath`
- * handles the dual-path (new + legacy). `onto_` filename prefix remains
- * a pre-Phase-3 rename fallback handled inside resolveRoleFileWithFallback.
+ *   projectRoot accepts **mixed layouts** — `.onto/roles/` AND `roles/`
+ *   coexisting within one project. This matches the prior (pre-Phase-3)
+ *   semantic where projects in transition could host some customs under
+ *   the new layout and others under the legacy one. Phase 7 cleanup
+ *   removes the legacy sub-branch.
+ * - Terminal failure: caller throws after this returns a non-existent path.
+ * Phase 3: canonical role dir is `.onto/roles/`. `onto_` filename prefix
+ * remains a pre-Phase-3 rename fallback at the file level.
  */
 function resolveRoleDefinitionPath(
   lensId: string,
@@ -288,13 +299,27 @@ function resolveRoleDefinitionPath(
     return resolveRoleFileWithFallback(baseDir, lensId);
   }
 
-  // Custom roles: projectRoot first (dual-path via resolver), then ontoHome
-  const projectPath = resolveRoleFileWithFallback(projectRoot, lensId);
-  if (fsSync.existsSync(projectPath)) return projectPath;
+  // Custom roles: scan BOTH layouts independently in projectRoot.
+  // Unlike resolveRoleFileWithFallback which picks one directory and only
+  // falls through when that entire directory is absent, custom-role
+  // project lookup accepts mixed-layout projects.
+  const projectLayouts: readonly string[][] = [[".onto", "roles"], ["roles"]];
+  for (const subdir of projectLayouts) {
+    const dir = path.resolve(projectRoot, ...subdir);
+    if (!fsSync.existsSync(dir)) continue;
+    const barePath = path.resolve(dir, `${lensId}.md`);
+    if (fsSync.existsSync(barePath)) return barePath;
+    const legacyPath = path.resolve(dir, `onto_${lensId}.md`);
+    if (fsSync.existsSync(legacyPath)) return legacyPath;
+  }
+
   if (typeof ontoHome === "string" && ontoHome.length > 0) {
     return resolveRoleFileWithFallback(ontoHome, lensId);
   }
-  return projectPath; // will produce warning downstream
+  // No installation override and no project-side hit — return the canonical
+  // Phase-3 shape so the downstream error message points users at the
+  // expected location.
+  return path.resolve(projectRoot, ".onto", "roles", `${lensId}.md`);
 }
 
 export async function runMaterializeReviewPromptPacketsCli(

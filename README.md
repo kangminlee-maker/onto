@@ -90,12 +90,43 @@ Designed with inspiration from ontology structures, applicable across domains re
 
 ## Installation
 
-Run the following commands in order within Claude Code:
+Two install paths are supported. They are not mutually exclusive — you can install the Claude Code plugin for in-session slash commands and also install the npm CLI for terminal usage, sharing the same runtime config.
+
+**After either path finishes, run `onto install` exactly once** to write `config.yml` + `.env` (provider credentials) to `~/.onto/` or `<repo>/.onto/`. The runtime setup is detailed in `.onto/processes/install.md`.
+
+### Path A — Claude Code plugin (marketplace)
+
+Run inside Claude Code:
 
 ```
 /plugin marketplace add kangminlee-maker/onto
 /plugin install onto@kangminlee-maker/onto
+/onto:install
 ```
+
+### Path B — npm global CLI
+
+Run in your terminal:
+
+```bash
+npm install -g onto-core
+onto install
+```
+
+### Non-interactive install (CI / Docker)
+
+`onto install --non-interactive` resolves every decision from flags or `ONTO_INSTALL_*` env vars. Credentials are read from `process.env` (or a user-supplied `--env-file <path>`); they are never accepted via flag.
+
+```bash
+onto install --non-interactive \
+  --profile-scope project \
+  --review-provider anthropic \
+  --learn-provider same \
+  --output-language ko
+# ANTHROPIC_API_KEY must be in env (or --env-file)
+```
+
+Full flag reference and troubleshooting: `.onto/processes/install.md`.
 
 ## Update
 
@@ -107,6 +138,8 @@ Or if installed via git clone:
 ```bash
 cd "${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}" && git pull
 ```
+
+Re-run the wizard after an update with `onto install --reconfigure` to re-sync `config.yml` / `.env`, or use `onto config edit` to adjust specific fields without a full rewrite.
 
 When upgrading from a previous version, run the migration since the global data path has changed:
 

@@ -10,6 +10,7 @@ Display the command reference below in the configured language.
 ### Core Workflow
 
 ```
+/onto:install                              First-run setup wizard (providers, auth, output language)
 /onto:onboard                              Set up onto environment for a project
 /onto:review {target}                      9-lens review + synthesize
 /onto:review {target} --domain {name}      Review with specific domain (canonical)
@@ -90,10 +91,11 @@ review {target} @{domain}          Use as verification standard
 
 ### Quick Start
 
-1. **Set up**: `/onto:onboard`
-2. **Review**: `/onto:review {file-or-design}`
-3. **New domain**: `/onto:create-domain my-domain "description"`
-4. **Ask one agent**: `/onto:ask-logic "Is there a contradiction in X?"`
+1. **Install runtime**: `/onto:install` (first-run only — providers + auth + output language)
+2. **Set up project**: `/onto:onboard`
+3. **Review**: `/onto:review {file-or-design}`
+4. **New domain**: `/onto:create-domain my-domain "description"`
+5. **Ask one agent**: `/onto:ask-logic "Is there a contradiction in X?"`
 
 ### More Info
 

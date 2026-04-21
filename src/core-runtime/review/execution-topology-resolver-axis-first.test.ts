@@ -20,13 +20,13 @@ import {
 //       the `main_native` shape against the current host signals. If
 //       that succeeds, that TopologyId is used (NOT the legacy ladder).
 //
-//   (3) Legacy-ladder fallback reserved for the case where `main_native`
-//       itself is unmappable (neither Claude nor Codex host). Only then
-//       does the resolver fall through to `execution_topology_priority`
-//       / DEFAULT_TOPOLOGY_PRIORITY.
+//   (3) When both axis derivation and `main_native` degrade fail, the
+//       resolver fails fast with `no_host` (P9.1 ladder retirement,
+//       2026-04-21): there is no legacy-priority fallback.
 //
-//   (4) When `config.review` is absent, behavior is identical to pre-P2:
-//       legacy priority ladder walked, no axis-first trace emitted.
+//   (4) When `config.review` is absent, the resolver skips axis-first
+//       and attempts `main_native` degrade directly — same universal
+//       fallback path as a validation/derivation/mapping failure.
 // ---------------------------------------------------------------------------
 
 type ResolveArgs = Parameters<typeof resolveExecutionTopology>[0];
@@ -77,7 +77,7 @@ describe("resolveExecutionTopology — axis-first happy paths", () => {
     );
     const r = expectResolved(res);
     expect(r.topology.id).toBe("cc-main-agent-subagent");
-    expect(r.topology.plan_trace.some((l) => l.includes("priority source=review-axes")))
+    expect(r.topology.plan_trace.some((l) => l.includes("topology source=review-axes")))
       .toBe(true);
     expect(r.topology.plan_trace.some((l) => l.includes("derived TopologyId=cc-main-agent-subagent")))
       .toBe(true);
@@ -180,8 +180,9 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
             subagent: { provider: "main-native", model_id: "x" },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
-          // Would resolve to codex-main-subprocess on a legacy walk; the
-          // P3 degrade pre-empts this.
+          // Retained as a defensive check: legacy `execution_topology_priority`
+          // would have selected this id pre-P9.1. After P9.1 the field is
+          // acknowledged but ignored — the degrade path owns the decision.
           execution_topology_priority: ["codex-main-subprocess"],
         },
         claudeHost: true,
@@ -199,15 +200,17 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
         l.includes("degraded: requested=<validation-failed> → actual=main_native"),
       ),
     ).toBe(true);
-    // priority_source = review-axes because the degrade produced a
-    // single-entry TopologyId; legacy `execution_topology_priority`
-    // array was NOT walked.
+    // source = review-axes because the degrade produced a single-entry
+    // TopologyId through the axis-first path; the legacy priority array
+    // was acknowledged (see "ignored" trace line) but never consulted.
     expect(
-      r.topology.plan_trace.some((l) => l.includes("priority source=review-axes")),
+      r.topology.plan_trace.some((l) => l.includes("topology source=review-axes")),
     ).toBe(true);
     expect(
-      r.topology.plan_trace.some((l) => l.includes("priority source=config")),
-    ).toBe(false);
+      r.topology.plan_trace.some((l) =>
+        l.includes("legacy execution_topology_priority present in config but ignored"),
+      ),
+    ).toBe(true);
   });
 
   it("derivation failure (a2a without teams) degrades to main_native", () => {
@@ -221,7 +224,9 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
             subagent: { provider: "main-native" },
             lens_deliberation: "sendmessage-a2a",
           },
-          // Would win on a legacy walk; P3 degrade must pre-empt.
+          // Retained as defensive check: pre-P9.1 this would have won
+          // via the legacy priority ladder. After P9.1 the field is
+          // ignored at runtime (see resolver's "legacy ... ignored" log).
           execution_topology_priority: ["codex-main-subprocess"],
         },
         claudeHost: true,
@@ -243,7 +248,7 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
       ),
     ).toBe(true);
     expect(
-      r.topology.plan_trace.some((l) => l.includes("priority source=review-axes")),
+      r.topology.plan_trace.some((l) => l.includes("topology source=review-axes")),
     ).toBe(true);
   });
 
@@ -257,6 +262,8 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
           review: {
             subagent: { provider: "litellm", model_id: "gpt-4o" },
           },
+          // Same defensive check — legacy ladder would have favored
+          // this id pre-P9.1 but the field is now a runtime no-op.
           execution_topology_priority: ["codex-main-subprocess"],
         },
         claudeHost: true,
@@ -277,14 +284,17 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
       ),
     ).toBe(true);
     expect(
-      r.topology.plan_trace.some((l) => l.includes("priority source=review-axes")),
+      r.topology.plan_trace.some((l) => l.includes("topology source=review-axes")),
     ).toBe(true);
   });
 
-  it("everything fails (main_native also unmappable) → legacy ladder is used", () => {
-    // Neither Claude nor Codex host → main_native cannot be mapped.
-    // Only in this case does the resolver fall through to the legacy
-    // priority ladder (here: codex-nested-subprocess via codex binary).
+  it("everything fails (main_native also unmappable) → no_host fail-fast", () => {
+    // P9.1 (2026-04-21): legacy priority ladder is retired. When axis
+    // derivation fails AND the `main_native` degrade cannot map (neither
+    // Claude nor Codex host), the resolver returns `no_host`. The
+    // `execution_topology_priority` array, even when pointing at an id
+    // whose prerequisites are met (here: codex-nested-subprocess via
+    // codex binary), is NOT consulted — ladder walking no longer exists.
     const res = resolveExecutionTopology(
       args({
         ontoConfig: {
@@ -298,30 +308,45 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
         codexAvailable: true,
       }),
     );
-    const r = expectResolved(res);
-    expect(r.topology.id).toBe("codex-nested-subprocess");
+    if (res.type !== "no_host") {
+      throw new Error(
+        `expected no_host, got resolved topology id=${res.topology.id}`,
+      );
+    }
+    expect(res.plan_trace.some((l) => l.includes("mapping failed"))).toBe(true);
     expect(
-      r.topology.plan_trace.some((l) => l.includes("mapping failed")),
-    ).toBe(true);
-    // Degrade attempt was made, but the fallback-fallback mapping
-    // emitted an "unmappable" line, so legacy ladder took over.
-    expect(
-      r.topology.plan_trace.some((l) =>
+      res.plan_trace.some((l) =>
         l.includes("degraded: requested=main_native → actual=main_native"),
       ),
     ).toBe(true);
     expect(
-      r.topology.plan_trace.some((l) =>
+      res.plan_trace.some((l) =>
         l.includes("degrade-fallback: main_native unmappable"),
       ),
     ).toBe(true);
     expect(
-      r.topology.plan_trace.some((l) => l.includes("priority source=config")),
+      res.plan_trace.some((l) =>
+        l.includes("no topology resolved (axis-first + main_native fallback both failed)"),
+      ),
     ).toBe(true);
+    // Negative: the retired ladder's "priority source=config" log shape
+    // must NOT surface — any regression would revive the dead path.
+    expect(res.plan_trace.some((l) => l.includes("priority source="))).toBe(false);
+    // Regression guard (PR #161 review): when `config.review` is present
+    // but its internal degrade exhausts, the outer resolver must NOT
+    // invoke a second `attemptMainNativeDegrade` with a misleading
+    // `<review-block-absent>` label. Exactly one `degraded: requested=`
+    // line should appear, and it must not carry that sentinel.
+    expect(
+      res.plan_trace.filter((l) => l.includes("degraded: requested=")).length,
+    ).toBe(1);
+    expect(
+      res.plan_trace.some((l) => l.includes("<review-block-absent>")),
+    ).toBe(false);
   });
 });
 
-describe("resolveExecutionTopology — review absent = legacy unchanged", () => {
+describe("resolveExecutionTopology — review absent → main_native degrade", () => {
   let stderrSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -331,7 +356,12 @@ describe("resolveExecutionTopology — review absent = legacy unchanged", () => 
     stderrSpy.mockRestore();
   });
 
-  it("no review block → no axis-first trace, priority_source=default", () => {
+  it("no review block + CC host → main_native degrade → cc-main-agent-subagent", () => {
+    // P9.1 (2026-04-21): when `config.review` is absent, the resolver
+    // no longer walks the legacy priority ladder. It goes directly to
+    // the universal `main_native` degrade path with
+    // requested=<review-block-absent>. The degrade maps main_native
+    // against the Claude host → cc-main-agent-subagent.
     const res = resolveExecutionTopology(
       args({
         ontoConfig: {},
@@ -339,12 +369,21 @@ describe("resolveExecutionTopology — review absent = legacy unchanged", () => 
       }),
     );
     const r = expectResolved(res);
-    // Should reach cc-main-agent-subagent via DEFAULT_TOPOLOGY_PRIORITY
     expect(r.topology.id).toBe("cc-main-agent-subagent");
-    expect(r.topology.plan_trace.some((l) => l.includes("review-axes"))).toBe(
+    // No axis-first trace: the review block was absent, so we never
+    // entered the axis pipeline — only the direct degrade.
+    expect(r.topology.plan_trace.some((l) => l.includes("review-axes: "))).toBe(
       false,
     );
-    expect(r.topology.plan_trace.some((l) => l.includes("priority source=default")))
-      .toBe(true);
+    expect(
+      r.topology.plan_trace.some((l) =>
+        l.includes("degraded: requested=<review-block-absent>"),
+      ),
+    ).toBe(true);
+    expect(
+      r.topology.plan_trace.some((l) =>
+        l.includes("topology source=fallback-main-native"),
+      ),
+    ).toBe(true);
   });
 });

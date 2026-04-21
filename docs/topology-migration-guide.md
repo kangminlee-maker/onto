@@ -24,6 +24,18 @@ source_refs:
 
 # Topology Migration Guide — Legacy → Review UX Redesign (2026-04-21 갱신)
 
+> **⚠️ P9.1 Runtime Cleanup 공지 (2026-04-21)**
+>
+> `execution_topology_priority` 필드는 **config loader 가 여전히 YAML 에서 읽지만**
+> resolver 에서는 더 이상 참조하지 않습니다 (P9.1 에서 priority ladder walk 를
+> 제거). 아래 §1~§6 의 예시처럼 이 필드만 설정하면 runtime 결과는 동일하게
+> `main_native` degrade 경로로 떨어집니다 — 의도한 topology 가 선택되지 않습니다.
+>
+> **신규 / 마이그레이션 프로젝트는 반드시 §7 의 `review:` axis block 을 사용**
+> 하십시오. 기존 `execution_topology_priority` 가 남아있는 프로젝트는 resolver
+> 에서 `[topology] legacy execution_topology_priority present in config but
+> ignored` 로그를 확인할 수 있습니다. 필드 자체의 제거는 P9.2 에서 진행됩니다.
+
 ## 1. 왜 마이그레이션 하는가
 
 Sketch v3 이전의 `.onto/config.yml` 에는 review 실행 경로를 결정하는 필드가
@@ -198,6 +210,13 @@ Legacy 5 필드가 OntoConfig 타입에서 제거됨 + Runtime 에서도 throw.
 **단, `execution_topology_priority` 가 함께 있으면 허용** (silent). Migration
 하는 주체자가 legacy 필드를 참고용으로 남길 수 있도록.
 
+> **P9.1 Note (2026-04-21)**: 이 "priority 동반 시 허용" bypass 는 현재
+> `legacy-field-deprecation.ts` runtime 에서만 동작합니다. P9.1 이후
+> `execution_topology_priority` 배열 자체는 topology 를 선택하는 데 더 이상
+> 사용되지 않으므로, 실제 review 실행을 위해서는 **`review:` axis block 을
+> 반드시 추가** 해야 합니다 (§7 참조). bypass 는 P9.2 의 field 제거와 함께
+> 정리될 예정입니다.
+
 Error 메시지 예:
 
 ```
@@ -214,13 +233,17 @@ Error 메시지 예:
 **Q1**: `execution_topology_priority` 와 legacy `host_runtime` 을 동시에
 설정하면?
 
-A: topology 가 우선. Legacy 필드는 무시되고 deprecation warning 도 억제됨
-(주체자가 "legacy 를 참고용으로 남긴" 상황 가정).
+A (P9.1 이후): 둘 다 runtime 에 영향을 주지 않는 조합입니다.
+`execution_topology_priority` 는 P9.1 에서 ladder walk 제거로 **runtime 효과가
+사라졌고** (`[topology] legacy ... ignored` 로그만 남음), legacy provider
+profile 필드는 PR-J 이후 error-stage 입니다. 실제로 topology 를 결정하려면
+§7 의 `review:` axis block 을 사용해야 합니다.
 
 **Q2**: topology 중 어느 것도 성립하지 않으면?
 
 A: resolver 가 `no_host` 로 fail-fast — STDERR 에 환경 시그널 덤프 +
-해결 경로 (CLAUDECODE 환경 실행, codex 설치, priority 재정렬 등) 안내.
+해결 경로 (CLAUDECODE 환경 실행, codex 설치, `review:` axis block 재구성 등)
+안내.
 
 **Q3**: Legacy 필드를 모두 제거하면 어떤 파일이 영향받는가?
 
@@ -301,8 +324,10 @@ onto config validate               # 쓰기 전 검증 + preview
 ```
 
 **수동 편집**: `.onto/config.yml` 에 `review:` block 을 작성 후
-`execution_topology_priority` 제거. 두 필드가 공존할 때는 `review:` block 이
-우선하고 legacy priority 는 무시됨 (backward compat layer).
+`execution_topology_priority` 제거. P9.1 (2026-04-21) 이후 legacy priority
+필드는 `review:` block 의 존재 여부와 무관하게 resolver 가 **항상 무시**합니다
+(`[topology] legacy ... ignored` 로그만 남김). 필드 자체의 YAML 제거는 P9.2
+에서 진행됩니다.
 
 ### 7.4 Universal fallback (P3) 의 보장
 

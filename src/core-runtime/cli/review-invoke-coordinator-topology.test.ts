@@ -81,8 +81,18 @@ describe("tryResolveTopologyForHandoff — resolved descriptor", () => {
   it("cc-teams-lens-agent-deliberation resolves when triple opt-in met", () => {
     process.env.CLAUDECODE = "1";
     process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
+    // P9.1 (2026-04-21): deliberation topology is selected through the
+    // `config.review` axis block (`lens_deliberation: sendmessage-a2a`),
+    // not via the retired priority ladder. `execution_topology_priority`
+    // is retained purely to satisfy the P9.3-scope gate inside
+    // `tryResolveTopologyForHandoff`; its contents are ignored by the
+    // resolver.
     const descriptor = tryResolveTopologyForHandoff({
       execution_topology_priority: ["cc-teams-lens-agent-deliberation"],
+      review: {
+        subagent: { provider: "main-native" },
+        lens_deliberation: "sendmessage-a2a",
+      },
       lens_agent_teams_mode: true,
     });
     expect(descriptor).not.toBeNull();
@@ -110,20 +120,28 @@ describe("tryResolveTopologyForHandoff — resolved descriptor", () => {
     expect(parsed).toEqual(descriptor);
   });
 
-  it("priority array respected — earlier matching topology wins", () => {
+  it("legacy execution_topology_priority is ignored (P9.1); axis block decides", () => {
     process.env.CLAUDECODE = "1";
     process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
+    // Pre-P9.1 this legacy array would have been walked and
+    // `cc-teams-agent-subagent` selected ahead of cc-main-agent-subagent.
+    // After P9.1 the ladder is retired; absent `config.review`, the
+    // resolver takes the main_native degrade path. Coexisting legacy
+    // field is acknowledged but has no runtime effect.
     const descriptor = tryResolveTopologyForHandoff({
       execution_topology_priority: [
-        "cc-teams-agent-subagent",      // matches (CC + experimental)
-        "cc-main-agent-subagent",       // also matches but lower priority
+        "cc-teams-agent-subagent",
+        "cc-main-agent-subagent",
       ],
     });
-    expect(descriptor!.id).toBe("cc-teams-agent-subagent");
+    expect(descriptor!.id).toBe("cc-main-agent-subagent");
   });
 
-  it("unknown id in priority is ignored without crashing descriptor resolution", () => {
+  it("unknown id in legacy priority field does not crash descriptor resolution", () => {
     process.env.CLAUDECODE = "1";
+    // P9.1: legacy priority is ignored regardless of contents. Previously
+    // the normalization step would warn-and-skip unknown ids; the new
+    // invariant is simpler — the array itself is a no-op.
     const descriptor = tryResolveTopologyForHandoff({
       execution_topology_priority: [
         "typo-unknown" as never,

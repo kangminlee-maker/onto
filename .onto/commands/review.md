@@ -60,17 +60,19 @@ Runtime dispatch under the axis block:
 1. `validateReviewConfig` — syntactic + discriminated-union check.
 2. `deriveTopologyShape` — axes + env signals (Claude/Codex host, agent-teams) → one of 6 shapes.
 3. `shapeToTopologyId` — shape + signals → canonical `TopologyId` in the existing catalog.
-4. Resolver emits `[topology] priority source=review-axes order=[<id>]` and matches the id.
-5. Any failure (validation / derivation / mapping) → P3 universal fallback: degrade to `main_native` shape with `[topology] degraded: requested=... → actual=main_native (reason: ...)`. Only when `main_native` itself is unmappable does the resolver fall through to the legacy priority ladder.
+4. Resolver emits `[topology] topology source=review-axes id=<id>` and matches the id.
+5. Any failure (validation / derivation / mapping) → universal fallback: degrade to `main_native` shape with `[topology] degraded: requested=... → actual=main_native (reason: ...)`. If `main_native` itself is unmappable (neither Claude nor Codex host present), the resolver fails fast with `no_host` — **the legacy priority ladder was retired in P9.1 (2026-04-21) and no longer participates in fallback**.
 
 Use `onto config show` / `onto config validate` to preview the derivation before running a review. Design-integrity audit: `development-records/audit/20260421-shape-pipeline-audit.md`.
 
 > **Legacy execution paths removed from prose (P7, 2026-04-21)** — The
 > pre-redesign 3-path guidance (Agent Teams / Main-session / Codex CLI)
 > and sketch v3's 10-topology priority ladder are folded into the 6-axis
-> block above. Runtime still accepts `execution_topology_priority` as
-> backward-compat fallback until the planned "P9 runtime legacy cleanup"
-> PR. Migration: `docs/topology-migration-guide.md` §7.
+> block above. P9.1 (2026-04-21) retired the runtime priority ladder:
+> `execution_topology_priority` is still accepted by the config loader
+> (field removal lands in P9.2) but has **no runtime effect** — the
+> resolver acknowledges its presence with a single `[topology] legacy
+> … ignored` line. Migration: `docs/topology-migration-guide.md` §7.
 
 ### Codex 경로의 자동 가시성 (live watcher)
 

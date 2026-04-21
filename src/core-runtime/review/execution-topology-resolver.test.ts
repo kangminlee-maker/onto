@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import type { OntoConfig } from "../discovery/config-chain.js";
 import {
-  DEFAULT_TOPOLOGY_PRIORITY,
   PR_A_SUPPORTED_TOPOLOGIES,
   TOPOLOGY_CATALOG,
   UnsupportedTopologyError,
@@ -12,19 +10,25 @@ import {
 } from "./execution-topology-resolver.js";
 
 // ---------------------------------------------------------------------------
-// These tests assert the topology resolver invariants (sketch v3 §3-§5):
+// Invariants covered here (post-P9.1, 2026-04-21):
 //
-// (1) Every topology option can be matched when its prerequisites are met,
-//     and skipped with a reason when they aren't — no silent resolution.
-// (2) Priority order (principal config > default) is honored exactly:
-//     the first matching id wins regardless of later "better" matches.
-// (3) `execution_topology_overrides` adjusts max_concurrent_lenses only;
-//     other catalog attributes are immutable.
-// (4) `[topology]` STDERR prefix mirrors plan_trace — single source of
-//     truth for observability.
-// (5) The PR-A support set is exactly {cc-main-agent-subagent,
-//     cc-main-codex-subprocess, codex-main-subprocess}; anything else
-//     passed to `assertSupportedInPrA` throws with a migration hint.
+// (1) TOPOLOGY_CATALOG has exactly 8 canonical entries, each with the
+//     full static attribute set populated. A2A deliberation belongs to
+//     exactly one entry.
+// (2) `assertSupportedInPrA` matches the PR-A support set: 3 ids pass,
+//     all others throw UnsupportedTopologyError with a PR-migration hint.
+// (3) `execution_topology_overrides.<id>.max_concurrent_lenses` is the
+//     only override applied at resolution time; zero / negative values
+//     fall back to catalog default.
+// (4) `[topology]` STDERR prefix mirrors plan_trace 1:1.
+// (5) `no_host` resolution composes a reason listing signals + guidance.
+// (6) Legacy `execution_topology_priority` field is ignored at runtime
+//     (the ladder walk was retired in P9.1; field removal lands in P9.2).
+// (7) When `config.review` is absent, the resolver takes the main_native
+//     degrade path — the legacy priority ladder is not consulted.
+//
+// Axis-first positive / negative coverage lives in
+// `execution-topology-resolver-axis-first.test.ts`.
 // ---------------------------------------------------------------------------
 
 type ResolveArgs = Parameters<typeof resolveExecutionTopology>[0];
@@ -64,334 +68,19 @@ function expectNoHost(
   return res;
 }
 
-// ---------------------------------------------------------------------------
-// Positive matches — each of the 10 options in isolation
-// ---------------------------------------------------------------------------
-
-describe("resolveExecutionTopology — positive matches", () => {
-  it("1-0 cc-teams-lens-agent-deliberation matches with triple opt-in", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: { lens_agent_teams_mode: true },
-        claudeHost: true,
-        experimentalAgentTeams: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("cc-teams-lens-agent-deliberation");
-    expect(resolved.topology.deliberation_channel).toBe("sendmessage-a2a");
-    expect(resolved.topology.lens_spawn_mechanism).toBe("claude-teamcreate-member");
-  });
-
-  it("1-1 cc-teams-agent-subagent matches with CC + experimental", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["cc-teams-agent-subagent"],
-        },
-        claudeHost: true,
-        experimentalAgentTeams: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("cc-teams-agent-subagent");
-    expect(resolved.topology.lens_spawn_mechanism).toBe("claude-agent-tool");
-    expect(resolved.topology.max_concurrent_lenses).toBe(10);
-  });
-
-  it("1-2 cc-teams-codex-subprocess matches with CC + experimental + codex", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["cc-teams-codex-subprocess"],
-        },
-        claudeHost: true,
-        experimentalAgentTeams: true,
-        codexAvailable: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("cc-teams-codex-subprocess");
-    expect(resolved.topology.transport_rank).toBe("S0");
-    expect(resolved.topology.max_concurrent_lenses).toBe(5);
-  });
-
-  it("2-1 cc-main-agent-subagent matches with CC alone (no experimental)", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["cc-main-agent-subagent"],
-        },
-        claudeHost: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("cc-main-agent-subagent");
-    expect(resolved.topology.teamlead_location).toBe("onto-main");
-  });
-
-  it("2-2 cc-main-codex-subprocess matches with CC + codex", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["cc-main-codex-subprocess"],
-        },
-        claudeHost: true,
-        codexAvailable: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("cc-main-codex-subprocess");
-    expect(resolved.topology.lens_spawn_mechanism).toBe("codex-subprocess");
-  });
-
-  it("3-1 cc-teams-litellm-sessions matches with CC + experimental + litellm", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["cc-teams-litellm-sessions"],
-        },
-        claudeHost: true,
-        experimentalAgentTeams: true,
-        liteLlmEndpointAvailable: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("cc-teams-litellm-sessions");
-    expect(resolved.topology.transport_rank).toBe("S1");
-    expect(resolved.topology.max_concurrent_lenses).toBe(1);
-  });
-
-  it("codex-A codex-nested-subprocess matches with codex binary alone (host-agnostic)", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["codex-nested-subprocess"],
-        },
-        codexAvailable: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("codex-nested-subprocess");
-    expect(resolved.topology.teamlead_location).toBe("codex-subprocess");
-  });
-
-  it("codex-B codex-main-subprocess matches with codex session + codex binary", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["codex-main-subprocess"],
-        },
-        codexSessionActive: true,
-        codexAvailable: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("codex-main-subprocess");
-  });
-
-  // P7 (2026-04-21): `generic-nested-subagent` + `generic-main-subagent`
-  // removed from TopologyId enum. Their tests are no longer meaningful —
-  // the type system prevents the values from existing in the priority
-  // array. Unknown priority entries (typos) are still silently dropped
-  // with a trace line; see the "unknown topology id" normalizePriorityArray
-  // test elsewhere in this file.
-});
+/**
+ * Minimal `config.review` axis block that derives to `cc-main-agent-subagent`
+ * under a Claude host. Used as a vehicle for exercising resolver plumbing
+ * (overrides, observability) without duplicating axis-first happy-path
+ * coverage.
+ */
+const REVIEW_BLOCK_MAIN_NATIVE: NonNullable<ResolveArgs["ontoConfig"]["review"]> = {
+  teamlead: { model: "main" },
+  subagent: { provider: "main-native" },
+};
 
 // ---------------------------------------------------------------------------
-// Negative matches — missing prerequisites produce skip, not silent match
-// ---------------------------------------------------------------------------
-
-describe("resolveExecutionTopology — negative matches (prerequisite missing)", () => {
-  it("1-0 skips without lens_agent_teams_mode even with both env flags", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["cc-teams-lens-agent-deliberation"],
-          lens_agent_teams_mode: false,
-        },
-        claudeHost: true,
-        experimentalAgentTeams: true,
-      }),
-    );
-    const nohost = expectNoHost(res);
-    expect(nohost.plan_trace.some((l) => l.includes("lens_agent_teams_mode"))).toBe(true);
-  });
-
-  it("1-1 skips without experimental flag", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["cc-teams-agent-subagent"],
-        },
-        claudeHost: true,
-        experimentalAgentTeams: false,
-      }),
-    );
-    expectNoHost(res);
-  });
-
-  it("1-2 skips without codex binary", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["cc-teams-codex-subprocess"],
-        },
-        claudeHost: true,
-        experimentalAgentTeams: true,
-        codexAvailable: false,
-      }),
-    );
-    expectNoHost(res);
-  });
-
-  it("2-1 skips without CLAUDECODE", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["cc-main-agent-subagent"],
-        },
-        claudeHost: false,
-      }),
-    );
-    expectNoHost(res);
-  });
-
-  it("2-2 skips when codex binary missing despite CC host", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["cc-main-codex-subprocess"],
-        },
-        claudeHost: true,
-        codexAvailable: false,
-      }),
-    );
-    expectNoHost(res);
-  });
-
-  it("3-1 skips without LiteLLM endpoint", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["cc-teams-litellm-sessions"],
-        },
-        claudeHost: true,
-        experimentalAgentTeams: true,
-        liteLlmEndpointAvailable: false,
-      }),
-    );
-    expectNoHost(res);
-  });
-
-  it("codex-A skips without codex binary", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["codex-nested-subprocess"],
-        },
-        codexAvailable: false,
-      }),
-    );
-    expectNoHost(res);
-  });
-
-  it("codex-B skips without codex session signal even when binary present", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["codex-main-subprocess"],
-        },
-        codexSessionActive: false,
-        codexAvailable: true,
-      }),
-    );
-    expectNoHost(res);
-  });
-
-  // P7 (2026-04-21): "generic-1 skips without principal declaration" test
-  // removed — generic-nested-subagent is no longer a valid TopologyId value,
-  // and `generic_nested_spawn_supported` is no longer a recognized OntoConfig
-  // field. Previous behavior (unknown priority entries silently dropped) is
-  // still covered by normalizePriorityArray's own tests.
-});
-
-// ---------------------------------------------------------------------------
-// Priority override — first match wins, later options never examined
-// ---------------------------------------------------------------------------
-
-describe("resolveExecutionTopology — priority override", () => {
-  it("principal priority overrides default; earlier id wins over later matching id", () => {
-    // Both cc-main-agent-subagent (2-1) and codex-nested-subprocess (codex-A)
-    // would match the signals, but priority puts codex first.
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: [
-            "codex-nested-subprocess",
-            "cc-main-agent-subagent",
-          ],
-        },
-        claudeHost: true,
-        codexAvailable: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("codex-nested-subprocess");
-  });
-
-  it("default priority picks cc-main-agent-subagent for a plain CC session", () => {
-    // DEFAULT_TOPOLOGY_PRIORITY has 1-0, 1-1, 1-2 before 2-1; those
-    // skip (missing experimental+codex), so 2-1 is the first match.
-    const res = resolveExecutionTopology(
-      withSignals({
-        claudeHost: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("cc-main-agent-subagent");
-  });
-
-  it("unknown id in priority is ignored with a warn log (not thrown)", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: [
-            "typo-xyz" as TopologyId,
-            "cc-main-agent-subagent",
-          ],
-        },
-        claudeHost: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("cc-main-agent-subagent");
-    expect(
-      resolved.topology.plan_trace.some((l) =>
-        l.includes(`ignoring unknown topology id "typo-xyz"`),
-      ),
-    ).toBe(true);
-  });
-
-  it("all-unknown principal array falls back to default priority silently", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: [
-            "typo-1" as TopologyId,
-            "typo-2" as TopologyId,
-          ],
-        },
-        claudeHost: true,
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("cc-main-agent-subagent");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Per-topology max_concurrent_lenses overrides
+// (3) execution_topology_overrides — max_concurrent_lenses only
 // ---------------------------------------------------------------------------
 
 describe("resolveExecutionTopology — execution_topology_overrides", () => {
@@ -399,7 +88,7 @@ describe("resolveExecutionTopology — execution_topology_overrides", () => {
     const res = resolveExecutionTopology(
       withSignals({
         ontoConfig: {
-          execution_topology_priority: ["cc-main-agent-subagent"],
+          review: REVIEW_BLOCK_MAIN_NATIVE,
           execution_topology_overrides: {
             "cc-main-agent-subagent": { max_concurrent_lenses: 6 },
           },
@@ -408,6 +97,7 @@ describe("resolveExecutionTopology — execution_topology_overrides", () => {
       }),
     );
     const resolved = expectResolved(res);
+    expect(resolved.topology.id).toBe("cc-main-agent-subagent");
     expect(resolved.topology.max_concurrent_lenses).toBe(6);
     expect(
       resolved.topology.plan_trace.some((l) =>
@@ -420,7 +110,7 @@ describe("resolveExecutionTopology — execution_topology_overrides", () => {
     const res = resolveExecutionTopology(
       withSignals({
         ontoConfig: {
-          execution_topology_priority: ["cc-main-agent-subagent"],
+          review: REVIEW_BLOCK_MAIN_NATIVE,
           execution_topology_overrides: {
             "cc-main-agent-subagent": { max_concurrent_lenses: 0 },
           },
@@ -434,7 +124,7 @@ describe("resolveExecutionTopology — execution_topology_overrides", () => {
 });
 
 // ---------------------------------------------------------------------------
-// plan_trace + [topology] STDERR — single source of truth
+// (4) plan_trace + [topology] STDERR — single source of truth
 // ---------------------------------------------------------------------------
 
 describe("resolveExecutionTopology — observability", () => {
@@ -449,7 +139,7 @@ describe("resolveExecutionTopology — observability", () => {
   it("emits [topology] prefix for every decision line", () => {
     resolveExecutionTopology(
       withSignals({
-        ontoConfig: { execution_topology_priority: ["cc-main-agent-subagent"] },
+        ontoConfig: { review: REVIEW_BLOCK_MAIN_NATIVE },
         claudeHost: true,
       }),
     );
@@ -464,7 +154,7 @@ describe("resolveExecutionTopology — observability", () => {
   it("plan_trace matches the lines emitted to STDERR (no divergence)", () => {
     const res = resolveExecutionTopology(
       withSignals({
-        ontoConfig: { execution_topology_priority: ["cc-main-agent-subagent"] },
+        ontoConfig: { review: REVIEW_BLOCK_MAIN_NATIVE },
         claudeHost: true,
       }),
     );
@@ -476,20 +166,19 @@ describe("resolveExecutionTopology — observability", () => {
     expect(resolved.topology.plan_trace).toEqual(stderrLines);
   });
 
-  it("no_host resolution still surfaces plan_trace with signals + tried priorities", () => {
-    const res = resolveExecutionTopology(
-      withSignals({}),
-    );
+  // (5) no_host composition
+  it("no_host resolution surfaces plan_trace + guidance reason", () => {
+    const res = resolveExecutionTopology(withSignals({}));
     const nohost = expectNoHost(res);
     expect(nohost.plan_trace.length).toBeGreaterThan(0);
-    expect(nohost.reason).toContain("Execution topology ladder");
+    expect(nohost.reason).toContain("Execution topology 를 도출할 수 없습니다");
     expect(nohost.reason).toContain("현재 환경 시그널");
     expect(nohost.reason).toContain("해결 방법");
   });
 });
 
 // ---------------------------------------------------------------------------
-// PR-A support set — spawn-time guard
+// (2) PR-A support set — spawn-time guard
 // ---------------------------------------------------------------------------
 
 describe("resolveExecutionTopology — PR-A support set", () => {
@@ -543,15 +232,24 @@ describe("resolveExecutionTopology — PR-A support set", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Catalog shape stability
+// (1) Catalog shape stability
 // ---------------------------------------------------------------------------
 
+const EXPECTED_CATALOG_IDS: TopologyId[] = [
+  "cc-teams-lens-agent-deliberation",
+  "cc-teams-agent-subagent",
+  "cc-teams-codex-subprocess",
+  "cc-main-agent-subagent",
+  "cc-main-codex-subprocess",
+  "cc-teams-litellm-sessions",
+  "codex-nested-subprocess",
+  "codex-main-subprocess",
+];
+
 describe("TOPOLOGY_CATALOG — shape", () => {
-  it("has exactly 8 canonical entries matching DEFAULT_TOPOLOGY_PRIORITY (post-P7)", () => {
-    // P7 (2026-04-21): trimmed from 10 → 8 after removing generic-*.
+  it("has exactly 8 canonical entries (post-P7 trim)", () => {
     const catalogIds = Object.keys(TOPOLOGY_CATALOG).sort();
-    const priorityIds = [...DEFAULT_TOPOLOGY_PRIORITY].sort();
-    expect(catalogIds).toEqual(priorityIds);
+    expect(catalogIds).toEqual([...EXPECTED_CATALOG_IDS].sort());
     expect(catalogIds.length).toBe(8);
   });
 
@@ -567,11 +265,182 @@ describe("TOPOLOGY_CATALOG — shape", () => {
     }
   });
 
-  it("only 1-0 declares SendMessage A2A deliberation", () => {
+  it("only cc-teams-lens-agent-deliberation declares SendMessage A2A deliberation", () => {
     const a2a = (Object.keys(TOPOLOGY_CATALOG) as TopologyId[]).filter(
       (id) => TOPOLOGY_CATALOG[id].deliberation_channel === "sendmessage-a2a",
     );
     expect(a2a).toEqual(["cc-teams-lens-agent-deliberation"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// (6) P9.1 — legacy `execution_topology_priority` is ignored at runtime
+// (7) review absent → main_native degrade (no ladder walk)
+// ---------------------------------------------------------------------------
+
+describe("resolveExecutionTopology — P9.1 ladder retirement", () => {
+  let stderrSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+  });
+  afterEach(() => {
+    stderrSpy.mockRestore();
+  });
+
+  it("no review block + CC host → main_native degrade → cc-main-agent-subagent", () => {
+    const res = resolveExecutionTopology(
+      withSignals({
+        ontoConfig: {},
+        claudeHost: true,
+      }),
+    );
+    const resolved = expectResolved(res);
+    expect(resolved.topology.id).toBe("cc-main-agent-subagent");
+    expect(
+      resolved.topology.plan_trace.some((l) =>
+        l.includes("topology source=fallback-main-native"),
+      ),
+    ).toBe(true);
+    expect(
+      resolved.topology.plan_trace.some((l) =>
+        l.includes("degraded: requested=<review-block-absent>"),
+      ),
+    ).toBe(true);
+  });
+
+  it("no review block + no host signals → no_host (fail-fast, no ladder)", () => {
+    const res = resolveExecutionTopology(withSignals({}));
+    const nohost = expectNoHost(res);
+    expect(
+      nohost.plan_trace.some((l) =>
+        l.includes("no topology resolved (axis-first + main_native fallback both failed)"),
+      ),
+    ).toBe(true);
+    // Guarantee we did NOT emit the old priority-ladder trace shape.
+    expect(nohost.plan_trace.some((l) => l.includes("priority source="))).toBe(
+      false,
+    );
+  });
+
+  it("legacy execution_topology_priority in config is acknowledged but ignored", () => {
+    // Even with a priority array that names a specific id, the resolver
+    // MUST NOT walk it. Under a Claude host with no `config.review`, the
+    // main_native degrade picks cc-main-agent-subagent. The legacy array
+    // value (`codex-nested-subprocess`) is never selected.
+    const res = resolveExecutionTopology(
+      withSignals({
+        ontoConfig: {
+          execution_topology_priority: ["codex-nested-subprocess"],
+        },
+        claudeHost: true,
+        codexAvailable: true, // would make codex-nested viable under old ladder
+      }),
+    );
+    const resolved = expectResolved(res);
+    expect(resolved.topology.id).toBe("cc-main-agent-subagent");
+    expect(
+      resolved.topology.plan_trace.some((l) =>
+        l.includes(
+          "legacy execution_topology_priority present in config but ignored",
+        ),
+      ),
+    ).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// (2-bis) checkTopologyRequirements — per-branch negative coverage
+//
+// Restored in PR #161 self-review (2026-04-21). Axis-first pipeline
+// produces each TopologyId, then the detailed requirements check rejects
+// it due to a single missing signal. The resolver returns `no_host` and
+// the plan_trace records the precise skip reason.
+// ---------------------------------------------------------------------------
+
+describe("checkTopologyRequirements — axis-first derives id but requirement fails", () => {
+  it("cc-teams-lens-agent-deliberation skips when lens_agent_teams_mode=false", () => {
+    const res = resolveExecutionTopology(
+      withSignals({
+        ontoConfig: {
+          review: {
+            subagent: { provider: "main-native" },
+            lens_deliberation: "sendmessage-a2a",
+          },
+          lens_agent_teams_mode: false,
+        },
+        claudeHost: true,
+        experimentalAgentTeams: true,
+      }),
+    );
+    const nohost = expectNoHost(res);
+    expect(
+      nohost.plan_trace.some((l) =>
+        l.includes("cc-teams-lens-agent-deliberation: skip — need config.lens_agent_teams_mode=true"),
+      ),
+    ).toBe(true);
+  });
+
+  it("cc-teams-codex-subprocess skips when codex binary missing", () => {
+    const res = resolveExecutionTopology(
+      withSignals({
+        ontoConfig: {
+          review: {
+            subagent: { provider: "codex", model_id: "gpt-5.4" },
+          },
+        },
+        claudeHost: true,
+        experimentalAgentTeams: true,
+        codexAvailable: false,
+      }),
+    );
+    const nohost = expectNoHost(res);
+    expect(
+      nohost.plan_trace.some((l) =>
+        l.includes("cc-teams-codex-subprocess: skip — need codex binary + ~/.codex/auth.json"),
+      ),
+    ).toBe(true);
+  });
+
+  it("cc-teams-litellm-sessions skips when LiteLLM endpoint missing", () => {
+    const res = resolveExecutionTopology(
+      withSignals({
+        ontoConfig: {
+          review: {
+            subagent: { provider: "litellm", model_id: "gpt-4o" },
+          },
+        },
+        claudeHost: true,
+        experimentalAgentTeams: true,
+        liteLlmEndpointAvailable: false,
+      }),
+    );
+    const nohost = expectNoHost(res);
+    expect(
+      nohost.plan_trace.some((l) =>
+        l.includes("cc-teams-litellm-sessions: skip — need LITELLM_BASE_URL or config.llm_base_url"),
+      ),
+    ).toBe(true);
+  });
+
+  it("codex-main-subprocess skips when codex binary missing despite session signal", () => {
+    const res = resolveExecutionTopology(
+      withSignals({
+        ontoConfig: {
+          review: {
+            subagent: { provider: "main-native" },
+          },
+        },
+        claudeHost: false,
+        codexSessionActive: true,
+        codexAvailable: false,
+      }),
+    );
+    const nohost = expectNoHost(res);
+    expect(
+      nohost.plan_trace.some((l) =>
+        l.includes("codex-main-subprocess: skip — need codex binary + ~/.codex/auth.json"),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -581,16 +450,13 @@ describe("TOPOLOGY_CATALOG — shape", () => {
 
 describe("resolveExecutionTopology — env defaults", () => {
   it("falls back to host-detection helpers when signals are not injected", () => {
-    // Inject ontoConfig + priority but omit detection flag args. The
-    // resolver should call detectClaudeCodeEnvSignal() etc. — we stub
-    // by spying on process.env. The real test: resolver does not crash
-    // when signal args are undefined.
+    // Inject ontoConfig but omit detection flag args. The resolver should
+    // call detectClaudeCodeEnvSignal() etc. — we only assert the shape is
+    // valid (resolved or no_host with a trace).
     const res = resolveExecutionTopology({
-      ontoConfig: { execution_topology_priority: ["cc-main-agent-subagent"] },
+      ontoConfig: { review: REVIEW_BLOCK_MAIN_NATIVE },
       env: {},
     });
-    // Result depends on the test runner's actual environment; we only
-    // assert the shape is valid (resolved or no_host with a trace).
     expect(["resolved", "no_host"]).toContain(res.type);
     if (res.type === "no_host") {
       expect(res.plan_trace.length).toBeGreaterThan(0);

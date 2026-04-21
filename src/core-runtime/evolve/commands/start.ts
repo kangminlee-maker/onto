@@ -986,13 +986,13 @@ function discoverAuthoritySources(projectRoot: string): Array<{ path: string; ra
   // Fallback: known onto canonical paths
   const candidates = [
     { rel: "authority/core-lexicon.yaml", rank: 1, desc: "개념 SSOT" },
-    { rel: "design-principles/ontology-as-code-guideline.md", rank: 2, desc: "개발 원칙: OaC" },
-    { rel: "design-principles/llm-native-development-guideline.md", rank: 2, desc: "개발 원칙: LLM-Native" },
-    { rel: "design-principles/non-specialist-communication-guideline.md", rank: 2, desc: "개발 원칙: 비전문가 소통" },
-    { rel: "design-principles/product-locality-principle.md", rank: 2, desc: "개발 원칙: product 우선" },
-    { rel: "design-principles/productization-charter.md", rank: 3, desc: "제품 방향" },
-    { rel: "design-principles/llm-runtime-interface-principles.md", rank: 4, desc: "인터페이스 명세" },
-    { rel: "design-principles/ontology-as-code-naming-charter.md", rank: 4, desc: "이름 규칙" },
+    { rel: ".onto/principles/ontology-as-code-guideline.md", rank: 2, desc: "개발 원칙: OaC" },
+    { rel: ".onto/principles/llm-native-development-guideline.md", rank: 2, desc: "개발 원칙: LLM-Native" },
+    { rel: ".onto/principles/non-specialist-communication-guideline.md", rank: 2, desc: "개발 원칙: 비전문가 소통" },
+    { rel: ".onto/principles/product-locality-principle.md", rank: 2, desc: "개발 원칙: product 우선" },
+    { rel: ".onto/principles/productization-charter.md", rank: 3, desc: "제품 방향" },
+    { rel: ".onto/principles/llm-runtime-interface-principles.md", rank: 4, desc: "인터페이스 명세" },
+    { rel: ".onto/principles/ontology-as-code-naming-charter.md", rank: 4, desc: "이름 규칙" },
     { rel: "process.md", rank: 7, desc: "운영 인프라" },
     { rel: "learning-rules.md", rank: 7, desc: "운영 인프라: 학습 규칙" },
   ];

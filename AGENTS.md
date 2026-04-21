@@ -20,19 +20,19 @@
 | 순위 | 파일 | 폴더 |
 |---|---|---|
 | 1 | [core-lexicon.yaml](/Users/kangmin/cowork/onto/authority/core-lexicon.yaml) | authority/ |
-| 2 | [ontology-as-code-guideline.md](/Users/kangmin/cowork/onto/design-principles/ontology-as-code-guideline.md) | design-principles/ |
-| 2 | [llm-native-development-guideline.md](/Users/kangmin/cowork/onto/design-principles/llm-native-development-guideline.md) | design-principles/ |
-| 2 | [product-locality-principle.md](/Users/kangmin/cowork/onto/design-principles/product-locality-principle.md) | design-principles/ |
-| 3 | [productization-charter.md](/Users/kangmin/cowork/onto/design-principles/productization-charter.md) | design-principles/ |
-| 4 | [llm-runtime-interface-principles.md](/Users/kangmin/cowork/onto/design-principles/llm-runtime-interface-principles.md) | design-principles/ |
-| 4 | [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/design-principles/ontology-as-code-naming-charter.md) | design-principles/ |
+| 2 | [ontology-as-code-guideline.md](/Users/kangmin/cowork/onto/.onto/principles/ontology-as-code-guideline.md) | .onto/principles/ |
+| 2 | [llm-native-development-guideline.md](/Users/kangmin/cowork/onto/.onto/principles/llm-native-development-guideline.md) | .onto/principles/ |
+| 2 | [product-locality-principle.md](/Users/kangmin/cowork/onto/.onto/principles/product-locality-principle.md) | .onto/principles/ |
+| 3 | [productization-charter.md](/Users/kangmin/cowork/onto/.onto/principles/productization-charter.md) | .onto/principles/ |
+| 4 | [llm-runtime-interface-principles.md](/Users/kangmin/cowork/onto/.onto/principles/llm-runtime-interface-principles.md) | .onto/principles/ |
+| 4 | [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/.onto/principles/ontology-as-code-naming-charter.md) | .onto/principles/ |
 
 ### 폴더 구조
 
 | 폴더 | 역할 | 배포 |
 |---|---|---|
 | `authority/` | canonical data — 개념 SSOT + 런타임 설정 + 온보딩 보조 | 포함 |
-| `design-principles/` | 개발 규범 — 설계·구현 원칙 (rank 2~4) | 제외 |
+| `.onto/principles/` | 개발 규범 — 설계·구현 원칙 (rank 2~4) | 제외 |
 | `development-records/` | 개발 이력 — 감사, 설계, 추적, handoff 기록 | 제외 |
 
 `review` 작업 시 추가로 읽을 문서:
@@ -53,19 +53,19 @@
 
 ## 3. Core Principles
 
-원칙은 design-principles/ 문서에 정의되어 있다. 재서술하지 않는다.
+원칙은 .onto/principles/ 문서에 정의되어 있다. 재서술하지 않는다.
 
-- **LLM/runtime 소유 분리**: READ `design-principles/llm-native-development-guideline.md`
-- **Ontology as Code 규칙**: READ `design-principles/ontology-as-code-guideline.md`
-- **인터페이스 원칙**: READ `design-principles/llm-runtime-interface-principles.md`
-- **제품 방향·결정**: READ `design-principles/productization-charter.md`
+- **LLM/runtime 소유 분리**: READ `.onto/principles/llm-native-development-guideline.md`
+- **Ontology as Code 규칙**: READ `.onto/principles/ontology-as-code-guideline.md`
+- **인터페이스 원칙**: READ `.onto/principles/llm-runtime-interface-principles.md`
+- **제품 방향·결정**: READ `.onto/principles/productization-charter.md`
 
 ---
 
 ## 4. Canonical Terms
 
 개념 SSOT: [core-lexicon.yaml](/Users/kangmin/cowork/onto/authority/core-lexicon.yaml)
-이름 규칙: [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/design-principles/ontology-as-code-naming-charter.md)
+이름 규칙: [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/.onto/principles/ontology-as-code-naming-charter.md)
 
 자주 쓰는 개념:
 

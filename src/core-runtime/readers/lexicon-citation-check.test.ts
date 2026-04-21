@@ -24,7 +24,7 @@ describe("lexicon-citation-check", () => {
     ].join("\n");
 
     const violations = checkFileCitations(
-      "design-principles/example.md",
+      ".onto/principles/example.md",
       content,
       TERMS,
       { severity: "warn" },

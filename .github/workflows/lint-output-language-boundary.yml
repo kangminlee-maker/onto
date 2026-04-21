@@ -7,7 +7,7 @@ on:
     paths:
       - '.onto/processes/**'
       - '.onto/commands/**'
-      - 'design-principles/**'
+      - '.onto/principles/**'
       - 'authority/external-render-points.yaml'
       - '.onto/roles/**'
       - 'src/**'

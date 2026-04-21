@@ -21,7 +21,7 @@ onto는 세 가지 방식으로 설치될 수 있다.
 
 이 세 형태가 공존할 수 있으며, 공존할 때의 동작은 아래 원칙으로 결정한다.
 
-**용어 규칙**: 이 문서 및 `design-principles/` 내에서는 **global**을 사용한다. 코드(`src/`)에서는 `detectInstallationMode()`의 반환값 `"user"`를 사용한다. 두 용어는 동일 개념이다. (`"user"` 변수명은 framework v1.0 의 scope value retire 대상이며 runtime migration backlog 에서 전환 예정 — 본 문서는 현 코드 기준.)
+**용어 규칙**: 이 문서 및 `.onto/principles/` 내에서는 **global**을 사용한다. 코드(`src/`)에서는 `detectInstallationMode()`의 반환값 `"user"`를 사용한다. 두 용어는 동일 개념이다. (`"user"` 변수명은 framework v1.0 의 scope value retire 대상이며 runtime migration backlog 에서 전환 예정 — 본 문서는 현 코드 기준.)
 
 새 설치 형태(monorepo workspace, pnpm/Yarn PnP 등)가 필요할 경우, §1 테이블에 행을 추가하고 §2.1 위임 규칙, §2.2 축적 규칙, §3 위반 판정 기준, §4 구현 지점을 함께 갱신해야 한다.
 

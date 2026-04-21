@@ -162,13 +162,23 @@ export function executePromotePrinciple(
     return { success: false, reason: "workload_evidence.evidence_summary 필수.", gate_failed: "completeness" };
   }
 
-  // Target validation
+  // Target validation — accept both Phase-5+ canonical and legacy directory layouts.
   if (!existsSync(join(projectRoot, proposal.target.file_path))) {
-    const parentDir = proposal.target.category === "design_principle" ? "design-principles" : "processes";
-    if (!proposal.target.file_path.startsWith(parentDir)) {
+    const canonicalDir =
+      proposal.target.category === "design_principle"
+        ? ".onto/principles"
+        : ".onto/processes";
+    const legacyDir =
+      proposal.target.category === "design_principle"
+        ? "design-principles"
+        : "processes";
+    if (
+      !proposal.target.file_path.startsWith(canonicalDir) &&
+      !proposal.target.file_path.startsWith(legacyDir)
+    ) {
       return {
         success: false,
-        reason: `target.file_path '${proposal.target.file_path}' 가 존재하지 않고 category '${proposal.target.category}' 에 맞는 디렉토리 (${parentDir}/) 도 아님.`,
+        reason: `target.file_path '${proposal.target.file_path}' 가 존재하지 않고 category '${proposal.target.category}' 에 맞는 디렉토리 (${canonicalDir}/ 또는 legacy ${legacyDir}/) 도 아님.`,
         gate_failed: "validation",
       };
     }

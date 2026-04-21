@@ -41,7 +41,7 @@ export interface RouteOutcome {
 
 const GOVERNANCE_CORE_PREFIXES: readonly string[] = [
   "authority/",
-  "design-principles/",
+  ".onto/principles/",
   ".onto/processes/govern.md",
 ];
 
@@ -62,7 +62,7 @@ export function classifyProposal(proposal: ChangeProposal): DriftDecision {
       route: "principal_direct",
       matched_rule: "governance_core",
       reason:
-        "target 에 governance core (authority/, design-principles/, .onto/processes/govern.md) 가 포함됨. §1.3 Principal 직접 분기.",
+        "target 에 governance core (authority/, .onto/principles/, .onto/processes/govern.md) 가 포함됨. §1.3 Principal 직접 분기.",
     };
   }
 

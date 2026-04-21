@@ -16,7 +16,7 @@ describe("process scope type", () => {
     const config: ProcessScopeConfig = {
       authority_sources: [
         { path: "authority/core-lexicon.yaml", rank: 1, description: "Core concepts" },
-        { path: "design-principles/ontology-as-code-guideline.md", rank: 2, description: "OaC principles" },
+        { path: ".onto/principles/ontology-as-code-guideline.md", rank: 2, description: "OaC principles" },
       ],
       target_document: ".onto/processes/evolve.md",
       perspectives: ["authority-consistency"],
@@ -42,8 +42,8 @@ describe("process scope type", () => {
   it("allows duplicate authority ranks (onto hierarchy has shared ranks)", () => {
     const config: ProcessScopeConfig = {
       authority_sources: [
-        { path: "design-principles/oac.md", rank: 2, description: "OaC" },
-        { path: "design-principles/llm-native.md", rank: 2, description: "LLM-Native" },
+        { path: ".onto/principles/oac.md", rank: 2, description: "OaC" },
+        { path: ".onto/principles/llm-native.md", rank: 2, description: "LLM-Native" },
       ],
       target_document: ".onto/processes/evolve.md",
       perspectives: ["authority-consistency"],

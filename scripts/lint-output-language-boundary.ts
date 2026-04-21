@@ -2,7 +2,7 @@
 /**
  * Output Language Boundary Lint
  *
- * Enforces `design-principles/output-language-boundary.md` in CI.
+ * Enforces `.onto/principles/output-language-boundary.md` in CI.
  * Scans the repo for violations of the internal-English / external-translate
  * policy and exits non-zero when any are found.
  *
@@ -23,7 +23,7 @@
  *       CI time before they reach production. Dynamic (non-literal)
  *       renderPointId arguments are skipped (can't be statically
  *       validated) — those fall back to the runtime check.
- *       See design-principles/output-language-boundary.md §8/§9.
+ *       See .onto/principles/output-language-boundary.md §8/§9.
  *
  *   R3/R4/R5. Translation policy consistency (output-language-boundary §9
  *       Layer 4). Enforces the lexicon (core-lexicon.yaml) ↔ translation
@@ -67,7 +67,7 @@ interface Violation {
  * Paths are repo-relative.
  */
 const R1_ALLOWLIST: readonly string[] = [
-  "design-principles/output-language-boundary.md",
+  ".onto/principles/output-language-boundary.md",
   "scripts/lint-output-language-boundary.ts",
   "CHANGELOG.md", // historical references to the pre-boundary pattern
 ];
@@ -76,7 +76,7 @@ const R1_PATTERN = /Respond in \{output_language\}/;
 const R1_GUIDANCE =
   "Agent prompts must not direct the LLM to respond in a variable language. " +
   "Replace with `Respond in English` + a note about the Runtime Coordinator's render seat. " +
-  "See design-principles/output-language-boundary.md §3.1.";
+  "See .onto/principles/output-language-boundary.md §3.1.";
 
 /**
  * R2: renderForUser call with literal renderPointId string.
@@ -91,7 +91,7 @@ const R2_REGISTRY_PATH = "authority/external-render-points.yaml";
 const R2_GUIDANCE_TEMPLATE = (id: string, known: string): string =>
   `renderPointId "${id}" is not registered in ${R2_REGISTRY_PATH}. ` +
   `Add an entry (rationale: post-call no agent consumption) or fix the id. ` +
-  `Known ids: ${known}. See design-principles/output-language-boundary.md §4.`;
+  `Known ids: ${known}. See .onto/principles/output-language-boundary.md §4.`;
 
 /**
  * Directories scanned by default. `.onto/commands/` is explicitly listed
@@ -106,7 +106,7 @@ const R2_GUIDANCE_TEMPLATE = (id: string, known: string): string =>
 const SCAN_ROOTS: readonly string[] = [
   ".onto/processes",
   ".onto/commands",
-  "design-principles",
+  ".onto/principles",
   "authority",
   ".onto/roles",
   "src",

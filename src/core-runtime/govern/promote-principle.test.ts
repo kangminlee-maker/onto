@@ -20,7 +20,7 @@ import { handleGovernCli } from "./cli.js";
 function makeProposal(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     learning_ref: { agent_id: "logic", entry_marker: "test-entry-001" },
-    target: { category: "design_principle", file_path: "design-principles/test.md", section: "NEW" },
+    target: { category: "design_principle", file_path: ".onto/principles/test.md", section: "NEW" },
     rationale: "test rationale",
     conflict_check: { reviewed_by_agent: true, existing_principle_refs: [], conflict_summary: "no conflict" },
     workload_evidence: { state_transitions: 10, retry_count: 3, evidence_summary: "10 transitions, 3 retries", event_refs: [] },
@@ -161,7 +161,7 @@ describe("promote-principle target 매핑 + queue integration", () => {
     executePromotePrinciple(makeProposal() as any, tmpRoot);
     const raw = readFileSync(join(tmpRoot, ".onto", "govern", "queue.ndjson"), "utf-8");
     const event = JSON.parse(raw.trim());
-    expect(event.target).toBe("design-principles/test.md");
+    expect(event.target).toBe(".onto/principles/test.md");
     expect(event.origin).toBe("human");
     expect(event.tag).toBe("norm_change");
     expect(event.payload.promotion_kind).toBe("knowledge_to_principle");
@@ -256,7 +256,7 @@ describe("promote-principle E2E (promote → list → decide)", () => {
     expect(decideCode).toBe(0);
     const decided = lastLogJson() as { status: string; verdict: string; target: string; note: string };
     expect(decided.verdict).toBe("approve");
-    expect(decided.target).toBe("design-principles/test.md");
+    expect(decided.target).toBe(".onto/principles/test.md");
     expect(decided.note).toContain("승인");
   });
 });

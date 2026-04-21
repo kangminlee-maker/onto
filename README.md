@@ -35,11 +35,11 @@ ONTO_LLM_MOCK=1 npm run review:inline-http-unit-executor -- \
 > this repository is the current prototype/reference line.
 > The service-transition authority for this repository starts in:
 > - `AGENTS.md`
-> - `design-principles/productization-charter.md`
+> - `.onto/principles/productization-charter.md`
 > - `authority/core-lexicon.yaml`
-> - `design-principles/ontology-as-code-naming-charter.md`
-> - `design-principles/ontology-as-code-guideline.md`
-> - `design-principles/llm-runtime-interface-principles.md`
+> - `.onto/principles/ontology-as-code-naming-charter.md`
+> - `.onto/principles/ontology-as-code-guideline.md`
+> - `.onto/principles/llm-runtime-interface-principles.md`
 > - `development-records/plan/20260404-prototype-to-service-productization-plan.md`
 > - `development-records/audit/20260404-prototype-runtime-llm-boundary-audit.md`
 > - `development-records/plan/20260404-review-prototype-to-product-mapping.md`
@@ -481,7 +481,7 @@ onto/
 |   +-- core-lexicon.yaml             # Concept SSOT (rank 1)
 |   +-- core-lens-registry.yaml       # Lens config (runtime)
 |   +-- translation-reference.yaml    # Term translation (onboarding, NON-AUTHORITATIVE)
-+-- design-principles/      # Development governance (배포 제외)
++-- .onto/principles/      # Development governance (배포 제외)
 |   +-- ontology-as-code-guideline.md       # OaC rules (rank 2)
 |   +-- llm-native-development-guideline.md # LLM-native principles (rank 2)
 |   +-- productization-charter.md           # Product direction (rank 3)

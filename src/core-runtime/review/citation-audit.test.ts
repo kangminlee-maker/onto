@@ -131,7 +131,7 @@ describe("auditCitations", () => {
       '- Axiology said "Naming alignment between value, activity, and concept is not yet resolved".';
     const axiologyLens =
       "Findings: Top-level value 시간/비용 최소화 lacks operational backing in executor.";
-    const depLens = "Authority chain integrity circular between core-lexicon.yaml and design-principles/.";
+    const depLens = "Authority chain integrity circular between core-lexicon.yaml and .onto/principles/.";
     const structLens = "Naming alignment resolved as of W-A-77.";
 
     const result = auditCitations(synthesize, [axiologyLens, depLens, structLens]);

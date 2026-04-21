@@ -49,10 +49,10 @@ describe("drift-engine classifier (W-C-02 v0, §1.3 수준 0→1 3 분기)", () 
     expect(decision.matched_rule).toBe("governance_core");
   });
 
-  it("boundary: design-principles/ 도 governance core → principal_direct", () => {
+  it("boundary: .onto/principles/ 도 governance core → principal_direct", () => {
     const decision = classifyProposal({
       summary: "OaC 가이드라인 보강",
-      target_files: ["design-principles/ontology-as-code-guideline.md"],
+      target_files: [".onto/principles/ontology-as-code-guideline.md"],
       change_kind: "docs_only",
     });
     expect(decision.route).toBe("principal_direct");

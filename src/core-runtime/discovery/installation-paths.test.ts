@@ -70,4 +70,50 @@ describe("resolveInstallationPath — Phase 0 dual-path fallback", () => {
       /Neither \.onto\/commands\/ nor commands\/ exists/,
     );
   });
+
+  // Phase 5 rename: the `principles` kind maps to the legacy dir name
+  // `design-principles/` (not `principles/`) via LEGACY_DIR_OVERRIDES.
+  describe("principles kind (Phase 5 rename)", () => {
+    it("returns .onto/principles/ when new layout exists", () => {
+      const installRoot = makeTempInstallRoot();
+      tmpRoots.push(installRoot);
+      const newPath = path.join(installRoot, ".onto", "principles");
+      fs.mkdirSync(newPath, { recursive: true });
+
+      const resolved = resolveInstallationPath("principles", installRoot);
+      expect(resolved).toBe(newPath);
+    });
+
+    it("falls back to design-principles/ when only legacy layout exists", () => {
+      const installRoot = makeTempInstallRoot();
+      tmpRoots.push(installRoot);
+      const legacyPath = path.join(installRoot, "design-principles");
+      fs.mkdirSync(legacyPath, { recursive: true });
+
+      const resolved = resolveInstallationPath("principles", installRoot);
+      expect(resolved).toBe(legacyPath);
+    });
+
+    it("does NOT fall back to principles/ (the non-prefixed legacy-looking dir)", () => {
+      // A repo that happens to have an unrelated `principles/` at the root
+      // must NOT trick the resolver. Only `.onto/principles/` (new) or
+      // `design-principles/` (legacy per rename override) are valid.
+      const installRoot = makeTempInstallRoot();
+      tmpRoots.push(installRoot);
+      fs.mkdirSync(path.join(installRoot, "principles"), { recursive: true });
+
+      expect(() => resolveInstallationPath("principles", installRoot)).toThrow(
+        /Neither \.onto\/principles\/ nor design-principles\/ exists/,
+      );
+    });
+
+    it("throws with both layouts missing — error names design-principles as legacy", () => {
+      const installRoot = makeTempInstallRoot();
+      tmpRoots.push(installRoot);
+
+      expect(() => resolveInstallationPath("principles", installRoot)).toThrow(
+        /Neither \.onto\/principles\/ nor design-principles\/ exists/,
+      );
+    });
+  });
 });

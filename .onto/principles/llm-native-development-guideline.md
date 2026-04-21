@@ -139,7 +139,7 @@ LLM이 잘 작동하는 interface를 설계하려면 두 가지 원칙이 LLM-na
 
 이 두 원칙의 의미는, runtime이 LLM을 묶어서 약하게 만드는 도구가 되면 안 되고, LLM이 의미 판단을 잘할 수 있도록 받침대를 제공해야 한다는 것이다.
 
-interface seat 정의(`DeclaredHandoffInputs`, `SelfDirectedExplorationInputs`, `BoundaryPolicy`, `BoundaryPresentation`, `BoundaryEnforcementProfile`, `EffectiveBoundaryState`)와 boundary taxonomy의 canonical 정의는 `design-principles/llm-runtime-interface-principles.md`가 가진다. 이 guideline은 그 정의를 재서술하지 않는다.
+interface seat 정의(`DeclaredHandoffInputs`, `SelfDirectedExplorationInputs`, `BoundaryPolicy`, `BoundaryPresentation`, `BoundaryEnforcementProfile`, `EffectiveBoundaryState`)와 boundary taxonomy의 canonical 정의는 `.onto/principles/llm-runtime-interface-principles.md`가 가진다. 이 guideline은 그 정의를 재서술하지 않는다.
 
 ## 8. 무엇을 probabilistic하게 다룰 것인가
 
@@ -278,7 +278,7 @@ LLM 기능에서는 다음 자산을 코드와 동급으로 취급한다.
 그들이 구현하던 **맥락 격리 추론 단위**라는 원칙을 보존하는 것이다.
 host realization이 달라도 `맥락 비공유 + 계약 입력/출력 + 독립 판단` 속성이 유지되어야 한다.
 
-이 원칙의 구조 규칙(WHEN)은 `design-principles/ontology-as-code-guideline.md` §7에서 정의한다.
+이 원칙의 구조 규칙(WHEN)은 `.onto/principles/ontology-as-code-guideline.md` §7에서 정의한다.
 
 ## 13. 테스트 전략
 

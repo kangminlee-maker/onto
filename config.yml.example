@@ -18,7 +18,7 @@
 # Agent prompts, wip.yml, session-log.yml and every inter-agent
 # hand-off stay in English regardless of this value. Translation
 # happens only at the Runtime Coordinator's render seat.
-# See: design-principles/output-language-boundary.md
+# See: .onto/principles/output-language-boundary.md
 output_language: en           # en | ko | ja | ...
 
 # ─────────────────────────────────────────────────────────────────

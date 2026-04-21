@@ -340,7 +340,7 @@ canonical은:
 
 ### 10.3 맥락 격리 추론 단위
 
-→ canonical 위치: `design-principles/ontology-as-code-guideline.md` §7 (구조 규칙) + `design-principles/llm-native-development-guideline.md` (설계 가이드)
+→ canonical 위치: `.onto/principles/ontology-as-code-guideline.md` §7 (구조 규칙) + `.onto/principles/llm-native-development-guideline.md` (설계 가이드)
 
 ### 10.4 execution profile 기본값은 host-runtime 기반이지만 주체자 override 가능
 
@@ -517,15 +517,15 @@ canonical execution profile은 아래 두 축으로 표현한다.
 
 배포 보안 + OaC 의미 기반 폴더 분리.
 
-**이동된 파일 (authority/ → design-principles/)**
+**이동된 파일 (authority/ → .onto/principles/)**
 
 | 이전 위치 | 새 위치 | 이유 |
 |---|---|---|
-| `authority/ontology-as-code-guideline.md` | `design-principles/ontology-as-code-guideline.md` | 개발 규범 문서. 런타임이 소비하지 않음. 배포 제외 대상 |
-| `authority/llm-native-development-guideline.md` | `design-principles/llm-native-development-guideline.md` | 동일 |
-| `authority/productization-charter.md` | `design-principles/productization-charter.md` | 동일 |
-| `authority/llm-runtime-interface-principles.md` | `design-principles/llm-runtime-interface-principles.md` | 동일 |
-| `authority/ontology-as-code-naming-charter.md` | `design-principles/ontology-as-code-naming-charter.md` | 동일 |
+| `authority/ontology-as-code-guideline.md` | `.onto/principles/ontology-as-code-guideline.md` | 개발 규범 문서. 런타임이 소비하지 않음. 배포 제외 대상 |
+| `authority/llm-native-development-guideline.md` | `.onto/principles/llm-native-development-guideline.md` | 동일 |
+| `authority/productization-charter.md` | `.onto/principles/productization-charter.md` | 동일 |
+| `authority/llm-runtime-interface-principles.md` | `.onto/principles/llm-runtime-interface-principles.md` | 동일 |
+| `authority/ontology-as-code-naming-charter.md` | `.onto/principles/ontology-as-code-naming-charter.md` | 동일 |
 
 **이름 변경된 디렉토리**
 
@@ -538,7 +538,7 @@ canonical execution profile은 아래 두 축으로 표현한다.
 | 폴더 | conceptual axis | 역할 | 배포 |
 |---|---|---|---|
 | `authority/` | canonical data | define (정의) | 포함 |
-| `design-principles/` | development governance | prescribe (규정) | 제외 |
+| `.onto/principles/` | development governance | prescribe (규정) | 제외 |
 | `development-records/` | development history | record (기록) | 제외 |
 
 ### Reshuffle 2026-04-08

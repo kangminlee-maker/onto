@@ -279,7 +279,7 @@ function handlePromotePrinciple(argv: string[]): number {
   const jsonRaw = readOption(argv, "json");
   if (!jsonRaw) {
     console.error("[onto] govern promote-principle: --json proposal is required.");
-    console.error("Example: onto govern promote-principle --json '{\"learning_ref\":{\"agent_id\":\"logic\",\"entry_marker\":\"...\"},\"target\":{\"category\":\"design_principle\",\"file_path\":\"design-principles/X.md\",\"section\":\"NEW\"},\"rationale\":\"...\",\"conflict_check\":{\"reviewed_by_agent\":true,\"existing_principle_refs\":[],\"conflict_summary\":\"no conflict\"},\"workload_evidence\":{\"state_transitions\":10,\"evidence_summary\":\"...\",\"event_refs\":[]},\"source_impact\":\"high\"}'");
+    console.error("Example: onto govern promote-principle --json '{\"learning_ref\":{\"agent_id\":\"logic\",\"entry_marker\":\"...\"},\"target\":{\"category\":\"design_principle\",\"file_path\":\".onto/principles/X.md\",\"section\":\"NEW\"},\"rationale\":\"...\",\"conflict_check\":{\"reviewed_by_agent\":true,\"existing_principle_refs\":[],\"conflict_summary\":\"no conflict\"},\"workload_evidence\":{\"state_transitions\":10,\"evidence_summary\":\"...\",\"event_refs\":[]},\"source_impact\":\"high\"}'");
     return 1;
   }
   let parsed: unknown;

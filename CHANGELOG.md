@@ -286,7 +286,7 @@ npm run review:inline-http-unit-executor -- \
 
 #### Activity name normalization
 
-- `design` → `evolve` (활동명) — methodology terms (`design_target`, `design_area`, `design_constraint`, `design_gap`)와 디렉토리 경로(`design-principles/`)는 보존
+- `design` → `evolve` (활동명) — methodology terms (`design_target`, `design_area`, `design_constraint`, `design_gap`)와 디렉토리 경로(`.onto/principles/`)는 보존
 - `build` → `reconstruct` (활동명) — `npm run build:ts-core` 등 toolchain 명령과 `legacy_aliases` 등재 내용은 보존
 - 정본 정렬: `.onto/processes/reconstruct.md` 자체 선언("legacy `build` 토큰은 activity_enum.legacy_aliases에만 alias로 보존")과 본문 일치
 - Lexicon `activity_enum.allowed_values`: `[review, evolve, reconstruct, learn, govern]`

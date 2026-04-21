@@ -180,10 +180,6 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
             subagent: { provider: "main-native", model_id: "x" },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
-          // Retained as a defensive check: legacy `execution_topology_priority`
-          // would have selected this id pre-P9.1. After P9.1 the field is
-          // acknowledged but ignored — the degrade path owns the decision.
-          execution_topology_priority: ["codex-main-subprocess"],
         },
         claudeHost: true,
         codexSessionActive: true,
@@ -206,11 +202,6 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
     expect(
       r.topology.plan_trace.some((l) => l.includes("topology source=review-axes")),
     ).toBe(true);
-    expect(
-      r.topology.plan_trace.some((l) =>
-        l.includes("legacy execution_topology_priority present in config but ignored"),
-      ),
-    ).toBe(true);
   });
 
   it("derivation failure (a2a without teams) degrades to main_native", () => {
@@ -224,10 +215,6 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
             subagent: { provider: "main-native" },
             lens_deliberation: "sendmessage-a2a",
           },
-          // Retained as defensive check: pre-P9.1 this would have won
-          // via the legacy priority ladder. After P9.1 the field is
-          // ignored at runtime (see resolver's "legacy ... ignored" log).
-          execution_topology_priority: ["codex-main-subprocess"],
         },
         claudeHost: true,
         codexSessionActive: true,
@@ -262,9 +249,6 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
           review: {
             subagent: { provider: "litellm", model_id: "gpt-4o" },
           },
-          // Same defensive check — legacy ladder would have favored
-          // this id pre-P9.1 but the field is now a runtime no-op.
-          execution_topology_priority: ["codex-main-subprocess"],
         },
         claudeHost: true,
         codexSessionActive: true,
@@ -301,7 +285,6 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
           review: {
             subagent: { provider: "main-native" },
           },
-          execution_topology_priority: ["codex-nested-subprocess"],
         },
         claudeHost: false,
         codexSessionActive: false,

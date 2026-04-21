@@ -357,26 +357,6 @@ function checkTopologyRequirements(
 }
 
 // ---------------------------------------------------------------------------
-// Overrides
-// ---------------------------------------------------------------------------
-
-/**
- * Apply `execution_topology_overrides.<id>.max_concurrent_lenses` on top of
- * the catalog default. Other fields are immutable (see catalog JSDoc).
- */
-function applyOverrides(
-  metadata: TopologyMetadata,
-  overrides: OntoConfig["execution_topology_overrides"],
-): TopologyMetadata {
-  const per = overrides?.[metadata.id];
-  if (!per) return metadata;
-  if (typeof per.max_concurrent_lenses === "number" && per.max_concurrent_lenses > 0) {
-    return { ...metadata, max_concurrent_lenses: per.max_concurrent_lenses };
-  }
-  return metadata;
-}
-
-// ---------------------------------------------------------------------------
 // Main resolver
 // ---------------------------------------------------------------------------
 
@@ -398,10 +378,10 @@ function applyOverrides(
  * experimental flag, LiteLLM endpoint, etc). A requirement miss at this
  * stage also yields `no_host`.
  *
- * The legacy `execution_topology_priority` / `DEFAULT_TOPOLOGY_PRIORITY`
- * ladder walk was removed in P9.1. The field is still accepted by the
- * config loader (retired in P9.2) but has no runtime effect here —
- * users relying on it see a one-line `[topology]` log when it is present.
+ * P9.2 (2026-04-21) removed `execution_topology_priority` and
+ * `execution_topology_overrides` from `OntoConfig`. The canonical
+ * concurrency override is now `review.max_concurrent_lenses` (Axis C),
+ * applied below after the topology id is resolved.
  *
  * Returns:
  *   - `{ type: "resolved", topology }` — resolved id passed its requirements.
@@ -435,18 +415,6 @@ export function resolveExecutionTopology(
       `lens_agent_teams_mode=${signals.lensAgentTeamsMode} codex=${signals.codexAvailable} ` +
       `codex_session=${signals.codexSessionActive} litellm=${signals.liteLlmEndpointAvailable}`,
   );
-
-  // P9.1 (2026-04-21): legacy `execution_topology_priority` ladder was
-  // removed. If the field is still present in config, emit a visibility
-  // line so operators understand why it has no effect.
-  if (
-    Array.isArray(args.ontoConfig.execution_topology_priority) &&
-    args.ontoConfig.execution_topology_priority.length > 0
-  ) {
-    log(
-      "legacy execution_topology_priority present in config but ignored (ladder retired in P9.1 — use config.review axis block)",
-    );
-  }
 
   // Axis-first → degrade → fail-fast. `resolveAxisFirstTopology` handles
   // its own `main_native` degrade for validate/derive/map failures when
@@ -491,24 +459,45 @@ export function resolveExecutionTopology(
   }
   log(`${resolvedId}: matched — ${check.reason}`);
 
-  const metadata = applyOverrides(
+  const metadata = applyReviewConcurrencyOverride(
     TOPOLOGY_CATALOG[resolvedId],
-    args.ontoConfig.execution_topology_overrides,
+    args.ontoConfig.review?.max_concurrent_lenses,
+    log,
   );
-  const override = args.ontoConfig.execution_topology_overrides?.[resolvedId];
-  if (
-    override?.max_concurrent_lenses &&
-    override.max_concurrent_lenses !== TOPOLOGY_CATALOG[resolvedId].max_concurrent_lenses
-  ) {
-    log(
-      `${resolvedId}: override max_concurrent_lenses ${TOPOLOGY_CATALOG[resolvedId].max_concurrent_lenses} → ${override.max_concurrent_lenses}`,
-    );
-  }
 
   return {
     type: "resolved",
     topology: { ...metadata, plan_trace: trace },
   };
+}
+
+/**
+ * Apply `review.max_concurrent_lenses` (Axis C) on top of the catalog
+ * default. P9.2 (2026-04-21) made this the canonical override seat — the
+ * previous `execution_topology_overrides` map was removed. Non-positive
+ * values are ignored (fall back to catalog default) with a warning log.
+ */
+function applyReviewConcurrencyOverride(
+  metadata: TopologyMetadata,
+  requested: number | undefined,
+  log: (line: string) => void,
+): TopologyMetadata {
+  if (requested === undefined) return metadata;
+  // The TypeScript type already narrows `requested` to `number`, but
+  // YAML parsing can yield `"6"` (string) or other non-numeric shapes
+  // for this field. The runtime typeof check is defensive against that
+  // parse-time coercion, not against typed in-process call sites.
+  if (typeof requested !== "number" || requested <= 0) {
+    log(
+      `${metadata.id}: review.max_concurrent_lenses=${requested} ignored (must be positive integer)`,
+    );
+    return metadata;
+  }
+  if (requested === metadata.max_concurrent_lenses) return metadata;
+  log(
+    `${metadata.id}: override max_concurrent_lenses ${metadata.max_concurrent_lenses} → ${requested} (via review.max_concurrent_lenses)`,
+  );
+  return { ...metadata, max_concurrent_lenses: requested };
 }
 
 // ---------------------------------------------------------------------------

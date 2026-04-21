@@ -9,13 +9,15 @@ import {
 } from "./legacy-field-deprecation.js";
 
 // ---------------------------------------------------------------------------
-// These tests assert PR-E migration invariants:
+// These tests assert PR-E migration invariants (updated P9.2, 2026-04-21):
 //
 // (1) Legacy field detection is limited to the catalog set and only
 //     triggers on non-empty string values.
-// (2) Deprecation warning is silent when the new
-//     `execution_topology_priority` is set OR nothing legacy is used.
-// (3) When warning fires, every detected legacy field gets a line with
+// (2) Deprecation error is silent when the new `review:` axis block is
+//     set OR nothing legacy is used. (Pre-P9.2 signal was
+//     `execution_topology_priority`; after field removal the axis block
+//     is the canonical migration marker.)
+// (3) When the error fires, every detected legacy field gets a line with
 //     a topology suggestion + migration guide pointer.
 // ---------------------------------------------------------------------------
 
@@ -39,7 +41,7 @@ describe("detectLegacyFieldUsage", () => {
   it("empty config detects nothing", () => {
     const d = detectLegacyFieldUsage({});
     expect(d.detected).toEqual([]);
-    expect(d.topology_priority_set).toBe(false);
+    expect(d.review_block_set).toBe(false);
   });
 
   it("detects host_runtime alone", () => {
@@ -61,25 +63,32 @@ describe("detectLegacyFieldUsage", () => {
     expect(d.detected).toEqual([]);
   });
 
-  it("topology_priority_set true when execution_topology_priority is a non-empty array", () => {
+  it("review_block_set true when config.review is a non-null object", () => {
     const d = detectLegacyFieldUsage({
-      execution_topology_priority: ["cc-main-agent-subagent"],
+      review: { subagent: { provider: "main-native" } },
     });
-    expect(d.topology_priority_set).toBe(true);
+    expect(d.review_block_set).toBe(true);
   });
 
-  it("topology_priority_set false for empty array", () => {
-    const d = detectLegacyFieldUsage({ execution_topology_priority: [] });
-    expect(d.topology_priority_set).toBe(false);
+  it("review_block_set false when config.review is absent", () => {
+    const d = detectLegacyFieldUsage({});
+    expect(d.review_block_set).toBe(false);
   });
 
-  it("reports both legacy AND topology presence (migrated principal retaining legacy for reference)", () => {
+  it("review_block_set false when `review: {}` is empty (PR #162 self-review M2)", () => {
+    // Regression guard: empty review block does NOT activate the
+    // silent-bypass for legacy fields — they still throw.
+    const d = detectLegacyFieldUsage({ review: {} as never });
+    expect(d.review_block_set).toBe(false);
+  });
+
+  it("reports both legacy AND review-block presence (migrated principal retaining legacy for reference)", () => {
     const d = detectLegacyFieldUsage({
       host_runtime: "claude",
-      execution_topology_priority: ["cc-main-agent-subagent"],
+      review: { subagent: { provider: "main-native" } },
     });
     expect(d.detected).toEqual(["host_runtime"]);
-    expect(d.topology_priority_set).toBe(true);
+    expect(d.review_block_set).toBe(true);
   });
 });
 
@@ -94,27 +103,27 @@ describe("detectLegacyFieldUsage", () => {
 describe("emitLegacyFieldDeprecation (error stage)", () => {
   it("silent (no throw) when nothing detected", () => {
     expect(() =>
-      emitLegacyFieldDeprecation({}, { detected: [], topology_priority_set: false }),
+      emitLegacyFieldDeprecation({}, { detected: [], review_block_set: false }),
     ).not.toThrow();
   });
 
-  it("silent (no throw) when topology_priority_set (migrated principal)", () => {
+  it("silent (no throw) when review_block_set (migrated principal)", () => {
     expect(() =>
       emitLegacyFieldDeprecation(
         {
           host_runtime: "codex",
-          execution_topology_priority: ["cc-main-codex-subprocess"],
+          review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
         },
-        { detected: ["host_runtime"], topology_priority_set: true },
+        { detected: ["host_runtime"], review_block_set: true },
       ),
     ).not.toThrow();
   });
 
-  it("throws LegacyFieldRemovedError when legacy used without topology", () => {
+  it("throws LegacyFieldRemovedError when legacy used without review block", () => {
     expect(() =>
       emitLegacyFieldDeprecation(
         { host_runtime: "codex", api_provider: "codex" },
-        { detected: ["host_runtime", "api_provider"], topology_priority_set: false },
+        { detected: ["host_runtime", "api_provider"], review_block_set: false },
       ),
     ).toThrow(LegacyFieldRemovedError);
   });
@@ -123,7 +132,7 @@ describe("emitLegacyFieldDeprecation (error stage)", () => {
     try {
       emitLegacyFieldDeprecation(
         { host_runtime: "codex", api_provider: "codex" },
-        { detected: ["host_runtime", "api_provider"], topology_priority_set: false },
+        { detected: ["host_runtime", "api_provider"], review_block_set: false },
       );
       expect.fail("expected throw");
     } catch (err) {
@@ -139,7 +148,7 @@ describe("emitLegacyFieldDeprecation (error stage)", () => {
     try {
       emitLegacyFieldDeprecation(
         { host_runtime: "codex" },
-        { detected: ["host_runtime"], topology_priority_set: false },
+        { detected: ["host_runtime"], review_block_set: false },
       );
       expect.fail("expected throw");
     } catch (err) {
@@ -151,7 +160,7 @@ describe("emitLegacyFieldDeprecation (error stage)", () => {
     try {
       emitLegacyFieldDeprecation(
         { host_runtime: "claude" },
-        { detected: ["host_runtime"], topology_priority_set: false },
+        { detected: ["host_runtime"], review_block_set: false },
       );
       expect.fail("expected throw");
     } catch (err) {
@@ -163,7 +172,7 @@ describe("emitLegacyFieldDeprecation (error stage)", () => {
     try {
       emitLegacyFieldDeprecation(
         { host_runtime: "codex" },
-        { detected: ["host_runtime"], topology_priority_set: false },
+        { detected: ["host_runtime"], review_block_set: false },
       );
       expect.fail("expected throw");
     } catch (err) {
@@ -175,7 +184,7 @@ describe("emitLegacyFieldDeprecation (error stage)", () => {
     try {
       emitLegacyFieldDeprecation(
         { host_runtime: "codex", api_provider: "openai" },
-        { detected: ["host_runtime", "api_provider"], topology_priority_set: false },
+        { detected: ["host_runtime", "api_provider"], review_block_set: false },
       );
       expect.fail("expected throw");
     } catch (err) {
@@ -191,7 +200,7 @@ describe("emitLegacyFieldDeprecation (error stage)", () => {
     try {
       emitLegacyFieldDeprecation(
         { host_runtime: "anthropic" },
-        { detected: ["host_runtime"], topology_priority_set: false },
+        { detected: ["host_runtime"], review_block_set: false },
       );
       expect.fail("expected throw");
     } catch (err) {
@@ -205,7 +214,7 @@ describe("emitLegacyFieldDeprecation (error stage)", () => {
     try {
       emitLegacyFieldDeprecation(
         { executor_realization: "codex" },
-        { detected: ["executor_realization"], topology_priority_set: false },
+        { detected: ["executor_realization"], review_block_set: false },
       );
       expect.fail("expected throw");
     } catch (err) {
@@ -225,19 +234,19 @@ describe("checkAndEmitLegacyDeprecation (error stage)", () => {
     );
   });
 
-  it("returns detection silently when topology priority is set (migrated)", () => {
+  it("returns detection silently when review block is set (migrated)", () => {
     const detection = checkAndEmitLegacyDeprecation({
       host_runtime: "claude",
       api_provider: "anthropic",
-      execution_topology_priority: ["cc-main-agent-subagent"],
+      review: { subagent: { provider: "main-native" } },
     });
     expect(detection.detected).toEqual(["host_runtime", "api_provider"]);
-    expect(detection.topology_priority_set).toBe(true);
+    expect(detection.review_block_set).toBe(true);
   });
 
   it("clean config returns empty detection without throwing", () => {
     const detection = checkAndEmitLegacyDeprecation({});
     expect(detection.detected).toEqual([]);
-    expect(detection.topology_priority_set).toBe(false);
+    expect(detection.review_block_set).toBe(false);
   });
 });

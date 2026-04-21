@@ -494,14 +494,14 @@ export interface CoordinatorStartResult {
    * batches of this size, dispatch each batch, wait for all agents in the
    * batch to complete, then dispatch the next batch.
    *
-   * Value resolution order:
-   *   1. `execution_topology_overrides.<topology_id>.max_concurrent_lenses`
-   *      in the project config (per-topology override).
+   * Value resolution order (P9.2, 2026-04-21):
+   *   1. `review.max_concurrent_lenses` (Axis C) in the project config.
    *   2. The resolved topology's catalog default (TOPOLOGY_CATALOG entry
    *      in `execution-topology-resolver.ts`).
    *
    * Zero/negative override values are ignored and the catalog default
-   * applies instead.
+   * applies instead. The previous `execution_topology_overrides` map
+   * was removed when `OntoConfig.execution_topology_overrides` retired.
    */
   max_concurrent_lenses: number;
 }

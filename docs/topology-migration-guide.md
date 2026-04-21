@@ -24,17 +24,25 @@ source_refs:
 
 # Topology Migration Guide — Legacy → Review UX Redesign (2026-04-21 갱신)
 
-> **⚠️ P9.1 Runtime Cleanup 공지 (2026-04-21)**
+> **⚠️ P9.2 Field Removal 공지 (2026-04-21)**
 >
-> `execution_topology_priority` 필드는 **config loader 가 여전히 YAML 에서 읽지만**
-> resolver 에서는 더 이상 참조하지 않습니다 (P9.1 에서 priority ladder walk 를
-> 제거). 아래 §1~§6 의 예시처럼 이 필드만 설정하면 runtime 결과는 동일하게
-> `main_native` degrade 경로로 떨어집니다 — 의도한 topology 가 선택되지 않습니다.
+> `execution_topology_priority` 와 `execution_topology_overrides` 두 필드는
+> **P9.2 에서 `OntoConfig` 타입에서 완전히 제거** 되었습니다. TypeScript
+> 프로젝트에서 이 필드에 값을 할당하면 **compile error** 가 발생합니다.
+> `execution_topology_overrides.<id>.max_concurrent_lenses` 를 통한 concurrency
+> override 는 `review.max_concurrent_lenses` (Axis C) 로 canonical 전환되었습니다.
+>
+> YAML 파일에 남아있는 legacy 필드는 config loader 가 그대로 읽어들이지만
+> (타입 cast 이전 단계), 어떤 runtime 경로에서도 참조되지 않습니다 — disk-based
+> legacy migration 경로 (`review-config-legacy-translate.ts`) 만이 이 필드를
+> 읽어 `review:` axis block 으로 변환합니다.
 >
 > **신규 / 마이그레이션 프로젝트는 반드시 §7 의 `review:` axis block 을 사용**
-> 하십시오. 기존 `execution_topology_priority` 가 남아있는 프로젝트는 resolver
-> 에서 `[topology] legacy execution_topology_priority present in config but
-> ignored` 로그를 확인할 수 있습니다. 필드 자체의 제거는 P9.2 에서 진행됩니다.
+> 하십시오. `onto onboard --re-detect` 는 legacy YAML 을 자동 변환하여 review
+> block 을 생성할 수 있습니다.
+>
+> **히스토리**: P9.1 (2026-04-21) 은 resolver 의 priority ladder walk 를 먼저
+> 제거 (field 는 유지) 했고, P9.2 는 field 자체를 제거했습니다.
 
 ## 1. 왜 마이그레이션 하는가
 

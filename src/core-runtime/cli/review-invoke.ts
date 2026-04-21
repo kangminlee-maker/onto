@@ -27,6 +27,7 @@ import {
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 import { resolveOntoHome } from "../discovery/onto-home.js";
 import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.js";
+import { hasReviewBlock } from "../discovery/config-profile.js";
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
 import { resolveExecutionPlan } from "../review/execution-plan-resolver.js";
@@ -599,7 +600,7 @@ function buildNoHostDetectedError(): Error {
       "  1. Claude Code 세션에서 `onto review` 재실행 (CLAUDECODE=1 감지 시 coordinator-start 안내)",
       "  2. codex CLI 설치 + `codex login` 후 재실행",
       "  3. `--codex` 플래그로 codex path 강제 (auth·binary 있어야 성공)",
-      "  4. `.onto/config.yml` 에 execution_topology_priority: [canonical topology id] 지정 (docs/topology-migration-guide.md 참고)",
+      "  4. `.onto/config.yml` 에 `review:` axis block 추가 (docs/topology-migration-guide.md §7 참고)",
       "  5. `.onto/config.yml` 에 external_http_provider + subagent_llm: { provider, model } 설정 (LiteLLM/Anthropic/OpenAI 직접 호출)",
       "  6. `ONTO_HOST_RUNTIME=standalone` env var + `subagent_llm` config 설정",
     ].join("\n"),
@@ -623,8 +624,14 @@ function buildNoHostDetectedError(): Error {
 export function tryResolveTopologyForHandoff(
   ontoConfig: OntoConfig | undefined,
 ): CoordinatorTopologyDescriptor | null {
-  if (!ontoConfig?.execution_topology_priority) return null;
-  if (ontoConfig.execution_topology_priority.length === 0) return null;
+  // P9.2 (2026-04-21): opt-in gate switched from `execution_topology_priority`
+  // (removed field) to `config.review` axis block. P9.3 will restructure
+  // the handoff JSON so every review call emits a topology descriptor
+  // unconditionally; for now we preserve the original opt-in contract
+  // with the new signal. `hasReviewBlock` rejects empty `review: {}`
+  // (shared SSOT with validateProfileCompleteness + legacy-deprecation).
+  if (ontoConfig === undefined) return null;
+  if (!hasReviewBlock(ontoConfig)) return null;
   const resolution = resolveExecutionTopology({ ontoConfig });
   if (resolution.type !== "resolved") return null;
   return toCoordinatorTopologyDescriptor(resolution.topology);
@@ -690,7 +697,7 @@ function emitCoordinatorStartHandoff(args: {
   if (args.topology) {
     payload.topology = args.topology;
     payload.next_action.orchestration_guidance.topology_note =
-      `principal 이 execution_topology_priority 로 topology="${args.topology.id}" 를 지정했습니다. ` +
+      `principal 이 \`review:\` axis block 으로 topology="${args.topology.id}" 를 지정했습니다. ` +
       `teamlead_location="${args.topology.teamlead_location}", ` +
       `lens_spawn_mechanism="${args.topology.lens_spawn_mechanism}", ` +
       `deliberation_channel="${args.topology.deliberation_channel}". ` +
@@ -726,8 +733,11 @@ export function tryTopologyDerivedExecutor(
   ontoConfig: OntoConfig | undefined,
   ontoHome: string | undefined,
 ): ReviewUnitExecutorConfig | null {
-  if (!ontoConfig?.execution_topology_priority) return null;
-  if (ontoConfig.execution_topology_priority.length === 0) return null;
+  // P9.2 (2026-04-21): opt-in gate migrated to `config.review` presence
+  // (was `execution_topology_priority` before field removal).
+  // `hasReviewBlock` rejects empty `review: {}`.
+  if (ontoConfig === undefined) return null;
+  if (!hasReviewBlock(ontoConfig)) return null;
   if (!ontoHome) return null;
   const resolution = resolveExecutionTopology({ ontoConfig });
   if (resolution.type !== "resolved") return null;
@@ -2017,14 +2027,12 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   // takes the PR-H bridge path inside executeReviewPromptExecution.
   // Non-nested topologies (or opt-in unset) behave as before — the param
   // is ignored when topology.id is not "codex-nested-subprocess".
-  const topologyForDispatch =
-    setup.ontoConfig.execution_topology_priority &&
-    setup.ontoConfig.execution_topology_priority.length > 0
-      ? (() => {
-          const res = resolveExecutionTopology({ ontoConfig: setup.ontoConfig });
-          return res.type === "resolved" ? res.topology : undefined;
-        })()
-      : undefined;
+  const topologyForDispatch = hasReviewBlock(setup.ontoConfig)
+    ? (() => {
+        const res = resolveExecutionTopology({ ontoConfig: setup.ontoConfig });
+        return res.type === "resolved" ? res.topology : undefined;
+      })()
+    : undefined;
 
   const promptExecutionResult = await executeReviewPromptExecution({
     projectRoot: resolvedProjectRoot,

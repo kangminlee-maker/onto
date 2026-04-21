@@ -154,13 +154,14 @@ function trackCleanup(dir: string): string {
 // ---------------------------------------------------------------------------
 
 describe("B. config-chain codex namespace", () => {
-  // Fixture note (post-PR #96 + PR #113 atomic profile adoption):
-  // Each config.yml must declare `execution_topology_priority` so the
-  // profile is "complete" per `validateProfileCompleteness`. Without
-  // it, `resolveConfigChain` throws `buildBothIncompleteError`. The
-  // topology value doesn't affect what these tests assert — they verify
-  // that the orthogonal/profile merge correctly surfaces the `codex:`
-  // namespace and top-level `model` / `reasoning_effort` values.
+  // Fixture note (P9.2, 2026-04-21): each config.yml must declare a
+  // `review:` axis block so the profile is "complete" per
+  // `validateProfileCompleteness`. Without it, `resolveConfigChain`
+  // throws `buildBothIncompleteError`. The specific axis values don't
+  // affect what these tests assert — they verify that the
+  // orthogonal/profile merge correctly surfaces the `codex:` namespace
+  // and top-level `model` / `reasoning_effort` values.
+  // (Pre-P9.2 the completeness signal was `execution_topology_priority`.)
 
   it("B-1: codex namespace parsed from project config", async () => {
     const homeDir = trackCleanup(makeTmpDir("b1h"));
@@ -168,7 +169,7 @@ describe("B. config-chain codex namespace", () => {
     fs.mkdirSync(path.join(projDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(projDir, ".onto", "config.yml"),
-      "execution_topology_priority:\n  - codex-main-subprocess\ncodex:\n  model: gpt-5.4\n  effort: xhigh\n",
+      "review:\n  subagent:\n    provider: codex\n    model_id: gpt-5.4\ncodex:\n  model: gpt-5.4\n  effort: xhigh\n",
       "utf8",
     );
     const config = await resolveConfigChain(homeDir, projDir);
@@ -182,13 +183,13 @@ describe("B. config-chain codex namespace", () => {
     fs.mkdirSync(path.join(homeDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(homeDir, ".onto", "config.yml"),
-      "execution_topology_priority:\n  - codex-main-subprocess\ncodex:\n  model: gpt-5.3\n  effort: high\n",
+      "review:\n  subagent:\n    provider: codex\n    model_id: gpt-5.4\ncodex:\n  model: gpt-5.3\n  effort: high\n",
       "utf8",
     );
     fs.mkdirSync(path.join(projDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(projDir, ".onto", "config.yml"),
-      "execution_topology_priority:\n  - codex-main-subprocess\ncodex:\n  model: gpt-5.4\n  effort: xhigh\n",
+      "review:\n  subagent:\n    provider: codex\n    model_id: gpt-5.4\ncodex:\n  model: gpt-5.4\n  effort: xhigh\n",
       "utf8",
     );
     const config = await resolveConfigChain(homeDir, projDir);
@@ -202,7 +203,7 @@ describe("B. config-chain codex namespace", () => {
     fs.mkdirSync(path.join(projDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(projDir, ".onto", "config.yml"),
-      "execution_topology_priority:\n  - codex-main-subprocess\nmodel: claude-sonnet-4-20250514\nreasoning_effort: medium\ncodex:\n  model: gpt-5.4\n  effort: xhigh\n",
+      "review:\n  subagent:\n    provider: codex\n    model_id: gpt-5.4\nmodel: claude-sonnet-4-20250514\nreasoning_effort: medium\ncodex:\n  model: gpt-5.4\n  effort: xhigh\n",
       "utf8",
     );
     const config = await resolveConfigChain(homeDir, projDir);
@@ -218,7 +219,7 @@ describe("B. config-chain codex namespace", () => {
     fs.mkdirSync(path.join(projDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(projDir, ".onto", "config.yml"),
-      "execution_topology_priority:\n  - codex-main-subprocess\nmodel: claude-sonnet-4-20250514\n",
+      "review:\n  subagent:\n    provider: codex\n    model_id: gpt-5.4\nmodel: claude-sonnet-4-20250514\n",
       "utf8",
     );
     const config = await resolveConfigChain(homeDir, projDir);
@@ -231,7 +232,7 @@ describe("B. config-chain codex namespace", () => {
     fs.mkdirSync(path.join(projDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(projDir, ".onto", "config.yml"),
-      "execution_topology_priority:\n  - codex-main-subprocess\ncodex: {}\n",
+      "review:\n  subagent:\n    provider: codex\n    model_id: gpt-5.4\ncodex: {}\n",
       "utf8",
     );
     const config = await resolveConfigChain(homeDir, projDir);
@@ -246,7 +247,7 @@ describe("B. config-chain codex namespace", () => {
     fs.mkdirSync(path.join(homeDir, ".onto"), { recursive: true });
     fs.writeFileSync(
       path.join(homeDir, ".onto", "config.yml"),
-      "execution_topology_priority:\n  - codex-main-subprocess\ncodex:\n  model: gpt-5.3\n  effort: high\n",
+      "review:\n  subagent:\n    provider: codex\n    model_id: gpt-5.4\ncodex:\n  model: gpt-5.3\n  effort: high\n",
       "utf8",
     );
     // No .onto/config.yml in project

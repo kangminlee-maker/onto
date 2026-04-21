@@ -14,10 +14,11 @@
  *   (영문 reason 원문이 Principal 에 노출되는 UX 버그를 즉시 감지 가능.)
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { parse as yamlParse } from "yaml";
+import { resolveInstallationPath } from "../../discovery/installation-paths.js";
 
 // ─── Types ───
 
@@ -52,16 +53,16 @@ export interface DiagnosticMatch {
 let cachedRegistry: Registry | null = null;
 
 function resolveRegistryPath(): string {
-  // .onto/authority/diagnostic-codes.yaml — dist / src 양쪽에서 작동
-  // src: src/core-runtime/evolve/commands/error-messages.ts
-  // dist: dist/core-runtime/evolve/commands/error-messages.js
-  // 양쪽 모두 4 단계 위가 repo root. Phase 6 (2026-04-21) 이후 canonical
-  // 은 .onto/authority/, legacy authority/ 는 Phase 7 까지 fallback.
+  // dist / src 양쪽에서 작동:
+  //   src: src/core-runtime/evolve/commands/error-messages.ts
+  //   dist: dist/core-runtime/evolve/commands/error-messages.js
+  // 양쪽 모두 4 단계 위가 repo root. Authority dir 선택 (canonical
+  // `.onto/authority/` 우선, legacy `authority/` fallback) 은 Phase 0
+  // 공유 resolver 에 위임 — dual-path 지식이 단일 seat 에 존재.
   const here = dirname(fileURLToPath(import.meta.url));
   const repoRoot = join(here, "..", "..", "..", "..");
-  const canonical = join(repoRoot, ".onto", "authority", "diagnostic-codes.yaml");
-  const legacy = join(repoRoot, "authority", "diagnostic-codes.yaml");
-  return existsSync(canonical) ? canonical : legacy;
+  const authorityDir = resolveInstallationPath("authority", repoRoot);
+  return join(authorityDir, "diagnostic-codes.yaml");
 }
 
 function loadRegistry(): Registry {

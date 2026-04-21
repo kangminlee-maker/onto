@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveInstallationPath } from "../discovery/installation-paths.js";
 
 /**
  * render-for-user — canonical render seat for `output_language`-translated
@@ -24,25 +25,12 @@ const __dirname = path.dirname(__filename);
 /**
  * Repo root relative to this module. The translate module lives at
  * `src/core-runtime/translate/` so 3 levels up land at the project root.
- * This is resolved once at module load time. Tests override via
- * `setRegistryPathForTesting`. Phase 6 (2026-04-21) moved authority/
- * into .onto/authority/; legacy fallback kept until Phase 7.
+ * Tests override the final path via `setRegistryPathForTesting`; otherwise
+ * the authority directory is resolved call-time via the Phase 0 shared
+ * resolver (`resolveInstallationPath("authority", ...)`), which owns the
+ * canonical / legacy dual-path knowledge for all consumers.
  */
 const REPO_ROOT_FROM_TRANSLATE = path.resolve(__dirname, "..", "..", "..");
-const CANONICAL_REGISTRY_PATH = path.join(
-  REPO_ROOT_FROM_TRANSLATE,
-  ".onto",
-  "authority",
-  "external-render-points.yaml",
-);
-const LEGACY_REGISTRY_PATH = path.join(
-  REPO_ROOT_FROM_TRANSLATE,
-  "authority",
-  "external-render-points.yaml",
-);
-const DEFAULT_REGISTRY_PATH = fs.existsSync(CANONICAL_REGISTRY_PATH)
-  ? CANONICAL_REGISTRY_PATH
-  : LEGACY_REGISTRY_PATH;
 
 let registryPathOverride: string | null = null;
 let cachedRegistry: ExternalRenderRegistry | null = null;
@@ -72,7 +60,9 @@ export function setRegistryPathForTesting(filePath: string | null): void {
 }
 
 function resolveRegistryPath(): string {
-  return registryPathOverride ?? DEFAULT_REGISTRY_PATH;
+  if (registryPathOverride !== null) return registryPathOverride;
+  const authorityDir = resolveInstallationPath("authority", REPO_ROOT_FROM_TRANSLATE);
+  return path.join(authorityDir, "external-render-points.yaml");
 }
 
 export function loadRegistry(): ExternalRenderRegistry {

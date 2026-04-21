@@ -152,16 +152,22 @@ run_self_test() {
     failed=$((failed + 1))
   fi
 
-  # Case 2: all paths outside allowlist → expect exit 1
+  # Case 2: all paths outside allowlist → expect exit 1. Includes Phase 6
+  # review follow-up (U-review): `.onto/authorityish/` is a collision-
+  # adjacent directory that differs from `.onto/authority` by a suffix.
+  # Segment-bound matching (the `/*` glob pattern in check_paths) must
+  # reject it; if someone replaces `"$file" == "$prefix"/*` with a bare
+  # string prefix test, this case catches the regression.
   local -a fail_paths=(
     ".onto/test-violation/dummy.md"
     ".onto/cache/session.json"
     ".onto/ephemeral.log"
+    ".onto/authorityish/collision-adjacent.yaml"
   )
   echo "[self-test] Case 2 (expect FAIL): ${#fail_paths[@]} violating paths"
   local case2_out
   case2_out=$(check_paths "${fail_paths[@]}" 2>&1) && case2_rc=0 || case2_rc=$?
-  if [ "$case2_rc" -eq 1 ] && echo "$case2_out" | grep -q "__SUMMARY__ matched=0 violations=3"; then
+  if [ "$case2_rc" -eq 1 ] && echo "$case2_out" | grep -q "__SUMMARY__ matched=0 violations=4"; then
     echo "  ✓ guard correctly rejected all ${#fail_paths[@]} violating paths"
   else
     echo "  ✗ guard accepted violating paths (logic broken)"

@@ -52,14 +52,31 @@ export function resolveInstallationPath(
   if (cached !== undefined) return cached;
 
   const newPath = path.join(installRoot, NEW_LAYOUT_ROOT, kind);
-  if (fs.existsSync(newPath)) {
+  const legacyDirName = LEGACY_DIR_OVERRIDES[kind] ?? kind;
+  const legacyPath = path.join(installRoot, legacyDirName);
+
+  const newExists = fs.existsSync(newPath);
+  const legacyExists = fs.existsSync(legacyPath);
+
+  // Phase 6 review follow-up (CC2): silent canonical-first can hide mixed-
+  // layout drift and make Phase 7 cleanup sticky. Surface `both_present`
+  // state on stderr when ONTO_DEBUG_LAYOUT=1 is set so operators can
+  // observe which resources are still dual-rooted. No behavior change —
+  // canonical continues to win; this is pure observability.
+  if (newExists && legacyExists && process.env.ONTO_DEBUG_LAYOUT === "1") {
+    process.stderr.write(
+      `[installation-paths] both_present kind=${kind} ` +
+        `canonical=${newPath} legacy=${legacyPath} ` +
+        `(canonical preferred; remove legacy for Phase 7 readiness)\n`,
+    );
+  }
+
+  if (newExists) {
     cache.set(cacheKey, newPath);
     return newPath;
   }
 
-  const legacyDirName = LEGACY_DIR_OVERRIDES[kind] ?? kind;
-  const legacyPath = path.join(installRoot, legacyDirName);
-  if (fs.existsSync(legacyPath)) {
+  if (legacyExists) {
     cache.set(cacheKey, legacyPath);
     return legacyPath;
   }

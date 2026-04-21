@@ -116,4 +116,122 @@ describe("resolveInstallationPath — Phase 0 dual-path fallback", () => {
       );
     });
   });
+
+  // Phase 6 (2026-04-21) moved authority/ → .onto/authority/. The resolver
+  // is now the single seat both loaders consume (render-for-user +
+  // error-messages) after the review-driven refactor. Matrix coverage for
+  // all four states pins consumer-binding correctness at this boundary.
+  describe("authority kind (Phase 6 move) — 4-state matrix", () => {
+    it("canonical-only: returns .onto/authority/", () => {
+      const installRoot = makeTempInstallRoot();
+      tmpRoots.push(installRoot);
+      const canonical = path.join(installRoot, ".onto", "authority");
+      fs.mkdirSync(canonical, { recursive: true });
+
+      expect(resolveInstallationPath("authority", installRoot)).toBe(canonical);
+    });
+
+    it("legacy-only: falls back to authority/", () => {
+      const installRoot = makeTempInstallRoot();
+      tmpRoots.push(installRoot);
+      const legacy = path.join(installRoot, "authority");
+      fs.mkdirSync(legacy, { recursive: true });
+
+      expect(resolveInstallationPath("authority", installRoot)).toBe(legacy);
+    });
+
+    it("both-present: prefers canonical (.onto/authority/) silently", () => {
+      const installRoot = makeTempInstallRoot();
+      tmpRoots.push(installRoot);
+      const canonical = path.join(installRoot, ".onto", "authority");
+      const legacy = path.join(installRoot, "authority");
+      fs.mkdirSync(canonical, { recursive: true });
+      fs.mkdirSync(legacy, { recursive: true });
+
+      expect(resolveInstallationPath("authority", installRoot)).toBe(canonical);
+    });
+
+    it("neither-present: throws with dual-path error message", () => {
+      const installRoot = makeTempInstallRoot();
+      tmpRoots.push(installRoot);
+
+      expect(() => resolveInstallationPath("authority", installRoot)).toThrow(
+        /Neither \.onto\/authority\/ nor authority\/ exists/,
+      );
+    });
+  });
+
+  // Phase 6 review follow-up (CC2): both_present observability.
+  describe("ONTO_DEBUG_LAYOUT=1 — both_present stderr diagnostic", () => {
+    it("emits a diagnostic line when both canonical and legacy exist", () => {
+      const installRoot = makeTempInstallRoot();
+      tmpRoots.push(installRoot);
+      fs.mkdirSync(path.join(installRoot, ".onto", "authority"), { recursive: true });
+      fs.mkdirSync(path.join(installRoot, "authority"), { recursive: true });
+
+      const origEnv = process.env.ONTO_DEBUG_LAYOUT;
+      const writes: string[] = [];
+      const origWrite = process.stderr.write.bind(process.stderr);
+      process.stderr.write = ((chunk: unknown) => {
+        writes.push(typeof chunk === "string" ? chunk : String(chunk));
+        return true;
+      }) as typeof process.stderr.write;
+      process.env.ONTO_DEBUG_LAYOUT = "1";
+      try {
+        resolveInstallationPath("authority", installRoot);
+      } finally {
+        process.stderr.write = origWrite;
+        if (origEnv === undefined) delete process.env.ONTO_DEBUG_LAYOUT;
+        else process.env.ONTO_DEBUG_LAYOUT = origEnv;
+      }
+      expect(writes.some((l) => l.includes("both_present kind=authority"))).toBe(true);
+    });
+
+    it("stays silent when only one layout is present", () => {
+      const installRoot = makeTempInstallRoot();
+      tmpRoots.push(installRoot);
+      fs.mkdirSync(path.join(installRoot, ".onto", "authority"), { recursive: true });
+
+      const origEnv = process.env.ONTO_DEBUG_LAYOUT;
+      const writes: string[] = [];
+      const origWrite = process.stderr.write.bind(process.stderr);
+      process.stderr.write = ((chunk: unknown) => {
+        writes.push(typeof chunk === "string" ? chunk : String(chunk));
+        return true;
+      }) as typeof process.stderr.write;
+      process.env.ONTO_DEBUG_LAYOUT = "1";
+      try {
+        resolveInstallationPath("authority", installRoot);
+      } finally {
+        process.stderr.write = origWrite;
+        if (origEnv === undefined) delete process.env.ONTO_DEBUG_LAYOUT;
+        else process.env.ONTO_DEBUG_LAYOUT = origEnv;
+      }
+      expect(writes.some((l) => l.includes("both_present"))).toBe(false);
+    });
+
+    it("stays silent when ONTO_DEBUG_LAYOUT is unset (no-op for normal runs)", () => {
+      const installRoot = makeTempInstallRoot();
+      tmpRoots.push(installRoot);
+      fs.mkdirSync(path.join(installRoot, ".onto", "authority"), { recursive: true });
+      fs.mkdirSync(path.join(installRoot, "authority"), { recursive: true });
+
+      const origEnv = process.env.ONTO_DEBUG_LAYOUT;
+      delete process.env.ONTO_DEBUG_LAYOUT;
+      const writes: string[] = [];
+      const origWrite = process.stderr.write.bind(process.stderr);
+      process.stderr.write = ((chunk: unknown) => {
+        writes.push(typeof chunk === "string" ? chunk : String(chunk));
+        return true;
+      }) as typeof process.stderr.write;
+      try {
+        resolveInstallationPath("authority", installRoot);
+      } finally {
+        process.stderr.write = origWrite;
+        if (origEnv === undefined) delete process.env.ONTO_DEBUG_LAYOUT;
+        else process.env.ONTO_DEBUG_LAYOUT = origEnv;
+      }
+      expect(writes.some((l) => l.includes("both_present"))).toBe(false);
+    });
+  });
 });

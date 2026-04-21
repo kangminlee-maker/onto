@@ -1,10 +1,11 @@
-lexicon_version: "0.28.0"
+lexicon_version: "0.29.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
   - "This lexicon is the concept SSOT for the productization track."
   - "This file owns the concept INVENTORY. Naming RULES are owned by ontology-as-code-naming-charter.md."
   - "Structure: authoring_rules → shared_attributes → entities → terms."
+  - 'v0.29.0 additive (Review UX Redesign P6 — docs 전수 갱신, 2026-04-21): 5 user-facing doc 갱신 — (1) `config.yml.example` 에 `review:` axis block 예시 추가 + legacy `execution_topology_priority` 를 deprecated 로 표시. (2) `.onto/commands/review.md` 에 "Canonical path (Review UX Redesign)" 섹션 신설, 기존 3-canonical / sketch v3 내용은 "Legacy execution paths (backward compat through P7)" 로 재분류. (3) `docs/topology-migration-guide.md` 제목 "Legacy → Review UX Redesign" 으로 전환 + §7 "Review UX Redesign migration" 신설 (7.1 왜 / 7.2 id→axes 매핑표 / 7.3 migration 수단 / 7.4 universal fallback 보장 / 7.5 spawn-ready 상태 / 7.6 troubleshooting). (4) `README.md` §review config 블록 교체 + legacy 섹션 분리. (5) `BLUEPRINT.md` 신규 entity term (TopologyShape / OntoReviewConfig) + legacy mapping 보완 + §7 Lens Execution Axes 를 "6 axes + 6 shape" 구조로 rewrite. Self-review amendment: (a) BLUEPRINT §7 renumber (§7.4 Parallel Execution → §7.5, 7.4 중복 해소), (b) migration-guide §6 Reference 의 Deprecation detection orphan 재배치, (c) lexicon terms 에 `review_execution_config` (OntoReviewConfig) + `topology_shape` (TopologyShape) 정식 등재 + `execution_realization` / `host_runtime` 를 term_status: deprecated 로 전환. Code 미변경 (prose + lexicon metadata only). P7 legacy 제거 전 정본 alignment 완료. canonical-advancing.'
   - 'v0.28.0 additive (Review UX Redesign P8 — shape × pipeline smoke audit, 2026-04-21): 6 `TopologyShape` × 7 review pipeline step matrix 의 dispatch-level smoke audit. 신규 seat `src/core-runtime/review/shape-pipeline-audit.test.ts` (36 tests, 6 stage: derivation / mapping / resolver-integration / spawn-readiness / pipeline-step-invariants / catalog-non-drift). Hermetic (LLM 호출 없음). Audit report `development-records/audit/20260421-shape-pipeline-audit.md` — 4/6 shape full spawn-ready + 2/6 (main-teams_a2a PR-D 대기, ext-teamlead_native PR-C 대기) + P3 universal fallback 이 deferred shape 의 안전망. Pipeline step 5 (dispatch) 만 shape-sensitive, 1~4/6~7 은 topology 를 opaque snapshot 으로 소비. Design integrity 경험적 확증. canonical-advancing.'
   - 'v0.27.0 additive (Review UX Redesign P5 — onto config interactive CLI, 2026-04-21): `onto config` subcommand tree 신설 — 5 개 subcommand (show / set / edit / re-detect / validate) + default alias `onto config` ≡ `show`. 신규 seat 3 건 — `src/core-runtime/config/onto-config-cli.ts` (dispatcher + 5 subcommand handler 통합), `src/core-runtime/config/onto-config-key-path.ts` (pure: 사용자 점표기 key path → `OntoReviewConfig` 변형), `src/core-runtime/config/onto-config-preview.ts` (pure: axes + signals → shape / TopologyId 예측 + P3 강등 mirror). `set` 지원 path 6 종: `teamlead.model` (literal main), `subagent.{provider,model_id,effort}`, `max_concurrent_lenses`, `lens_deliberation`. External teamlead 명세는 `edit` 으로 분리. `edit` 은 TTY 감지 + readline/promises (Node native) 기반 stepwise prompt + `validate`/`save`/`quit` 명령어. `re-detect` read-only 환경 재감지 + preview. `validate` writeless 검증 + preview. CLI dispatch 는 `src/cli.ts` 의 `case "config"` branch 에서 dynamic import. vitest include glob 에 `config/` 추가. 신규 tests 31 (key-path 19 + preview 12). canonical-advancing.'
   - 'v0.26.0 additive (Review UX Redesign P3 — universal fallback, 2026-04-21): axis-first 실패 시 `main_native` shape 로 강등 + `[topology] degraded: requested=... → actual=main_native (reason: ...)` trace. validation / derivation / mapping 어느 단계에서든 실패 시 동일 강등. `main_native` 자체도 unmappable 인 경우만 legacy `execution_topology_priority` ladder fallback. `resolveAxisFirstTopology` 내부 로직 교체 + integration test 업데이트. canonical-advancing.'
@@ -1168,27 +1169,57 @@ terms:
     canonical_label: "execution_realization"
     korean_label: "실행 실현 방식"
     axis: "execution_profile"
-    term_status: "active"
+    term_status: "deprecated"
     definition: "Canonical structural realization used to execute context-isolated review units."
     allowed_values:
       - "subagent"
       - "agent-teams"
     notes:
+      - "**Deprecated 2026-04-21 (Review UX Redesign P1 #152).** Superseded by `review_execution_config` (the `review:` axis block). `subagent` ≡ user choice of `review.subagent.provider`; `agent-teams` ≡ Claude host + `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` auto-detected."
       - "`subagent` and `agent-teams` are structural realizations, not host runtime names."
       - "'subagent' as execution_realization value refers to a specific structural realization. context_isolated_reasoning_unit의 legacy_alias 'subagent'는 다른 개념(context isolation property 전체)을 가리킨다. 둘은 다른 axis에 속한다."
   - term_id: "host_runtime"
     canonical_label: "host_runtime"
     korean_label: "호스트 런타임"
     axis: "execution_profile"
-    term_status: "active"
+    term_status: "deprecated"
     definition: "Concrete host environment that runs a chosen execution realization."
     allowed_values:
       - "codex"
       - "claude"
       - "litellm"
     notes:
+      - "**Deprecated 2026-04-21 (Review UX Redesign P1 #152).** Superseded by runtime host detection (`detectClaudeCodeEnvSignal` / `detectCodexEnvSignal`) + optional override via `review.teamlead.model`."
       - "`codex` and `claude` are host runtimes, not canonical execution realizations."
       - "`litellm` is a forward-compat slot: the type is recognized (artifact-types.ts) and explicit `host_runtime: \"litellm\"` in OntoConfig fails closed in runtime (src/core-runtime/cli/review-invoke.ts:resolveExecutionProfile). `subagent_litellm` combination wiring is deferred to a subsequent design. See authority/core-lexicon.yaml:LlmAgentSpawnRealization."
+  - term_id: "review_execution_config"
+    canonical_label: "OntoReviewConfig"
+    korean_label: "리뷰 실행 설정"
+    axis: "execution_profile"
+    term_status: "active"
+    definition: "User-facing 6-axis config block (`review:`) declared in `.onto/config.yml`. Runtime derives one `topology_shape` from these axes and dispatches the review session accordingly."
+    notes:
+      - "Review UX Redesign P1 (#152, 2026-04-20). Replaces user-facing exposure of sketch v3's `execution_topology_priority` array."
+      - "Axes: `teamlead.model` (host session 'main' or external spec) / `subagent.provider` (main-native | codex | anthropic | openai | litellm) / `subagent.model_id` / `subagent.effort` / `max_concurrent_lenses` / `lens_deliberation` (synthesizer-only | sendmessage-a2a)."
+      - "Type source: `src/core-runtime/discovery/config-chain.ts` — `OntoReviewConfig` interface + discriminated-union `SubagentSpec`. Validator: `src/core-runtime/review/review-config-validator.ts`."
+  - term_id: "topology_shape"
+    canonical_label: "TopologyShape"
+    korean_label: "토폴로지 형상"
+    axis: "execution_profile"
+    term_status: "active"
+    definition: "Internal classification derived by runtime from `review_execution_config` + environment signals. One of 6 canonical values, each mapping to one or more `TopologyId` catalog entries."
+    allowed_values:
+      - "main_native"
+      - "main_foreign"
+      - "main-teams_native"
+      - "main-teams_foreign"
+      - "main-teams_a2a"
+      - "ext-teamlead_native"
+    notes:
+      - "Review UX Redesign P2 (#153, 2026-04-21). Not user-facing — `topology_shape` is the runtime-internal dispatch key, decoupled from the 10-value `TopologyId` catalog that executor mappings index on."
+      - "Derivation: `src/core-runtime/review/topology-shape-derivation.ts:deriveTopologyShape` (pure, env-signal-aware). Mapping to `TopologyId`: `src/core-runtime/review/shape-to-topology-id.ts`."
+      - "P3 universal fallback (#154): any derivation/mapping failure degrades to `main_native` shape with `[topology] degraded: ... → actual=main_native` trace before attempting legacy priority ladder."
+      - "Spawn-readiness (P8 audit, #157): 4/6 shapes currently spawn-ready via PR_B_SUPPORTED_TOPOLOGIES. `main-teams_a2a` blocked on PR-D (SendMessage A2A lifecycle), `ext-teamlead_native` blocked on PR-C (outer-codex teamlead orchestration). See `development-records/audit/20260421-shape-pipeline-audit.md`."
   - term_id: "lens_prompt_contract"
     canonical_label: "LensPromptContract"
     korean_label: "lens 프롬프트 계약"

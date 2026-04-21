@@ -32,45 +32,78 @@ output_language: en           # en | ko | ja | ...
 #   - ontology
 
 # ─────────────────────────────────────────────────────────────────
-# Execution profile (optional)
+# Review execution axes — canonical as of Review UX Redesign (2026-04-21)
 # ─────────────────────────────────────────────────────────────────
-# `onto review` auto-detects the host if these are omitted:
-#   - Claude Code session (CLAUDECODE=1)       → claude
-#   - codex binary + ~/.codex/auth.json        → codex
-# Set explicitly when you want to override auto-detection or use
-# a direct HTTP provider (local LLM server, LiteLLM proxy, etc.).
+# The `review:` block declares 6 user-facing axes. Runtime derives one of
+# 6 internal TopologyShapes (main_native / main_foreign / main-teams_*
+# / ext-teamlead_native) and dispatches accordingly.
 #
-# host_runtime options: codex | claude | standalone | litellm | anthropic | openai
-# For `standalone` + direct-call providers, add the subagent_llm
-# block below.
-# host_runtime: claude
+# Omit `review:` entirely to use universal fallback (equivalent to
+# teamlead=main + subagent=main-native + synthesizer-only deliberation).
+#
+# Use `onto config edit` for interactive stepwise setup, or
+# `onto config set <key> <value>` for single-field mutation.
+# Use `onto config validate` to preview the derived TopologyId under
+# current host signals before running a review.
+#
+# Design doc: development-records/evolve/20260420-review-execution-ux-redesign.md
+# Type source: src/core-runtime/discovery/config-chain.ts (OntoReviewConfig)
+#
+# review:
+#   teamlead:
+#     model: main                   # "main" = host session (default)
+#                                   # External: {provider: codex, model_id: gpt-5.4, effort: high}
+#   subagent:
+#     provider: main-native         # main-native | codex | anthropic | openai | litellm
+#     # model_id: gpt-5.4           # required when provider != main-native
+#     # effort: high                # provider-specific reasoning effort
+#   # max_concurrent_lenses: 6      # provider default applies when omitted
+#                                   # codex default: 6 / main-native: num_lenses
+#                                   # litellm default: 1-2
+#   # lens_deliberation: synthesizer-only   # or sendmessage-a2a (requires teams)
 
 # ─────────────────────────────────────────────────────────────────
-# Subagent LLM (required for standalone host_runtime)
+# Legacy execution profile (deprecated — migrate to `review:` above)
 # ─────────────────────────────────────────────────────────────────
-# When host_runtime is `standalone`, each review lens is executed by
-# the TS process calling this provider directly over HTTP. See
-# processes/configuration.md §4.3 for the full sub-field reference.
+# Kept for backward compatibility through P7 (legacy identifier removal).
+# Once you've populated `review:`, remove the fields below or run
+# `npm run onboard:write-review-block -- --strip-legacy-priority` to
+# migrate automatically.
+#
+# `execution_topology_priority` — sketch v3 10-topology explicit priority.
+# Superseded by `review:` axis derivation. Migration table in
+# docs/topology-migration-guide.md §7 (added 2026-04-21).
+#
+# execution_topology_priority:
+#   - cc-main-agent-subagent      # Claude Code + Agent tool
+#   - codex-main-subprocess       # Codex CLI session + codex lens
+
+# ─────────────────────────────────────────────────────────────────
+# Subagent LLM (legacy — used by standalone host_runtime and background tasks)
+# ─────────────────────────────────────────────────────────────────
+# Still consulted by background tasks (learn / govern / promote).
+# For review execution, prefer the `review.subagent` block above.
+# See processes/configuration.md §4.3 for full sub-field reference.
 #
 # subagent_llm:
-#   provider: litellm           # anthropic | openai | litellm | codex
+#   provider: litellm             # anthropic | openai | litellm | codex
 #   model: claude-sonnet-4-6
 #   base_url: http://localhost:4000/v1   # required when provider=litellm
 #   max_tokens: 4096
-#   tool_mode: auto             # auto | native | inline. default auto
+#   tool_mode: auto               # auto | native | inline. default auto
 
 # ─────────────────────────────────────────────────────────────────
 # Background task LLM (learn / govern / promote) — optional
 # ─────────────────────────────────────────────────────────────────
 # Omit for cost-order auto-resolution: codex OAuth > LiteLLM >
 # Anthropic > OpenAI. Set explicitly to force a specific provider.
-# api_provider: anthropic       # anthropic | openai | litellm | codex
+# api_provider: anthropic         # anthropic | openai | litellm | codex
 
 # ─────────────────────────────────────────────────────────────────
-# Review concurrency — optional (default 9)
+# Top-level `max_concurrent_lenses` (legacy — prefer `review.max_concurrent_lenses`)
 # ─────────────────────────────────────────────────────────────────
-# Lower for constrained environments. Local LLM with a single GPU:
-# 1 recommended.
+# Kept for projects that haven't migrated to the `review:` block.
+# Lower for constrained environments. Local LLM with a single GPU: 1.
 # max_concurrent_lenses: 9
 
 # ─────────────────────────────────────────────────────────────────

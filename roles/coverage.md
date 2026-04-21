@@ -29,6 +29,6 @@
 
 ## Domain document
 
-`domains/{domain}/domain_scope.md` (`session_domain`이 설정된 경우).
+`.onto/domains/{domain}/domain_scope.md` (`session_domain`이 설정된 경우).
 
 `session_domain`이 `none`이면 `processes/review/lens-prompt-contract.md` §9.3 Domain-None Fallback Rule에 따라 domain document 없이 실행한다.

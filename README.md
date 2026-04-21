@@ -512,7 +512,7 @@ onto/
 |   +-- axiology.md     # Purpose and value alignment
 |   +-- synthesize.md   # Review synthesis
 +-- explorers/               # Explorer profiles for reconstruct process
-+-- domains/                 # Domain base documents (8 per domain)
++-- .onto/domains/           # Domain base documents (8 per domain)
 +-- golden/                  # Golden examples per schema + schema templates
 +-- development-records/     # Development history (배포 제외)
 |   +-- legacy/

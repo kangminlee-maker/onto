@@ -3,6 +3,8 @@
 # (Phase 1~6: commands/, domains/, roles/, processes/, principles/, authority/)
 # are versioned and intentionally NOT ignored. If a new runtime-ephemeral
 # subdirectory is added under `.onto/`, add its pattern here explicitly.
+# CI guard: scripts/check-onto-allowlist.sh fails when a tracked `.onto/` path
+# is neither in its structural allowlist nor covered by this file.
 .onto/review/
 .onto/builds/
 .onto/learnings/

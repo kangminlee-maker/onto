@@ -94,7 +94,7 @@ target 이 schema / model artifact 가 아닌 prose 계약 문서인 경우 clai
 
 ## Domain document
 
-`domains/{domain}/logic_rules.md` (`session_domain`이 설정된 경우).
+`.onto/domains/{domain}/logic_rules.md` (`session_domain`이 설정된 경우).
 
 `session_domain` 이 `none` 이면 `processes/review/lens-prompt-contract.md` §9.3 Domain-None Fallback Rule 에 따라 domain document 없이 실행한다. 이때 logic lens 는 아래 generic check 를 수행한다.
 

@@ -95,10 +95,10 @@ Executes the following upon user approval:
 
 **3.4 Install global domain documents**
 - If global documents for the specified domain (`~/.onto/domains/{domain}/`) are missing or incomplete:
-  1. Checks whether default documents for the domain exist in the plugin's `domains/` directory.
+  1. Checks whether default documents for the domain exist in the plugin's `.onto/domains/` directory.
   2. If they exist, suggests installation:
      "Default documents for domain `{domain}` are included in the plugin ({N} files). Install them? Existing learnings will be preserved."
-  3. Upon user approval: copies default documents (*.md) from the plugin's `domains/{domain}/` to `~/.onto/domains/{domain}/`. Also creates the `learnings/` directory. Skips files with identical content.
+  3. Upon user approval: copies default documents (*.md) from the plugin's `.onto/domains/{domain}/` to `~/.onto/domains/{domain}/`. Also creates the `learnings/` directory. Skips files with identical content.
   4. If the domain does not exist in the plugin, suggests seed creation:
      "Domain documents for `{domain}` are not included in the plugin. Would you like to generate seed documents? (`/onto:create-domain {domain} {description}`). Seeds are LLM-generated drafts that improve through review experience."
      Upon user approval: execute the create-domain process (`processes/create-domain.md`). If declined: skip (domain documents can be created later).

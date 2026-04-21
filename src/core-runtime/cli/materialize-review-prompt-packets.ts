@@ -133,7 +133,7 @@ const LENS_DOMAIN_FILE_MAP: Record<string, string> = {
  * Resolution order (project-override rule):
  * 1. Project-level domain: {project}/.onto/domains/{domain}/
  * 2. User-level global domain: ~/.onto/domains/{domain}/
- * 3. Installation default: ontoHome/domains/{domain}/
+ * 3. Installation default: ontoHome/.onto/domains/{domain}/ (Phase 2 layout; legacy ontoHome/domains/ fallback retained through Phase 7)
  *
  * Directory-level all-or-nothing: the entire directory from one location is used.
  * Terminal failure: null (caller must error).
@@ -349,8 +349,8 @@ export async function runMaterializeReviewPromptPacketsCli(
     if (!resolvedDomainDir) {
       throw new Error(
         `Domain directory not found for "${sessionDomain}". ` +
-        `Searched: ${ontoHome ? path.join(ontoHome, "domains", sessionDomain) + " and " : ""}` +
-        `${path.join(projectRoot, "domains", sessionDomain)}`,
+        `Searched: ${ontoHome ? path.join(ontoHome, ".onto", "domains", sessionDomain) + " and " : ""}` +
+        `${path.join(projectRoot, ".onto", "domains", sessionDomain)}`,
       );
     }
     domainAllFiles = scanDomainFiles(resolvedDomainDir);

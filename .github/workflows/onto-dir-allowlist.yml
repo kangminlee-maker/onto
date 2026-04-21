@@ -1,0 +1,20 @@
+name: onto-dir-allowlist
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - '.onto/**'
+      - '.gitignore'
+      - 'scripts/check-onto-allowlist.sh'
+      - '.github/workflows/onto-dir-allowlist.yml'
+
+jobs:
+  allowlist-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enforce .onto/ directory allowlist
+        run: bash scripts/check-onto-allowlist.sh

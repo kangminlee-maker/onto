@@ -3,13 +3,13 @@
 > 상태: Active
 > 목적: `검토 (review)`의 primary artifact인 `리뷰 기록 (ReviewRecord)`의 최소 contract를 고정한다.
 > 기준 문서:
-> - `processes/review/productized-live-path.md`
-> - `processes/review/interpretation-contract.md`
-> - `processes/review/binding-contract.md`
-> - `processes/review/lens-prompt-contract.md`
-> - `processes/review/synthesize-prompt-contract.md`
-> - `processes/review/execution-preparation-artifacts.md`
-> - `processes/review/record-field-mapping.md`
+> - `.onto/processes/review/productized-live-path.md`
+> - `.onto/processes/review/interpretation-contract.md`
+> - `.onto/processes/review/binding-contract.md`
+> - `.onto/processes/review/lens-prompt-contract.md`
+> - `.onto/processes/review/synthesize-prompt-contract.md`
+> - `.onto/processes/review/execution-preparation-artifacts.md`
+> - `.onto/processes/review/record-field-mapping.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -188,7 +188,7 @@ degraded_lens_ids: []
 원칙:
 
 - `synthesis_result_ref`는 `synthesis.md`를 가리킨다
-- `deliberation_status` 결정 우선순위 (record assembler가 적용)는 다음과 같다 (`processes/review/synthesize-prompt-contract.md` §6.4 위임):
+- `deliberation_status` 결정 우선순위 (record assembler가 적용)는 다음과 같다 (`.onto/processes/review/synthesize-prompt-contract.md` §6.4 위임):
   1. `execution-result.yaml`의 `deliberation_status` (runner-owned, 최상위)
   2. `synthesis.md` frontmatter의 `deliberation_status` (synthesize-owned, in-process / cross-process 두 경로 모두의 primary source)
   3. frontmatter가 부재/malformed/`required_but_unperformed`인 경우 realization-aware fallback:
@@ -206,8 +206,8 @@ degraded_lens_ids: []
 ReviewRecord 는 **Internal Body** 만 source 로 본다 — lens output 과 synthesis output 의 canonical English 섹션들이 ReviewRecord 의 lens_results + synthesis 필드를 구성한다. **Principal Summary** (lens/synthesize output 의 선택적 신설 섹션, `output_language` 번역 target) 는 ReviewRecord 에 저장되지 않음 — runtime-derived (필요 시 render seat 을 통해 재생성).
 
 본 경계의 canonical 정의:
-- lens 쪽: `processes/review/lens-prompt-contract.md §8.5 Internal Body vs Principal Summary (Output Structural Split)`
-- synthesize 쪽: `processes/review/synthesize-prompt-contract.md §5.2.1 Internal Body vs Principal Summary (Output Structural Split)`
+- lens 쪽: `.onto/processes/review/lens-prompt-contract.md §8.5 Internal Body vs Principal Summary (Output Structural Split)`
+- synthesize 쪽: `.onto/processes/review/synthesize-prompt-contract.md §5.2.1 Internal Body vs Principal Summary (Output Structural Split)`
 
 ReviewRecord 는 두 계약의 "Internal Body = canonical source" 입장을 따른다. Principal Summary 를 ReviewRecord 에 별도 저장할 필요가 없으므로 schema 확장 불필요. 향후 runtime-coordinator 가 has_principal_summary 같은 힌트 필드를 요구하면 optional 로 추가 가능 (현재는 deferred).
 
@@ -289,7 +289,7 @@ deliberation_status: not_needed
 deliberation_result_ref: null
 final_output_ref: .onto/review/20260404-a1b2c3d4/final-output.md
 shared_phenomenon_summary:
-  - target: processes/review/record-contract.md
+  - target: .onto/processes/review/record-contract.md
     evidence_anchor: '§5'
     participating_lens_ids: [logic, dependency]
     claim_relation: corroboration

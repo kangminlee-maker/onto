@@ -248,8 +248,8 @@ npm run review:inline-http-unit-executor -- \
   - `src/core-runtime/cli/prepare-review-session.ts` (line 75-87)
   - `src/core-runtime/cli/review-invoke.ts` (line 377-395)
 - README + BLUEPRINT 재포지셔닝: "Claude Code plugin" → "multi-host LLM-driven runtime" + Host Compatibility Matrix + Two-tier LLM model 추가
-- 17 개 markdown 문서 (commands/*.md 7파일 + processes/*.md 3파일 + README + process.md + BLUEPRINT 등) 의 hardcoded `~/.claude/plugins/onto/` 표기 → `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/` fallback notation 으로 갱신
-- `processes/review/execution-preparation-artifacts.md`: 예시 데이터 (literal absolute path) 보존 + canonical 표기 안내문 추가
+- 17 개 markdown 문서 (commands/*.md 7파일 + .onto/processes/*.md 3파일 + README + process.md + BLUEPRINT 등) 의 hardcoded `~/.claude/plugins/onto/` 표기 → `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/` fallback notation 으로 갱신
+- `.onto/processes/review/execution-preparation-artifacts.md`: 예시 데이터 (literal absolute path) 보존 + canonical 표기 안내문 추가
 
 #### Architecture decisions
 
@@ -280,7 +280,7 @@ npm run review:inline-http-unit-executor -- \
 - 내부 canonical 토큰 (`@{name}` / `@-`) 은 유지 — session artifact backward compat
 - e2e tests E22a (`--no-domain`), E22b (`--domain {name}`), E22c (mutual exclusion fail) 추가, 모두 PASS
 
-**문서 업데이트**: `commands/review.md`, `commands/reconstruct.md`, `commands/evolve.md`, `commands/help.md`, `processes/review/review.md`, `processes/review/interpretation-contract.md`, `processes/review/productized-live-path.md`, `README.md`, `BLUEPRINT.md` — canonical 우선 표기, legacy `@` 표기를 backward compat 으로 명시.
+**문서 업데이트**: `commands/review.md`, `commands/reconstruct.md`, `commands/evolve.md`, `commands/help.md`, `.onto/processes/review/review.md`, `.onto/processes/review/interpretation-contract.md`, `.onto/processes/review/productized-live-path.md`, `README.md`, `BLUEPRINT.md` — canonical 우선 표기, legacy `@` 표기를 backward compat 으로 명시.
 
 ### Added — Session 18 (2026-04-16): 142/142 (100%) execution-phase completion
 
@@ -288,7 +288,7 @@ npm run review:inline-http-unit-executor -- \
 
 - `design` → `evolve` (활동명) — methodology terms (`design_target`, `design_area`, `design_constraint`, `design_gap`)와 디렉토리 경로(`design-principles/`)는 보존
 - `build` → `reconstruct` (활동명) — `npm run build:ts-core` 등 toolchain 명령과 `legacy_aliases` 등재 내용은 보존
-- 정본 정렬: `processes/reconstruct.md` 자체 선언("legacy `build` 토큰은 activity_enum.legacy_aliases에만 alias로 보존")과 본문 일치
+- 정본 정렬: `.onto/processes/reconstruct.md` 자체 선언("legacy `build` 토큰은 activity_enum.legacy_aliases에만 alias로 보존")과 본문 일치
 - Lexicon `activity_enum.allowed_values`: `[review, evolve, reconstruct, learn, govern]`
 
 #### Reconstruct confirm subcommand (W-B-07)
@@ -297,11 +297,11 @@ npm run review:inline-http-unit-executor -- \
 - `principal_review_status: pending → requested → passed|rejected` 상태 머신 완결
 - `executeReconstructConfirm()` + 에러 가드 (비-converted 상태, 비-requested 상태, 잘못된 verdict 차단)
 - 테스트 22/22 PASS (신규 10건 포함)
-- `processes/reconstruct.md §1.4` 3축 중 "Principal 검증 경로" 런타임 구현 완료
+- `.onto/processes/reconstruct.md §1.4` 3축 중 "Principal 검증 경로" 런타임 구현 완료
 
 #### CJK/Unicode tokenization rules in reconstruct (W-A-27)
 
-- `processes/reconstruct.md §2 Tier 1`에 CJK/Unicode 처리 규칙 명시
+- `.onto/processes/reconstruct.md §2 Tier 1`에 CJK/Unicode 처리 규칙 명시
 - Unicode-aware splitting (`/[\p{L}\p{N}]+/gu`) — 기존 ASCII-only split 대체
 - Latin 최소 토큰 길이 4, CJK 최소 2 (한글·한자·히라가나)
 - CJK 문자 범위 명시 (U+3040–30FF, U+3130–318F, U+AC00–D7AF, U+4E00–9FFF)
@@ -321,7 +321,7 @@ npm run review:inline-http-unit-executor -- \
 #### Adaptive Light Review verification (W-B-51)
 
 - 이미 구현 확인 — W-A-50 commit 33427df (shared-phenomenon §7 reverse application) 시점에 인프라 완성
-- `processes/review/review.md §1.5 Complexity Assessment` (lines 99-160): Q2/Q3 cheap trigger + Principal 확인 절차
+- `.onto/processes/review/review.md §1.5 Complexity Assessment` (lines 99-160): Q2/Q3 cheap trigger + Principal 확인 절차
 - `shared-phenomenon-contract.md §7 Reverse Application`: lens 선택 로직
 - `interpretation-contract.md §4.7 lens_selection_plan`: output schema
 - `review.md` Step 4 경량/전원 모드 분기 (lines 387-392), 세션 메타데이터 `review_mode: light | full`

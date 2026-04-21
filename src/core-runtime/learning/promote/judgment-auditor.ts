@@ -7,7 +7,7 @@
  *   - learn-phase3-design-v9.md DD-17 (carry-forward + expired_unattended ingress)
  *   - learn-phase3-design-v7.md DD-21 (AuditObligation encapsulation — this
  *     module transitions obligations exclusively through AuditObligation.transition())
- *   - processes/learn/promote.md Step 8 (judgment re-verification threshold)
+ *   - .onto/processes/learn/promote.md Step 8 (judgment re-verification threshold)
  *
  * Responsibility:
  *   - DD-13 P-14 pre-step: determine eligible agents for judgment audit

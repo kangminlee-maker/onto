@@ -101,5 +101,5 @@ review {target} @{domain}          Use as verification standard
 
 - README: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/README.md`
 - Authority docs: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/authority/`
-- Review contracts: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/processes/review/`
+- Review contracts: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/.onto/processes/review/`
 - Domain documents: `~/.onto/domains/`

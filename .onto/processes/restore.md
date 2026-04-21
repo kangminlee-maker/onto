@@ -28,7 +28,7 @@ If no backups exist: "No backups found. Create one with `/onto:backup`."
 
 Before restoring, automatically create a backup of the current state:
 
-1. Execute the backup process (processes/backup.md) with reason: `"pre-restore safety backup (before restoring {backup-id})"`
+1. Execute the backup process (.onto/processes/backup.md) with reason: `"pre-restore safety backup (before restoring {backup-id})"`
 2. Record the safety backup ID
 
 ### 2. Validation

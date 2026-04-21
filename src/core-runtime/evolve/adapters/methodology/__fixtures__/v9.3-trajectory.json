@@ -34,14 +34,14 @@
       ]
     },
     {
-      "source": "processes/reconstruct.md",
+      "source": ".onto/processes/reconstruct.md",
       "rank": 8,
       "relevant_rules": [
         "Phase 5에서 learn에 write (검증 에이전트 자동 저장)"
       ]
     },
     {
-      "source": "processes/review/review.md",
+      "source": ".onto/processes/review/review.md",
       "rank": 8,
       "relevant_rules": [
         "Newly Learned 섹션에서 learn 자동 생성"

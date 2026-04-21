@@ -24,7 +24,7 @@
 >    When conflicts arise, the primary sources take precedence:
 >    - Concepts: `authority/core-lexicon.yaml`
 >    - Principles: `design-principles/*.md`
->    - Contracts: `processes/{feature}/*.md`
+>    - Contracts: `.onto/processes/{feature}/*.md`
 >    - Operations: `process.md`
 >
 > 7. **Update rule**: When a primary source changes, this document must be updated accordingly.
@@ -44,8 +44,8 @@
 > | Section | Reliance level | Primary source |
 > |---|---|---|
 > | §3 Review Lenses | Derived | `authority/core-lens-registry.yaml`, `.onto/roles/*.md` |
-> | §4.1 Review flow | Derived | `processes/review/productized-live-path.md` |
-> | §4.3 Reconstruct flow | Surface summary | `processes/reconstruct.md` |
+> | §4.1 Review flow | Derived | `.onto/processes/review/productized-live-path.md` |
+> | §4.3 Reconstruct flow | Surface summary | `.onto/processes/reconstruct.md` |
 > | §5 Domain System | Derived | `process.md` Domain Documents section |
 > | §6 Learning System | Derived | `learning-rules.md` |
 > | §7 Execution Profile | Derived | `process.md` Agent Teams Execution section |
@@ -908,7 +908,7 @@ onto/
 │
 ├── development-records/     # Development history (not deployed)
 │
-├── processes/               # Process definitions
+├── .onto/processes/               # Process definitions
 │   └── review/              #   Review contracts and live path
 ├── .onto/roles/             # Lens role definitions (10) (Phase 3 layout)
 │   ├── logic.md ... axiology.md

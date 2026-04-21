@@ -135,7 +135,7 @@ concepts:
       and wrap-up (learning storage + team shutdown).
     relations:
       - executed_by: "agent panel"
-      - defined_at: "processes/review.md"
+      - defined_at: ".onto/processes/review.md"
       - produces: "review result"
       - triggers: "learning promotion (when learnings accumulate)"
     disambiguation: >
@@ -151,7 +151,7 @@ concepts:
       Simpler than team review; no Philosopher synthesis.
     relations:
       - executed_by: "verification agent (single)"
-      - defined_at: "processes/question.md"
+      - defined_at: ".onto/processes/question.md"
       - triggers: "learning promotion (when learnings accumulate)"
     disambiguation: >
       'Query' has homonym risk with 'ontology query' (SPARQL, competency question).
@@ -169,7 +169,7 @@ concepts:
     relations:
       - input: "non-ontology source"
       - executed_by: "agent panel (build mode)"
-      - defined_at: "processes/reconstruct.md"
+      - defined_at: ".onto/processes/reconstruct.md"
       - produces: "Raw Ontology (raw.yml)"
       - followed_by: "transform"
     disambiguation: >
@@ -185,7 +185,7 @@ concepts:
       information to the extent the target format allows.
     relations:
       - input: "Raw Ontology"
-      - defined_at: "processes/transform.md"
+      - defined_at: ".onto/processes/transform.md"
       - preceded_by: "ontology build"
     disambiguation: >
       Not 'convert' (transform implies structural reshaping, not just format change).
@@ -199,7 +199,7 @@ concepts:
       installs global domain documents, and optionally generates a
       domain_scope.md draft.
     relations:
-      - defined_at: "processes/onboard.md"
+      - defined_at: ".onto/processes/onboard.md"
       - creates: "project learning directory"
       - configures: "domain determination"
       - enables: "team review, individual query, ontology build"
@@ -217,7 +217,7 @@ concepts:
     relations:
       - input: "project-level learning"
       - output: "global-level learning"
-      - defined_at: "processes/learn/promote.md"
+      - defined_at: ".onto/processes/learn/promote.md"
       - preceded_by: "team review | individual query"
     disambiguation: >
       Not 'learning escalation' (no hierarchy of authority is involved).
@@ -920,7 +920,7 @@ concepts:
     relations:
       - assigned_by: "Explorer (stage 1) + verification agent (stage 2)"
       - levels: "observed, rationale-absent, inferred, ambiguous, not-in-source"
-      - defined_at: "processes/reconstruct.md (SSOT)"
+      - defined_at: ".onto/processes/reconstruct.md (SSOT)"
     disambiguation: >
       Not 'confidence' (implies probabilistic scoring).
       'Certainty' is categorical, not continuous.

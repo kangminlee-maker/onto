@@ -2,7 +2,7 @@
 
 > 이 문서는 운영 절차와 가변 경로를 소유한다. 원칙은 소유하지 않는다. shadow authority 금지.
 
-Common definitions referenced by each process file (`processes/`).
+Common definitions referenced by each process file (`.onto/processes/`).
 
 > Learning storage rules, consumption rules, and tag definitions are in `learning-rules.md`.
 > Teammates self-load `learning-rules.md` during context loading. Team lead references it when needed.
@@ -15,19 +15,19 @@ Common definitions referenced by each process file (`processes/`).
 
 | Process | File | Description | Related Processes |
 |---|---|---|---|
-| Onboarding | `processes/onboard.md` | Set up onto environment for a project | -> Review, Query |
-| Individual Query | `processes/question.md` | Ask a question to a single agent | Learning -> Promotion |
-| Team Review | `processes/review.md` | Agent panel review (Agent Teams) | Learning -> Promotion |
-| Ontology Build | `processes/reconstruct.md` | Build ontology from analysis target (Agent Teams) | -> Transform, Review |
-| Transform | `processes/transform.md` | Raw Ontology format conversion | Build -> |
-| Learning Promotion | `processes/learn/promote.md` | Learning Quality Assurance — 승격, 큐레이션, 감사. Canonical entrypoints: `onto promote` (Phase A analyze), `onto promote --apply <session>` (Phase B mutations), `onto reclassify-insights [--apply]` (insight role reclassification), `onto migrate-session-roots` (legacy layout migration). Slash command `/onto:promote` is the prompt-backed reference path. | Review/Query -> |
-| Domain Creation | `processes/create-domain.md` | Generate seed domain documents from minimal input | -> Feedback, Review |
-| Domain Feedback | `processes/feedback.md` | Feed learnings back into domain documents | Review/Query -> |
-| Domain Promotion | `processes/learn/promote-domain.md` | Promote seed domain to established | Feedback -> |
-| Data Backup | `processes/backup.md` | Snapshot onto user data for rollback | -> Restore |
-| Data Restore | `processes/restore.md` | Restore user data from backup | Backup -> |
-| Health Dashboard | `processes/learn/health.md` | Show learning pool health metrics | Standalone |
-| Design | `processes/evolve.md` | 온톨로지 기반 설계 — 기존 설계 대상에 새 영역 추가 (brownfield) | Build ->, -> Review |
+| Onboarding | `.onto/processes/onboard.md` | Set up onto environment for a project | -> Review, Query |
+| Individual Query | `.onto/processes/question.md` | Ask a question to a single agent | Learning -> Promotion |
+| Team Review | `.onto/processes/review.md` | Agent panel review (Agent Teams) | Learning -> Promotion |
+| Ontology Build | `.onto/processes/reconstruct.md` | Build ontology from analysis target (Agent Teams) | -> Transform, Review |
+| Transform | `.onto/processes/transform.md` | Raw Ontology format conversion | Build -> |
+| Learning Promotion | `.onto/processes/learn/promote.md` | Learning Quality Assurance — 승격, 큐레이션, 감사. Canonical entrypoints: `onto promote` (Phase A analyze), `onto promote --apply <session>` (Phase B mutations), `onto reclassify-insights [--apply]` (insight role reclassification), `onto migrate-session-roots` (legacy layout migration). Slash command `/onto:promote` is the prompt-backed reference path. | Review/Query -> |
+| Domain Creation | `.onto/processes/create-domain.md` | Generate seed domain documents from minimal input | -> Feedback, Review |
+| Domain Feedback | `.onto/processes/feedback.md` | Feed learnings back into domain documents | Review/Query -> |
+| Domain Promotion | `.onto/processes/learn/promote-domain.md` | Promote seed domain to established | Feedback -> |
+| Data Backup | `.onto/processes/backup.md` | Snapshot onto user data for rollback | -> Restore |
+| Data Restore | `.onto/processes/restore.md` | Restore user data from backup | Backup -> |
+| Health Dashboard | `.onto/processes/learn/health.md` | Show learning pool health metrics | Standalone |
+| Design | `.onto/processes/evolve.md` | 온톨로지 기반 설계 — 기존 설계 대상에 새 영역 추가 (brownfield) | Build ->, -> Review |
 
 ---
 
@@ -63,12 +63,12 @@ When adding or removing an agent, all of the following files must be updated:
 | 3 | `process.md` review lenses table | Add/delete row |
 | 4 | `process.md` domain document mapping | Add/delete row |
 | 5 | `process.md` teammate initial prompt mapping | Add/delete row |
-| 6 | `processes/review.md` review lens + synthesize file list | Add/delete path |
+| 6 | `.onto/processes/review.md` review lens + synthesize file list | Add/delete path |
 | 7 | `.onto/domains/*/` | Add/delete domain document template for the agent |
 | 8 | `BLUEPRINT.md` agent section | Add/delete description |
 | 9 | `README.md` directory tree | Add/delete filename |
 | 10 | learning-rules.md | Update if learning storage rules change |
-| 11 | `processes/reconstruct.md` Agent Configuration table + Phase 1.0 Team Composition + error handling "N lenses" prose | Update lens count references and lens list |
+| 11 | `.onto/processes/reconstruct.md` Agent Configuration table + Phase 1.0 Team Composition + error handling "N lenses" prose | Update lens count references and lens list |
 
 ### Touch Point Checklist for Adding/Removing Processes
 
@@ -76,7 +76,7 @@ When adding or removing a process, all of the following files must be updated:
 
 | # | File | Update Item |
 |---|------|----------|
-| 1 | `processes/{process-name}.md` | Create/delete process definition |
+| 1 | `.onto/processes/{process-name}.md` | Create/delete process definition |
 | 2 | `commands/{command-name}.md` | Create/delete command file |
 | 3 | `process.md` Process Map table | Add/delete row |
 | 4 | `process.md` Per-process domain resolution table | Add/delete row |
@@ -314,7 +314,7 @@ When TeamCreate fails, fall back to the Agent tool (subagent) approach. The **pu
 - Agent tool is used instead of TeamCreate/SendMessage.
 - Each Agent tool call includes the agent definition + context + task directives combined. (Since the teammate cannot self-load, the team lead includes the content directly.)
 - **File-based delivery applies identically**: Subagents also save results to files using the Write tool, and only return the path to the team lead. In review mode, `synthesize` also reads result files directly using the Read tool.
-- Cross-process lens-to-lens deliberation messaging is skipped (no SendMessage in this realization). `synthesize` still performs deliberation in-process per `processes/review/synthesize-prompt-contract.md` §6 — it re-reads contested lens outputs and the materialized input, then records resolutions in the Deliberation Decision section.
+- Cross-process lens-to-lens deliberation messaging is skipped (no SendMessage in this realization). `synthesize` still performs deliberation in-process per `.onto/processes/review/synthesize-prompt-contract.md` §6 — it re-reads contested lens outputs and the materialized input, then records resolutions in the Deliberation Decision section.
 - Content the team lead must include in each Agent tool call during fallback: agent definition + learning file (with axis tag filtering) + domain document + communication learning + task directives + **session path**. (All context must be included directly since self-loading is not possible.)
 
 ### Codex Execution Mode
@@ -328,7 +328,7 @@ When `execution_mode: codex` is set in config.yml or a `--codex` command flag is
 This scope will expand as Codex mode is validated in review.
 
 **Purpose and tradeoffs**:
-Codex mode delegates review passes to an external runtime (OpenAI Codex) to reduce Claude token consumption. The team lead coordination (~50-100k tokens) is the only Claude cost; all review lens passes and the synthesize stage run on Codex. Direct lens-to-lens exchange (Step 4 messaging in Agent Teams mode) is unavailable because Codex tasks are independent processes — but deliberation itself is not skipped. `synthesize` performs deliberation in-process by re-reading contested lens outputs against the materialized input and recording resolutions in the Deliberation Decision section. See `processes/review/synthesize-prompt-contract.md` §6.
+Codex mode delegates review passes to an external runtime (OpenAI Codex) to reduce Claude token consumption. The team lead coordination (~50-100k tokens) is the only Claude cost; all review lens passes and the synthesize stage run on Codex. Direct lens-to-lens exchange (Step 4 messaging in Agent Teams mode) is unavailable because Codex tasks are independent processes — but deliberation itself is not skipped. `synthesize` performs deliberation in-process by re-reading contested lens outputs against the materialized input and recording resolutions in the Deliberation Decision section. See `.onto/processes/review/synthesize-prompt-contract.md` §6.
 
 **Prerequisites**:
 - Codex CLI must be installed and authenticated. Verify via `/codex:setup`.
@@ -366,7 +366,7 @@ Codex mode delegates review passes to an external runtime (OpenAI Codex) to redu
 - Note: The Agent tool's `model` parameter only accepts Claude model names (sonnet/opus/haiku) and cannot pass Codex model names. The prompt text is the only delivery path.
 - If either is absent → omit from `[Codex Configuration]` (Codex uses `~/.codex/config.toml` or its own default).
 
-**Deliberation**: Performed by `synthesize` in-process. Lens-to-lens cross-process messaging is unavailable in Codex mode, so `synthesize` resolves contested points itself by re-reading the relevant lens outputs and the materialized input, then recording resolutions in the Deliberation Decision section. `deliberation_status` ends up `not_needed` (no contention) or `performed`. See `processes/review/synthesize-prompt-contract.md` §6.
+**Deliberation**: Performed by `synthesize` in-process. Lens-to-lens cross-process messaging is unavailable in Codex mode, so `synthesize` resolves contested points itself by re-reading the relevant lens outputs and the materialized input, then recording resolutions in the Deliberation Decision section. `deliberation_status` ends up `not_needed` (no contention) or `performed`. See `.onto/processes/review/synthesize-prompt-contract.md` §6.
 
 **Error handling**: Same 4-category classification as Agent Teams (process-halting / process-halting-with-partial-result / transient retry / graceful degradation). Differences:
 - Retry: re-spawn a new `codex:codex-rescue` Agent (not SendMessage).
@@ -462,7 +462,7 @@ The team lead is a **structure coordinator**. It manages the relationships betwe
 - Do not modify or summarize content when relaying collected results.
 - Do not inject own judgment into the review.
 - Do not cross-share results between teammates (to ensure independence).
-  - **Reconstruct mode exception**: For reconstruct process anonymized WIP sharing rules, refer to `processes/reconstruct.md`.
+  - **Reconstruct mode exception**: For reconstruct process anonymized WIP sharing rules, refer to `.onto/processes/reconstruct.md`.
 
 **Lifecycle management**: Creation -> task assignment -> error handling -> **full-member shutdown confirmation** -> shutdown.
 
@@ -500,7 +500,7 @@ Principal-facing translation happens at the Runtime Coordinator's render seat
 
 [Task Directives]
 {Per-process task directives — review target, system purpose, specific instructions}
-{For reconstruct process: The definitions of certainty levels (observed, rationale-absent, inferred, ambiguous, not-in-source) are defined in the "Certainty Classification (2-Stage Adjudication)" section of processes/reconstruct.md as the SSOT.}
+{For reconstruct process: The definitions of certainty levels (observed, rationale-absent, inferred, ambiguous, not-in-source) are defined in the "Certainty Classification (2-Stage Adjudication)" section of .onto/processes/reconstruct.md as the SSOT.}
 
 [Team Rules]
 - Save your review finding to {session path}/round1/{agent-id}.md using the Write tool.
@@ -571,7 +571,7 @@ Principal-facing translation happens at the Runtime Coordinator's render seat
 
 ### Subagent Fallback Synthesize Prompt Template
 
-Used when TeamCreate is unavailable and execution falls back to the Agent tool. The team lead resolves variables and passes this as the Agent tool's `prompt` parameter with `subagent_type: "general-purpose"` in **foreground** (not background). The dispatched subagent performs in-process deliberation per `processes/review/synthesize-prompt-contract.md` §6 — there is no cross-process Step 4 in this path.
+Used when TeamCreate is unavailable and execution falls back to the Agent tool. The team lead resolves variables and passes this as the Agent tool's `prompt` parameter with `subagent_type: "general-purpose"` in **foreground** (not background). The dispatched subagent performs in-process deliberation per `.onto/processes/review/synthesize-prompt-contract.md` §6 — there is no cross-process Step 4 in this path.
 
 Differences from the Codex Review Synthesize Prompt Template:
 - Self-loading uses the Read tool instead of Bash (`cat`).

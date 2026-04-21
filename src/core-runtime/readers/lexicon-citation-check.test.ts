@@ -46,7 +46,7 @@ describe("lexicon-citation-check", () => {
     const content = "drift_detector 를 사용합니다.";
 
     const violations = checkFileCitations(
-      "processes/reconstruct.md",
+      ".onto/processes/reconstruct.md",
       content,
       TERMS,
       { severity: "reject" },
@@ -81,7 +81,7 @@ describe("lexicon-citation-check", () => {
     const content = "review_record 를 참조한다.";
 
     const violations = checkFileCitations(
-      "processes/review.md",
+      ".onto/processes/review.md",
       content,
       TERMS,
     );

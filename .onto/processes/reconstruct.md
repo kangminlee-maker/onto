@@ -8,10 +8,10 @@
 
 ## Naming: reconstruct (activity + process + code)
 
-DL-013 activity taxonomy (2026-04-13) 이후 public activity name 은 **reconstruct** 로 통일되었고, W-A-77 (2026-04-14) rename 으로 process filename (`processes/reconstruct.md`) + slash command (`/onto:reconstruct`) + state machine 상수/타입/phase label (`RECONSTRUCT_TRANSITIONS` / `ReconstructState` / `reconstruct_exploring` / `reconstruct_failed` 등) 이 전수 정렬되었다. legacy `build` 토큰은 activity_enum.legacy_aliases 에만 alias 로 보존된다.
+DL-013 activity taxonomy (2026-04-13) 이후 public activity name 은 **reconstruct** 로 통일되었고, W-A-77 (2026-04-14) rename 으로 process filename (`.onto/processes/reconstruct.md`) + slash command (`/onto:reconstruct`) + state machine 상수/타입/phase label (`RECONSTRUCT_TRANSITIONS` / `ReconstructState` / `reconstruct_exploring` / `reconstruct_failed` 등) 이 전수 정렬되었다. legacy `build` 토큰은 activity_enum.legacy_aliases 에만 alias 로 보존된다.
 
 - **Activity name**: `reconstruct` (canonical, DL-013)
-- **Process filename**: `processes/reconstruct.md` (W-A-77 rename 완료, 2026-04-14)
+- **Process filename**: `.onto/processes/reconstruct.md` (W-A-77 rename 완료, 2026-04-14)
 - **CLI entry**: `.onto/commands/reconstruct.md` (W-A-74 DL-020 해소, 2026-04-14)
 - **CLI handler**: `src/core-runtime/evolve/commands/reconstruct.ts`
 
@@ -700,7 +700,7 @@ Information convergence = number of new facts in Explorer's reported delta = 0
 
 This section enumerates the reconstruct-specific keys. Definitions, valid
 values, defaults, and the full resolution chain (onto-home → project → CLI
-→ env var) for every OntoConfig key are in **`processes/configuration.md`**
+→ env var) for every OntoConfig key are in **`.onto/processes/configuration.md`**
 (canonical SSOT). The block below is a reconstruct-only excerpt for quick
 reference.
 
@@ -1718,17 +1718,17 @@ Save path:
 
 본 규칙은 domain-중립 canonical rule 이다. 구체 instance: BL-103 (Business 도메인 wave 3 교차 참조 + 글로벌 동기화). DL-010 `rule_to_instance` relation 이 BL-085(본 규칙) ↔ BL-103(instance) 의 연결을 유지한다.
 
-초기 생성 단계의 부분 검증은 `processes/create-domain.md §2 Reference Graph Validation` 이 소유한다. 본 규칙은 확장·후속 변경의 canonical seat 이다.
+초기 생성 단계의 부분 검증은 `.onto/processes/create-domain.md §2 Reference Graph Validation` 이 소유한다. 본 규칙은 확장·후속 변경의 canonical seat 이다.
 
 ### P-2. Structural Inspection Checklist Self-Referential Verification (자기 참조 검증)
 
-domain document 확장 직후 또는 domain document 변경 시, review 단계의 Structural Inspection Checklist (`processes/review/lens-prompt-contract.md §7`) 가 다음 3 점검 축을 포함함을 본 계약이 규정한다.
+domain document 확장 직후 또는 domain document 변경 시, review 단계의 Structural Inspection Checklist (`.onto/processes/review/lens-prompt-contract.md §7`) 가 다음 3 점검 축을 포함함을 본 계약이 규정한다.
 
 1. **분류 축 선언** (classification axis declaration) — 모든 domain document 가 분류 축을 명시하는가. 기존 SIC 항목 `axis explicitness` 가 이 점검을 수행한다
 2. **선언-실체 대응** (declaration-substance correspondence) — `domain_scope.md` 의 모든 sub-area 가 다른 domain document 에 실체 (rule, CQ, concept, extension case 등) 를 가지는가. 기존 SIC 항목 `ghost sub-area check` 가 이 점검을 수행한다
 3. **참조 무결성** (referential integrity) — cross-reference 가 실제 존재하는 섹션을 가리키는가. 기존 SIC 항목 `domain cross-reference validity` 가 이 점검을 수행한다
 
-본 규칙은 점검 **축** 의 canonical seat 이며, checklist 의 owner seat 는 `processes/review/lens-prompt-contract.md §7` 이다. 동일 점검 축이 다른 문서에 normative 로 존재하면 authority violation 이다.
+본 규칙은 점검 **축** 의 canonical seat 이며, checklist 의 owner seat 는 `.onto/processes/review/lens-prompt-contract.md §7` 이다. 동일 점검 축이 다른 문서에 normative 로 존재하면 authority violation 이다.
 
 실행 시점: domain document 변경 시 (매 reconstruct 세션 이 아님).
 

@@ -3,12 +3,12 @@
 > 상태: Active
 > 목적: prompt-backed review execution에서 생성되는 source artifact를 `리뷰 기록 (ReviewRecord)` field로 어떻게 매핑하는지 고정한다.
 > 기준 문서:
-> - `processes/review/record-contract.md`
-> - `processes/review/execution-preparation-artifacts.md`
-> - `processes/review/interpretation-contract.md`
-> - `processes/review/binding-contract.md`
-> - `processes/review/lens-prompt-contract.md`
-> - `processes/review/synthesize-prompt-contract.md`
+> - `.onto/processes/review/record-contract.md`
+> - `.onto/processes/review/execution-preparation-artifacts.md`
+> - `.onto/processes/review/interpretation-contract.md`
+> - `.onto/processes/review/binding-contract.md`
+> - `.onto/processes/review/lens-prompt-contract.md`
+> - `.onto/processes/review/synthesize-prompt-contract.md`
 
 ---
 
@@ -109,7 +109,7 @@ per_lens_provenance derive rule (schema_version 2 이후):
 
 lens_output_schema_version derive rule:
 
-- `processes/review/lens-prompt-contract.md` §8 Output Schema의 `schema_version`이 단일 canonical source이다
+- `.onto/processes/review/lens-prompt-contract.md` §8 Output Schema의 `schema_version`이 단일 canonical source이다
 - 현재 값은 `2`로 고정되어 있으며, prompt-backed assembly 시 assembler가 `lens-prompt-contract.md`의 이 값을 직접 기록한다
 - 각 `round1/{lens-id}.md`가 독자적으로 declare할 필요는 없다
 - future schema bump 시 `lens-prompt-contract.md` §8만 수정하면 mapping이 자동 전파된다

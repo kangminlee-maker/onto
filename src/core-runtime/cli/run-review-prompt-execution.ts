@@ -313,8 +313,8 @@ async function readStructuredDeliberationStatus(
   executionRealization: ReviewExecutionRealization,
 ): Promise<DeliberationStatus | null> {
   // Mirrors the precedence rule in `assemble-review-record.ts`
-  // (`detectDeliberationStatus`) per `processes/review/synthesize-prompt-contract.md`
-  // §6.4 and `processes/review/record-contract.md` §4.5:
+  // (`detectDeliberationStatus`) per `.onto/processes/review/synthesize-prompt-contract.md`
+  // §6.4 and `.onto/processes/review/record-contract.md` §4.5:
   //   1. synthesis.md frontmatter — primary for both realizations.
   //   2. realization-aware fallback when frontmatter is unavailable:
   //        - cross-process (agent-teams): deliberation.md presence ⇒ performed

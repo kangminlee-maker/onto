@@ -6,4 +6,4 @@ Plugin install resolves via `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}`. Set `O
 
 Read `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/process.md` (common definitions),
 `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/learning-rules.md` (learning storage rules), and
-`${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/processes/learn/promote.md`, then execute.
+`${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/.onto/processes/learn/promote.md`, then execute.

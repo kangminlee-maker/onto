@@ -6,13 +6,13 @@
  * A small pure function that aggregates the environmental signals relevant
  * to the review execution configuration (design doc §5.2, stages 1–4) into
  * a single `DetectedReviewAxes` result. The onboard prose flow
- * (`processes/onboard.md`) invokes this via `npm run onboard:detect-review-axes`
+ * (`.onto/processes/onboard.md`) invokes this via `npm run onboard:detect-review-axes`
  * and uses the printed JSON as the input to the subsequent interactive
  * questions (stages 5–7).
  *
  * # Why it exists
  *
- * Onboard is prose-driven: the LLM session reads `processes/onboard.md` and
+ * Onboard is prose-driven: the LLM session reads `.onto/processes/onboard.md` and
  * executes each stage textually. Stages 1–4 are purely automatic environment
  * probes, so pulling them into a single deterministic TS entry point keeps
  * the prose stage short ("run this script and read the JSON") and avoids
@@ -28,7 +28,7 @@
  * - Output: pure data (`DetectedReviewAxes`) — onboard prose renders it and
  *   asks the user axis-by-axis questions.
  * - Write-back seat: `write-review-block.ts` (sibling module).
- * - Consumed by: `processes/onboard.md` §§ 3.7/3.8 (added in P4).
+ * - Consumed by: `.onto/processes/onboard.md` §§ 3.7/3.8 (added in P4).
  */
 
 import {

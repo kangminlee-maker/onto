@@ -1,7 +1,7 @@
 /**
  * Learning pool health dashboard — pure aggregator and renderer.
  *
- * Design authority: processes/learn/health.md (rule owner)
+ * Design authority: .onto/processes/learn/health.md (rule owner)
  *
  * Responsibility:
  *   - Aggregate axis/purpose/type distribution, file size indicators,

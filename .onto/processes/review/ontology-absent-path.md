@@ -12,7 +12,7 @@ source_refs:
   w_id: "W-A-76 (DL-029 review-r− — ontology-absent path)"
   onto_direction: "development-records/evolve/20260413-onto-direction.md §1.4 — review 완료 기준 3: ontology 유무 경로 분기"
   dl_provenance: "DL-029 (DR-M06-04 Option A — r+/r− 2-path split)"
-  paired_contract: "processes/review/ontology-path.md (W-A-75, r+ path)"
+  paired_contract: ".onto/processes/review/ontology-path.md (W-A-75, r+ path)"
   classifier_impl: "src/core-runtime/review/ontology-path-classifier.ts"
   fallback_reader: "src/core-runtime/readers/scan-local.ts"
   upstream_metric_seat: "src/core-runtime/readers/review-log.ts (W-A-71 점진성 seat)"

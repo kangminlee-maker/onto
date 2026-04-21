@@ -157,17 +157,17 @@ Agent Teams 경로는 `onto coordinator start <target> <intent>` 형태로 별�
 
 Read the current repo copies of:
 - `AGENTS.md`
-- `processes/review/productized-live-path.md`
-- `processes/review/nested-spawn-coordinator-contract.md`
-- `processes/review/interpretation-contract.md`
-- `processes/review/binding-contract.md`
-- `processes/review/execution-preparation-artifacts.md`
-- `processes/review/lens-prompt-contract.md`
-- `processes/review/synthesize-prompt-contract.md`
-- `processes/review/prompt-execution-runner-contract.md`
-- `processes/review/record-contract.md`
-- `processes/review/record-field-mapping.md`
-- `processes/review/review.md`
+- `.onto/processes/review/productized-live-path.md`
+- `.onto/processes/review/nested-spawn-coordinator-contract.md`
+- `.onto/processes/review/interpretation-contract.md`
+- `.onto/processes/review/binding-contract.md`
+- `.onto/processes/review/execution-preparation-artifacts.md`
+- `.onto/processes/review/lens-prompt-contract.md`
+- `.onto/processes/review/synthesize-prompt-contract.md`
+- `.onto/processes/review/prompt-execution-runner-contract.md`
+- `.onto/processes/review/record-contract.md`
+- `.onto/processes/review/record-field-mapping.md`
+- `.onto/processes/review/review.md`
 
 **Execution procedure** (before starting the process):
 1. `onto review` auto-resolves execution realization via stay-in-host policy:

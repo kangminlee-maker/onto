@@ -88,9 +88,9 @@ describe("resolvePluginRelativePath", () => {
     try {
       process.env[ENV_ONTO_PLUGIN_DIR] = overridePath;
 
-      const result = resolvePluginRelativePath("processes/reconstruct.md");
+      const result = resolvePluginRelativePath(".onto/processes/reconstruct.md");
 
-      expect(result).toBe(path.join(overridePath, "processes/reconstruct.md"));
+      expect(result).toBe(path.join(overridePath, ".onto/processes/reconstruct.md"));
     } finally {
       rmSync(overridePath, { recursive: true, force: true });
     }
@@ -100,10 +100,10 @@ describe("resolvePluginRelativePath", () => {
     // Skip if real ~/.claude/plugins/onto/ exists in the test runner env.
     // We can't reliably test the "returns null" branch in CI environments
     // where Claude Code is installed.
-    const result = resolvePluginRelativePath("processes/reconstruct.md");
+    const result = resolvePluginRelativePath(".onto/processes/reconstruct.md");
     if (result !== null) {
       // Real install present — verify it ends with the relative path.
-      expect(result.endsWith("processes/reconstruct.md")).toBe(true);
+      expect(result.endsWith(".onto/processes/reconstruct.md")).toBe(true);
     }
   });
 });

@@ -5,7 +5,7 @@
  *   - learn-phase3-design-v9.md DD-1 (2-Phase + strict source-read-only Phase A)
  *   - learn-phase3-design-v5.md §1.3 Phase A canonical sequence
  *   - learn-phase3-design-v5.md DD-13/DD-19 (P-14 audit ordering + lineage)
- *   - processes/learn/promote.md Step 1~9
+ *   - .onto/processes/learn/promote.md Step 1~9
  *
  * Responsibility:
  *   - Strict source-read-only orchestration of Phase A:
@@ -139,7 +139,7 @@ function resolveAuditStatePath(config: RunPromoterConfig): string {
  * catches the same cases. Running a separate pre-analysis layer would create
  * two LLM call paths for the same axis with no coverage gain. Keeping the
  * function as an empty-result adapter rather than deleting it preserves the
- * §1~§9 step numbering documented in processes/learn/promote.md and leaves a named
+ * §1~§9 step numbering documented in .onto/processes/learn/promote.md and leaves a named
  * extension point for a future cheap-dedup pass if measurement ever proves
  * the panel is too expensive for this axis.
  */

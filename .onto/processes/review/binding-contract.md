@@ -3,7 +3,7 @@
 > 상태: Active
 > 목적: 현재 `onto` 프로토타입의 `/onto:review`가 `검토 해석 (InvocationInterpretation)` 다음에 수행해야 하는 `검토 고정 (InvocationBinding)` 책임을 고정한다.
 > 기준 문서:
-> - `processes/review/interpretation-contract.md`
+> - `.onto/processes/review/interpretation-contract.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -271,5 +271,5 @@ artifact seat를 포함한 deterministic shell materialization이다.
 이 문서 다음 단계는 아래다.
 
 1. `.onto/commands/review.md`에 interpretation -> binding 순서를 명시한다
-2. `processes/review/review.md` Step 0/1/1.5/2의 설명을 이 계약에 맞게 정리한다
+2. `.onto/processes/review/review.md` Step 0/1/1.5/2의 설명을 이 계약에 맞게 정리한다
 3. 이후 `lens prompt contract`와 `synthesize prompt contract`를 분리한다

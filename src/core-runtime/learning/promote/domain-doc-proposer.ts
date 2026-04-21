@@ -6,7 +6,7 @@
  *     (approved_promotion_id, target_doc, domain), instance_id ULID per
  *     generation, fan-out explicitly allowed)
  *   - learn-phase3-design-v6.md DD-19 (initial separation)
- *   - processes/learn/promote.md Step 7 (agent → target document routing)
+ *   - .onto/processes/learn/promote.md Step 7 (agent → target document routing)
  *
  * Responsibility (Phase A only):
  *   - Walk panel verdicts that reached promote consensus, filter to those

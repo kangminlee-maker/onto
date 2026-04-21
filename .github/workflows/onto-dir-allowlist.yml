@@ -16,5 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Guard logic self-test (fixture-based, no git index)
+        run: bash scripts/check-onto-allowlist.sh --self-test
+
       - name: Enforce .onto/ directory allowlist
         run: bash scripts/check-onto-allowlist.sh

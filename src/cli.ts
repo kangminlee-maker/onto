@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { resolveOntoHome } from "./core-runtime/discovery/onto-home.js";
@@ -618,6 +619,40 @@ async function handleInfo(ontoHome: string): Promise<number> {
   return 0;
 }
 
+/**
+ * Load KEY=VALUE pairs from a `.env` file into `process.env`, without
+ * overriding values already set by the invoking shell. Comments and
+ * blank lines are skipped; malformed lines are ignored defensively.
+ *
+ * Called at process start for `~/.onto/.env` (global profile) and
+ * `<cwd>/.onto/.env` (project profile), in that order. The project
+ * file's values take precedence over the global file's when both
+ * define the same key — but neither overrides the live shell env.
+ *
+ * Why not a dotenv package: keeping this inline avoids adding a
+ * runtime dep for ~15 lines of logic. If we ever need `.env.local`
+ * layering, variable expansion, or multiline-quoted values, reach
+ * for `dotenv` instead.
+ */
+function loadOntoEnvFile(filePath: string): void {
+  if (!fs.existsSync(filePath)) return;
+  let contents: string;
+  try {
+    contents = fs.readFileSync(filePath, "utf8");
+  } catch {
+    return;
+  }
+  for (const rawLine of contents.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq === -1) continue;
+    const key = line.slice(0, eq).trim();
+    if (!key || process.env[key] !== undefined) continue;
+    process.env[key] = line.slice(eq + 1);
+  }
+}
+
 async function main(): Promise<number> {
   await printOntoReleaseChannelNotice();
 
@@ -630,6 +665,11 @@ async function main(): Promise<number> {
 
   // Set ONTO_HOME so spawned processes inherit it
   process.env.ONTO_HOME = ontoHome;
+
+  // Auto-load onto's .env files (written by `onto install`).
+  // Global first so project overrides it; neither overrides the shell.
+  loadOntoEnvFile(path.join(os.homedir(), ".onto", ".env"));
+  loadOntoEnvFile(path.join(process.cwd(), ".onto", ".env"));
 
   switch (subcommand) {
     case "review":
@@ -690,6 +730,13 @@ async function main(): Promise<number> {
       return handleConfigCli(ontoHome, subcommandArgv);
     }
 
+    case "install": {
+      const { handleInstallCli } = await import(
+        "./core-runtime/install/cli.js"
+      );
+      return handleInstallCli(ontoHome, subcommandArgv);
+    }
+
     case "learn":
     case "build":
     case "ask":
@@ -727,6 +774,8 @@ async function main(): Promise<number> {
           "  reclassify-insights         Reclassify [insight] role tags",
           "  migrate-session-roots       Move pre-v3 sessions under review/",
           "  health [project]            Learning pool health dashboard (default: global)",
+          "  config [subcommand]         Inspect / edit onto config (show/set/edit/re-detect/validate)",
+          "  install                     First-run setup (profile, providers, auth)",
           "",
           "Options:",
           "  --onto-home <path>         Override onto installation directory",

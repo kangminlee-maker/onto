@@ -140,6 +140,64 @@ describe("spawnWatcherPane — prereq failure", () => {
   });
 });
 
+describe("spawnWatcherPane — ontoHome fallback", () => {
+  let projectFixture: Fixture;
+  let ontoHomeFixture: Fixture;
+  let envSnapshot: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    envSnapshot = saveEnv();
+    clearWatchedEnv();
+    process.env.ONTO_WATCHER_DRY_RUN = "1";
+    process.env.TMUX = "/tmp/tmux-1000/default,12345,0";
+  });
+  afterEach(() => {
+    restoreEnv(envSnapshot);
+    if (projectFixture) projectFixture.cleanup();
+    if (ontoHomeFixture) ontoHomeFixture.cleanup();
+  });
+
+  it("finds watcher script in ontoHome when projectRoot has none", () => {
+    // Regression guard for 2026-04-22 self-review finding: scripts/review-pr.sh
+    // puts config.yml + target.diff in an isolated tmp project-root that has
+    // no scripts/ subdirectory. Without ontoHome fallback the watcher would
+    // silently degrade to `watcher script not found` and emit the manual-hint
+    // branch instead of the intended dry-run detection.
+    projectFixture = mkProjectRoot(false); // no scripts/ in project
+    ontoHomeFixture = mkProjectRoot(true); // scripts/ present here
+    const result = spawnWatcherPane(
+      projectFixture.projectRoot,
+      projectFixture.sessionRoot,
+      ontoHomeFixture.projectRoot,
+    );
+    expect(result.spawned).toBe(true);
+    expect(result.mechanism).toBe("tmux");
+  });
+
+  it("prefers projectRoot over ontoHome when both have the script", () => {
+    projectFixture = mkProjectRoot(true);
+    ontoHomeFixture = mkProjectRoot(true);
+    const result = spawnWatcherPane(
+      projectFixture.projectRoot,
+      projectFixture.sessionRoot,
+      ontoHomeFixture.projectRoot,
+    );
+    expect(result.spawned).toBe(true);
+  });
+
+  it("still fails when neither projectRoot nor ontoHome has the script", () => {
+    projectFixture = mkProjectRoot(false);
+    ontoHomeFixture = mkProjectRoot(false);
+    const result = spawnWatcherPane(
+      projectFixture.projectRoot,
+      projectFixture.sessionRoot,
+      ontoHomeFixture.projectRoot,
+    );
+    expect(result.spawned).toBe(false);
+    expect(result.reason).toContain("watcher script not found");
+  });
+});
+
 describe("spawnWatcherPane — dry-run detection priority", () => {
   let fixture: Fixture;
   let envSnapshot: Record<string, string | undefined>;

@@ -52,10 +52,28 @@ export interface SpawnWatcherResult {
 export function spawnWatcherPane(
   projectRoot: string,
   sessionRoot: string,
+  ontoHome?: string,
 ): SpawnWatcherResult {
-  const watcherScript = path.join(projectRoot, "scripts", "onto-review-watch.sh");
+  // Resolution order for the watcher helper:
+  //   1. <projectRoot>/scripts/onto-review-watch.sh — co-located with the
+  //      review target (onto repo invocations, full-repo projects).
+  //   2. <ontoHome>/scripts/onto-review-watch.sh   — fallback when
+  //      projectRoot is an isolated workspace (e.g. scripts/review-pr.sh's
+  //      tmp dir that only carries .onto/config.yml + target) and the
+  //      watcher helper lives in the repo home.
+  // Without the fallback, any invocation with --project-root pointed at a
+  // non-repo location silently degrades to "watcher script not found"
+  // (observed 2026-04-22 self-review finding). The two-slot search keeps
+  // deterministic wrappers viable without forcing them to symlink or copy.
+  const candidates = [
+    path.join(projectRoot, "scripts", "onto-review-watch.sh"),
+  ];
+  if (ontoHome && ontoHome !== projectRoot) {
+    candidates.push(path.join(ontoHome, "scripts", "onto-review-watch.sh"));
+  }
+  const watcherScript = candidates.find((c) => fs.existsSync(c));
 
-  if (!fs.existsSync(watcherScript)) {
+  if (!watcherScript) {
     return { spawned: false, reason: "watcher script not found" };
   }
 

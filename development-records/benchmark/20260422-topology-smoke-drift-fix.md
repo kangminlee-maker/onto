@@ -39,7 +39,7 @@ D-1 smoke-topology 실행 (handoff memory `project_d1_smoke_topology_handoff.md`
 
 - **증상**: codex-main-subprocess 가 resolver 단계에서 `cc-teams-agent-subagent` 로 잘못 매칭
 - **원인**: 스크립트가 `CLAUDECODE` 만 unset, `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` 는 상속 — host-detection.ts:105-109 의 CLAUDE_ENV_SIGNALS 가 OR 조건으로 이 필드 하나만 있어도 claudeHost=true
-- **Fix**: 3 개 smoke (cc-main-agent-subagent, cc-main-codex-subprocess, codex-main-subprocess, codex-nested-subprocess) 의 `env -u` 에 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` 추가
+- **Fix**: 4 개 smoke (cc-main-agent-subagent, cc-main-codex-subprocess, codex-main-subprocess, codex-nested-subprocess) 의 `env -u` 에 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` 추가
 
 ### 3. Outer codex CLI flag 누락 (effort/model)
 
@@ -104,8 +104,8 @@ Drift #5 의 root cause 를 좁히기 위한 실험:
 기존 8 smoke 가 `--no-watch` 를 전달해 `spawn-watcher.ts` regression 을 catch 하지 못하는 blind spot 식별:
 
 - `spawn-watcher.ts` 에 `ONTO_WATCHER_DRY_RUN=1` env 지원 추가 (detection 만 하고 실제 osascript/tmux spawn skip)
-- `spawn-watcher.test.ts` 신규 (7 unit test) — detection priority 순서 + prereq 실패 case
-- `scripts/smoke-topology/watcher-spawn.sh` 신규 — codex-main-subprocess 경로 + dry-run env + "attached via" assertion (LLM 호출 약 7 call, 주체자 승인 시 실행)
+- `spawn-watcher.test.ts` 신규 (9 unit test) — detection priority 순서 + prereq 실패 + darwin platform gate
+- `scripts/smoke-topology/watcher-spawn.sh` 신규 — codex-main-subprocess 경로 + dry-run env + "detection via" assertion (dry-run 은 log verb 로 real attach 와 구분, LLM 호출 약 7 call, 주체자 승인 시 실행)
 
 ## 다음 세션 (별도 PR)
 

@@ -2023,6 +2023,8 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   const resolvedProjectRoot = path.resolve(
     readSingleOptionValueFromArgv(setup.startArgv, "project-root") ?? ".",
   );
+  const rawOntoHome = readSingleOptionValueFromArgv(setup.startArgv, "onto-home");
+  const resolvedOntoHome = rawOntoHome ? path.resolve(rawOntoHome) : undefined;
 
   const noWatch = hasOptionFlag(argv, "no-watch");
 
@@ -2057,7 +2059,11 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   // watcher to latch onto whichever session wrote `.latest-session` last.
   // Passing sessionRoot explicitly eliminates that race.
   if (!noWatch) {
-    const watcherResult = spawnWatcherPane(resolvedProjectRoot, sessionRoot);
+    const watcherResult = spawnWatcherPane(
+      resolvedProjectRoot,
+      sessionRoot,
+      resolvedOntoHome,
+    );
     if (watcherResult.spawned) {
       // Distinguish dry-run (mechanism detected, no osascript/tmux invoked)
       // from real attach (actual side pane / split / tab opened). Log

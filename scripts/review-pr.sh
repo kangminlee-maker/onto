@@ -12,11 +12,15 @@
 # Usage:
 #   bash scripts/review-pr.sh [GIT_REF_RANGE]
 #
-#   GIT_REF_RANGE defaults to `main..HEAD` — current branch vs main.
+#   GIT_REF_RANGE defaults to `main...HEAD` (three-dot, symmetric).
+#   This mirrors GitHub's PR diff semantics: changes on the right-hand
+#   side (HEAD) since its merge-base with main, so branches that
+#   diverged do not blame each other for mainline drift.
+#
 #   Explicit examples:
-#     bash scripts/review-pr.sh main..HEAD
-#     bash scripts/review-pr.sh main..feat/xyz
-#     bash scripts/review-pr.sh HEAD~3..HEAD
+#     bash scripts/review-pr.sh main...HEAD        # default
+#     bash scripts/review-pr.sh main...feat/xyz    # review feat/xyz as PR
+#     bash scripts/review-pr.sh HEAD~3..HEAD       # last 3 commits (two-dot)
 #
 # Fixed behaviour (not overridable here — edit the script if you
 # truly need a different setup rather than ad-hoc assembly):
@@ -41,8 +45,17 @@
 
 set -euo pipefail
 
-REF="${1:-main..HEAD}"
+REF="${1:-main...HEAD}"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Extract the right-hand ref from REF (`main...HEAD` → `HEAD`,
+# `main..feat/xyz` → `feat/xyz`). Used below for COMMIT_SHA metadata so
+# the review record points at the actually-reviewed commit, not the
+# current checkout. Falls back to HEAD when REF has no dot separator.
+RIGHT_REF="${REF##*[.]}"
+if [[ -z "${RIGHT_REF}" || "${RIGHT_REF}" == "${REF}" ]]; then
+  RIGHT_REF="HEAD"
+fi
 
 # ── Prereqs ────────────────────────────────────────────────────────────────
 if ! command -v codex >/dev/null 2>&1; then
@@ -88,8 +101,11 @@ review:
 review_mode: full
 EOF
 
-# Commit sha / intent for traceability in review-record.
-COMMIT_SHA="$(git -C "${REPO_ROOT}" rev-parse --short HEAD)"
+# Commit sha / intent for traceability in review-record. Record the
+# right-hand ref actually being reviewed (not unconditional HEAD) so
+# the metadata is meaningful when REF is e.g. `main...feat/xyz` and
+# HEAD is on a different branch.
+COMMIT_SHA="$(git -C "${REPO_ROOT}" rev-parse --short "${RIGHT_REF}")"
 INTENT="PR review (${REF} @ ${COMMIT_SHA})"
 
 # ── Execute ────────────────────────────────────────────────────────────────

@@ -36,7 +36,7 @@ import type {
   SubagentSpec,
   TeamleadSpec,
 } from "../discovery/config-chain.js";
-import { resolveConfigChain } from "../discovery/config-chain.js";
+import { resolveOrthogonalConfigChain } from "../discovery/config-chain.js";
 import {
   validateReviewConfig,
   type ValidationError,
@@ -118,7 +118,7 @@ async function handleShow(
   projectRoot: string,
 ): Promise<number> {
   try {
-    const merged = await resolveConfigChain(ontoHome, projectRoot);
+    const merged = await resolveOrthogonalConfigChain(ontoHome, projectRoot);
     const review = merged.review ?? {};
     const detection = detectReviewAxes().detected;
 
@@ -206,20 +206,24 @@ async function handleSet(
   projectRoot: string,
   argv: string[],
 ): Promise<number> {
-  if (argv.length < 2) {
+  // N2: require exactly two positional args. Previous `rest.join(" ")` relax
+  // accepted `onto config set foo a b c` as `value="a b c"` — surprising UX
+  // given that no supported path takes a space-containing value in practice.
+  // Values that legitimately contain spaces (e.g. quoted effort strings) are
+  // still received as a single argv slot because the shell already split them.
+  if (argv.length !== 2) {
     console.error(
-      "error: `onto config set` requires <key> and <value> arguments. " +
-        "Run `onto config --help` for usage.",
+      "error: `onto config set` requires exactly <key> and <value>. " +
+        "Quote values that contain spaces. Run `onto config --help` for usage.",
     );
     return 1;
   }
-  const [key, ...rest] = argv;
-  const value = rest.join(" ");
+  const [key, value] = argv as [string, string];
 
   try {
     const configPath = path.join(projectRoot, ".onto", "config.yml");
     const merged = await readProjectReviewBlock(configPath);
-    const mutation = applySet(merged, key as string, value);
+    const mutation = applySet(merged, key, value);
     if (!mutation.ok) {
       console.error(`error: ${mutation.error}`);
       return 1;
@@ -325,7 +329,7 @@ async function handleRedetect(
   ontoHome: string,
   projectRoot: string,
 ): Promise<number> {
-  const merged = await resolveConfigChain(ontoHome, projectRoot);
+  const merged = await resolveOrthogonalConfigChain(ontoHome, projectRoot);
   const review = merged.review ?? {};
   const detection = detectReviewAxes().detected;
 
@@ -369,7 +373,7 @@ async function handleValidate(
   ontoHome: string,
   projectRoot: string,
 ): Promise<number> {
-  const merged = await resolveConfigChain(ontoHome, projectRoot);
+  const merged = await resolveOrthogonalConfigChain(ontoHome, projectRoot);
   const review = merged.review ?? {};
   const detection = detectReviewAxes().detected;
 
@@ -417,8 +421,19 @@ async function readProjectReviewBlock(
     const { parse } = await import("yaml");
     const doc = parse(raw) as { review?: unknown } | null;
     if (!doc || typeof doc !== "object") return {};
+    if (doc.review === undefined) return {};
     const validation = validateReviewConfig(doc.review);
-    return validation.ok ? validation.config : {};
+    if (validation.ok) return validation.config;
+    // N1: surface the invalid state before proceeding. Without this the set /
+    // edit flows would silently start from an empty config, overwriting
+    // partially-typed garbage on next save with no operator awareness.
+    process.stderr.write(
+      "[onto:config] warning: existing review block in config is invalid — starting from empty state\n",
+    );
+    for (const err of validation.errors) {
+      process.stderr.write(`  - ${err.path}: ${err.message}\n`);
+    }
+    return {};
   } catch {
     return {};
   }

@@ -266,6 +266,13 @@ reasoning_effort 등) 중 하나라도 project 에 선언되어 있으면 projec
 소유권을 주장하고, 그렇지 않으면 home 이 채택됩니다. 여러 프로젝트에서 공통
 provider 설정을 공유하고 싶다면 home config 에만 두면 됩니다.
 
+해당 동작의 테스트 스냅샷:
+`src/core-runtime/discovery/config-profile.test.ts` §"adoptProfile —
+decision branches" (7 decision case), 및
+`src/core-runtime/discovery/config-chain.test.ts` §"resolveConfigChain —
+P9.5 legacy field graceful ignore" (legacy-only home + absent project 를
+포함한 4 regression case).
+
 ## 6. Reference
 
 - Sketch v3: `development-records/evolve/20260418-execution-topology-priority-sketch.md`

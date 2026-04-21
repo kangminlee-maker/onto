@@ -44,20 +44,32 @@ P9 track 은 이 runtime layer 를 단계적으로 제거하여 resolver 의 uni
 
 ## 3. 누적 diff
 
-| PR | +lines | -lines | net |
-|---|---|---|---|
-| #161 (P9.1) | — | — | (legacy removal) |
-| #162 (P9.2) | — | — | (field removal) |
-| #163 (P9.3) | — | — | (always-on dispatch) |
-| #164 (P9.3 m1) | +217 | −19 | +198 |
-| #165 (P9.4) | +310 | −521 | −211 |
-| #166 (P9.5) | +202 | −573 | −371 |
-| #THIS (P9.6) | sweep only | | doc/lexicon |
+`gh pr view` 로 조회한 각 PR 의 총 additions / deletions (테스트·JSDoc·
+주석 포함):
 
-총 주요 삭제분 ~1,700 줄 + 추가 ~800 줄 (테스트 + JSDoc + wrap-up).
-**순 감소 약 ~900 줄**. Review UX Redesign track 전체 (#152~#166, 15 PRs)
-기준으로는 6,743 / −364 (P1~P7) + P8 36 tests + P9 복합 = 40+ unique files
-손질.
+| PR | +lines | −lines | net | files |
+|---|---|---|---|---|
+| #161 (P9.1) | +541 | −620 | **−79** | 8 |
+| #162 (P9.2) | +397 | −418 | **−21** | 16 |
+| #163 (P9.3) | +166 | −99 | **+67** | 3 |
+| #164 (P9.3 m1) | +217 | −19 | **+198** | 2 |
+| #165 (P9.4) | +310 | −521 | **−211** | 5 |
+| #166 (P9.5) | +202 | −573 | **−371** | 9 |
+| #THIS (P9.6) | +224 | −14 | **+210** | 6 |
+| **합계** | **+2,057** | **−2,264** | **−207** | |
+
+순 감소 **~207 줄**. 절대치는 작아 보이지만 변경 범위는 45+ unique file
+에 걸치고 (중복 제외), 제거된 **모듈 단위** 는 `legacy-field-deprecation.ts`
+(233+252 줄), `buildBothIncompleteError` / `validateProfileCompleteness` /
+`buildProjectIncompleteNotice` / `summarizeProfile` 4 함수, resolver
+ladder loop + `DEFAULT_TOPOLOGY_PRIORITY` export, `OntoConfig` 의
+legacy field 2 종. 동시에 도입된 것은 discriminated union typing
+(ProfileAdoption), resolver caching (P9.3 m1 +198), wrap-up 문서
+(+197 in P9.6) 로, 제거량을 일부 상쇄.
+
+Review UX Redesign track 전체 (#152~#166, 15 PRs) 누적 관점에서 보면
+P1~P7 prose+code (6,743 / −364) + P8 audit tests + P9 runtime cleanup
+(**+2,057 / −2,264**) = 40+ unique file 손질.
 
 ## 4. Post-P9 runtime 상태
 
@@ -106,7 +118,7 @@ Legacy 필드가 YAML 에 남아있으면:
 | 빈 config | `buildBothIncompleteError` throw (4-option guide) | `buildNoHostReason` / `buildNoHostDetectedError` (6-option guide) |
 | Legacy-only + codex reachable | `LegacyFieldRemovedError` throw | review 정상 실행 (auto-detect routing) |
 | Legacy-only + no host | `LegacyFieldRemovedError` throw | `no_host` 6-option guide (migration 옵션 포함) |
-| Partial project + complete home | STDERR notice + home 채택 | silent home 채택 |
+| Partial project (profile touched, review 블록 없음) + complete home | STDERR notice + home 채택 (`validateProfileCompleteness`=incomplete 판정) | silent project 채택 (`claimsProfileOwnership` 이 `hasAnyProfileField` 으로 ownership 인정 → project 가 이긴다. 사용자가 home 으로 폴백하려면 project profile 필드를 모두 제거해야 함) |
 
 ## 5. 핵심 교훈
 

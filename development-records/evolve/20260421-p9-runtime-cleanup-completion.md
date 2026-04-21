@@ -55,21 +55,30 @@ P9 track 은 이 runtime layer 를 단계적으로 제거하여 resolver 의 uni
 | #164 (P9.3 m1) | +217 | −19 | **+198** | 2 |
 | #165 (P9.4) | +310 | −521 | **−211** | 5 |
 | #166 (P9.5) | +202 | −573 | **−371** | 9 |
-| #THIS (P9.6) | +224 | −14 | **+210** | 6 |
-| **합계** | **+2,057** | **−2,264** | **−207** | |
+| **P9.1~P9.5 subtotal** | **+1,833** | **−2,250** | **−417** | 43 |
+| #167 (P9.6, 이 PR) | — | — | self-reporting | 6+ |
 
-순 감소 **~207 줄**. 절대치는 작아 보이지만 변경 범위는 45+ unique file
-에 걸치고 (중복 제외), 제거된 **모듈 단위** 는 `legacy-field-deprecation.ts`
-(233+252 줄), `buildBothIncompleteError` / `validateProfileCompleteness` /
+P9.6 는 자기 자신의 line count 를 기록하려면 circular reference 가 발생
+하므로 (wrap-up 안의 표가 wrap-up 크기를 결정) squash-merge commit 의
+실제 diff 를 canonical 로 둡니다. 대략 +250 additions 중 본 wrap-up
+문서가 ~200 줄 차지하며, 실질 prose/fixture 수정은 ~40 줄 수준.
+
+P9.1~P9.5 subtotal **−417 줄** 이 runtime 코드층의 실효 감소분. 제거된
+**모듈 단위** 는 `legacy-field-deprecation.ts` (233+252 줄),
+`buildBothIncompleteError` / `validateProfileCompleteness` /
 `buildProjectIncompleteNotice` / `summarizeProfile` 4 함수, resolver
 ladder loop + `DEFAULT_TOPOLOGY_PRIORITY` export, `OntoConfig` 의
 legacy field 2 종. 동시에 도입된 것은 discriminated union typing
-(ProfileAdoption), resolver caching (P9.3 m1 +198), wrap-up 문서
-(+197 in P9.6) 로, 제거량을 일부 상쇄.
+(ProfileAdoption), resolver caching (P9.3 m1 +198), 신규 invariant
+regression tests (config-chain.test.ts 등). 원시 line-count 는 모듈
+제거의 구조적 의미를 충분히 반영하지 못함 — "절대 감소량" 보다 "제거된
+decision surface 수" (config-chain throw path, `validateProfileCompleteness`
+gate, legacy detection module) 가 본 track 의 실제 simplification.
 
-Review UX Redesign track 전체 (#152~#166, 15 PRs) 누적 관점에서 보면
-P1~P7 prose+code (6,743 / −364) + P8 audit tests + P9 runtime cleanup
-(**+2,057 / −2,264**) = 40+ unique file 손질.
+Review UX Redesign track 전체 (#152~#167, 16 PRs) 누적 관점: P1~P7
+prose+code (6,743 / −364) + P8 audit tests + P9 runtime cleanup
+(**+1,833 / −2,250 = −417 subtotal**) + P9.6 sweep = 45+ unique
+file 손질.
 
 ## 4. Post-P9 runtime 상태
 

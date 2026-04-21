@@ -208,25 +208,12 @@ The `review:` block declares **6 user-facing axes**. Runtime derives one of 6 in
 
 Design-integrity audit: `development-records/audit/20260421-shape-pipeline-audit.md`.
 
-### Legacy execution profile (deprecated — backward compat through P7)
-
-```yaml
-# Still accepted but superseded by the review: block above.
-execution_topology_priority:      # sketch v3 (PR #98~#111, 2026-04-18)
-  - cc-main-agent-subagent
-  - codex-main-subprocess
-# execution_realization / host_runtime / api_provider — error-stage (PR-J).
-```
-
-`execution_topology_priority` continues to work if `review:` is absent.
-When both are present, `review:` wins (axis-first branch). Migration
-instructions: `docs/topology-migration-guide.md` §7.
-
-Original 3-canonical-path guidance (2026-04-13):
-- **Codex CLI**: via `onto review ... --codex`. Subsumed by `subagent.provider=codex` in the new block.
-- **Agent Teams nested spawn**: via `onto coordinator start` from Claude Code. Subsumed by `main-teams_native` shape (Claude host + teams env + main-native subagent).
-
-Claude CLI subagent, API executor, and 3-Tier fallback paths were removed 2026-04-13.
+> **Legacy execution profile removed from prose (P7, 2026-04-21)** — The
+> `execution_topology_priority` ladder and the pre-redesign 3-canonical-path
+> guidance (Codex CLI / Agent Teams nested / Main-session direct) are
+> consolidated into the `review:` axis block above. `execution_topology_priority`
+> still loads as a last-resort runtime fallback until the planned "P9 runtime
+> legacy cleanup" PR. Migration: `docs/topology-migration-guide.md` §7.
 
 ## Agent Configuration
 

@@ -63,10 +63,9 @@ describe("PR_B_SUPPORTED_TOPOLOGIES", () => {
     expect(PR_B_SUPPORTED_TOPOLOGIES.has("codex-nested-subprocess")).toBe(false);
   });
 
-  it("does NOT include generic-* (future scope)", () => {
-    expect(PR_B_SUPPORTED_TOPOLOGIES.has("generic-nested-subagent")).toBe(false);
-    expect(PR_B_SUPPORTED_TOPOLOGIES.has("generic-main-subagent")).toBe(false);
-  });
+  // P7 (2026-04-21): generic-* removed entirely from TopologyId enum.
+  // Previous test "does NOT include generic-*" is no longer meaningful —
+  // the type system now prevents generic-* from existing anywhere.
 });
 
 // ---------------------------------------------------------------------------
@@ -164,11 +163,9 @@ describe("mapTopologyToExecutorConfig — unsupported", () => {
     ).toThrow(TopologyExecutorMappingError);
   });
 
-  it("generic-nested-subagent throws (reserved)", () => {
-    expect(() =>
-      mapTopologyToExecutorConfig(synthesize("generic-nested-subagent"), FAKE_ONTO_HOME),
-    ).toThrow(TopologyExecutorMappingError);
-  });
+  // P7 (2026-04-21): generic-* removed from TopologyId. Their "reserved"
+  // guard is no longer needed — the type system prevents the values from
+  // appearing at all.
 
   it("error message lists all PR-B supported ids for discoverability", () => {
     try {
@@ -208,10 +205,8 @@ describe("hasStandaloneLensExecutor", () => {
     expect(hasStandaloneLensExecutor(synthesize("cc-teams-lens-agent-deliberation"))).toBe(false);
   });
 
-  it("generic-subagent mechanisms do NOT have a TS executor binary", () => {
-    expect(hasStandaloneLensExecutor(synthesize("generic-nested-subagent"))).toBe(false);
-    expect(hasStandaloneLensExecutor(synthesize("generic-main-subagent"))).toBe(false);
-  });
+  // P7 (2026-04-21): generic-subagent mechanism tests removed along with
+  // generic-* TopologyId values.
 });
 
 // ---------------------------------------------------------------------------

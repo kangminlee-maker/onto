@@ -25,7 +25,6 @@
  *                                   Claude coordinator subagent spawns
  *                                   lens subagents via its own Agent tool)
  *   - `claude-teamcreate-member`  → PR-D (SendMessage A2A lifecycle)
- *   - `generic-subagent`          → future (generic host adapter)
  *
  * # How it relates
  *
@@ -163,7 +162,7 @@ function inlineHttpExecutorConfig(ontoHome: string): ReviewUnitExecutorConfig {
  *   - The topology id is not in `PR_B_SUPPORTED_TOPOLOGIES` (caller should
  *     not reach this function for unsupported ids; guard upstream).
  *   - The lens_spawn_mechanism requires a TS-invisible dispatch path
- *     (`claude-agent-tool`, `claude-teamcreate-member`, `generic-subagent`) —
+ *     (`claude-agent-tool`, `claude-teamcreate-member`) —
  *     these are not subprocess executors; see `hasStandaloneLensExecutor`.
  *
  * For topologies where the subagent_llm config contributes (litellm path),
@@ -200,11 +199,6 @@ export function mapTopologyToExecutorConfig(
         topology.id,
         "claude-teamcreate-member lens spawn 은 PR-D 에서 제공 예정 " +
           "(SendMessage A2A deliberation lifecycle).",
-      );
-    case "generic-subagent":
-      throw new TopologyExecutorMappingError(
-        topology.id,
-        "generic-subagent adapter 는 아직 설계 단계 (sketch v3 §8 TBD).",
       );
   }
 }

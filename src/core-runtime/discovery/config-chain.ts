@@ -170,25 +170,23 @@ export interface OntoConfig {
   };
 
   /**
-   * Execution topology priority (sketch v3 / PR-A, 2026-04-18).
+   * @deprecated (P7, 2026-04-21) — Superseded by the `review:` axis block
+   * (`OntoReviewConfig`). The axis-first resolver branch always runs first
+   * and produces a topology via shape derivation; this legacy priority
+   * ladder is retained as a last-resort fallback only when the axis-first
+   * path + P3 universal fallback both fail to produce a TopologyId.
    *
-   * Ordered array of canonical topology ids (e.g. "cc-main-agent-subagent",
-   * "codex-nested-subprocess"). `resolveExecutionTopology` walks this list
-   * top-to-bottom, selecting the first option whose detection signals
-   * (CLAUDECODE, codex binary, LiteLLM endpoint, etc.) are satisfied.
+   * Runtime removal is planned for a follow-up PR ("P9 runtime legacy
+   * cleanup"). Existing configs will continue to load until then — see
+   * `docs/topology-migration-guide.md` §7 for migration steps and
+   * `src/core-runtime/review/review-config-legacy-translate.ts` for the
+   * automatic translator.
    *
-   * When unset, `DEFAULT_TOPOLOGY_PRIORITY` in
-   * `src/core-runtime/review/execution-topology-resolver.ts` applies.
-   *
-   * Valid ids (sketch v3 §3):
-   *   cc-teams-lens-agent-deliberation, cc-teams-agent-subagent,
-   *   cc-teams-codex-subprocess, cc-main-agent-subagent,
-   *   cc-main-codex-subprocess, cc-teams-litellm-sessions,
-   *   codex-nested-subprocess, codex-main-subprocess,
-   *   generic-nested-subagent, generic-main-subagent
-   *
-   * Orthogonal to the provider profile: this field does not participate
-   * in atomic profile adoption (see `discovery/config-profile.ts`).
+   * Valid ids (post-P7): cc-teams-lens-agent-deliberation,
+   * cc-teams-agent-subagent, cc-teams-codex-subprocess,
+   * cc-main-agent-subagent, cc-main-codex-subprocess,
+   * cc-teams-litellm-sessions, codex-nested-subprocess,
+   * codex-main-subprocess. (`generic-*` removed in P7.)
    */
   execution_topology_priority?: string[];
 
@@ -205,18 +203,6 @@ export interface OntoConfig {
    * profile (see `config-profile.ts` PROFILE_FIELDS).
    */
   lens_agent_teams_mode?: boolean;
-
-  /**
-   * Principal declaration that the host LLM supports nested subagent
-   * spawning (sketch v3 §4). When `true`, `generic-nested-subagent`
-   * becomes eligible in the topology ladder.
-   *
-   * Defaults to `false`. The generic host adapter contract is reserved
-   * (sketch v3 §8 TBD) and pending separate design.
-   *
-   * Profile-coupled: capability declarations belong to the active profile.
-   */
-  generic_nested_spawn_supported?: boolean;
 
   /**
    * Per-topology `max_concurrent_lenses` override. Other topology

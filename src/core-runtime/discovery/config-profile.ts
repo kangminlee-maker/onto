@@ -60,18 +60,19 @@ export const PROFILE_FIELDS = new Set<keyof OntoConfig>([
   "codex",
   "subagent_llm",
   "main_llm",
-  // Sketch v3 / PR-A (2026-04-18). `lens_agent_teams_mode` and
-  // `generic_nested_spawn_supported` are capability declarations that
-  // must stay paired with the provider profile that claimed them —
-  // e.g. a project declaring `lens_agent_teams_mode: true` commits the
-  // whole profile to the 1-0 deliberation topology. Allowing a
-  // frankenstein merge (project declares the flag, global supplies the
+  // Sketch v3 / PR-A (2026-04-18). `lens_agent_teams_mode` is a capability
+  // declaration that must stay paired with the provider profile that
+  // claimed it — e.g. a project declaring `lens_agent_teams_mode: true`
+  // commits the whole profile to the 1-0 deliberation topology. Allowing
+  // a frankenstein merge (project declares the flag, global supplies the
   // actual provider) would reintroduce the silent-divergence class PR-1
   // just closed. `execution_topology_priority` and
   // `execution_topology_overrides` stay orthogonal because they only
   // reorder/tune existing options, not declare new capability.
+  //
+  // P7 (2026-04-21): `generic_nested_spawn_supported` removed along with
+  // the `generic-*` TopologyIds it gated.
   "lens_agent_teams_mode",
-  "generic_nested_spawn_supported",
 ]);
 
 /**

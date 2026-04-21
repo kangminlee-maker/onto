@@ -162,25 +162,43 @@ async function archiveOuterStreams(
 /**
  * Resolve the `model` / `effort` to pass to the codex-nested orchestrator.
  *
- * Review UX Redesign P2 moved user-facing config into `review:` axis block,
- * but `codex-nested-dispatch` was still reading the legacy top-level
- * `codex.*` / top-level `model` / `reasoning_effort`. When a smoke script
- * (or real user) puts `effort: medium` under `review.subagent` (the P2
- * canonical location), it silently fell through here and the nested codex
- * ran with `~/.codex/config.toml` defaults (often `xhigh`), causing outer
- * teamlead timeouts during multi-lens dispatch.
+ * # Single knob, deliberate
  *
- * Resolution priority (highest first):
- *   1. `review.subagent` when `provider === "codex"` — the P2 canonical
- *      location for the spawn target's config.
- *   2. `review.teamlead.model` when it is an explicit `{ provider: "codex" }`
- *      spec — relevant for ext-teamlead_native (codex-nested-subprocess)
- *      where teamlead and subagent are the same codex provider.
+ * The orchestrator's `runCodexNestedTeamlead` currently accepts ONE
+ * `{ model, reasoning_effort }` pair and applies it to both the outer
+ * codex teamlead AND every inner codex lens subprocess. For the
+ * `codex-nested-subprocess` topology this is by design: the shape is
+ * `ext-teamlead_native` (external codex teamlead + nested codex lens),
+ * so teamlead and subagent ARE the same provider. Splitting the knob
+ * would be possible (separate `outer_*` / `inner_*` inputs), but
+ * would create four config-shape combinations that need to agree or
+ * error, for no empirical benefit observed in any current topology.
+ *
+ * # Resolution priority (highest first)
+ *
+ *   1. `review.subagent` when `provider === "codex"` — the P2
+ *      canonical location for the spawn target's config. In
+ *      `ext-teamlead_native` this single seat steers both outer and
+ *      inner codex.
+ *   2. `review.teamlead.model` when it is an explicit
+ *      `{ provider: "codex" }` spec — fallback when subagent is
+ *      `main-native` or absent but teamlead is an external codex.
  *   3. Legacy top-level `codex.*` — pre-P2 configs still in the wild.
  *   4. Legacy top-level `model` / `reasoning_effort` — even older shape.
  *
- * Returns `{}` when nothing resolves — caller omits both fields from the
- * orchestrator input (codex picks its own defaults).
+ * # Why P2 moved it + why this bridge exists
+ *
+ * Review UX Redesign P2 moved user-facing config into `review:` axis
+ * block, but `codex-nested-dispatch` initially kept reading only the
+ * legacy top-level `codex.*`. When a smoke script (or real principal)
+ * put `effort: medium` under `review.subagent` (the P2 canonical
+ * location), it silently fell through and the nested codex ran with
+ * `~/.codex/config.toml` defaults (often `xhigh`), causing outer
+ * teamlead timeouts during multi-lens dispatch (2026-04-22 D-1 smoke
+ * drift). This helper bridges the generation gap.
+ *
+ * Returns `{}` when nothing resolves — caller omits both fields from
+ * the orchestrator input (codex picks its own defaults).
  */
 export function resolveCodexSpawnConfig(
   config: OntoConfig,

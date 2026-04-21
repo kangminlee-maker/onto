@@ -48,6 +48,25 @@ function mkProjectRoot(withWatcherScript: boolean): Fixture {
 }
 
 // ---------------------------------------------------------------------------
+// Platform stubbing — iTerm2 / Apple Terminal branches gate on
+// `process.platform === "darwin"`. Tests must match so they exercise
+// the same branches regardless of the host OS running vitest.
+// ---------------------------------------------------------------------------
+
+function stubDarwin(): () => void {
+  const original = Object.getOwnPropertyDescriptor(process, "platform");
+  Object.defineProperty(process, "platform", {
+    value: "darwin",
+    configurable: true,
+  });
+  return () => {
+    if (original) {
+      Object.defineProperty(process, "platform", original);
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Env stubbing — save + restore the env vars `spawnWatcherPane` inspects.
 // ---------------------------------------------------------------------------
 
@@ -124,14 +143,20 @@ describe("spawnWatcherPane — prereq failure", () => {
 describe("spawnWatcherPane — dry-run detection priority", () => {
   let fixture: Fixture;
   let envSnapshot: Record<string, string | undefined>;
+  let restorePlatform: () => void;
 
   beforeEach(() => {
     envSnapshot = saveEnv();
     clearWatchedEnv();
     fixture = mkProjectRoot(true);
     process.env.ONTO_WATCHER_DRY_RUN = "1";
+    // spawn-watcher's iTerm2 and Apple Terminal branches require
+    // process.platform === "darwin". Stub so the tests exercise the
+    // intended branches on any host OS.
+    restorePlatform = stubDarwin();
   });
   afterEach(() => {
+    restorePlatform();
     restoreEnv(envSnapshot);
     if (fixture) fixture.cleanup();
   });
@@ -141,6 +166,7 @@ describe("spawnWatcherPane — dry-run detection priority", () => {
     const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
     expect(result.spawned).toBe(true);
     expect(result.mechanism).toBe("tmux");
+    expect(result.dry_run).toBe(true);
   });
 
   it("detects iTerm2 when TERM_PROGRAM=iTerm.app AND ITERM_SESSION_ID is set (priority 2)", () => {
@@ -149,6 +175,7 @@ describe("spawnWatcherPane — dry-run detection priority", () => {
     const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
     expect(result.spawned).toBe(true);
     expect(result.mechanism).toBe("iterm2");
+    expect(result.dry_run).toBe(true);
   });
 
   it("detects Apple Terminal when TERM_PROGRAM=Apple_Terminal (priority 3)", () => {
@@ -156,6 +183,7 @@ describe("spawnWatcherPane — dry-run detection priority", () => {
     const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
     expect(result.spawned).toBe(true);
     expect(result.mechanism).toBe("apple_terminal");
+    expect(result.dry_run).toBe(true);
   });
 
   it("prefers tmux over iTerm2 when both signals present (priority order)", () => {
@@ -175,5 +203,66 @@ describe("spawnWatcherPane — dry-run detection priority", () => {
     const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
     expect(result.spawned).toBe(false);
     expect(result.reason).toContain("no supported terminal multiplexer");
+  });
+});
+
+describe("spawnWatcherPane — darwin platform gate", () => {
+  let fixture: Fixture;
+  let envSnapshot: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    envSnapshot = saveEnv();
+    clearWatchedEnv();
+    fixture = mkProjectRoot(true);
+    process.env.ONTO_WATCHER_DRY_RUN = "1";
+  });
+  afterEach(() => {
+    restoreEnv(envSnapshot);
+    if (fixture) fixture.cleanup();
+  });
+
+  it("iTerm2 branch skips when process.platform !== darwin", () => {
+    // On non-darwin platforms, the iTerm2 osascript path would fail;
+    // spawn-watcher must gate on platform and fall through. Regression
+    // guard: Apple Terminal / iTerm2 SHOULD NOT fire on Linux/Windows
+    // even if (somehow) the env vars match.
+    const restore = (() => {
+      const original = Object.getOwnPropertyDescriptor(process, "platform");
+      Object.defineProperty(process, "platform", {
+        value: "linux",
+        configurable: true,
+      });
+      return () => {
+        if (original) Object.defineProperty(process, "platform", original);
+      };
+    })();
+    try {
+      process.env.TERM_PROGRAM = "iTerm.app";
+      process.env.ITERM_SESSION_ID = "w0t0p0:fake";
+      const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
+      expect(result.spawned).toBe(false);
+    } finally {
+      restore();
+    }
+  });
+
+  it("Apple Terminal branch skips when process.platform !== darwin", () => {
+    const restore = (() => {
+      const original = Object.getOwnPropertyDescriptor(process, "platform");
+      Object.defineProperty(process, "platform", {
+        value: "linux",
+        configurable: true,
+      });
+      return () => {
+        if (original) Object.defineProperty(process, "platform", original);
+      };
+    })();
+    try {
+      process.env.TERM_PROGRAM = "Apple_Terminal";
+      const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
+      expect(result.spawned).toBe(false);
+    } finally {
+      restore();
+    }
   });
 });

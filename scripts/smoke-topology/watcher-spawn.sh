@@ -63,11 +63,17 @@ HAS_TMUX=0
 HAS_ITERM=0
 HAS_TERMINAL=0
 [[ -n "${TMUX:-}" ]] && HAS_TMUX=1
-[[ "${TERM_PROGRAM:-}" == "iTerm.app" && -n "${ITERM_SESSION_ID:-}" ]] && HAS_ITERM=1
-[[ "${TERM_PROGRAM:-}" == "Apple_Terminal" ]] && HAS_TERMINAL=1
+# iTerm2 and Apple Terminal branches in spawn-watcher.ts gate on
+# process.platform === "darwin". Smoke must match or it will
+# incorrectly claim those mechanisms are available on Linux.
+PLATFORM="$(uname -s)"
+if [[ "${PLATFORM}" == "Darwin" ]]; then
+  [[ "${TERM_PROGRAM:-}" == "iTerm.app" && -n "${ITERM_SESSION_ID:-}" ]] && HAS_ITERM=1
+  [[ "${TERM_PROGRAM:-}" == "Apple_Terminal" ]] && HAS_TERMINAL=1
+fi
 
 if [[ "$HAS_TMUX" == "0" && "$HAS_ITERM" == "0" && "$HAS_TERMINAL" == "0" ]]; then
-  smoke_skip "no watcher mechanism detectable (need TMUX env, iTerm2 session, or Apple Terminal)"
+  smoke_skip "no watcher mechanism detectable (need TMUX env, or on macOS: iTerm2 session / Apple Terminal)"
 fi
 
 # spawn-watcher.ts resolves `<project-root>/scripts/onto-review-watch.sh`
@@ -117,23 +123,24 @@ CODEX_THREAD_ID="smoke-${SMOKE_TOPOLOGY_ID}-$(date +%s)" \
 
 # ── Assertions ─────────────────────────────────────────────────────────────
 
-# (1) Watcher call site was reached AND reported success.
+# (1) Watcher call site was reached AND reported success. Dry-run uses
+# the "detection via" verb to distinguish from a real pane attach.
 smoke_assert_log_contains "${STDERR_LOG}" "${STDOUT_LOG}" \
-  "\[review runner\] live watcher attached via (tmux|iterm2|apple_terminal)" \
-  "watcher attach log line"
+  "\[review runner\] live watcher detection via (tmux|iterm2|apple_terminal)" \
+  "watcher detection log line (dry-run variant)"
 
 # (2) Mechanism in log matches an env signal we actually provided.
-if grep -qE "attached via tmux" "${STDOUT_LOG}" "${STDERR_LOG}"; then
+if grep -qE "detection via tmux" "${STDOUT_LOG}" "${STDERR_LOG}"; then
   [[ "$HAS_TMUX" == "1" ]] \
     || smoke_fail "watcher reported tmux but TMUX env was not set"
-elif grep -qE "attached via iterm2" "${STDOUT_LOG}" "${STDERR_LOG}"; then
+elif grep -qE "detection via iterm2" "${STDOUT_LOG}" "${STDERR_LOG}"; then
   [[ "$HAS_ITERM" == "1" ]] \
-    || smoke_fail "watcher reported iterm2 but ITERM_SESSION_ID/TERM_PROGRAM env was incomplete"
-elif grep -qE "attached via apple_terminal" "${STDOUT_LOG}" "${STDERR_LOG}"; then
+    || smoke_fail "watcher reported iterm2 but ITERM_SESSION_ID/TERM_PROGRAM env was incomplete (or non-macOS)"
+elif grep -qE "detection via apple_terminal" "${STDOUT_LOG}" "${STDERR_LOG}"; then
   [[ "$HAS_TERMINAL" == "1" ]] \
-    || smoke_fail "watcher reported apple_terminal but TERM_PROGRAM was not Apple_Terminal"
+    || smoke_fail "watcher reported apple_terminal but TERM_PROGRAM was not Apple_Terminal (or non-macOS)"
 else
-  smoke_fail "watcher attach log present but mechanism token not recognized"
+  smoke_fail "watcher detection log present but mechanism token not recognized"
 fi
 
 # (3) Topology resolved to codex-main-subprocess (host signal plumbing

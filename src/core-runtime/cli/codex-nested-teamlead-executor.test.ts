@@ -126,6 +126,16 @@ describe("buildNestedTeamleadPrompt", () => {
     // subshell + background + wait pattern
     expect(prompt).toMatch(/\)\s*&\s*\ndone\s*\n\s*wait/);
   });
+
+  it("persists per-lens stderr tail next to lens output on failure", () => {
+    // Regression guard for review finding #2: post-hoc audit needs to
+    // answer "what failed inside this lens run?" even after the outer
+    // dispatch TMPDIR is cleaned up. The script must copy a bounded
+    // tail to <OUTPUT_DIR>/.<lens>.nested-stderr.log on failure.
+    const prompt = buildNestedTeamleadPrompt({ lenses: LENSES });
+    expect(prompt).toContain("nested-stderr.log");
+    expect(prompt).toContain("tail -200");
+  });
 });
 
 // ---------------------------------------------------------------------------

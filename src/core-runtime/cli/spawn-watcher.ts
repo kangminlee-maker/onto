@@ -8,6 +8,13 @@ export interface SpawnWatcherResult {
   spawned: boolean;
   mechanism?: WatcherMechanism;
   reason?: string;
+  /**
+   * True when the `spawned: true` result came from `ONTO_WATCHER_DRY_RUN=1`
+   * detection-only mode — no actual osascript / tmux split was invoked.
+   * Callers SHOULD distinguish this in user-facing logs so a reader can
+   * tell "mechanism detected" from "pane actually attached".
+   */
+  dry_run?: boolean;
 }
 
 /**
@@ -64,7 +71,7 @@ export function spawnWatcherPane(
   // Priority 1: tmux (works on any OS, most universal)
   if (process.env.TMUX) {
     if (dryRun) {
-      return { spawned: true, mechanism: "tmux" };
+      return { spawned: true, mechanism: "tmux", dry_run: true };
     }
     try {
       // Target the originating pane explicitly via $TMUX_PANE so the split
@@ -106,7 +113,7 @@ export function spawnWatcherPane(
     const rawSessionId = process.env.ITERM_SESSION_ID;
     if (rawSessionId) {
       if (dryRun) {
-        return { spawned: true, mechanism: "iterm2" };
+        return { spawned: true, mechanism: "iterm2", dry_run: true };
       }
       try {
         const sessionUuid = rawSessionId.includes(":")
@@ -155,7 +162,7 @@ export function spawnWatcherPane(
     process.env.TERM_PROGRAM === "Apple_Terminal"
   ) {
     if (dryRun) {
-      return { spawned: true, mechanism: "apple_terminal" };
+      return { spawned: true, mechanism: "apple_terminal", dry_run: true };
     }
     try {
       const escapedCmd = watcherArgs.replace(/\\/g, "\\\\").replace(/"/g, '\\"');

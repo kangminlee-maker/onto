@@ -2059,8 +2059,15 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   if (!noWatch) {
     const watcherResult = spawnWatcherPane(resolvedProjectRoot, sessionRoot);
     if (watcherResult.spawned) {
+      // Distinguish dry-run (mechanism detected, no osascript/tmux invoked)
+      // from real attach (actual side pane / split / tab opened). Log
+      // readers need both to verify "did the pane appear?" without
+      // conflating it with "did detection logic reach the right branch?".
+      const action = watcherResult.dry_run
+        ? "detection via"
+        : "attached via";
       console.log(
-        `[review runner] live watcher attached via ${watcherResult.mechanism}`,
+        `[review runner] live watcher ${action} ${watcherResult.mechanism}`,
       );
     } else {
       console.log(

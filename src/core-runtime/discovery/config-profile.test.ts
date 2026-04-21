@@ -6,7 +6,6 @@ import {
   hasAnyProfileField,
   hasReviewBlock,
   mergeOrthogonalFields,
-  summarizeProfile,
 } from "./config-profile.js";
 
 // ---------------------------------------------------------------------------
@@ -172,6 +171,27 @@ describe("adoptProfile — decision branches", () => {
     expect(adoption.profile.anthropic).toBeUndefined();
   });
 
+  it("project has nothing, home has ONLY review block (no profile fields) → source=global", () => {
+    // Symmetric to the project-review-block-only case. `claimsProfileOwnership`
+    // must recognize a non-empty review block on the home side as an
+    // ownership claim, so home config authors can stage review settings
+    // without declaring a provider namespace.
+    const adoption = adoptProfile(
+      buildArgs(
+        {
+          review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
+          // No PROFILE_FIELDS — only the review block.
+        },
+        {}, // project completely empty
+      ),
+    );
+    expect(adoption.source).toBe("global");
+    expect(adoption.source_path).toBe(HOME_PATH);
+    // Adopted profile is empty (no PROFILE_FIELDS in home), but
+    // ownership was still claimed so we don't fall to source=none.
+    expect(adoption.profile).toEqual({});
+  });
+
   it("project has no profile fields, home has → source=global", () => {
     const adoption = adoptProfile(
       buildArgs(
@@ -232,30 +252,6 @@ describe("adoptProfile — decision branches", () => {
     });
     expect(adoption.source).toBe("none");
     expect(adoption.profile).toEqual({});
-  });
-});
-
-// ─── summarizeProfile ───
-
-describe("summarizeProfile", () => {
-  it("renders review=[subagent=<provider>] when the axis block declares subagent", () => {
-    const summary = summarizeProfile({
-      review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
-      codex: { model: "gpt-5.4" },
-    });
-    expect(summary).toContain("review=[subagent=codex]");
-    expect(summary).toContain("model=gpt-5.4");
-  });
-
-  it("renders review=[subagent=(default)] when review block has no subagent", () => {
-    const summary = summarizeProfile({
-      review: { teamlead: { model: "main" } },
-    });
-    expect(summary).toContain("review=[subagent=(default)]");
-  });
-
-  it("returns null when nothing profile-ish is declared", () => {
-    expect(summarizeProfile({})).toBeNull();
   });
 });
 

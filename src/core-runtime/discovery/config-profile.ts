@@ -140,6 +140,13 @@ export function hasAnyProfileField(config: OntoConfig): boolean {
 /**
  * Extract only profile-scoped fields from a config. Orthogonal fields are
  * dropped — this is the "profile slice" that adoption transfers atomically.
+ *
+ * Note: asymmetric with `hasAnyProfileField`. That predicate skips empty
+ * objects (e.g. `codex: {}`) when deciding ownership, but this extractor
+ * PRESERVES them in the output. Rationale: a project that opted in via
+ * the review block may explicitly want an empty namespace slot (author
+ * intent: "I own this namespace, leave defaults") to survive adoption
+ * rather than falling back to home's populated version.
  */
 export function extractProfileFields(
   config: OntoConfig,
@@ -169,14 +176,30 @@ export interface ProfileAdoptionInputs {
   sameRoot: boolean;
 }
 
-export interface ProfileAdoption {
-  /** Profile fields from exactly one source (or empty when neither declared any). */
-  profile: Partial<OntoConfig>;
-  /** Which side owns the adopted profile. "none" when neither side declared any. */
-  source: "project" | "global" | "none";
-  /** Absolute path to the source config file (null when source === "none"). */
-  source_path: string | null;
-}
+/**
+ * Result of an adoption cycle.
+ *
+ * Typed as a discriminated union on `source` so callers receive
+ * type-level guarantees:
+ *   - `source: "project" | "global"` → `source_path` is a concrete string
+ *     and `profile` may contain any Partial<OntoConfig> shape.
+ *   - `source: "none"` → `source_path` is null and `profile` is {}.
+ *
+ * Narrowing on `source` in consumer code lets the compiler reject
+ * impossible states (e.g. reading `source_path.toString()` when source
+ * is "none" fails to typecheck).
+ */
+export type ProfileAdoption =
+  | {
+      source: "project" | "global";
+      profile: Partial<OntoConfig>;
+      source_path: string;
+    }
+  | {
+      source: "none";
+      profile: Record<string, never>;
+      source_path: null;
+    };
 
 /**
  * Does this config claim profile ownership? A side claims ownership when it
@@ -257,32 +280,6 @@ export function adoptProfile(args: ProfileAdoptionInputs): ProfileAdoption {
   }
 
   return { profile: {}, source: "none", source_path: null };
-}
-
-// ---------------------------------------------------------------------------
-// Profile summary (used by onboard / config CLI for diagnostics)
-// ---------------------------------------------------------------------------
-
-export function summarizeProfile(config: OntoConfig): string | null {
-  const parts: string[] = [];
-  if (config.external_http_provider)
-    parts.push(`external_http_provider=${config.external_http_provider}`);
-  if (config.review) {
-    const subagent = config.review.subagent
-      ? `subagent=${config.review.subagent.provider}`
-      : "subagent=(default)";
-    parts.push(`review=[${subagent}]`);
-  }
-  const modelForHost =
-    config.anthropic?.model ||
-    config.openai?.model ||
-    config.litellm?.model ||
-    config.codex?.model ||
-    config.model;
-  if (modelForHost) parts.push(`model=${modelForHost}`);
-  if (config.reasoning_effort)
-    parts.push(`reasoning_effort=${config.reasoning_effort}`);
-  return parts.length > 0 ? parts.join(", ") : null;
 }
 
 // ---------------------------------------------------------------------------

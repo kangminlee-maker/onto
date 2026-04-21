@@ -5,22 +5,27 @@ import {
 } from "./execution-topology-resolver.js";
 
 // ---------------------------------------------------------------------------
-// P2 axis-first integration (Review UX Redesign, 2026-04-21)
+// P2/P3 axis-first integration (Review UX Redesign, 2026-04-21)
 // ---------------------------------------------------------------------------
 //
-// These tests verify the axis-first branch added in `resolveExecutionTopology`:
+// These tests verify the axis-first branch in `resolveExecutionTopology`:
 //
-//   (1) When `config.review` is present and all derivation steps succeed,
-//       priority_source = "review-axes" and the derived TopologyId is a
-//       single-entry priority array.
+//   (1) Happy paths — `config.review` present and all derivation steps
+//       succeed. priority_source = "review-axes" and the derived
+//       TopologyId is a single-entry priority array.
 //
-//   (2) When derivation or shape→id mapping fails, the resolver logs the
-//       failure reason but FALLS BACK to the legacy priority ladder (from
-//       `execution_topology_priority` or DEFAULT_TOPOLOGY_PRIORITY). This
-//       preserves backward compat for principals who add `review:` block
-//       but whose environment temporarily doesn't match.
+//   (2) P3 universal fallback — when validation / derivation / mapping
+//       fails, the resolver emits a `[topology] degraded: requested=...
+//       → actual=main_native (reason: ...)` line and attempts to resolve
+//       the `main_native` shape against the current host signals. If
+//       that succeeds, that TopologyId is used (NOT the legacy ladder).
 //
-//   (3) When `config.review` is absent, behavior is identical to pre-P2:
+//   (3) Legacy-ladder fallback reserved for the case where `main_native`
+//       itself is unmappable (neither Claude nor Codex host). Only then
+//       does the resolver fall through to `execution_topology_priority`
+//       / DEFAULT_TOPOLOGY_PRIORITY.
+//
+//   (4) When `config.review` is absent, behavior is identical to pre-P2:
 //       legacy priority ladder walked, no axis-first trace emitted.
 // ---------------------------------------------------------------------------
 
@@ -151,7 +156,7 @@ describe("resolveExecutionTopology — axis-first happy paths", () => {
   });
 });
 
-describe("resolveExecutionTopology — axis-first fallback to legacy", () => {
+describe("resolveExecutionTopology — P3 universal fallback (degrade to main_native)", () => {
   let stderrSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -161,32 +166,54 @@ describe("resolveExecutionTopology — axis-first fallback to legacy", () => {
     stderrSpy.mockRestore();
   });
 
-  it("invalid review block falls back to legacy priority ladder", () => {
+  it("invalid review block degrades to main_native (NOT legacy ladder)", () => {
+    // Validator rejects `main-native + model_id`. Under P3, the degrade
+    // path maps `main_native` shape against Claude host →
+    // `cc-main-agent-subagent`. `execution_topology_priority` must NOT
+    // be consulted (we verify by including a distinct entry that would
+    // otherwise win).
     const res = resolveExecutionTopology(
       args({
         ontoConfig: {
-          // Invalid: main-native + model_id is rejected by validator
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           review: {
             subagent: { provider: "main-native", model_id: "x" },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
-          execution_topology_priority: ["cc-main-agent-subagent"],
+          // Would resolve to codex-main-subprocess on a legacy walk; the
+          // P3 degrade pre-empts this.
+          execution_topology_priority: ["codex-main-subprocess"],
         },
         claudeHost: true,
+        codexSessionActive: true,
+        codexAvailable: true,
       }),
     );
     const r = expectResolved(res);
     expect(r.topology.id).toBe("cc-main-agent-subagent");
-    expect(r.topology.plan_trace.some((l) => l.includes("validation failed"))).toBe(
-      true,
-    );
-    expect(r.topology.plan_trace.some((l) => l.includes("priority source=config"))).toBe(
-      true,
-    );
+    expect(
+      r.topology.plan_trace.some((l) => l.includes("validation failed")),
+    ).toBe(true);
+    expect(
+      r.topology.plan_trace.some((l) =>
+        l.includes("degraded: requested=<validation-failed> → actual=main_native"),
+      ),
+    ).toBe(true);
+    // priority_source = review-axes because the degrade produced a
+    // single-entry TopologyId; legacy `execution_topology_priority`
+    // array was NOT walked.
+    expect(
+      r.topology.plan_trace.some((l) => l.includes("priority source=review-axes")),
+    ).toBe(true);
+    expect(
+      r.topology.plan_trace.some((l) => l.includes("priority source=config")),
+    ).toBe(false);
   });
 
-  it("derivation failure (a2a + no teams) falls back to legacy priority", () => {
+  it("derivation failure (a2a without teams) degrades to main_native", () => {
+    // sendmessage-a2a requested but CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=0.
+    // Derivation emits a violation — P3 degrade takes over, maps
+    // main_native to the Claude host → cc-main-agent-subagent.
     const res = resolveExecutionTopology(
       args({
         ontoConfig: {
@@ -194,22 +221,70 @@ describe("resolveExecutionTopology — axis-first fallback to legacy", () => {
             subagent: { provider: "main-native" },
             lens_deliberation: "sendmessage-a2a",
           },
-          execution_topology_priority: ["cc-main-agent-subagent"],
+          // Would win on a legacy walk; P3 degrade must pre-empt.
+          execution_topology_priority: ["codex-main-subprocess"],
         },
         claudeHost: true,
-        experimentalAgentTeams: false, // a2a impossible — teams off
+        codexSessionActive: true,
+        codexAvailable: true,
+        experimentalAgentTeams: false,
       }),
     );
     const r = expectResolved(res);
     expect(r.topology.id).toBe("cc-main-agent-subagent");
     expect(
+      r.topology.plan_trace.some((l) => l.includes("shape derivation failed")),
+    ).toBe(true);
+    expect(
       r.topology.plan_trace.some((l) =>
-        l.includes("shape derivation failed"),
+        l.includes(
+          "degraded: requested=a2a-deliberation → actual=main_native",
+        ),
       ),
+    ).toBe(true);
+    expect(
+      r.topology.plan_trace.some((l) => l.includes("priority source=review-axes")),
     ).toBe(true);
   });
 
-  it("mapping failure (main_native without Claude/Codex) falls back", () => {
+  it("axis mapping failure (main_foreign + litellm) degrades to main_native", () => {
+    // main_foreign shape with provider=litellm has NO TopologyId in the
+    // catalog (only codex mapped). P3 degrades to main_native, which
+    // under Claude host maps to cc-main-agent-subagent.
+    const res = resolveExecutionTopology(
+      args({
+        ontoConfig: {
+          review: {
+            subagent: { provider: "litellm", model_id: "gpt-4o" },
+          },
+          execution_topology_priority: ["codex-main-subprocess"],
+        },
+        claudeHost: true,
+        codexSessionActive: true,
+        codexAvailable: true,
+      }),
+    );
+    const r = expectResolved(res);
+    expect(r.topology.id).toBe("cc-main-agent-subagent");
+    expect(
+      r.topology.plan_trace.some((l) => l.includes("mapping failed")),
+    ).toBe(true);
+    expect(
+      r.topology.plan_trace.some((l) =>
+        l.includes(
+          "degraded: requested=main_foreign(litellm) → actual=main_native",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      r.topology.plan_trace.some((l) => l.includes("priority source=review-axes")),
+    ).toBe(true);
+  });
+
+  it("everything fails (main_native also unmappable) → legacy ladder is used", () => {
+    // Neither Claude nor Codex host → main_native cannot be mapped.
+    // Only in this case does the resolver fall through to the legacy
+    // priority ladder (here: codex-nested-subprocess via codex binary).
     const res = resolveExecutionTopology(
       args({
         ontoConfig: {
@@ -227,6 +302,21 @@ describe("resolveExecutionTopology — axis-first fallback to legacy", () => {
     expect(r.topology.id).toBe("codex-nested-subprocess");
     expect(
       r.topology.plan_trace.some((l) => l.includes("mapping failed")),
+    ).toBe(true);
+    // Degrade attempt was made, but the fallback-fallback mapping
+    // emitted an "unmappable" line, so legacy ladder took over.
+    expect(
+      r.topology.plan_trace.some((l) =>
+        l.includes("degraded: requested=main_native → actual=main_native"),
+      ),
+    ).toBe(true);
+    expect(
+      r.topology.plan_trace.some((l) =>
+        l.includes("degrade-fallback: main_native unmappable"),
+      ),
+    ).toBe(true);
+    expect(
+      r.topology.plan_trace.some((l) => l.includes("priority source=config")),
     ).toBe(true);
   });
 });

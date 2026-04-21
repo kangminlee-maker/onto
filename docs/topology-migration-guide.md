@@ -242,6 +242,7 @@ config.yml` 이 불완전하면 global 이 채택됨. `execution_topology_priori
 - Executor mapping: `src/core-runtime/cli/topology-executor-mapping.ts`
 - Codex nested orchestrator: `src/core-runtime/cli/codex-nested-teamlead-executor.ts`
 - Deliberation protocol: `src/core-runtime/cli/teamcreate-lens-deliberation-executor.ts`
+- Deprecation detection: `src/core-runtime/discovery/legacy-field-deprecation.ts`
 
 ---
 
@@ -331,4 +332,3 @@ A: `resolveConfigChain` 의 atomic profile adoption 이 legacy profile 을 여�
 **Q6**: `onto config validate` 가 degraded 를 표시
 
 A: P3 universal fallback 활성. 구체 이유는 degrade trace `(reason: ...)` 에 기록. Config 수정으로 해소 가능.
-- Deprecation detection: `src/core-runtime/discovery/legacy-field-deprecation.ts`

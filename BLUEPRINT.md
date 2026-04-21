@@ -825,11 +825,11 @@ Migration guide: `docs/topology-migration-guide.md` §7.
 
 `--codex` flag still routes to codex CLI path via `onto review` — this remains a backward-compat shortcut equivalent to `review.subagent.provider=codex`.
 
-### 7.4 Parallel Execution
+### 7.5 Parallel Execution
 
 All profiles dispatch lenses in parallel with bounded concurrency. Default `max_concurrent_lenses` is `9` (all lenses concurrent). The Codex path uses a 1500ms stagger delay between successive lens dispatches to absorb thundering-herd and transient API rate-limit failures at this concurrency.
 
-Override: `--max-concurrent-lenses` flag.
+Override: `--max-concurrent-lenses` flag (or `review.max_concurrent_lenses` in the axis block).
 
 ### 7.6 Error Handling
 

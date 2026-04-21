@@ -4,7 +4,7 @@
 > 목적: 현재 `onto` 프로토타입의 `/onto:review`가 `검토 해석 (InvocationInterpretation)` 다음에 수행해야 하는 `검토 고정 (InvocationBinding)` 책임을 고정한다.
 > 기준 문서:
 > - `.onto/processes/review/interpretation-contract.md`
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 
 ---
 

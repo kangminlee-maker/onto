@@ -985,7 +985,7 @@ function discoverAuthoritySources(projectRoot: string): Array<{ path: string; ra
 
   // Fallback: known onto canonical paths
   const candidates = [
-    { rel: "authority/core-lexicon.yaml", rank: 1, desc: "개념 SSOT" },
+    { rel: ".onto/authority/core-lexicon.yaml", rank: 1, desc: "개념 SSOT" },
     { rel: ".onto/principles/ontology-as-code-guideline.md", rank: 2, desc: "개발 원칙: OaC" },
     { rel: ".onto/principles/llm-native-development-guideline.md", rank: 2, desc: "개발 원칙: LLM-Native" },
     { rel: ".onto/principles/non-specialist-communication-guideline.md", rank: 2, desc: "개발 원칙: 비전문가 소통" },

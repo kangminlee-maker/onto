@@ -13,7 +13,7 @@
     "dist/",
     ".onto/roles/",
     ".onto/domains/",
-    "authority/",
+    ".onto/authority/",
     ".onto/commands/",
     ".onto/processes/",
     ".onto/principles/",

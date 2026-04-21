@@ -9,7 +9,7 @@
 > Related: Learnings accumulated from reviews (`.onto/processes/review.md`) or queries (`.onto/processes/question.md`) are the target.
 >
 > **W-D-05 용어 정렬 (2026-04-16)**: 본 프로세스의 활동 1 (승격) 은 `learning_scope_promotion`
-> canonical term 으로 지칭한다 (authority/core-lexicon.yaml#learning_scope_promotion). 대상은
+> canonical term 으로 지칭한다 (.onto/authority/core-lexicon.yaml#learning_scope_promotion). 대상은
 > learning artifact 의 저장 경계 이동만 포함 — legacy `project → user` path (framework v1.0 §8.5 에서 retire, lexicon legacy_alias_governance.scope_migration 참조) 는 framework 의 `generalize` 전이에 대응. lexicon term 대상의 이동은
 > `lexicon_term_promotion`, knowledge → principle 본문 승격은 `learning_to_principle_promotion`
 > (W-C-03 미구현) 로 분리된다. 세 `*_promotion` term 의 의존 그래프는 `.onto/processes/govern.md §12` 참조.

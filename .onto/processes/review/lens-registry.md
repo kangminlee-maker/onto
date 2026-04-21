@@ -3,7 +3,7 @@
 > 상태: Active
 > 목적: 현재 `onto` 메인 레포의 `검토 (review)`에서 사용하는 canonical review 구조를 고정한다.
 > 기준 문서:
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 
 ---
 

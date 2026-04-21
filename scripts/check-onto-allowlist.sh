@@ -25,13 +25,15 @@ set -euo pipefail
 
 # Structural (versioned) subdirectory prefixes. Each repo-layout migration
 # phase (Phase 1 commands, Phase 2 domains, Phase 3-6 roles/processes/
-# principles/authority) appends its top-level directory pattern here.
+# principles/authority) appends its top-level directory pattern here. All
+# six structural subdirs were landed by Phase 6 (authority) on 2026-04-21.
 ALLOWED=(
   ".onto/commands"
   ".onto/domains"
   ".onto/roles"
   ".onto/processes"
   ".onto/principles"
+  ".onto/authority"
 )
 
 # Ephemeral subdirs are ignored via .gitignore (see repo root) and never
@@ -137,11 +139,12 @@ run_self_test() {
     ".onto/roles/logic.md"
     ".onto/processes/review.md"
     ".onto/principles/ontology-as-code-guideline.md"
+    ".onto/authority/core-lexicon.yaml"
   )
   echo "[self-test] Case 1 (expect PASS): ${#pass_paths[@]} allowlist-conforming paths"
   local case1_out
   case1_out=$(check_paths "${pass_paths[@]}" 2>&1) && case1_rc=0 || case1_rc=$?
-  if [ "$case1_rc" -eq 0 ] && echo "$case1_out" | grep -q "__SUMMARY__ matched=7 violations=0"; then
+  if [ "$case1_rc" -eq 0 ] && echo "$case1_out" | grep -q "__SUMMARY__ matched=8 violations=0"; then
     echo "  ✓ guard accepted all ${#pass_paths[@]} conforming paths"
   else
     echo "  ✗ guard rejected conforming paths (regression)"

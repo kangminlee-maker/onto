@@ -8,7 +8,7 @@
 > - `.onto/processes/review/binding-contract.md`
 > - `process.md`
 > - `.onto/processes/review/review.md`
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 
 ---
 
@@ -265,12 +265,12 @@ Experience 수집 + learn 파이프라인 전수에서 **"어느 섹션이 canon
 
 - **Internal Body 는 English 단일 언어**. 다음 agent hand-off 경로에 있으므로 `.onto/principles/output-language-boundary.md §3.1` 의 Internal 범주.
 - **Principal Summary 는 Internal Body 의 요약 재서술** 이지 새 정보원이 아님. Internal Body 에 없는 claim 을 Principal Summary 에 도입 금지.
-- Translation 은 `src/core-runtime/translate/render-for-user.ts` 의 render seat 를 통해서만. renderPointId 는 본 섹션 활성 시점에 `authority/external-render-points.yaml` 에 `review_lens_principal_summary` 신설.
+- Translation 은 `src/core-runtime/translate/render-for-user.ts` 의 render seat 를 통해서만. renderPointId 는 본 섹션 활성 시점에 `.onto/authority/external-render-points.yaml` 에 `review_lens_principal_summary` 신설.
 - `output_language: en` 일 때 Principal Summary 섹션은 **선택적 생략** — Internal Body 자체가 이미 영어이므로 중복.
 
 #### 8.5.4 Lexicon term 취급 (translation policy 연동)
 
-Principal Summary 에서 lexicon term 등장 시 `authority/core-lexicon.yaml §authoring_rules.translation_policy` 규칙 따라 번역:
+Principal Summary 에서 lexicon term 등장 시 `.onto/authority/core-lexicon.yaml §authoring_rules.translation_policy` 규칙 따라 번역:
 - `translation_mode: preserved` → 원어 유지 (예: `ontology`, `entrypoint`)
 - `translation_mode: translated` → korean_label 치환
 - `translation_mode: bilingual` → 첫 등장 병기 (예: `principle (규범)`)

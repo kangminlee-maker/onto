@@ -140,7 +140,7 @@ describe("promote-principle Completeness gate", () => {
 
   it("invalid category 거부", () => {
     const result = executePromotePrinciple(
-      makeProposal({ target: { category: "authority", file_path: "authority/x.yaml", section: "NEW" } }) as any,
+      makeProposal({ target: { category: "authority", file_path: ".onto/authority/x.yaml", section: "NEW" } }) as any,
       tmpRoot,
     );
     expect(result.success).toBe(false);

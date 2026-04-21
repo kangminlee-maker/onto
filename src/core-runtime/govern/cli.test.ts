@@ -48,7 +48,7 @@ describe("govern CLI v0", () => {
       "--origin",
       "human",
       "--target",
-      "authority/core-lexicon.yaml",
+      ".onto/authority/core-lexicon.yaml",
       "--json",
       JSON.stringify({ summary: "add new term", rationale: "test" }),
       "--project-root",

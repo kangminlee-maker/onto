@@ -6,7 +6,7 @@
 > - `.onto/processes/review/productized-live-path.md`
 > - `.onto/processes/review/binding-contract.md`
 > - `.onto/processes/review/record-contract.md`
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 
 ---
 

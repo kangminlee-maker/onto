@@ -15,7 +15,7 @@ describe("process scope type", () => {
   it("validates a well-formed config", () => {
     const config: ProcessScopeConfig = {
       authority_sources: [
-        { path: "authority/core-lexicon.yaml", rank: 1, description: "Core concepts" },
+        { path: ".onto/authority/core-lexicon.yaml", rank: 1, description: "Core concepts" },
         { path: ".onto/principles/ontology-as-code-guideline.md", rank: 2, description: "OaC principles" },
       ],
       target_document: ".onto/processes/evolve.md",

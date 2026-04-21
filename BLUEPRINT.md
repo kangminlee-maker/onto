@@ -17,12 +17,12 @@
 > 4. **Future direction**: Only decided items. No "under consideration" or "exploring."
 >    Items with a decided direction but no implementation use 🔲 with a reference document.
 >
-> 5. **Terminology**: Uses canonical labels from `authority/core-lexicon.yaml`.
+> 5. **Terminology**: Uses canonical labels from `.onto/authority/core-lexicon.yaml`.
 >    Legacy terms are mapped once at first mention and not used thereafter.
 >
 > 6. **Authority relationship**: This document is a derived re-description of primary sources.
 >    When conflicts arise, the primary sources take precedence:
->    - Concepts: `authority/core-lexicon.yaml`
+>    - Concepts: `.onto/authority/core-lexicon.yaml`
 >    - Principles: `.onto/principles/*.md`
 >    - Contracts: `.onto/processes/{feature}/*.md`
 >    - Operations: `process.md`
@@ -43,7 +43,7 @@
 >
 > | Section | Reliance level | Primary source |
 > |---|---|---|
-> | §3 Review Lenses | Derived | `authority/core-lens-registry.yaml`, `.onto/roles/*.md` |
+> | §3 Review Lenses | Derived | `.onto/authority/core-lens-registry.yaml`, `.onto/roles/*.md` |
 > | §4.1 Review flow | Derived | `.onto/processes/review/productized-live-path.md` |
 > | §4.3 Reconstruct flow | Surface summary | `.onto/processes/reconstruct.md` |
 > | §5 Domain System | Derived | `process.md` Domain Documents section |
@@ -66,7 +66,7 @@ onto is a **multi-host LLM-driven runtime** that runs in three host environments
 
 The host environment is detected automatically via env signals. Override with `ONTO_HOST_RUNTIME=claude|codex|standalone`.
 
-**Five activities** (`authority/core-lexicon.yaml#activity_enum`): `review`, `evolve`, `reconstruct`, `learn`, `govern`. Two are user-facing core capabilities below; the remaining three (evolve, learn, govern) are described at surface level in §4.4–§4.6.
+**Five activities** (`.onto/authority/core-lexicon.yaml#activity_enum`): `review`, `evolve`, `reconstruct`, `learn`, `govern`. Two are user-facing core capabilities below; the remaining three (evolve, learn, govern) are described at surface level in §4.4–§4.6.
 
 Two core capabilities:
 
@@ -117,11 +117,11 @@ onto addresses this with **9 review lenses** that each evaluate independently fr
 
 ## 2. Canonical Concepts
 
-Terms used throughout this document. All definitions follow `authority/core-lexicon.yaml`.
+Terms used throughout this document. All definitions follow `.onto/authority/core-lexicon.yaml`.
 
 | Term | Definition |
 |---|---|
-| **review lens** | An independent review perspective that produces its own finding before synthesis. The canonical lens set is defined in `authority/core-lens-registry.yaml` |
+| **review lens** | An independent review perspective that produces its own finding before synthesis. The canonical lens set is defined in `.onto/authority/core-lens-registry.yaml` |
 | **synthesize** | The non-lens stage that integrates lens findings into a final review result. Not a lens itself |
 | **InvocationInterpretation** | LLM-owned phase that interprets natural-language user input into entrypoint, target candidates, intent, and ambiguity |
 | **InvocationBinding** | Runtime-owned deterministic phase that binds interpreted input into canonical requests and concrete refs |
@@ -133,7 +133,7 @@ Terms used throughout this document. All definitions follow `authority/core-lexi
 | **OntoReviewConfig** | User-facing 6-axis config block in `.onto/config.yml` (Review UX Redesign, P1 #152). Axes: teamlead / subagent / max_concurrent_lenses / lens_deliberation + per-model effort |
 | **LensSelectionPlan** | Interpretation-owned plan that recommends full/core-axis review and the lens set to execute |
 | **DomainFinalSelection** | Final domain value after explicit token parsing and user confirmation |
-| **DeterministicStateEnforcer** | Runtime state machine that deterministically enforces review process state transitions. States and edges defined in `authority/core-lexicon.yaml` 📐 |
+| **DeterministicStateEnforcer** | Runtime state machine that deterministically enforces review process state transitions. States and edges defined in `.onto/authority/core-lexicon.yaml` 📐 |
 | **domain document** | Documents defining verification criteria for a specific domain. Types defined in `process.md` Domain Documents table. Referenced by lenses during judgment |
 | **learning** | Lessons lenses discover during review/query. Tagged with axis (methodology/domain) and purpose type |
 | **seed** | LLM-generated draft domain documents in `~/.onto/drafts/`. Contains SEED markers. Not used as verification standards |
@@ -379,7 +379,7 @@ Review mode is determined during InvocationInterpretation (LensSelectionPlan) an
 
 | Mode | Lens set | When to use |
 |---|---|---|
-| **full** | All lenses defined in `full_review_lens_ids` (canonical set in `authority/core-lens-registry.yaml`) | Default. Comprehensive multi-perspective verification |
+| **full** | All lenses defined in `full_review_lens_ids` (canonical set in `.onto/authority/core-lens-registry.yaml`) | Default. Comprehensive multi-perspective verification |
 | **core-axis** | Subset defined in `core_axis_lens_ids` (same registry) — 6 cost-constrained Pareto-optimal lenses (axiology / coverage / evolution / logic / semantics / structure) | Default for small targets. Empirically selected via v5 benchmark (243 valid full-session pool + 24 consensus depth items) under coverage × depth × items-lost × cost trade-off. Token cost is ~67% of full. (수치 근거: `development-records/benchmark/20260419-lens-contribution-analysis.md` §6.6-6.7) |
 
 Both modes follow the same canonical live path. The only difference is which lenses execute in Step 5. axiology is always included regardless of mode (`always_include_lens_ids` in the registry).
@@ -457,7 +457,7 @@ Phase 5: Learning Storage
 
 **Patch**: The unit of change where the coordinator converts labels into ontology elements and applies them to wip.yml.
 
-**fact_type** (10 types), partitioned by Stage. Canonical SSOT: `authority/core-lexicon.yaml#fact_type` (v0.10.0+, R-31 정렬). Stage 분할 요약:
+**fact_type** (10 types), partitioned by Stage. Canonical SSOT: `.onto/authority/core-lexicon.yaml#fact_type` (v0.10.0+, R-31 정렬). Stage 분할 요약:
 
 | Stage 1 — Structure | Stage 2 — Behavior |
 |---|---|
@@ -884,7 +884,7 @@ A state machine design for the review process with 9 states and 12 edges:
 - **Await states** (3): Runtime outputs dispatch instructions and waits for caller
 - **Terminal states** (3): No outgoing transitions — session complete, failed, or cancelled
 
-Design reference: `authority/core-lexicon.yaml` (state machine terms)
+Design reference: `.onto/authority/core-lexicon.yaml` (state machine terms)
 
 ---
 
@@ -894,7 +894,7 @@ Design reference: `authority/core-lexicon.yaml` (state machine terms)
 
 ```
 onto/
-├── authority/               # Canonical data (deployed)
+├── .onto/authority/               # Canonical data (deployed)
 │   ├── core-lexicon.yaml           # Concept SSOT (rank 1)
 │   ├── core-lens-registry.yaml     # Lens config (runtime)
 │   └── translation-reference.yaml  # Term translation (onboarding)
@@ -977,7 +977,7 @@ Project Locality Principle: 글로벌 저장소는 프로젝트 간 공유 자�
 | **Review** — Agent Teams mode | ✅ | Default on claude host |
 | **Review** — Subagent fallback | ✅ | Auto on TeamCreate failure |
 | **Review** — Codex mode | ✅ | `--codex` flag or config.yml |
-| **Review** — DeterministicStateEnforcer | 📐 | 9 states, 12 edges designed. `authority/core-lexicon.yaml` |
+| **Review** — DeterministicStateEnforcer | 📐 | 9 states, 12 edges designed. `.onto/authority/core-lexicon.yaml` |
 | **Review** — ReviewRecord assembly | ✅ | `review:complete-session` |
 | **Build** — integral exploration | ✅ | 2-stage structure |
 | **Build** — TS bounded runtime | 🔲 | Prompt-only. Review-first strategy |
@@ -1021,7 +1021,7 @@ Reference: `.onto/principles/productization-charter.md` §12 Current Priority Or
 
 The DeterministicStateEnforcer will replace the current coordinator pattern with a formal state machine. 9 states (3 auto, 3 await, 3 terminal), 12 edges. The state machine enforces transitions deterministically without semantic judgment.
 
-Reference: `authority/core-lexicon.yaml` (auto_state, await_state, terminal_state terms)
+Reference: `.onto/authority/core-lexicon.yaml` (auto_state, await_state, terminal_state terms)
 
 ### 11.3 Build Productization 🔲
 

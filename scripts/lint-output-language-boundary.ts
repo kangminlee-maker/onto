@@ -18,7 +18,7 @@
  *
  *   R2. Static validation of `renderForUser({renderPointId: "X"})` calls:
  *       every literal-string renderPointId in `src/` MUST exist in
- *       `authority/external-render-points.yaml`. This duplicates the
+ *       `.onto/authority/external-render-points.yaml`. This duplicates the
  *       runtime check in render-for-user.ts but catches violations at
  *       CI time before they reach production. Dynamic (non-literal)
  *       renderPointId arguments are skipped (can't be statically
@@ -27,7 +27,7 @@
  *
  *   R3/R4/R5. Translation policy consistency (output-language-boundary §9
  *       Layer 4). Enforces the lexicon (core-lexicon.yaml) ↔ translation
- *       glossary (authority/translation-glossary/{lang}.yaml) contract.
+ *       glossary (.onto/authority/translation-glossary/{lang}.yaml) contract.
  *       v0.21.0 policy: default_mode=preserved. bilingual mode abolished.
  *         R3. Lexicon entry with explicit translation_mode=translated MUST
  *             have a glossary entry that includes `translated_label`
@@ -87,7 +87,7 @@ const R1_GUIDANCE =
  */
 const R2_CALL_PATTERN =
   /renderForUser\s*\(\s*\{[^}]*?renderPointId\s*:\s*["']([a-zA-Z0-9_\-]+)["']/gs;
-const R2_REGISTRY_PATH = "authority/external-render-points.yaml";
+const R2_REGISTRY_PATH = ".onto/authority/external-render-points.yaml";
 const R2_GUIDANCE_TEMPLATE = (id: string, known: string): string =>
   `renderPointId "${id}" is not registered in ${R2_REGISTRY_PATH}. ` +
   `Add an entry (rationale: post-call no agent consumption) or fix the id. ` +
@@ -107,7 +107,7 @@ const SCAN_ROOTS: readonly string[] = [
   ".onto/processes",
   ".onto/commands",
   ".onto/principles",
-  "authority",
+  ".onto/authority",
   ".onto/roles",
   "src",
   "scripts",
@@ -166,7 +166,7 @@ function repoRelative(absolute: string): string {
 }
 
 /**
- * Parse `authority/external-render-points.yaml` to extract the set of
+ * Parse `.onto/authority/external-render-points.yaml` to extract the set of
  * registered `id:` values. Uses a minimal line-scan — the file is a simple
  * points: list-of-records shape. Avoids adding a YAML dep.
  */
@@ -199,8 +199,8 @@ const REGISTERED_IDS = loadRegisteredRenderPointIds();
 
 // ─── R3/R4/R5: Translation policy consistency ───
 
-const LEXICON_PATH = "authority/core-lexicon.yaml";
-const GLOSSARY_DIR = "authority/translation-glossary";
+const LEXICON_PATH = ".onto/authority/core-lexicon.yaml";
+const GLOSSARY_DIR = ".onto/authority/translation-glossary";
 const SUPPORTED_LANGS: readonly string[] = ["ko"];
 
 // v0.21.0: bilingual mode abolished. default_mode=preserved.
@@ -310,7 +310,7 @@ function loadLexiconTranslationModes(): LexiconTerm[] {
 }
 
 /**
- * Parse authority/translation-glossary/{lang}.yaml entries.
+ * Parse .onto/authority/translation-glossary/{lang}.yaml entries.
  */
 function loadGlossary(lang: string): GlossaryEntry[] {
   const glossaryAbs = path.join(REPO_ROOT, GLOSSARY_DIR, `${lang}.yaml`);

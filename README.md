@@ -36,7 +36,7 @@ ONTO_LLM_MOCK=1 npm run review:inline-http-unit-executor -- \
 > The service-transition authority for this repository starts in:
 > - `AGENTS.md`
 > - `.onto/principles/productization-charter.md`
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 > - `.onto/principles/ontology-as-code-naming-charter.md`
 > - `.onto/principles/ontology-as-code-guideline.md`
 > - `.onto/principles/llm-runtime-interface-principles.md`
@@ -82,7 +82,7 @@ Current bounded `review` path:
 
 Designed with inspiration from ontology structures, applicable across domains regardless of field -- software, law, accounting, and more.
 
-**Five activities** (`authority/core-lexicon.yaml#activity_enum`): `review`, `evolve`, `reconstruct`, `learn`, `govern`.
+**Five activities** (`.onto/authority/core-lexicon.yaml#activity_enum`): `review`, `evolve`, `reconstruct`, `learn`, `govern`.
 
 **Two core capabilities**:
 - **Verification (review)**: 9 review lenses independently inspect scope-defined targets, then a separate synthesize stage writes the final review result
@@ -331,7 +331,7 @@ model: claude-sonnet-4-20250514
 ### Design record
 
 - `development-records/plan/20260415-litellm-provider-design.md` — cost-order 설계의 정본
-- `authority/core-lexicon.yaml` — `LlmCompatibleProxy`, `LlmBillingMode` 개념 정의
+- `.onto/authority/core-lexicon.yaml` — `LlmCompatibleProxy`, `LlmBillingMode` 개념 정의
 
 ## Commands
 
@@ -477,7 +477,7 @@ onto/
 +-- BLUEPRINT.md             # System overview for users
 +-- process.md               # Common definitions (agent configuration, domain rules, Agent Teams)
 +-- learning-rules.md        # Learning storage rules, tags, consumption (teammate reference)
-+-- authority/               # Canonical data (배포 포함)
++-- .onto/authority/               # Canonical data (배포 포함)
 |   +-- core-lexicon.yaml             # Concept SSOT (rank 1)
 |   +-- core-lens-registry.yaml       # Lens config (runtime)
 |   +-- translation-reference.yaml    # Term translation (onboarding, NON-AUTHORITATIVE)

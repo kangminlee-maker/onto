@@ -8,7 +8,7 @@ on:
       - '.onto/processes/**'
       - '.onto/commands/**'
       - '.onto/principles/**'
-      - 'authority/external-render-points.yaml'
+      - '.onto/authority/external-render-points.yaml'
       - '.onto/roles/**'
       - 'src/**'
       - 'scripts/lint-output-language-boundary.ts'

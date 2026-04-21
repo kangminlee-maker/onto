@@ -706,7 +706,7 @@ reference.
 
 ```yaml
 # {project}/.onto/config.yml — reconstruct-relevant keys
-output_language: en           # principal-facing output language only. Agent prompts, wip.yml, session-log, and all internal artifacts stay in English regardless of this setting. Translation occurs only at Runtime Coordinator render seats registered in `authority/external-render-points.yaml`. See `.onto/principles/output-language-boundary.md`.
+output_language: en           # principal-facing output language only. Agent prompts, wip.yml, session-log, and all internal artifacts stay in English regardless of this setting. Translation occurs only at Runtime Coordinator render seats registered in `.onto/authority/external-render-points.yaml`. See `.onto/principles/output-language-boundary.md`.
 
 semantic_identity:
   diagnostic_enabled: true    # default; when false, Tier 2 is skipped entirely
@@ -1034,8 +1034,8 @@ delta:
       # Explorer populates this field based on which aspect of the source was traversed to discover the fact.
       # Consumed by Phase 2 Step 1 (aspect_bias per module/entity + global aspect_totals) and Phase 3 Observation Aspect Distribution table.
       # If a future lens introduces a new aspect value, Runtime passes it through unchanged and Phase 3 renders it as an additional row.
-      fact_type: {one of authority/core-lexicon.yaml#fact_type.allowed_values — Stage 1: entity, enum, property, relation, code_mapping; Stage 2: state_transition, command, query, policy_constant, flow}
-      # Canonical enum: authority/core-lexicon.yaml#fact_type (v0.10.0+, R-31 SSOT 정렬).
+      fact_type: {one of .onto/authority/core-lexicon.yaml#fact_type.allowed_values — Stage 1: entity, enum, property, relation, code_mapping; Stage 2: state_transition, command, query, policy_constant, flow}
+      # Canonical enum: .onto/authority/core-lexicon.yaml#fact_type (v0.10.0+, R-31 SSOT 정렬).
       # 신규 fact_type 추가 시 lexicon term 의 allowed_values + stage_partition 우선 갱신 후 본 schema 의 structured_data 명세 추가.
       structured_data:  # structured data per fact_type (optional)
         # entity: {name, domain, db_table, properties: [{name, type, nullable, description, enum_ref, constraints}]}
@@ -1768,4 +1768,4 @@ When modifying this file (reconstruct.md), the following documents must be synch
 | `src/core-runtime/cli/coordinator-state-machine.ts` | Add `awaiting_adjudication` state for reconstruct mode pipeline |
 | `.sprint-kit.yaml` / config | Schema negotiation (Phase 0) 변경 시 config 파일의 schema 옵션·기본값 동기화 |
 | `golden/schema-*.yml` | Schema 구조(필드, 타입, 필수값) 변경 시 golden fixture 의 스키마 정합 확인 |
-| `authority/core-lexicon.yaml` | 용어 정의(certainty level, fact_type 등) 변경 시 lexicon term 동기화 (W-D-01 provisional_lifecycle 참조) |
+| `.onto/authority/core-lexicon.yaml` | 용어 정의(certainty level, fact_type 등) 변경 시 lexicon term 동기화 (W-D-01 provisional_lifecycle 참조) |

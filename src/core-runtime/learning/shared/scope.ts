@@ -1,7 +1,7 @@
 /**
  * FrameworkScope — 항목의 적용 범위 축 값 (framework v1.0 §2).
  *
- * Lexicon authority: authority/core-lexicon.yaml
+ * Lexicon authority: .onto/authority/core-lexicon.yaml
  *   shared_attributes.scope.values: [product, medium, domain, methodology]
  *
  * Legacy mapping (legacy_alias_governance.scope_migration):

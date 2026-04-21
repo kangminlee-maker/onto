@@ -109,7 +109,7 @@ ${state.filesystem_scope.effective_allowed_roots
 
 const DEFAULT_MAX_EMBED_LINES = 300;
 
-// Core role IDs derived from authority/core-lens-registry.yaml (single source of truth)
+// Core role IDs derived from .onto/authority/core-lens-registry.yaml (single source of truth)
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 const CORE_ROLE_IDS = new Set(loadCoreLensRegistry().core_role_ids);
 

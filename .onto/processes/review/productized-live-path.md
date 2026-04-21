@@ -14,7 +14,7 @@
 > - `.onto/processes/review/record-field-mapping.md`
 > - `.onto/processes/review/execution-preparation-artifacts.md`
 > - `.onto/processes/review/prompt-execution-runner-contract.md`
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 
 ---
 

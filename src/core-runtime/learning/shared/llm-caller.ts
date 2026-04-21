@@ -302,7 +302,7 @@ export interface LlmCallResult {
    * Declarative billing classification used by onto's cost-order ladder.
    * NOT a measured billing truth — e.g. LiteLLM downstream is opaque so it's
    * recorded conservatively as per_token even if the backend is a free local
-   * model. Authority concept: authority/core-lexicon.yaml entities.LlmBillingMode.
+   * model. Authority concept: .onto/authority/core-lexicon.yaml entities.LlmBillingMode.
    */
   declared_billing_mode?: "subscription" | "per_token";
 }
@@ -1321,7 +1321,7 @@ function callMockProvider(
     systemPrompt.startsWith("You are a review lens selector")
   ) {
     // Phase 3: Step 1.5 lens selection mock — default core-axis set.
-    // SSOT: authority/core-lens-registry.yaml (v0.2.1: cost-constrained
+    // SSOT: .onto/authority/core-lens-registry.yaml (v0.2.1: cost-constrained
     // Pareto-optimal lenses). Imported at module init (see top of file).
     text = JSON.stringify({
       selected_lens_ids: loadCoreLensRegistry().core_axis_lens_ids,

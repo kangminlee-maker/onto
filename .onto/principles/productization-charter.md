@@ -3,7 +3,7 @@
 > 상태: Active
 > 목적: `onto` 메인 레포의 제품화 목표, 개발 원칙, 개발 방향, 현재 우선순위를 하나의 상위 문서로 고정한다.
 > 기준 문서:
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 
 ---
 
@@ -82,7 +82,7 @@
 
 이 원칙은 아래를 함께 묶는다.
 
-1. `authority/core-lexicon.yaml`
+1. `.onto/authority/core-lexicon.yaml`
 2. contract 문서
 3. TypeScript type/interface
 4. artifact field name
@@ -486,24 +486,24 @@ canonical execution profile은 아래 두 축으로 표현한다.
 
 | 삭제된 파일 | 처리 | 후계 seat |
 |---|---|---|
-| `authority/development-methodology.md` | 흡수 | §4.2 (Interface Design Priority) → `llm-runtime-interface-principles.md` §6; §5 (First Migration Priority) → `productization-charter.md` §13 Bootstrap Sequence; §4.1 (CIRU 보존) → `llm-native-development-guideline.md` §맥락 격리 추론 단위; 나머지 원칙은 `llm-native-development-guideline.md`와 `productization-charter.md` 기존 섹션과 중복이라 흡수 불필요 |
-| `authority/ontology-as-code-korean-terminology-guide.md` | 흡수 | 21개 한글 대응어 모두 `core-lexicon.yaml`에 `korean_label`로 존재. naming 규칙은 `ontology-as-code-naming-charter.md`가 담당 |
-| `authority/principles-criteria-decisions-inventory.md` | 삭제 | 감사 인덱스. 모든 내용이 `productization-charter.md` §5 Decision Criteria + §6 Current Decisions에 있음. 별도 인덱스가 두 곳을 흐리게 만들어 삭제 |
+| `.onto/authority/development-methodology.md` | 흡수 | §4.2 (Interface Design Priority) → `llm-runtime-interface-principles.md` §6; §5 (First Migration Priority) → `productization-charter.md` §13 Bootstrap Sequence; §4.1 (CIRU 보존) → `llm-native-development-guideline.md` §맥락 격리 추론 단위; 나머지 원칙은 `llm-native-development-guideline.md`와 `productization-charter.md` 기존 섹션과 중복이라 흡수 불필요 |
+| `.onto/authority/ontology-as-code-korean-terminology-guide.md` | 흡수 | 21개 한글 대응어 모두 `core-lexicon.yaml`에 `korean_label`로 존재. naming 규칙은 `ontology-as-code-naming-charter.md`가 담당 |
+| `.onto/authority/principles-criteria-decisions-inventory.md` | 삭제 | 감사 인덱스. 모든 내용이 `productization-charter.md` §5 Decision Criteria + §6 Current Decisions에 있음. 별도 인덱스가 두 곳을 흐리게 만들어 삭제 |
 
 ### 이동된 파일
 
 | 이전 위치 | 새 위치 | 이유 |
 |---|---|---|
-| `authority/BLUEPRINT.md` | `BLUEPRINT.md` (루트) | 이용자용 시스템 설명서로 README와 같은 레벨. legacy/reference 표시함 |
-| `authority/philosophical-foundations-of-ontology.md` | `development-records/reference/20260327-philosophical-foundations-of-ontology.md` | 설계 배경 이론 (Gomez-Perez, Obrst, OntoClean 등 ontology evaluation framework). 개발 원칙이 아니라 historical reference. authority 내에 후계 seat 없음 — 이는 의도적 de-scope (review-first productization은 lens semantic grounding을 외부 표준 매핑이 아니라 `core-lens-registry.yaml`과 `core-lexicon.yaml`로 한정함) |
-| `authority/discovered-enhancements.md` | `development-records/tracking/20260406-discovered-enhancements.md` | 백로그/추적 문서. authority 원칙이 아님. enhancement-record seat 역할 유지 |
+| `.onto/authority/BLUEPRINT.md` | `BLUEPRINT.md` (루트) | 이용자용 시스템 설명서로 README와 같은 레벨. legacy/reference 표시함 |
+| `.onto/authority/philosophical-foundations-of-ontology.md` | `development-records/reference/20260327-philosophical-foundations-of-ontology.md` | 설계 배경 이론 (Gomez-Perez, Obrst, OntoClean 등 ontology evaluation framework). 개발 원칙이 아니라 historical reference. authority 내에 후계 seat 없음 — 이는 의도적 de-scope (review-first productization은 lens semantic grounding을 외부 표준 매핑이 아니라 `core-lens-registry.yaml`과 `core-lexicon.yaml`로 한정함) |
+| `.onto/authority/discovered-enhancements.md` | `development-records/tracking/20260406-discovered-enhancements.md` | 백로그/추적 문서. authority 원칙이 아님. enhancement-record seat 역할 유지 |
 
 ### authority 내 잔류 파일 (위계 외 참조 데이터)
 
 | 파일 | 역할 |
 |---|---|
-| `authority/core-lens-registry.yaml` | lens 설정. 런타임 전용 |
-| `authority/translation-reference.yaml` | legacy/prototype 용어 번역 보조. **NON-AUTHORITATIVE**. canonical SSOT는 `core-lexicon.yaml` |
+| `.onto/authority/core-lens-registry.yaml` | lens 설정. 런타임 전용 |
+| `.onto/authority/translation-reference.yaml` | legacy/prototype 용어 번역 보조. **NON-AUTHORITATIVE**. canonical SSOT는 `core-lexicon.yaml` |
 
 ### 의도적 de-scope (재배치 아님)
 
@@ -517,15 +517,15 @@ canonical execution profile은 아래 두 축으로 표현한다.
 
 배포 보안 + OaC 의미 기반 폴더 분리.
 
-**이동된 파일 (authority/ → .onto/principles/)**
+**이동된 파일 (.onto/authority/ → .onto/principles/)**
 
 | 이전 위치 | 새 위치 | 이유 |
 |---|---|---|
-| `authority/ontology-as-code-guideline.md` | `.onto/principles/ontology-as-code-guideline.md` | 개발 규범 문서. 런타임이 소비하지 않음. 배포 제외 대상 |
-| `authority/llm-native-development-guideline.md` | `.onto/principles/llm-native-development-guideline.md` | 동일 |
-| `authority/productization-charter.md` | `.onto/principles/productization-charter.md` | 동일 |
-| `authority/llm-runtime-interface-principles.md` | `.onto/principles/llm-runtime-interface-principles.md` | 동일 |
-| `authority/ontology-as-code-naming-charter.md` | `.onto/principles/ontology-as-code-naming-charter.md` | 동일 |
+| `.onto/authority/ontology-as-code-guideline.md` | `.onto/principles/ontology-as-code-guideline.md` | 개발 규범 문서. 런타임이 소비하지 않음. 배포 제외 대상 |
+| `.onto/authority/llm-native-development-guideline.md` | `.onto/principles/llm-native-development-guideline.md` | 동일 |
+| `.onto/authority/productization-charter.md` | `.onto/principles/productization-charter.md` | 동일 |
+| `.onto/authority/llm-runtime-interface-principles.md` | `.onto/principles/llm-runtime-interface-principles.md` | 동일 |
+| `.onto/authority/ontology-as-code-naming-charter.md` | `.onto/principles/ontology-as-code-naming-charter.md` | 동일 |
 
 **이름 변경된 디렉토리**
 
@@ -537,7 +537,7 @@ canonical execution profile은 아래 두 축으로 표현한다.
 
 | 폴더 | conceptual axis | 역할 | 배포 |
 |---|---|---|---|
-| `authority/` | canonical data | define (정의) | 포함 |
+| `.onto/authority/` | canonical data | define (정의) | 포함 |
 | `.onto/principles/` | development governance | prescribe (규정) | 제외 |
 | `development-records/` | development history | record (기록) | 제외 |
 

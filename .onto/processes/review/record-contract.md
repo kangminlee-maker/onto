@@ -10,7 +10,7 @@
 > - `.onto/processes/review/synthesize-prompt-contract.md`
 > - `.onto/processes/review/execution-preparation-artifacts.md`
 > - `.onto/processes/review/record-field-mapping.md`
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 
 ---
 

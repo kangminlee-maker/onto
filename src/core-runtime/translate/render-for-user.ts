@@ -25,16 +25,24 @@ const __dirname = path.dirname(__filename);
  * Repo root relative to this module. The translate module lives at
  * `src/core-runtime/translate/` so 3 levels up land at the project root.
  * This is resolved once at module load time. Tests override via
- * `setRegistryPathForTesting`.
+ * `setRegistryPathForTesting`. Phase 6 (2026-04-21) moved authority/
+ * into .onto/authority/; legacy fallback kept until Phase 7.
  */
-const DEFAULT_REGISTRY_PATH = path.resolve(
-  __dirname,
-  "..",
-  "..",
-  "..",
+const REPO_ROOT_FROM_TRANSLATE = path.resolve(__dirname, "..", "..", "..");
+const CANONICAL_REGISTRY_PATH = path.join(
+  REPO_ROOT_FROM_TRANSLATE,
+  ".onto",
   "authority",
   "external-render-points.yaml",
 );
+const LEGACY_REGISTRY_PATH = path.join(
+  REPO_ROOT_FROM_TRANSLATE,
+  "authority",
+  "external-render-points.yaml",
+);
+const DEFAULT_REGISTRY_PATH = fs.existsSync(CANONICAL_REGISTRY_PATH)
+  ? CANONICAL_REGISTRY_PATH
+  : LEGACY_REGISTRY_PATH;
 
 let registryPathOverride: string | null = null;
 let cachedRegistry: ExternalRenderRegistry | null = null;
@@ -55,7 +63,7 @@ export interface ExternalRenderRegistry {
 
 /**
  * Test helper: override the registry path so a unit test can exercise a
- * controlled YAML fixture without mutating the shared `authority/` file.
+ * controlled YAML fixture without mutating the shared `.onto/authority/` file.
  * Clears the module-level cache as a side effect.
  */
 export function setRegistryPathForTesting(filePath: string | null): void {
@@ -100,7 +108,7 @@ function parseRegistryYaml(text: string): ExternalRenderRegistry {
       typeof current.rationale !== "string"
     ) {
       throw new Error(
-        `authority/external-render-points.yaml: entry missing required field(s) ` +
+        `.onto/authority/external-render-points.yaml: entry missing required field(s) ` +
           `(id/file/rationale). got=${JSON.stringify(current)}`,
       );
     }
@@ -176,7 +184,7 @@ export function isRegisteredRenderPoint(id: string): boolean {
 }
 
 export interface RenderForUserArgs {
-  /** Registry id — must exist in authority/external-render-points.yaml. */
+  /** Registry id — must exist in .onto/authority/external-render-points.yaml. */
   renderPointId: string;
   /** Internal English text assembled by the caller (halt body, summary, ...). */
   internalPayload: string;
@@ -205,7 +213,7 @@ export function renderForUser(args: RenderForUserArgs): string {
     const known = registry.points.map((p) => p.id).join(", ") || "(none)";
     throw new Error(
       `renderForUser: unknown renderPointId "${args.renderPointId}". ` +
-        `Register it in authority/external-render-points.yaml first. ` +
+        `Register it in .onto/authority/external-render-points.yaml first. ` +
         `known ids: ${known}.`,
     );
   }

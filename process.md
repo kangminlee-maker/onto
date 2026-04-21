@@ -176,7 +176,7 @@ The two-axis language policy is canonicalized in `.onto/principles/output-langua
 1. **Internal system** (agent prompts, `wip.yml`, `deltas/`, `session-log.yml`, any agent-to-agent hand-off) — English only, regardless of `output_language`.
 2. **External output** (principal-facing reports, halt messages, interactive prompts) — translated via `output_language` at the Runtime Coordinator's render seat (`src/core-runtime/translate/render-for-user.ts`).
 3. `output_language` resolution: `{project}/.onto/config.yml` first, `en` default. CLAUDE.md language directives are overridden by `output_language`.
-4. Allowed render points are enumerated in `authority/external-render-points.yaml`; unregistered `{output_language}` references are rejected by the boundary lint (see `scripts/lint-output-language-boundary.ts`).
+4. Allowed render points are enumerated in `.onto/authority/external-render-points.yaml`; unregistered `{output_language}` references are rejected by the boundary lint (see `scripts/lint-output-language-boundary.ts`).
 
 ### Domain Determination Rules
 

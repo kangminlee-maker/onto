@@ -88,11 +88,10 @@ function isOrthogonalField(key: string): boolean {
 
 /**
  * SSOT predicate for "does this config declare a non-empty `review:` axis
- * block?". Post-P9.4 this is consumed only by
- * `legacy-field-deprecation.ts` as the silent-bypass gate for principals
- * who have migrated to the axis block (legacy fields in YAML are still
- * tolerated when a review block is present). It is no longer used by
- * profile adoption.
+ * block?". Post-P9.5 this is consumed only by `claimsProfileOwnership`
+ * below (the atomic-adoption ownership signal). The prior
+ * `legacy-field-deprecation.ts` silent-bypass gate was removed along
+ * with the legacy-detection module itself in P9.5.
  *
  * A block counts as declared when it is a non-null object with at least
  * one key. An empty `review: {}` (YAML author wrote `review:` and forgot
@@ -100,7 +99,7 @@ function isOrthogonalField(key: string): boolean {
  * `execution_topology_priority: []` behavior.
  *
  * Accepts either a typed `OntoConfig` or a raw `Record<string, unknown>`
- * (legacy-field-deprecation reads YAML before typing).
+ * for compatibility with callers that read YAML before typing.
  */
 export function hasReviewBlock(
   config: OntoConfig | Record<string, unknown> | undefined,

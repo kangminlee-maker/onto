@@ -633,13 +633,12 @@ function buildNoHostDetectedError(): Error {
  * `plan_trace`-stripped subset suitable for JSON transmission
  * (see `toCoordinatorTopologyDescriptor`).
  *
- * Note on `review: {}`: unlike `validateProfileCompleteness` and
- * `detectLegacyFieldUsage` (which use `hasReviewBlock` to reject an
- * empty object), dispatch treats an empty review block the same as
- * an absent one — the resolver's main_native degrade path handles
- * both identically. Practically this asymmetry never surfaces because
- * an empty review block fails `validateProfileCompleteness` and
- * `resolveConfigChain` throws before dispatch is reached.
+ * Note on `review: {}`: unlike `detectLegacyFieldUsage` (which uses
+ * `hasReviewBlock` to reject an empty object for the legacy-bypass
+ * gate), dispatch treats an empty review block the same as an absent
+ * one — the resolver's main_native degrade path handles both
+ * identically. Post-P9.4 this is the authoritative handling: config
+ * load no longer throws on empty/absent profiles; the resolver decides.
  */
 export function tryResolveTopologyForHandoff(
   ontoConfig: OntoConfig | undefined,
@@ -766,10 +765,10 @@ function emitCoordinatorStartHandoff(args: {
  *
  * Note on `review: {}`: same as `tryResolveTopologyForHandoff` —
  * dispatch treats an empty review block identically to an absent one
- * (main_native degrade handles both). The asymmetry with
- * `hasReviewBlock`-based consumers (validation / legacy-bypass) is
- * masked upstream by `validateProfileCompleteness` + `resolveConfigChain`
- * rejecting empty review blocks at config load time.
+ * (main_native degrade handles both). The only remaining
+ * `hasReviewBlock`-based consumer is `legacy-field-deprecation.ts`
+ * (silent-bypass gate), which rejects empty review blocks as a
+ * separate concern from dispatch viability.
  */
 export function tryTopologyDerivedExecutor(
   ontoConfig: OntoConfig | undefined,

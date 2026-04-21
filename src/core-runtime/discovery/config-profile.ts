@@ -1,5 +1,5 @@
 /**
- * Atomic profile adoption for review config chain — Review Recovery PR-1 addendum.
+ * Atomic profile adoption for review config chain.
  *
  * # What this module is
  *
@@ -25,25 +25,25 @@
  * # How it relates
  *
  * `adoptProfile()` is called from `resolveConfigChain()`. It returns the
- * adopted profile fields (one source), whether a notice should be emitted,
- * and whether the adoption failed entirely (both sides incomplete/absent).
- * `resolveConfigChain()` is the single integration seat for review callers.
+ * adopted profile fields (one source, or empty when neither side declared
+ * any). `resolveConfigChain()` is the single integration seat for review
+ * callers.
  *
- * # Canonical seat history
+ * # P9.4 simplification (2026-04-21)
  *
- * The "profile is declared" signal has migrated across three phases:
+ * The prior version enforced a stronger "completeness" check
+ * (`validateProfileCompleteness`) that required a `review:` axis block to
+ * count a profile as usable, and threw `buildBothIncompleteError` when
+ * neither side was "complete". Those guards are removed in P9.4 because
+ * the topology resolver's universal `main_native` degrade (P3 of the
+ * Review UX Redesign track) already catches "no viable host" and emits a
+ * structured `no_host` error. The adoption layer therefore only needs to
+ * answer "which source owns the profile slice?", not "is that slice
+ * runnable?".
  *
- *   - pre-PR-K (≤ 2026-04-17): legacy provider-profile fields
- *     (`host_runtime`, `execution_realization`, `api_provider`, ...).
- *   - PR-K ~ P9.1 (2026-04-18 ~ 04-21): `execution_topology_priority`
- *     array declared a canonical topology seat.
- *   - Post-P9.2 (2026-04-21): the `review:` axis block is the canonical
- *     seat. `hasReviewBlock(config)` (below) is the SSOT predicate used
- *     by `validateProfileCompleteness` and shared with the opt-in gates
- *     in `review-invoke.ts` and the silent-bypass in
- *     `legacy-field-deprecation.ts`. Runtime validation of per-provider
- *     compatibility still lives in the topology resolver and the
- *     executor spawn path, not in profile adoption.
+ * The atomic-ownership principle is preserved: `extractProfileFields`
+ * still transfers PROFILE_FIELDS as a group, so frankenstein merges
+ * remain impossible.
  */
 
 import type { OntoConfig } from "./config-chain.js";
@@ -74,14 +74,6 @@ export const PROFILE_FIELDS = new Set<keyof OntoConfig>([
   // a frankenstein merge (project declares the flag, global supplies the
   // actual provider) would reintroduce the silent-divergence class PR-1
   // just closed.
-  //
-  // P7 (2026-04-21): `generic_nested_spawn_supported` removed along with
-  // the `generic-*` TopologyIds it gated.
-  //
-  // P9.2 (2026-04-21): `execution_topology_priority` and
-  // `execution_topology_overrides` removed from `OntoConfig` entirely;
-  // the `review:` axis block is orthogonal by design (see
-  // `OntoConfig.review` JSDoc).
   "lens_agent_teams_mode",
 ]);
 
@@ -95,21 +87,17 @@ function isOrthogonalField(key: string): boolean {
 }
 
 /**
- * Single source of truth for "does this config declare the Review UX
- * Redesign opt-in?". Post-P9.2 (2026-04-21) this judgment is shared by
- * three consumer layers:
- *   - `validateProfileCompleteness` (completeness signal),
- *   - `checkAndEmitLegacyDeprecation` silent-bypass (`review_block_set`),
- *   - the opt-in gates in `review-invoke.ts`
- *     (`tryResolveTopologyForHandoff`, `tryTopologyDerivedExecutor`).
+ * SSOT predicate for "does this config declare a non-empty `review:` axis
+ * block?". Post-P9.4 this is consumed only by
+ * `legacy-field-deprecation.ts` as the silent-bypass gate for principals
+ * who have migrated to the axis block (legacy fields in YAML are still
+ * tolerated when a review block is present). It is no longer used by
+ * profile adoption.
  *
- * A block counts as declared when it is a non-null object with **at
- * least one key**. An empty `review: {}` (YAML author wrote `review:`
- * and forgot the body) does NOT count — we guard against accidental
- * opt-in that would otherwise silently flip atomic profile adoption
- * and gate dispatch. This mirrors the prior
- * `execution_topology_priority: []` behavior, where an empty array
- * also failed the opt-in test.
+ * A block counts as declared when it is a non-null object with at least
+ * one key. An empty `review: {}` (YAML author wrote `review:` and forgot
+ * the body) does NOT count — this mirrors the prior
+ * `execution_topology_priority: []` behavior.
  *
  * Accepts either a typed `OntoConfig` or a raw `Record<string, unknown>`
  * (legacy-field-deprecation reads YAML before typing).
@@ -124,65 +112,20 @@ export function hasReviewBlock(
 }
 
 // ---------------------------------------------------------------------------
-// Completeness validation
+// Profile field presence
 // ---------------------------------------------------------------------------
 
-export interface ProfileValidation {
-  /** True when the profile can produce a valid ExecutionPlan as-is. */
-  complete: boolean;
-  /** True when at least one profile field is set (even if incomplete). */
-  touched: boolean;
-  /** Human-readable reasons for incompleteness, empty when complete or untouched. */
-  reasons: string[];
-}
-
 /**
- * Determine whether a config declares a complete provider profile.
- *
- * Completeness rules (post-P9.2, 2026-04-21):
- *   1. A non-empty `review:` axis block is declared → complete. The
- *      topology resolver owns per-provider validation at run time;
- *      profile adoption only needs to know that the principal has
- *      declared a canonical seat.
- *   2. Otherwise if any profile field is touched → incomplete, with a
- *      migration hint. Reaching this branch without a review block
- *      typically means legacy config or a partial migration — legacy
- *      configs throw at config load (see `legacy-field-deprecation.ts`),
- *      so this branch catches the residual partial-migration case.
- *   3. Untouched → not complete, not touched (empty reasons).
- *
- * History: pre-P9.2 the signal was `execution_topology_priority`
- * (length > 0); pre-PR-K it was the provider-profile fields
- * (host_runtime, execution_realization, etc). The `hasReviewBlock`
- * helper is the SSOT for the current definition.
+ * Does this config declare ANY PROFILE_FIELDS value? Used by `adoptProfile`
+ * to decide which side owns the profile slice. Returns true when at least
+ * one profile field is set to a non-empty value (empty objects like
+ * `anthropic: {}` written by YAML authors don't count).
  */
-export function validateProfileCompleteness(
-  config: OntoConfig,
-): ProfileValidation {
-  if (hasReviewBlock(config)) {
-    return { complete: true, touched: true, reasons: [] };
-  }
-
-  const touched = hasAnyProfileField(config);
-  if (!touched) {
-    return { complete: false, touched: false, reasons: [] };
-  }
-
-  return {
-    complete: false,
-    touched,
-    reasons: [
-      "`review:` axis block 이 없음. Review UX Redesign migration 필요 (docs/topology-migration-guide.md §7 참고).",
-    ],
-  };
-}
-
-function hasAnyProfileField(config: OntoConfig): boolean {
+export function hasAnyProfileField(config: OntoConfig): boolean {
   for (const field of PROFILE_FIELDS) {
     const value = (config as Record<string, unknown>)[field as string];
     if (value === undefined || value === null) continue;
     if (typeof value === "object" && !Array.isArray(value)) {
-      // Skip empty objects (e.g., `anthropic: {}` written but empty)
       if (Object.keys(value as object).length === 0) continue;
     }
     return true;
@@ -197,6 +140,13 @@ function hasAnyProfileField(config: OntoConfig): boolean {
 /**
  * Extract only profile-scoped fields from a config. Orthogonal fields are
  * dropped — this is the "profile slice" that adoption transfers atomically.
+ *
+ * Note: asymmetric with `hasAnyProfileField`. That predicate skips empty
+ * objects (e.g. `codex: {}`) when deciding ownership, but this extractor
+ * PRESERVES them in the output. Rationale: a project that opted in via
+ * the review block may explicitly want an empty namespace slot (author
+ * intent: "I own this namespace, leave defaults") to survive adoption
+ * rather than falling back to home's populated version.
  */
 export function extractProfileFields(
   config: OntoConfig,
@@ -218,243 +168,118 @@ export function extractProfileFields(
 export interface ProfileAdoptionInputs {
   home: OntoConfig;
   project: OntoConfig;
-  /** Path where home config is expected (displayed in notices/errors). */
+  /** Path where home config is expected (displayed for traceability). */
   homePath: string;
-  /** Path where project config is expected (displayed in notices/errors). */
+  /** Path where project config is expected (displayed for traceability). */
   projectPath: string;
   /** Whether home === project (e.g., running against the onto repo itself). */
   sameRoot: boolean;
 }
 
-export interface ProfileAdoption {
-  /** Profile fields from exactly one source (or empty when neither viable). */
-  profile: Partial<OntoConfig>;
-  /** Which side owns the adopted profile. "none" when both incomplete/absent. */
-  source: "project" | "global" | "none";
-  /** Absolute path to the source config file (for traceability). */
-  source_path: string | null;
-  /** STDERR notice to emit when project was partial and global was used. */
-  notice?: string;
-  /** Validation outcomes for both sides (for error message composition). */
-  project_validation: ProfileValidation;
-  home_validation: ProfileValidation;
+/**
+ * Result of an adoption cycle.
+ *
+ * Typed as a discriminated union on `source` so callers receive
+ * type-level guarantees:
+ *   - `source: "project" | "global"` → `source_path` is a concrete string
+ *     and `profile` may contain any Partial<OntoConfig> shape.
+ *   - `source: "none"` → `source_path` is null and `profile` is {}.
+ *
+ * Narrowing on `source` in consumer code lets the compiler reject
+ * impossible states (e.g. reading `source_path.toString()` when source
+ * is "none" fails to typecheck).
+ */
+export type ProfileAdoption =
+  | {
+      source: "project" | "global";
+      profile: Partial<OntoConfig>;
+      source_path: string;
+    }
+  | {
+      source: "none";
+      profile: Record<string, never>;
+      source_path: null;
+    };
+
+/**
+ * Does this config claim profile ownership? A side claims ownership when it
+ * declares either any PROFILE_FIELDS value OR a non-empty `review:` axis
+ * block. The axis block is orthogonal-merged (not part of the profile slice
+ * itself), but its presence signals "I opted in to declaring this review
+ * setup" — which is strong enough to commit that side to owning whatever
+ * profile fields accompany it (even if the accompanying fields are empty
+ * objects like `codex: {}` that the author left as defaults).
+ */
+function claimsProfileOwnership(config: OntoConfig): boolean {
+  return hasAnyProfileField(config) || hasReviewBlock(config);
 }
 
 /**
  * Adopt exactly one profile atomically.
  *
- * Decision table:
- *   project complete                        → adopt project
- *   project touched-but-incomplete + home complete → adopt global + emit notice
- *   project absent + home complete          → adopt global silently
- *   project complete + home anything        → adopt project
- *   any other combination                   → source="none" (caller decides)
+ * # Decision table (post-P9.4)
  *
- * This function never throws; the "both incomplete" decision is surfaced via
- * source="none" so the caller (resolveConfigChain) composes the fail-fast
- * error with full context.
+ *   sameRoot                              → home/project are the same file, treat as global
+ *   project claims ownership              → adopt project
+ *   project does not, home claims         → adopt home
+ *   neither claims                        → empty profile, source="none"
+ *
+ * # What "claims ownership" means
+ *
+ * Either a non-empty `review:` axis block OR any PROFILE_FIELDS value.
+ * See `claimsProfileOwnership` above — this is the post-P9.4 replacement
+ * for the prior `validateProfileCompleteness` check.
+ *
+ * # Why this shape
+ *
+ * Pre-P9.4 the table had five cases because the layer also decided "is
+ * this profile viable for review?" via `validateProfileCompleteness` /
+ * `buildBothIncompleteError`. P9.3's universal `main_native` degrade
+ * moved that judgment into the topology resolver, so adoption only
+ * needs to answer ownership. The "touched-but-incomplete" + STDERR
+ * notice branch is gone too: if the project opted in (review block
+ * or any profile field), it owns the slice; the resolver handles the
+ * rest.
+ *
+ * # Atomic ownership invariant
+ *
+ * When `source === "project"`, home's profile fields never appear in
+ * `profile`. When `source === "global"`, project's profile fields never
+ * appear. `extractProfileFields` is the enforcement point — it takes
+ * from one source only. Frankenstein merges remain impossible.
  */
 export function adoptProfile(args: ProfileAdoptionInputs): ProfileAdoption {
-  const project_validation = validateProfileCompleteness(args.project);
-  const home_validation = validateProfileCompleteness(args.home);
+  if (args.sameRoot) {
+    // Single-root case: home === project, so home's profile IS project's.
+    // Report as "global" for traceability (the home path is the canonical
+    // path for same-root runs).
+    if (claimsProfileOwnership(args.home)) {
+      return {
+        profile: extractProfileFields(args.home),
+        source: "global",
+        source_path: args.homePath,
+      };
+    }
+    return { profile: {}, source: "none", source_path: null };
+  }
 
-  // Case 1: project declares a complete profile — project wins, no notice.
-  if (project_validation.complete && !args.sameRoot) {
+  if (claimsProfileOwnership(args.project)) {
     return {
       profile: extractProfileFields(args.project),
       source: "project",
       source_path: args.projectPath,
-      project_validation,
-      home_validation,
     };
   }
 
-  // Case 2: project touched but incomplete AND home is complete — use home,
-  // but emit a detailed notice so the principal can fix the project config.
-  if (
-    project_validation.touched &&
-    !project_validation.complete &&
-    home_validation.complete
-  ) {
+  if (claimsProfileOwnership(args.home)) {
     return {
       profile: extractProfileFields(args.home),
       source: "global",
       source_path: args.homePath,
-      notice: buildProjectIncompleteNotice(args, project_validation, args.home),
-      project_validation,
-      home_validation,
     };
   }
 
-  // Case 3: project untouched, home complete — use home silently.
-  if (!project_validation.touched && home_validation.complete) {
-    return {
-      profile: extractProfileFields(args.home),
-      source: "global",
-      source_path: args.homePath,
-      project_validation,
-      home_validation,
-    };
-  }
-
-  // Case 4: sameRoot + project complete (onto-home equals project; sameRoot
-  // short-circuited case 1 to avoid double-counting). Use it as global.
-  if (args.sameRoot && project_validation.complete) {
-    return {
-      profile: extractProfileFields(args.project),
-      source: "global",
-      source_path: args.homePath,
-      project_validation,
-      home_validation,
-    };
-  }
-
-  // Case 5: neither side usable → source="none", caller throws.
-  return {
-    profile: {},
-    source: "none",
-    source_path: null,
-    project_validation,
-    home_validation,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Notice / error message composition
-// ---------------------------------------------------------------------------
-
-const NOTICE_PREFIX = "[onto:config] ";
-
-function buildProjectIncompleteNotice(
-  args: ProfileAdoptionInputs,
-  project_validation: ProfileValidation,
-  home: OntoConfig,
-): string {
-  const lines: string[] = [];
-  lines.push(
-    `${NOTICE_PREFIX}Project config 가 불완전해서 global config 를 사용합니다.`,
-  );
-  lines.push(`  Project config 경로:   ${args.projectPath}`);
-  lines.push("  불완전 사유:");
-  for (const reason of project_validation.reasons) {
-    lines.push(`    - ${reason}`);
-  }
-  lines.push(`  사용 중인 global:      ${args.homePath}`);
-  const summary = summarizeProfile(home);
-  if (summary) {
-    lines.push(`    → ${summary}`);
-  }
-  lines.push("");
-  lines.push(`  Project config 수정 방법: ${args.projectPath} 편집.`);
-  lines.push(
-    "  예: `review:` axis block 을 설정하거나, 파일에서 profile 필드 전체를 제거해 global 을 사용합니다.",
-  );
-  lines.push("");
-  return lines.join("\n") + "\n";
-}
-
-/**
- * Build the fail-fast error message used when neither side declares a complete
- * profile. This is a long multi-line guide — operators have no working config,
- * so the message is the entire setup manual distilled to one screen.
- */
-export function buildBothIncompleteError(
-  args: ProfileAdoptionInputs,
-  project_validation: ProfileValidation,
-  home_validation: ProfileValidation,
-): Error {
-  const lines: string[] = [];
-  lines.push("Review profile 을 해소할 수 없습니다.");
-  lines.push(
-    "Project 와 global config 모두 완전한 provider profile 이 없습니다.",
-  );
-  lines.push("");
-
-  lines.push(`Project config: ${args.projectPath}`);
-  if (!project_validation.touched) {
-    lines.push("  (파일이 없거나 profile 필드가 전혀 선언되지 않음)");
-  } else {
-    for (const reason of project_validation.reasons) {
-      lines.push(`  - ${reason}`);
-    }
-  }
-  lines.push("");
-
-  lines.push(`Global config: ${args.homePath}`);
-  if (!home_validation.touched) {
-    lines.push("  (파일이 없거나 profile 필드가 전혀 선언되지 않음)");
-  } else {
-    for (const reason of home_validation.reasons) {
-      lines.push(`  - ${reason}`);
-    }
-  }
-  lines.push("");
-
-  lines.push(
-    "다음 중 한 쪽에 완전한 profile 1개를 설정하세요 (project 가 우선, 없으면 global).",
-  );
-  lines.push("Migration guide: docs/topology-migration-guide.md");
-  lines.push("");
-  lines.push("Option A — Codex CLI (ChatGPT OAuth subscription):");
-  lines.push("  review:");
-  lines.push("    subagent:");
-  lines.push("      provider: codex");
-  lines.push("      model_id: gpt-5.4");
-  lines.push("      effort: high");
-  lines.push("  codex:");
-  lines.push("    model: gpt-5.4");
-  lines.push("    effort: high");
-  lines.push("  # 전제: codex 바이너리 설치 + `codex login`");
-  lines.push("");
-  lines.push("Option B — Claude Code Agent tool (nested subagent):");
-  lines.push("  review:");
-  lines.push("    subagent:");
-  lines.push("      provider: main-native");
-  lines.push("  # 전제: Claude Code 세션 안에서 실행");
-  lines.push("");
-  lines.push("Option C — Claude Code TeamCreate (experimental):");
-  lines.push("  review:");
-  lines.push("    subagent:");
-  lines.push("      provider: main-native");
-  lines.push("  # 전제: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1");
-  lines.push("");
-  lines.push("Option D — LiteLLM proxy (로컬 모델 등):");
-  lines.push("  review:");
-  lines.push("    subagent:");
-  lines.push("      provider: litellm");
-  lines.push("      model_id: llama-8b");
-  lines.push("  llm_base_url: http://localhost:4000");
-  lines.push("  litellm:");
-  lines.push("    model: llama-8b");
-  lines.push("");
-  lines.push("저장 위치:");
-  lines.push(`  - Project (이 프로젝트에만 적용): ${args.projectPath}`);
-  lines.push(
-    `  - Global (모든 프로젝트 기본값):  ${args.homePath}`,
-  );
-  return new Error(lines.join("\n"));
-}
-
-export function summarizeProfile(config: OntoConfig): string | null {
-  const parts: string[] = [];
-  if (config.external_http_provider)
-    parts.push(`external_http_provider=${config.external_http_provider}`);
-  if (config.review) {
-    const subagent = config.review.subagent
-      ? `subagent=${config.review.subagent.provider}`
-      : "subagent=(default)";
-    parts.push(`review=[${subagent}]`);
-  }
-  const modelForHost =
-    config.anthropic?.model ||
-    config.openai?.model ||
-    config.litellm?.model ||
-    config.codex?.model ||
-    config.model;
-  if (modelForHost) parts.push(`model=${modelForHost}`);
-  if (config.reasoning_effort)
-    parts.push(`reasoning_effort=${config.reasoning_effort}`);
-  return parts.length > 0 ? parts.join(", ") : null;
+  return { profile: {}, source: "none", source_path: null };
 }
 
 // ---------------------------------------------------------------------------

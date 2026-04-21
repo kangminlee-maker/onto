@@ -2,7 +2,6 @@ import path from "node:path";
 import { fileExists, readYamlDocument } from "../review/review-artifact-utils.js";
 import {
   adoptProfile,
-  buildBothIncompleteError,
   hasReviewBlock,
   mergeOrthogonalFields,
 } from "./config-profile.js";
@@ -313,27 +312,34 @@ export async function resolveOrthogonalConfigChain(
 /**
  * Config chain resolver (home + project) with atomic profile adoption.
  *
- * As of Review Recovery PR-1 (2026-04-18), provider-coupled fields
- * (host_runtime, execution_realization, per-provider model blocks, etc.)
- * are NO LONGER merged field-by-field. Instead:
+ * # Behavior (post-P9.4, 2026-04-21)
  *
- *   - Project profile **complete**  → project owns the profile atomically.
- *   - Project profile **incomplete** (touched-but-invalid) + home complete
- *                                    → global profile adopted + STDERR
- *                                      notice explaining why and how to fix.
- *   - Project absent + home complete → global profile adopted silently.
- *   - **Both incomplete / absent**   → fail-fast with a detailed setup guide
- *                                      (buildBothIncompleteError).
+ *   - Project declares any profile fields  → project owns the profile atomically.
+ *   - Project declares none, home declares some → global profile adopted silently.
+ *   - Neither side declares any profile fields → empty profile returned; the
+ *     topology resolver's universal `main_native` degrade decides whether a
+ *     review run is actually viable and emits `no_host` when not.
  *
  * Orthogonal fields (output_language, domains, review_mode, listing limits,
  * learning_extract_mode, etc.) continue to merge last-wins — they do not
  * carry cross-provider semantics.
  *
- * Rationale: previously the last-wins merge silently produced frankenstein
- * profiles (e.g., home's codex `execution_realization=subagent` +
- * `reasoning_effort=high` inherited over project's `host_runtime=anthropic`).
- * The orphan fields were either ignored or mismatched downstream, masking
- * real config drift. Atomic adoption makes the ownership explicit.
+ * # Why atomic adoption still runs
+ *
+ * Even though the "is this profile viable?" guard has moved to the topology
+ * resolver, the atomic-ownership rule remains necessary: last-wins per-field
+ * merge would silently produce frankenstein profiles (e.g., home's
+ * `codex.model=gpt-5.4` inherited over project's `anthropic` profile).
+ * `extractProfileFields` + `adoptProfile` enforce that PROFILE_FIELDS
+ * transfer as a group from exactly one source.
+ *
+ * # P9.4 simplification
+ *
+ * Prior versions threw `buildBothIncompleteError` when neither side
+ * declared a `review:` axis block and emitted a STDERR notice for
+ * "touched-but-incomplete" projects. Both concerns are now owned by the
+ * topology resolver (P9.3 universal `main_native` degrade) and this
+ * function simply hands through whatever the adoption layer returned.
  *
  * Design: see `discovery/config-profile.ts` for the adoption policy details.
  */
@@ -348,19 +354,12 @@ export async function resolveConfigChain(
   const homePath = path.join(ontoHome, ".onto", "config.yml");
   const projectPath = path.join(projectRoot, ".onto", "config.yml");
 
-  // Run the legacy-field check against each raw source BEFORE atomic
-  // profile adoption. Reason: post-PR-K `validateProfileCompleteness` no
-  // longer recognizes legacy fields (host_runtime etc.), so a legacy-only
-  // config would be reported as "untouched" and the operator would receive
-  // the generic `buildBothIncompleteError` setup guide instead of the
-  // structured `LegacyFieldRemovedError` with per-field migration hints.
-  //
-  // Silent path (P9.2, 2026-04-21 — was execution_topology_priority pre-P9.1):
-  // principals who have migrated to the `review:` axis block in EITHER side
-  // (home or project) can retain legacy fields as historical artifacts.
-  // `hasReviewBlock` is the shared SSOT — it rejects empty `review: {}`
-  // so the sentinel below must carry at least one key (mirroring a real
-  // minimal review declaration).
+  // Legacy-field detection. Principals who have migrated to the `review:`
+  // axis block in EITHER side (home or project) can retain legacy fields
+  // as historical artifacts — `hasReviewBlock` is the shared SSOT that
+  // silences the deprecation warning in that case. `hasReviewBlock`
+  // rejects empty `review: {}`, so the silent-path sentinel below must
+  // carry at least one key (mirroring a real minimal review declaration).
   const reviewBlockPresent =
     hasReviewBlock(homeConfig) || hasReviewBlock(projectConfig);
   const legacyCheckTarget = reviewBlockPresent
@@ -377,21 +376,6 @@ export async function resolveConfigChain(
     projectPath,
     sameRoot,
   });
-
-  // Fail-fast when neither side declares a complete profile. The error
-  // carries the full setup manual (4 canonical profile options) so the
-  // operator has everything needed to fix the state in one read.
-  if (adoption.source === "none") {
-    throw buildBothIncompleteError(
-      { home: homeConfig, project: projectConfig, homePath, projectPath, sameRoot },
-      adoption.project_validation,
-      adoption.home_validation,
-    );
-  }
-
-  if (adoption.notice) {
-    process.stderr.write(adoption.notice);
-  }
 
   const orthogonal = mergeOrthogonalFields(homeConfig, projectConfig);
   const merged = { ...orthogonal, ...adoption.profile } as OntoConfig;

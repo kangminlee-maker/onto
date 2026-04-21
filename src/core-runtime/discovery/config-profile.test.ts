@@ -2,114 +2,78 @@ import { describe, it, expect } from "vitest";
 import type { OntoConfig } from "./config-chain.js";
 import {
   adoptProfile,
-  buildBothIncompleteError,
   extractProfileFields,
+  hasAnyProfileField,
+  hasReviewBlock,
   mergeOrthogonalFields,
-  summarizeProfile,
-  validateProfileCompleteness,
 } from "./config-profile.js";
 
 // ---------------------------------------------------------------------------
-// Atomic profile adoption invariants — Review Recovery PR-1 addendum (post-PR-K).
+// Atomic profile adoption invariants (post-P9.4, 2026-04-21).
 // ---------------------------------------------------------------------------
 //
-// These tests assert three invariants:
+// These tests assert two invariants:
 //
-//   (1) Completeness hinges on `execution_topology_priority`. Principals who
-//       have migrated to sketch v3 are "complete" at the adoption layer;
-//       per-provider compatibility validation moves to
-//       `execution-topology-resolver.ts` and the executor spawn path.
+//   (1) Ownership is atomic — one source owns the full profile slice.
+//       No frankenstein merges where profile fields from different
+//       sources coexist in the adopted result.
 //
-//   (2) Adoption is atomic — one source owns the full profile slice.
-//       No frankenstein merges where profile fields from different sources
-//       coexist in the adopted result.
-//
-//   (3) Incompleteness on the project side is NEVER silent — either a
-//       STDERR notice is produced (when home can cover) or a fail-fast
-//       setup guide is thrown (when home also cannot cover).
+//   (2) The adoption layer does NOT decide whether a profile is "runnable".
+//       Empty profiles and single-side-only profiles both return cleanly;
+//       the topology resolver's universal `main_native` degrade owns the
+//       "no viable host" fail-fast (P9.3).
 // ---------------------------------------------------------------------------
 
-// ─── validateProfileCompleteness ───
+// ─── hasAnyProfileField ───
 
-describe("validateProfileCompleteness — untouched", () => {
-  it("empty config → not complete, not touched", () => {
-    const v = validateProfileCompleteness({});
-    expect(v.complete).toBe(false);
-    expect(v.touched).toBe(false);
-    expect(v.reasons).toEqual([]);
+describe("hasAnyProfileField", () => {
+  it("empty config → false", () => {
+    expect(hasAnyProfileField({})).toBe(false);
   });
 
-  it("only orthogonal fields set → not complete, not touched", () => {
-    const v = validateProfileCompleteness({
-      output_language: "ko",
-      review_mode: "full",
-      domains: ["se"],
-    });
-    expect(v.complete).toBe(false);
-    expect(v.touched).toBe(false);
+  it("only orthogonal fields → false", () => {
+    expect(
+      hasAnyProfileField({
+        output_language: "ko",
+        review_mode: "full",
+        domains: ["se"],
+      }),
+    ).toBe(false);
+  });
+
+  it("per-provider block set → true", () => {
+    expect(hasAnyProfileField({ codex: { model: "gpt-5.4" } })).toBe(true);
+  });
+
+  it("top-level model set → true", () => {
+    expect(hasAnyProfileField({ model: "gpt-5.4" })).toBe(true);
+  });
+
+  it("empty per-provider block (e.g. `codex: {}`) → false", () => {
+    // YAML authors who wrote `codex:` without a body should not flip
+    // profile ownership.
+    expect(hasAnyProfileField({ codex: {} as never })).toBe(false);
   });
 });
 
-describe("validateProfileCompleteness — review block is the canonical signal (P9.2)", () => {
-  it("review block set → complete, touched", () => {
-    const v = validateProfileCompleteness({
-      review: { subagent: { provider: "main-native" } },
-    });
-    expect(v.complete).toBe(true);
-    expect(v.touched).toBe(true);
-    expect(v.reasons).toEqual([]);
+// ─── hasReviewBlock (surviving legacy-bypass SSOT) ───
+
+describe("hasReviewBlock", () => {
+  it("undefined / empty → false", () => {
+    expect(hasReviewBlock(undefined)).toBe(false);
+    expect(hasReviewBlock({})).toBe(false);
   });
 
-  it("review block + per-provider block → complete (topology resolver validates at runtime)", () => {
-    const v = validateProfileCompleteness({
-      review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
-      codex: { model: "gpt-5.4", effort: "high" },
-    });
-    expect(v.complete).toBe(true);
+  it("review block with one key → true", () => {
+    expect(
+      hasReviewBlock({
+        review: { subagent: { provider: "main-native" } },
+      }),
+    ).toBe(true);
   });
 
-  it("review block + litellm block → complete", () => {
-    const v = validateProfileCompleteness({
-      review: { subagent: { provider: "litellm", model_id: "llama-8b" } },
-      litellm: { model: "llama-8b" },
-      llm_base_url: "http://localhost:4000",
-    });
-    expect(v.complete).toBe(true);
-  });
-
-  it("review absent → falls through to per-profile check", () => {
-    const v = validateProfileCompleteness({});
-    expect(v.complete).toBe(false);
-    expect(v.touched).toBe(false);
-  });
-
-  it("empty `review: {}` does NOT count as complete (PR #162 self-review M2)", () => {
-    // Regression guard: `hasReviewBlock` rejects zero-key objects so a
-    // YAML author who wrote `review:` without a body does not flip the
-    // atomic-profile decision.
-    const v = validateProfileCompleteness({ review: {} as never });
-    expect(v.complete).toBe(false);
-  });
-});
-
-describe("validateProfileCompleteness — profile fields without review block", () => {
-  it("per-provider block touched but no review block → incomplete with migration hint", () => {
-    const v = validateProfileCompleteness({
-      codex: { model: "gpt-5.4" },
-    });
-    expect(v.complete).toBe(false);
-    expect(v.touched).toBe(true);
-    expect(v.reasons[0]).toContain("`review:` axis block");
-    expect(v.reasons[0]).toContain("migration");
-  });
-
-  it("model field touched but nothing else → incomplete with migration hint", () => {
-    const v = validateProfileCompleteness({
-      model: "gpt-5.4",
-    });
-    expect(v.complete).toBe(false);
-    expect(v.touched).toBe(true);
-    expect(v.reasons[0]).toContain("`review:` axis block");
+  it("empty `review: {}` → false (prevents accidental opt-in)", () => {
+    expect(hasReviewBlock({ review: {} as never })).toBe(false);
   });
 });
 
@@ -133,7 +97,7 @@ describe("extractProfileFields", () => {
   });
 });
 
-// ─── adoptProfile — decision table ───
+// ─── adoptProfile — decision table (post-P9.4) ───
 
 const HOME_PATH = "/home/.onto/config.yml";
 const PROJECT_PATH = "/project/.onto/config.yml";
@@ -143,7 +107,7 @@ function buildArgs(home: OntoConfig, project: OntoConfig) {
 }
 
 describe("adoptProfile — decision branches", () => {
-  it("Case 1: project complete via review block → source=project, no notice", () => {
+  it("project has profile → source=project", () => {
     const adoption = adoptProfile(
       buildArgs(
         {
@@ -159,37 +123,76 @@ describe("adoptProfile — decision branches", () => {
     );
     expect(adoption.source).toBe("project");
     expect(adoption.source_path).toBe(PROJECT_PATH);
-    expect(adoption.notice).toBeUndefined();
     expect(adoption.profile.anthropic).toEqual({ model: "claude-haiku-4-5" });
-    // Crucially: home's codex-flavored fields must NOT appear.
+    // Atomic ownership invariant: home's codex-flavored fields must NOT appear.
     expect((adoption.profile as { reasoning_effort?: string }).reasoning_effort).toBeUndefined();
     expect(adoption.profile.codex).toBeUndefined();
   });
 
-  it("Case 2: project touched-but-incomplete + home complete → source=global, notice emitted", () => {
+  it("project has ONLY review block (no profile fields) → source=project (ownership claimed)", () => {
+    // P9.4 invariant: a non-empty `review:` axis block alone signals
+    // profile ownership even without any PROFILE_FIELDS. This preserves
+    // B-5 class behaviour where a project declares `review:` + empty
+    // `codex: {}` and expects the codex namespace slot to survive
+    // adoption (belonging to the project, not inherited from home).
+    const adoption = adoptProfile(
+      buildArgs(
+        {
+          review: { subagent: { provider: "main-native" } },
+          anthropic: { model: "claude-haiku-4-5" },
+        },
+        {
+          review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
+          codex: {} as never, // empty namespace — not counted by hasAnyProfileField,
+          // but the review block still claims ownership.
+        },
+      ),
+    );
+    expect(adoption.source).toBe("project");
+    // Home's anthropic namespace MUST NOT leak into the adopted profile.
+    expect(adoption.profile.anthropic).toBeUndefined();
+  });
+
+  it("project has profile without review block → still source=project", () => {
+    // P9.4 change: a project with only a `codex:` namespace (no `review:`
+    // axis block) now owns the profile. Previously this was treated as
+    // "touched-but-incomplete" and deferred to home.
+    const adoption = adoptProfile(
+      buildArgs(
+        {
+          review: { subagent: { provider: "main-native" } },
+          anthropic: { model: "claude-haiku-4-5" },
+        },
+        { codex: { model: "gpt-5.4" } /* no review block */ },
+      ),
+    );
+    expect(adoption.source).toBe("project");
+    expect(adoption.profile.codex).toEqual({ model: "gpt-5.4" });
+    expect(adoption.profile.anthropic).toBeUndefined();
+  });
+
+  it("project has nothing, home has ONLY review block (no profile fields) → source=global", () => {
+    // Symmetric to the project-review-block-only case. `claimsProfileOwnership`
+    // must recognize a non-empty review block on the home side as an
+    // ownership claim, so home config authors can stage review settings
+    // without declaring a provider namespace.
     const adoption = adoptProfile(
       buildArgs(
         {
           review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
-          codex: { model: "gpt-5.4" },
+          // No PROFILE_FIELDS — only the review block.
         },
-        { anthropic: { model: "claude-haiku-4-5" } /* missing review block */ },
+        {}, // project completely empty
       ),
     );
     expect(adoption.source).toBe("global");
     expect(adoption.source_path).toBe(HOME_PATH);
-    expect(adoption.notice).toBeDefined();
-    expect(adoption.notice).toContain("Project config 가 불완전");
-    expect(adoption.notice).toContain(PROJECT_PATH);
-    expect(adoption.notice).toContain(HOME_PATH);
-    expect(adoption.notice).toContain("`review:` axis block");
-    // Adopted profile is from HOME atomically
-    expect(adoption.profile.codex).toEqual({ model: "gpt-5.4" });
-    // Home's review block is orthogonal, NOT part of the profile slice.
-    expect(adoption.profile.review).toBeUndefined();
+    // Adopted profile is empty (no PROFILE_FIELDS in home), but
+    // ownership was still claimed so we don't fall to source=none.
+    expect(adoption.profile).toEqual({});
   });
 
-  it("Case 3: project absent + home complete → source=global, no notice", () => {
+  it("project has no profile fields, home has → source=global", () => {
     const adoption = adoptProfile(
       buildArgs(
         {
@@ -200,84 +203,55 @@ describe("adoptProfile — decision branches", () => {
       ),
     );
     expect(adoption.source).toBe("global");
-    expect(adoption.notice).toBeUndefined();
+    expect(adoption.source_path).toBe(HOME_PATH);
     expect(adoption.profile.codex).toEqual({ model: "gpt-5.4" });
   });
 
-  it("Case 4: project complete + home incomplete → source=project (project owns)", () => {
+  it("project has no profile, home has only orthogonal fields → source=none", () => {
     const adoption = adoptProfile(
-      buildArgs(
-        { anthropic: { model: "claude-haiku-4-5" } /* touched, no review block */ },
-        { review: { subagent: { provider: "codex", model_id: "gpt-5.4" } } },
-      ),
-    );
-    expect(adoption.source).toBe("project");
-    expect(adoption.notice).toBeUndefined();
-  });
-
-  it("Case 5: both incomplete → source=none (caller throws)", () => {
-    const adoption = adoptProfile(
-      buildArgs(
-        { anthropic: { model: "claude-haiku-4-5" } /* missing review block */ },
-        { litellm: { model: "llama-8b" } /* missing review block */ },
-      ),
+      buildArgs({ output_language: "ko" /* orthogonal only */ }, {}),
     );
     expect(adoption.source).toBe("none");
     expect(adoption.source_path).toBeNull();
-    expect(adoption.project_validation.complete).toBe(false);
-    expect(adoption.home_validation.complete).toBe(false);
+    expect(adoption.profile).toEqual({});
   });
 
-  it("Case 6: both absent → source=none", () => {
+  it("both absent → source=none (no throw — resolver handles it)", () => {
     const adoption = adoptProfile(buildArgs({}, {}));
     expect(adoption.source).toBe("none");
+    expect(adoption.profile).toEqual({});
   });
-});
 
-// ─── buildBothIncompleteError ───
-
-describe("buildBothIncompleteError", () => {
-  it("includes all 4 canonical topology options + both paths + per-side reasons + migration guide", () => {
-    const err = buildBothIncompleteError(
-      buildArgs({}, { anthropic: { model: "claude-haiku-4-5" } }),
-      { complete: false, touched: true, reasons: ["`review:` axis block 이 없음"] },
-      { complete: false, touched: false, reasons: [] },
-    );
-    const msg = err.message;
-    expect(msg).toContain("Review profile 을 해소할 수 없습니다");
-    expect(msg).toContain(PROJECT_PATH);
-    expect(msg).toContain(HOME_PATH);
-    expect(msg).toContain("`review:` axis block 이 없음");
-    expect(msg).toContain("파일이 없거나"); // for home untouched
-    expect(msg).toContain("topology-migration-guide.md");
-    expect(msg).toContain("Option A — Codex");
-    expect(msg).toContain("Option B — Claude Code Agent");
-    expect(msg).toContain("Option C — Claude Code TeamCreate");
-    expect(msg).toContain("Option D — LiteLLM");
-  });
-});
-
-// ─── summarizeProfile (PR #162 self-review m2) ───
-
-describe("summarizeProfile", () => {
-  it("renders review=[subagent=<provider>] when the axis block declares subagent", () => {
-    const summary = summarizeProfile({
-      review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
-      codex: { model: "gpt-5.4" },
+  it("sameRoot + home has profile → source=global", () => {
+    const adoption = adoptProfile({
+      home: {
+        review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
+        codex: { model: "gpt-5.4" },
+      },
+      // sameRoot: project is the same as home, so same object content.
+      project: {
+        review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
+        codex: { model: "gpt-5.4" },
+      },
+      homePath: HOME_PATH,
+      projectPath: PROJECT_PATH,
+      sameRoot: true,
     });
-    expect(summary).toContain("review=[subagent=codex]");
-    expect(summary).toContain("model=gpt-5.4");
+    expect(adoption.source).toBe("global");
+    expect(adoption.source_path).toBe(HOME_PATH);
+    expect(adoption.profile.codex).toEqual({ model: "gpt-5.4" });
   });
 
-  it("renders review=[subagent=(default)] when review block has no subagent", () => {
-    const summary = summarizeProfile({
-      review: { teamlead: { model: "main" } },
+  it("sameRoot + no profile → source=none", () => {
+    const adoption = adoptProfile({
+      home: {},
+      project: {},
+      homePath: HOME_PATH,
+      projectPath: PROJECT_PATH,
+      sameRoot: true,
     });
-    expect(summary).toContain("review=[subagent=(default)]");
-  });
-
-  it("returns null when nothing profile-ish is declared", () => {
-    expect(summarizeProfile({})).toBeNull();
+    expect(adoption.source).toBe("none");
+    expect(adoption.profile).toEqual({});
   });
 });
 
@@ -315,7 +289,7 @@ describe("mergeOrthogonalFields", () => {
     expect(merged.review_mode).toBe("full");
   });
 
-  it("passes review block through as orthogonal (P9.2 — was execution_topology_priority pre-removal)", () => {
+  it("passes review block through as orthogonal", () => {
     const merged = mergeOrthogonalFields(
       { review: { subagent: { provider: "codex", model_id: "gpt-5.4" } } },
       { review: { subagent: { provider: "main-native" } } },
@@ -325,10 +299,10 @@ describe("mergeOrthogonalFields", () => {
   });
 });
 
-// ─── Regression: post-PR-K migrated config should be adoptable ───
+// ─── Regression: migrated Review UX Redesign config ───
 
 describe("regression — migrated Review UX Redesign config", () => {
-  it("project declares review block + codex block → project owns without host_runtime", () => {
+  it("project declares review block + codex block → project owns", () => {
     const adoption = adoptProfile(
       buildArgs(
         {}, // empty global

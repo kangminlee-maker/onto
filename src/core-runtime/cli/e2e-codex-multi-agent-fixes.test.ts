@@ -154,14 +154,21 @@ function trackCleanup(dir: string): string {
 // ---------------------------------------------------------------------------
 
 describe("B. config-chain codex namespace", () => {
-  // Fixture note (P9.2, 2026-04-21): each config.yml must declare a
-  // `review:` axis block so the profile is "complete" per
-  // `validateProfileCompleteness`. Without it, `resolveConfigChain`
-  // throws `buildBothIncompleteError`. The specific axis values don't
-  // affect what these tests assert — they verify that the
-  // orthogonal/profile merge correctly surfaces the `codex:` namespace
-  // and top-level `model` / `reasoning_effort` values.
-  // (Pre-P9.2 the completeness signal was `execution_topology_priority`.)
+  // Fixture note (P9.4, 2026-04-21): each config.yml declares a `review:`
+  // axis block so the project side claims profile ownership. Post-P9.4
+  // this is no longer a hard requirement — a project with only profile
+  // fields (no review block) would also adopt, and a project with only
+  // a review block (no profile fields) also adopts via the ownership
+  // claim — but keeping the review block in fixtures exercises the
+  // canonical user-facing shape. The specific axis values don't affect
+  // what these tests assert: they verify that the orthogonal/profile
+  // merge correctly surfaces the `codex:` namespace and top-level
+  // `model` / `reasoning_effort` values.
+  //
+  // History: pre-P9.2 the completeness signal was
+  // `execution_topology_priority`. Pre-P9.4 the signal was the `review:`
+  // axis block via `validateProfileCompleteness` (retired along with
+  // `buildBothIncompleteError` in P9.4).
 
   it("B-1: codex namespace parsed from project config", async () => {
     const homeDir = trackCleanup(makeTmpDir("b1h"));

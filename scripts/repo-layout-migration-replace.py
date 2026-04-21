@@ -117,6 +117,12 @@ DEFAULT_EXCLUDE_FILES = {
     # Path-level alias SSOT for the same reason.
     "src/core-runtime/discovery/path-normalization.ts",
     "src/core-runtime/discovery/path-normalization.test.ts",
+    # Dual-path fallback consumers: these intentionally know about the
+    # legacy path shape for as long as legacy projects need to work.
+    # Phase 7 will flip these together when legacy support is dropped.
+    "src/core-runtime/govern/drift-engine.ts",
+    "src/core-runtime/govern/drift-engine.test.ts",
+    "src/core-runtime/discovery/onto-home.ts",
 }
 
 # Extensionless tracked entrypoints that still hold path refs. Force-

@@ -25,13 +25,15 @@ set -euo pipefail
 
 # Structural (versioned) subdirectory prefixes. Each repo-layout migration
 # phase (Phase 1 commands, Phase 2 domains, Phase 3-6 roles/processes/
-# principles/authority) appends its top-level directory pattern here.
+# principles/authority) appends its top-level directory pattern here. All
+# six structural subdirs were landed by Phase 6 (authority) on 2026-04-21.
 ALLOWED=(
   ".onto/commands"
   ".onto/domains"
   ".onto/roles"
   ".onto/processes"
   ".onto/principles"
+  ".onto/authority"
 )
 
 # Ephemeral subdirs are ignored via .gitignore (see repo root) and never
@@ -137,11 +139,12 @@ run_self_test() {
     ".onto/roles/logic.md"
     ".onto/processes/review.md"
     ".onto/principles/ontology-as-code-guideline.md"
+    ".onto/authority/core-lexicon.yaml"
   )
   echo "[self-test] Case 1 (expect PASS): ${#pass_paths[@]} allowlist-conforming paths"
   local case1_out
   case1_out=$(check_paths "${pass_paths[@]}" 2>&1) && case1_rc=0 || case1_rc=$?
-  if [ "$case1_rc" -eq 0 ] && echo "$case1_out" | grep -q "__SUMMARY__ matched=7 violations=0"; then
+  if [ "$case1_rc" -eq 0 ] && echo "$case1_out" | grep -q "__SUMMARY__ matched=8 violations=0"; then
     echo "  ✓ guard accepted all ${#pass_paths[@]} conforming paths"
   else
     echo "  ✗ guard rejected conforming paths (regression)"
@@ -149,16 +152,22 @@ run_self_test() {
     failed=$((failed + 1))
   fi
 
-  # Case 2: all paths outside allowlist → expect exit 1
+  # Case 2: all paths outside allowlist → expect exit 1. Includes Phase 6
+  # review follow-up (U-review): `.onto/authorityish/` is a collision-
+  # adjacent directory that differs from `.onto/authority` by a suffix.
+  # Segment-bound matching (the `/*` glob pattern in check_paths) must
+  # reject it; if someone replaces `"$file" == "$prefix"/*` with a bare
+  # string prefix test, this case catches the regression.
   local -a fail_paths=(
     ".onto/test-violation/dummy.md"
     ".onto/cache/session.json"
     ".onto/ephemeral.log"
+    ".onto/authorityish/collision-adjacent.yaml"
   )
   echo "[self-test] Case 2 (expect FAIL): ${#fail_paths[@]} violating paths"
   local case2_out
   case2_out=$(check_paths "${fail_paths[@]}" 2>&1) && case2_rc=0 || case2_rc=$?
-  if [ "$case2_rc" -eq 1 ] && echo "$case2_out" | grep -q "__SUMMARY__ matched=0 violations=3"; then
+  if [ "$case2_rc" -eq 1 ] && echo "$case2_out" | grep -q "__SUMMARY__ matched=0 violations=4"; then
     echo "  ✓ guard correctly rejected all ${#fail_paths[@]} violating paths"
   else
     echo "  ✗ guard accepted violating paths (logic broken)"

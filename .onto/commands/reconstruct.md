@@ -93,5 +93,5 @@ onto reconstruct confirm --session-id 20260414-abcd1234 --verdict passed
 ## 참조
 
 - Design principle: `development-records/evolve/20260413-onto-direction.md §1.4 reconstruct 완료 기준`
-- DL 해소: `authority/delegated-decisions-ledger.md DL-020` (reconstruct-cli bounded path)
+- DL 해소: `.onto/authority/delegated-decisions-ledger.md DL-020` (reconstruct-cli bounded path)
 - 쌍 CLI: `.onto/commands/review.md`, `.onto/commands/evolve.md`

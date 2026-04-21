@@ -19,7 +19,7 @@
 
 | 순위 | 파일 | 폴더 |
 |---|---|---|
-| 1 | [core-lexicon.yaml](/Users/kangmin/cowork/onto/authority/core-lexicon.yaml) | authority/ |
+| 1 | [core-lexicon.yaml](/Users/kangmin/cowork/onto/.onto/authority/core-lexicon.yaml) | .onto/authority/ |
 | 2 | [ontology-as-code-guideline.md](/Users/kangmin/cowork/onto/.onto/principles/ontology-as-code-guideline.md) | .onto/principles/ |
 | 2 | [llm-native-development-guideline.md](/Users/kangmin/cowork/onto/.onto/principles/llm-native-development-guideline.md) | .onto/principles/ |
 | 2 | [product-locality-principle.md](/Users/kangmin/cowork/onto/.onto/principles/product-locality-principle.md) | .onto/principles/ |
@@ -31,7 +31,7 @@
 
 | 폴더 | 역할 | 배포 |
 |---|---|---|
-| `authority/` | canonical data — 개념 SSOT + 런타임 설정 + 온보딩 보조 | 포함 |
+| `.onto/authority/` | canonical data — 개념 SSOT + 런타임 설정 + 온보딩 보조 | 포함 |
 | `.onto/principles/` | 개발 규범 — 설계·구현 원칙 (rank 2~4) | 제외 |
 | `development-records/` | 개발 이력 — 감사, 설계, 추적, handoff 기록 | 제외 |
 
@@ -64,7 +64,7 @@
 
 ## 4. Canonical Terms
 
-개념 SSOT: [core-lexicon.yaml](/Users/kangmin/cowork/onto/authority/core-lexicon.yaml)
+개념 SSOT: [core-lexicon.yaml](/Users/kangmin/cowork/onto/.onto/authority/core-lexicon.yaml)
 이름 규칙: [ontology-as-code-naming-charter.md](/Users/kangmin/cowork/onto/.onto/principles/ontology-as-code-naming-charter.md)
 
 자주 쓰는 개념:

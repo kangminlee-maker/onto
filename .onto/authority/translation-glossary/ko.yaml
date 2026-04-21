@@ -1,6 +1,6 @@
-# authority/translation-glossary/ko.yaml
+# .onto/authority/translation-glossary/ko.yaml
 #
-# 한국어 번역 glossary — canonical SSOT: authority/core-lexicon.yaml §authoring_rules.translation_policy.
+# 한국어 번역 glossary — canonical SSOT: .onto/authority/core-lexicon.yaml §authoring_rules.translation_policy.
 # Consumer: src/core-runtime/translate/render-for-user.ts (Phase 2 backend 도입 시).
 # Layer: output-language-boundary.md §9 Layer 2.
 #

@@ -9,11 +9,13 @@ function resolveRegistryPath(): string {
   let cur = here;
   const root = path.parse(cur).root;
   while (cur !== root) {
-    const candidate = path.join(cur, "authority", "core-lens-registry.yaml");
-    if (fs.existsSync(candidate)) return candidate;
+    const canonical = path.join(cur, ".onto", "authority", "core-lens-registry.yaml");
+    if (fs.existsSync(canonical)) return canonical;
+    const legacy = path.join(cur, "authority", "core-lens-registry.yaml");
+    if (fs.existsSync(legacy)) return legacy;
     cur = path.dirname(cur);
   }
-  throw new Error("authority/core-lens-registry.yaml not found");
+  throw new Error(".onto/authority/core-lens-registry.yaml not found");
 }
 
 describe("canonicalizeLensId — Phase 0 dual-read (W-A-01)", () => {
@@ -51,7 +53,7 @@ describe("loadCoreLensRegistry — core-axis composition contract (v0.2.1)", () 
   // These assertions lock the v0.2.1 cost-constrained Pareto-optimal
   // composition into a test so that any future registry edit that changes
   // the core-axis set must also update this test (intentional checkpoint).
-  // SSOT: authority/core-lens-registry.yaml; empirical basis:
+  // SSOT: .onto/authority/core-lens-registry.yaml; empirical basis:
   // development-records/benchmark/20260419-lens-contribution-analysis.md.
   const registry = loadCoreLensRegistry();
 

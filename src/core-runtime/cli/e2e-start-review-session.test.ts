@@ -12,7 +12,7 @@
  * Isolation strategy:
  *   Each test builds a fake `ontoHome` tmpdir containing just enough to
  *   satisfy resolveOntoHome's validity check (package.json + roles/ or
- *   .onto/roles/ + authority/), then a separate `projectRoot` tmpdir with
+ *   .onto/roles/ + .onto/authority/), then a separate `projectRoot` tmpdir with
  *   the config file under test. The `--onto-home` argv flag forces the
  *   resolver to use the fake ontoHome instead of walking up from the
  *   test's script directory (which would find the real repo and pick up
@@ -72,9 +72,18 @@ function makeTmpDir(prefix: string): string {
  */
 export type RolesLayout = "legacy" | "phase3";
 
+/**
+ * Possible authority-directory layouts that `isOntoRoot` accepts.
+ * - "legacy": pre-Phase-6 top-level `authority/` (retained through Phase 7)
+ * - "phase6": canonical `.onto/authority/` layout landed in Phase 6
+ */
+export type AuthorityLayout = "legacy" | "phase6";
+
 export interface MakeFakeOntoHomeOptions {
   /** Which roles-directory layout to create. Default: "legacy". */
   layout?: RolesLayout;
+  /** Which authority-directory layout to create. Default: "legacy". */
+  authorityLayout?: AuthorityLayout;
   /** When set, writes `.onto/config.yml` with `learning_extract_mode: <value>`. */
   homeConfigExtractMode?: string;
 }
@@ -82,14 +91,14 @@ export interface MakeFakeOntoHomeOptions {
 /**
  * Build a tmpdir that passes `isOntoRoot` validation: needs
  * package.json with name "onto-core" AND (roles/ or .onto/roles/) AND
- * authority/. The `layout` option selects which roles path is created
+ * .onto/authority/. The `layout` option selects which roles path is created
  * so both branches of the dual-path fallback are exercised.
  */
 function makeFakeOntoHome(
   prefix: string,
   opts: MakeFakeOntoHomeOptions = {},
 ): string {
-  const { layout = "legacy", homeConfigExtractMode } = opts;
+  const { layout = "legacy", authorityLayout = "legacy", homeConfigExtractMode } = opts;
   const dir = makeTmpDir(prefix);
   fs.writeFileSync(
     path.join(dir, "package.json"),
@@ -101,7 +110,11 @@ function makeFakeOntoHome(
       ? path.join(dir, ".onto", "roles")
       : path.join(dir, "roles");
   fs.mkdirSync(rolesPath, { recursive: true });
-  fs.mkdirSync(path.join(dir, "authority"), { recursive: true });
+  const authorityPath =
+    authorityLayout === "phase6"
+      ? path.join(dir, ".onto", "authority")
+      : path.join(dir, "authority");
+  fs.mkdirSync(authorityPath, { recursive: true });
   if (homeConfigExtractMode !== undefined) {
     fs.mkdirSync(path.join(dir, ".onto"), { recursive: true });
     fs.writeFileSync(
@@ -356,7 +369,7 @@ describe("start-review-session E2E (layout-independent)", () => {
   //            error. Regression lock for the 9-lens consensus finding.
   it("E-SRS-10 invalid --onto-home fails fast (not swallowed)", async () => {
     // A real directory that is NOT an onto root (no package.json with
-    // name "onto-core", no roles/ or .onto/roles/, no authority/).
+    // name "onto-core", no roles/ or .onto/roles/, no .onto/authority/).
     const bogusOntoHome = makeTmpDir("e-srs-10-bogus-home");
     const projectRoot = makeProjectRoot("e-srs-10-proj", "shadow");
     const argv = ["--onto-home", bogusOntoHome];
@@ -376,5 +389,22 @@ describe("start-review-session E2E (layout-independent)", () => {
       (caught as Error).message.toLowerCase().includes("onto"),
       "error mentions onto-home / onto root context",
     );
+  });
+
+  // E-SRS-11 — Phase 6 review follow-up (UNIQ-U1). Prior fixtures only
+  // created legacy `authority/`. Pin canonical `.onto/authority/` as a
+  // valid onto-home marker via the end-to-end resolver path (not just
+  // isOntoRoot unit tests).
+  it("E-SRS-11 canonical .onto/authority/ is accepted by resolveOntoHome (Phase 6)", async () => {
+    const ontoHome = makeFakeOntoHome("e-srs-11-home", {
+      layout: "phase3",
+      authorityLayout: "phase6",
+    });
+    const projectRoot = makeProjectRoot("e-srs-11-proj", "active");
+    const argv = ["--onto-home", ontoHome];
+    await withEnvExtractMode(undefined, async () => {
+      const mode = await resolveReviewSessionExtractMode(argv, projectRoot);
+      assertEqual(mode, "active", "resolver accepts canonical phase6 authority layout");
+    });
   });
 });

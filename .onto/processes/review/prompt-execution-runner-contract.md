@@ -7,7 +7,7 @@
 > - `.onto/processes/review/lens-prompt-contract.md`
 > - `.onto/processes/review/synthesize-prompt-contract.md`
 > - `.onto/processes/review/record-contract.md`
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 
 ---
 

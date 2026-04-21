@@ -100,6 +100,6 @@ review {target} @{domain}          Use as verification standard
 > Plugin install resolves via `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}`. Set `ONTO_PLUGIN_DIR` env var when installed in a custom location.
 
 - README: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/README.md`
-- Authority docs: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/authority/`
+- Authority docs: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/.onto/authority/`
 - Review contracts: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/.onto/processes/review/`
 - Domain documents: `~/.onto/domains/`

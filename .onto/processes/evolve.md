@@ -329,7 +329,7 @@ entrypoint 가 호출될 때, 주체자가 실제로 접근하는 파일(`invoke
 runtime 은 install/authority drift 를 자동으로 탐지하지 않는다. 다음 경로로 주체자 또는 거버넌스 프로세스가 보정한다.
 
 - **명시적 재설치**: plugin install 스크립트 실행 → authority seat 의 현재 snapshot 이 install surface 로 복제.
-- **Version 문자열 점검**: `authority/core-lexicon.yaml` 의 `lexicon_version` 과 install tree 의 동일 파일의 `lexicon_version` 을 비교하여 drift 를 수동 확인. 불일치 시 재설치.
+- **Version 문자열 점검**: `.onto/authority/core-lexicon.yaml` 의 `lexicon_version` 과 install tree 의 동일 파일의 `lexicon_version` 을 비교하여 drift 를 수동 확인. 불일치 시 재설치.
 - **Governance 통과 시점**: §1 정본 개정이 merge 된 시점에 install surface 는 잠정 stale 로 간주. 다음 실행 전 재설치가 권장 경로.
 
 ### 9.4 Runtime-bound 경로와의 관계
@@ -338,6 +338,6 @@ runtime-bound adapter (code-product) 는 invoke surface 의 CLI 인자만 해석
 
 ### 9.5 용어
 
-`invoke_surface`, `install_surface` 는 `authority/core-lexicon.yaml#provisional_terms` 에 seed 로 등재된다 (W-A-52). authority seat 는 기존 rank 1 authority 파일 개념과 동일하며 별도 seed 가 아니다.
+`invoke_surface`, `install_surface` 는 `.onto/authority/core-lexicon.yaml#provisional_terms` 에 seed 로 등재된다 (W-A-52). authority seat 는 기존 rank 1 authority 파일 개념과 동일하며 별도 seed 가 아니다.
 
 ---

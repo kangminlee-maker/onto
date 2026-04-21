@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveInstallationPath } from "../discovery/installation-paths.js";
 
 /**
  * render-for-user — canonical render seat for `output_language`-translated
@@ -24,17 +25,12 @@ const __dirname = path.dirname(__filename);
 /**
  * Repo root relative to this module. The translate module lives at
  * `src/core-runtime/translate/` so 3 levels up land at the project root.
- * This is resolved once at module load time. Tests override via
- * `setRegistryPathForTesting`.
+ * Tests override the final path via `setRegistryPathForTesting`; otherwise
+ * the authority directory is resolved call-time via the Phase 0 shared
+ * resolver (`resolveInstallationPath("authority", ...)`), which owns the
+ * canonical / legacy dual-path knowledge for all consumers.
  */
-const DEFAULT_REGISTRY_PATH = path.resolve(
-  __dirname,
-  "..",
-  "..",
-  "..",
-  "authority",
-  "external-render-points.yaml",
-);
+const REPO_ROOT_FROM_TRANSLATE = path.resolve(__dirname, "..", "..", "..");
 
 let registryPathOverride: string | null = null;
 let cachedRegistry: ExternalRenderRegistry | null = null;
@@ -55,7 +51,7 @@ export interface ExternalRenderRegistry {
 
 /**
  * Test helper: override the registry path so a unit test can exercise a
- * controlled YAML fixture without mutating the shared `authority/` file.
+ * controlled YAML fixture without mutating the shared `.onto/authority/` file.
  * Clears the module-level cache as a side effect.
  */
 export function setRegistryPathForTesting(filePath: string | null): void {
@@ -64,7 +60,9 @@ export function setRegistryPathForTesting(filePath: string | null): void {
 }
 
 function resolveRegistryPath(): string {
-  return registryPathOverride ?? DEFAULT_REGISTRY_PATH;
+  if (registryPathOverride !== null) return registryPathOverride;
+  const authorityDir = resolveInstallationPath("authority", REPO_ROOT_FROM_TRANSLATE);
+  return path.join(authorityDir, "external-render-points.yaml");
 }
 
 export function loadRegistry(): ExternalRenderRegistry {
@@ -100,7 +98,7 @@ function parseRegistryYaml(text: string): ExternalRenderRegistry {
       typeof current.rationale !== "string"
     ) {
       throw new Error(
-        `authority/external-render-points.yaml: entry missing required field(s) ` +
+        `.onto/authority/external-render-points.yaml: entry missing required field(s) ` +
           `(id/file/rationale). got=${JSON.stringify(current)}`,
       );
     }
@@ -176,7 +174,7 @@ export function isRegisteredRenderPoint(id: string): boolean {
 }
 
 export interface RenderForUserArgs {
-  /** Registry id — must exist in authority/external-render-points.yaml. */
+  /** Registry id — must exist in .onto/authority/external-render-points.yaml. */
   renderPointId: string;
   /** Internal English text assembled by the caller (halt body, summary, ...). */
   internalPayload: string;
@@ -205,7 +203,7 @@ export function renderForUser(args: RenderForUserArgs): string {
     const known = registry.points.map((p) => p.id).join(", ") || "(none)";
     throw new Error(
       `renderForUser: unknown renderPointId "${args.renderPointId}". ` +
-        `Register it in authority/external-render-points.yaml first. ` +
+        `Register it in .onto/authority/external-render-points.yaml first. ` +
         `known ids: ${known}.`,
     );
   }

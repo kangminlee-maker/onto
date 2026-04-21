@@ -2,9 +2,9 @@
 
 > 상태: Active
 > 목적: `onto` 메인 레포를 서비스로 전환하는 동안, 같은 개념 축을 같은 단어로만 표현하도록 canonical naming rule을 고정한다.
-> 소유 범위: naming RULE을 소유한다. concept INVENTORY는 `authority/core-lexicon.yaml`이 소유한다.
+> 소유 범위: naming RULE을 소유한다. concept INVENTORY는 `.onto/authority/core-lexicon.yaml`이 소유한다.
 > machine-readable SSOT:
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 
 ---
 
@@ -101,7 +101,7 @@ authoring 단계에서 생성되는 candidate의 형상이다.
 
 ## 3. Canonical Term Definitions
 
-모든 canonical term의 정의와 한글 대응어는 `authority/core-lexicon.yaml`에서 관리한다.
+모든 canonical term의 정의와 한글 대응어는 `.onto/authority/core-lexicon.yaml`에서 관리한다.
 
 이 파일이 machine-readable SSOT이며, 이 문서는 정의를 재서술하지 않는다.
 

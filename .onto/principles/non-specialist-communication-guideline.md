@@ -3,7 +3,7 @@
 > 상태: Active
 > 목적: onto 시스템의 모든 출력이 도메인 비전문가에게도 이해 가능하도록, 설명 방식의 원칙을 고정한다.
 > 기준 문서:
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 > - `.onto/principles/productization-charter.md`
 
 ---

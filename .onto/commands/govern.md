@@ -87,7 +87,7 @@ onto govern route --json <ChangeProposal-json>
 **분류 결과 (`route`)**:
 - `self_apply`: drift 없는 local contained 변경. 큐 append 안 함 — caller 가 즉시 실행 가능.
 - `queue`: drift 가능성 있는 변경. 큐에 `origin=system, tag=drift` 로 append. payload.route=queue.
-- `principal_direct`: governance core (authority/, .onto/principles/, .onto/processes/govern.md) 변경. 큐에 append, payload.route=principal_direct marker. 자체 실행 금지, 반드시 Principal 직접 판정.
+- `principal_direct`: governance core (.onto/authority/, .onto/principles/, .onto/processes/govern.md) 변경. 큐에 append, payload.route=principal_direct marker. 자체 실행 금지, 반드시 Principal 직접 판정.
 
 분류 규칙과 수준 0→1 정합은 `.onto/processes/govern.md §11` 참조.
 
@@ -116,5 +116,5 @@ projection 규칙: id 별로 그룹핑. submit 이 base entry, decide 가 있으
 ## 관련 개념
 
 - Authority seat: `.onto/processes/govern.md`
-- Lexicon: `authority/core-lexicon.yaml` entrypoint.instances.govern + `govern_process` entity (v0.12.0).
+- Lexicon: `.onto/authority/core-lexicon.yaml` entrypoint.instances.govern + `govern_process` entity (v0.12.0).
 - Types: `src/core-runtime/govern/types.ts` (`GovernSubmitEvent`, `GovernDecideEvent`, `GovernQueueEntry`, `originToTag`).

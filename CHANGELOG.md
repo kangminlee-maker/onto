@@ -8,7 +8,7 @@
 
 #### Changed
 
-- `authority/core-lens-registry.yaml` 의 `core_axis_lens_ids`:
+- `.onto/authority/core-lens-registry.yaml` 의 `core_axis_lens_ids`:
   - Before: `[logic, pragmatics, evolution, axiology]` (4)
   - After: `[axiology, coverage, evolution, logic, semantics, structure]` (6)
 - 제거: `pragmatics` (1). 추가: `coverage`, `semantics`, `structure` (3).
@@ -55,7 +55,7 @@
 
 #### BREAKING
 
-- `authority/core-lens-registry.yaml` 의 필드 `light_review_lens_ids` 가 `core_axis_lens_ids` 로 rename
+- `.onto/authority/core-lens-registry.yaml` 의 필드 `light_review_lens_ids` 가 `core_axis_lens_ids` 로 rename
 - `ReviewMode` union: `'light' | 'full'` → `'core-axis' | 'full'`
 - CLI flag value: `--review-mode light` → `--review-mode core-axis`
 - Config field value: `review_mode: light` → `review_mode: core-axis`
@@ -383,7 +383,7 @@ npm run review:inline-http-unit-executor -- \
 
 **타입 확장점**: `ReviewHostRuntime`에 `"litellm"` 추가 (forward-compat slot). `subagent_litellm` wiring은 후속 PR.
 
-**Authority 신규 등재**: `authority/core-lexicon.yaml`에 `LlmAgentSpawnRealization` entry 추가 — 세 canonical 조합의 `orchestration_locus`, `context_cost`, `billing_source` 속성을 rank-1에 박제 (priority rank는 사용자 상황 의존적이므로 고정하지 않음).
+**Authority 신규 등재**: `.onto/authority/core-lexicon.yaml`에 `LlmAgentSpawnRealization` entry 추가 — 세 canonical 조합의 `orchestration_locus`, `context_cost`, `billing_source` 속성을 rank-1에 박제 (priority rank는 사용자 상황 의존적이므로 고정하지 않음).
 
 ### Changed
 
@@ -467,7 +467,7 @@ suppress_codex_install_notice: false
 
 ### Added
 
-- `authority/core-lexicon.yaml`:
+- `.onto/authority/core-lexicon.yaml`:
   - `LlmCompatibleProxy` (LiteLLM 등 OpenAI-compatible 프록시 개념)
   - `LlmBillingMode` (subscription / per_token / variable — billing 속성 분류; 선호 순위는 resolver 정책 층이 관리)
 - `OntoConfig`:

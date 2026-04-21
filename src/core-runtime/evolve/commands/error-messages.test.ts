@@ -213,7 +213,7 @@ describe("validateRegistry — schema check (fail-fast on malformed registry)", 
     })).not.toThrow();
   });
 
-  it("production registry (authority/diagnostic-codes.yaml) passes validation", () => {
+  it("production registry (.onto/authority/diagnostic-codes.yaml) passes validation", () => {
     // loadRegistry 내부에서 validateRegistry 호출 — listDiagnosticCodes 로 간접 트리거
     expect(() => listDiagnosticCodes()).not.toThrow();
   });

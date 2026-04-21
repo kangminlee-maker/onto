@@ -77,7 +77,7 @@ export interface ClassifierOptions {
   ontology_seat_filenames?: string[];
   /**
    * project 내 탐색 허용 경로 접두사. 기본값은 ["ontology", "authority"] — 즉
-   * `{projectRoot}/ontology/**` 또는 `{projectRoot}/authority/**` 를 최대 3단계까지 본다.
+   * `{projectRoot}/ontology/**` 또는 `{projectRoot}/.onto/authority/**` 를 최대 3단계까지 본다.
    * node_modules, .git, .onto 는 자동 제외.
    */
   search_roots?: string[];

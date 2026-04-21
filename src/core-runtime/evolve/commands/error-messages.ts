@@ -1,10 +1,10 @@
 /**
  * Gate-guard error wrapping — Principal-facing Korean messages.
  *
- * W-B-08 (BL-044): 기존 문자열 매칭 switch 를 authority/diagnostic-codes.yaml
+ * W-B-08 (BL-044): 기존 문자열 매칭 switch 를 .onto/authority/diagnostic-codes.yaml
  * 기반 code registry 로 전환. 매칭 우선순위는 registry entry 순서를 따른다.
  *
- * Registry seat: authority/diagnostic-codes.yaml (authority-adjacent data seat).
+ * Registry seat: .onto/authority/diagnostic-codes.yaml (authority-adjacent data seat).
  * Concept SSOT 아님 — citation check 대상 아님.
  *
  * 보증:
@@ -18,6 +18,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { parse as yamlParse } from "yaml";
+import { resolveInstallationPath } from "../../discovery/installation-paths.js";
 
 // ─── Types ───
 
@@ -52,13 +53,16 @@ export interface DiagnosticMatch {
 let cachedRegistry: Registry | null = null;
 
 function resolveRegistryPath(): string {
-  // authority/diagnostic-codes.yaml — dist / src 양쪽에서 작동
-  // src: src/core-runtime/evolve/commands/error-messages.ts
-  // dist: dist/core-runtime/evolve/commands/error-messages.js
-  // 양쪽 모두 4 단계 위가 repo root.
+  // dist / src 양쪽에서 작동:
+  //   src: src/core-runtime/evolve/commands/error-messages.ts
+  //   dist: dist/core-runtime/evolve/commands/error-messages.js
+  // 양쪽 모두 4 단계 위가 repo root. Authority dir 선택 (canonical
+  // `.onto/authority/` 우선, legacy `authority/` fallback) 은 Phase 0
+  // 공유 resolver 에 위임 — dual-path 지식이 단일 seat 에 존재.
   const here = dirname(fileURLToPath(import.meta.url));
   const repoRoot = join(here, "..", "..", "..", "..");
-  return join(repoRoot, "authority", "diagnostic-codes.yaml");
+  const authorityDir = resolveInstallationPath("authority", repoRoot);
+  return join(authorityDir, "diagnostic-codes.yaml");
 }
 
 function loadRegistry(): Registry {

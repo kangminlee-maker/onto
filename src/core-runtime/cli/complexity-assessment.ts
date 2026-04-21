@@ -37,7 +37,7 @@ import {
 } from "../learning/shared/llm-caller.js";
 
 // Load core-axis composition from SSOT at module init — keeps prompt text
-// and fallback set in sync with authority/core-lens-registry.yaml (v0.2.1:
+// and fallback set in sync with .onto/authority/core-lens-registry.yaml (v0.2.1:
 // 6 cost-constrained Pareto-optimal lenses).
 const CORE_LENS_REGISTRY = loadCoreLensRegistry();
 const CORE_AXIS_LENS_IDS = CORE_LENS_REGISTRY.core_axis_lens_ids;

@@ -7,7 +7,7 @@
 > - `.onto/processes/review/lens-prompt-contract.md`
 > - `process.md`
 > - `.onto/processes/review/review.md`
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 
 ---
 
@@ -161,7 +161,7 @@ Synthesize 는 Principal 이 **primary 소비자**이지만, 구조 (frontmatter
 
 - Internal Body section list (§5.3) 는 변경되지 않음
 - Principal Summary 는 Internal Body 에 없는 claim 도입 금지 (재진술만)
-- renderPointId: `review_synthesize_principal_summary` (본 섹션 활성 시 `authority/external-render-points.yaml` 신설)
+- renderPointId: `review_synthesize_principal_summary` (본 섹션 활성 시 `.onto/authority/external-render-points.yaml` 신설)
 - `output_language: en` 일 때 Principal Summary 생략 가능
 - lexicon term 취급: `authoring_rules.translation_policy` 규칙 (preserved/translated/bilingual) 적용
 

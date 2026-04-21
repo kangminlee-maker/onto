@@ -32,7 +32,7 @@ Before diagnosis, check if this project used the deprecated `onto-review` plugin
 
 4. **Report**: "Migrated from `.onto-review/` to `.onto/`. Legacy data preserved at `.onto-review-backup/`."
 
-5. **Translation of learnings** (if content is in Korean): If learning files contain Korean text (detected by presence of Korean characters), translate them to English using `authority/translation-reference.yaml` as SSOT. Preserve dates, project names, tags, and markdown structure.
+5. **Translation of learnings** (if content is in Korean): If learning files contain Korean text (detected by presence of Korean characters), translate them to English using `.onto/authority/translation-reference.yaml` as SSOT. Preserve dates, project names, tags, and markdown structure.
 
 After migration, proceed to Step 1 with the migrated data in place.
 

@@ -68,7 +68,7 @@ describe("lexicon-citation-check", () => {
     ].join("\n");
 
     const violations = checkFileCitations(
-      "authority/core-lexicon.yaml",
+      ".onto/authority/core-lexicon.yaml",
       content,
       TERMS,
     );
@@ -107,7 +107,7 @@ describe("lexicon-citation-check", () => {
   it("checkMultipleFiles 로 복수 파일을 한번에 검사한다", () => {
     const files = [
       { path: "a.md", content: "governance_pipeline 사용" },
-      { path: "authority/core-lexicon.yaml", content: "governance_pipeline 정의" },
+      { path: ".onto/authority/core-lexicon.yaml", content: "governance_pipeline 정의" },
       { path: "b.ts", content: "drift_detector 참조" },
     ];
 

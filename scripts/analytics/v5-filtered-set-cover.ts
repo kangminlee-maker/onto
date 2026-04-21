@@ -345,7 +345,7 @@ function main() {
   }
 
   // v0.2.0 baseline core-axis (pre-recomposition). v0.2.1 배포 이후 SSOT 는
-  // authority/core-lens-registry.yaml 의 6-lens 구성 — 본 비교는 historical
+  // .onto/authority/core-lens-registry.yaml 의 6-lens 구성 — 본 비교는 historical
   // baseline 보존 목적으로만 유지.
   const v020BaselineCore = new Set<Lens>(["logic", "pragmatics", "evolution", "axiology"]);
   const v020Covered = fullSessions.filter((s) => [...s.required].every((l) => v020BaselineCore.has(l))).length;

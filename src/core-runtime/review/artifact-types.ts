@@ -30,7 +30,7 @@ export type ReviewExecutionRealization = "subagent" | "agent-teams" | "ts_inline
  *                 LiteLLM proxy). Phase 2 wires this as `ts_inline_http + openai`.
  * - "standalone": TS process orchestrates with no host LLM (Phase 2 partial; main
  *                 LLM provider read from `main_llm` config in `.onto/config.yml`).
- * See authority/core-lexicon.yaml:LlmAgentSpawnRealization for semantic definitions.
+ * See .onto/authority/core-lexicon.yaml:LlmAgentSpawnRealization for semantic definitions.
  */
 export type ReviewHostRuntime = "codex" | "claude" | "litellm" | "anthropic" | "openai" | "standalone";
 export type ReviewMode = "core-axis" | "full";

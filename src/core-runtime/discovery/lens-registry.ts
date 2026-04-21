@@ -21,7 +21,7 @@ export function canonicalizeLensId(id: string): string {
 let cached: CoreLensRegistry | null = null;
 
 function findRegistryPath(): string {
-  // Walk up from this file to find {installRoot}/{.onto/,}authority/core-lens-registry.yaml.
+  // Walk up from this file to find {installRoot}/{.onto/,}.onto/authority/core-lens-registry.yaml.
   // Phase 0: resolveInstallationPath handles the dual-layout fallback per ancestor.
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   let current = __dirname;
@@ -36,7 +36,7 @@ function findRegistryPath(): string {
     }
     current = path.dirname(current);
   }
-  throw new Error("Cannot find authority/core-lens-registry.yaml");
+  throw new Error("Cannot find .onto/authority/core-lens-registry.yaml");
 }
 
 function parseYamlSimple(text: string): Record<string, string[]> {

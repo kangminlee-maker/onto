@@ -4,7 +4,7 @@
 > 목적: `LLM`과 runtime 사이의 interface를 어떤 원칙과 기준으로 구성할지 고정한다.
 > 기준 문서:
 > - `.onto/principles/productization-charter.md`
-> - `authority/core-lexicon.yaml`
+> - `.onto/authority/core-lexicon.yaml`
 
 ---
 

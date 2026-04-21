@@ -138,7 +138,7 @@ function main() {
   }
 
   // How many sessions would the v0.2.0 baseline core-axis cover?
-  // (v0.2.1 부터 SSOT 는 authority/core-lens-registry.yaml — 본 비교는
+  // (v0.2.1 부터 SSOT 는 .onto/authority/core-lens-registry.yaml — 본 비교는
   // pre-recomposition baseline 보존 목적.)
   const v020BaselineCore = new Set<Lens>(["logic", "pragmatics", "evolution", "axiology"]);
   const v020Covered = sessions.filter((s) =>

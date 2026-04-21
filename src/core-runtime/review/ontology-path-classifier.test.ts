@@ -68,7 +68,7 @@ describe("classifyReviewPaths", () => {
       expect(result.sessions[0]!.ontology_seat_evidence).toEqual([join(ontoDir, "code-mapping.yaml")]);
     });
 
-    it("r+ label 부여: authority/ 하위에 model.yaml 만 있어도 present 로 판정", () => {
+    it("r+ label 부여: .onto/authority/ 하위에 model.yaml 만 있어도 present 로 판정", () => {
       const authDir = join(tmpRoot, "authority");
       mkdirSync(authDir, { recursive: true });
       writeFileSync(join(authDir, "model.yaml"), "entities: []\n");

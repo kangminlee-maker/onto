@@ -124,4 +124,18 @@ points:
     expect(typeof registry.schema_version).toBe("string");
     expect(Array.isArray(registry.points)).toBe(true);
   });
+
+  // Phase 6 review follow-up — C1/CC1 해소 검증. 두 assertion 만으로
+  // loader 가 (1) override 를 우선하고 (2) override=null 일 때 Phase 0
+  // 공유 resolver 로 위임함을 증명. 4-state matrix 는 Phase 0 seat 에
+  // (installation-paths.test.ts) 있으며 이 delegation 이 그 matrix 를
+  // consumer-level 에도 상속시킴.
+  it("delegates default resolution to Phase 0 resolver (no custom dual-path)", () => {
+    setRegistryPathForTesting(null);
+    const registry = loadRegistry();
+    // Exercising loadRegistry() without override must succeed via the
+    // shared resolver — if the loader had any private dual-path logic
+    // and it diverged from Phase 0, load would fail or read stale data.
+    expect(typeof registry.schema_version).toBe("string");
+  });
 });

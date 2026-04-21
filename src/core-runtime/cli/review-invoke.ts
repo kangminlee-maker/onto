@@ -102,7 +102,7 @@ interface ReviewInvokeRouteSummary {
   synthesize_waits_for_all_lenses: true;
 }
 
-// Lens IDs derived from authority/core-lens-registry.yaml (single source of truth)
+// Lens IDs derived from .onto/authority/core-lens-registry.yaml (single source of truth)
 const _registry = loadCoreLensRegistry();
 const FULL_REVIEW_LENS_IDS = _registry.full_review_lens_ids;
 const CORE_AXIS_LENS_IDS = _registry.core_axis_lens_ids;
@@ -465,7 +465,7 @@ function appendSubagentLlmArgs(
 // (subscription mix, context headroom, local hardware). Default policy prefers
 // the current host ecosystem; cross-host switches require explicit opt-in.
 // Design: development-records/plan/20260415T1700-execution-realization-priority-design.md
-// Authority: authority/core-lexicon.yaml:LlmAgentSpawnRealization
+// Authority: .onto/authority/core-lexicon.yaml:LlmAgentSpawnRealization
 // ---------------------------------------------------------------------------
 
 export interface ResolvedExecutionProfile {
@@ -849,7 +849,7 @@ function resolveExecutorConfig(
   ) {
     throw new Error(
       `Unsupported --${optionPrefixLabel}executor-realization: ${explicitRealization}. ` +
-        `Supported values: codex, mock, ts_inline_http. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected. See authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
+        `Supported values: codex, mock, ts_inline_http. Claude host runs (agent_teams_claude / subagent_claude) are routed via coordinator-start handoff when CLAUDECODE=1 is detected. See .onto/authority/core-lexicon.yaml:LlmAgentSpawnRealization.`,
     );
   }
 
@@ -1246,7 +1246,7 @@ function resolveLensDefaultsForReviewMode(reviewMode: ReviewMode): {
       alwaysIncludeLensIds: [..._registry.always_include_lens_ids],
       recommendedLensIds: [...CORE_AXIS_LENS_IDS],
       rationale: [
-        `host-facing positional invoke defaults core-axis review to the cost-constrained Pareto-optimal core lens set (${CORE_AXIS_LENS_IDS.join(", ")}) from authority/core-lens-registry.yaml.`,
+        `host-facing positional invoke defaults core-axis review to the cost-constrained Pareto-optimal core lens set (${CORE_AXIS_LENS_IDS.join(", ")}) from .onto/authority/core-lens-registry.yaml.`,
       ],
     };
   }

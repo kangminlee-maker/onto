@@ -5,7 +5,7 @@
 # settings never leak to the remote repo.
 #
 # Full OntoConfig surface (every key, every valid value, resolution
-# chain, merge strategy): processes/configuration.md.
+# chain, merge strategy): .onto/processes/configuration.md.
 # Type source of truth: src/core-runtime/discovery/config-chain.ts.
 #
 # This file is the minimal shape most contributors need. Keys not
@@ -67,7 +67,7 @@ output_language: en           # en | ko | ja | ...
 # ─────────────────────────────────────────────────────────────────
 # Still consulted by background tasks (not review execution — review
 # uses the `review.subagent` block above).
-# See processes/configuration.md §4.3 for full sub-field reference.
+# See .onto/processes/configuration.md §4.3 for full sub-field reference.
 #
 # subagent_llm:
 #   provider: litellm             # anthropic | openai | litellm | codex

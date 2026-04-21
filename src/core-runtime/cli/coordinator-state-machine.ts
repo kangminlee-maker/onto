@@ -24,6 +24,7 @@ import type {
   ReviewExecutionPlan,
 } from "../review/artifact-types.js";
 import { ALLOWED_TRANSITIONS } from "../review/artifact-types.js";
+import fs from "node:fs/promises";
 import {
   isoNow,
   readYamlDocument,
@@ -31,6 +32,7 @@ import {
   writeYamlDocument,
   fileExists,
   appendMarkdownLogEntry,
+  parseMarkdownFrontmatter,
 } from "../review/review-artifact-utils.js";
 import type { ReviewSessionMetadata } from "../review/artifact-types.js";
 import { readExtractMode } from "../learning/shared/mode.js";
@@ -378,13 +380,27 @@ export async function coordinatorNext(
     }
 
     case "awaiting_synthesize_dispatch": {
-      // ── Deliberation extension point (v3 §5 edge #9, §8 completing step 2) ──
-      // When deliberation is implemented:
-      // 1. After completing auto state checks synthesis output
-      // 2. Read synthesis output's deliberation_status frontmatter
-      // 3. If deliberation_required: applyTransition to awaiting_deliberation,
-      //    return agent instruction for deliberation dispatch
-      // 4. If not_needed: proceed to completing → completed as below
+      // ── Deliberation note ──
+      //
+      // synthesize-prompt-contract.md §5.1 defines three values for
+      // `deliberation_status`:
+      //   - not_needed              → lens 간 disagreement 없음
+      //   - performed               → synthesize 가 in-process deliberation
+      //                               수행 + Deliberation Decision 기록 완료
+      //   - required_but_unperformed → synthesize task 자체가 실패했을 때
+      //                               record assembler 가 부여하는 failure
+      //                               marker. synthesize output 에는 이 값이
+      //                               나타나지 않아야 함.
+      //
+      // Deliberation 은 synthesize 단계 *내부* 에서 수행되는 canonical
+      // 설계이며, external deliberation agent 는 존재하지 않는다. 즉
+      // `awaiting_deliberation` state 는 일반 flow 에서 도달하지 않는다
+      // (해당 case 의 throw 는 설계 상 invariant 위반 감지용 guard).
+      //
+      // 여기서의 책임은 synthesize output 의 frontmatter 가 비정상 값
+      // (`required_but_unperformed`) 이면 completing 으로 진행하지 않고
+      // fail-fast 하는 것. 이전에는 이 step 이 생략되어 있어, synthesize
+      // task 실패가 completed 로 silent-advance 될 risk 가 있었다.
 
       try {
         // Record auto state entry in memory (not flushed — crash-safe)
@@ -403,7 +419,29 @@ export async function coordinatorNext(
           throw new Error("completing step 1: synthesis output missing");
         }
 
-        // Step 2: (deliberation check — not implemented, see extension point above)
+        // Step 2: Deliberation-status guard (fail-fast on synthesize failure).
+        // Reads synthesis output frontmatter — if `deliberation_status` is
+        // `required_but_unperformed`, this is a signal from the upstream
+        // record assembler (or synthesize task itself) that the synthesize
+        // stage failed. Proceeding to completed would suppress that failure.
+        const synthesisText = await fs.readFile(
+          executionPlan.synthesis_output_path,
+          "utf8",
+        );
+        const synthesisFrontmatter = parseMarkdownFrontmatter<{
+          deliberation_status?: string;
+        }>(synthesisText).metadata;
+        const synthesisDeliberationStatus =
+          synthesisFrontmatter?.deliberation_status;
+        if (synthesisDeliberationStatus === "required_but_unperformed") {
+          throw new Error(
+            "completing step 2: synthesis output declares " +
+              "`deliberation_status: required_but_unperformed` — synthesize " +
+              "task failed (see synthesize-prompt-contract.md §5.1). " +
+              "Re-run synthesize dispatch or halt the session; do not " +
+              "advance to completed.",
+          );
+        }
 
         // Step 2.5: Learning extraction (Phase 2)
         const sessionMetadata = await readYamlDocument<ReviewSessionMetadata>(
@@ -522,8 +560,19 @@ export async function coordinatorNext(
     }
 
     case "awaiting_deliberation": {
+      // Design invariant guard — this state is unreachable in the canonical
+      // review flow. Deliberation is performed in-process by synthesize
+      // (see synthesize-prompt-contract.md §5 / §6), which emits
+      // `deliberation_status: performed` in its frontmatter. No external
+      // deliberation agent is dispatched. Reaching this state indicates
+      // an upstream wiring defect (e.g., a transition emitted
+      // `awaiting_deliberation` without a corresponding agent contract).
       throw new Error(
-        "Deliberation is not yet implemented. This state should not be reached.",
+        "awaiting_deliberation is unreachable under the canonical review " +
+          "flow — synthesize performs in-process deliberation and emits " +
+          "`deliberation_status: performed`. No external deliberation agent " +
+          "exists. Reaching this state signals an upstream transition " +
+          "wiring defect; investigate the caller that emitted the transition.",
       );
     }
 

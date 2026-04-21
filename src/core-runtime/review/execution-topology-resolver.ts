@@ -48,6 +48,12 @@ import {
   detectCodexEnvSignal,
   detectLiteLlmEndpoint,
 } from "../discovery/host-detection.js";
+import { validateReviewConfig } from "./review-config-validator.js";
+import {
+  deriveTopologyShape,
+  type ShapeDerivationSignals,
+} from "./topology-shape-derivation.js";
+import { shapeToTopologyId } from "./shape-to-topology-id.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -520,8 +526,23 @@ export function resolveExecutionTopology(
       `generic_nested=${signals.genericNestedSpawnSupported}`,
   );
 
-  const priority = normalizePriorityArray(args.ontoConfig.execution_topology_priority, log);
-  const prioritySource = args.ontoConfig.execution_topology_priority ? "config" : "default";
+  // ---- P2 axis-first branching (Review UX Redesign) -------------------
+  // When `config.review` is present, user has opted into the new axis
+  // schema. Derive shape → map to TopologyId → verify detection, emit a
+  // single-entry priority. If any step fails we fall back to the legacy
+  // priority ladder so operators who added a `review:` block but whose
+  // environment changed still get a running review (universal fallback
+  // semantics are strengthened in P3).
+  const axisFirstId = resolveAxisFirstTopology(args.ontoConfig, signals, log);
+
+  const priority = axisFirstId
+    ? [axisFirstId]
+    : normalizePriorityArray(args.ontoConfig.execution_topology_priority, log);
+  const prioritySource = axisFirstId
+    ? "review-axes"
+    : args.ontoConfig.execution_topology_priority
+      ? "config"
+      : "default";
   log(`priority source=${prioritySource} order=[${priority.join(", ")}]`);
 
   for (const id of priority) {
@@ -638,4 +659,84 @@ export function assertSupportedInPrA(topology: ExecutionTopology): void {
   if (!PR_A_SUPPORTED_TOPOLOGIES.has(topology.id)) {
     throw new UnsupportedTopologyError(topology.id);
   }
+}
+
+// ---------------------------------------------------------------------------
+// P2 axis-first helper (Review UX Redesign)
+// ---------------------------------------------------------------------------
+
+/**
+ * Attempt to derive a `TopologyId` from the new `review:` axis block.
+ *
+ * Returns the derived id on full success. Returns `null` (with trace lines
+ * logged) when any step fails — validation, shape derivation, or
+ * shape→id mapping. Caller treats `null` as "fall back to legacy priority
+ * ladder".
+ *
+ * Three failure modes logged via `[topology]`:
+ *   1. `review:` absent — no-op, caller uses legacy path silently.
+ *   2. `review:` present but validator rejects — principal mis-configured;
+ *      log each validation error and fall back.
+ *   3. Derivation or mapping returns `ok=false` — axes valid but
+ *      environment or shape/provider combo not mappable; log and fall back.
+ *
+ * P3 (universal fallback) will replace the "fall back to legacy priority"
+ * behavior in case 3 with "fall back to main_native shape forcibly", once
+ * the shape → executor wiring for main_native is proven end-to-end.
+ */
+function resolveAxisFirstTopology(
+  config: OntoConfig,
+  signals: DetectionSignals,
+  log: (line: string) => void,
+): TopologyId | null {
+  const reviewBlock = config.review;
+  if (reviewBlock === undefined) {
+    return null;
+  }
+
+  const validation = validateReviewConfig(reviewBlock);
+  if (!validation.ok) {
+    log("review-axes: validation failed — falling back to legacy priority");
+    for (const err of validation.errors) {
+      log(`review-axes: invalid — ${err.path}: ${err.message}`);
+    }
+    return null;
+  }
+
+  const derivationSignals: ShapeDerivationSignals = {
+    claudeHost: signals.claudeHost,
+    codexSessionActive: signals.codexSessionActive,
+    experimentalAgentTeams: signals.experimentalAgentTeams,
+  };
+  const derivation = deriveTopologyShape(validation.config, derivationSignals);
+  for (const line of derivation.ok ? derivation.derived.trace : derivation.trace) {
+    log(`review-axes: ${line}`);
+  }
+  if (!derivation.ok) {
+    log("review-axes: shape derivation failed — falling back to legacy priority");
+    for (const reason of derivation.reasons) {
+      log(`review-axes: ${reason}`);
+    }
+    return null;
+  }
+
+  const mapping = shapeToTopologyId({
+    shape: derivation.derived.shape,
+    subagent_provider: derivation.derived.subagent_provider,
+    signals: {
+      claudeHost: signals.claudeHost,
+      codexSessionActive: signals.codexSessionActive,
+    },
+  });
+  for (const line of mapping.trace) {
+    log(`review-axes: ${line}`);
+  }
+  if (!mapping.ok) {
+    log("review-axes: shape→TopologyId mapping failed — falling back to legacy priority");
+    log(`review-axes: ${mapping.reason}`);
+    return null;
+  }
+
+  log(`review-axes: derived TopologyId=${mapping.topology_id}`);
+  return mapping.topology_id;
 }

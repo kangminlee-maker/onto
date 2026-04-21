@@ -65,44 +65,12 @@ Runtime dispatch under the axis block:
 
 Use `onto config show` / `onto config validate` to preview the derivation before running a review. Design-integrity audit: `development-records/audit/20260421-shape-pipeline-audit.md`.
 
-### Legacy execution paths (backward compat through P7)
-
-Onto review previously supported **세 가지 canonical 실행 경로** (`execution_realization × host_runtime` 2-axis의 세 유효 조합). 자세한 의미론은 `authority/core-lexicon.yaml`의 `LlmAgentSpawnRealization`.
-
-| 경로 | 조합 | 실행 주체 | 진입점 | Context 비용 | Billing source |
-|---|---|---|---|---|---|
-| **Agent Teams nested spawn** | `agent-teams + claude` | 메인 Claude Code 세션 → TeamCreate로 coordinator subagent → coordinator가 lens subagents nested spawn | `onto coordinator start` → `onto coordinator next` … | 메인 무소비 (coordinator subagent orchestration) | Claude Code 구독 |
-| **Main-session direct Agent spawn** | `subagent + claude` | 메인 Claude Code 세션이 TeamCreate 없이 Agent tool로 lens subagent 직접 spawn | `onto coordinator start` (동일 state machine, caller가 flat 패턴으로 사용) | 메인이 orchestration에 일부 사용 (lens reasoning은 독립 subagent) | Claude Code 구독 |
-| **Codex CLI subagent** | `subagent + codex` | `codex` child process가 lens마다 subprocess | `npm run review:invoke -- <target> <intent> --codex` | 메인 무소비 | chatgpt 구독 또는 API-key |
-
-- **Agent Teams nested spawn**: TeamCreate 가용 환경의 기본 선택. Coordinator state machine이 `prepare-only` 세션을 준비하고 주체자가 TeamCreate로 nested orchestration. 상세: `processes/review/nested-spawn-coordinator-contract.md`.
-- **Main-session direct Agent spawn**: TeamCreate 비가용 환경의 대안. 주체자가 Agent tool로 각 lens subagent를 flat spawn. **동일한 `coordinator-state-machine.ts`를 사용**하되 caller가 nested 대신 flat 패턴으로 dispatch. lens reasoning은 여전히 독립 subagent context이므로 품질 영향 없음 — 주체자 메인 context가 orchestration에 일부 소비되는 트레이드오프만.
-- **Codex CLI**: Claude 외부 host(chatgpt 구독·API-key). `--codex` 플래그 또는 `host_runtime: codex` 명시 시. `onto review` CLI가 child process로 codex를 spawn.
-
-`onto review`(플래그 무명시)는 auto-resolution 수행: `CLAUDECODE=1` 감지 시 coordinator-start handoff(JSON) emit → 주체자가 이후 TeamCreate/Agent tool 패턴 선택. codex binary + auth.json 있으면 codex 경로. 둘 다 없으면 fail-fast with guidance.
-
-이외 경로 — Claude CLI subagent, API executor, 3-Tier fallback — 는 2026-04-13 정책 확정과 함께 **전부 제거되었다**. Claude CLI 인증 환경이 불안정하여 위 세 canonical 경로만 안정적으로 운용한다.
-
-### Sketch v3 Topology-Aware Execution (opt-in, 2026-04-18)
-
-위 세 경로는 **3 canonical combinations** — sketch v3 (PR #99~#106) 은 이것을 **10 canonical topology 옵션** 으로 확장하고 `.onto/config.yml` 의 `execution_topology_priority: [...]` 배열로 주체자가 우선순위 지정 가능하게 만든다.
-
-```yaml
-# .onto/config.yml 예
-execution_topology_priority:
-  - cc-main-codex-subprocess       # 1st: Claude Code 세션 내 codex lens
-  - codex-main-subprocess          # 2nd: Codex CLI 세션 폴백
-  - codex-nested-subprocess        # 3rd: plain terminal 폴백
-```
-
-Principal 이 이 field 를 설정하면:
-- `onto review` auto-resolution 이 topology resolver 를 추가 호출 → 환경 시그널 (`CLAUDECODE`, codex binary, LiteLLM endpoint) 에 맞는 첫 옵션 채택
-- Coordinator-start handoff JSON 에 `topology` descriptor 필드 포함 → coordinator subagent 가 `topology.id` / `lens_spawn_mechanism` / `deliberation_channel` 을 canonical 로 해석
-- 상세 topology 별 orchestration 지침: `processes/review/nested-spawn-coordinator-contract.md` §2.2
-
-Opt-in 안 한 주체자는 3-path legacy 동작 그대로 유지. Migration guide: `docs/topology-migration-guide.md`.
-
-Legacy 필드 (`host_runtime` / `execution_realization` / `execution_mode` / `executor_realization` / `api_provider`) 사용 시 `[onto:deprecation]` STDERR 경고 출력 (PR #103) — 동작은 유지, 마이그레이션 권장.
+> **Legacy execution paths removed from prose (P7, 2026-04-21)** — The
+> pre-redesign 3-path guidance (Agent Teams / Main-session / Codex CLI)
+> and sketch v3's 10-topology priority ladder are folded into the 6-axis
+> block above. Runtime still accepts `execution_topology_priority` as
+> backward-compat fallback until the planned "P9 runtime legacy cleanup"
+> PR. Migration: `docs/topology-migration-guide.md` §7.
 
 ### Codex 경로의 자동 가시성 (live watcher)
 

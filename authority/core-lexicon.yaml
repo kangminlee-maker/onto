@@ -1,10 +1,11 @@
-lexicon_version: "0.29.0"
+lexicon_version: "0.30.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
   - "This lexicon is the concept SSOT for the productization track."
   - "This file owns the concept INVENTORY. Naming RULES are owned by ontology-as-code-naming-charter.md."
   - "Structure: authoring_rules → shared_attributes → entities → terms."
+  - 'v0.30.0 additive (Review UX Redesign P7 — legacy identifier 제거 Phase 1, 2026-04-21): **visible surface** legacy 제거. (1) `TopologyId` enum 에서 `generic-nested-subagent` / `generic-main-subagent` 2 값 삭제 (never implemented, P8 audit 에서 0 reachability 확인). `TOPOLOGY_CATALOG` / `DEFAULT_TOPOLOGY_PRIORITY` / `TeamleadLocation` / `LensSpawnMechanism` 에서도 대응 값 삭제. (2) `OntoConfig.execution_topology_priority` 를 `@deprecated` JSDoc 으로 표시 — 런타임은 axis-first 실패 시 last-resort fallback 으로 유지 (자세한 삭제는 "P9 runtime legacy cleanup" 후속 PR 이연). (3) 5 user-facing doc 에서 Legacy 섹션 제거 — `.onto/commands/review.md` / `config.yml.example` / `README.md` / `BLUEPRINT.md` / `docs/topology-migration-guide.md` §7 는 migration path 로만 유지. (4) Lexicon terms `execution_realization` / `host_runtime` 를 `term_status: deprecated` → `retired` 전환. (5) 테스트: `topology-executor-mapping.test.ts` + `execution-topology-resolver.test.ts` 에서 `generic-*` 관련 assertion 정리. Code breaking change 는 없음 (runtime fallback 유지) — 다만 `generic-*` 값은 타입 수준에서 사용 불가능. canonical-advancing.'
   - 'v0.29.0 additive (Review UX Redesign P6 — docs 전수 갱신, 2026-04-21): 5 user-facing doc 갱신 — (1) `config.yml.example` 에 `review:` axis block 예시 추가 + legacy `execution_topology_priority` 를 deprecated 로 표시. (2) `.onto/commands/review.md` 에 "Canonical path (Review UX Redesign)" 섹션 신설, 기존 3-canonical / sketch v3 내용은 "Legacy execution paths (backward compat through P7)" 로 재분류. (3) `docs/topology-migration-guide.md` 제목 "Legacy → Review UX Redesign" 으로 전환 + §7 "Review UX Redesign migration" 신설 (7.1 왜 / 7.2 id→axes 매핑표 / 7.3 migration 수단 / 7.4 universal fallback 보장 / 7.5 spawn-ready 상태 / 7.6 troubleshooting). (4) `README.md` §review config 블록 교체 + legacy 섹션 분리. (5) `BLUEPRINT.md` 신규 entity term (TopologyShape / OntoReviewConfig) + legacy mapping 보완 + §7 Lens Execution Axes 를 "6 axes + 6 shape" 구조로 rewrite. Self-review amendment: (a) BLUEPRINT §7 renumber (§7.4 Parallel Execution → §7.5, 7.4 중복 해소), (b) migration-guide §6 Reference 의 Deprecation detection orphan 재배치, (c) lexicon terms 에 `review_execution_config` (OntoReviewConfig) + `topology_shape` (TopologyShape) 정식 등재 + `execution_realization` / `host_runtime` 를 term_status: deprecated 로 전환. Code 미변경 (prose + lexicon metadata only). P7 legacy 제거 전 정본 alignment 완료. canonical-advancing.'
   - 'v0.28.0 additive (Review UX Redesign P8 — shape × pipeline smoke audit, 2026-04-21): 6 `TopologyShape` × 7 review pipeline step matrix 의 dispatch-level smoke audit. 신규 seat `src/core-runtime/review/shape-pipeline-audit.test.ts` (36 tests, 6 stage: derivation / mapping / resolver-integration / spawn-readiness / pipeline-step-invariants / catalog-non-drift). Hermetic (LLM 호출 없음). Audit report `development-records/audit/20260421-shape-pipeline-audit.md` — 4/6 shape full spawn-ready + 2/6 (main-teams_a2a PR-D 대기, ext-teamlead_native PR-C 대기) + P3 universal fallback 이 deferred shape 의 안전망. Pipeline step 5 (dispatch) 만 shape-sensitive, 1~4/6~7 은 topology 를 opaque snapshot 으로 소비. Design integrity 경험적 확증. canonical-advancing.'
   - 'v0.27.0 additive (Review UX Redesign P5 — onto config interactive CLI, 2026-04-21): `onto config` subcommand tree 신설 — 5 개 subcommand (show / set / edit / re-detect / validate) + default alias `onto config` ≡ `show`. 신규 seat 3 건 — `src/core-runtime/config/onto-config-cli.ts` (dispatcher + 5 subcommand handler 통합), `src/core-runtime/config/onto-config-key-path.ts` (pure: 사용자 점표기 key path → `OntoReviewConfig` 변형), `src/core-runtime/config/onto-config-preview.ts` (pure: axes + signals → shape / TopologyId 예측 + P3 강등 mirror). `set` 지원 path 6 종: `teamlead.model` (literal main), `subagent.{provider,model_id,effort}`, `max_concurrent_lenses`, `lens_deliberation`. External teamlead 명세는 `edit` 으로 분리. `edit` 은 TTY 감지 + readline/promises (Node native) 기반 stepwise prompt + `validate`/`save`/`quit` 명령어. `re-detect` read-only 환경 재감지 + preview. `validate` writeless 검증 + preview. CLI dispatch 는 `src/cli.ts` 의 `case "config"` branch 에서 dynamic import. vitest include glob 에 `config/` 추가. 신규 tests 31 (key-path 19 + preview 12). canonical-advancing.'
@@ -1169,7 +1170,7 @@ terms:
     canonical_label: "execution_realization"
     korean_label: "실행 실현 방식"
     axis: "execution_profile"
-    term_status: "deprecated"
+    term_status: "retired"
     definition: "Canonical structural realization used to execute context-isolated review units."
     allowed_values:
       - "subagent"
@@ -1182,7 +1183,7 @@ terms:
     canonical_label: "host_runtime"
     korean_label: "호스트 런타임"
     axis: "execution_profile"
-    term_status: "deprecated"
+    term_status: "retired"
     definition: "Concrete host environment that runs a chosen execution realization."
     allowed_values:
       - "codex"

@@ -190,30 +190,12 @@ describe("resolveExecutionTopology — positive matches", () => {
     expect(resolved.topology.id).toBe("codex-main-subprocess");
   });
 
-  it("generic-1 generic-nested-subagent matches when principal declares support", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["generic-nested-subagent"],
-          generic_nested_spawn_supported: true,
-        },
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("generic-nested-subagent");
-  });
-
-  it("generic-2 generic-main-subagent is reserved and never auto-matches", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["generic-main-subagent"],
-          generic_nested_spawn_supported: true,
-        },
-      }),
-    );
-    expectNoHost(res);
-  });
+  // P7 (2026-04-21): `generic-nested-subagent` + `generic-main-subagent`
+  // removed from TopologyId enum. Their tests are no longer meaningful —
+  // the type system prevents the values from existing in the priority
+  // array. Unknown priority entries (typos) are still silently dropped
+  // with a trace line; see the "unknown topology id" normalizePriorityArray
+  // test elsewhere in this file.
 });
 
 // ---------------------------------------------------------------------------
@@ -542,8 +524,6 @@ describe("resolveExecutionTopology — PR-A support set", () => {
       "cc-teams-codex-subprocess",
       "cc-teams-litellm-sessions",
       "codex-nested-subprocess",
-      "generic-nested-subagent",
-      "generic-main-subagent",
     ];
     for (const id of unsupported) {
       expect(() =>
@@ -573,11 +553,12 @@ describe("resolveExecutionTopology — PR-A support set", () => {
 // ---------------------------------------------------------------------------
 
 describe("TOPOLOGY_CATALOG — shape", () => {
-  it("has exactly 10 canonical entries matching DEFAULT_TOPOLOGY_PRIORITY", () => {
+  it("has exactly 8 canonical entries matching DEFAULT_TOPOLOGY_PRIORITY (post-P7)", () => {
+    // P7 (2026-04-21): trimmed from 10 → 8 after removing generic-*.
     const catalogIds = Object.keys(TOPOLOGY_CATALOG).sort();
     const priorityIds = [...DEFAULT_TOPOLOGY_PRIORITY].sort();
     expect(catalogIds).toEqual(priorityIds);
-    expect(catalogIds.length).toBe(10);
+    expect(catalogIds.length).toBe(8);
   });
 
   it("each entry has all required static attributes populated", () => {

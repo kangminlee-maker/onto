@@ -60,13 +60,17 @@ import { shapeToTopologyId } from "./shape-to-topology-id.js";
 // ---------------------------------------------------------------------------
 
 /**
- * Canonical topology identifier. The 10 options from sketch v3 §3.
+ * Canonical topology identifier. 8 options (post-P7, 2026-04-21).
  *
  * Prefix convention:
  *   - `cc-teams-*` : Claude Code + TeamCreate teamlead
  *   - `cc-main-*`  : Claude Code + onto TS main teamlead
  *   - `codex-*`    : codex-subprocess-based (host-agnostic or codex host)
- *   - `generic-*`  : reserved for non-CC/non-codex host adapters (future)
+ *
+ * P7 (2026-04-21): removed `generic-nested-subagent` / `generic-main-subagent`.
+ * They were reserved for future non-CC/non-codex host adapters but never
+ * implemented. P8 audit confirmed zero reachability; Review UX Redesign's
+ * 6 shape × TopologyId mapping does not produce them.
  */
 export type TopologyId =
   | "cc-teams-lens-agent-deliberation"
@@ -76,16 +80,13 @@ export type TopologyId =
   | "cc-main-codex-subprocess"
   | "cc-teams-litellm-sessions"
   | "codex-nested-subprocess"
-  | "codex-main-subprocess"
-  | "generic-nested-subagent"
-  | "generic-main-subagent";
+  | "codex-main-subprocess";
 
 /** Where the teamlead agent runs. */
 export type TeamleadLocation =
   | "onto-main"
   | "claude-teamcreate"
-  | "codex-subprocess"
-  | "generic-subagent";
+  | "codex-subprocess";
 
 /** Mechanism used to spawn each per-lens reasoning unit. */
 export type LensSpawnMechanism =
@@ -232,22 +233,6 @@ export const TOPOLOGY_CATALOG: Record<TopologyId, TopologyMetadata> = {
     transport_rank: "S0",
     deliberation_channel: "synthesizer-only",
   },
-  "generic-nested-subagent": {
-    id: "generic-nested-subagent",
-    teamlead_location: "generic-subagent",
-    lens_spawn_mechanism: "generic-subagent",
-    max_concurrent_lenses: 1,
-    transport_rank: "S2",
-    deliberation_channel: "synthesizer-only",
-  },
-  "generic-main-subagent": {
-    id: "generic-main-subagent",
-    teamlead_location: "onto-main",
-    lens_spawn_mechanism: "generic-subagent",
-    max_concurrent_lenses: 1,
-    transport_rank: "S2",
-    deliberation_channel: "synthesizer-only",
-  },
 };
 
 /**
@@ -262,7 +247,9 @@ export const TOPOLOGY_CATALOG: Record<TopologyId, TopologyMetadata> = {
  *   6. 3-1 teams+litellm — local model path
  *   7. codex-A nested   — host-agnostic codex full stack
  *   8. codex-B main     — codex host path
- *   9, 10: generic-*    — reserved for future host adapters
+ *
+ * P7 (2026-04-21): trimmed from 10 → 8 entries. `generic-*` removed (never
+ * implemented, zero reachability confirmed by P8 audit).
  */
 export const DEFAULT_TOPOLOGY_PRIORITY: TopologyId[] = [
   "cc-teams-lens-agent-deliberation",
@@ -273,8 +260,6 @@ export const DEFAULT_TOPOLOGY_PRIORITY: TopologyId[] = [
   "cc-teams-litellm-sessions",
   "codex-nested-subprocess",
   "codex-main-subprocess",
-  "generic-nested-subagent",
-  "generic-main-subagent",
 ];
 
 /**
@@ -405,20 +390,6 @@ function checkTopologyRequirements(
         return { ok: false, reason: "need codex binary + ~/.codex/auth.json" };
       }
       return { ok: true, reason: "codex session + codex binary both present" };
-    }
-    case "generic-nested-subagent": {
-      if (!signals.genericNestedSpawnSupported) {
-        return { ok: false, reason: "need config.generic_nested_spawn_supported=true" };
-      }
-      return { ok: true, reason: "generic_nested_spawn_supported=true" };
-    }
-    case "generic-main-subagent": {
-      // Future: would require a host adapter declaration. For PR-A, no
-      // concrete precondition is specified (sketch v3 §3 TBD). We mark it
-      // as unreachable so it never auto-matches — principals must set
-      // `execution_topology_priority` explicitly AND declare the relevant
-      // generic signal once that adapter lands.
-      return { ok: false, reason: "generic host adapter not implemented (reserved)" };
     }
   }
 }

@@ -63,26 +63,10 @@ output_language: en           # en | ko | ja | ...
 #   # lens_deliberation: synthesizer-only   # or sendmessage-a2a (requires teams)
 
 # ─────────────────────────────────────────────────────────────────
-# Legacy execution profile (deprecated — migrate to `review:` above)
+# Subagent LLM (background task LLM — learn / govern / promote)
 # ─────────────────────────────────────────────────────────────────
-# Kept for backward compatibility through P7 (legacy identifier removal).
-# Once you've populated `review:`, remove the fields below or run
-# `npm run onboard:write-review-block -- --strip-legacy-priority` to
-# migrate automatically.
-#
-# `execution_topology_priority` — sketch v3 10-topology explicit priority.
-# Superseded by `review:` axis derivation. Migration table in
-# docs/topology-migration-guide.md §7 (added 2026-04-21).
-#
-# execution_topology_priority:
-#   - cc-main-agent-subagent      # Claude Code + Agent tool
-#   - codex-main-subprocess       # Codex CLI session + codex lens
-
-# ─────────────────────────────────────────────────────────────────
-# Subagent LLM (legacy — used by standalone host_runtime and background tasks)
-# ─────────────────────────────────────────────────────────────────
-# Still consulted by background tasks (learn / govern / promote).
-# For review execution, prefer the `review.subagent` block above.
+# Still consulted by background tasks (not review execution — review
+# uses the `review.subagent` block above).
 # See processes/configuration.md §4.3 for full sub-field reference.
 #
 # subagent_llm:

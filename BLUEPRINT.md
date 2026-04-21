@@ -612,15 +612,7 @@ review:                          # 6-axis block — P1 #152
   # lens_deliberation: synthesizer-only
 ```
 
-Legacy profile (still accepted, backward-compat through P7):
-
-```yaml
-execution_realization: subagent # subagent | agent-teams (deprecated)
-host_runtime: codex             # codex | claude (deprecated)
-codex:
-  model: gpt-5.4               # omit → ~/.codex/config.toml
-  effort: xhigh                 # omit → ~/.codex/config.toml
-```
+> **Legacy profile removed from prose (P7, 2026-04-21)** — `execution_realization` / `host_runtime` / `execution_topology_priority` are consolidated into the 6-axis block above. The runtime retains parser acceptance for backward compat until the planned "P9 runtime legacy cleanup" PR. Migration: `docs/topology-migration-guide.md` §7.
 
 **Output language priority**: config.yml `output_language` > CLAUDE.md language directives. If absent, defaults to `en`.
 

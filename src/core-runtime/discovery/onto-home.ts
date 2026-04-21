@@ -26,6 +26,40 @@ export function isOntoRoot(dir: string): boolean {
 }
 
 /**
+ * Detects a pre-migration onto install that would have been recognized
+ * before Phase 7: package.json with name "onto-core" plus legacy top-level
+ * `roles/` and `authority/` at the given dir. Used to surface a migration
+ * hint when the canonical check fails.
+ */
+function isPreMigrationOntoRoot(dir: string): boolean {
+  try {
+    const pkgPath = path.join(dir, "package.json");
+    if (!fs.existsSync(pkgPath)) return false;
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+    if (pkg.name !== "onto-core") return false;
+    const rolesLegacy = fs.existsSync(path.join(dir, "roles"));
+    const authorityLegacy = fs.existsSync(path.join(dir, "authority"));
+    return rolesLegacy || authorityLegacy;
+  } catch {
+    return false;
+  }
+}
+
+function buildInvalidHomeError(label: string, resolved: string): string {
+  const base =
+    `Invalid ${label}: ${resolved}. ` +
+    `Expected package.json with name "onto-core", .onto/roles/ and .onto/authority/ directories.`;
+  if (isPreMigrationOntoRoot(resolved)) {
+    return (
+      base +
+      ` This directory looks like a pre-Phase-7 onto install (legacy roles/ or authority/ at root). ` +
+      `Run scripts/repo-layout-migration-replace.py to migrate to the .onto/ layout.`
+    );
+  }
+  return base;
+}
+
+/**
  * Resolves the onto installation directory.
  *
  * Precedence (CLI flag > env > auto-detection):
@@ -42,9 +76,7 @@ export function resolveOntoHome(
   if (typeof ontoHomeFlag === "string" && ontoHomeFlag.length > 0) {
     const resolved = path.resolve(ontoHomeFlag);
     if (!isOntoRoot(resolved)) {
-      throw new Error(
-        `Invalid onto home: ${resolved}. Expected package.json with name "onto-core", .onto/roles/ and .onto/authority/ directories.`,
-      );
+      throw new Error(buildInvalidHomeError("onto home", resolved));
     }
     return resolved;
   }
@@ -54,9 +86,7 @@ export function resolveOntoHome(
   if (typeof envHome === "string" && envHome.length > 0) {
     const resolved = path.resolve(envHome);
     if (!isOntoRoot(resolved)) {
-      throw new Error(
-        `Invalid ONTO_HOME: ${resolved}. Expected package.json with name "onto-core", .onto/roles/ and .onto/authority/ directories.`,
-      );
+      throw new Error(buildInvalidHomeError("ONTO_HOME", resolved));
     }
     return resolved;
   }

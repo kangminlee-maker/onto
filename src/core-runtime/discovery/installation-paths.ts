@@ -43,9 +43,9 @@ export function resolveInstallationPath(
 
   throw new Error(
     `[installation-paths] .onto/${kind}/ not found under ${installRoot}. ` +
-      `Installation may be corrupted, or the project may still be on the ` +
-      `pre-Phase-6 legacy layout — run scripts/repo-layout-migration-replace.py ` +
-      `to migrate.`,
+      `Installation may be corrupted, or the project may still be on a ` +
+      `pre-migration legacy layout — run scripts/repo-layout-migration-replace.py ` +
+      `to migrate to the .onto/ layout.`,
   );
 }
 

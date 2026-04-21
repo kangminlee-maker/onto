@@ -20,7 +20,7 @@ import { handleGovernCli } from "./cli.js";
 function makeProposal(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     learning_ref: { agent_id: "logic", entry_marker: "test-entry-001" },
-    target: { category: "design_principle", file_path: ".onto/principles/test.md", section: "NEW" },
+    target: { category: "principle", file_path: ".onto/principles/test.md", section: "NEW" },
     rationale: "test rationale",
     conflict_check: { reviewed_by_agent: true, existing_principle_refs: [], conflict_summary: "no conflict" },
     workload_evidence: { state_transitions: 10, retry_count: 3, evidence_summary: "10 transitions, 3 retries", event_refs: [] },
@@ -33,8 +33,8 @@ describe("promote-principle Quality gate", () => {
   let tmpRoot: string;
   beforeEach(() => {
     tmpRoot = mkdtempSync(join(tmpdir(), "onto-promote-principle-"));
-    mkdirSync(join(tmpRoot, "design-principles"), { recursive: true });
-    writeFileSync(join(tmpRoot, "design-principles", "test.md"), "# Test", "utf-8");
+    mkdirSync(join(tmpRoot, ".onto", "principles"), { recursive: true });
+    writeFileSync(join(tmpRoot, ".onto", "principles", "test.md"), "# Test", "utf-8");
   });
   afterEach(() => rmSync(tmpRoot, { recursive: true, force: true }));
 
@@ -77,8 +77,8 @@ describe("promote-principle Frequency gate", () => {
   let tmpRoot: string;
   beforeEach(() => {
     tmpRoot = mkdtempSync(join(tmpdir(), "onto-promote-freq-"));
-    mkdirSync(join(tmpRoot, "design-principles"), { recursive: true });
-    writeFileSync(join(tmpRoot, "design-principles", "test.md"), "# Test", "utf-8");
+    mkdirSync(join(tmpRoot, ".onto", "principles"), { recursive: true });
+    writeFileSync(join(tmpRoot, ".onto", "principles", "test.md"), "# Test", "utf-8");
   });
   afterEach(() => rmSync(tmpRoot, { recursive: true, force: true }));
 
@@ -115,8 +115,8 @@ describe("promote-principle Completeness gate", () => {
   let tmpRoot: string;
   beforeEach(() => {
     tmpRoot = mkdtempSync(join(tmpdir(), "onto-promote-complete-"));
-    mkdirSync(join(tmpRoot, "design-principles"), { recursive: true });
-    writeFileSync(join(tmpRoot, "design-principles", "test.md"), "# Test", "utf-8");
+    mkdirSync(join(tmpRoot, ".onto", "principles"), { recursive: true });
+    writeFileSync(join(tmpRoot, ".onto", "principles", "test.md"), "# Test", "utf-8");
   });
   afterEach(() => rmSync(tmpRoot, { recursive: true, force: true }));
 
@@ -152,8 +152,8 @@ describe("promote-principle target 매핑 + queue integration", () => {
   let tmpRoot: string;
   beforeEach(() => {
     tmpRoot = mkdtempSync(join(tmpdir(), "onto-promote-queue-"));
-    mkdirSync(join(tmpRoot, "design-principles"), { recursive: true });
-    writeFileSync(join(tmpRoot, "design-principles", "test.md"), "# Test", "utf-8");
+    mkdirSync(join(tmpRoot, ".onto", "principles"), { recursive: true });
+    writeFileSync(join(tmpRoot, ".onto", "principles", "test.md"), "# Test", "utf-8");
   });
   afterEach(() => rmSync(tmpRoot, { recursive: true, force: true }));
 
@@ -176,20 +176,20 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
   });
   afterEach(() => rmSync(tmpRoot, { recursive: true, force: true }));
 
-  it("design_principle category + canonical .onto/principles/ → pass", () => {
+  it("principle category + canonical .onto/principles/ → pass", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: ".onto/principles/foo.md", section: "NEW" },
+        target: { category: "principle", file_path: ".onto/principles/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
     expect(result.success).toBe(true);
   });
 
-  it("design_principle category + legacy design-principles/ → validation 실패 (Phase 7 canonical-only)", () => {
+  it("principle category + legacy design-principles/ → validation 실패 (Phase 7 canonical-only)", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: "design-principles/foo.md", section: "NEW" },
+        target: { category: "principle", file_path: "design-principles/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
@@ -221,7 +221,7 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
   it("segment-bound: .onto/principlesABC/foo.md → validation 실패 (near-miss prefix)", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: ".onto/principlesABC/foo.md", section: "NEW" },
+        target: { category: "principle", file_path: ".onto/principlesABC/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
@@ -235,7 +235,7 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
   it("segment-bound: design-principlesX/foo.md → validation 실패", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: "design-principlesX/foo.md", section: "NEW" },
+        target: { category: "principle", file_path: "design-principlesX/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
@@ -261,7 +261,7 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
     writeFileSync(join(tmpRoot, "random", "unrelated.md"), "# x", "utf-8");
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: "random/unrelated.md", section: "NEW" },
+        target: { category: "principle", file_path: "random/unrelated.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
@@ -269,10 +269,10 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
     if (!result.success) expect(result.gate_failed).toBe("validation");
   });
 
-  it("canonical design_principle path → queue 에 동일 canonical 로 persist", () => {
+  it("canonical principle path → queue 에 동일 canonical 로 persist", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: ".onto/principles/foo.md", section: "NEW" },
+        target: { category: "principle", file_path: ".onto/principles/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
@@ -336,8 +336,8 @@ describe("promote-principle E2E (promote → list → decide)", () => {
 
   beforeEach(() => {
     tmpRoot = mkdtempSync(join(tmpdir(), "onto-promote-e2e-"));
-    mkdirSync(join(tmpRoot, "design-principles"), { recursive: true });
-    writeFileSync(join(tmpRoot, "design-principles", "test.md"), "# Test", "utf-8");
+    mkdirSync(join(tmpRoot, ".onto", "principles"), { recursive: true });
+    writeFileSync(join(tmpRoot, ".onto", "principles", "test.md"), "# Test", "utf-8");
     logs = [];
     origLog = console.log;
     origErr = console.error;

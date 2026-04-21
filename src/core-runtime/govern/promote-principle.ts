@@ -1,17 +1,22 @@
 /**
  * govern promote-principle — Knowledge → Principle 승격 제안 (W-C-03 v0).
  *
- * 승격 기준 3축:
+ * 승격 기준 4 gate:
+ *   - Completeness gate: proposal schema 필수 필드 전수
  *   - Quality gate: workload-evidence (events.ndjson 에서 집계된 지표 OR threshold)
  *   - Frequency gate: similar_to 가 기존 pending 참조 시 workload evidence 면제 (2번째부터)
- *   - Completeness gate: proposal schema 필수 필드 전수
  *   - Principal gate: 기존 onto govern decide 재사용 (별도 호출)
  *
  * v0 bounded minimum surface: 기록만. decide approve 후 실제 파일 편집은 주체자 수동.
  */
 
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  join,
+  isAbsolute as isAbsolutePath,
+  relative as relativePath,
+  resolve as resolvePath,
+} from "node:path";
 import {
   appendQueueEvent,
   generateGovernId,
@@ -42,18 +47,16 @@ export interface PromotePrincipleProposal {
     entry_marker: string;
   };
   /**
-   * `category` is a proposal-schema label; the allowed `file_path`
-   * referent set is the full directory, not just strict subtypes.
-   * Phase 7 (2026-04-21) dropped legacy-layout acceptance.
+   * `category` names the seat the proposal targets. Phase 7 (2026-04-21)
+   * renamed `design_principle` → `principle` so the label matches its
+   * referent set (`.onto/principles/*` hosts principles, guidelines, and
+   * charters — all of which are "principle documents" in the broad sense).
    *
-   *   category="design_principle" → accepts `.onto/principles/*`.
-   *     This directory houses principles, guidelines, and charters —
-   *     the label is narrower than the set for historical compatibility.
-   *
-   *   category="process" → accepts `.onto/processes/*`.
+   *   category="principle" → accepts `.onto/principles/*`.
+   *   category="process"   → accepts `.onto/processes/*`.
    */
   target: {
-    category: "design_principle" | "process";
+    category: "principle" | "process";
     file_path: string;
     section: string;
   };
@@ -160,9 +163,18 @@ export function executePromotePrinciple(
   if (!proposal.learning_ref?.agent_id || !proposal.learning_ref?.entry_marker) {
     return { success: false, reason: "learning_ref.agent_id 와 entry_marker 필수.", gate_failed: "completeness" };
   }
-  const validCategories = ["design_principle", "process"];
-  if (!proposal.target?.file_path || !proposal.target?.section || !validCategories.includes(proposal.target?.category)) {
-    return { success: false, reason: "target.file_path, section, category (design_principle|process) 필수.", gate_failed: "completeness" };
+  const validCategories = ["principle", "process"];
+  const rawCategory = (proposal.target?.category ?? "") as string;
+  if (!proposal.target?.file_path || !proposal.target?.section || !validCategories.includes(rawCategory)) {
+    const hint =
+      rawCategory === "design_principle"
+        ? " (legacy label 'design_principle' was renamed to 'principle' in Phase 7)"
+        : "";
+    return {
+      success: false,
+      reason: `target.file_path, section, category (principle|process) 필수.${hint}`,
+      gate_failed: "completeness",
+    };
   }
   if (!proposal.rationale || proposal.rationale.trim().length === 0) {
     return { success: false, reason: "rationale 필수.", gate_failed: "completeness" };
@@ -179,19 +191,29 @@ export function executePromotePrinciple(
   // Phase 7 (2026-04-21) removed legacy-layout acceptance. Only canonical
   // `.onto/principles/*` or `.onto/processes/*` are valid targets.
   //
-  // `design_principle` category maps to the full `.onto/principles/` set
-  // (which houses principles *and* guidelines/charters). Label is kept
-  // for proposal-schema compatibility; referent set is documented here
-  // so the label/scope mismatch is explicit, not implicit.
+  // `principle` category maps to the full `.onto/principles/` set (which
+  // houses principles, guidelines, and charters).
   //
-  // `startsWithDirPrefix` enforces a segment boundary so near-miss paths
-  // like `.onto/principlesABC/foo.md` cannot slip past a prefix match.
+  // Two-stage defense:
+  //   1. Lexical segment-bound check — rejects near-miss directory names
+  //      (`.onto/principlesABC/foo.md`) without touching the filesystem.
+  //   2. Normalized-canonical membership check — rejects traversal-shaped
+  //      inputs (`.onto/principles/../../etc/passwd`) that would pass the
+  //      lexical check but resolve outside projectRoot's canonical dir.
   const canonicalDir =
-    proposal.target.category === "design_principle"
+    proposal.target.category === "principle"
       ? ".onto/principles"
       : ".onto/processes";
   const rawPath = proposal.target.file_path;
-  if (!startsWithDirPrefix(rawPath, canonicalDir)) {
+  const lexicalPass = startsWithDirPrefix(rawPath, canonicalDir);
+  let canonicalPass = false;
+  if (lexicalPass) {
+    const resolvedAbs = resolvePath(projectRoot, rawPath);
+    const canonicalAbs = resolvePath(projectRoot, canonicalDir);
+    const rel = relativePath(canonicalAbs, resolvedAbs);
+    canonicalPass = rel.length > 0 && !rel.startsWith("..") && !isAbsolutePath(rel);
+  }
+  if (!lexicalPass || !canonicalPass) {
     return {
       success: false,
       reason: `target.file_path '${rawPath}' 가 category '${proposal.target.category}' 에 맞는 디렉토리 (${canonicalDir}/) 에 속하지 않음.`,

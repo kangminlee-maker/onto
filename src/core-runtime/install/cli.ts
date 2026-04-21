@@ -37,6 +37,10 @@ import {
   runInteractivePrompts,
 } from "./prompts.js";
 import {
+  formatValidationResult,
+  validateInstall,
+} from "./validation.js";
+import {
   resolveInstallPaths,
   writeInstallFiles,
   type WriteResult,
@@ -139,7 +143,7 @@ function printHelp(): void {
       "  --litellm-base-url <url>             LiteLLM endpoint (for litellm provider).",
       "  --env-file <path>                    Where .env lives (default derived from scope).",
       "  --reconfigure, --force               Allow overwriting existing config.",
-      "  --skip-validation                    Skip live provider ping (PR 3 scope).",
+      "  --skip-validation                    Skip the live provider ping.",
       "  --dry-run                            Compute changes without writing.",
       "  --non-interactive                    No prompts — scheduled for PR 4.",
       "  --help, -h                           Show this help.",
@@ -257,6 +261,29 @@ export async function handleInstallCli(
       gitignoreResult = ensureGitignoreEntry(paths.gitignorePath, {
         dryRun: flags.dryRun,
       });
+    }
+
+    // Live provider ping — skipped on dry-run or when user opts out.
+    if (!flags.dryRun && !flags.skipValidation) {
+      process.stdout.write("\nProvider 검증 중...\n");
+      const validation = await validateInstall({
+        decisions,
+        secrets,
+        detection,
+      });
+      process.stdout.write(`${formatValidationResult(validation)}\n`);
+      if (!validation.ok) {
+        process.stderr.write(
+          [
+            "",
+            "[onto] 일부 provider 검증 실패.",
+            "  - 자격 증명을 수정한 뒤 `onto install --reconfigure` 로 재실행하거나",
+            "  - 네트워크 제약 환경이면 `--skip-validation` 을 추가해 검증을 건너뛰세요.",
+            "",
+          ].join("\n"),
+        );
+        return 1;
+      }
     }
 
     printCompletion(result, gitignoreResult, flags.dryRun);

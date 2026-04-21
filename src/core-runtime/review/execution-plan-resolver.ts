@@ -228,9 +228,11 @@ function readCodexAuthState(): CodexAuthState {
  * `api_provider` fields that previously drove P1b-P1e config branches
  * were removed from `OntoConfig` by PR-K (2026-04-18, sketch v3 §7.4 Phase D
  * stage 3). The `review:` axis block is the canonical seat for these
- * decisions now (P9.2, 2026-04-21 — was `execution_topology_priority`
- * until Review UX Redesign superseded it); legacy configs fail at load
- * via `LegacyFieldRemovedError`.
+ * decisions now (P9.2, 2026-04-21). Legacy YAML configs are silently
+ * dropped during type narrowing (P9.5, 2026-04-21 — the prior load-time
+ * `LegacyFieldRemovedError` throw was retired); such configs fall
+ * through to `buildNoHostReason`'s 6-option setup guide when no viable
+ * path is detected.
  */
 export function resolveExecutionPlan(
   args: ResolveExecutionPlanArgs,

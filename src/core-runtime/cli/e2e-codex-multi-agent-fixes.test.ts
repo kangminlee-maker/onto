@@ -168,7 +168,10 @@ describe("B. config-chain codex namespace", () => {
   // History: pre-P9.2 the completeness signal was
   // `execution_topology_priority`. Pre-P9.4 the signal was the `review:`
   // axis block via `validateProfileCompleteness` (retired along with
-  // `buildBothIncompleteError` in P9.4).
+  // `buildBothIncompleteError` in P9.4). P9.5 additionally retired
+  // `legacy-field-deprecation.ts` — legacy provider fields in YAML are
+  // now silently dropped during type narrowing; these tests still
+  // declare `review:` blocks for realism, not for correctness.
 
   it("B-1: codex namespace parsed from project config", async () => {
     const homeDir = trackCleanup(makeTmpDir("b1h"));

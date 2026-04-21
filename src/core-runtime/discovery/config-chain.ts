@@ -2,10 +2,8 @@ import path from "node:path";
 import { fileExists, readYamlDocument } from "../review/review-artifact-utils.js";
 import {
   adoptProfile,
-  hasReviewBlock,
   mergeOrthogonalFields,
 } from "./config-profile.js";
-import { checkAndEmitLegacyDeprecation } from "./legacy-field-deprecation.js";
 
 export interface OntoConfig {
   // PR-K (2026-04-18, sketch v3 §7.4 Phase D stage 3): the five legacy
@@ -13,21 +11,16 @@ export interface OntoConfig {
   //   host_runtime, execution_realization, execution_mode,
   //   executor_realization, api_provider
   //
-  // Runtime behavior:
-  //   - YAML configs that still set these fields parse into the object at
-  //     read time (via `Record<string, unknown>` cast inside `readConfigAt`),
-  //     so `legacy-field-deprecation.ts` can still DETECT them and throw
-  //     `LegacyFieldRemovedError` (PR-J / stage 2). This preserves the
-  //     fail-fast message even when the type no longer contains the field.
-  //   - Downstream code that previously read these fields is now either
-  //     dead (unreachable post-PR-J throw) or reads via
-  //     `(config as Record<string, unknown>)[key]` when legacy detection
-  //     still needs to see them.
-  //
-  // Net effect: principals writing NEW code against `OntoConfig` can't
-  // accidentally reintroduce the silent-divergence class PR #96 closed,
-  // while legacy YAML configs still produce a structured error rather than
-  // a cryptic type failure.
+  // P9.5 (2026-04-21): `legacy-field-deprecation.ts` was also removed —
+  // YAML configs that still set these fields parse into
+  // `Record<string, unknown>` at read time. The `OntoConfig` type
+  // omits them, so TypeScript consumers cannot read `config.host_runtime`
+  // (compile error). The raw values remain in the merged Record for
+  // Record-cast backward compatibility, but no production consumer
+  // reads them — the fields are inert. Users on legacy-only configs
+  // fall through to the resolver and receive `buildNoHostReason`'s
+  // 6-option setup guide when no viable host is detected (guide
+  // includes migration to the `review:` axis block).
   /**
    * External HTTP API provider selection (sketch v2 §4.1 A).
    *
@@ -279,8 +272,7 @@ async function readConfigAt(dir: string): Promise<OntoConfig> {
  * Reads home + project `.onto/config.yml`, merges ONLY the orthogonal
  * fields (output_language, domains, review_mode, learning_extract_mode,
  * etc. — see `config-profile.ts:PROFILE_FIELDS` for the complement set),
- * and returns the merged partial config without running
- * `adoptProfile` or `checkAndEmitLegacyDeprecation`.
+ * and returns the merged partial config without running `adoptProfile`.
  *
  * # Why this exists
  *
@@ -354,20 +346,18 @@ export async function resolveConfigChain(
   const homePath = path.join(ontoHome, ".onto", "config.yml");
   const projectPath = path.join(projectRoot, ".onto", "config.yml");
 
-  // Legacy-field detection. Principals who have migrated to the `review:`
-  // axis block in EITHER side (home or project) can retain legacy fields
-  // as historical artifacts — `hasReviewBlock` is the shared SSOT that
-  // silences the deprecation warning in that case. `hasReviewBlock`
-  // rejects empty `review: {}`, so the silent-path sentinel below must
-  // carry at least one key (mirroring a real minimal review declaration).
-  const reviewBlockPresent =
-    hasReviewBlock(homeConfig) || hasReviewBlock(projectConfig);
-  const legacyCheckTarget = reviewBlockPresent
-    ? ({
-        review: { subagent: { provider: "main-native" } },
-      } as unknown as OntoConfig)
-    : ({ ...homeConfig, ...projectConfig } as OntoConfig);
-  checkAndEmitLegacyDeprecation(legacyCheckTarget);
+  // P9.5 (2026-04-21): the legacy-field deprecation check was removed.
+  // The 5 legacy provider-profile fields (host_runtime, execution_realization,
+  // execution_mode, executor_realization, api_provider) were removed from
+  // the OntoConfig type in P9.2 (PR-K, sketch v3 §7.4 Phase D stage 3);
+  // typed code cannot read them. YAML values survive in the merged
+  // object via `mergeOrthogonalFields` (they are not in PROFILE_FIELDS)
+  // but no production consumer reads them — graceful ignore is achieved
+  // by removing all consumers rather than filtering the values. Users
+  // on legacy-only configs fall through to the resolver, which emits
+  // `buildNoHostReason` (6-option setup guide including `review:` axis
+  // block migration) — a more current version of the guidance the prior
+  // throw provided.
 
   const adoption = adoptProfile({
     home: homeConfig,

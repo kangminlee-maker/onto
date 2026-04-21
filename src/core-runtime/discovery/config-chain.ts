@@ -232,6 +232,80 @@ export interface OntoConfig {
    * Orthogonal: does not participate in atomic profile adoption.
    */
   execution_topology_overrides?: Record<string, { max_concurrent_lenses?: number }>;
+
+  /**
+   * Review UX Redesign P1 (2026-04-20) — user-facing axis block.
+   *
+   * Canonical replacement for `execution_topology_priority` + legacy
+   * provider-profile fields. User declares 6 axes (A/B/C/E/F + D auto);
+   * runtime derives topology shape. See
+   * `development-records/evolve/20260420-review-execution-ux-redesign.md`.
+   *
+   * P1 scope: schema + validator + legacy translation only. Runtime does
+   * NOT consume this field yet — P2 wires dispatch. Orthogonal (no atomic
+   * profile adoption coupling).
+   */
+  review?: OntoReviewConfig;
+}
+
+// ---------------------------------------------------------------------------
+// Review UX Redesign P1 — user-facing axis schema (2026-04-20)
+// ---------------------------------------------------------------------------
+
+/** Axis E — lens-to-lens deliberation channel. */
+export type LensDeliberation = "synthesizer-only" | "sendmessage-a2a";
+
+/** Foreign (non-host) provider identifiers. */
+export type ForeignProvider = "codex" | "anthropic" | "openai" | "litellm";
+
+/** Subagent provider domain — host-native or foreign. */
+export type SubagentProvider = "main-native" | ForeignProvider;
+
+/**
+ * Explicit foreign-model spec — used by teamlead override or foreign subagent.
+ * `main-native` cannot carry model_id / effort (enforced by the discriminated
+ * union on SubagentSpec and by the "main" | ExplicitModelSpec union on
+ * TeamleadSpec.model).
+ */
+export interface ExplicitModelSpec {
+  provider: ForeignProvider;
+  model_id: string;
+  /** Provider-specific reasoning-effort domain (see design doc §2.2 F). */
+  effort?: string;
+}
+
+/** Axis A — teamlead model. */
+export interface TeamleadSpec {
+  /** `"main"` = host main context (Claude Code / Codex CLI session). */
+  model: "main" | ExplicitModelSpec;
+}
+
+/**
+ * Axis B — subagent model. Discriminated union: `main-native` branch has no
+ * model fields; foreign branches require model_id.
+ */
+export type SubagentSpec =
+  | { provider: "main-native" }
+  | {
+      provider: ForeignProvider;
+      model_id: string;
+      effort?: string;
+    };
+
+/**
+ * User-facing review execution config (canonical replacement for legacy
+ * `execution_topology_priority`). Every field optional — absent block means
+ * "universal fallback" (teamlead=main, subagent=main-native, deliberation=
+ * synthesizer-only, concurrency=provider default). Runtime derivation is
+ * P2's responsibility; P1 only defines the type and validator.
+ */
+export interface OntoReviewConfig {
+  teamlead?: TeamleadSpec;
+  subagent?: SubagentSpec;
+  /** Axis C — user override of provider-default concurrency. */
+  max_concurrent_lenses?: number;
+  /** Axis E. */
+  lens_deliberation?: LensDeliberation;
 }
 
 async function readConfigAt(dir: string): Promise<OntoConfig> {

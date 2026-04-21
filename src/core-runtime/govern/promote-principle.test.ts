@@ -20,7 +20,7 @@ import { handleGovernCli } from "./cli.js";
 function makeProposal(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     learning_ref: { agent_id: "logic", entry_marker: "test-entry-001" },
-    target: { category: "design_principle", file_path: ".onto/principles/test.md", section: "NEW" },
+    target: { category: "principle", file_path: ".onto/principles/test.md", section: "NEW" },
     rationale: "test rationale",
     conflict_check: { reviewed_by_agent: true, existing_principle_refs: [], conflict_summary: "no conflict" },
     workload_evidence: { state_transitions: 10, retry_count: 3, evidence_summary: "10 transitions, 3 retries", event_refs: [] },
@@ -33,8 +33,8 @@ describe("promote-principle Quality gate", () => {
   let tmpRoot: string;
   beforeEach(() => {
     tmpRoot = mkdtempSync(join(tmpdir(), "onto-promote-principle-"));
-    mkdirSync(join(tmpRoot, "design-principles"), { recursive: true });
-    writeFileSync(join(tmpRoot, "design-principles", "test.md"), "# Test", "utf-8");
+    mkdirSync(join(tmpRoot, ".onto", "principles"), { recursive: true });
+    writeFileSync(join(tmpRoot, ".onto", "principles", "test.md"), "# Test", "utf-8");
   });
   afterEach(() => rmSync(tmpRoot, { recursive: true, force: true }));
 
@@ -77,8 +77,8 @@ describe("promote-principle Frequency gate", () => {
   let tmpRoot: string;
   beforeEach(() => {
     tmpRoot = mkdtempSync(join(tmpdir(), "onto-promote-freq-"));
-    mkdirSync(join(tmpRoot, "design-principles"), { recursive: true });
-    writeFileSync(join(tmpRoot, "design-principles", "test.md"), "# Test", "utf-8");
+    mkdirSync(join(tmpRoot, ".onto", "principles"), { recursive: true });
+    writeFileSync(join(tmpRoot, ".onto", "principles", "test.md"), "# Test", "utf-8");
   });
   afterEach(() => rmSync(tmpRoot, { recursive: true, force: true }));
 
@@ -115,8 +115,8 @@ describe("promote-principle Completeness gate", () => {
   let tmpRoot: string;
   beforeEach(() => {
     tmpRoot = mkdtempSync(join(tmpdir(), "onto-promote-complete-"));
-    mkdirSync(join(tmpRoot, "design-principles"), { recursive: true });
-    writeFileSync(join(tmpRoot, "design-principles", "test.md"), "# Test", "utf-8");
+    mkdirSync(join(tmpRoot, ".onto", "principles"), { recursive: true });
+    writeFileSync(join(tmpRoot, ".onto", "principles", "test.md"), "# Test", "utf-8");
   });
   afterEach(() => rmSync(tmpRoot, { recursive: true, force: true }));
 
@@ -138,9 +138,34 @@ describe("promote-principle Completeness gate", () => {
     if (!result.success) expect(result.gate_failed).toBe("completeness");
   });
 
-  it("invalid category 거부", () => {
+  it("invalid category (field present, value unknown) → validation gate", () => {
     const result = executePromotePrinciple(
       makeProposal({ target: { category: "authority", file_path: ".onto/authority/x.yaml", section: "NEW" } }) as any,
+      tmpRoot,
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.gate_failed).toBe("validation");
+  });
+
+  it("legacy design_principle label → validation gate + migration hint", () => {
+    // Phase 7 review polish (UNIQ-gate-taxonomy): present-but-invalid value
+    // routes through the validation gate, not completeness. The hint must
+    // still guide callers to the new `principle` label.
+    const result = executePromotePrinciple(
+      makeProposal({ target: { category: "design_principle", file_path: ".onto/principles/x.md", section: "NEW" } }) as any,
+      tmpRoot,
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.gate_failed).toBe("validation");
+      expect(result.reason).toContain("design_principle");
+      expect(result.reason).toMatch(/renamed to 'principle'/);
+    }
+  });
+
+  it("empty category string → completeness gate (missing field)", () => {
+    const result = executePromotePrinciple(
+      makeProposal({ target: { category: "", file_path: ".onto/principles/x.md", section: "NEW" } }) as any,
       tmpRoot,
     );
     expect(result.success).toBe(false);
@@ -152,8 +177,8 @@ describe("promote-principle target 매핑 + queue integration", () => {
   let tmpRoot: string;
   beforeEach(() => {
     tmpRoot = mkdtempSync(join(tmpdir(), "onto-promote-queue-"));
-    mkdirSync(join(tmpRoot, "design-principles"), { recursive: true });
-    writeFileSync(join(tmpRoot, "design-principles", "test.md"), "# Test", "utf-8");
+    mkdirSync(join(tmpRoot, ".onto", "principles"), { recursive: true });
+    writeFileSync(join(tmpRoot, ".onto", "principles", "test.md"), "# Test", "utf-8");
   });
   afterEach(() => rmSync(tmpRoot, { recursive: true, force: true }));
 
@@ -176,24 +201,25 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
   });
   afterEach(() => rmSync(tmpRoot, { recursive: true, force: true }));
 
-  it("design_principle category + canonical .onto/principles/ → pass", () => {
+  it("principle category + canonical .onto/principles/ → pass", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: ".onto/principles/foo.md", section: "NEW" },
+        target: { category: "principle", file_path: ".onto/principles/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
     expect(result.success).toBe(true);
   });
 
-  it("design_principle category + legacy design-principles/ → pass (dual-path accepted)", () => {
+  it("principle category + legacy design-principles/ → validation 실패 (Phase 7 canonical-only)", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: "design-principles/foo.md", section: "NEW" },
+        target: { category: "principle", file_path: "design-principles/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.gate_failed).toBe("validation");
   });
 
   it("process category + canonical .onto/processes/ → pass", () => {
@@ -206,20 +232,21 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
     expect(result.success).toBe(true);
   });
 
-  it("process category + legacy processes/ → pass (dual-path accepted)", () => {
+  it("process category + legacy processes/ → validation 실패 (Phase 7 canonical-only)", () => {
     const result = executePromotePrinciple(
       makeProposal({
         target: { category: "process", file_path: "processes/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.gate_failed).toBe("validation");
   });
 
   it("segment-bound: .onto/principlesABC/foo.md → validation 실패 (near-miss prefix)", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: ".onto/principlesABC/foo.md", section: "NEW" },
+        target: { category: "principle", file_path: ".onto/principlesABC/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
@@ -233,12 +260,59 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
   it("segment-bound: design-principlesX/foo.md → validation 실패", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: "design-principlesX/foo.md", section: "NEW" },
+        target: { category: "principle", file_path: "design-principlesX/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
     expect(result.success).toBe(false);
     if (!result.success) expect(result.gate_failed).toBe("validation");
+  });
+
+  // Phase 7 review polish (UNIQ-logic traversal): stage-2 normalized-descendant
+  // check 가 traversal-shaped input 을 실제로 거부하는지 executable 로 pin.
+  it("traversal: .onto/principles/../../../etc/passwd → validation 실패 (stage-2 normalized-descendant)", () => {
+    const result = executePromotePrinciple(
+      makeProposal({
+        target: {
+          category: "principle",
+          file_path: ".onto/principles/../../../etc/passwd",
+          section: "NEW",
+        },
+      }) as any,
+      tmpRoot,
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.gate_failed).toBe("validation");
+  });
+
+  it("traversal: .onto/principles/subdir/../../escape.md → validation 실패", () => {
+    const result = executePromotePrinciple(
+      makeProposal({
+        target: {
+          category: "principle",
+          file_path: ".onto/principles/subdir/../../escape.md",
+          section: "NEW",
+        },
+      }) as any,
+      tmpRoot,
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.gate_failed).toBe("validation");
+  });
+
+  it("traversal: 합법적 canonical 하위 경로 (.onto/principles/sub/deep/x.md) 는 통과", () => {
+    // Counter-example: stage-2 가 합법적 descendant 는 거부하지 않아야 함.
+    const result = executePromotePrinciple(
+      makeProposal({
+        target: {
+          category: "principle",
+          file_path: ".onto/principles/sub/deep/x.md",
+          section: "NEW",
+        },
+      }) as any,
+      tmpRoot,
+    );
+    expect(result.success).toBe(true);
   });
 
   it("wrong category dir: process 카테고리 + .onto/principles/ 경로 → validation 실패", () => {
@@ -259,7 +333,7 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
     writeFileSync(join(tmpRoot, "random", "unrelated.md"), "# x", "utf-8");
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: "random/unrelated.md", section: "NEW" },
+        target: { category: "principle", file_path: "random/unrelated.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
@@ -267,25 +341,24 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
     if (!result.success) expect(result.gate_failed).toBe("validation");
   });
 
-  it("legacy path 는 queue 에 canonical 형태로 persist", () => {
+  it("canonical principle path → queue 에 동일 canonical 로 persist", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: "design-principles/foo.md", section: "NEW" },
+        target: { category: "principle", file_path: ".onto/principles/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
     expect(result.success).toBe(true);
     const raw = readFileSync(join(tmpRoot, ".onto", "govern", "queue.ndjson"), "utf-8");
     const event = JSON.parse(raw.trim());
-    // persisted target 은 canonical. 원본 proposal.target.file_path 는 보존.
     expect(event.target).toBe(".onto/principles/foo.md");
-    expect(event.payload.proposal.target.file_path).toBe("design-principles/foo.md");
+    expect(event.payload.proposal.target.file_path).toBe(".onto/principles/foo.md");
   });
 
-  it("process legacy path 도 queue 에 canonical 형태로 persist", () => {
+  it("canonical process path → queue 에 동일 canonical 로 persist", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "process", file_path: "processes/foo.md", section: "NEW" },
+        target: { category: "process", file_path: ".onto/processes/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
@@ -335,8 +408,8 @@ describe("promote-principle E2E (promote → list → decide)", () => {
 
   beforeEach(() => {
     tmpRoot = mkdtempSync(join(tmpdir(), "onto-promote-e2e-"));
-    mkdirSync(join(tmpRoot, "design-principles"), { recursive: true });
-    writeFileSync(join(tmpRoot, "design-principles", "test.md"), "# Test", "utf-8");
+    mkdirSync(join(tmpRoot, ".onto", "principles"), { recursive: true });
+    writeFileSync(join(tmpRoot, ".onto", "principles", "test.md"), "# Test", "utf-8");
     logs = [];
     origLog = console.log;
     origErr = console.error;

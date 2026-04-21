@@ -56,9 +56,9 @@ function resolveRegistryPath(): string {
   // dist / src 양쪽에서 작동:
   //   src: src/core-runtime/evolve/commands/error-messages.ts
   //   dist: dist/core-runtime/evolve/commands/error-messages.js
-  // 양쪽 모두 4 단계 위가 repo root. Authority dir 선택 (canonical
-  // `.onto/authority/` 우선, legacy `authority/` fallback) 은 Phase 0
-  // 공유 resolver 에 위임 — dual-path 지식이 단일 seat 에 존재.
+  // 양쪽 모두 4 단계 위가 repo root. Authority dir 선택은 Phase 0
+  // 공유 resolver 에 위임 — canonical `.onto/authority/` 에서 resolve.
+  // Phase 7 (2026-04-21) 에서 legacy fallback 제거됨.
   const here = dirname(fileURLToPath(import.meta.url));
   const repoRoot = join(here, "..", "..", "..", "..");
   const authorityDir = resolveInstallationPath("authority", repoRoot);

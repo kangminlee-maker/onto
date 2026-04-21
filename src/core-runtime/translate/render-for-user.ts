@@ -28,7 +28,7 @@ const __dirname = path.dirname(__filename);
  * Tests override the final path via `setRegistryPathForTesting`; otherwise
  * the authority directory is resolved call-time via the Phase 0 shared
  * resolver (`resolveInstallationPath("authority", ...)`), which owns the
- * canonical / legacy dual-path knowledge for all consumers.
+ * canonical `.onto/` layout knowledge for all consumers.
  */
 const REPO_ROOT_FROM_TRANSLATE = path.resolve(__dirname, "..", "..", "..");
 

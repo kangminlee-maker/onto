@@ -6,10 +6,10 @@ import { walkUpFor } from "./walk-up.js";
 /**
  * Validates whether a directory is an onto installation root.
  *
- * Marker: package.json with name "onto-core" AND a roles dir AND an authority
- * dir. Phase 0 of the repo-layout migration accepts both the legacy top-level
- * layout (`roles/`, `authority/`) and the new `.onto/` layout — an install
- * partway through migration is still a valid root.
+ * Marker: package.json with name "onto-core" AND `.onto/roles/` AND
+ * `.onto/authority/`. Phase 7 (2026-04-21) dropped the pre-migration
+ * top-level marker layout (`roles/`, `authority/`) — an install must
+ * be on the canonical `.onto/` layout to be recognized.
  */
 export function isOntoRoot(dir: string): boolean {
   try {
@@ -17,18 +17,46 @@ export function isOntoRoot(dir: string): boolean {
     if (!fs.existsSync(pkgPath)) return false;
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
     if (pkg.name !== "onto-core") return false;
-    const rolesPresent =
-      fs.existsSync(path.join(dir, "roles")) ||
-      fs.existsSync(path.join(dir, ".onto", "roles"));
-    if (!rolesPresent) return false;
-    const authorityPresent =
-      fs.existsSync(path.join(dir, "authority")) ||
-      fs.existsSync(path.join(dir, ".onto", "authority"));
-    if (!authorityPresent) return false;
+    if (!fs.existsSync(path.join(dir, ".onto", "roles"))) return false;
+    if (!fs.existsSync(path.join(dir, ".onto", "authority"))) return false;
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Detects a pre-migration onto install that would have been recognized
+ * before Phase 7: package.json with name "onto-core" plus legacy top-level
+ * `roles/` and `authority/` at the given dir. Used to surface a migration
+ * hint when the canonical check fails.
+ */
+function isPreMigrationOntoRoot(dir: string): boolean {
+  try {
+    const pkgPath = path.join(dir, "package.json");
+    if (!fs.existsSync(pkgPath)) return false;
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+    if (pkg.name !== "onto-core") return false;
+    const rolesLegacy = fs.existsSync(path.join(dir, "roles"));
+    const authorityLegacy = fs.existsSync(path.join(dir, "authority"));
+    return rolesLegacy || authorityLegacy;
+  } catch {
+    return false;
+  }
+}
+
+function buildInvalidHomeError(label: string, resolved: string): string {
+  const base =
+    `Invalid ${label}: ${resolved}. ` +
+    `Expected package.json with name "onto-core", .onto/roles/ and .onto/authority/ directories.`;
+  if (isPreMigrationOntoRoot(resolved)) {
+    return (
+      base +
+      ` This directory looks like a pre-Phase-7 onto install (legacy roles/ or authority/ at root). ` +
+      `Run scripts/repo-layout-migration-replace.py to migrate to the .onto/ layout.`
+    );
+  }
+  return base;
 }
 
 /**
@@ -48,9 +76,7 @@ export function resolveOntoHome(
   if (typeof ontoHomeFlag === "string" && ontoHomeFlag.length > 0) {
     const resolved = path.resolve(ontoHomeFlag);
     if (!isOntoRoot(resolved)) {
-      throw new Error(
-        `Invalid onto home: ${resolved}. Expected package.json with name "onto-core", .onto/roles/ (or legacy roles/) and .onto/authority/ (or legacy authority/) directories.`,
-      );
+      throw new Error(buildInvalidHomeError("onto home", resolved));
     }
     return resolved;
   }
@@ -60,9 +86,7 @@ export function resolveOntoHome(
   if (typeof envHome === "string" && envHome.length > 0) {
     const resolved = path.resolve(envHome);
     if (!isOntoRoot(resolved)) {
-      throw new Error(
-        `Invalid ONTO_HOME: ${resolved}. Expected package.json with name "onto-core", .onto/roles/ (or legacy roles/) and .onto/authority/ (or legacy authority/) directories.`,
-      );
+      throw new Error(buildInvalidHomeError("ONTO_HOME", resolved));
     }
     return resolved;
   }

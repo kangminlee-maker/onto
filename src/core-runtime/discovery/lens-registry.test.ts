@@ -9,10 +9,8 @@ function resolveRegistryPath(): string {
   let cur = here;
   const root = path.parse(cur).root;
   while (cur !== root) {
-    const canonical = path.join(cur, ".onto", "authority", "core-lens-registry.yaml");
-    if (fs.existsSync(canonical)) return canonical;
-    const legacy = path.join(cur, "authority", "core-lens-registry.yaml");
-    if (fs.existsSync(legacy)) return legacy;
+    const candidate = path.join(cur, ".onto", "authority", "core-lens-registry.yaml");
+    if (fs.existsSync(candidate)) return candidate;
     cur = path.dirname(cur);
   }
   throw new Error(".onto/authority/core-lens-registry.yaml not found");

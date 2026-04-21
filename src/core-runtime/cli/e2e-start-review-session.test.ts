@@ -67,22 +67,22 @@ function makeTmpDir(prefix: string): string {
 
 /**
  * Possible roles-directory layouts that `isOntoRoot` accepts.
- * - "legacy": pre-Phase-3 top-level `roles/` (retained through Phase 7)
- * - "phase3": canonical `.onto/roles/` layout introduced in Phase 3
+ * Phase 7 (2026-04-21) dropped the pre-Phase-3 top-level `roles/` fallback
+ * — only the canonical `.onto/roles/` layout remains.
  */
-export type RolesLayout = "legacy" | "phase3";
+export type RolesLayout = "phase3";
 
 /**
  * Possible authority-directory layouts that `isOntoRoot` accepts.
- * - "legacy": pre-Phase-6 top-level `authority/` (retained through Phase 7)
- * - "phase6": canonical `.onto/authority/` layout landed in Phase 6
+ * Phase 7 (2026-04-21) dropped the pre-Phase-6 top-level `authority/`
+ * fallback — only the canonical `.onto/authority/` layout remains.
  */
-export type AuthorityLayout = "legacy" | "phase6";
+export type AuthorityLayout = "phase6";
 
 export interface MakeFakeOntoHomeOptions {
-  /** Which roles-directory layout to create. Default: "legacy". */
+  /** Which roles-directory layout to create. Default: "phase3". */
   layout?: RolesLayout;
-  /** Which authority-directory layout to create. Default: "legacy". */
+  /** Which authority-directory layout to create. Default: "phase6". */
   authorityLayout?: AuthorityLayout;
   /** When set, writes `.onto/config.yml` with `learning_extract_mode: <value>`. */
   homeConfigExtractMode?: string;
@@ -98,23 +98,15 @@ function makeFakeOntoHome(
   prefix: string,
   opts: MakeFakeOntoHomeOptions = {},
 ): string {
-  const { layout = "legacy", authorityLayout = "legacy", homeConfigExtractMode } = opts;
+  const { homeConfigExtractMode } = opts;
   const dir = makeTmpDir(prefix);
   fs.writeFileSync(
     path.join(dir, "package.json"),
     JSON.stringify({ name: "onto-core", version: "0.0.0-test" }),
     "utf8",
   );
-  const rolesPath =
-    layout === "phase3"
-      ? path.join(dir, ".onto", "roles")
-      : path.join(dir, "roles");
-  fs.mkdirSync(rolesPath, { recursive: true });
-  const authorityPath =
-    authorityLayout === "phase6"
-      ? path.join(dir, ".onto", "authority")
-      : path.join(dir, "authority");
-  fs.mkdirSync(authorityPath, { recursive: true });
+  fs.mkdirSync(path.join(dir, ".onto", "roles"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".onto", "authority"), { recursive: true });
   if (homeConfigExtractMode !== undefined) {
     fs.mkdirSync(path.join(dir, ".onto"), { recursive: true });
     fs.writeFileSync(
@@ -179,7 +171,7 @@ function withEnvExtractMode<T>(
 // Parameterized tests — each case runs under both roles layouts.
 // ---------------------------------------------------------------------------
 
-describe.each<RolesLayout>(["legacy", "phase3"])(
+describe.each<RolesLayout>(["phase3"])(
   "start-review-session E2E (layout=%s)",
   (layout) => {
     // E-SRS-1 — env var set → env var wins even if config has a different value.

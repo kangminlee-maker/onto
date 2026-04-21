@@ -75,6 +75,13 @@ describe("detectLegacyFieldUsage", () => {
     expect(d.review_block_set).toBe(false);
   });
 
+  it("review_block_set false when `review: {}` is empty (PR #162 self-review M2)", () => {
+    // Regression guard: empty review block does NOT activate the
+    // silent-bypass for legacy fields — they still throw.
+    const d = detectLegacyFieldUsage({ review: {} as never });
+    expect(d.review_block_set).toBe(false);
+  });
+
   it("reports both legacy AND review-block presence (migrated principal retaining legacy for reference)", () => {
     const d = detectLegacyFieldUsage({
       host_runtime: "claude",

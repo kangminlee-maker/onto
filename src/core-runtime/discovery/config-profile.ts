@@ -29,14 +29,21 @@
  * and whether the adoption failed entirely (both sides incomplete/absent).
  * `resolveConfigChain()` is the single integration seat for review callers.
  *
- * # Sketch v3 / PR-K note
+ * # Canonical seat history
  *
- * Post-PR-K (2026-04-18, sketch v3 §7.4 Phase D stage 3) the canonical seat
- * for provider-profile selection is `execution_topology_priority` (declared
- * as orthogonal and consumed by `execution-topology-resolver.ts`). The
- * completeness check here accepts `topology_priority` as a complete signal
- * — runtime validation of per-provider compatibility lives in the topology
- * resolver and the executor spawn path, not in profile adoption.
+ * The "profile is declared" signal has migrated across three phases:
+ *
+ *   - pre-PR-K (≤ 2026-04-17): legacy provider-profile fields
+ *     (`host_runtime`, `execution_realization`, `api_provider`, ...).
+ *   - PR-K ~ P9.1 (2026-04-18 ~ 04-21): `execution_topology_priority`
+ *     array declared a canonical topology seat.
+ *   - Post-P9.2 (2026-04-21): the `review:` axis block is the canonical
+ *     seat. `hasReviewBlock(config)` (below) is the SSOT predicate used
+ *     by `validateProfileCompleteness` and shared with the opt-in gates
+ *     in `review-invoke.ts` and the silent-bypass in
+ *     `legacy-field-deprecation.ts`. Runtime validation of per-provider
+ *     compatibility still lives in the topology resolver and the
+ *     executor spawn path, not in profile adoption.
  */
 
 import type { OntoConfig } from "./config-chain.js";
@@ -66,12 +73,15 @@ export const PROFILE_FIELDS = new Set<keyof OntoConfig>([
   // commits the whole profile to the 1-0 deliberation topology. Allowing
   // a frankenstein merge (project declares the flag, global supplies the
   // actual provider) would reintroduce the silent-divergence class PR-1
-  // just closed. `execution_topology_priority` and
-  // `execution_topology_overrides` stay orthogonal because they only
-  // reorder/tune existing options, not declare new capability.
+  // just closed.
   //
   // P7 (2026-04-21): `generic_nested_spawn_supported` removed along with
   // the `generic-*` TopologyIds it gated.
+  //
+  // P9.2 (2026-04-21): `execution_topology_priority` and
+  // `execution_topology_overrides` removed from `OntoConfig` entirely;
+  // the `review:` axis block is orthogonal by design (see
+  // `OntoConfig.review` JSDoc).
   "lens_agent_teams_mode",
 ]);
 
@@ -82,6 +92,35 @@ export const PROFILE_FIELDS = new Set<keyof OntoConfig>([
  */
 function isOrthogonalField(key: string): boolean {
   return !PROFILE_FIELDS.has(key as keyof OntoConfig);
+}
+
+/**
+ * Single source of truth for "does this config declare the Review UX
+ * Redesign opt-in?". Post-P9.2 (2026-04-21) this judgment is shared by
+ * three consumer layers:
+ *   - `validateProfileCompleteness` (completeness signal),
+ *   - `checkAndEmitLegacyDeprecation` silent-bypass (`review_block_set`),
+ *   - the opt-in gates in `review-invoke.ts`
+ *     (`tryResolveTopologyForHandoff`, `tryTopologyDerivedExecutor`).
+ *
+ * A block counts as declared when it is a non-null object with **at
+ * least one key**. An empty `review: {}` (YAML author wrote `review:`
+ * and forgot the body) does NOT count — we guard against accidental
+ * opt-in that would otherwise silently flip atomic profile adoption
+ * and gate dispatch. This mirrors the prior
+ * `execution_topology_priority: []` behavior, where an empty array
+ * also failed the opt-in test.
+ *
+ * Accepts either a typed `OntoConfig` or a raw `Record<string, unknown>`
+ * (legacy-field-deprecation reads YAML before typing).
+ */
+export function hasReviewBlock(
+  config: OntoConfig | Record<string, unknown> | undefined,
+): boolean {
+  if (config === undefined || config === null) return false;
+  const review = (config as { review?: unknown }).review;
+  if (typeof review !== "object" || review === null) return false;
+  return Object.keys(review as Record<string, unknown>).length > 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,25 +139,27 @@ export interface ProfileValidation {
 /**
  * Determine whether a config declares a complete provider profile.
  *
- * Post-PR-K completeness rules:
- *   1. `execution_topology_priority` set (length > 0) → complete. The
- *      topology resolver owns per-provider validation at run time; profile
- *      adoption only needs to know that the principal has declared a
- *      canonical topology seat.
+ * Completeness rules (post-P9.2, 2026-04-21):
+ *   1. A non-empty `review:` axis block is declared → complete. The
+ *      topology resolver owns per-provider validation at run time;
+ *      profile adoption only needs to know that the principal has
+ *      declared a canonical seat.
  *   2. Otherwise if any profile field is touched → incomplete, with a
- *      migration hint. Reaching this branch without `topology_priority`
+ *      migration hint. Reaching this branch without a review block
  *      typically means legacy config or a partial migration — legacy
  *      configs throw at config load (see `legacy-field-deprecation.ts`),
  *      so this branch catches the residual partial-migration case.
  *   3. Untouched → not complete, not touched (empty reasons).
+ *
+ * History: pre-P9.2 the signal was `execution_topology_priority`
+ * (length > 0); pre-PR-K it was the provider-profile fields
+ * (host_runtime, execution_realization, etc). The `hasReviewBlock`
+ * helper is the SSOT for the current definition.
  */
 export function validateProfileCompleteness(
   config: OntoConfig,
 ): ProfileValidation {
-  // P9.2 (2026-04-21): completeness signal migrated from
-  // `execution_topology_priority` (removed) to `review:` axis block.
-  // Any non-empty review declaration counts as a complete profile.
-  if (config.review !== undefined) {
+  if (hasReviewBlock(config)) {
     return { complete: true, touched: true, reasons: [] };
   }
 
@@ -394,7 +435,7 @@ export function buildBothIncompleteError(
   return new Error(lines.join("\n"));
 }
 
-function summarizeProfile(config: OntoConfig): string | null {
+export function summarizeProfile(config: OntoConfig): string | null {
   const parts: string[] = [];
   if (config.external_http_provider)
     parts.push(`external_http_provider=${config.external_http_provider}`);

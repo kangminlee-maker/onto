@@ -5,6 +5,7 @@ import {
   buildBothIncompleteError,
   extractProfileFields,
   mergeOrthogonalFields,
+  summarizeProfile,
   validateProfileCompleteness,
 } from "./config-profile.js";
 
@@ -80,6 +81,14 @@ describe("validateProfileCompleteness — review block is the canonical signal (
     const v = validateProfileCompleteness({});
     expect(v.complete).toBe(false);
     expect(v.touched).toBe(false);
+  });
+
+  it("empty `review: {}` does NOT count as complete (PR #162 self-review M2)", () => {
+    // Regression guard: `hasReviewBlock` rejects zero-key objects so a
+    // YAML author who wrote `review:` without a body does not flip the
+    // atomic-profile decision.
+    const v = validateProfileCompleteness({ review: {} as never });
+    expect(v.complete).toBe(false);
   });
 });
 
@@ -245,6 +254,30 @@ describe("buildBothIncompleteError", () => {
     expect(msg).toContain("Option B — Claude Code Agent");
     expect(msg).toContain("Option C — Claude Code TeamCreate");
     expect(msg).toContain("Option D — LiteLLM");
+  });
+});
+
+// ─── summarizeProfile (PR #162 self-review m2) ───
+
+describe("summarizeProfile", () => {
+  it("renders review=[subagent=<provider>] when the axis block declares subagent", () => {
+    const summary = summarizeProfile({
+      review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
+      codex: { model: "gpt-5.4" },
+    });
+    expect(summary).toContain("review=[subagent=codex]");
+    expect(summary).toContain("model=gpt-5.4");
+  });
+
+  it("renders review=[subagent=(default)] when review block has no subagent", () => {
+    const summary = summarizeProfile({
+      review: { teamlead: { model: "main" } },
+    });
+    expect(summary).toContain("review=[subagent=(default)]");
+  });
+
+  it("returns null when nothing profile-ish is declared", () => {
+    expect(summarizeProfile({})).toBeNull();
   });
 });
 

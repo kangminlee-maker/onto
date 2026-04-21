@@ -47,6 +47,7 @@
  */
 
 import type { OntoConfig } from "./config-chain.js";
+import { hasReviewBlock } from "./config-profile.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -108,9 +109,7 @@ export function detectLegacyFieldUsage(
       detected.push(field);
     }
   }
-  const reviewBlock = raw.review;
-  const review_block_set =
-    typeof reviewBlock === "object" && reviewBlock !== null;
+  const review_block_set = hasReviewBlock(raw);
   return { detected, review_block_set };
 }
 

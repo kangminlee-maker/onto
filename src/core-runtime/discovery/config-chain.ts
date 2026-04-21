@@ -3,6 +3,7 @@ import { fileExists, readYamlDocument } from "../review/review-artifact-utils.js
 import {
   adoptProfile,
   buildBothIncompleteError,
+  hasReviewBlock,
   mergeOrthogonalFields,
 } from "./config-profile.js";
 import { checkAndEmitLegacyDeprecation } from "./legacy-field-deprecation.js";
@@ -357,11 +358,15 @@ export async function resolveConfigChain(
   // Silent path (P9.2, 2026-04-21 — was execution_topology_priority pre-P9.1):
   // principals who have migrated to the `review:` axis block in EITHER side
   // (home or project) can retain legacy fields as historical artifacts.
-  // We inspect merged review-block presence for this bypass.
+  // `hasReviewBlock` is the shared SSOT — it rejects empty `review: {}`
+  // so the sentinel below must carry at least one key (mirroring a real
+  // minimal review declaration).
   const reviewBlockPresent =
-    homeConfig.review !== undefined || projectConfig.review !== undefined;
+    hasReviewBlock(homeConfig) || hasReviewBlock(projectConfig);
   const legacyCheckTarget = reviewBlockPresent
-    ? ({ review: {} } as unknown as OntoConfig)
+    ? ({
+        review: { subagent: { provider: "main-native" } },
+      } as unknown as OntoConfig)
     : ({ ...homeConfig, ...projectConfig } as OntoConfig);
   checkAndEmitLegacyDeprecation(legacyCheckTarget);
 

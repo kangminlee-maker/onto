@@ -25,6 +25,16 @@
  * - Output: `Partial<OntoReviewConfig>` — caller overlays remaining
  *   user preferences (effort, concurrency) on top.
  * - Mapping table: see design doc §7.2 (authoritative).
+ *
+ * # Scope note (post-P9.2, 2026-04-21)
+ *
+ * P9.2 removed `execution_topology_priority` from the `OntoConfig` type.
+ * In-process code can no longer carry this field, so this translator's
+ * only remaining caller is **disk-based legacy YAML migration** (onboard
+ * re-detect reading an old `.onto/config.yml` before any typing pass).
+ * The `raw` parameter stays typed as `Record<string, unknown>` precisely
+ * to support that pre-type reading — the input shape is what YAML
+ * produced, not a current OntoConfig.
  */
 
 import type {

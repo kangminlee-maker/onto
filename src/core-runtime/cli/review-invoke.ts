@@ -27,6 +27,7 @@ import {
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 import { resolveOntoHome } from "../discovery/onto-home.js";
 import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.js";
+import { hasReviewBlock } from "../discovery/config-profile.js";
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
 import { resolveExecutionPlan } from "../review/execution-plan-resolver.js";
@@ -627,8 +628,10 @@ export function tryResolveTopologyForHandoff(
   // (removed field) to `config.review` axis block. P9.3 will restructure
   // the handoff JSON so every review call emits a topology descriptor
   // unconditionally; for now we preserve the original opt-in contract
-  // with the new signal.
-  if (!ontoConfig?.review) return null;
+  // with the new signal. `hasReviewBlock` rejects empty `review: {}`
+  // (shared SSOT with validateProfileCompleteness + legacy-deprecation).
+  if (ontoConfig === undefined) return null;
+  if (!hasReviewBlock(ontoConfig)) return null;
   const resolution = resolveExecutionTopology({ ontoConfig });
   if (resolution.type !== "resolved") return null;
   return toCoordinatorTopologyDescriptor(resolution.topology);
@@ -732,7 +735,9 @@ export function tryTopologyDerivedExecutor(
 ): ReviewUnitExecutorConfig | null {
   // P9.2 (2026-04-21): opt-in gate migrated to `config.review` presence
   // (was `execution_topology_priority` before field removal).
-  if (!ontoConfig?.review) return null;
+  // `hasReviewBlock` rejects empty `review: {}`.
+  if (ontoConfig === undefined) return null;
+  if (!hasReviewBlock(ontoConfig)) return null;
   if (!ontoHome) return null;
   const resolution = resolveExecutionTopology({ ontoConfig });
   if (resolution.type !== "resolved") return null;
@@ -2022,7 +2027,7 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   // takes the PR-H bridge path inside executeReviewPromptExecution.
   // Non-nested topologies (or opt-in unset) behave as before — the param
   // is ignored when topology.id is not "codex-nested-subprocess".
-  const topologyForDispatch = setup.ontoConfig.review
+  const topologyForDispatch = hasReviewBlock(setup.ontoConfig)
     ? (() => {
         const res = resolveExecutionTopology({ ontoConfig: setup.ontoConfig });
         return res.type === "resolved" ? res.topology : undefined;

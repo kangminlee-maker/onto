@@ -43,6 +43,16 @@ describe("tryResolveTopologyForHandoff — null paths", () => {
     expect(tryResolveTopologyForHandoff(undefined)).toBeNull();
   });
 
+  it("empty `review: {}` does NOT activate opt-in (PR #162 self-review M2)", () => {
+    // Regression guard: an accidentally-empty review block (YAML author
+    // wrote `review:` and forgot the body) must NOT be treated as
+    // opt-in. `hasReviewBlock` rejects zero-key objects.
+    process.env.CLAUDECODE = "1";
+    expect(
+      tryResolveTopologyForHandoff({ review: {} as never }),
+    ).toBeNull();
+  });
+
   it("review block set but no signal matches → null (no_host)", () => {
     // No CLAUDECODE, no experimental flag, no codex, no litellm.
     expect(

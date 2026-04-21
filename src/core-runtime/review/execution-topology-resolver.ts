@@ -483,6 +483,10 @@ function applyReviewConcurrencyOverride(
   log: (line: string) => void,
 ): TopologyMetadata {
   if (requested === undefined) return metadata;
+  // The TypeScript type already narrows `requested` to `number`, but
+  // YAML parsing can yield `"6"` (string) or other non-numeric shapes
+  // for this field. The runtime typeof check is defensive against that
+  // parse-time coercion, not against typed in-process call sites.
   if (typeof requested !== "number" || requested <= 0) {
     log(
       `${metadata.id}: review.max_concurrent_lenses=${requested} ignored (must be positive integer)`,

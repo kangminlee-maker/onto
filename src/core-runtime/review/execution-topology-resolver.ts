@@ -1,44 +1,35 @@
 /**
- * Execution Topology Resolver — Sketch v3 implementation (PR-A, 2026-04-18).
+ * Execution Topology Resolver — axis-first only (P9.1, 2026-04-21).
  *
  * # What this module is
  *
- * Single seat for selecting ONE of 10 canonical execution topologies for a
- * review session. Topology is the top-level decision — teamlead location +
- * lens spawn mechanism + deliberation channel — from which Transport rank
- * (S0~S3, sketch v2 / PR #94) derives as a property, not as a separate axis.
+ * Single seat for selecting ONE canonical execution topology for a review
+ * session. Topology is the top-level decision — teamlead location + lens
+ * spawn mechanism + deliberation channel.
  *
  * # Why it exists
  *
- * PR-1 (PR #96) unified Layer 1 (`resolveExecutionProfile`) and Layer 2
- * (`resolveProvider`) into `resolveExecutionPlan`. Layer 3 —
- * `resolveExecutorConfig` in review-invoke.ts:718-731 — still re-reads
- * `host_runtime` independently, producing silent divergence in ~5 review
- * runs on 2026-04-17~18 (recorded in sketch v3 §1.2). Sketch v3 closes this
- * by making topology the primary decision: executor binary selection is a
- * static property of each topology option, not a Layer 3 re-judgment.
- *
- * This module is the new primary seat. `resolveExecutionPlan` (legacy P0-P4
- * ladder) remains functional until PR-E; `resolveExecutorConfig` keeps its
- * legacy logic through PR-A and migrates in PR-B/C/D/E.
+ * Review UX Redesign (P1~P8, PRs #152~#160) established `config.review`
+ * axis block as the canonical way users express topology intent, with a
+ * single `main_native` degrade step as the universal safety net. P9.1
+ * (this file) retires the legacy priority ladder that walked
+ * `DEFAULT_TOPOLOGY_PRIORITY`; axis-first derivation + `main_native`
+ * degrade now form the entire selection surface.
  *
  * # How it relates
  *
- * - `resolveExecutionTopology()` — walk priority ladder, return topology or
- *   no_host. Emits `[topology]` STDERR for every branch (mirrors `[plan]`
- *   pattern from PR #96).
- * - `TOPOLOGY_CATALOG` — metadata for each of the 10 options (sketch v3 §3).
- * - `DEFAULT_TOPOLOGY_PRIORITY` — built-in priority walked when
- *   `config.execution_topology_priority` is unset.
- * - Downstream PR-B/C/D register actual spawn paths. Until then, only 3
- *   "supported" options have executor wiring; the remaining 7 are
- *   resolvable but not spawn-able (caller must check).
+ * - `resolveExecutionTopology()` — run axis-first derivation → degrade →
+ *   prerequisite check → return topology or `no_host`. Emits `[topology]`
+ *   STDERR for every branch (mirrors `[plan]` pattern from PR #96).
+ * - `TOPOLOGY_CATALOG` — metadata for the 8 canonical options.
+ * - `PR_A_SUPPORTED_TOPOLOGIES` — spawn-time support set (narrows as
+ *   later PRs register executors).
  *
  * # Design reference
  *
+ * - P9 handoff: `project_review_ux_redesign_p9_handoff.md` (memory)
+ * - Completion doc: `development-records/evolve/20260421-review-ux-redesign-completion.md`
  * - Sketch v3: `development-records/evolve/20260418-execution-topology-priority-sketch.md`
- * - Sketch v2 (Transport): `development-records/evolve/20260417-context-separation-ladder-design-sketch.md`
- * - Handoff §2~§3: `development-records/plan/20260418-sketch-v3-implementation-handoff.md`
  */
 
 import type { OntoConfig } from "../discovery/config-chain.js";
@@ -235,33 +226,6 @@ export const TOPOLOGY_CATALOG: Record<TopologyId, TopologyMetadata> = {
 };
 
 /**
- * Built-in priority walked when `config.execution_topology_priority` is unset.
- *
- * Ordering rationale (sketch v3 §3 + handoff §2.5):
- *   1. 1-0 deliberation — strongest lens-independence safeguard (opt-in heavy)
- *   2. 1-1 teams+agent  — Claude-native, no codex dep
- *   3. 1-2 teams+codex  — mixed model flexibility
- *   4. 2-1 main+agent   — simplest CC path (broadest compatibility)
- *   5. 2-2 main+codex   — CC + codex lens
- *   6. 3-1 teams+litellm — local model path
- *   7. codex-A nested   — host-agnostic codex full stack
- *   8. codex-B main     — codex host path
- *
- * P7 (2026-04-21): trimmed from 10 → 8 entries. `generic-*` removed (never
- * implemented, zero reachability confirmed by P8 audit).
- */
-export const DEFAULT_TOPOLOGY_PRIORITY: TopologyId[] = [
-  "cc-teams-lens-agent-deliberation",
-  "cc-teams-agent-subagent",
-  "cc-teams-codex-subprocess",
-  "cc-main-agent-subagent",
-  "cc-main-codex-subprocess",
-  "cc-teams-litellm-sessions",
-  "codex-nested-subprocess",
-  "codex-main-subprocess",
-];
-
-/**
  * Topology ids whose spawn path is implemented as of PR-A (2026-04-18).
  *
  * The remaining 7 options are registered in `TOPOLOGY_CATALOG` and
@@ -393,40 +357,8 @@ function checkTopologyRequirements(
 }
 
 // ---------------------------------------------------------------------------
-// Priority + overrides resolution
+// Overrides
 // ---------------------------------------------------------------------------
-
-/**
- * Validate a principal-provided priority array. Silently drops unknown ids
- * (with a `[topology]` warn log) and deduplicates while preserving order.
- *
- * Unknown ids would be the most common misconfiguration (typos like
- * `cc-main-codex` instead of `cc-main-codex-subprocess`). Skipping them
- * prevents breakage; the warning makes the typo visible without aborting.
- */
-function normalizePriorityArray(
-  raw: string[] | undefined,
-  log: (line: string) => void,
-): TopologyId[] {
-  if (!raw || raw.length === 0) return [...DEFAULT_TOPOLOGY_PRIORITY];
-  const seen = new Set<TopologyId>();
-  const out: TopologyId[] = [];
-  for (const entry of raw) {
-    if (!(entry in TOPOLOGY_CATALOG)) {
-      log(`priority: ignoring unknown topology id "${entry}"`);
-      continue;
-    }
-    const id = entry as TopologyId;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    out.push(id);
-  }
-  if (out.length === 0) {
-    log("priority: principal array had no valid ids → falling back to default priority");
-    return [...DEFAULT_TOPOLOGY_PRIORITY];
-  }
-  return out;
-}
 
 /**
  * Apply `execution_topology_overrides.<id>.max_concurrent_lenses` on top of
@@ -449,21 +381,32 @@ function applyOverrides(
 // ---------------------------------------------------------------------------
 
 /**
- * Walk the execution topology priority ladder and return the first option
- * whose prerequisites are satisfied.
+ * Derive a single ExecutionTopology for this review session.
  *
- * Priority source:
- *   1. `args.ontoConfig.execution_topology_priority` (principal override)
- *   2. `DEFAULT_TOPOLOGY_PRIORITY` (built-in)
+ * Decision surface (P9.1, 2026-04-21):
+ *   1. Axis-first — if `config.review` is present, derive TopologyId from
+ *      the axis block via `shapeToTopologyId`. Source: `review-axes`.
+ *   2. Fallback — if `config.review` is absent OR axis-first fails at any
+ *      stage (validate / derive / map), attempt a single `main_native`
+ *      degrade against current host signals. Source: `fallback-main-native`.
+ *   3. If `main_native` itself is unmappable (neither Claude nor Codex
+ *      host available), fail-fast with `no_host`.
  *
- * For each id in the ordered array, `checkTopologyRequirements` evaluates
- * signals. First match wins. Every check emits a `[topology]` trace line
- * (both matches and skips), so operators can reconstruct the ladder walk
- * from STDERR alone.
+ * After a TopologyId is resolved, `checkTopologyRequirements` still runs
+ * against it — the axis/shape pipeline gates on host presence only, while
+ * `checkTopologyRequirements` covers the full signal set (codex binary,
+ * experimental flag, LiteLLM endpoint, etc). A requirement miss at this
+ * stage also yields `no_host`.
+ *
+ * The legacy `execution_topology_priority` / `DEFAULT_TOPOLOGY_PRIORITY`
+ * ladder walk was removed in P9.1. The field is still accepted by the
+ * config loader (retired in P9.2) but has no runtime effect here —
+ * users relying on it see a one-line `[topology]` log when it is present.
  *
  * Returns:
- *   - `{ type: "resolved", topology }` — first matching topology.
- *   - `{ type: "no_host", ..., reason }` — no id met its requirements.
+ *   - `{ type: "resolved", topology }` — resolved id passed its requirements.
+ *   - `{ type: "no_host", plan_trace, reason }` — axis + degrade both
+ *     failed, OR the derived id failed its detailed requirement check.
  */
 export function resolveExecutionTopology(
   args: ResolveExecutionTopologyArgs,
@@ -493,57 +436,73 @@ export function resolveExecutionTopology(
       `codex_session=${signals.codexSessionActive} litellm=${signals.liteLlmEndpointAvailable}`,
   );
 
-  // ---- P2/P3 axis-first branching (Review UX Redesign) ----------------
-  // When `config.review` is present, user has opted into the new axis
-  // schema. Derive shape → map to TopologyId → verify detection, emit a
-  // single-entry priority.
-  //
-  // P3 universal fallback policy (design doc §4.3): when any of validator
-  // / derivation / mapping fails, instead of falling through to the
-  // legacy `execution_topology_priority` ladder, the helper tries a
-  // single `main_native` degradation pass first. If `main_native` itself
-  // cannot be mapped (neither Claude nor Codex host), only then do we
-  // fall through to the legacy ladder / no_host.
-  //
-  // Rationale: review must keep running on any non-fatal misconfig.
-  // Fail-fast is reserved for the truly unreachable case.
+  // P9.1 (2026-04-21): legacy `execution_topology_priority` ladder was
+  // removed. If the field is still present in config, emit a visibility
+  // line so operators understand why it has no effect.
+  if (
+    Array.isArray(args.ontoConfig.execution_topology_priority) &&
+    args.ontoConfig.execution_topology_priority.length > 0
+  ) {
+    log(
+      "legacy execution_topology_priority present in config but ignored (ladder retired in P9.1 — use config.review axis block)",
+    );
+  }
+
+  // Axis-first → degrade → fail-fast. See `resolveAxisFirstTopology` for
+  // the axis-block pipeline and `attemptMainNativeDegrade` for the single
+  // universal fallback step.
   const axisFirstId = resolveAxisFirstTopology(args.ontoConfig, signals, log);
+  const resolvedId =
+    axisFirstId ??
+    attemptMainNativeDegrade({
+      requested: "<review-block-absent>",
+      reason: "config.review block absent — legacy priority ladder retired in P9.1",
+      signals,
+      log,
+    });
 
-  const priority = axisFirstId
-    ? [axisFirstId]
-    : normalizePriorityArray(args.ontoConfig.execution_topology_priority, log);
-  const prioritySource = axisFirstId
-    ? "review-axes"
-    : args.ontoConfig.execution_topology_priority
-      ? "config"
-      : "default";
-  log(`priority source=${prioritySource} order=[${priority.join(", ")}]`);
+  const source = axisFirstId ? "review-axes" : "fallback-main-native";
 
-  for (const id of priority) {
-    const check = checkTopologyRequirements(id, signals);
-    if (!check.ok) {
-      log(`${id}: skip — ${check.reason}`);
-      continue;
-    }
-    log(`${id}: matched — ${check.reason}`);
-    const metadata = applyOverrides(TOPOLOGY_CATALOG[id], args.ontoConfig.execution_topology_overrides);
-    const override = args.ontoConfig.execution_topology_overrides?.[id];
-    if (override?.max_concurrent_lenses && override.max_concurrent_lenses !== TOPOLOGY_CATALOG[id].max_concurrent_lenses) {
-      log(
-        `${id}: override max_concurrent_lenses ${TOPOLOGY_CATALOG[id].max_concurrent_lenses} → ${override.max_concurrent_lenses}`,
-      );
-    }
+  if (!resolvedId) {
+    log("no topology resolved (axis-first + main_native fallback both failed)");
     return {
-      type: "resolved",
-      topology: { ...metadata, plan_trace: trace },
+      type: "no_host",
+      plan_trace: trace,
+      reason: buildNoTopologyReason(signals),
     };
   }
 
-  log("no topology matched priority ladder");
+  log(`topology source=${source} id=${resolvedId}`);
+
+  const check = checkTopologyRequirements(resolvedId, signals);
+  if (!check.ok) {
+    log(`${resolvedId}: skip — ${check.reason}`);
+    log("derived topology failed detailed requirements check");
+    return {
+      type: "no_host",
+      plan_trace: trace,
+      reason: buildNoTopologyReason(signals),
+    };
+  }
+  log(`${resolvedId}: matched — ${check.reason}`);
+
+  const metadata = applyOverrides(
+    TOPOLOGY_CATALOG[resolvedId],
+    args.ontoConfig.execution_topology_overrides,
+  );
+  const override = args.ontoConfig.execution_topology_overrides?.[resolvedId];
+  if (
+    override?.max_concurrent_lenses &&
+    override.max_concurrent_lenses !== TOPOLOGY_CATALOG[resolvedId].max_concurrent_lenses
+  ) {
+    log(
+      `${resolvedId}: override max_concurrent_lenses ${TOPOLOGY_CATALOG[resolvedId].max_concurrent_lenses} → ${override.max_concurrent_lenses}`,
+    );
+  }
+
   return {
-    type: "no_host",
-    plan_trace: trace,
-    reason: buildNoTopologyReason(signals, priority),
+    type: "resolved",
+    topology: { ...metadata, plan_trace: trace },
   };
 }
 
@@ -551,12 +510,9 @@ export function resolveExecutionTopology(
 // Error message composition
 // ---------------------------------------------------------------------------
 
-function buildNoTopologyReason(
-  signals: DetectionSignals,
-  priority: TopologyId[],
-): string {
+function buildNoTopologyReason(signals: DetectionSignals): string {
   const lines: string[] = [];
-  lines.push("Execution topology ladder 에서 일치하는 옵션이 없습니다.");
+  lines.push("Execution topology 를 도출할 수 없습니다 (axis-first + main_native degrade 모두 실패).");
   lines.push("");
   lines.push("현재 환경 시그널:");
   lines.push(`  - Claude Code 세션 (CLAUDECODE=1):              ${signals.claudeHost}`);
@@ -566,17 +522,12 @@ function buildNoTopologyReason(
   lines.push(`  - Codex CLI 세션 (CODEX_THREAD_ID / CODEX_CI):  ${signals.codexSessionActive}`);
   lines.push(`  - LiteLLM endpoint (config/env):                ${signals.liteLlmEndpointAvailable}`);
   lines.push("");
-  lines.push(`검토한 priority: [${priority.join(", ")}]`);
-  lines.push("");
   lines.push("해결 방법 (한 가지 선택):");
   lines.push("  1. Claude Code 세션에서 `onto review` 재실행 (CLAUDECODE=1 자동 감지)");
   lines.push("  2. codex CLI 설치 + `codex login` 으로 ~/.codex/auth.json 구성");
-  lines.push("  3. `.onto/config.yml` 에 `execution_topology_priority: [옵션 ID]` 명시");
   lines.push(
-    "     (옵션 ID: cc-teams-lens-agent-deliberation, cc-teams-agent-subagent, " +
-      "cc-teams-codex-subprocess, cc-main-agent-subagent, cc-main-codex-subprocess, " +
-      "cc-teams-litellm-sessions, codex-nested-subprocess, codex-main-subprocess, " +
-      "generic-nested-subagent, generic-main-subagent)",
+    "  3. `.onto/config.yml` 의 `review:` axis block 을 재구성 — 특히 `subagent.provider` 가 " +
+      "현재 host 에서 사용 불가능하지 않은지 확인 (`onto onboard --re-detect` 추천)",
   );
   lines.push(
     "  4. LiteLLM 프록시 사용 시 `llm_base_url` 또는 `LITELLM_BASE_URL` 설정",
@@ -639,19 +590,20 @@ export function assertSupportedInPrA(topology: ExecutionTopology): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Attempt to derive a `TopologyId` from the new `review:` axis block.
+ * Attempt to derive a `TopologyId` from the `review:` axis block.
  *
- * P3 universal fallback semantics (design doc §4.3):
- *   - `review:` absent → return `null`, caller walks the legacy ladder
- *     silently (pre-P2 behavior preserved).
+ * Semantics (P9.1, 2026-04-21):
+ *   - `review:` absent → return `null`. Caller (`resolveExecutionTopology`)
+ *     attempts `main_native` degrade directly, since the legacy priority
+ *     ladder was retired in P9.1.
  *   - `review:` present but validation / derivation / mapping fails →
- *     do NOT fall through to legacy. Emit a `[topology] degraded:
- *     requested=<hint> → actual=main_native (reason: ...)` trace line
- *     and attempt to map the `main_native` shape against the current
- *     host signals. If that mapping succeeds, return its TopologyId.
+ *     attempt a `main_native` degrade here. Emit a `[topology] degraded:
+ *     requested=<hint> → actual=main_native (reason: ...)` trace line and
+ *     map the `main_native` shape against the current host signals. If
+ *     that mapping succeeds, return its TopologyId.
  *   - Only when `main_native` itself is unmappable (neither Claude nor
- *     Codex host) do we return `null` so the caller can fall through to
- *     the legacy priority ladder / no_host.
+ *     Codex host) do we return `null`, signaling the caller to produce
+ *     a `no_host` result.
  *
  * Why a single degrade step, not a chain: the design restricts fallback
  * to exactly one level (`main_native`) to keep the trace legible and
@@ -763,8 +715,7 @@ interface DegradeArgs {
  * trace line, then attempt to map the `main_native` shape against the
  * current host signals. Returns the resulting TopologyId on success, or
  * `null` when `main_native` itself is unmappable (neither Claude nor
- * Codex host available — caller's last resort is the legacy ladder /
- * no_host error path).
+ * Codex host available — caller produces `no_host`).
  */
 function attemptMainNativeDegrade(args: DegradeArgs): TopologyId | null {
   const { requested, reason, signals, log } = args;
@@ -784,7 +735,7 @@ function attemptMainNativeDegrade(args: DegradeArgs): TopologyId | null {
   }
   if (!mapping.ok) {
     log(
-      "degrade-fallback: main_native unmappable (no Claude/Codex host) — caller falls back to legacy ladder",
+      "degrade-fallback: main_native unmappable (no Claude/Codex host) — resolver will return no_host",
     );
     return null;
   }

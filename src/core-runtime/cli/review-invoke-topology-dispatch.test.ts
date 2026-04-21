@@ -137,30 +137,33 @@ describe("tryTopologyDerivedExecutor — successful derivation", () => {
       .filter((l: string) => l.startsWith("[plan:executor]"));
   }
 
-  it("cc-main-codex-subprocess → codex executor binary", () => {
+  it("cc-teams-litellm-sessions axis block → litellm executor binary", () => {
     process.env.CLAUDECODE = "1";
-    // Need codex binary. Inject via mocking? resolveExecutionTopology
-    // reads detectCodexBinaryAvailable(). For this unit, rely on the
-    // test env's actual codex presence. If unavailable, skip gracefully.
-    // Alternative: use a config-topology path that doesn't need codex.
-    // We switch to cc-teams-litellm-sessions which needs litellm
-    // endpoint — easier to inject via config.
+    // P9.1 (2026-04-21): the resolver no longer walks the priority
+    // ladder — topology is determined by the `config.review` axis block.
+    // `execution_topology_priority` is kept in the config only to satisfy
+    // the P9.3-scope gate in `tryTopologyDerivedExecutor`; the array
+    // contents are ignored at resolution time.
+    const axisConfig: OntoConfig = {
+      execution_topology_priority: ["cc-teams-litellm-sessions"],
+      review: {
+        subagent: { provider: "litellm" as const, model_id: "gpt-4o" },
+      },
+      llm_base_url: "http://localhost:4000",
+    };
+
+    // Without experimental flag, teams shape cannot activate → axis-first
+    // fails → degrade to main_native → cc-main-agent-subagent (no
+    // standalone binary) → null.
     const result = tryTopologyDerivedExecutor(
-      withInjectedSignals({
-        execution_topology_priority: ["cc-teams-litellm-sessions"],
-        llm_base_url: "http://localhost:4000",
-      }),
+      withInjectedSignals(axisConfig),
       FAKE_HOME,
     );
-    // cc-teams-litellm-sessions also requires experimental flag.
-    // Without it, expect null (proper skip).
     expect(result).toBeNull();
+
     process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
     const result2 = tryTopologyDerivedExecutor(
-      withInjectedSignals({
-        execution_topology_priority: ["cc-teams-litellm-sessions"],
-        llm_base_url: "http://localhost:4000",
-      }),
+      withInjectedSignals(axisConfig),
       FAKE_HOME,
     );
     expect(result2).not.toBeNull();
@@ -175,6 +178,9 @@ describe("tryTopologyDerivedExecutor — successful derivation", () => {
     tryTopologyDerivedExecutor(
       {
         execution_topology_priority: ["cc-teams-litellm-sessions"],
+        review: {
+          subagent: { provider: "litellm", model_id: "gpt-4o" },
+        },
         llm_base_url: "http://localhost:4000",
       },
       FAKE_HOME,
@@ -189,6 +195,9 @@ describe("tryTopologyDerivedExecutor — successful derivation", () => {
   it("no [plan:executor] line when topology falls through", () => {
     // cc-main-agent-subagent has no standalone binary → fall through,
     // so no [plan:executor] line should be emitted for this derivation.
+    // The priority array is still required to pass the P9.3-scope gate;
+    // the resolver picks cc-main-agent-subagent via main_native degrade
+    // because `config.review` is absent.
     process.env.CLAUDECODE = "1";
     tryTopologyDerivedExecutor(
       { execution_topology_priority: ["cc-main-agent-subagent"] },
@@ -198,7 +207,7 @@ describe("tryTopologyDerivedExecutor — successful derivation", () => {
   });
 });
 
-describe("tryTopologyDerivedExecutor — priority ordering", () => {
+describe("tryTopologyDerivedExecutor — axis-first decides (P9.1)", () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
@@ -216,35 +225,38 @@ describe("tryTopologyDerivedExecutor — priority ordering", () => {
     }
   });
 
-  it("earlier topology id in priority wins over later standalone-binary option", () => {
-    // Priority: cc-main-agent-subagent (no binary, CC needs) first,
-    // then cc-teams-litellm-sessions (binary). CC only, no experimental,
-    // no litellm → neither matches. Null.
-    process.env.CLAUDECODE = "1";
-    const result = tryTopologyDerivedExecutor(
-      {
-        execution_topology_priority: [
-          "cc-main-agent-subagent",  // matches CC only, but no binary
-          "cc-teams-litellm-sessions", // needs experimental + litellm
-        ],
-      },
-      FAKE_HOME,
-    );
-    // cc-main-agent-subagent matches CLAUDECODE=1 → resolver picks it →
-    // no binary → tryTopology returns null.
-    expect(result).toBeNull();
-  });
-
-  it("priority ordering respected when all signals present", () => {
+  it("legacy execution_topology_priority does not decide the topology", () => {
+    // Pre-P9.1, this array would have selected cc-teams-litellm-sessions
+    // (first matching entry). After P9.1 the array is ignored — absent
+    // a `config.review` block, the resolver degrades to main_native →
+    // cc-main-agent-subagent, which has no standalone binary → null.
     process.env.CLAUDECODE = "1";
     process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
-    // cc-teams-litellm-sessions first — matches and has standalone binary.
     const result = tryTopologyDerivedExecutor(
       {
         execution_topology_priority: [
           "cc-teams-litellm-sessions",
           "cc-main-agent-subagent",
         ],
+        llm_base_url: "http://localhost:4000",
+      },
+      FAKE_HOME,
+    );
+    expect(result).toBeNull();
+  });
+
+  it("axis-first selects the binary-backed topology when declared", () => {
+    process.env.CLAUDECODE = "1";
+    process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
+    // Axis block declares subagent=litellm → shape=main-teams_foreign →
+    // TopologyId=cc-teams-litellm-sessions (standalone binary). The
+    // priority array is retained to pass the P9.3-scope gate.
+    const result = tryTopologyDerivedExecutor(
+      {
+        execution_topology_priority: ["cc-teams-litellm-sessions"],
+        review: {
+          subagent: { provider: "litellm", model_id: "gpt-4o" },
+        },
         llm_base_url: "http://localhost:4000",
       },
       FAKE_HOME,

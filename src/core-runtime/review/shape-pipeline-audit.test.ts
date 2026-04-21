@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { OntoReviewConfig } from "../discovery/config-chain.js";
 import {
-  DEFAULT_TOPOLOGY_PRIORITY,
   PR_A_SUPPORTED_TOPOLOGIES,
   TOPOLOGY_CATALOG,
   resolveExecutionTopology,
@@ -238,7 +237,7 @@ describe("P8 audit — stage 3: resolver end-to-end selects expected topology", 
       }
       expect(res.topology.id).toBe(row.expected_topology_id);
       expect(
-        res.topology.plan_trace.some((l) => l.includes("priority source=review-axes")),
+        res.topology.plan_trace.some((l) => l.includes("topology source=review-axes")),
       ).toBe(true);
     });
   }
@@ -370,9 +369,13 @@ describe("P8 audit — stage 6: catalog + default priority non-drift", () => {
     }
   });
 
-  it("DEFAULT_TOPOLOGY_PRIORITY lists every audit topology id (user may rely on default walk)", () => {
+  it("TOPOLOGY_CATALOG exposes every audit topology id (post-P9.1 ladder-free invariant)", () => {
+    // P9.1 (2026-04-21): DEFAULT_TOPOLOGY_PRIORITY is retired. The catalog
+    // is now the SSOT for resolvable TopologyIds — the audit must assert
+    // every expected_topology_id is materialized as a catalog entry so
+    // the axis-first pipeline can produce it.
     for (const row of AUDIT_MATRIX) {
-      expect(DEFAULT_TOPOLOGY_PRIORITY).toContain(row.expected_topology_id);
+      expect(TOPOLOGY_CATALOG[row.expected_topology_id]).toBeDefined();
     }
   });
 

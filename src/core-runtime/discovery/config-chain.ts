@@ -13,13 +13,14 @@ export interface OntoConfig {
   //
   // P9.5 (2026-04-21): `legacy-field-deprecation.ts` was also removed —
   // YAML configs that still set these fields parse into
-  // `Record<string, unknown>` at read time, then the `OntoConfig` narrow
-  // silently drops them (graceful ignore). Users on legacy-only configs
+  // `Record<string, unknown>` at read time. The `OntoConfig` type
+  // omits them, so TypeScript consumers cannot read `config.host_runtime`
+  // (compile error). The raw values remain in the merged Record for
+  // Record-cast backward compatibility, but no production consumer
+  // reads them — the fields are inert. Users on legacy-only configs
   // fall through to the resolver and receive `buildNoHostReason`'s
-  // 6-option setup guide (which includes migration to the `review:`
-  // axis block). Principals writing new code against `OntoConfig` still
-  // cannot reintroduce the silent-divergence class PR #96 closed
-  // (fields are absent from the type).
+  // 6-option setup guide when no viable host is detected (guide
+  // includes migration to the `review:` axis block).
   /**
    * External HTTP API provider selection (sketch v2 §4.1 A).
    *
@@ -348,10 +349,12 @@ export async function resolveConfigChain(
   // P9.5 (2026-04-21): the legacy-field deprecation check was removed.
   // The 5 legacy provider-profile fields (host_runtime, execution_realization,
   // execution_mode, executor_realization, api_provider) were removed from
-  // the OntoConfig type in P9.2 (PR-K, sketch v3 §7.4 Phase D stage 3), so
-  // YAML parsers now silently drop them during Record<string, unknown> →
-  // OntoConfig narrowing — graceful ignore is automatic. Users on
-  // legacy-only configs fall through to the resolver, which emits
+  // the OntoConfig type in P9.2 (PR-K, sketch v3 §7.4 Phase D stage 3);
+  // typed code cannot read them. YAML values survive in the merged
+  // object via `mergeOrthogonalFields` (they are not in PROFILE_FIELDS)
+  // but no production consumer reads them — graceful ignore is achieved
+  // by removing all consumers rather than filtering the values. Users
+  // on legacy-only configs fall through to the resolver, which emits
   // `buildNoHostReason` (6-option setup guide including `review:` axis
   // block migration) — a more current version of the guidance the prior
   // throw provided.

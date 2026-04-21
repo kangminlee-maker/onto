@@ -196,56 +196,54 @@ lens_agent_teams_mode: true  # 3중 opt-in 의 프로젝트 단 신설 필드
 
 ## 4. Deprecation 단계
 
-**현재 PR-K (2026-04-18): removal stage** (sketch v3 §7.4 Phase D 완료).
-Legacy 5 필드가 OntoConfig 타입에서 제거됨 + Runtime 에서도 throw.
+**현재 P9.5 (2026-04-21): graceful-ignore stage** (legacy retirement 전수 종결).
+Legacy 5 필드가 OntoConfig 타입에서 제거 + runtime detection module 도 제거 됨.
 
 | Stage | When | 동작 |
 |---|---|---|
-| Warning | PR-E (#103) | Legacy 필드 사용 시 `[onto:deprecation]` STDERR. 동작 유지. |
-| Error | PR-J (#110) | Legacy 필드 + `execution_topology_priority` 없음 → `LegacyFieldRemovedError` throw. Config 로드 실패 → review 중단. |
-| **Removal (현재)** | **PR-K (2026-04-18)** | **OntoConfig 타입에서 5 legacy 필드 제거. TypeScript 코드에서 `config.host_runtime` 같은 접근은 컴파일 에러. YAML 에서는 여전히 감지 가능 (Record cast 경로) — PR-J 의 throw 동작 유지.** |
+| Warning | PR-E (#103, 2026-04-18) | Legacy 필드 사용 시 `[onto:deprecation]` STDERR. 동작 유지. |
+| Error | PR-J (#110, 2026-04-18) | Legacy 필드 + `execution_topology_priority` 없음 → `LegacyFieldRemovedError` throw. Config 로드 실패 → review 중단. |
+| Type removal | PR-K (2026-04-18) | OntoConfig 타입에서 5 legacy 필드 제거. TypeScript 코드에서 `config.host_runtime` 같은 접근은 컴파일 에러. YAML 에서는 여전히 감지 가능 (Record cast 경로) — PR-J 의 throw 동작 유지. |
+| **Graceful ignore (현재)** | **P9.5 (#166, 2026-04-21)** | **`legacy-field-deprecation.ts` 모듈 전면 제거. YAML 의 legacy 필드는 OntoConfig 타입에 **존재하지 않아** typed 코드가 읽을 수 없음 (compile error). 런타임 Record 에는 값이 남아있지만 production consumer 가 전무 — 사실상 inert. Config 로드는 throw 없이 성공. viable host 미감지 시 resolver 의 `buildNoHostReason` 이 6-option setup guide (migration 옵션 포함) 제공.** |
 
-### Error stage 이해
+### Graceful ignore 단계 이해
 
-`.onto/config.yml` 에 다음 중 하나가 있으면 error stage 에서 fail-fast:
+`.onto/config.yml` 에 legacy 필드가 있어도 **더 이상 fail-fast 되지 않습니다**. 5 필드 모두 OntoConfig 타입에서 제거되었고, 런타임 Record 에 값이 남아있어도 production consumer 가 없어 inert 상태:
 
-- `host_runtime: <값>`
-- `execution_realization: <값>`
-- `execution_mode: <값>`
-- `executor_realization: <값>`
-- `api_provider: <값>`
+- `host_runtime: <값>` — typed 코드에서 접근 불가 (compile error), runtime 무시
+- `execution_realization: <값>` — 동일
+- `execution_mode: <값>` — 동일
+- `executor_realization: <값>` — 동일
+- `api_provider: <값>` — 동일
 
-**단, `execution_topology_priority` 가 함께 있으면 허용** (silent). Migration
-하는 주체자가 legacy 필드를 참고용으로 남길 수 있도록.
+Legacy 필드만 설정된 YAML 로 review 를 실행하면 두 시나리오:
 
-> **P9.1 Note (2026-04-21)**: 이 "priority 동반 시 허용" bypass 는 현재
-> `legacy-field-deprecation.ts` runtime 에서만 동작합니다. P9.1 이후
-> `execution_topology_priority` 배열 자체는 topology 를 선택하는 데 더 이상
-> 사용되지 않으므로, 실제 review 실행을 위해서는 **`review:` axis block 을
-> 반드시 추가** 해야 합니다 (§7 참조). bypass 는 P9.2 의 field 제거와 함께
-> 정리될 예정입니다.
+1. **코덱스 바이너리 + `~/.codex/auth.json` 이 실제로 reachable**: P3 resolver 가
+   코덱스 자동 감지 → `codex-main-subprocess` 로 라우팅 → review 정상 실행.
+   Legacy 필드는 무시되었지만 기능적으로 equivalent 한 경로가 자동 선택됨.
+2. **No viable host**: resolver 가 `no_host` 로 fail-fast — STDERR 에
+   `buildNoHostReason` 의 6-option setup guide 출력 (Claude Code 세션,
+   codex CLI 설치, `--codex` flag, `review:` axis block 추가 [option 4],
+   external_http_provider 설정, `ONTO_HOST_RUNTIME=standalone` env).
 
-Error 메시지 예:
+### Drift 주의
 
-```
-[onto:legacy-removed] Legacy provider profile 필드는 이제 error-stage 입니다 (PR-J, sketch v3 §7.4 Phase D).
-[onto:legacy-removed] 사용된 필드:
-[onto:legacy-removed]   - host_runtime=codex → 권장 topology: [cc-main-codex-subprocess, codex-main-subprocess, codex-nested-subprocess]
-[onto:legacy-removed]   - api_provider=codex → 권장 topology: [codex-main-subprocess, codex-nested-subprocess]
-[onto:legacy-removed] 해결: .onto/config.yml 에 `execution_topology_priority: [옵션]` 추가 후 legacy 필드 제거.
-[onto:legacy-removed] Migration guide: docs/topology-migration-guide.md
-```
+Legacy 필드는 silently drop 되므로, **user 는 자신의 설정이 무시되고 있다는
+사실을 알지 못할 수 있습니다**. `onto config show` 또는 `onto onboard --re-detect`
+로 실제 로드된 config 를 확인하여 drift 를 방지하세요. 신규 migration 은
+§7 의 `review:` axis block 을 바로 사용.
 
 ## 5. FAQ
 
 **Q1**: `execution_topology_priority` 와 legacy `host_runtime` 을 동시에
 설정하면?
 
-A (P9.1 이후): 둘 다 runtime 에 영향을 주지 않는 조합입니다.
-`execution_topology_priority` 는 P9.1 에서 ladder walk 제거로 **runtime 효과가
-사라졌고** (`[topology] legacy ... ignored` 로그만 남음), legacy provider
-profile 필드는 PR-J 이후 error-stage 입니다. 실제로 topology 를 결정하려면
-§7 의 `review:` axis block 을 사용해야 합니다.
+A (P9.5 이후): 둘 다 runtime 에 영향을 주지 않는 조합입니다.
+`execution_topology_priority` 는 P9.1 에서 ladder walk 가 제거되었고 P9.2 에서
+OntoConfig 타입에서도 제거되었습니다. Legacy provider profile 필드 5 개는
+PR-K 에서 타입 제거, P9.5 에서 runtime detection module 까지 제거되어 이제
+YAML narrow 시 silently dropped 됩니다 (throw 없음). 실제로 topology 를
+결정하려면 §7 의 `review:` axis block 을 사용하세요.
 
 **Q2**: topology 중 어느 것도 성립하지 않으면?
 
@@ -273,7 +271,7 @@ config.yml` 이 불완전하면 global 이 채택됨. `execution_topology_priori
 - Executor mapping: `src/core-runtime/cli/topology-executor-mapping.ts`
 - Codex nested orchestrator: `src/core-runtime/cli/codex-nested-teamlead-executor.ts`
 - Deliberation protocol: `src/core-runtime/cli/teamcreate-lens-deliberation-executor.ts`
-- Deprecation detection: `src/core-runtime/discovery/legacy-field-deprecation.ts`
+- Deprecation detection: ~`src/core-runtime/discovery/legacy-field-deprecation.ts`~ (retired in P9.5, #166 — legacy fields silently dropped via type narrowing)
 
 ---
 

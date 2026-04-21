@@ -1,0 +1,13 @@
+{
+  "name": "onto",
+  "owner": {
+    "name": "kangmin"
+  },
+  "plugins": [
+    {
+      "name": "onto",
+      "source": "./",
+      "description": "Ontology verification system using a 9-lens review structure plus a separate synthesize stage. Verifies logical consistency, structural completeness, dependency integrity, semantic accuracy, practical usability, evolution fitness, domain coverage, conciseness, and purpose/value alignment across any domain. Includes individual lens queries, team review, ontology building, format transformation, onboarding, and learning management commands."
+    }
+  ]
+}

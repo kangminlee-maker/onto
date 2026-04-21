@@ -57,9 +57,11 @@ export interface DetectedReviewAxes {
   /** Design doc §5.2 stage 1 — host session. */
   host: DetectedOnboardHost;
   /**
-   * Design doc §5.2 stage 2 — `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
-   * present. When true AND teamlead=main, onboard stage 6 asks about
-   * lens deliberation; when false, synthesizer-only is forced.
+   * Design doc §5.2 stage 2 — `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is set
+   * to exactly `"1"` (matching the resolver's strict check in
+   * `execution-topology-resolver.ts`). When true AND teamlead=main, onboard
+   * stage 6 asks about lens deliberation; when false, synthesizer-only is
+   * forced.
    */
   agent_teams_available: boolean;
   /**
@@ -110,7 +112,14 @@ function detectHost(): DetectedOnboardHost {
  */
 export function detectReviewAxes(): DetectReviewAxesResult {
   const host = detectHost();
-  const agent_teams_available = Boolean(process.env[ENV_AGENT_TEAMS]);
+  // Exact-match against `"1"` to stay consistent with the resolver's strict
+  // check (`execution-topology-resolver.ts:506`). A loose `Boolean(...)` here
+  // would disagree with the resolver when the user sets the variable to
+  // `"0"` / `"false"` / `""`, making onboard report teams as available while
+  // the review runtime would later silently degrade via P3 fallback. Both
+  // layers must read the same signal the same way so the onboard UX promise
+  // survives the runtime.
+  const agent_teams_available = process.env[ENV_AGENT_TEAMS] === "1";
   const codex_available = detectCodexBinaryAvailable();
   const litellmEndpointValue = process.env[ENV_LITELLM_BASE_URL];
   const litellm_endpoint =

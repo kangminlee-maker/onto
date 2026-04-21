@@ -212,9 +212,11 @@ Present the enumerated options (filtered by detection — e.g. skip `codex` opti
 
 - `main-native` — default. No extra fields. Works on every host.
 - `codex` — only offer when `detected.codex_available=true`. Ask for `model_id` (default `gpt-5.4`) + `effort` (default `high`) + `max_concurrent_lenses` (default `6`).
-- `anthropic` — ask for `model_id` (e.g. `claude-opus-4.7`) + `max_concurrent_lenses` (default `num_lenses`). Requires `ANTHROPIC_API_KEY`.
-- `openai` — ask for `model_id` + `max_concurrent_lenses` (default `num_lenses`). Requires `OPENAI_API_KEY`.
+- `anthropic` — ask for `model_id` (e.g. `claude-opus-4.7`) + `max_concurrent_lenses` (default: total lens count, currently `9`; substitute the concrete integer). Requires `ANTHROPIC_API_KEY`.
+- `openai` — ask for `model_id` + `max_concurrent_lenses` (default: total lens count, currently `9`; substitute the concrete integer). Requires `OPENAI_API_KEY`.
 - `litellm` — only offer when `detected.litellm_endpoint` is non-null. Ask for `model_id` + `max_concurrent_lenses` (default `1`).
+
+> **`max_concurrent_lenses` must be a positive integer.** The validator rejects strings and non-integer numbers, so substitute the literal count (e.g. `9`) before composing the JSON. Design doc §2.3 uses the token `num_lenses` as shorthand for "all currently configured lenses, executed in parallel" — the actual value at the time of writing is **9** (the 9-lens review set).
 
 If the user chose a foreign provider that requires an API key and the key is missing, report this but do NOT block — the user may supply the key out-of-band.
 

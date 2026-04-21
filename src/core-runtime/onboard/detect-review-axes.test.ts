@@ -89,16 +89,36 @@ describe("detectReviewAxes — host category", () => {
   });
 });
 
-describe("detectReviewAxes — agent_teams_available", () => {
+describe("detectReviewAxes — agent_teams_available (strict =1)", () => {
+  // The resolver uses `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === "1"`.
+  // Onboard MUST use the same check so the two layers never disagree on
+  // whether teams are available — otherwise onboard writes a config the
+  // runtime silently rejects (P3 would degrade it, violating the UX
+  // promise that "what onboard accepts is what runs").
+
   it("is false when env var is absent", () => {
     expect(detectReviewAxes().detected.agent_teams_available).toBe(false);
   });
 
-  it("is true when CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS is set to any value", () => {
+  it('is true only when CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === "1"', () => {
     process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
     expect(detectReviewAxes().detected.agent_teams_available).toBe(true);
-    process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "true";
-    expect(detectReviewAxes().detected.agent_teams_available).toBe(true);
+  });
+
+  it('is false for truthy-looking strings that are not "1"', () => {
+    // These would pass a naive Boolean() check but must NOT activate teams.
+    // The resolver rejects them; onboard must match.
+    for (const value of ["true", "yes", "on", "enabled", "TRUE", "2"]) {
+      process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = value;
+      expect(detectReviewAxes().detected.agent_teams_available).toBe(false);
+    }
+  });
+
+  it('is false for falsy-looking strings ("0", "false", empty)', () => {
+    for (const value of ["0", "false", ""]) {
+      process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = value;
+      expect(detectReviewAxes().detected.agent_teams_available).toBe(false);
+    }
   });
 });
 

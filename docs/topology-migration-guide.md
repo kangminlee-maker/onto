@@ -259,9 +259,19 @@ A: 세션 artifact (session-metadata.yaml) 에 기록된 `host_runtime` /
 
 **Q4**: 주체자의 global config `~/.onto/config.yml` 만 수정해도 되나?
 
-A: 네. Atomic profile adoption (PR-1, 2026-04-18) 덕에 project 의 `.onto/
-config.yml` 이 불완전하면 global 이 채택됨. `execution_topology_priority`
-도 동일하게 atomic 하게 전파.
+A: 네. Atomic profile adoption (PR-1, 2026-04-18; P9.4 에서 단순화 #165)
+가 project profile 이 없으면 home profile 을 사용하도록 보장합니다. Review
+block 이나 profile field (codex / anthropic / openai / litellm / model /
+reasoning_effort 등) 중 하나라도 project 에 선언되어 있으면 project 가
+소유권을 주장하고, 그렇지 않으면 home 이 채택됩니다. 여러 프로젝트에서 공통
+provider 설정을 공유하고 싶다면 home config 에만 두면 됩니다.
+
+해당 동작의 테스트 스냅샷:
+`src/core-runtime/discovery/config-profile.test.ts` §"adoptProfile —
+decision branches" (7 decision case), 및
+`src/core-runtime/discovery/config-chain.test.ts` §"resolveConfigChain —
+P9.5 legacy field graceful ignore" (legacy-only home + absent project 를
+포함한 4 regression case).
 
 ## 6. Reference
 

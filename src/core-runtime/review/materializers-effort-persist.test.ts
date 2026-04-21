@@ -96,7 +96,11 @@ describe("bootstrapInvocationBindingArtifacts — resolved_llm_plan persistence"
   });
 
   it("omits resolved_llm_plan field when config.yml has no LLM fields", async () => {
-    await writeConfig(tmp, "execution_topology_priority:\n  - cc-main-agent-subagent\n");
+    // Fixture writes an orthogonal-only field so the config YAML is
+    // non-empty but carries no LLM profile information. P9.6 (2026-04-21):
+    // swapped from legacy `execution_topology_priority` to `output_language`
+    // after the P9 runtime cleanup track retired all legacy fields.
+    await writeConfig(tmp, "output_language: en\n");
 
     const { sessionMetadataPath } =
       await bootstrapInvocationBindingArtifacts(commonParams(tmp));

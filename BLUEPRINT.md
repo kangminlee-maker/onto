@@ -612,7 +612,7 @@ review:                          # 6-axis block — P1 #152
   # lens_deliberation: synthesizer-only
 ```
 
-> **Legacy profile removed from prose (P7, 2026-04-21)** — `execution_realization` / `host_runtime` / `execution_topology_priority` are consolidated into the 6-axis block above. The runtime retains parser acceptance for backward compat until the planned "P9 runtime legacy cleanup" PR. Migration: `docs/topology-migration-guide.md` §7.
+> **Legacy profile fully retired (P9 complete, 2026-04-21)** — `execution_realization` / `host_runtime` / `execution_topology_priority` are consolidated into the 6-axis block above. The P9 runtime cleanup track (PRs #161~#166) retired the full legacy layer: resolver priority ladder (P9.1), `OntoConfig` field removal (P9.2), always-on topology dispatch (P9.3 + m1 caching), atomic-adoption simplification (P9.4), and `legacy-field-deprecation` module removal (P9.5). Legacy YAML fields now graceful-ignore via type narrowing — no runtime throw, no parser speed bump. Migration: `docs/topology-migration-guide.md` §7.
 
 **Output language priority**: config.yml `output_language` > CLAUDE.md language directives. If absent, defaults to `en`.
 
@@ -812,8 +812,9 @@ Migration guide: `docs/topology-migration-guide.md` §7.
 
 1. `config.review` present + valid → axis-first dispatch (shape → TopologyId).
 2. Axis-first failure (validation / derivation / mapping) → P3 universal fallback to `main_native` shape.
-3. `main_native` also unmappable → legacy `execution_topology_priority` ladder.
-4. Legacy ladder exhausted → `no_host` fail-fast with environment diagnostic.
+3. `main_native` also unmappable → `no_host` fail-fast with environment diagnostic (6-option setup guide).
+
+> **P9.1 note (2026-04-21)**: the legacy `execution_topology_priority` ladder that previously sat between (2) and (3) was retired. Axis-first + universal fallback are the only two paths; `no_host` is the single fail-fast.
 
 `--codex` flag still routes to codex CLI path via `onto review` — this remains a backward-compat shortcut equivalent to `review.subagent.provider=codex`.
 

@@ -49,7 +49,7 @@ export function resolveOntoHome(
     const resolved = path.resolve(ontoHomeFlag);
     if (!isOntoRoot(resolved)) {
       throw new Error(
-        `Invalid onto home: ${resolved}. Expected package.json with name "onto-core", roles/ and authority/ directories.`,
+        `Invalid onto home: ${resolved}. Expected package.json with name "onto-core", .onto/roles/ (or legacy roles/) and authority/ directories.`,
       );
     }
     return resolved;
@@ -61,7 +61,7 @@ export function resolveOntoHome(
     const resolved = path.resolve(envHome);
     if (!isOntoRoot(resolved)) {
       throw new Error(
-        `Invalid ONTO_HOME: ${resolved}. Expected package.json with name "onto-core", roles/ and authority/ directories.`,
+        `Invalid ONTO_HOME: ${resolved}. Expected package.json with name "onto-core", .onto/roles/ (or legacy roles/) and authority/ directories.`,
       );
     }
     return resolved;

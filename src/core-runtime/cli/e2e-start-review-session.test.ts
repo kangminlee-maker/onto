@@ -11,8 +11,8 @@
  *
  * Isolation strategy:
  *   Each test builds a fake `ontoHome` tmpdir containing just enough to
- *   satisfy resolveOntoHome's validity check (package.json + roles/ +
- *   authority/), then a separate `projectRoot` tmpdir with the config
+ *   satisfy resolveOntoHome's validity check (package.json + roles/ or
+ *   .onto/roles/ + authority/), then a separate `projectRoot` tmpdir with the config
  *   file under test. The `--onto-home` argv flag forces the resolver
  *   to use the fake ontoHome instead of walking up from the test's
  *   script directory (which would find the real repo and pick up the
@@ -58,7 +58,9 @@ function makeTmpDir(prefix: string): string {
 
 /**
  * Build a tmpdir that passes `isOntoRoot` validation: needs
- * package.json with name "onto-core" AND roles/ AND authority/.
+ * package.json with name "onto-core" AND (roles/ or .onto/roles/) AND authority/.
+ * This fixture uses the legacy roles/ path to exercise the dual-path
+ * fallback that Phase 3 preserves through Phase 7.
  * Optionally writes a `learning_extract_mode` value into .onto/config.yml
  * so home-level config can be exercised.
  */
@@ -284,7 +286,7 @@ describe("start-review-session E2E", () => {
   //            error. Regression lock for the 9-lens consensus finding.
   it("E-SRS-10 invalid --onto-home fails fast (not swallowed)", async () => {
     // A real directory that is NOT an onto root (no package.json with
-    // name "onto-core", no roles/, no authority/).
+    // name "onto-core", no roles/ or .onto/roles/, no authority/).
     const bogusOntoHome = makeTmpDir("e-srs-10-bogus-home");
     const projectRoot = makeProjectRoot("e-srs-10-proj", "shadow");
     const argv = ["--onto-home", bogusOntoHome];

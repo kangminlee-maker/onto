@@ -122,7 +122,7 @@ When lenses write the `rationale` field of a label, include the following:
 | Axiology Adjudicator | Conflict resolver | Resolves conflicts that runtime rules cannot resolve. Judges based on system purpose only. **Spawned as a fresh context per invocation with anonymized inputs** — does not carry round-level reasoning context, cannot identify which lens produced which position |
 | `synthesize` | Integrator | Composes resolved material into integrated exploration directives. Does not produce independent perspectives or resolve conflicts — structures and edits only |
 
-Lens definitions (`roles/{lens-id}.md`) are the same as in review. In reconstruct, the role shifts from "verification" to "identifying gaps in their dimension + assigning labels." The current lens list is managed in the agent configuration table in `process.md`.
+Lens definitions (`.onto/roles/{lens-id}.md`) are the same as in review. In reconstruct, the role shifts from "verification" to "identifying gaps in their dimension + assigning labels." The current lens list is managed in the agent configuration table in `process.md`.
 
 ### Role Boundary Principles
 
@@ -385,7 +385,7 @@ Creates a team (`onto-reconstruct`) via TeamCreate.
 
 Creates the following agents as teammates:
 - **explorer**: Dedicated source traverser. Recommended to use Explore-type subagent.
-- **Lenses (N, per process.md agent table)**: Analysis agents that do not directly traverse the source. Same role definitions as review (`roles/{lens-id}.md`), operating in reconstruct mode.
+- **Lenses (N, per process.md agent table)**: Analysis agents that do not directly traverse the source. Same role definitions as review (`.onto/roles/{lens-id}.md`), operating in reconstruct mode.
 - **synthesize**: Integrator that composes resolved material into unified output. Not an independent lens.
 
 Explorer initial prompt composition:

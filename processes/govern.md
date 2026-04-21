@@ -82,7 +82,7 @@ projection: 모든 이벤트를 id 별로 그룹핑. `submit` 이 base, `decide`
 
 ### v0 = 현 레포 한정
 
-본 v0 는 **현 product 내부 규범** (authority/, processes/, commands/, design-principles/, roles/ 등) 의 변경 관리에만 적용한다. 다음은 범위 밖:
+본 v0 는 **현 product 내부 규범** (authority/, processes/, .onto/commands/, design-principles/, .onto/roles/ 등) 의 변경 관리에만 적용한다. 다음은 범위 밖:
 
 | 범위 밖 | 이유 | 처리 경로 |
 |---|---|---|

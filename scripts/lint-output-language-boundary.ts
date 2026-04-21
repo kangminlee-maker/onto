@@ -108,7 +108,7 @@ const SCAN_ROOTS: readonly string[] = [
   ".onto/commands",
   "design-principles",
   "authority",
-  "roles",
+  ".onto/roles",
   "src",
   "scripts",
   "development-records",

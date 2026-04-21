@@ -16,7 +16,7 @@
 | 5 | 기능별 계약 | processes/{feature}/*.md (계약 파일) |
 | 6 | 타입·구현 | src/core-runtime/ |
 | 7 | 운영 인프라 | process.md, learning-rules.md (루트) |
-| 8 | 기능 프로세스 | processes/*.md, .onto/commands/*.md, roles/*.md |
+| 8 | 기능 프로세스 | processes/*.md, .onto/commands/*.md, .onto/roles/*.md |
 
 authority/ 구성: 개념 SSOT + 3개 authority-adjacent data seat (core-lens-registry.yaml: 런타임 전용, translation-reference.yaml: 온보딩용 NON-AUTHORITATIVE, external-render-points.yaml: output_language 번역 whitelist)
 design-principles/ 구성: rank 2~4 개발 규범 문서 8개 (배포 제외)

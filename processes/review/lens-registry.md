@@ -101,8 +101,8 @@
 각 lens와 synthesize 단계의 source material은 아래다.
 
 - 공통 lens wrapper: `process.md`, `processes/review/review.md`
-- 개별 lens perspective: `roles/{lens-id}.md`
-- synthesize specialization: `roles/synthesize.md`
+- 개별 lens perspective: `.onto/roles/{lens-id}.md`
+- synthesize specialization: `.onto/roles/synthesize.md`
 
 관련 계약 문서:
 

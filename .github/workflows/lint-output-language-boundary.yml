@@ -9,7 +9,7 @@ on:
       - '.onto/commands/**'
       - 'design-principles/**'
       - 'authority/external-render-points.yaml'
-      - 'roles/**'
+      - '.onto/roles/**'
       - 'src/**'
       - 'scripts/lint-output-language-boundary.ts'
       - 'process.md'

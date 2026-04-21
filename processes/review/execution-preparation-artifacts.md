@@ -182,7 +182,7 @@ domain_context_refs:
 learning_context_refs:
   - /Users/kangmin/.onto/projects/onto/learnings/logic.md
 role_definition_refs:
-  - /Users/kangmin/cowork/onto/roles/logic.md
+  - /Users/kangmin/cowork/onto/.onto/roles/logic.md
 execution_rule_refs:
   - /Users/kangmin/cowork/onto/process.md
   - /Users/kangmin/cowork/onto/processes/review/review.md

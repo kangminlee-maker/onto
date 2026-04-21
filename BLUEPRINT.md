@@ -43,7 +43,7 @@
 >
 > | Section | Reliance level | Primary source |
 > |---|---|---|
-> | §3 Review Lenses | Derived | `authority/core-lens-registry.yaml`, `roles/*.md` |
+> | §3 Review Lenses | Derived | `authority/core-lens-registry.yaml`, `.onto/roles/*.md` |
 > | §4.1 Review flow | Derived | `processes/review/productized-live-path.md` |
 > | §4.3 Reconstruct flow | Surface summary | `processes/reconstruct.md` |
 > | §5 Domain System | Derived | `process.md` Domain Documents section |
@@ -910,7 +910,7 @@ onto/
 │
 ├── processes/               # Process definitions
 │   └── review/              #   Review contracts and live path
-├── roles/                   # Lens role definitions (10)
+├── .onto/roles/             # Lens role definitions (10) (Phase 3 layout)
 │   ├── logic.md ... axiology.md
 │   └── synthesize.md
 ├── .onto/commands/          # Command definitions (Phase 1 layout)

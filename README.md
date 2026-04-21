@@ -208,12 +208,16 @@ The `review:` block declares **6 user-facing axes**. Runtime derives one of 6 in
 
 Design-integrity audit: `development-records/audit/20260421-shape-pipeline-audit.md`.
 
-> **Legacy execution profile removed from prose (P7, 2026-04-21)** — The
+> **Legacy execution profile fully retired (P9 complete, 2026-04-21)** — The
 > `execution_topology_priority` ladder and the pre-redesign 3-canonical-path
 > guidance (Codex CLI / Agent Teams nested / Main-session direct) are
-> consolidated into the `review:` axis block above. `execution_topology_priority`
-> still loads as a last-resort runtime fallback until the planned "P9 runtime
-> legacy cleanup" PR. Migration: `docs/topology-migration-guide.md` §7.
+> consolidated into the `review:` axis block above. The P9 runtime cleanup
+> track (PRs #161~#166) retired the full legacy layer: resolver priority
+> ladder (P9.1), `OntoConfig` field removal (P9.2), always-on topology
+> dispatch (P9.3 + m1 caching), atomic-adoption simplification (P9.4), and
+> `legacy-field-deprecation` module removal (P9.5). Legacy YAML fields now
+> graceful-ignore via type narrowing — no runtime throw. Migration:
+> `docs/topology-migration-guide.md` §7.
 
 ## Agent Configuration
 

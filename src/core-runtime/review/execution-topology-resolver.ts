@@ -526,13 +526,20 @@ export function resolveExecutionTopology(
       `generic_nested=${signals.genericNestedSpawnSupported}`,
   );
 
-  // ---- P2 axis-first branching (Review UX Redesign) -------------------
+  // ---- P2/P3 axis-first branching (Review UX Redesign) ----------------
   // When `config.review` is present, user has opted into the new axis
   // schema. Derive shape → map to TopologyId → verify detection, emit a
-  // single-entry priority. If any step fails we fall back to the legacy
-  // priority ladder so operators who added a `review:` block but whose
-  // environment changed still get a running review (universal fallback
-  // semantics are strengthened in P3).
+  // single-entry priority.
+  //
+  // P3 universal fallback policy (design doc §4.3): when any of validator
+  // / derivation / mapping fails, instead of falling through to the
+  // legacy `execution_topology_priority` ladder, the helper tries a
+  // single `main_native` degradation pass first. If `main_native` itself
+  // cannot be mapped (neither Claude nor Codex host), only then do we
+  // fall through to the legacy ladder / no_host.
+  //
+  // Rationale: review must keep running on any non-fatal misconfig.
+  // Fail-fast is reserved for the truly unreachable case.
   const axisFirstId = resolveAxisFirstTopology(args.ontoConfig, signals, log);
 
   const priority = axisFirstId
@@ -668,21 +675,31 @@ export function assertSupportedInPrA(topology: ExecutionTopology): void {
 /**
  * Attempt to derive a `TopologyId` from the new `review:` axis block.
  *
- * Returns the derived id on full success. Returns `null` (with trace lines
- * logged) when any step fails — validation, shape derivation, or
- * shape→id mapping. Caller treats `null` as "fall back to legacy priority
- * ladder".
+ * P3 universal fallback semantics (design doc §4.3):
+ *   - `review:` absent → return `null`, caller walks the legacy ladder
+ *     silently (pre-P2 behavior preserved).
+ *   - `review:` present but validation / derivation / mapping fails →
+ *     do NOT fall through to legacy. Emit a `[topology] degraded:
+ *     requested=<hint> → actual=main_native (reason: ...)` trace line
+ *     and attempt to map the `main_native` shape against the current
+ *     host signals. If that mapping succeeds, return its TopologyId.
+ *   - Only when `main_native` itself is unmappable (neither Claude nor
+ *     Codex host) do we return `null` so the caller can fall through to
+ *     the legacy priority ladder / no_host.
  *
- * Three failure modes logged via `[topology]`:
- *   1. `review:` absent — no-op, caller uses legacy path silently.
- *   2. `review:` present but validator rejects — principal mis-configured;
- *      log each validation error and fall back.
- *   3. Derivation or mapping returns `ok=false` — axes valid but
- *      environment or shape/provider combo not mappable; log and fall back.
+ * Why a single degrade step, not a chain: the design restricts fallback
+ * to exactly one level (`main_native`) to keep the trace legible and
+ * avoid a silently-traversed cascade. More-specific topologies require
+ * explicit opt-in via the axis block; the degrade path is the safety
+ * net, not an opinionated retry.
  *
- * P3 (universal fallback) will replace the "fall back to legacy priority"
- * behavior in case 3 with "fall back to main_native shape forcibly", once
- * the shape → executor wiring for main_native is proven end-to-end.
+ * The degrade trace's `requested=` string is the best-available hint of
+ * the user's intent:
+ *   - validation failure   → "<validation-failed>" (no narrowed config)
+ *   - derivation failure   → last-known axis hint (e.g. "a2a-deliberation"
+ *                              or "teamlead=external(codex)")
+ *   - mapping failure      → the derived shape string, optionally with
+ *                              the foreign provider (e.g. "main_foreign(litellm)").
  */
 function resolveAxisFirstTopology(
   config: OntoConfig,
@@ -696,11 +713,16 @@ function resolveAxisFirstTopology(
 
   const validation = validateReviewConfig(reviewBlock);
   if (!validation.ok) {
-    log("review-axes: validation failed — falling back to legacy priority");
+    log("review-axes: validation failed");
     for (const err of validation.errors) {
       log(`review-axes: invalid — ${err.path}: ${err.message}`);
     }
-    return null;
+    return attemptMainNativeDegrade({
+      requested: "<validation-failed>",
+      reason: `config.review validation failed (${validation.errors.length} error(s))`,
+      signals,
+      log,
+    });
   }
 
   const derivationSignals: ShapeDerivationSignals = {
@@ -713,11 +735,18 @@ function resolveAxisFirstTopology(
     log(`review-axes: ${line}`);
   }
   if (!derivation.ok) {
-    log("review-axes: shape derivation failed — falling back to legacy priority");
+    log("review-axes: shape derivation failed");
     for (const reason of derivation.reasons) {
       log(`review-axes: ${reason}`);
     }
-    return null;
+    const requestedHint = describeDerivationIntent(validation.config);
+    const reasonLine = derivation.reasons[0] ?? "shape derivation failed";
+    return attemptMainNativeDegrade({
+      requested: requestedHint,
+      reason: reasonLine,
+      signals,
+      log,
+    });
   }
 
   const mapping = shapeToTopologyId({
@@ -732,11 +761,94 @@ function resolveAxisFirstTopology(
     log(`review-axes: ${line}`);
   }
   if (!mapping.ok) {
-    log("review-axes: shape→TopologyId mapping failed — falling back to legacy priority");
+    log("review-axes: shape→TopologyId mapping failed");
     log(`review-axes: ${mapping.reason}`);
-    return null;
+    const providerSuffix = derivation.derived.subagent_provider
+      ? `(${derivation.derived.subagent_provider})`
+      : "";
+    const requestedHint = `${derivation.derived.shape}${providerSuffix}`;
+    return attemptMainNativeDegrade({
+      requested: requestedHint,
+      reason: mapping.reason,
+      signals,
+      log,
+    });
   }
 
   log(`review-axes: derived TopologyId=${mapping.topology_id}`);
   return mapping.topology_id;
+}
+
+// ---------------------------------------------------------------------------
+// P3 universal fallback helpers
+// ---------------------------------------------------------------------------
+
+interface DegradeArgs {
+  /** Hint describing what the user originally asked for. Goes into `requested=`. */
+  requested: string;
+  /** Human-readable reason for the degrade (first error/reason line). */
+  reason: string;
+  signals: DetectionSignals;
+  log: (line: string) => void;
+}
+
+/**
+ * Emit the `[topology] degraded: requested=... → actual=main_native (reason: ...)`
+ * trace line, then attempt to map the `main_native` shape against the
+ * current host signals. Returns the resulting TopologyId on success, or
+ * `null` when `main_native` itself is unmappable (neither Claude nor
+ * Codex host available — caller's last resort is the legacy ladder /
+ * no_host error path).
+ */
+function attemptMainNativeDegrade(args: DegradeArgs): TopologyId | null {
+  const { requested, reason, signals, log } = args;
+  log(
+    `degraded: requested=${requested} → actual=main_native (reason: ${reason})`,
+  );
+  const mapping = shapeToTopologyId({
+    shape: "main_native",
+    subagent_provider: null,
+    signals: {
+      claudeHost: signals.claudeHost,
+      codexSessionActive: signals.codexSessionActive,
+    },
+  });
+  for (const line of mapping.trace) {
+    log(`degrade-fallback: ${line}`);
+  }
+  if (!mapping.ok) {
+    log(
+      "degrade-fallback: main_native unmappable (no Claude/Codex host) — caller falls back to legacy ladder",
+    );
+    return null;
+  }
+  log(`degrade-fallback: resolved TopologyId=${mapping.topology_id}`);
+  return mapping.topology_id;
+}
+
+/**
+ * Produce a short human-readable intent hint from a validated review
+ * config when derivation fails. Used as the `requested=` field in the
+ * degrade trace so operators can reconstruct "what did the user actually
+ * ask for" from STDERR alone.
+ *
+ * Ordering of hint precedence:
+ *   1. a2a deliberation (highest-signal user intent)
+ *   2. external teamlead provider
+ *   3. foreign subagent provider
+ *   4. plain "main+native" (unusual — derivation rarely fails here)
+ */
+function describeDerivationIntent(
+  config: import("../discovery/config-chain.js").OntoReviewConfig,
+): string {
+  if (config.lens_deliberation === "sendmessage-a2a") {
+    return "a2a-deliberation";
+  }
+  if (config.teamlead && config.teamlead.model !== "main") {
+    return `teamlead=external(${config.teamlead.model.provider})`;
+  }
+  if (config.subagent && config.subagent.provider !== "main-native") {
+    return `subagent=${config.subagent.provider}`;
+  }
+  return "main+native";
 }

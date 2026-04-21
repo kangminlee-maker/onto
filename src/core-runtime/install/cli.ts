@@ -1,31 +1,37 @@
 /**
  * `onto install` orchestrator — ties together pre-flight detection,
- * interactive prompts, and the file writer.
+ * either interactive or flag-driven decision resolution, the file
+ * writer, and the live validator.
  *
- * # Scope as of PR 2
+ * # Two execution modes
  *
- * Interactive path only. The `--non-interactive` flag is parsed but
- * exits early with a deferral message; full flag-driven orchestration
- * lands in PR 4 alongside its E2E test matrix. Live provider ping
- * (validation) lands in PR 3.
+ * **Interactive** (default): opens a readline-backed PromptIO and
+ * walks the user through the 6-step flow, capturing decisions + any
+ * secrets typed at the keyboard.
  *
- * # High-level sequence
+ * **Non-interactive** (`--non-interactive` or
+ * `ONTO_INSTALL_NON_INTERACTIVE=1`): resolves every decision from
+ * flags/env directly. Missing required flags or credentials fail
+ * fast with an explicit error — never prompt. Meant for CI, Docker
+ * images, and provisioning scripts.
  *
- *   1. Parse flags from argv. `--help` / `-h` short-circuits.
- *   2. Resolve project root (for potential project-scope writes).
- *   3. Run pre-flight detection against the current env + filesystem.
- *   4. If an existing config is detected and `--reconfigure` / `--force`
- *      isn't set, halt with instructions pointing at
- *      `--reconfigure` or `onto config edit`.
- *   5. Open a readline-backed PromptIO and run the 6-step interactive
- *      flow, capturing `{ decisions, secrets }`.
- *   6. Resolve the on-disk target paths from the chosen profile scope.
- *   7. Atomic-write config.yml + .env + .env.example via writer.ts.
- *   8. For project scope, ensure `.onto/.env` is in `.gitignore`.
- *   9. Print a completion summary with clear next-step pointers
- *      (`onto onboard`, `onto help`, `onto config edit`).
+ * # Shared pipeline
+ *
+ * Once both modes produce `{ decisions, secrets }`, they converge on
+ * the same write → gitignore → validate → completion sequence in
+ * `runInstallAfterDecisions`.
+ *
+ * # Testability
+ *
+ * `handleInstallCliWithOverrides()` accepts optional overrides for
+ * `homeDir`, `projectRoot`, `fetch`, `io`, and `silent`. Integration
+ * tests use these to run install against tmpdirs, stub the network,
+ * and capture output. Production dispatch calls the thin
+ * `handleInstallCli()` wrapper which supplies no overrides.
  */
 
+import fs from "node:fs";
+import os from "node:os";
 import { resolveProjectRoot } from "../discovery/project-root.js";
 import {
   formatPreflightSummary,
@@ -35,25 +41,31 @@ import { ensureGitignoreEntry } from "./gitignore-update.js";
 import {
   createReadlineIo,
   runInteractivePrompts,
+  type PromptIO,
 } from "./prompts.js";
 import {
   formatValidationResult,
   validateInstall,
+  type PingDependencies,
 } from "./validation.js";
 import {
+  parseEnv,
   resolveInstallPaths,
   writeInstallFiles,
   type WriteResult,
 } from "./writer.js";
 import type {
+  EnvSecrets,
+  InstallDecisions,
   InstallFlags,
   LearnProvider,
+  PreflightDetection,
   ProfileScope,
   ReviewProvider,
 } from "./types.js";
 
 // ---------------------------------------------------------------------------
-// Flag parsing
+// Constants
 // ---------------------------------------------------------------------------
 
 const REVIEW_PROVIDER_VALUES: readonly ReviewProvider[] = [
@@ -72,6 +84,22 @@ const LEARN_PROVIDER_VALUES: readonly (LearnProvider | "same")[] = [
   "litellm",
 ];
 
+const TRUTHY_ENV_VALUES: ReadonlySet<string> = new Set([
+  "1",
+  "true",
+  "TRUE",
+  "yes",
+  "YES",
+]);
+
+function envTruthy(value: string | undefined): boolean {
+  return typeof value === "string" && TRUTHY_ENV_VALUES.has(value);
+}
+
+// ---------------------------------------------------------------------------
+// Flag parsing (argv + env)
+// ---------------------------------------------------------------------------
+
 function readFlagValue(argv: string[], name: string): string | undefined {
   const idx = argv.indexOf(`--${name}`);
   if (idx < 0 || idx + 1 >= argv.length) return undefined;
@@ -80,6 +108,10 @@ function readFlagValue(argv: string[], name: string): string | undefined {
   return value;
 }
 
+/**
+ * Parse install flags from argv only. Retained as the simpler form
+ * for tests and to keep the argv-reading surface in one place.
+ */
 export function parseInstallFlags(argv: string[]): InstallFlags {
   const flags: InstallFlags = {
     nonInteractive: argv.includes("--non-interactive"),
@@ -123,12 +155,298 @@ export function parseInstallFlags(argv: string[]): InstallFlags {
   return flags;
 }
 
+/**
+ * Merge environment-variable defaults into a flag set. argv always
+ * wins — env only fills values that argv left unset.
+ *
+ * Env naming: `ONTO_INSTALL_<UPPERCASE_WITH_UNDERSCORES>`. Booleans
+ * accept `1 | true | TRUE | yes | YES`.
+ */
+export function parseInstallFlagsWithEnv(
+  argv: string[],
+  env: NodeJS.ProcessEnv,
+): InstallFlags {
+  const flags = parseInstallFlags(argv);
+
+  if (!flags.nonInteractive && envTruthy(env.ONTO_INSTALL_NON_INTERACTIVE)) {
+    flags.nonInteractive = true;
+  }
+  if (!flags.reconfigure && envTruthy(env.ONTO_INSTALL_RECONFIGURE)) {
+    flags.reconfigure = true;
+  }
+  if (!flags.skipValidation && envTruthy(env.ONTO_INSTALL_SKIP_VALIDATION)) {
+    flags.skipValidation = true;
+  }
+  if (!flags.dryRun && envTruthy(env.ONTO_INSTALL_DRY_RUN)) {
+    flags.dryRun = true;
+  }
+
+  if (!flags.profileScope) {
+    const v = env.ONTO_INSTALL_PROFILE_SCOPE;
+    if (v === "global" || v === "project") flags.profileScope = v;
+  }
+  if (!flags.reviewProvider) {
+    const v = env.ONTO_INSTALL_REVIEW_PROVIDER;
+    if (v && (REVIEW_PROVIDER_VALUES as readonly string[]).includes(v)) {
+      flags.reviewProvider = v as ReviewProvider;
+    }
+  }
+  if (!flags.learnProvider) {
+    const v = env.ONTO_INSTALL_LEARN_PROVIDER;
+    if (v && (LEARN_PROVIDER_VALUES as readonly string[]).includes(v)) {
+      flags.learnProvider = v as LearnProvider | "same";
+    }
+  }
+  if (!flags.outputLanguage) {
+    const v = env.ONTO_INSTALL_OUTPUT_LANGUAGE;
+    if (v === "ko" || v === "en") flags.outputLanguage = v;
+  }
+  if (!flags.litellmBaseUrl && env.ONTO_INSTALL_LITELLM_BASE_URL) {
+    flags.litellmBaseUrl = env.ONTO_INSTALL_LITELLM_BASE_URL;
+  }
+  if (!flags.envFile && env.ONTO_INSTALL_ENV_FILE) {
+    flags.envFile = env.ONTO_INSTALL_ENV_FILE;
+  }
+
+  return flags;
+}
+
 // ---------------------------------------------------------------------------
-// Help text
+// Env-file loader
 // ---------------------------------------------------------------------------
 
-function printHelp(): void {
-  console.log(
+/**
+ * Load KEY=VALUE pairs from an explicit `.env` file into a target env
+ * map. Missing keys in the target are set; already-present keys are
+ * left untouched (shell env wins over a provided file, matching
+ * src/cli.ts auto-load semantics).
+ *
+ * Returns the count of keys actually inserted so the orchestrator can
+ * log how much came from the file.
+ */
+export function loadEnvFileInto(
+  filePath: string,
+  target: NodeJS.ProcessEnv,
+): { loaded: number; missingFile: boolean } {
+  if (!fs.existsSync(filePath)) {
+    return { loaded: 0, missingFile: true };
+  }
+  const content = fs.readFileSync(filePath, "utf8");
+  let loaded = 0;
+  for (const [k, v] of parseEnv(content)) {
+    if (target[k] === undefined) {
+      target[k] = v;
+      loaded += 1;
+    }
+  }
+  return { loaded, missingFile: false };
+}
+
+// ---------------------------------------------------------------------------
+// Non-interactive resolution
+// ---------------------------------------------------------------------------
+
+export type ResolveDecisionsResult =
+  | { ok: true; decisions: InstallDecisions; secrets: EnvSecrets }
+  | { ok: false; errors: string[] };
+
+/**
+ * Turn a flag set + env snapshot into a complete InstallDecisions +
+ * EnvSecrets pair, failing loudly when anything required is missing.
+ *
+ * Used by the non-interactive path. Interactive path bypasses this
+ * and uses `runInteractivePrompts` instead — prompts fill missing
+ * values rather than erroring.
+ */
+export function resolveDecisionsFromFlags(args: {
+  flags: InstallFlags;
+  detection: PreflightDetection;
+  env: NodeJS.ProcessEnv;
+}): ResolveDecisionsResult {
+  const { flags, detection, env } = args;
+  const errors: string[] = [];
+
+  if (!flags.profileScope) {
+    errors.push("--profile-scope <global|project>");
+  }
+  if (!flags.reviewProvider) {
+    errors.push("--review-provider <provider>");
+  }
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors: [`필수 플래그 누락: ${errors.join(", ")}`],
+    };
+  }
+
+  // Resolve learn provider. `same` or missing means "use review
+  // provider" — unless review is main-native, in which case learn
+  // must be explicit (main-native isn't in the background ladder).
+  let learnProvider: LearnProvider;
+  if (!flags.learnProvider || flags.learnProvider === "same") {
+    if (flags.reviewProvider === "main-native") {
+      return {
+        ok: false,
+        errors: [
+          "--review-provider=main-native 선택 시 --learn-provider 를 명시해야 합니다.",
+          "  (background ladder가 main-native를 지원하지 않습니다.)",
+        ],
+      };
+    }
+    learnProvider = flags.reviewProvider as LearnProvider;
+  } else {
+    learnProvider = flags.learnProvider as LearnProvider;
+  }
+
+  // Collect credentials from env (+ litellm base URL from flag).
+  const providers = new Set<ReviewProvider>();
+  providers.add(flags.reviewProvider as ReviewProvider);
+  providers.add(learnProvider as ReviewProvider);
+
+  const credErrors: string[] = [];
+  const secrets: EnvSecrets = {};
+  for (const p of providers) {
+    switch (p) {
+      case "main-native":
+        if (!detection.hostIsClaudeCode) {
+          // Allowed but warned about — not a hard error. The caller's
+          // stderr write surfaces the warning; here we just note it.
+        }
+        break;
+      case "anthropic":
+        if (env.ANTHROPIC_API_KEY) {
+          secrets.anthropicApiKey = env.ANTHROPIC_API_KEY;
+        } else {
+          credErrors.push("ANTHROPIC_API_KEY");
+        }
+        break;
+      case "openai":
+        if (env.OPENAI_API_KEY) {
+          secrets.openaiApiKey = env.OPENAI_API_KEY;
+        } else {
+          credErrors.push("OPENAI_API_KEY");
+        }
+        break;
+      case "litellm": {
+        const baseUrl = flags.litellmBaseUrl ?? env.LITELLM_BASE_URL;
+        if (baseUrl) {
+          secrets.litellmBaseUrl = baseUrl;
+        } else {
+          credErrors.push("LITELLM_BASE_URL (--litellm-base-url or env)");
+        }
+        if (env.LITELLM_API_KEY) secrets.litellmApiKey = env.LITELLM_API_KEY;
+        break;
+      }
+      case "codex":
+        if (!detection.hasCodexBinary) {
+          credErrors.push("codex binary (install codex CLI)");
+        } else if (!detection.hasCodexAuth) {
+          credErrors.push("~/.codex/auth.json (run `codex login`)");
+        }
+        break;
+    }
+  }
+
+  if (credErrors.length > 0) {
+    return {
+      ok: false,
+      errors: [
+        `자격 증명 누락: ${credErrors.join(", ")}`,
+        "  env 변수로 설정하거나 --env-file <path> 로 지정하세요.",
+      ],
+    };
+  }
+
+  const decisions: InstallDecisions = {
+    profileScope: flags.profileScope as ProfileScope,
+    reviewProvider: flags.reviewProvider as ReviewProvider,
+    learnProvider,
+    outputLanguage: flags.outputLanguage ?? "ko",
+  };
+  if (secrets.litellmBaseUrl) {
+    decisions.litellmBaseUrl = secrets.litellmBaseUrl;
+  }
+
+  return { ok: true, decisions, secrets };
+}
+
+// ---------------------------------------------------------------------------
+// Shared write → gitignore → validate → completion pipeline
+// ---------------------------------------------------------------------------
+
+interface PipelineArgs {
+  decisions: InstallDecisions;
+  secrets: EnvSecrets;
+  detection: PreflightDetection;
+  flags: InstallFlags;
+  projectRoot: string;
+  homeDir: string;
+  pingDeps?: PingDependencies;
+  write: (text: string) => void;
+  writeErr: (text: string) => void;
+}
+
+async function runInstallAfterDecisions(args: PipelineArgs): Promise<number> {
+  const {
+    decisions,
+    secrets,
+    detection,
+    flags,
+    projectRoot,
+    homeDir,
+    pingDeps,
+    write,
+    writeErr,
+  } = args;
+
+  const paths = resolveInstallPaths(decisions.profileScope, projectRoot, homeDir);
+  const result = writeInstallFiles({
+    paths,
+    decisions,
+    secrets,
+    dryRun: flags.dryRun,
+  });
+
+  let gitignoreResult: ReturnType<typeof ensureGitignoreEntry> | undefined;
+  if (paths.gitignorePath) {
+    gitignoreResult = ensureGitignoreEntry(paths.gitignorePath, {
+      dryRun: flags.dryRun,
+    });
+  }
+
+  if (!flags.dryRun && !flags.skipValidation) {
+    write("\nProvider 검증 중...\n");
+    const validation = await validateInstall({
+      decisions,
+      secrets,
+      detection,
+      ...(pingDeps ? { deps: pingDeps } : {}),
+    });
+    write(`${formatValidationResult(validation)}\n`);
+    if (!validation.ok) {
+      writeErr(
+        [
+          "",
+          "[onto] 일부 provider 검증 실패.",
+          "  - 자격 증명을 수정한 뒤 `onto install --reconfigure` 로 재실행하거나",
+          "  - 네트워크 제약 환경이면 `--skip-validation` 을 추가해 검증을 건너뛰세요.",
+          "",
+        ].join("\n"),
+      );
+      return 1;
+    }
+  }
+
+  printCompletion(result, gitignoreResult, flags.dryRun, write);
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Help + completion printers
+// ---------------------------------------------------------------------------
+
+function printHelp(write: (text: string) => void): void {
+  write(
     [
       "Usage: onto install [options]",
       "",
@@ -141,88 +459,122 @@ function printHelp(): void {
       "  --learn-provider <provider>          same | codex | anthropic | openai | litellm",
       "  --output-language <ko|en>            Principal-facing render language.",
       "  --litellm-base-url <url>             LiteLLM endpoint (for litellm provider).",
-      "  --env-file <path>                    Where .env lives (default derived from scope).",
+      "  --env-file <path>                    Load a .env file before install runs.",
       "  --reconfigure, --force               Allow overwriting existing config.",
       "  --skip-validation                    Skip the live provider ping.",
       "  --dry-run                            Compute changes without writing.",
-      "  --non-interactive                    No prompts — scheduled for PR 4.",
+      "  --non-interactive                    Resolve decisions from flags + env only.",
       "  --help, -h                           Show this help.",
+      "",
+      "Environment variables (argv overrides env):",
+      "  ONTO_INSTALL_PROFILE_SCOPE, ONTO_INSTALL_REVIEW_PROVIDER,",
+      "  ONTO_INSTALL_LEARN_PROVIDER, ONTO_INSTALL_OUTPUT_LANGUAGE,",
+      "  ONTO_INSTALL_LITELLM_BASE_URL, ONTO_INSTALL_ENV_FILE,",
+      "  ONTO_INSTALL_NON_INTERACTIVE, ONTO_INSTALL_RECONFIGURE,",
+      "  ONTO_INSTALL_SKIP_VALIDATION, ONTO_INSTALL_DRY_RUN.",
+      "",
+      "Credentials (read from env; not accepted via flag):",
+      "  ANTHROPIC_API_KEY, OPENAI_API_KEY,",
+      "  LITELLM_BASE_URL, LITELLM_API_KEY.",
       "",
       "Next steps after install:",
       "  onto onboard           Initialize project-specific domains and review axes.",
       "  onto help              List all commands.",
       "  onto config edit       Adjust models and advanced fields.",
+      "",
     ].join("\n"),
   );
 }
-
-// ---------------------------------------------------------------------------
-// Completion summary
-// ---------------------------------------------------------------------------
 
 function printCompletion(
   result: WriteResult,
   gitignoreResult: ReturnType<typeof ensureGitignoreEntry> | undefined,
   dryRun: boolean,
+  write: (text: string) => void,
 ): void {
   const header = dryRun ? "설치 미리보기 완료 (--dry-run)" : "설치 완료";
-  process.stdout.write(`\n${header}\n\n`);
-  process.stdout.write(`  config.yml     → ${result.writtenTo.configYml}\n`);
-  process.stdout.write(`  .env           → ${result.writtenTo.env}\n`);
-  process.stdout.write(
-    `  .env.example   → ${result.writtenTo.envExample}\n`,
-  );
+  write(`\n${header}\n\n`);
+  write(`  config.yml     → ${result.writtenTo.configYml}\n`);
+  write(`  .env           → ${result.writtenTo.env}\n`);
+  write(`  .env.example   → ${result.writtenTo.envExample}\n`);
   if (gitignoreResult) {
     if (gitignoreResult.created) {
-      process.stdout.write(
-        "  .gitignore     → (생성) .onto/.env 추가됨\n",
-      );
+      write("  .gitignore     → (생성) .onto/.env 추가됨\n");
     } else if (!gitignoreResult.alreadyPresent) {
-      process.stdout.write("  .gitignore     → .onto/.env 추가됨\n");
+      write("  .gitignore     → .onto/.env 추가됨\n");
     } else {
-      process.stdout.write(
-        "  .gitignore     → .onto/.env 이미 등록됨\n",
-      );
+      write("  .gitignore     → .onto/.env 이미 등록됨\n");
     }
   }
-  process.stdout.write("\n다음 단계:\n");
-  process.stdout.write("  onto onboard           # 프로젝트 도메인/축 초기화\n");
-  process.stdout.write("  onto help              # 전체 명령 확인\n");
-  process.stdout.write(
-    "  onto config edit       # 모델 등 세부 조정\n\n",
-  );
+  write("\n다음 단계:\n");
+  write("  onto onboard           # 프로젝트 도메인/축 초기화\n");
+  write("  onto help              # 전체 명령 확인\n");
+  write("  onto config edit       # 모델 등 세부 조정\n\n");
 }
 
 // ---------------------------------------------------------------------------
-// Main entry
+// Main entry + overrides
 // ---------------------------------------------------------------------------
 
+export interface HandleInstallOverrides {
+  /** Override os.homedir() — tests point this at a tmpdir. */
+  homeDir?: string;
+  /** Override `resolveProjectRoot()`. */
+  projectRoot?: string;
+  /** Stub fetch for validation ping. */
+  fetch?: typeof fetch;
+  /** Pre-built PromptIO (e.g. ScriptedIo for interactive test). */
+  io?: PromptIO;
+  /** Route stdout/stderr writes into provided functions instead of process streams. */
+  write?: (text: string) => void;
+  writeErr?: (text: string) => void;
+}
+
 export async function handleInstallCli(
-  _ontoHome: string,
+  ontoHome: string,
   argv: string[],
 ): Promise<number> {
+  return handleInstallCliWithOverrides(ontoHome, argv);
+}
+
+export async function handleInstallCliWithOverrides(
+  _ontoHome: string,
+  argv: string[],
+  overrides: HandleInstallOverrides = {},
+): Promise<number> {
+  const write =
+    overrides.write ?? ((text: string) => process.stdout.write(text));
+  const writeErr =
+    overrides.writeErr ?? ((text: string) => process.stderr.write(text));
+
   if (argv.includes("--help") || argv.includes("-h")) {
-    printHelp();
+    printHelp(write);
     return 0;
   }
 
-  const flags = parseInstallFlags(argv);
+  const flags = parseInstallFlagsWithEnv(argv, process.env);
 
-  if (flags.nonInteractive) {
-    process.stderr.write(
-      "[onto] install: --non-interactive는 PR 4에서 지원 예정입니다.\n",
-    );
-    return 1;
+  // --env-file (if provided) is loaded BEFORE detection/validation
+  // so subsequent reads see the injected keys.
+  if (flags.envFile) {
+    const { missingFile } = loadEnvFileInto(flags.envFile, process.env);
+    if (missingFile) {
+      writeErr(
+        `[onto] --env-file 경로를 찾을 수 없습니다: ${flags.envFile}\n`,
+      );
+      return 1;
+    }
   }
 
-  const projectRoot = resolveProjectRoot();
+  const homeDir = overrides.homeDir ?? os.homedir();
+  const projectRoot = overrides.projectRoot ?? resolveProjectRoot();
   const detection = runPreflight(projectRoot);
 
   if (
     (detection.existingGlobalConfig || detection.existingProjectConfig) &&
     !flags.reconfigure
   ) {
-    process.stderr.write(
+    writeErr(
       [
         "[onto] 기존 config가 감지되어 install을 중단합니다.",
         "",
@@ -236,11 +588,114 @@ export async function handleInstallCli(
     return 1;
   }
 
-  const io = createReadlineIo();
+  const pingDeps: PingDependencies = {};
+  if (overrides.fetch) pingDeps.fetch = overrides.fetch;
+
+  if (flags.nonInteractive) {
+    return runNonInteractive({
+      flags,
+      detection,
+      projectRoot,
+      homeDir,
+      pingDeps,
+      write,
+      writeErr,
+    });
+  }
+
+  return runInteractive({
+    flags,
+    detection,
+    projectRoot,
+    homeDir,
+    pingDeps,
+    ...(overrides.io ? { io: overrides.io } : {}),
+    write,
+    writeErr,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Mode branches
+// ---------------------------------------------------------------------------
+
+async function runNonInteractive(args: {
+  flags: InstallFlags;
+  detection: PreflightDetection;
+  projectRoot: string;
+  homeDir: string;
+  pingDeps: PingDependencies;
+  write: (text: string) => void;
+  writeErr: (text: string) => void;
+}): Promise<number> {
+  const {
+    flags,
+    detection,
+    projectRoot,
+    homeDir,
+    pingDeps,
+    write,
+    writeErr,
+  } = args;
+
+  const resolved = resolveDecisionsFromFlags({
+    flags,
+    detection,
+    env: process.env,
+  });
+  if (!resolved.ok) {
+    writeErr(`[onto] install: ${resolved.errors.join("\n")}\n`);
+    return 1;
+  }
+
+  if (
+    resolved.decisions.reviewProvider === "main-native" &&
+    !detection.hostIsClaudeCode
+  ) {
+    writeErr(
+      "[onto] [warning] review-provider=main-native 선택됨 — Claude Code 세션 외부에서는 review가 실패합니다.\n",
+    );
+  }
+
+  return runInstallAfterDecisions({
+    decisions: resolved.decisions,
+    secrets: resolved.secrets,
+    detection,
+    flags,
+    projectRoot,
+    homeDir,
+    pingDeps,
+    write,
+    writeErr,
+  });
+}
+
+async function runInteractive(args: {
+  flags: InstallFlags;
+  detection: PreflightDetection;
+  projectRoot: string;
+  homeDir: string;
+  pingDeps: PingDependencies;
+  io?: PromptIO;
+  write: (text: string) => void;
+  writeErr: (text: string) => void;
+}): Promise<number> {
+  const {
+    flags,
+    detection,
+    projectRoot,
+    homeDir,
+    pingDeps,
+    io: providedIo,
+    write,
+    writeErr,
+  } = args;
+
+  const io = providedIo ?? createReadlineIo();
   try {
-    process.stdout.write("\nonto install — 첫 실행 설정 마법사\n\n");
-    process.stdout.write(formatPreflightSummary(detection));
-    process.stdout.write("\n\n");
+    write("\nonto install — 첫 실행 설정 마법사\n\n");
+    write(formatPreflightSummary(detection));
+    write("\n\n");
 
     const { decisions, secrets } = await runInteractivePrompts({
       io,
@@ -248,48 +703,19 @@ export async function handleInstallCli(
       detection,
     });
 
-    const paths = resolveInstallPaths(decisions.profileScope, projectRoot);
-    const result = writeInstallFiles({
-      paths,
+    return runInstallAfterDecisions({
       decisions,
       secrets,
-      dryRun: flags.dryRun,
+      detection,
+      flags,
+      projectRoot,
+      homeDir,
+      pingDeps,
+      write,
+      writeErr,
     });
-
-    let gitignoreResult: ReturnType<typeof ensureGitignoreEntry> | undefined;
-    if (paths.gitignorePath) {
-      gitignoreResult = ensureGitignoreEntry(paths.gitignorePath, {
-        dryRun: flags.dryRun,
-      });
-    }
-
-    // Live provider ping — skipped on dry-run or when user opts out.
-    if (!flags.dryRun && !flags.skipValidation) {
-      process.stdout.write("\nProvider 검증 중...\n");
-      const validation = await validateInstall({
-        decisions,
-        secrets,
-        detection,
-      });
-      process.stdout.write(`${formatValidationResult(validation)}\n`);
-      if (!validation.ok) {
-        process.stderr.write(
-          [
-            "",
-            "[onto] 일부 provider 검증 실패.",
-            "  - 자격 증명을 수정한 뒤 `onto install --reconfigure` 로 재실행하거나",
-            "  - 네트워크 제약 환경이면 `--skip-validation` 을 추가해 검증을 건너뛰세요.",
-            "",
-          ].join("\n"),
-        );
-        return 1;
-      }
-    }
-
-    printCompletion(result, gitignoreResult, flags.dryRun);
-    return 0;
   } catch (error) {
-    process.stderr.write(
+    writeErr(
       `[onto] install failed: ${
         error instanceof Error ? error.message : String(error)
       }\n`,

@@ -683,6 +683,13 @@ async function main(): Promise<number> {
       return handleGovernCli(ontoHome, subcommandArgv);
     }
 
+    case "config": {
+      const { handleConfigCli } = await import(
+        "./core-runtime/config/onto-config-cli.js"
+      );
+      return handleConfigCli(ontoHome, subcommandArgv);
+    }
+
     case "learn":
     case "build":
     case "ask":

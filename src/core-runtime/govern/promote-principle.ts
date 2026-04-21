@@ -20,10 +20,7 @@ import {
   resolveQueuePath,
 } from "./queue.js";
 import type { GovernSubmitEvent } from "./types.js";
-import {
-  canonicalizeLayoutPath,
-  startsWithDirPrefix,
-} from "../discovery/path-normalization.js";
+import { startsWithDirPrefix } from "../discovery/path-normalization.js";
 
 export interface WorkloadEvidence {
   state_transitions?: number;
@@ -47,14 +44,13 @@ export interface PromotePrincipleProposal {
   /**
    * `category` is a proposal-schema label; the allowed `file_path`
    * referent set is the full directory, not just strict subtypes.
+   * Phase 7 (2026-04-21) dropped legacy-layout acceptance.
    *
-   *   category="design_principle" → accepts `.onto/principles/*`
-   *     (or legacy `design-principles/*`). This directory houses
-   *     principles, guidelines, and charters — the label is narrower
-   *     than the set for historical compatibility.
+   *   category="design_principle" → accepts `.onto/principles/*`.
+   *     This directory houses principles, guidelines, and charters —
+   *     the label is narrower than the set for historical compatibility.
    *
-   *   category="process" → accepts `.onto/processes/*`
-   *     (or legacy `processes/*`).
+   *   category="process" → accepts `.onto/processes/*`.
    */
   target: {
     category: "design_principle" | "process";
@@ -180,9 +176,8 @@ export function executePromotePrinciple(
 
   // Target validation — seat integrity check.
   //
-  // Always runs, regardless of whether the file already exists. Previously
-  // existence short-circuited validation, which let arbitrary paths bypass
-  // seat checks when the target happened to exist on disk.
+  // Phase 7 (2026-04-21) removed legacy-layout acceptance. Only canonical
+  // `.onto/principles/*` or `.onto/processes/*` are valid targets.
   //
   // `design_principle` category maps to the full `.onto/principles/` set
   // (which houses principles *and* guidelines/charters). Label is kept
@@ -195,17 +190,11 @@ export function executePromotePrinciple(
     proposal.target.category === "design_principle"
       ? ".onto/principles"
       : ".onto/processes";
-  const legacyDir =
-    proposal.target.category === "design_principle"
-      ? "design-principles"
-      : "processes";
   const rawPath = proposal.target.file_path;
-  const inCanonicalDir = startsWithDirPrefix(rawPath, canonicalDir);
-  const inLegacyDir = startsWithDirPrefix(rawPath, legacyDir);
-  if (!inCanonicalDir && !inLegacyDir) {
+  if (!startsWithDirPrefix(rawPath, canonicalDir)) {
     return {
       success: false,
-      reason: `target.file_path '${rawPath}' 가 category '${proposal.target.category}' 에 맞는 디렉토리 (${canonicalDir}/ 또는 legacy ${legacyDir}/) 에 속하지 않음.`,
+      reason: `target.file_path '${rawPath}' 가 category '${proposal.target.category}' 에 맞는 디렉토리 (${canonicalDir}/) 에 속하지 않음.`,
       gate_failed: "validation",
     };
   }
@@ -247,17 +236,16 @@ export function executePromotePrinciple(
     };
   }
 
-  // Queue append — persist the *canonical* path shape. Legacy prefixes
-  // (e.g., `design-principles/`) are rewritten to their `.onto/` form so
-  // downstream consumers don't have to re-normalize, and govern records
-  // remain consistent across the Phase 5+ migration window.
+  // Queue append. Phase 7 removed legacy-prefix canonicalization since
+  // validation now rejects anything outside `.onto/…` — the raw input is
+  // already canonical by construction.
   const id = generateGovernId(now);
   const event: GovernSubmitEvent = {
     type: "submit",
     id,
     origin: "human",
     tag: "norm_change",
-    target: canonicalizeLayoutPath(proposal.target.file_path),
+    target: proposal.target.file_path,
     payload: {
       promotion_kind: "knowledge_to_principle",
       proposal,

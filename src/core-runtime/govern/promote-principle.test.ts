@@ -186,14 +186,15 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
     expect(result.success).toBe(true);
   });
 
-  it("design_principle category + legacy design-principles/ → pass (dual-path accepted)", () => {
+  it("design_principle category + legacy design-principles/ → validation 실패 (Phase 7 canonical-only)", () => {
     const result = executePromotePrinciple(
       makeProposal({
         target: { category: "design_principle", file_path: "design-principles/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.gate_failed).toBe("validation");
   });
 
   it("process category + canonical .onto/processes/ → pass", () => {
@@ -206,14 +207,15 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
     expect(result.success).toBe(true);
   });
 
-  it("process category + legacy processes/ → pass (dual-path accepted)", () => {
+  it("process category + legacy processes/ → validation 실패 (Phase 7 canonical-only)", () => {
     const result = executePromotePrinciple(
       makeProposal({
         target: { category: "process", file_path: "processes/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.gate_failed).toBe("validation");
   });
 
   it("segment-bound: .onto/principlesABC/foo.md → validation 실패 (near-miss prefix)", () => {
@@ -267,25 +269,24 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
     if (!result.success) expect(result.gate_failed).toBe("validation");
   });
 
-  it("legacy path 는 queue 에 canonical 형태로 persist", () => {
+  it("canonical design_principle path → queue 에 동일 canonical 로 persist", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "design_principle", file_path: "design-principles/foo.md", section: "NEW" },
+        target: { category: "design_principle", file_path: ".onto/principles/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );
     expect(result.success).toBe(true);
     const raw = readFileSync(join(tmpRoot, ".onto", "govern", "queue.ndjson"), "utf-8");
     const event = JSON.parse(raw.trim());
-    // persisted target 은 canonical. 원본 proposal.target.file_path 는 보존.
     expect(event.target).toBe(".onto/principles/foo.md");
-    expect(event.payload.proposal.target.file_path).toBe("design-principles/foo.md");
+    expect(event.payload.proposal.target.file_path).toBe(".onto/principles/foo.md");
   });
 
-  it("process legacy path 도 queue 에 canonical 형태로 persist", () => {
+  it("canonical process path → queue 에 동일 canonical 로 persist", () => {
     const result = executePromotePrinciple(
       makeProposal({
-        target: { category: "process", file_path: "processes/foo.md", section: "NEW" },
+        target: { category: "process", file_path: ".onto/processes/foo.md", section: "NEW" },
       }) as any,
       tmpRoot,
     );

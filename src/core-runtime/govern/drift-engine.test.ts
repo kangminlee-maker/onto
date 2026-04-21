@@ -39,10 +39,10 @@ describe("drift-engine classifier (W-C-02 v0, §1.3 수준 0→1 3 분기)", () 
     expect(decision.matched_rule).toBe("drift_default");
   });
 
-  it("수준 1-C principal_direct: authority/ prefix → route=principal_direct", () => {
+  it("수준 1-C principal_direct: .onto/authority/ prefix → route=principal_direct", () => {
     const decision = classifyProposal({
       summary: "lexicon v0.13.0 entity 추가",
-      target_files: ["authority/core-lexicon.yaml"],
+      target_files: [".onto/authority/core-lexicon.yaml"],
       change_kind: "config",
     });
     expect(decision.route).toBe("principal_direct");
@@ -67,10 +67,10 @@ describe("drift-engine classifier (W-C-02 v0, §1.3 수준 0→1 3 분기)", () 
     expect(decision.route).toBe("principal_direct");
   });
 
-  it("boundary: 단일 docs 파일이어도 authority 포함 시 principal_direct 우선", () => {
+  it("boundary: 단일 docs 파일이어도 .onto/authority 포함 시 principal_direct 우선", () => {
     const decision = classifyProposal({
       summary: "lexicon term 수정",
-      target_files: ["authority/core-lexicon.yaml"],
+      target_files: [".onto/authority/core-lexicon.yaml"],
       change_kind: "docs_only",
     });
     expect(decision.route).toBe("principal_direct");
@@ -105,20 +105,22 @@ describe("drift-engine classifier (W-C-02 v0, §1.3 수준 0→1 3 분기)", () 
     expect(decision.matched_rule).toBe("governance_core");
   });
 
-  it("boundary: design-principles/ (Phase 5 legacy) 도 governance core → principal_direct", () => {
+  it("Phase 7 canonical-only: legacy design-principles/ 는 governance core 가 아님 (일반 문서로 간주)", () => {
+    // Phase 7 에서는 legacy layout 을 governance core 로 보지 않음. 단일 파일 docs 라서
+    // self_apply 분기로 라우팅되는 게 정상.
     const decision = classifyProposal({
-      summary: "legacy layout 아래 principle 수정",
+      summary: "legacy layout 잔존 참조",
       target_files: ["design-principles/ontology-as-code-guideline.md"],
       change_kind: "docs_only",
     });
-    expect(decision.route).toBe("principal_direct");
-    expect(decision.matched_rule).toBe("governance_core");
+    expect(decision.route).toBe("self_apply");
+    expect(decision.matched_rule).toBe("local_docs_single");
   });
 
-  it("boundary: segment-bound — authorityX/ 같은 near-miss prefix 는 governance core 아님", () => {
+  it("boundary: segment-bound — .onto/authorityX/ 같은 near-miss prefix 는 governance core 아님", () => {
     const decision = classifyProposal({
       summary: "유사 이름 디렉토리 변경",
-      target_files: ["authorityX/foo.md"],
+      target_files: [".onto/authorityX/foo.md"],
       change_kind: "docs_only",
     });
     expect(decision.route).toBe("self_apply");
@@ -173,7 +175,7 @@ describe("drift-engine router (큐 append 동작)", () => {
     const outcome = routeProposal(
       {
         summary: "lexicon 변경",
-        target_files: ["authority/core-lexicon.yaml"],
+        target_files: [".onto/authority/core-lexicon.yaml"],
         change_kind: "config",
       },
       tmpRoot,

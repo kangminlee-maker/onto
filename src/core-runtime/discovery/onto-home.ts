@@ -6,10 +6,10 @@ import { walkUpFor } from "./walk-up.js";
 /**
  * Validates whether a directory is an onto installation root.
  *
- * Marker: package.json with name "onto-core" AND a roles dir AND an authority
- * dir. Phase 0 of the repo-layout migration accepts both the legacy top-level
- * layout (`roles/`, `authority/`) and the new `.onto/` layout — an install
- * partway through migration is still a valid root.
+ * Marker: package.json with name "onto-core" AND `.onto/roles/` AND
+ * `.onto/authority/`. Phase 7 (2026-04-21) dropped the pre-migration
+ * top-level marker layout (`roles/`, `authority/`) — an install must
+ * be on the canonical `.onto/` layout to be recognized.
  */
 export function isOntoRoot(dir: string): boolean {
   try {
@@ -17,14 +17,8 @@ export function isOntoRoot(dir: string): boolean {
     if (!fs.existsSync(pkgPath)) return false;
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
     if (pkg.name !== "onto-core") return false;
-    const rolesPresent =
-      fs.existsSync(path.join(dir, "roles")) ||
-      fs.existsSync(path.join(dir, ".onto", "roles"));
-    if (!rolesPresent) return false;
-    const authorityPresent =
-      fs.existsSync(path.join(dir, "authority")) ||
-      fs.existsSync(path.join(dir, ".onto", "authority"));
-    if (!authorityPresent) return false;
+    if (!fs.existsSync(path.join(dir, ".onto", "roles"))) return false;
+    if (!fs.existsSync(path.join(dir, ".onto", "authority"))) return false;
     return true;
   } catch {
     return false;
@@ -49,7 +43,7 @@ export function resolveOntoHome(
     const resolved = path.resolve(ontoHomeFlag);
     if (!isOntoRoot(resolved)) {
       throw new Error(
-        `Invalid onto home: ${resolved}. Expected package.json with name "onto-core", .onto/roles/ (or legacy roles/) and .onto/authority/ (or legacy authority/) directories.`,
+        `Invalid onto home: ${resolved}. Expected package.json with name "onto-core", .onto/roles/ and .onto/authority/ directories.`,
       );
     }
     return resolved;
@@ -61,7 +55,7 @@ export function resolveOntoHome(
     const resolved = path.resolve(envHome);
     if (!isOntoRoot(resolved)) {
       throw new Error(
-        `Invalid ONTO_HOME: ${resolved}. Expected package.json with name "onto-core", .onto/roles/ (or legacy roles/) and .onto/authority/ (or legacy authority/) directories.`,
+        `Invalid ONTO_HOME: ${resolved}. Expected package.json with name "onto-core", .onto/roles/ and .onto/authority/ directories.`,
       );
     }
     return resolved;

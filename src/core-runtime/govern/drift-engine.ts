@@ -41,24 +41,20 @@ export interface RouteOutcome {
 }
 
 /**
- * Governance core directory prefixes — both canonical (.onto/) and legacy
- * (top-level) forms accepted during the Phase 5+ migration window.
- * `.onto/authority/` is included pre-emptively for Phase 6.
+ * Governance core directory prefixes — canonical `.onto/` layout only.
+ * Phase 7 (2026-04-21) dropped the legacy top-level fallbacks.
  *
  * Segment boundaries are enforced via `startsWithDirPrefix` so a prefix
- * of `authority/` does not match a stray `authorityX/` path.
+ * of `.onto/authority/` does not match a stray `.onto/authorityX/` path.
  */
 const GOVERNANCE_CORE_DIR_PREFIXES: readonly string[] = [
-  ".onto/authority/", // Phase 6 canonical
-  "authority/", // Phase 6 legacy (still in use)
-  ".onto/principles/", // Phase 5 canonical
-  "design-principles/", // Phase 5 legacy
+  ".onto/authority/",
+  ".onto/principles/",
 ];
 
 /** Exact file paths treated as governance core (not directory prefixes). */
 const GOVERNANCE_CORE_FILES: readonly string[] = [
   ".onto/processes/govern.md",
-  "processes/govern.md", // legacy fallback, matches live resolver dual-path
 ];
 
 function isGovernanceCoreTarget(filePath: string): boolean {
@@ -83,7 +79,7 @@ export function classifyProposal(proposal: ChangeProposal): DriftDecision {
       route: "principal_direct",
       matched_rule: "governance_core",
       reason:
-        "target 에 governance core (authority/ 또는 .onto/authority/, design-principles/ 또는 .onto/principles/, processes/govern.md 또는 .onto/processes/govern.md) 가 포함됨. §1.3 Principal 직접 분기.",
+        "target 에 governance core (.onto/authority/, .onto/principles/, .onto/processes/govern.md) 가 포함됨. §1.3 Principal 직접 분기.",
     };
   }
 

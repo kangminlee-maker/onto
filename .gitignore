@@ -13,7 +13,6 @@
 .onto/temp/
 .onto/config.yml
 .onto-review/
-.claude-plugin/
 .claude/
 
 # evolve scope artifacts (ephemeral design sessions)

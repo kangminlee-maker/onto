@@ -629,6 +629,14 @@ function buildNoHostDetectedError(): Error {
  * When the topology resolves, the returned descriptor is the
  * `plan_trace`-stripped subset suitable for JSON transmission
  * (see `toCoordinatorTopologyDescriptor`).
+ *
+ * Note on `review: {}`: unlike `validateProfileCompleteness` and
+ * `detectLegacyFieldUsage` (which use `hasReviewBlock` to reject an
+ * empty object), dispatch treats an empty review block the same as
+ * an absent one — the resolver's main_native degrade path handles
+ * both identically. Practically this asymmetry never surfaces because
+ * an empty review block fails `validateProfileCompleteness` and
+ * `resolveConfigChain` throws before dispatch is reached.
  */
 export function tryResolveTopologyForHandoff(
   ontoConfig: OntoConfig | undefined,
@@ -701,8 +709,9 @@ function emitCoordinatorStartHandoff(args: {
   if (args.topology) {
     payload.topology = args.topology;
     payload.next_action.orchestration_guidance.topology_note =
-      `Resolver 가 topology="${args.topology.id}" 를 도출했습니다 ` +
-      `(axis-first via review axis block, 또는 main_native degrade 경로). ` +
+      `Resolver 가 topology="${args.topology.id}" 를 선택했습니다. ` +
+      `세부 도출 경로 (axis-first / main_native degrade) 는 STDERR ` +
+      `\`[topology]\` trace 를 참고하세요. ` +
       `teamlead_location="${args.topology.teamlead_location}", ` +
       `lens_spawn_mechanism="${args.topology.lens_spawn_mechanism}", ` +
       `deliberation_channel="${args.topology.deliberation_channel}". ` +
@@ -742,6 +751,13 @@ function emitCoordinatorStartHandoff(args: {
  *
  * Successful dispatch emits a `[plan:executor]` STDERR line so
  * operators can verify the topology→binary mapping.
+ *
+ * Note on `review: {}`: same as `tryResolveTopologyForHandoff` —
+ * dispatch treats an empty review block identically to an absent one
+ * (main_native degrade handles both). The asymmetry with
+ * `hasReviewBlock`-based consumers (validation / legacy-bypass) is
+ * masked upstream by `validateProfileCompleteness` + `resolveConfigChain`
+ * rejecting empty review blocks at config load time.
  */
 export function tryTopologyDerivedExecutor(
   ontoConfig: OntoConfig | undefined,

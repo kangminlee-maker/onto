@@ -61,6 +61,7 @@
  */
 
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -110,6 +111,14 @@ export interface CodexNestedTeamleadInput {
    * Defaults to 600_000 (10 minutes) — codex nested stack can be slow.
    */
   timeout_ms?: number;
+  /**
+   * Path to tee outer codex stdout into as it streams. Enables a
+   * `tail -f` watcher pane to render live progress. Absent → final
+   * archival only (batch write by `executeReviewViaCodexNested`).
+   */
+  stream_stdout_path?: string;
+  /** Same as `stream_stdout_path` but for stderr. */
+  stream_stderr_path?: string;
 }
 
 export interface CodexNestedTeamleadResult {
@@ -255,7 +264,13 @@ function buildNestedDispatchScript(input: CodexNestedTeamleadInput): string {
     'for entry in "${LENSES[@]}"; do',
     '  IFS="|" read -r LENS_ID PACKET OUTPUT <<< "$entry"',
     "  (",
-    '    LOG="$TMPDIR/$LENS_ID.log"',
+    "    # Running log lives under the lens output directory (sessionRoot",
+    "    # /round1) so the watcher pane can `tail -f` it as codex emits",
+    "    # reasoning / tool calls / tokens-used. Hidden filename (leading",
+    "    # dot) keeps it out of the principal-facing lens output listing.",
+    '    OUTPUT_DIR="$(dirname "$OUTPUT")"',
+    '    mkdir -p "$OUTPUT_DIR"',
+    '    LOG="$OUTPUT_DIR/.$LENS_ID.running.log"',
     '    STAT="$TMPDIR/$LENS_ID.status"',
     '    echo "ENV-BEFORE lens=$LENS_ID packet=$PACKET output=$OUTPUT" >> "$LOG"',
     `    cat "$PACKET" | codex exec \\`,
@@ -272,16 +287,15 @@ function buildNestedDispatchScript(input: CodexNestedTeamleadInput): string {
     "    fi",
     '    echo "ENV-AFTER lens=$LENS_ID exit=$EC output_bytes=$SIZE" >> "$LOG"',
     '    if [ "$EC" = "0" ] && [ "$SIZE" -gt 0 ]; then',
+    "      # Success — remove the now-noisy running log; lens output itself",
+    "      # (round1/<lens>.md) holds the principal-facing result.",
+    '      rm -f "$LOG"',
     '      printf \'{"lens_id":"%s","status":"ok"}\' "$LENS_ID" > "$STAT"',
     "    else",
-    "      # Lens failed — persist a tail of the per-lens log under the",
-    "      # lens output directory (sessionRoot/round1) so it survives",
-    "      # TMPDIR cleanup. Best-effort; if output dir does not exist",
-    "      # yet, skip silently.",
-    '      OUTPUT_DIR="$(dirname "$OUTPUT")"',
-    '      if [ -d "$OUTPUT_DIR" ]; then',
-    '        tail -200 "$LOG" > "$OUTPUT_DIR/.$LENS_ID.nested-stderr.log" 2>/dev/null || true',
-    "      fi",
+    "      # Failure — rename the running log to the audit-persisted path",
+    "      # so post-hoc inspection can answer 'what actually failed inside",
+    "      # this lens run?' even after outer dispatch exits.",
+    '      mv "$LOG" "$OUTPUT_DIR/.$LENS_ID.nested-stderr.log" 2>/dev/null || true',
     '      printf \'{"lens_id":"%s","status":"fail","error":"exit=%s size=%s"}\' \\',
     '        "$LENS_ID" "$EC" "$SIZE" > "$STAT"',
     "    fi",
@@ -417,6 +431,17 @@ export async function spawnOuterCodex(
     model?: string;
     /** `-c model_reasoning_effort=<value>` override. Absent → TOML default. */
     reasoning_effort?: string;
+    /**
+     * Optional path to tee outer codex stdout into as the subprocess
+     * emits data. When set, each stdout chunk is appended to this file
+     * in real time so a `tail -f` watcher pane can render progress as
+     * it happens. The in-memory `stdout` string is still returned for
+     * final archival. Absent → memory-only capture (batch write via
+     * archiveOuterStreams after dispatch completes).
+     */
+    stream_stdout_path?: string;
+    /** Same as `stream_stdout_path` but for stderr. */
+    stream_stderr_path?: string;
   },
 ): Promise<SpawnOuterCodexResult> {
   // Outer codex must respect `.onto/config.yml` overrides (model / effort) —
@@ -442,13 +467,26 @@ export async function spawnOuterCodex(
     stdio: ["pipe", "pipe", "pipe"],
   });
 
+  // Real-time tee to disk: chunks land on the on-disk log as codex emits
+  // them, which is what lets `tail -f` in the watcher pane render progress
+  // live. The in-memory buffers remain the source of truth for the final
+  // archive / summary parse.
+  const stdoutStream = options.stream_stdout_path
+    ? fs.createWriteStream(options.stream_stdout_path, { flags: "w" })
+    : null;
+  const stderrStream = options.stream_stderr_path
+    ? fs.createWriteStream(options.stream_stderr_path, { flags: "w" })
+    : null;
+
   let stdout = "";
   let stderr = "";
   child.stdout.on("data", (chunk: Buffer | string) => {
     stdout += String(chunk);
+    if (stdoutStream) stdoutStream.write(chunk);
   });
   child.stderr.on("data", (chunk: Buffer | string) => {
     stderr += String(chunk);
+    if (stderrStream) stderrStream.write(chunk);
   });
   child.stdin.write(prompt);
   child.stdin.end();
@@ -479,6 +517,11 @@ export async function spawnOuterCodex(
     });
   });
 
+  // Flush & close real-time tee streams before returning so tail -f readers
+  // see final bytes and the archive step finds a complete file.
+  if (stdoutStream) stdoutStream.end();
+  if (stderrStream) stderrStream.end();
+
   return { stdout, stderr, exit_code: exitCode, timed_out: timedOut };
 }
 
@@ -506,6 +549,12 @@ export async function runCodexNestedTeamlead(
     ...(input.model ? { model: input.model } : {}),
     ...(input.reasoning_effort
       ? { reasoning_effort: input.reasoning_effort }
+      : {}),
+    ...(input.stream_stdout_path
+      ? { stream_stdout_path: input.stream_stdout_path }
+      : {}),
+    ...(input.stream_stderr_path
+      ? { stream_stderr_path: input.stream_stderr_path }
       : {}),
   });
 

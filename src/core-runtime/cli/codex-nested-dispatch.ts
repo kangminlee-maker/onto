@@ -270,6 +270,12 @@ export async function executeReviewViaCodexNested(
 
   const spawnConfig = resolveCodexSpawnConfig(args.ontoConfig);
 
+  // Stream paths live under sessionRoot so the watcher pane can `tail -f`
+  // them from the moment the outer codex starts emitting, instead of
+  // waiting for the post-hoc `archiveOuterStreams` batch write.
+  const streamStdoutPath = path.join(args.sessionRoot, "nested-outer-stdout.log");
+  const streamStderrPath = path.join(args.sessionRoot, "nested-outer-stderr.log");
+
   const nestedResult = await runImpl({
     lenses,
     ...(spawnConfig.model ? { model: spawnConfig.model } : {}),
@@ -277,14 +283,16 @@ export async function executeReviewViaCodexNested(
     ...(args.projectRoot ? { project_root: args.projectRoot } : {}),
     ...(typeof args.timeout_ms === "number" ? { timeout_ms: args.timeout_ms } : {}),
     ...(args.codex_bin ? { codex_bin: args.codex_bin } : {}),
+    stream_stdout_path: streamStdoutPath,
+    stream_stderr_path: streamStderrPath,
   });
 
-  // Archive the outer codex's stdout/stderr to session artifacts. The outer
-  // stream carries the ENV-BEFORE / ENV-AFTER diagnostics and the
-  // LENS_DISPATCH_SUMMARY sentinel — valuable for post-hoc auditing of
-  // "what environment each lens actually ran in". review-invoke's final
-  // JSON does not propagate `nested_raw`, so without this archive step
-  // the outer trace would be unrecoverable once the session ends.
+  // Archive the outer codex's stdout/stderr. When streaming was active
+  // (stream_*_path set above), the files already carry the content —
+  // this archive step becomes a no-op overwrite with the same bytes from
+  // the in-memory buffer, so the file is guaranteed complete even if
+  // the stream flush was interrupted. Keep it as a defense-in-depth
+  // guarantee rather than the primary write path.
   await archiveOuterStreams(args.sessionRoot, nestedResult);
 
   const participating: string[] = [];

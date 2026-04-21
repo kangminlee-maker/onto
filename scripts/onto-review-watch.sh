@@ -99,6 +99,12 @@ SESSION_ROOT="$(cd "$SESSION_ROOT" && pwd)"
 ERROR_LOG="$SESSION_ROOT/error-log.md"
 FINAL_OUTPUT="$SESSION_ROOT/final-output.md"
 SESSION_ID="$(basename "$SESSION_ROOT")"
+# Real-time outer codex stream (codex-nested-subprocess topology only).
+# spawn-watcher/teamlead-executor tee the outer codex stdout into this
+# file as it emits; open in a side pane with `tail -f` to see live
+# reasoning / tool calls / ENV-BEFORE / ENV-AFTER / summary sentinel.
+# The file is absent for non-nested topologies (cc-* / codex-main-*).
+NESTED_OUTER_STDOUT="$SESSION_ROOT/nested-outer-stdout.log"
 
 # ANSI colors (only if TTY)
 if [ -t 1 ]; then
@@ -158,6 +164,16 @@ print_header() {
     [ -n "${profile:-}" ]    && echo "  Profile: ${C_DIM}${profile}${C_RESET}"
   fi
   echo "${C_CYAN}════════════════════════════════════════════════════════════════${C_RESET}"
+  # If the outer codex real-time stream is available for this session,
+  # surface its path so the principal can open a side pane on it with
+  # `tail -f`. The main watcher pane continues rendering the error-log
+  # event stream; this hint exposes the raw codex reasoning/tool trace
+  # that would otherwise only appear after dispatch completes.
+  if [ -f "$NESTED_OUTER_STDOUT" ] || [ -e "$SESSION_ROOT/execution-plan.yaml" ]; then
+    echo "  ${C_DIM}Outer codex live stream (nested topology only):${C_RESET}"
+    echo "  ${C_DIM}  tail -f '${NESTED_OUTER_STDOUT}'${C_RESET}"
+    echo "${C_CYAN}════════════════════════════════════════════════════════════════${C_RESET}"
+  fi
   echo ""
 }
 

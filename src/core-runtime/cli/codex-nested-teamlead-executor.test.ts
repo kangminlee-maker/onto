@@ -127,14 +127,29 @@ describe("buildNestedTeamleadPrompt", () => {
     expect(prompt).toMatch(/\)\s*&\s*\ndone\s*\n\s*wait/);
   });
 
-  it("persists per-lens stderr tail next to lens output on failure", () => {
-    // Regression guard for review finding #2: post-hoc audit needs to
-    // answer "what failed inside this lens run?" even after the outer
-    // dispatch TMPDIR is cleaned up. The script must copy a bounded
-    // tail to <OUTPUT_DIR>/.<lens>.nested-stderr.log on failure.
+  it("persists per-lens running log as nested-stderr.log on failure", () => {
+    // Regression guard: post-hoc audit needs to answer "what failed
+    // inside this lens run?" after dispatch exits. Now that the running
+    // log lives under sessionRoot/round1 for real-time tail -f, the
+    // failure path simply renames it to .<lens>.nested-stderr.log; the
+    // success path removes it. Previous `tail -200` bounded copy is no
+    // longer necessary since the source log is already file-system
+    // resident at the destination directory.
     const prompt = buildNestedTeamleadPrompt({ lenses: LENSES });
-    expect(prompt).toContain("nested-stderr.log");
-    expect(prompt).toContain("tail -200");
+    expect(prompt).toContain(".nested-stderr.log");
+    expect(prompt).toContain(".running.log");
+  });
+
+  it("writes per-lens running log under sessionRoot (not TMPDIR) for live tail -f", () => {
+    // Regression guard for commit 5 streaming: per-lens $LOG must live
+    // under OUTPUT_DIR (sessionRoot/round1) so the watcher pane can
+    // tail it as codex emits. Keeping $LOG in TMPDIR would revert to
+    // post-hoc-only visibility.
+    const prompt = buildNestedTeamleadPrompt({ lenses: LENSES });
+    expect(prompt).toContain('LOG="$OUTPUT_DIR/.$LENS_ID.running.log"');
+    // $STAT remains in TMPDIR (short-lived handoff from lens subshell
+    // to the summary emitter; no value to the watcher).
+    expect(prompt).toContain('STAT="$TMPDIR/$LENS_ID.status"');
   });
 });
 
@@ -340,5 +355,38 @@ describe("runCodexNestedTeamlead", () => {
     expect(captured).not.toBeNull();
     expect(captured!.model).toBeUndefined();
     expect(captured!.reasoning_effort).toBeUndefined();
+  });
+
+  it("forwards stream_stdout_path and stream_stderr_path to spawn options", async () => {
+    // Regression guard for real-time watcher streaming: if these fields
+    // drop, the outer codex stdout/stderr fall back to memory-only
+    // capture and the watcher pane's tail -f hint loses its target.
+    let captured: Parameters<NonNullable<SpawnArgs>>[1] | null = null;
+    const capturingSpawn: NonNullable<SpawnArgs> = async (_prompt, options) => {
+      captured = options;
+      return { stdout: "", stderr: "", exit_code: 0, timed_out: false };
+    };
+    const input: CodexNestedTeamleadInput = {
+      lenses: LENSES.slice(0, 1),
+      stream_stdout_path: "/tmp/fake/nested-outer-stdout.log",
+      stream_stderr_path: "/tmp/fake/nested-outer-stderr.log",
+    };
+    await runCodexNestedTeamlead(input, capturingSpawn);
+    expect(captured).not.toBeNull();
+    expect(captured!.stream_stdout_path).toBe("/tmp/fake/nested-outer-stdout.log");
+    expect(captured!.stream_stderr_path).toBe("/tmp/fake/nested-outer-stderr.log");
+  });
+
+  it("omits stream_*_path from spawn options when unset (memory-only capture)", async () => {
+    let captured: Parameters<NonNullable<SpawnArgs>>[1] | null = null;
+    const capturingSpawn: NonNullable<SpawnArgs> = async (_prompt, options) => {
+      captured = options;
+      return { stdout: "", stderr: "", exit_code: 0, timed_out: false };
+    };
+    const input: CodexNestedTeamleadInput = { lenses: LENSES.slice(0, 1) };
+    await runCodexNestedTeamlead(input, capturingSpawn);
+    expect(captured).not.toBeNull();
+    expect(captured!.stream_stdout_path).toBeUndefined();
+    expect(captured!.stream_stderr_path).toBeUndefined();
   });
 });

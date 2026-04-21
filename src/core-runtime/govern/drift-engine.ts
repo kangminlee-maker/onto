@@ -15,6 +15,7 @@
  */
 
 import { appendQueueEvent, generateGovernId, resolveQueuePath } from "./queue.js";
+import { startsWithDirPrefix } from "../discovery/path-normalization.js";
 import type { GovernSubmitEvent } from "./types.js";
 
 export type DriftRoute = "self_apply" | "queue" | "principal_direct";
@@ -39,11 +40,33 @@ export interface RouteOutcome {
   queue_path?: string;
 }
 
-const GOVERNANCE_CORE_PREFIXES: readonly string[] = [
-  "authority/",
-  ".onto/principles/",
-  ".onto/processes/govern.md",
+/**
+ * Governance core directory prefixes — both canonical (.onto/) and legacy
+ * (top-level) forms accepted during the Phase 5+ migration window.
+ * `.onto/authority/` is included pre-emptively for Phase 6.
+ *
+ * Segment boundaries are enforced via `startsWithDirPrefix` so a prefix
+ * of `authority/` does not match a stray `authorityX/` path.
+ */
+const GOVERNANCE_CORE_DIR_PREFIXES: readonly string[] = [
+  ".onto/authority/", // Phase 6 canonical
+  "authority/", // Phase 6 legacy (still in use)
+  ".onto/principles/", // Phase 5 canonical
+  "design-principles/", // Phase 5 legacy
 ];
+
+/** Exact file paths treated as governance core (not directory prefixes). */
+const GOVERNANCE_CORE_FILES: readonly string[] = [
+  ".onto/processes/govern.md",
+  "processes/govern.md", // legacy fallback, matches live resolver dual-path
+];
+
+function isGovernanceCoreTarget(filePath: string): boolean {
+  if (GOVERNANCE_CORE_FILES.includes(filePath)) return true;
+  return GOVERNANCE_CORE_DIR_PREFIXES.some((prefix) =>
+    startsWithDirPrefix(filePath, prefix),
+  );
+}
 
 /**
  * §1.3 3 분기 deterministic 분류.
@@ -54,15 +77,13 @@ const GOVERNANCE_CORE_PREFIXES: readonly string[] = [
  *   3. queue: 그 외 전부 (drift 증폭 가능성 default)
  */
 export function classifyProposal(proposal: ChangeProposal): DriftDecision {
-  const hasGovernanceCore = proposal.target_files.some((f) =>
-    GOVERNANCE_CORE_PREFIXES.some((prefix) => f.startsWith(prefix)),
-  );
+  const hasGovernanceCore = proposal.target_files.some(isGovernanceCoreTarget);
   if (hasGovernanceCore) {
     return {
       route: "principal_direct",
       matched_rule: "governance_core",
       reason:
-        "target 에 governance core (authority/, .onto/principles/, .onto/processes/govern.md) 가 포함됨. §1.3 Principal 직접 분기.",
+        "target 에 governance core (authority/ 또는 .onto/authority/, design-principles/ 또는 .onto/principles/, processes/govern.md 또는 .onto/processes/govern.md) 가 포함됨. §1.3 Principal 직접 분기.",
     };
   }
 

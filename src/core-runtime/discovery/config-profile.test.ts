@@ -49,50 +49,48 @@ describe("validateProfileCompleteness — untouched", () => {
   });
 });
 
-describe("validateProfileCompleteness — topology_priority is the canonical signal", () => {
-  it("execution_topology_priority set → complete, touched", () => {
+describe("validateProfileCompleteness — review block is the canonical signal (P9.2)", () => {
+  it("review block set → complete, touched", () => {
     const v = validateProfileCompleteness({
-      execution_topology_priority: ["cc-main-agent-subagent"],
+      review: { subagent: { provider: "main-native" } },
     });
     expect(v.complete).toBe(true);
     expect(v.touched).toBe(true);
     expect(v.reasons).toEqual([]);
   });
 
-  it("topology_priority + per-provider block → complete (topology resolver validates at runtime)", () => {
+  it("review block + per-provider block → complete (topology resolver validates at runtime)", () => {
     const v = validateProfileCompleteness({
-      execution_topology_priority: ["codex-main-subprocess"],
+      review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
       codex: { model: "gpt-5.4", effort: "high" },
     });
     expect(v.complete).toBe(true);
   });
 
-  it("topology_priority + litellm block → complete", () => {
+  it("review block + litellm block → complete", () => {
     const v = validateProfileCompleteness({
-      execution_topology_priority: ["cc-teams-litellm-sessions"],
+      review: { subagent: { provider: "litellm", model_id: "llama-8b" } },
       litellm: { model: "llama-8b" },
       llm_base_url: "http://localhost:4000",
     });
     expect(v.complete).toBe(true);
   });
 
-  it("empty topology_priority array → falls through to per-profile check", () => {
-    const v = validateProfileCompleteness({
-      execution_topology_priority: [],
-    });
+  it("review absent → falls through to per-profile check", () => {
+    const v = validateProfileCompleteness({});
     expect(v.complete).toBe(false);
     expect(v.touched).toBe(false);
   });
 });
 
-describe("validateProfileCompleteness — profile fields without topology_priority", () => {
-  it("per-provider block touched but no topology_priority → incomplete with migration hint", () => {
+describe("validateProfileCompleteness — profile fields without review block", () => {
+  it("per-provider block touched but no review block → incomplete with migration hint", () => {
     const v = validateProfileCompleteness({
       codex: { model: "gpt-5.4" },
     });
     expect(v.complete).toBe(false);
     expect(v.touched).toBe(true);
-    expect(v.reasons[0]).toContain("execution_topology_priority");
+    expect(v.reasons[0]).toContain("`review:` axis block");
     expect(v.reasons[0]).toContain("migration");
   });
 
@@ -102,7 +100,7 @@ describe("validateProfileCompleteness — profile fields without topology_priori
     });
     expect(v.complete).toBe(false);
     expect(v.touched).toBe(true);
-    expect(v.reasons[0]).toContain("execution_topology_priority");
+    expect(v.reasons[0]).toContain("`review:` axis block");
   });
 });
 
@@ -136,16 +134,16 @@ function buildArgs(home: OntoConfig, project: OntoConfig) {
 }
 
 describe("adoptProfile — decision branches", () => {
-  it("Case 1: project complete via topology_priority → source=project, no notice", () => {
+  it("Case 1: project complete via review block → source=project, no notice", () => {
     const adoption = adoptProfile(
       buildArgs(
         {
-          execution_topology_priority: ["codex-main-subprocess"],
+          review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
           codex: { model: "gpt-5.4" },
           reasoning_effort: "high",
         },
         {
-          execution_topology_priority: ["cc-main-agent-subagent"],
+          review: { subagent: { provider: "main-native" } },
           anthropic: { model: "claude-haiku-4-5" },
         },
       ),
@@ -163,10 +161,10 @@ describe("adoptProfile — decision branches", () => {
     const adoption = adoptProfile(
       buildArgs(
         {
-          execution_topology_priority: ["codex-main-subprocess"],
+          review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
           codex: { model: "gpt-5.4" },
         },
-        { anthropic: { model: "claude-haiku-4-5" } /* missing topology_priority */ },
+        { anthropic: { model: "claude-haiku-4-5" } /* missing review block */ },
       ),
     );
     expect(adoption.source).toBe("global");
@@ -175,18 +173,18 @@ describe("adoptProfile — decision branches", () => {
     expect(adoption.notice).toContain("Project config 가 불완전");
     expect(adoption.notice).toContain(PROJECT_PATH);
     expect(adoption.notice).toContain(HOME_PATH);
-    expect(adoption.notice).toContain("execution_topology_priority");
+    expect(adoption.notice).toContain("`review:` axis block");
     // Adopted profile is from HOME atomically
     expect(adoption.profile.codex).toEqual({ model: "gpt-5.4" });
-    // Home's topology_priority is orthogonal, NOT part of the profile slice.
-    expect(adoption.profile.execution_topology_priority).toBeUndefined();
+    // Home's review block is orthogonal, NOT part of the profile slice.
+    expect(adoption.profile.review).toBeUndefined();
   });
 
   it("Case 3: project absent + home complete → source=global, no notice", () => {
     const adoption = adoptProfile(
       buildArgs(
         {
-          execution_topology_priority: ["codex-main-subprocess"],
+          review: { subagent: { provider: "codex", model_id: "gpt-5.4" } },
           codex: { model: "gpt-5.4" },
         },
         {}, // absent / empty
@@ -200,8 +198,8 @@ describe("adoptProfile — decision branches", () => {
   it("Case 4: project complete + home incomplete → source=project (project owns)", () => {
     const adoption = adoptProfile(
       buildArgs(
-        { anthropic: { model: "claude-haiku-4-5" } /* touched, no topology */ },
-        { execution_topology_priority: ["codex-main-subprocess"] },
+        { anthropic: { model: "claude-haiku-4-5" } /* touched, no review block */ },
+        { review: { subagent: { provider: "codex", model_id: "gpt-5.4" } } },
       ),
     );
     expect(adoption.source).toBe("project");
@@ -211,8 +209,8 @@ describe("adoptProfile — decision branches", () => {
   it("Case 5: both incomplete → source=none (caller throws)", () => {
     const adoption = adoptProfile(
       buildArgs(
-        { anthropic: { model: "claude-haiku-4-5" } /* missing topology */ },
-        { litellm: { model: "llama-8b" } /* missing topology */ },
+        { anthropic: { model: "claude-haiku-4-5" } /* missing review block */ },
+        { litellm: { model: "llama-8b" } /* missing review block */ },
       ),
     );
     expect(adoption.source).toBe("none");
@@ -233,14 +231,14 @@ describe("buildBothIncompleteError", () => {
   it("includes all 4 canonical topology options + both paths + per-side reasons + migration guide", () => {
     const err = buildBothIncompleteError(
       buildArgs({}, { anthropic: { model: "claude-haiku-4-5" } }),
-      { complete: false, touched: true, reasons: ["execution_topology_priority 가 없음"] },
+      { complete: false, touched: true, reasons: ["`review:` axis block 이 없음"] },
       { complete: false, touched: false, reasons: [] },
     );
     const msg = err.message;
     expect(msg).toContain("Review profile 을 해소할 수 없습니다");
     expect(msg).toContain(PROJECT_PATH);
     expect(msg).toContain(HOME_PATH);
-    expect(msg).toContain("execution_topology_priority 가 없음");
+    expect(msg).toContain("`review:` axis block 이 없음");
     expect(msg).toContain("파일이 없거나"); // for home untouched
     expect(msg).toContain("topology-migration-guide.md");
     expect(msg).toContain("Option A — Codex");
@@ -284,29 +282,27 @@ describe("mergeOrthogonalFields", () => {
     expect(merged.review_mode).toBe("full");
   });
 
-  it("passes execution_topology_priority through as orthogonal", () => {
+  it("passes review block through as orthogonal (P9.2 — was execution_topology_priority pre-removal)", () => {
     const merged = mergeOrthogonalFields(
-      { execution_topology_priority: ["codex-main-subprocess"] },
-      { execution_topology_priority: ["cc-main-agent-subagent"] },
+      { review: { subagent: { provider: "codex", model_id: "gpt-5.4" } } },
+      { review: { subagent: { provider: "main-native" } } },
     );
     // Last-wins: project overrides home.
-    expect(merged.execution_topology_priority).toEqual(["cc-main-agent-subagent"]);
+    expect(merged.review).toEqual({ subagent: { provider: "main-native" } });
   });
 });
 
 // ─── Regression: post-PR-K migrated config should be adoptable ───
 
-describe("regression — migrated sketch v3 config", () => {
-  it("project declares topology_priority + codex block → project owns without host_runtime", () => {
+describe("regression — migrated Review UX Redesign config", () => {
+  it("project declares review block + codex block → project owns without host_runtime", () => {
     const adoption = adoptProfile(
       buildArgs(
         {}, // empty global
         {
-          execution_topology_priority: [
-            "cc-main-codex-subprocess",
-            "codex-main-subprocess",
-            "codex-nested-subprocess",
-          ],
+          review: {
+            subagent: { provider: "codex", model_id: "gpt-5.4", effort: "medium" },
+          },
           codex: { model: "gpt-5.4", effort: "medium" },
           review_mode: "core-axis",
         },

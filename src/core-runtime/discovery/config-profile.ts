@@ -115,8 +115,10 @@ export interface ProfileValidation {
 export function validateProfileCompleteness(
   config: OntoConfig,
 ): ProfileValidation {
-  const topologyPriority = config.execution_topology_priority;
-  if (Array.isArray(topologyPriority) && topologyPriority.length > 0) {
+  // P9.2 (2026-04-21): completeness signal migrated from
+  // `execution_topology_priority` (removed) to `review:` axis block.
+  // Any non-empty review declaration counts as a complete profile.
+  if (config.review !== undefined) {
     return { complete: true, touched: true, reasons: [] };
   }
 
@@ -129,7 +131,7 @@ export function validateProfileCompleteness(
     complete: false,
     touched,
     reasons: [
-      "execution_topology_priority 가 없음. sketch v3 migration 필요 (docs/topology-migration-guide.md 참고).",
+      "`review:` axis block 이 없음. Review UX Redesign migration 필요 (docs/topology-migration-guide.md §7 참고).",
     ],
   };
 }
@@ -304,7 +306,7 @@ function buildProjectIncompleteNotice(
   lines.push("");
   lines.push(`  Project config 수정 방법: ${args.projectPath} 편집.`);
   lines.push(
-    "  예: execution_topology_priority 를 설정하거나, 파일에서 profile 필드 전체를 제거해 global 을 사용합니다.",
+    "  예: `review:` axis block 을 설정하거나, 파일에서 profile 필드 전체를 제거해 global 을 사용합니다.",
   );
   lines.push("");
   return lines.join("\n") + "\n";
@@ -353,28 +355,33 @@ export function buildBothIncompleteError(
   lines.push("Migration guide: docs/topology-migration-guide.md");
   lines.push("");
   lines.push("Option A — Codex CLI (ChatGPT OAuth subscription):");
-  lines.push("  execution_topology_priority:");
-  lines.push("    - cc-main-codex-subprocess");
-  lines.push("    - codex-main-subprocess");
-  lines.push("    - codex-nested-subprocess");
+  lines.push("  review:");
+  lines.push("    subagent:");
+  lines.push("      provider: codex");
+  lines.push("      model_id: gpt-5.4");
+  lines.push("      effort: high");
   lines.push("  codex:");
   lines.push("    model: gpt-5.4");
   lines.push("    effort: high");
   lines.push("  # 전제: codex 바이너리 설치 + `codex login`");
   lines.push("");
   lines.push("Option B — Claude Code Agent tool (nested subagent):");
-  lines.push("  execution_topology_priority:");
-  lines.push("    - cc-main-agent-subagent");
+  lines.push("  review:");
+  lines.push("    subagent:");
+  lines.push("      provider: main-native");
   lines.push("  # 전제: Claude Code 세션 안에서 실행");
   lines.push("");
   lines.push("Option C — Claude Code TeamCreate (experimental):");
-  lines.push("  execution_topology_priority:");
-  lines.push("    - cc-teams-agent-subagent");
+  lines.push("  review:");
+  lines.push("    subagent:");
+  lines.push("      provider: main-native");
   lines.push("  # 전제: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1");
   lines.push("");
   lines.push("Option D — LiteLLM proxy (로컬 모델 등):");
-  lines.push("  execution_topology_priority:");
-  lines.push("    - cc-teams-litellm-sessions");
+  lines.push("  review:");
+  lines.push("    subagent:");
+  lines.push("      provider: litellm");
+  lines.push("      model_id: llama-8b");
   lines.push("  llm_base_url: http://localhost:4000");
   lines.push("  litellm:");
   lines.push("    model: llama-8b");
@@ -391,10 +398,11 @@ function summarizeProfile(config: OntoConfig): string | null {
   const parts: string[] = [];
   if (config.external_http_provider)
     parts.push(`external_http_provider=${config.external_http_provider}`);
-  if (config.execution_topology_priority?.length) {
-    parts.push(
-      `topology_priority=[${config.execution_topology_priority.join(",")}]`,
-    );
+  if (config.review) {
+    const subagent = config.review.subagent
+      ? `subagent=${config.review.subagent.provider}`
+      : "subagent=(default)";
+    parts.push(`review=[${subagent}]`);
   }
   const modelForHost =
     config.anthropic?.model ||

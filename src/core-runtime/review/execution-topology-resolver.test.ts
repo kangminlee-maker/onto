@@ -80,17 +80,17 @@ const REVIEW_BLOCK_MAIN_NATIVE: NonNullable<ResolveArgs["ontoConfig"]["review"]>
 };
 
 // ---------------------------------------------------------------------------
-// (3) execution_topology_overrides — max_concurrent_lenses only
+// (3) review.max_concurrent_lenses — canonical concurrency override (P9.2)
 // ---------------------------------------------------------------------------
 
-describe("resolveExecutionTopology — execution_topology_overrides", () => {
-  it("max_concurrent_lenses override takes effect and logs the change", () => {
+describe("resolveExecutionTopology — review.max_concurrent_lenses override", () => {
+  it("positive review.max_concurrent_lenses takes effect and logs the change", () => {
     const res = resolveExecutionTopology(
       withSignals({
         ontoConfig: {
-          review: REVIEW_BLOCK_MAIN_NATIVE,
-          execution_topology_overrides: {
-            "cc-main-agent-subagent": { max_concurrent_lenses: 6 },
+          review: {
+            ...REVIEW_BLOCK_MAIN_NATIVE,
+            max_concurrent_lenses: 6,
           },
         },
         claudeHost: true,
@@ -101,24 +101,29 @@ describe("resolveExecutionTopology — execution_topology_overrides", () => {
     expect(resolved.topology.max_concurrent_lenses).toBe(6);
     expect(
       resolved.topology.plan_trace.some((l) =>
-        l.includes("override max_concurrent_lenses 10 → 6"),
+        l.includes("override max_concurrent_lenses 10 → 6 (via review.max_concurrent_lenses)"),
       ),
     ).toBe(true);
   });
 
-  it("override with zero/negative is ignored (falls back to catalog default)", () => {
+  it("zero/negative review.max_concurrent_lenses is ignored with a warning log", () => {
     const res = resolveExecutionTopology(
       withSignals({
         ontoConfig: {
-          review: REVIEW_BLOCK_MAIN_NATIVE,
-          execution_topology_overrides: {
-            "cc-main-agent-subagent": { max_concurrent_lenses: 0 },
+          review: {
+            ...REVIEW_BLOCK_MAIN_NATIVE,
+            max_concurrent_lenses: 0,
           },
         },
         claudeHost: true,
       }),
     );
     const resolved = expectResolved(res);
+    expect(
+      resolved.topology.plan_trace.some((l) =>
+        l.includes("review.max_concurrent_lenses=0 ignored (must be positive integer)"),
+      ),
+    ).toBe(true);
     expect(resolved.topology.max_concurrent_lenses).toBe(10);
   });
 });
@@ -322,30 +327,9 @@ describe("resolveExecutionTopology — P9.1 ladder retirement", () => {
     );
   });
 
-  it("legacy execution_topology_priority in config is acknowledged but ignored", () => {
-    // Even with a priority array that names a specific id, the resolver
-    // MUST NOT walk it. Under a Claude host with no `config.review`, the
-    // main_native degrade picks cc-main-agent-subagent. The legacy array
-    // value (`codex-nested-subprocess`) is never selected.
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["codex-nested-subprocess"],
-        },
-        claudeHost: true,
-        codexAvailable: true, // would make codex-nested viable under old ladder
-      }),
-    );
-    const resolved = expectResolved(res);
-    expect(resolved.topology.id).toBe("cc-main-agent-subagent");
-    expect(
-      resolved.topology.plan_trace.some((l) =>
-        l.includes(
-          "legacy execution_topology_priority present in config but ignored",
-        ),
-      ),
-    ).toBe(true);
-  });
+  // P9.2 (2026-04-21): the "legacy execution_topology_priority acknowledged
+  // but ignored" test was removed — the field no longer exists in `OntoConfig`,
+  // so TypeScript alone prevents its assignment. No runtime assertion needed.
 });
 
 // ---------------------------------------------------------------------------

@@ -54,8 +54,8 @@ import type { OntoConfig } from "./config-chain.js";
 
 /**
  * Keys on `OntoConfig` that sketch v3 treats as legacy provider-profile
- * selectors. Each implies a topology decision that the new
- * `execution_topology_priority` field expresses more cleanly.
+ * selectors. Each implies a topology decision that the `review:` axis
+ * block now expresses canonically (P9.2, 2026-04-21).
  */
 export const LEGACY_PROFILE_FIELDS = [
   "host_runtime",
@@ -70,8 +70,13 @@ export type LegacyProfileField = (typeof LEGACY_PROFILE_FIELDS)[number];
 export interface LegacyUsageDetection {
   /** The legacy fields present in the config, in catalog order. */
   detected: LegacyProfileField[];
-  /** `true` when the new topology priority field is also set. */
-  topology_priority_set: boolean;
+  /**
+   * `true` when the principal has migrated to the new `review:` axis
+   * block. Previously gated on `execution_topology_priority`; P9.2
+   * (2026-04-21) removed that field and migrated the silent-bypass
+   * signal to the `review:` block.
+   */
+  review_block_set: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,10 +108,10 @@ export function detectLegacyFieldUsage(
       detected.push(field);
     }
   }
-  const priorityValue = raw.execution_topology_priority;
-  const topology_priority_set =
-    Array.isArray(priorityValue) && priorityValue.length > 0;
-  return { detected, topology_priority_set };
+  const reviewBlock = raw.review;
+  const review_block_set =
+    typeof reviewBlock === "object" && reviewBlock !== null;
+  return { detected, review_block_set };
 }
 
 // ---------------------------------------------------------------------------
@@ -175,13 +180,13 @@ export class LegacyFieldRemovedError extends Error {
       );
     }
     lines.push(
-      "[onto:legacy-removed] 해결: .onto/config.yml 에 `execution_topology_priority: [옵션]` 추가 후 legacy 필드 제거.",
+      "[onto:legacy-removed] 해결: .onto/config.yml 에 `review:` axis block 추가 후 legacy 필드 제거. `onto onboard --re-detect` 로 자동 생성 가능.",
     );
     lines.push(
       `[onto:legacy-removed] Migration guide: ${migrationGuide}`,
     );
     lines.push(
-      "[onto:legacy-removed] Principal 이 이미 marshalled topology_priority 를 남겼다면 legacy 필드를 유지해도 무방 (silent) — 그렇지 않은 경우 본 에러 발생.",
+      "[onto:legacy-removed] Principal 이 이미 `review:` 블록을 남겼다면 legacy 필드를 유지해도 무방 (silent) — 그렇지 않은 경우 본 에러 발생.",
     );
     super(lines.join("\n"));
     this.name = "LegacyFieldRemovedError";
@@ -205,7 +210,7 @@ export function emitLegacyFieldDeprecation(
   detection: LegacyUsageDetection,
 ): void {
   if (detection.detected.length === 0) return;
-  if (detection.topology_priority_set) return;
+  if (detection.review_block_set) return;
 
   const raw = config as Record<string, unknown>;
   const suggestions = detection.detected.map((field) => {

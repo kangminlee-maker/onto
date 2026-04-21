@@ -170,27 +170,6 @@ export interface OntoConfig {
   };
 
   /**
-   * @deprecated (P7, 2026-04-21) — Superseded by the `review:` axis block
-   * (`OntoReviewConfig`). The axis-first resolver branch always runs first
-   * and produces a topology via shape derivation; this legacy priority
-   * ladder is retained as a last-resort fallback only when the axis-first
-   * path + P3 universal fallback both fail to produce a TopologyId.
-   *
-   * Runtime removal is planned for a follow-up PR ("P9 runtime legacy
-   * cleanup"). Existing configs will continue to load until then — see
-   * `docs/topology-migration-guide.md` §7 for migration steps and
-   * `src/core-runtime/review/review-config-legacy-translate.ts` for the
-   * automatic translator.
-   *
-   * Valid ids (post-P7): cc-teams-lens-agent-deliberation,
-   * cc-teams-agent-subagent, cc-teams-codex-subprocess,
-   * cc-main-agent-subagent, cc-main-codex-subprocess,
-   * cc-teams-litellm-sessions, codex-nested-subprocess,
-   * codex-main-subprocess. (`generic-*` removed in P7.)
-   */
-  execution_topology_priority?: string[];
-
-  /**
    * Double opt-in for topology `cc-teams-lens-agent-deliberation` (sketch v3 §3).
    *
    * Even when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is set in the
@@ -203,21 +182,6 @@ export interface OntoConfig {
    * profile (see `config-profile.ts` PROFILE_FIELDS).
    */
   lens_agent_teams_mode?: boolean;
-
-  /**
-   * Per-topology `max_concurrent_lenses` override. Other topology
-   * attributes (teamlead location, spawn mechanism, transport rank,
-   * deliberation channel) are immutable by design — change the topology
-   * id to change them.
-   *
-   * Example:
-   *   execution_topology_overrides:
-   *     cc-main-agent-subagent:
-   *       max_concurrent_lenses: 6
-   *
-   * Orthogonal: does not participate in atomic profile adoption.
-   */
-  execution_topology_overrides?: Record<string, { max_concurrent_lenses?: number }>;
 
   /**
    * Review UX Redesign P1 (2026-04-20) — user-facing axis block.
@@ -390,16 +354,14 @@ export async function resolveConfigChain(
   // the generic `buildBothIncompleteError` setup guide instead of the
   // structured `LegacyFieldRemovedError` with per-field migration hints.
   //
-  // Silent path: principals who have migrated to `execution_topology_priority`
-  // in EITHER side (home or project) can retain legacy fields as historical
-  // artifacts. We inspect a pseudo-merged priority presence for this.
-  const topologyPriorityPresent =
-    (Array.isArray(homeConfig.execution_topology_priority) &&
-      homeConfig.execution_topology_priority.length > 0) ||
-    (Array.isArray(projectConfig.execution_topology_priority) &&
-      projectConfig.execution_topology_priority.length > 0);
-  const legacyCheckTarget = topologyPriorityPresent
-    ? ({ execution_topology_priority: ["__silent__"] } as unknown as OntoConfig)
+  // Silent path (P9.2, 2026-04-21 — was execution_topology_priority pre-P9.1):
+  // principals who have migrated to the `review:` axis block in EITHER side
+  // (home or project) can retain legacy fields as historical artifacts.
+  // We inspect merged review-block presence for this bypass.
+  const reviewBlockPresent =
+    homeConfig.review !== undefined || projectConfig.review !== undefined;
+  const legacyCheckTarget = reviewBlockPresent
+    ? ({ review: {} } as unknown as OntoConfig)
     : ({ ...homeConfig, ...projectConfig } as OntoConfig);
   checkAndEmitLegacyDeprecation(legacyCheckTarget);
 

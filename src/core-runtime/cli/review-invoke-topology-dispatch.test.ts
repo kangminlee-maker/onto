@@ -48,64 +48,55 @@ describe("tryTopologyDerivedExecutor — null paths (fall through)", () => {
     }
   });
 
-  it("no execution_topology_priority → null", () => {
+  it("no config.review block → null (opt-in gate blocks dispatch)", () => {
+    // P9.2 (2026-04-21): the opt-in gate is now `config.review` presence
+    // (was `execution_topology_priority` before field removal).
     const result = tryTopologyDerivedExecutor({}, FAKE_HOME);
-    expect(result).toBeNull();
-  });
-
-  it("empty execution_topology_priority array → null", () => {
-    const result = tryTopologyDerivedExecutor(
-      { execution_topology_priority: [] },
-      FAKE_HOME,
-    );
     expect(result).toBeNull();
   });
 
   it("missing ontoHome → null (required to resolve executor path)", () => {
     process.env.CLAUDECODE = "1";
     const result = tryTopologyDerivedExecutor(
-      { execution_topology_priority: ["cc-main-agent-subagent"] },
+      { review: { subagent: { provider: "main-native" } } },
       undefined,
     );
     expect(result).toBeNull();
   });
 
-  it("topology resolves to claude-agent-tool (cc-main-agent-subagent) → null (coordinator handoff is the seat)", () => {
+  it("review axis resolves to claude-agent-tool (cc-main-agent-subagent) → null (coordinator handoff is the seat)", () => {
     process.env.CLAUDECODE = "1";
     const result = tryTopologyDerivedExecutor(
-      { execution_topology_priority: ["cc-main-agent-subagent"] },
+      { review: { subagent: { provider: "main-native" } } },
       FAKE_HOME,
     );
     expect(result).toBeNull();
   });
 
-  it("topology resolves but no match → null (no_host case, legacy will emit its own error)", () => {
-    // CLAUDECODE unset, no codex signals. Priority lists only claude
-    // options — none will match.
+  it("review axis resolves but no host signals → null (no_host case)", () => {
+    // CLAUDECODE unset, no codex signals. Axis block derives to
+    // main_native shape but the mapping is unreachable — no_host.
     const result = tryTopologyDerivedExecutor(
-      {
-        execution_topology_priority: [
-          "cc-main-agent-subagent",
-          "cc-teams-agent-subagent",
-        ],
-      },
+      { review: { subagent: { provider: "main-native" } } },
       FAKE_HOME,
     );
     expect(result).toBeNull();
   });
 
-  it("topology resolves to codex-nested-subprocess → null (PR-H dispatch branch is the seat)", () => {
+  it("review axis resolves to codex-nested-subprocess → null (PR-H dispatch branch is the seat)", () => {
     // Nested codex requires only codexAvailable; but the mapping module
     // rejects it (its teamlead is codex-subprocess, not a per-lens binary).
-    // For this test we inject codex availability via config signal — the
-    // real PR-H wire-in will handle this topology directly in
-    // executeReviewPromptExecution.
     // Without CLAUDECODE and with no real codex binary on the test
     // machine's PATH the resolver will return no_host; that's fine —
     // the test asserts null regardless, which is correct PR-F behaviour
     // for nested topology anyway.
     const result = tryTopologyDerivedExecutor(
-      { execution_topology_priority: ["codex-nested-subprocess"] },
+      {
+        review: {
+          teamlead: { model: { provider: "codex", model_id: "gpt-5.4" } },
+          subagent: { provider: "codex", model_id: "gpt-5.4" },
+        },
+      },
       FAKE_HOME,
     );
     expect(result).toBeNull();
@@ -139,13 +130,10 @@ describe("tryTopologyDerivedExecutor — successful derivation", () => {
 
   it("cc-teams-litellm-sessions axis block → litellm executor binary", () => {
     process.env.CLAUDECODE = "1";
-    // P9.1 (2026-04-21): the resolver no longer walks the priority
-    // ladder — topology is determined by the `config.review` axis block.
-    // `execution_topology_priority` is kept in the config only to satisfy
-    // the P9.3-scope gate in `tryTopologyDerivedExecutor`; the array
-    // contents are ignored at resolution time.
+    // P9.2 (2026-04-21): topology is selected exclusively through the
+    // `config.review` axis block — legacy `execution_topology_priority`
+    // field was removed from OntoConfig.
     const axisConfig: OntoConfig = {
-      execution_topology_priority: ["cc-teams-litellm-sessions"],
       review: {
         subagent: { provider: "litellm" as const, model_id: "gpt-4o" },
       },
@@ -177,7 +165,6 @@ describe("tryTopologyDerivedExecutor — successful derivation", () => {
     process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
     tryTopologyDerivedExecutor(
       {
-        execution_topology_priority: ["cc-teams-litellm-sessions"],
         review: {
           subagent: { provider: "litellm", model_id: "gpt-4o" },
         },
@@ -195,19 +182,17 @@ describe("tryTopologyDerivedExecutor — successful derivation", () => {
   it("no [plan:executor] line when topology falls through", () => {
     // cc-main-agent-subagent has no standalone binary → fall through,
     // so no [plan:executor] line should be emitted for this derivation.
-    // The priority array is still required to pass the P9.3-scope gate;
-    // the resolver picks cc-main-agent-subagent via main_native degrade
-    // because `config.review` is absent.
+    // The resolver picks cc-main-agent-subagent via the axis block.
     process.env.CLAUDECODE = "1";
     tryTopologyDerivedExecutor(
-      { execution_topology_priority: ["cc-main-agent-subagent"] },
+      { review: { subagent: { provider: "main-native" } } },
       FAKE_HOME,
     );
     expect(topologyLogLines()).toHaveLength(0);
   });
 });
 
-describe("tryTopologyDerivedExecutor — axis-first decides (P9.1)", () => {
+describe("tryTopologyDerivedExecutor — axis-first decides (P9.2)", () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
@@ -225,35 +210,13 @@ describe("tryTopologyDerivedExecutor — axis-first decides (P9.1)", () => {
     }
   });
 
-  it("legacy execution_topology_priority does not decide the topology", () => {
-    // Pre-P9.1, this array would have selected cc-teams-litellm-sessions
-    // (first matching entry). After P9.1 the array is ignored — absent
-    // a `config.review` block, the resolver degrades to main_native →
-    // cc-main-agent-subagent, which has no standalone binary → null.
-    process.env.CLAUDECODE = "1";
-    process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
-    const result = tryTopologyDerivedExecutor(
-      {
-        execution_topology_priority: [
-          "cc-teams-litellm-sessions",
-          "cc-main-agent-subagent",
-        ],
-        llm_base_url: "http://localhost:4000",
-      },
-      FAKE_HOME,
-    );
-    expect(result).toBeNull();
-  });
-
-  it("axis-first selects the binary-backed topology when declared", () => {
+  it("review axis selects the binary-backed topology when declared", () => {
     process.env.CLAUDECODE = "1";
     process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
     // Axis block declares subagent=litellm → shape=main-teams_foreign →
-    // TopologyId=cc-teams-litellm-sessions (standalone binary). The
-    // priority array is retained to pass the P9.3-scope gate.
+    // TopologyId=cc-teams-litellm-sessions (standalone binary).
     const result = tryTopologyDerivedExecutor(
       {
-        execution_topology_priority: ["cc-teams-litellm-sessions"],
         review: {
           subagent: { provider: "litellm", model_id: "gpt-4o" },
         },

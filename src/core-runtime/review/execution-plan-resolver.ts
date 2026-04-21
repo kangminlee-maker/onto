@@ -227,8 +227,10 @@ function readCodexAuthState(): CodexAuthState {
  * Historical note: the legacy `host_runtime` / `execution_realization` /
  * `api_provider` fields that previously drove P1b-P1e config branches
  * were removed from `OntoConfig` by PR-K (2026-04-18, sketch v3 §7.4 Phase D
- * stage 3). `execution_topology_priority` is the canonical seat for these
- * decisions now; legacy configs fail at load via `LegacyFieldRemovedError`.
+ * stage 3). The `review:` axis block is the canonical seat for these
+ * decisions now (P9.2, 2026-04-21 — was `execution_topology_priority`
+ * until Review UX Redesign superseded it); legacy configs fail at load
+ * via `LegacyFieldRemovedError`.
  */
 export function resolveExecutionPlan(
   args: ResolveExecutionPlanArgs,
@@ -485,7 +487,7 @@ function buildNoHostReason(): string {
     "  1. Claude Code 세션에서 `onto review` 재실행",
     "  2. codex CLI 설치 + `codex login` 후 재실행",
     "  3. `--codex` 플래그로 codex subprocess 강제",
-    "  4. `.onto/config.yml` 에 execution_topology_priority: [canonical topology id] 지정 (docs/topology-migration-guide.md 참고)",
+    "  4. `.onto/config.yml` 에 `review:` axis block 추가 (docs/topology-migration-guide.md §7 참고)",
     "  5. `.onto/config.yml` 에 external_http_provider: <anthropic|openai|litellm> + per-provider model 설정",
     "  6. `ONTO_HOST_RUNTIME=standalone` env + external_http_provider config",
   ].join("\n");

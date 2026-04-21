@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+### Added — `onto install` first-run setup wizard (2026-04-21)
+
+**신규 CLI 명령**. onto 의 런타임 설정 (`config.yml`, `.env`, `.env.example`) 을 처음 1회 생성하는 마법사. Claude Code plugin / npm 두 설치 경로 모두에서 설치 후 한 번 실행한다. Onboard 와 책임 분리: install = onto 런타임 구성 (provider / 자격 증명 / 출력 언어), onboard = 프로젝트별 초기화 (domains / review execution axes / `.onto/review/` 동의).
+
+#### Added
+
+- `onto install` — 6-step interactive wizard: profile scope / review provider / review auth / learn provider / learn auth / output language. Pre-flight 환경 감지 (기존 config, ANTHROPIC / OPENAI / LITELLM env, codex binary+auth, Claude Code host) 기반 스마트 디폴트 제시.
+- `onto install --non-interactive` — CI / Docker 용 flag-driven 모드. 필수 flag 또는 자격 증명 누락 시 prompt 없이 실패.
+- **모든 플래그에 `ONTO_INSTALL_*` 환경변수 fallback**. argv 가 env 를 이김. 불리언은 `1 | true | TRUE | yes | YES` 를 참으로 해석.
+- `--env-file <path>` — 설치 실행 직전 지정 `.env` 파일을 `process.env` 에 로드 (이미 set 된 키는 보존).
+- **Live provider 검증**: anthropic / openai / litellm 은 `/models` endpoint ping (HTTP). codex 는 binary + auth.json 로컬 체크. `--skip-validation` 으로 우회.
+- **5개 provider 선택지**: `main-native` | `codex` | `anthropic` | `openai` | `litellm`. Learn provider 는 `main-native` 제외 (background ladder 가 host 위임 미지원).
+- **Profile scope**: `global` (`~/.onto/`) 또는 `project` (`<repo>/.onto/`). `config-profile.ts` atomic adoption rule 준수.
+- **`.env` 마스킹**: TTY 환경에서는 raw mode 로 secret 입력을 `*` 로 에코. 비-TTY 는 plain readline fallback.
+- **`.env` mode 0600**, in-place merge (기존 키 보존). `.env.example` 은 wholesale 재작성 (tracked). Project scope 선택 시 root `.gitignore` 에 `.onto/.env` 자동 등록.
+- **`/onto:install` plugin 명령** (`.onto/commands/install.md`).
+- 상세 문서: `.onto/processes/install.md` (flow + flag 레퍼런스 + trouble-shooting).
+
+#### Changed
+
+- `src/cli.ts` 프로세스 시작 시 `~/.onto/.env` → `<cwd>/.onto/.env` 순으로 자동 로드 (이미 set 된 shell env 는 보존).
+- `.claude-plugin/plugin.json` + `marketplace.json` 복원 (8-phase migration 준비 중 untrack 됐던 것을 path 안정화 후 재도입).
+- `package.json` `files` 필드 확장: `.claude-plugin/`, `process.md`, `learning-rules.md`, `config.yml.example` 추가 (npm tarball 누락 해소).
+
+#### Test
+
+- 6개 테스트 파일, 99개 install 단독 테스트 (unit + integration). Integration 은 tmp HOME + tmp project 에서 full CLI 진입점을 stub fetch 와 함께 구동.
+
+#### Migration
+
+- **Breaking 아님** — 신규 CLI 추가. 기존 onto 사용자는 action 불필요. 다만 Claude Code plugin 재설치 시 `/onto:install` 실행을 권장 (`.env` 기반 자격 증명 관리가 편리해짐).
+
+#### Design / implementation records
+
+- PR chain: #174 (plugin metadata) → #176 (core) → #177 (validation) → #178 (non-interactive + E2E) → #180 (docs) → #181 (follow-ups: files field + secret masking).
+- Modules: `src/core-runtime/install/{types,detect,writer,gitignore-update,prompts,validation,cli}.ts` + tests.
+
+---
+
 ### Changed — `core-axis` lens set recomposed from 4 → 6 (v0.2.1, 2026-04-19)
 
 **Empirical recomposition**: 기존 `core-axis` 구성 (meta-level 4 axis: logic / pragmatics / evolution / axiology) 을 **v5 benchmark (243 valid full-session pool + 24 consensus depth items)** empirical analysis 기반으로 cost-constrained Pareto-optimal 6 lens 조합으로 재구성. Pool filter 과정 (1743 원본 → 497 halted/incomplete 제외 → 243 valid) 은 benchmark §6.7.3 참조. Cost 를 4번째 축으로 포함해야 하는 이유 — coverage/depth 만 비교하면 k=9 (full) 이 항상 dominate; trade-off 의 의미 있는 분석은 비용을 포함해야 성립.

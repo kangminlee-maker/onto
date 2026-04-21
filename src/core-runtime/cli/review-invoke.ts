@@ -27,7 +27,6 @@ import {
 import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
 import { resolveOntoHome } from "../discovery/onto-home.js";
 import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.js";
-import { hasReviewBlock } from "../discovery/config-profile.js";
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
 import { resolveExecutionPlan } from "../review/execution-plan-resolver.js";
@@ -455,9 +454,9 @@ function appendSubagentLlmArgs(
 //   - auto detection (CLAUDECODE=1 / codex on PATH /
 //       external_http_provider / subagent_llm)            → stay-in-host
 //
-// Sketch v3 canonical seat is `execution_topology_priority` (see
+// Review UX Redesign seat is the `review:` axis block (see
 // `review/execution-topology-resolver.ts`); this ladder is the fallback
-// path used when no topology is declared.
+// path used when the resolver cannot map to a canonical TopologyId.
 //
 // Priority rank between hosts is NOT hardcoded here — user situation varies
 // (subscription mix, context headroom, local hardware). Default policy prefers
@@ -609,29 +608,40 @@ function buildNoHostDetectedError(): Error {
 
 /**
  * Resolve a coordinator topology descriptor from OntoConfig for handoff
- * payload inclusion (PR-G, 2026-04-18).
+ * payload inclusion.
  *
- * Returns `null` — "do not include a topology field in the handoff" —
- * when the principal has not opted into sketch v3 dispatch (no
- * `execution_topology_priority` set). This keeps the handoff payload
- * schema additive: existing coordinator state machines that pre-date
- * sketch v3 see no new required field.
+ * # Semantics (P9.3, 2026-04-21)
+ *
+ * Always attempts axis-first resolution. The previous `opt-in` gate
+ * (PR-G, initially `execution_topology_priority` — later bridged to
+ * `config.review` in P9.2) is removed: because
+ * `resolveExecutionTopology` owns a universal `main_native` degrade
+ * since Review UX Redesign P3, every review invocation can safely
+ * produce a topology, so every coordinator handoff can carry one.
+ *
+ * Returns `null` only in two terminal cases:
+ *   - `ontoConfig` is `undefined` (defensive — callers always pass a
+ *     resolved config, but the type allows undefined for test harness
+ *     isolation).
+ *   - Resolver returns `no_host` (axis + main_native degrade both
+ *     failed — typically neither Claude nor Codex host reachable).
  *
  * When the topology resolves, the returned descriptor is the
  * `plan_trace`-stripped subset suitable for JSON transmission
  * (see `toCoordinatorTopologyDescriptor`).
+ *
+ * Note on `review: {}`: unlike `validateProfileCompleteness` and
+ * `detectLegacyFieldUsage` (which use `hasReviewBlock` to reject an
+ * empty object), dispatch treats an empty review block the same as
+ * an absent one — the resolver's main_native degrade path handles
+ * both identically. Practically this asymmetry never surfaces because
+ * an empty review block fails `validateProfileCompleteness` and
+ * `resolveConfigChain` throws before dispatch is reached.
  */
 export function tryResolveTopologyForHandoff(
   ontoConfig: OntoConfig | undefined,
 ): CoordinatorTopologyDescriptor | null {
-  // P9.2 (2026-04-21): opt-in gate switched from `execution_topology_priority`
-  // (removed field) to `config.review` axis block. P9.3 will restructure
-  // the handoff JSON so every review call emits a topology descriptor
-  // unconditionally; for now we preserve the original opt-in contract
-  // with the new signal. `hasReviewBlock` rejects empty `review: {}`
-  // (shared SSOT with validateProfileCompleteness + legacy-deprecation).
   if (ontoConfig === undefined) return null;
-  if (!hasReviewBlock(ontoConfig)) return null;
   const resolution = resolveExecutionTopology({ ontoConfig });
   if (resolution.type !== "resolved") return null;
   return toCoordinatorTopologyDescriptor(resolution.topology);
@@ -652,12 +662,14 @@ function emitCoordinatorStartHandoff(args: {
   //   coordinator-state-machine then records the realized path into session
   //   artifacts (binding.yaml / execution-plan.yaml / session-metadata.yaml).
   //
-  // PR-G (2026-04-18): when the principal has set `execution_topology_priority`
-  // and the resolver chose a canonical topology, it is included here as a
-  // first-class `topology` field. The coordinator state machine can then
-  // consume `topology.id` / `topology.teamlead_location` /
-  // `topology.lens_spawn_mechanism` as authoritative, rather than inferring
-  // from the preferred_realization heuristic alone.
+  // P9.3 (2026-04-21): the `topology` field is populated for every
+  // review invocation — `tryResolveTopologyForHandoff` always attempts
+  // axis-first resolution and the resolver's universal `main_native`
+  // degrade keeps a viable topology reachable whenever a Claude or
+  // Codex host is present. The coordinator state machine consumes
+  // `topology.id` / `topology.teamlead_location` /
+  // `topology.lens_spawn_mechanism` as authoritative, replacing the
+  // prior preferred_realization heuristic.
   const payload: {
     handoff: "coordinator-start";
     host_runtime: "claude";
@@ -697,7 +709,9 @@ function emitCoordinatorStartHandoff(args: {
   if (args.topology) {
     payload.topology = args.topology;
     payload.next_action.orchestration_guidance.topology_note =
-      `principal 이 \`review:\` axis block 으로 topology="${args.topology.id}" 를 지정했습니다. ` +
+      `Resolver 가 topology="${args.topology.id}" 를 선택했습니다. ` +
+      `세부 도출 경로 (axis-first / main_native degrade) 는 STDERR ` +
+      `\`[topology]\` trace 를 참고하세요. ` +
       `teamlead_location="${args.topology.teamlead_location}", ` +
       `lens_spawn_mechanism="${args.topology.lens_spawn_mechanism}", ` +
       `deliberation_channel="${args.topology.deliberation_channel}". ` +
@@ -707,37 +721,49 @@ function emitCoordinatorStartHandoff(args: {
 }
 
 /**
- * Attempt topology-first executor selection (PR-F, 2026-04-18).
+ * Attempt topology-first executor selection.
  *
- * Activated only when `ontoConfig.execution_topology_priority` is set —
- * this is the principal's explicit opt-in to the sketch v3 dispatch
- * path. When the resolved topology has a standalone lens executor binary
- * (codex-subprocess or litellm-http mechanism), the mapping is returned
- * directly; the caller then applies `appendSubagentLlmArgs` /
+ * # Semantics (P9.3, 2026-04-21)
+ *
+ * Always attempts axis-first resolution — the previous opt-in gate
+ * (PR-F initially `execution_topology_priority`, bridged to
+ * `config.review` in P9.2) is removed. Because the resolver owns a
+ * universal `main_native` degrade since P3, every invocation can
+ * safely attempt dispatch; the decision whether a standalone executor
+ * binary applies is then made entirely from the resolved topology's
+ * spawn mechanism.
+ *
+ * When the resolved topology has a standalone lens executor binary
+ * (codex-subprocess or litellm-http mechanism), the mapping is
+ * returned directly; the caller then applies `appendSubagentLlmArgs` /
  * `appendExecutorModelArgs` as usual.
  *
- * Returns `null` — "fall through to legacy" — in four cases:
- *   1. `execution_topology_priority` unset or empty
+ * Returns `null` — "fall through to coordinator / other dispatch" —
+ * in four cases:
+ *   1. `ontoConfig` undefined (defensive — tests may inject undefined)
  *   2. `ontoHome` unavailable (required to resolve executor paths)
- *   3. Topology resolver returns `no_host` (no canonical option matched)
+ *   3. Topology resolver returns `no_host` (neither Claude nor Codex
+ *      host reachable — axis + main_native degrade both failed)
  *   4. Topology resolved but its mechanism has no standalone binary
  *      (claude-agent-tool → coordinator handoff is the right seat;
  *       claude-teamcreate-member → PR-D protocol; codex-nested-subprocess
- *       → PR-H dispatch branch; generic-* → future adapter)
+ *       → PR-H dispatch branch)
  *
- * The intent is minimally invasive: existing users without the new
- * config field see no behaviour change. Opt-in users get topology
- * dispatch with a `[plan:executor]` log line so they can verify.
+ * Successful dispatch emits a `[plan:executor]` STDERR line so
+ * operators can verify the topology→binary mapping.
+ *
+ * Note on `review: {}`: same as `tryResolveTopologyForHandoff` —
+ * dispatch treats an empty review block identically to an absent one
+ * (main_native degrade handles both). The asymmetry with
+ * `hasReviewBlock`-based consumers (validation / legacy-bypass) is
+ * masked upstream by `validateProfileCompleteness` + `resolveConfigChain`
+ * rejecting empty review blocks at config load time.
  */
 export function tryTopologyDerivedExecutor(
   ontoConfig: OntoConfig | undefined,
   ontoHome: string | undefined,
 ): ReviewUnitExecutorConfig | null {
-  // P9.2 (2026-04-21): opt-in gate migrated to `config.review` presence
-  // (was `execution_topology_priority` before field removal).
-  // `hasReviewBlock` rejects empty `review: {}`.
   if (ontoConfig === undefined) return null;
-  if (!hasReviewBlock(ontoConfig)) return null;
   if (!ontoHome) return null;
   const resolution = resolveExecutionTopology({ ontoConfig });
   if (resolution.type !== "resolved") return null;
@@ -804,10 +830,10 @@ function resolveExecutorConfig(
     );
   }
 
-  // PR-F (2026-04-18): topology-first opt-in. When the principal has
-  // declared `execution_topology_priority` they have explicitly upgraded
-  // to sketch v3 dispatch — take their topology over the legacy
-  // `executor_realization` field that follows.
+  // P9.3 (2026-04-21): topology-first dispatch runs for every review
+  // invocation — resolver's universal `main_native` degrade guarantees
+  // a reachable topology whenever a host is present. Takes the resolved
+  // topology over the legacy `executor_realization` field that follows.
   //
   // Only activated when the resolved topology has a standalone binary;
   // other cases fall through to legacy behaviour (see
@@ -1945,10 +1971,11 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     throw buildNoHostDetectedError();
   }
   if (handoff.type === "coordinator_start") {
-    // PR-G (2026-04-18): when principal opted into sketch v3 via
-    // `execution_topology_priority`, pass the resolved topology
-    // descriptor so the coordinator state machine can follow it as
-    // canonical rather than inferring from preferred_realization alone.
+    // P9.3 (2026-04-21): resolver always attempts axis-first derivation,
+    // so every coordinator handoff carries a topology descriptor (null
+    // only when the resolver itself could not find a viable host). The
+    // coordinator state machine follows it as canonical rather than
+    // inferring from preferred_realization alone.
     const topologyDescriptor = tryResolveTopologyForHandoff(setup.ontoConfig);
     emitCoordinatorStartHandoff({
       preferredRealization: handoff.profile.execution_realization,
@@ -2023,16 +2050,19 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     setup.ontoHome,
   );
 
-  // PR-L (2026-04-18): resolve topology once so codex-nested-subprocess
-  // takes the PR-H bridge path inside executeReviewPromptExecution.
-  // Non-nested topologies (or opt-in unset) behave as before — the param
-  // is ignored when topology.id is not "codex-nested-subprocess".
-  const topologyForDispatch = hasReviewBlock(setup.ontoConfig)
-    ? (() => {
-        const res = resolveExecutionTopology({ ontoConfig: setup.ontoConfig });
-        return res.type === "resolved" ? res.topology : undefined;
-      })()
-    : undefined;
+  // P9.3 (2026-04-21): resolve topology unconditionally so every
+  // dispatch path sees a consistent descriptor. codex-nested-subprocess
+  // consumers use the PR-H bridge path inside
+  // `executeReviewPromptExecution`; other topology ids pass through as
+  // orthogonal metadata. Resolver returns `no_host` → `undefined` here
+  // when no viable host is reachable (degrade-fallback exhausted).
+  const topologyForDispatchRes = resolveExecutionTopology({
+    ontoConfig: setup.ontoConfig,
+  });
+  const topologyForDispatch =
+    topologyForDispatchRes.type === "resolved"
+      ? topologyForDispatchRes.topology
+      : undefined;
 
   const promptExecutionResult = await executeReviewPromptExecution({
     projectRoot: resolvedProjectRoot,

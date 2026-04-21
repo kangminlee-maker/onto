@@ -11,7 +11,7 @@ import { walkUpFor } from "./walk-up.js";
  * layout (`roles/`, `authority/`) and the new `.onto/` layout — an install
  * partway through migration is still a valid root.
  */
-function isOntoRoot(dir: string): boolean {
+export function isOntoRoot(dir: string): boolean {
   try {
     const pkgPath = path.join(dir, "package.json");
     if (!fs.existsSync(pkgPath)) return false;

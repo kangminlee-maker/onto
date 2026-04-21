@@ -127,8 +127,10 @@ Terms used throughout this document. All definitions follow `authority/core-lexi
 | **InvocationBinding** | Runtime-owned deterministic phase that binds interpreted input into canonical requests and concrete refs |
 | **ReviewRecord** | Canonical output of review; structured lineage record consumed by later learning/governance |
 | **ContextIsolatedReasoningUnit** | A reasoning unit that does not share main-context state, consumes contract-bounded input, and produces contract-bounded output independently. Typical realizations: Agent Teams teammate, subagent, MCP-isolated LLM, external model worker |
-| **execution_realization** | Structural realization used to execute review units. Values: `subagent`, `agent-teams` |
-| **host_runtime** | Concrete host environment running a chosen execution realization. Values: `codex`, `claude` |
+| **execution_realization** | (Legacy, deprecated 2026-04-21) Structural realization. Superseded by `review.subagent.provider` + teams env auto-detect |
+| **host_runtime** | (Legacy, deprecated 2026-04-21) Concrete host environment. Superseded by runtime host detection + `review.teamlead.model` override |
+| **TopologyShape** | Review UX Redesign internal classification — one of `main_native` / `main_foreign` / `main-teams_native` / `main-teams_foreign` / `main-teams_a2a` / `ext-teamlead_native`. Derived from `review:` axes + env signals. Replaces user-facing 10 `TopologyId` enumeration (P2 #153) |
+| **OntoReviewConfig** | User-facing 6-axis config block in `.onto/config.yml` (Review UX Redesign, P1 #152). Axes: teamlead / subagent / max_concurrent_lenses / lens_deliberation + per-model effort |
 | **LensSelectionPlan** | Interpretation-owned plan that recommends full/core-axis review and the lens set to execute |
 | **DomainFinalSelection** | Final domain value after explicit token parsing and user confirmation |
 | **DeterministicStateEnforcer** | Runtime state machine that deterministically enforces review process state transitions. States and edges defined in `authority/core-lexicon.yaml` 📐 |
@@ -144,7 +146,9 @@ Legacy term mapping (for reference only — not used elsewhere in this document)
 | Philosopher | axiology (value/purpose alignment) + synthesize (synthesis stage) |
 | agent panel | 9 review lenses |
 | agent | review_lens |
-| execution_mode | execution_realization × host_runtime (2-axis model) |
+| execution_mode | execution_realization × host_runtime (2-axis model, both now legacy). Canonical surface: `review:` axis block (P1 #152). |
+| execution_realization × host_runtime (legacy) | `review:` 6-axis block → 6 `TopologyShape` → 10 `TopologyId` catalog (Review UX Redesign, P1~P5) |
+| `execution_topology_priority` | Sketch v3 legacy priority array. Superseded by axis-first derivation in P2 #153. Migration: `docs/topology-migration-guide.md` §7 |
 | `build` (activity) | `reconstruct` — renamed via W-A-77 (2026-04-14). `npm run build:ts-core` 등 toolchain 명령은 무관하며 보존 |
 | `design` (activity) | `evolve` — renamed via W-A-78 (2026-04-15). methodology 용어(`design_target`, `design_area` 등)는 보존 |
 | `ask` | retired (§1.2) — 단일 lens 질의가 필요하면 `/onto:review` 사용 |
@@ -590,14 +594,29 @@ Pre-checks zero SEED markers. After promotion, the domain becomes an established
 
 Domains use a **per-session selection** model. Each process execution selects a single session domain.
 
-**Project domains** and execution profile are declared in `.onto/config.yml`:
+**Project domains** and review execution axes are declared in `.onto/config.yml`. Canonical surface (Review UX Redesign, 2026-04-21):
+
 ```yaml
 domains:
   - software-engineering
   - ontology
-output_language: ko            # en (default) | ko | etc.
-execution_realization: subagent # subagent | agent-teams
-host_runtime: codex             # codex | claude
+output_language: ko              # en (default) | ko | etc.
+review:                          # 6-axis block — P1 #152
+  teamlead:
+    model: main
+  subagent:
+    provider: codex              # main-native | codex | anthropic | openai | litellm
+    model_id: gpt-5.4
+    effort: high
+  # max_concurrent_lenses: 6
+  # lens_deliberation: synthesizer-only
+```
+
+Legacy profile (still accepted, backward-compat through P7):
+
+```yaml
+execution_realization: subagent # subagent | agent-teams (deprecated)
+host_runtime: codex             # codex | claude (deprecated)
 codex:
   model: gpt-5.4               # omit → ~/.codex/config.toml
   effort: xhigh                 # omit → ~/.codex/config.toml
@@ -754,31 +773,57 @@ All learning modifications follow a tiered approval model:
 
 ## 7. Execution Profile
 
-Lens execution is configured by two independent axes. These are not "modes" — they are orthogonal properties that combine into a profile.
+Lens execution is configured by **6 user-facing axes** (Review UX Redesign, P1 #152). Runtime derives one of 6 internal `TopologyShape` s and maps to the canonical `TopologyId` catalog. Legacy 2-axis model (`execution_realization × host_runtime`) is a backward-compat layer.
 
-### 7.1 The Two Axes
+### 7.1 The 6 Axes (Canonical as of 2026-04-21)
+
+| Axis | What it decides | Values / domain |
+|---|---|---|
+| **teamlead.model** | Which model runs the orchestrator (teamlead) | `"main"` (host session) or `{provider, model_id, effort}` (explicit external) |
+| **subagent.provider** | Which provider executes each lens | `main-native` / `codex` / `anthropic` / `openai` / `litellm` |
+| **subagent.model_id** | Foreign provider's model identifier | provider-specific; required when `provider != main-native` |
+| **subagent.effort** | Reasoning effort for the subagent | provider-specific (e.g. codex: `minimal`/`low`/`medium`/`high`/`xhigh`) |
+| **max_concurrent_lenses** | Parallel dispatch cap | positive integer; provider default applies when omitted |
+| **lens_deliberation** | Lens-to-lens deliberation channel | `synthesizer-only` (default) or `sendmessage-a2a` (requires teams env) |
+
+Runtime also consumes `agent_teams_available` (auto-detected from `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) when deriving the shape — user does not set this.
+
+### 7.2 The 6 Topology Shapes
+
+| Shape | Teamlead | Lens mechanism | Maps to TopologyId(s) |
+|---|---|---|---|
+| **main_native** | host main session | host native subagent | `cc-main-agent-subagent` (Claude) / `codex-main-subprocess` (Codex) |
+| **main_foreign** | host main session | foreign provider | `cc-main-codex-subprocess` |
+| **main-teams_native** | TeamCreate wrapping | Claude Agent tool | `cc-teams-agent-subagent` |
+| **main-teams_foreign** | TeamCreate wrapping | foreign provider | `cc-teams-codex-subprocess` / `cc-teams-litellm-sessions` |
+| **main-teams_a2a** | TeamCreate wrapping | Agent-tool + SendMessage A2A | `cc-teams-lens-agent-deliberation` (PR-D pending) |
+| **ext-teamlead_native** | spawned subprocess | subprocess native | `codex-nested-subprocess` (PR-C pending) |
+
+Design-integrity audit (6 shape × 7 pipeline step): `development-records/audit/20260421-shape-pipeline-audit.md`.
+
+### 7.3 Legacy 2-axis model (backward-compat)
+
+The legacy profile still resolves when the `review:` block is absent:
 
 | Axis | What it decides | Values |
 |---|---|---|
-| **execution_realization** | How lenses are structurally dispatched | `subagent` — each lens is an independent Agent tool call<br>`agent-teams` — lenses are teammates in a Claude Code team |
-| **host_runtime** | Which host environment runs the dispatched lenses | `codex` — OpenAI Codex executes lens passes<br>`claude` — Claude executes lens passes |
+| **execution_realization** (deprecated) | Structural dispatch | `subagent` / `agent-teams` |
+| **host_runtime** (deprecated) | Host environment | `codex` / `claude` |
 
-### 7.2 Supported Profiles
+Equivalences:
+- `subagent + codex` ≡ `review.subagent.provider=codex` (shape: `main_foreign` under Claude host / `main_native` under Codex host)
+- `agent-teams + claude` ≡ `review.subagent.provider=main-native` + teams env (shape: `main-teams_native`)
 
-2026-04-13 정책 확정 이후 canonical 실행 경로는 **두 가지**뿐이다:
+Migration guide: `docs/topology-migration-guide.md` §7.
 
-| Profile | Entry | Lens self-loading | Deliberation | Claude token usage |
-|---|---|---|---|---|
-| `subagent` + `codex` ✅ | `onto review ... --codex` | Hybrid (lens self-loads; learning-rules.md inlined) | Not available (by design) | Team lead only (~20%) |
-| `agent-teams` + `claude` ✅ | `onto coordinator start ...` (Claude Code session) | Lens performs own self-loading | Available when contested points exist | Full |
+### 7.4 Resolution Order (Canonical)
 
-Claude CLI subagent (`subagent + claude`), API executor, and 3-Tier fallback have been removed — Claude CLI authentication is unstable in the current environment.
+1. `config.review` present + valid → axis-first dispatch (shape → TopologyId).
+2. Axis-first failure (validation / derivation / mapping) → P3 universal fallback to `main_native` shape.
+3. `main_native` also unmappable → legacy `execution_topology_priority` ladder.
+4. Legacy ladder exhausted → `no_host` fail-fast with environment diagnostic.
 
-### 7.3 Resolution Order
-
-1. `--codex` flag → Codex CLI path via `onto review`.
-2. Claude Code 세션 + `onto coordinator start` → Agent Teams nested spawn path.
-3. config.yml `host_runtime`/`execution_realization` is honored for artifact metadata but does not enable additional executor paths beyond the two above.
+`--codex` flag still routes to codex CLI path via `onto review` — this remains a backward-compat shortcut equivalent to `review.subagent.provider=codex`.
 
 ### 7.4 Parallel Execution
 

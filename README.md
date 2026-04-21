@@ -177,32 +177,56 @@ Each process execution selects a single **session domain**. Three ways to specif
 
 > **Why canonical flags**: Claude Code uses `@filename` syntax to mention/attach files into context. Positional `@{domain}` tokens in onto can be ambiguous in that environment. Prefer `--domain` / `--no-domain`. Legacy `@` syntax is preserved for backward compat. `--domain` and `--no-domain` are mutually exclusive.
 
-Project domains and execution profile are declared in `.onto/config.yml`:
+Project domains and review execution axes are declared in `.onto/config.yml`:
+
 ```yaml
+# Canonical as of Review UX Redesign (2026-04-21). See design doc:
+# development-records/evolve/20260420-review-execution-ux-redesign.md
 domains:
   - software-engineering
   - ontology
 output_language: ko
-execution_realization: subagent   # subagent | agent-teams
-host_runtime: codex               # codex | claude
-codex:                            # used when host_runtime: codex
-  model: gpt-5.4               # omit → ~/.codex/config.toml
-  effort: xhigh                 # omit → ~/.codex/config.toml
+review:
+  teamlead:
+    model: main                   # "main" = host session (default)
+  subagent:
+    provider: codex               # main-native | codex | anthropic | openai | litellm
+    model_id: gpt-5.4             # required when provider != main-native
+    effort: high
+  max_concurrent_lenses: 6
+  # lens_deliberation: synthesizer-only  # or sendmessage-a2a (requires teams env)
 ```
 
 `domains:` is an unordered set — order does not matter, no domain has priority over another. Domains can also be selected per session without pre-declaring them.
 
-Canonical execution profile is:
-- `execution_realization`
-- `host_runtime`
+The `review:` block declares **6 user-facing axes**. Runtime derives one of 6 internal `TopologyShape` s (main_native / main_foreign / main-teams_* / ext-teamlead_native) and dispatches accordingly. Omit the block to use universal fallback defaults. Setup tools:
 
-Legacy `execution_mode` is accepted as a compatibility alias.
+- `onto config show` — current state + preview the derived topology
+- `onto config edit` — interactive stepwise setup
+- `onto config set <key> <value>` — single-field mutation
+- `onto onboard --re-detect` — re-run environment probes + regenerate `review:` block
 
-Current supported execution paths (2026-04-13 정책 확정):
-- **Codex CLI**: `execution_realization: subagent` + `host_runtime: codex`, entered via `onto review ... --codex`. Spawns `codex` child process for each bounded review unit.
-- **Agent Teams nested spawn**: `execution_realization: agent-teams` + `host_runtime: claude`, entered via `onto coordinator start` from a Claude Code session. Uses TeamCreate + nested Agent tool spawn; does not go through the CLI runner.
+Design-integrity audit: `development-records/audit/20260421-shape-pipeline-audit.md`.
 
-Claude CLI subagent, API executor, and 3-Tier fallback paths have been removed — Claude CLI authentication is unstable in the current environment, and only the two canonical paths above are supported.
+### Legacy execution profile (deprecated — backward compat through P7)
+
+```yaml
+# Still accepted but superseded by the review: block above.
+execution_topology_priority:      # sketch v3 (PR #98~#111, 2026-04-18)
+  - cc-main-agent-subagent
+  - codex-main-subprocess
+# execution_realization / host_runtime / api_provider — error-stage (PR-J).
+```
+
+`execution_topology_priority` continues to work if `review:` is absent.
+When both are present, `review:` wins (axis-first branch). Migration
+instructions: `docs/topology-migration-guide.md` §7.
+
+Original 3-canonical-path guidance (2026-04-13):
+- **Codex CLI**: via `onto review ... --codex`. Subsumed by `subagent.provider=codex` in the new block.
+- **Agent Teams nested spawn**: via `onto coordinator start` from Claude Code. Subsumed by `main-teams_native` shape (Claude host + teams env + main-native subagent).
+
+Claude CLI subagent, API executor, and 3-Tier fallback paths were removed 2026-04-13.
 
 ## Agent Configuration
 

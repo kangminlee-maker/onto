@@ -29,7 +29,45 @@ Internal bounded path:
 
 ## Execution path selection
 
-Onto review supports **세 가지 canonical 실행 경로** (`execution_realization × host_runtime` 2-axis의 세 유효 조합). 자세한 의미론은 `authority/core-lexicon.yaml`의 `LlmAgentSpawnRealization`.
+> **2026-04-21 canonical update** — Review UX Redesign (P1~P8) landed. The canonical
+> surface is now the `review:` axis block in `.onto/config.yml`. User declares 6
+> axes (teamlead / subagent / max_concurrent_lenses / lens_deliberation +
+> per-model effort); runtime derives one of 6 internal `TopologyShape` s and
+> dispatches accordingly. See design doc
+> `development-records/evolve/20260420-review-execution-ux-redesign.md`.
+>
+> The "3 canonical paths" and "10 topology ids" described below remain
+> operational as backward-compat layers. P7 will remove the legacy
+> `execution_topology_priority` identifier path — use `onto config` CLI or
+> `npm run onboard:write-review-block` to migrate.
+
+### Canonical path (Review UX Redesign)
+
+```yaml
+# .onto/config.yml
+review:
+  teamlead:
+    model: main                     # "main" = host session
+  subagent:
+    provider: main-native           # or codex / anthropic / openai / litellm
+    # model_id: gpt-5.4             # required when foreign provider
+    # effort: high
+  # max_concurrent_lenses: 6
+  # lens_deliberation: synthesizer-only
+```
+
+Runtime dispatch under the axis block:
+1. `validateReviewConfig` — syntactic + discriminated-union check.
+2. `deriveTopologyShape` — axes + env signals (Claude/Codex host, agent-teams) → one of 6 shapes.
+3. `shapeToTopologyId` — shape + signals → canonical `TopologyId` in the existing catalog.
+4. Resolver emits `[topology] priority source=review-axes order=[<id>]` and matches the id.
+5. Any failure (validation / derivation / mapping) → P3 universal fallback: degrade to `main_native` shape with `[topology] degraded: requested=... → actual=main_native (reason: ...)`. Only when `main_native` itself is unmappable does the resolver fall through to the legacy priority ladder.
+
+Use `onto config show` / `onto config validate` to preview the derivation before running a review. Design-integrity audit: `development-records/audit/20260421-shape-pipeline-audit.md`.
+
+### Legacy execution paths (backward compat through P7)
+
+Onto review previously supported **세 가지 canonical 실행 경로** (`execution_realization × host_runtime` 2-axis의 세 유효 조합). 자세한 의미론은 `authority/core-lexicon.yaml`의 `LlmAgentSpawnRealization`.
 
 | 경로 | 조합 | 실행 주체 | 진입점 | Context 비용 | Billing source |
 |---|---|---|---|---|---|

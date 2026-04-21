@@ -1,23 +1,28 @@
 ---
-as_of: 2026-04-18
+as_of: 2026-04-21
 status: active
-functional_area: topology-migration-legacy-to-sketch-v3
+functional_area: topology-migration-legacy-to-review-axes
 purpose: |
-  Sketch v3 (PR #98~#102 merged 2026-04-18) 이후 `execution_topology_priority`
-  가 canonical 해서, legacy `host_runtime` / `execution_realization` /
-  `executor_realization` / `api_provider` 필드는 사용 시 deprecation warning
-  을 내고 향후 PR 에서 제거된다. 본 문서는 기존 `.onto/config.yml` 을 신
-  스키마로 마이그레이션하는 매핑표와 실무 가이드를 제공.
+  Review UX Redesign (PR #152~#157, 2026-04-20~21) 은 `execution_topology_priority`
+  를 대체하는 user-facing axis block (`review:`) 을 도입했다. 이 문서는
+  두 migration 계층을 다룬다:
+    (a) Legacy provider-profile (host_runtime, api_provider 등)
+        → sketch v3 (execution_topology_priority) — §1~§6
+    (b) sketch v3 execution_topology_priority → Review UX Redesign review: axes — §7
+  신규 프로젝트는 (b) 경로만 필요. 구 프로젝트는 (a) → (b) 두 단계.
 source_refs:
   sketch_v3: "development-records/evolve/20260418-execution-topology-priority-sketch.md"
+  review_ux_redesign: "development-records/evolve/20260420-review-execution-ux-redesign.md"
+  p8_audit: "development-records/audit/20260421-shape-pipeline-audit.md"
   pr_99: "d3b7819 → (TBD squash) — PR-A foundation"
   pr_100: "(TBD squash) — PR-B executor mapping"
   pr_101: "(TBD squash) — PR-C codex-nested orchestrator"
   pr_102: "(TBD squash) — PR-D deliberation protocol"
   pr_103: "(이 PR 포함, TBD) — PR-E legacy deprecation"
+  pr_152_157: "Review UX Redesign P1~P8 (config / derivation / fallback / onboard / CLI / audit)"
 ---
 
-# Topology Migration Guide — Legacy → Sketch v3
+# Topology Migration Guide — Legacy → Review UX Redesign (2026-04-21 갱신)
 
 ## 1. 왜 마이그레이션 하는가
 
@@ -237,4 +242,93 @@ config.yml` 이 불완전하면 global 이 채택됨. `execution_topology_priori
 - Executor mapping: `src/core-runtime/cli/topology-executor-mapping.ts`
 - Codex nested orchestrator: `src/core-runtime/cli/codex-nested-teamlead-executor.ts`
 - Deliberation protocol: `src/core-runtime/cli/teamcreate-lens-deliberation-executor.ts`
+
+---
+
+## 7. Review UX Redesign migration (execution_topology_priority → `review:` axes)
+
+**Added 2026-04-21.** Review UX Redesign (P1~P8, PRs #152~#157) replaces
+`execution_topology_priority` with a user-facing **6-axis block**. Runtime
+derives one of 6 internal `TopologyShape` s from the axes and dispatches
+to the same canonical TopologyIds §2 covers.
+
+### 7.1 왜 두 번째 migration 이 필요한가
+
+Sketch v3 는 10 topology id 를 user-facing 배열로 노출했다. 주체자가 이 id 들의
+naming convention (`cc-teams-*` / `cc-main-*` / `codex-*` / `generic-*`) 과 각
+id 의 teamlead location / lens spawn mechanism / deliberation channel 을 모두
+해석해야 했다. Review UX Redesign 이 관찰한 결함:
+
+- Topology id 는 **derivation artifact** 이지 user-facing decision 축이 아님
+- User 의 실제 결정 변수는 6 axis (teamlead / subagent / concurrency / deliberation + per-model effort)
+- Topology id 를 지우고 axis 로 승계 — runtime 이 매핑을 내부화
+
+### 7.2 매핑표 — sketch v3 topology id → review axes
+
+| Legacy topology id | 유도된 axis 조합 | 비고 |
+|---|---|---|
+| `cc-main-agent-subagent` | `teamlead=main, subagent=main-native` | 단순. Claude Code Agent tool |
+| `cc-main-codex-subprocess` | `teamlead=main, subagent.provider=codex` | codex.model → subagent.model_id |
+| `cc-teams-agent-subagent` | `teamlead=main, subagent=main-native` (D=true 필요) | CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 |
+| `cc-teams-codex-subprocess` | `teamlead=main, subagent.provider=codex` (D=true 필요) | |
+| `cc-teams-litellm-sessions` | `teamlead=main, subagent.provider=litellm` (D=true 필요) | litellm.model → subagent.model_id |
+| `cc-teams-lens-agent-deliberation` | `teamlead=main, subagent=main-native, lens_deliberation=sendmessage-a2a` | D=true + `lens_agent_teams_mode: true` 이중 opt-in |
+| `codex-main-subprocess` | `teamlead=main, subagent=main-native` (host=codex 자동 해석) | |
+| `codex-nested-subprocess` | `teamlead={provider=codex, model_id=..., effort=...}, subagent.provider=codex` | host=plain terminal |
+| `generic-*` | **삭제** (사용 불가, 설계 상 deferred) | |
+
+Translator 구현: `src/core-runtime/review/review-config-legacy-translate.ts` (pure, 테스트 커버).
+
+### 7.3 Migration 수단
+
+**자동 변환 (권장)**:
+```bash
+# Onboard 의 detect + write 헬퍼를 이용해 대화형 migration
+onto onboard --re-detect           # 감지 단계만 재실행
+# 또는 script 경로:
+npm run onboard:write-review-block -- .onto/config.yml '<OntoReviewConfig JSON>' --strip-legacy-priority
+```
+
+**대화형 CLI (P5)**:
+```bash
+onto config show                   # 현재 상태 + 예상 TopologyId preview
+onto config edit                   # stepwise prompt
+onto config set subagent.provider codex
+onto config set subagent.model_id gpt-5.4
+onto config set subagent.effort high
+onto config validate               # 쓰기 전 검증 + preview
+```
+
+**수동 편집**: `.onto/config.yml` 에 `review:` block 을 작성 후
+`execution_topology_priority` 제거. 두 필드가 공존할 때는 `review:` block 이
+우선하고 legacy priority 는 무시됨 (backward compat layer).
+
+### 7.4 Universal fallback (P3) 의 보장
+
+User 가 reachable 하지 않은 shape 을 config 에 적어도 (예: codex 미설치 환경에
+`subagent.provider=codex`) review 는 중단되지 않는다. Resolver 는 `main_native`
+shape 으로 강등하고 `[topology] degraded: requested=... → actual=main_native` 를
+STDERR 에 기록. 이 한 층의 안전망이 legacy migration 의 시행 착오를 허용한다.
+
+### 7.5 현재 spawn-ready 상태 (P8 audit 결과)
+
+| Axis 조합 | 유도 shape | Spawn ready? |
+|---|---|---|
+| teamlead=main, subagent=main-native | main_native / main-teams_native | ✅ |
+| teamlead=main, subagent.provider=codex | main_foreign / main-teams_foreign | ✅ |
+| teamlead=main, subagent.provider=litellm (teams=true) | main-teams_foreign | ✅ |
+| teamlead=main, lens_deliberation=sendmessage-a2a | main-teams_a2a | ❌ (PR-D 대기) |
+| teamlead={provider=codex,...} | ext-teamlead_native | ❌ (PR-C 대기) |
+
+Deferred shape 을 선택한 경우 P3 fallback 이 활성. 세부: `development-records/audit/20260421-shape-pipeline-audit.md`.
+
+### 7.6 Troubleshooting
+
+**Q5**: `review:` block 만 있고 legacy 가 없는데 `onto info` 가 "legacy profile 필요" 로 fail
+
+A: `resolveConfigChain` 의 atomic profile adoption 이 legacy profile 을 여전히 요구하는 현재 상태 (P7 에서 해소). 임시 조치: legacy `execution_topology_priority: [cc-main-agent-subagent]` 를 함께 유지하거나, `onto config show` 는 `resolveOrthogonalConfigChain` 으로 우회되어 정상 작동.
+
+**Q6**: `onto config validate` 가 degraded 를 표시
+
+A: P3 universal fallback 활성. 구체 이유는 degrade trace `(reason: ...)` 에 기록. Config 수정으로 해소 가능.
 - Deprecation detection: `src/core-runtime/discovery/legacy-field-deprecation.ts`

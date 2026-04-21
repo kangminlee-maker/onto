@@ -690,6 +690,13 @@ async function main(): Promise<number> {
       return handleConfigCli(ontoHome, subcommandArgv);
     }
 
+    case "install": {
+      const { handleInstallCli } = await import(
+        "./core-runtime/install/cli.js"
+      );
+      return handleInstallCli(ontoHome, subcommandArgv);
+    }
+
     case "learn":
     case "build":
     case "ask":
@@ -727,6 +734,8 @@ async function main(): Promise<number> {
           "  reclassify-insights         Reclassify [insight] role tags",
           "  migrate-session-roots       Move pre-v3 sessions under review/",
           "  health [project]            Learning pool health dashboard (default: global)",
+          "  config [subcommand]         Inspect / edit onto config (show/set/edit/re-detect/validate)",
+          "  install                     First-run setup (profile, providers, auth)",
           "",
           "Options:",
           "  --onto-home <path>         Override onto installation directory",

@@ -265,8 +265,12 @@ describe("P8 audit — stage 4: spawn-readiness per shape", () => {
     for (const id of PR_A_SUPPORTED_TOPOLOGIES) {
       expect(PR_B_SUPPORTED_TOPOLOGIES.has(id)).toBe(true);
     }
-    // PR_B adds 3 topologies over PR_A
-    expect(PR_B_SUPPORTED_TOPOLOGIES.size).toBe(PR_A_SUPPORTED_TOPOLOGIES.size + 3);
+    // PR_B strictly widens PR_A. Do not hard-code the delta — PR-C / PR-D
+    // will further widen PR_B (or introduce PR_C_SUPPORTED_TOPOLOGIES).
+    // The structural invariant (monotonic widening) is what matters here.
+    expect(PR_B_SUPPORTED_TOPOLOGIES.size).toBeGreaterThan(
+      PR_A_SUPPORTED_TOPOLOGIES.size,
+    );
   });
 
   it(
@@ -323,7 +327,7 @@ describe("P8 audit — stage 5: pipeline step invariants (topology-agnostic step
   // load-bearing fields those steps read.
 
   for (const row of AUDIT_MATRIX) {
-    it(`${row.shape}: resolved topology exposes the 5 step-agnostic fields`, () => {
+    it(`${row.shape}: resolved topology exposes the 6 step-agnostic fields`, () => {
       const res = resolveExecutionTopology({
         ontoConfig: { review: row.axes, ...(row.config_extras ?? {}) },
         claudeHost: row.signals.claudeHost,
@@ -372,9 +376,6 @@ describe("P8 audit — stage 6: catalog + default priority non-drift", () => {
     }
   });
 
-  it("every TopologyShape name is unique across AUDIT_MATRIX (sanity)", () => {
-    const shapes = AUDIT_MATRIX.map((r) => r.shape);
-    const unique = new Set(shapes);
-    expect(unique.size).toBe(shapes.length);
-  });
+  // Note: shape-name uniqueness is already asserted in Stage 1. Not repeated
+  // here — see `"every shape in the audit is unique"` above.
 });

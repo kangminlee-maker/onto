@@ -63,6 +63,8 @@ Review UX Redesign P1~P5 가 main 에 landed 된 시점 (commits #152~#156) 의 
 
 **Spawn-ready 비율**: 4 shape (6 TopologyId) / 6 shape (8 TopologyId match) = **66.7% of shapes**, **75% of TopologyIds**
 
+> **Row coverage note**: `✅ test` 마커가 붙은 행은 `src/core-runtime/review/shape-pipeline-audit.test.ts` 의 AUDIT_MATRIX 에서 primary row 로 직접 검증됩니다. 마커 없는 행 (`main_native (Codex)`, `main-teams_foreign (litellm)` 과 같은 shape variant) 은 동일 shape 의 다른 host / provider 조합이며 **sibling test 파일에서 커버** 됩니다 — `shape-to-topology-id.test.ts` (mapping), `topology-shape-derivation.test.ts` (derivation). 이는 layered test architecture — unit layer 의 중복 커버리지를 audit integration layer 에서 재실행하지 않는 의식적 결정.
+
 ## 5. Gap 분석
 
 ### 5.1 `main-teams_a2a` — PR-D 대기

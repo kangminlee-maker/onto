@@ -309,17 +309,11 @@ describe("resolveExecutionTopology — negative matches (prerequisite missing)",
     expectNoHost(res);
   });
 
-  it("generic-1 skips without principal declaration", () => {
-    const res = resolveExecutionTopology(
-      withSignals({
-        ontoConfig: {
-          execution_topology_priority: ["generic-nested-subagent"],
-          generic_nested_spawn_supported: false,
-        },
-      }),
-    );
-    expectNoHost(res);
-  });
+  // P7 (2026-04-21): "generic-1 skips without principal declaration" test
+  // removed — generic-nested-subagent is no longer a valid TopologyId value,
+  // and `generic_nested_spawn_supported` is no longer a recognized OntoConfig
+  // field. Previous behavior (unknown priority entries silently dropped) is
+  // still covered by normalizePriorityArray's own tests.
 });
 
 // ---------------------------------------------------------------------------

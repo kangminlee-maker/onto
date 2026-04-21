@@ -205,18 +205,6 @@ export interface OntoConfig {
   lens_agent_teams_mode?: boolean;
 
   /**
-   * Principal declaration that the host LLM supports nested subagent
-   * spawning (sketch v3 §4). When `true`, `generic-nested-subagent`
-   * becomes eligible in the topology ladder.
-   *
-   * Defaults to `false`. The generic host adapter contract is reserved
-   * (sketch v3 §8 TBD) and pending separate design.
-   *
-   * Profile-coupled: capability declarations belong to the active profile.
-   */
-  generic_nested_spawn_supported?: boolean;
-
-  /**
    * Per-topology `max_concurrent_lenses` override. Other topology
    * attributes (teamlead location, spawn mechanism, transport rank,
    * deliberation channel) are immutable by design — change the topology

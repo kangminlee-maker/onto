@@ -93,8 +93,7 @@ export type LensSpawnMechanism =
   | "claude-agent-tool"
   | "claude-teamcreate-member"
   | "codex-subprocess"
-  | "litellm-http"
-  | "generic-subagent";
+  | "litellm-http";
 
 /** Transport rank inherited from sketch v2; here a derived property. */
 export type TransportRank = "S0" | "S1" | "S2" | "S3";
@@ -309,7 +308,6 @@ interface DetectionSignals {
   codexAvailable: boolean;
   codexSessionActive: boolean;
   liteLlmEndpointAvailable: boolean;
-  genericNestedSpawnSupported: boolean;
 }
 
 interface RequirementCheckResult {
@@ -487,14 +485,12 @@ export function resolveExecutionTopology(
     liteLlmEndpointAvailable:
       args.liteLlmEndpointAvailable ??
       (Boolean(args.ontoConfig.llm_base_url) || detectLiteLlmEndpoint()),
-    genericNestedSpawnSupported: args.ontoConfig.generic_nested_spawn_supported === true,
   };
 
   log(
     `signals: claudeHost=${signals.claudeHost} experimental=${signals.experimentalAgentTeams} ` +
       `lens_agent_teams_mode=${signals.lensAgentTeamsMode} codex=${signals.codexAvailable} ` +
-      `codex_session=${signals.codexSessionActive} litellm=${signals.liteLlmEndpointAvailable} ` +
-      `generic_nested=${signals.genericNestedSpawnSupported}`,
+      `codex_session=${signals.codexSessionActive} litellm=${signals.liteLlmEndpointAvailable}`,
   );
 
   // ---- P2/P3 axis-first branching (Review UX Redesign) ----------------
@@ -569,7 +565,6 @@ function buildNoTopologyReason(
   lines.push(`  - Codex 바이너리 + ~/.codex/auth.json:          ${signals.codexAvailable}`);
   lines.push(`  - Codex CLI 세션 (CODEX_THREAD_ID / CODEX_CI):  ${signals.codexSessionActive}`);
   lines.push(`  - LiteLLM endpoint (config/env):                ${signals.liteLlmEndpointAvailable}`);
-  lines.push(`  - Generic nested spawn (config):                ${signals.genericNestedSpawnSupported}`);
   lines.push("");
   lines.push(`검토한 priority: [${priority.join(", ")}]`);
   lines.push("");

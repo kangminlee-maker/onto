@@ -13,9 +13,8 @@ import { tryTopologyDerivedExecutor } from "./review-invoke.js";
 //     args as usual).
 // (3) With `execution_topology_priority` AND a matching topology whose
 //     mechanism has NO standalone binary (claude-agent-tool,
-//     claude-teamcreate-member, generic-subagent, codex-nested's
-//     teamlead location) → returns null (fall through to legacy or
-//     dedicated orchestrators).
+//     claude-teamcreate-member, codex-nested's teamlead location)
+//     → returns null (fall through to legacy or dedicated orchestrators).
 // (4) With `execution_topology_priority` but no matching topology
 //     (no_host) → returns null (legacy handles the no-host error).
 // (5) `[plan:executor]` STDERR line emitted on successful topology

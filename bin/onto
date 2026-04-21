@@ -4,7 +4,7 @@
 // Uses tsx for TypeScript execution in development.
 // For production, compile first: npm run build
 //
-// Project Locality Principle (design-principles/project-locality-principle.md):
+// Product Locality Principle (.onto/principles/product-locality-principle.md):
 // If a project-local installation exists, delegate execution to it.
 // --global flag bypasses delegation.
 

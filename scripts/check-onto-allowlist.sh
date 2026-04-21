@@ -31,6 +31,7 @@ ALLOWED=(
   ".onto/domains"
   ".onto/roles"
   ".onto/processes"
+  ".onto/principles"
 )
 
 # Ephemeral subdirs are ignored via .gitignore (see repo root) and never
@@ -135,11 +136,12 @@ run_self_test() {
     ".onto/domains/nested/deep/path/file.md"
     ".onto/roles/logic.md"
     ".onto/processes/review.md"
+    ".onto/principles/ontology-as-code-guideline.md"
   )
   echo "[self-test] Case 1 (expect PASS): ${#pass_paths[@]} allowlist-conforming paths"
   local case1_out
   case1_out=$(check_paths "${pass_paths[@]}" 2>&1) && case1_rc=0 || case1_rc=$?
-  if [ "$case1_rc" -eq 0 ] && echo "$case1_out" | grep -q "__SUMMARY__ matched=6 violations=0"; then
+  if [ "$case1_rc" -eq 0 ] && echo "$case1_out" | grep -q "__SUMMARY__ matched=7 violations=0"; then
     echo "  ✓ guard accepted all ${#pass_paths[@]} conforming paths"
   else
     echo "  ✗ guard rejected conforming paths (regression)"

@@ -23,7 +23,7 @@
 > 6. **Authority relationship**: This document is a derived re-description of primary sources.
 >    When conflicts arise, the primary sources take precedence:
 >    - Concepts: `authority/core-lexicon.yaml`
->    - Principles: `design-principles/*.md`
+>    - Principles: `.onto/principles/*.md`
 >    - Contracts: `.onto/processes/{feature}/*.md`
 >    - Operations: `process.md`
 >
@@ -693,7 +693,7 @@ create-domain → seed in drafts/
 
 ### 6.1 Storage Model (2-Path + Axis Tags)
 
-**Product Locality Principle**: 학습은 항상 product (`{product}/.onto/learnings/`) 에 먼저 기록된다. 글로벌 설치만 존재하는 경우에도 동일하다. 글로벌 학습(`~/.onto/learnings/`)은 `onto promote`를 통해 product 학습에서 승격된다. 전체 원칙은 `design-principles/product-locality-principle.md` 참조.
+**Product Locality Principle**: 학습은 항상 product (`{product}/.onto/learnings/`) 에 먼저 기록된다. 글로벌 설치만 존재하는 경우에도 동일하다. 글로벌 학습(`~/.onto/learnings/`)은 `onto promote`를 통해 product 학습에서 승격된다. 전체 원칙은 `.onto/principles/product-locality-principle.md` 참조.
 
 | Path | Scope | Contents |
 |---|---|---|
@@ -899,7 +899,7 @@ onto/
 │   ├── core-lens-registry.yaml     # Lens config (runtime)
 │   └── translation-reference.yaml  # Term translation (onboarding)
 │
-├── design-principles/       # Development governance (not deployed)
+├── .onto/principles/       # Development governance (not deployed)
 │   ├── ontology-as-code-guideline.md
 │   ├── llm-native-development-guideline.md
 │   ├── productization-charter.md
@@ -993,7 +993,7 @@ Project Locality Principle: 글로벌 저장소는 프로젝트 간 공유 자�
 | **Learn Phase 3** — insight reclassifier apply path | ✅ | `insight-reclassifier.ts` apply phase. Idempotent via line_number + raw_line anchors. CLI: `onto reclassify-insights --apply` |
 | **Learn Phase 3** — file-level lock for dedup apply | ✅ | Best-effort advisory `.lock` with PID-liveness stale reclaim. Non-spinning via Atomics.wait |
 | **Learn entrypoint (CLI)** | ✅ | `onto promote`, `onto promote --apply`, `onto reclassify-insights`, `onto migrate-session-roots` |
-| **Govern entrypoint** | 📐 | Reads learnings + ReviewRecords. Design: `design-principles/productization-charter.md` §12 |
+| **Govern entrypoint** | 📐 | Reads learnings + ReviewRecords. Design: `.onto/principles/productization-charter.md` §12 |
 | **Onboard / Promote slash command / Health** | ✅ | |
 | **Domain creation / feedback / promotion** | ✅ | |
 | **Backup / Restore** | ✅ | |
@@ -1002,7 +1002,7 @@ Project Locality Principle: 글로벌 저장소는 프로젝트 간 공유 자�
 
 ## 11. Future Direction
 
-Decided items only. All below are confirmed in design-principles/ documents.
+Decided items only. All below are confirmed in .onto/principles/ documents.
 
 ### 11.1 Learn and Govern Entrypoints
 
@@ -1015,7 +1015,7 @@ Decided items only. All below are confirmed in design-principles/ documents.
 
 **Govern 📐** — Reads accumulated learnings + ReviewRecords to propose structural governance actions. Downstream consumer of Learn output. Not yet implemented.
 
-Reference: `design-principles/productization-charter.md` §12 Current Priority Order, `src/core-runtime/learning/promote/`
+Reference: `.onto/principles/productization-charter.md` §12 Current Priority Order, `src/core-runtime/learning/promote/`
 
 ### 11.2 Review State Machine Completion 📐
 
@@ -1029,7 +1029,7 @@ Build will follow the same methodology as review: ontology-as-code authority →
 
 **Architecture design + adoption hypothesis**: `development-records/evolve/20260409-graphify-adoption-hypothesis.md` (v7) — onto build의 **Two-Layer Architecture canonical design document**. Part I은 Phase 0 architectural decisions 6건 (ARCH-L1L2 / ARCH-RAWFMT / ARCH-BOUNDARY / ARCH-PROMOTION / ARCH-CACHE-L / ARCH-MCP-L)을 포함하여 ground truth layer (precise reproduction)와 inference layer (evolution driver)의 분리·gated promotion 메커니즘을 정의. Part II는 graphify(safishamsi/graphify v3 @ 92b70ce5) 차용 평가를 layer 분류 하에서 재구성. Part III는 prior-finding crosswalk + review history. v6 대비 핵심 변화: 단일 raw.yml → `raw-ground-truth.yml` + `raw-inference.yml` 분리, 새 명령 `/onto:promote-inference` 및 `/onto:refine` 도입, BT-E5/BT-E6 layer split, BT-A1/A2/A3/A4 inference layer 1급 시민 승격.
 
-Reference: `design-principles/productization-charter.md` §7, §12
+Reference: `.onto/principles/productization-charter.md` §7, §12
 
 ### 11.4 Learning Phase 1 Tiered Loading ✅
 

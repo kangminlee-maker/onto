@@ -171,7 +171,7 @@ Learnings tagged with `[domain/{domain}]` can be fed back into the corresponding
 
 ### Output Language Rules
 
-The two-axis language policy is canonicalized in `design-principles/output-language-boundary.md` (rank 4). Summary:
+The two-axis language policy is canonicalized in `.onto/principles/output-language-boundary.md` (rank 4). Summary:
 
 1. **Internal system** (agent prompts, `wip.yml`, `deltas/`, `session-log.yml`, any agent-to-agent hand-off) — English only, regardless of `output_language`.
 2. **External output** (principal-facing reports, halt messages, interactive prompts) — translated via `output_language` at the Runtime Coordinator's render seat (`src/core-runtime/translate/render-for-user.ts`).
@@ -496,7 +496,7 @@ Read the files below and construct your own context. Skip if file does not exist
 Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
 hand-offs to other agents stay English-only regardless of `output_language`.
 Principal-facing translation happens at the Runtime Coordinator's render seat
-(design-principles/output-language-boundary.md).
+(.onto/principles/output-language-boundary.md).
 
 [Task Directives]
 {Per-process task directives — review target, system purpose, specific instructions}
@@ -508,7 +508,7 @@ Principal-facing translation happens at the Runtime Coordinator's render seat
 - After saving, report **only the file path** to the team lead. Do not include the review text in the message.
 - Only report the full text via SendMessage if Write fails.
 - Do not send direct messages to other teammates until the team lead permits.
-- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `design-principles/output-language-boundary.md`).
+- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `.onto/principles/output-language-boundary.md`).
 - Do not use metaphors or analogies.
 ```
 
@@ -556,7 +556,7 @@ Skip if file does not exist:
 Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
 hand-offs to other agents stay English-only regardless of `output_language`.
 Principal-facing translation happens at the Runtime Coordinator's render seat
-(design-principles/output-language-boundary.md).
+(.onto/principles/output-language-boundary.md).
 
 [Task Directives]
 {Per-process task directives — review target, system purpose, specific instructions}
@@ -565,7 +565,7 @@ Principal-facing translation happens at the Runtime Coordinator's render seat
 - Write your review finding to {session path}/round1/{agent-id}.md using shell redirect (e.g., cat << 'EOF' > {path}).
 - Treat `{session path}/execution-preparation/materialized-input.md` as the authoritative review target basis when it is provided.
 - If file write fails, return the full review text as your response.
-- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `design-principles/output-language-boundary.md`).
+- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `.onto/principles/output-language-boundary.md`).
 - Do not use metaphors or analogies.
 ```
 
@@ -597,7 +597,7 @@ Read the files below using the Read tool. Skip if file does not exist:
 Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
 hand-offs to other agents stay English-only regardless of `output_language`.
 Principal-facing translation happens at the Runtime Coordinator's render seat
-(design-principles/output-language-boundary.md).
+(.onto/principles/output-language-boundary.md).
 
 [Task Directives]
 {Review synthesize directives — lens result file paths,
@@ -616,7 +616,7 @@ cross-process Step 4 deliberation이 실행되지 않습니다 — synthesize의
 - Write the final output to {session path}/synthesis.md using the Write tool.
 - Read `{session path}/interpretation.yaml`, `{session path}/binding.yaml`, and `execution-preparation/*` before synthesizing.
 - If file write fails, return the full synthesis text as your response.
-- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `design-principles/output-language-boundary.md`).
+- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `.onto/principles/output-language-boundary.md`).
 - Do not use metaphors or analogies.
 ```
 
@@ -652,7 +652,7 @@ Read the files below using `cat`. Skip if file does not exist:
 Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
 hand-offs to other agents stay English-only regardless of `output_language`.
 Principal-facing translation happens at the Runtime Coordinator's render seat
-(design-principles/output-language-boundary.md).
+(.onto/principles/output-language-boundary.md).
 
 [Task Directives]
 {Review synthesize directives — lens result file paths,
@@ -668,7 +668,7 @@ frontmatter의 deliberation_status는 not_needed (논쟁 없음) 또는 performe
 - Write the final output to {session path}/synthesis.md using shell redirect.
 - Read `{session path}/interpretation.yaml`, `{session path}/binding.yaml`, and `execution-preparation/*` before synthesizing.
 - If file write fails, return the full synthesis text as your response.
-- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `design-principles/output-language-boundary.md`).
+- Respond in English. Review artifacts (round1 lens files, synthesis.md) are both downstream agent input and the basis of the principal-facing report — any translation into `output_language` happens later at the Runtime Coordinator's render seat (see `.onto/principles/output-language-boundary.md`).
 - Do not use metaphors or analogies.
 ```
 

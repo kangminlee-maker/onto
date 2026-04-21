@@ -49,10 +49,10 @@ describe("drift-engine classifier (W-C-02 v0, §1.3 수준 0→1 3 분기)", () 
     expect(decision.matched_rule).toBe("governance_core");
   });
 
-  it("boundary: design-principles/ 도 governance core → principal_direct", () => {
+  it("boundary: .onto/principles/ 도 governance core → principal_direct", () => {
     const decision = classifyProposal({
       summary: "OaC 가이드라인 보강",
-      target_files: ["design-principles/ontology-as-code-guideline.md"],
+      target_files: [".onto/principles/ontology-as-code-guideline.md"],
       change_kind: "docs_only",
     });
     expect(decision.route).toBe("principal_direct");
@@ -93,6 +93,36 @@ describe("drift-engine classifier (W-C-02 v0, §1.3 수준 0→1 3 분기)", () 
       change_kind: "mixed",
     });
     expect(decision.route).toBe("queue");
+  });
+
+  it("boundary: .onto/authority/ (Phase 6 canonical) 도 governance core → principal_direct", () => {
+    const decision = classifyProposal({
+      summary: "Phase 6 rename 이후 lexicon 갱신",
+      target_files: [".onto/authority/core-lexicon.yaml"],
+      change_kind: "config",
+    });
+    expect(decision.route).toBe("principal_direct");
+    expect(decision.matched_rule).toBe("governance_core");
+  });
+
+  it("boundary: design-principles/ (Phase 5 legacy) 도 governance core → principal_direct", () => {
+    const decision = classifyProposal({
+      summary: "legacy layout 아래 principle 수정",
+      target_files: ["design-principles/ontology-as-code-guideline.md"],
+      change_kind: "docs_only",
+    });
+    expect(decision.route).toBe("principal_direct");
+    expect(decision.matched_rule).toBe("governance_core");
+  });
+
+  it("boundary: segment-bound — authorityX/ 같은 near-miss prefix 는 governance core 아님", () => {
+    const decision = classifyProposal({
+      summary: "유사 이름 디렉토리 변경",
+      target_files: ["authorityX/foo.md"],
+      change_kind: "docs_only",
+    });
+    expect(decision.route).toBe("self_apply");
+    expect(decision.matched_rule).toBe("local_docs_single");
   });
 });
 

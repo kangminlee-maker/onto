@@ -77,10 +77,10 @@
 
 ## 3.1 Language Policy
 
-Lens output 은 `design-principles/output-language-boundary.md` 의 two-axis 정책을 따른다.
+Lens output 은 `.onto/principles/output-language-boundary.md` 의 two-axis 정책을 따른다.
 
 - **Lens output body (structural inspection, finding sections, newly learned, applied learnings)** 는 **English 고정**. 이 body 는 synthesize 가 다시 읽고 deliberation · adjudication · shared-phenomenon 분류 등에 활용하는 **downstream agent hand-off** 이므로, 번역 텍스트가 섞이면 multi-agent semantic drift 가 발생한다.
-- **Principal 직접 소비 섹션 (해당 시)**: round1 lens 파일 자체가 principal 에게 노출되는 경로가 있다면, 그 "user-visible summary" 영역만 구조적으로 분리하여 Runtime Coordinator 의 render seat (`src/core-runtime/translate/render-for-user.ts`) 를 통해 번역한다. **lens 프롬프트가 직접 번역하지 않는다**. 현재 프로토타입에는 summary 영역이 명시 분리되어 있지 않으며, 분리 여부는 후속 PR 의 scope 다 (`design-principles/output-language-boundary.md` §3.3 이중목적 case).
+- **Principal 직접 소비 섹션 (해당 시)**: round1 lens 파일 자체가 principal 에게 노출되는 경로가 있다면, 그 "user-visible summary" 영역만 구조적으로 분리하여 Runtime Coordinator 의 render seat (`src/core-runtime/translate/render-for-user.ts`) 를 통해 번역한다. **lens 프롬프트가 직접 번역하지 않는다**. 현재 프로토타입에는 summary 영역이 명시 분리되어 있지 않으며, 분리 여부는 후속 PR 의 scope 다 (`.onto/principles/output-language-boundary.md` §3.3 이중목적 case).
 - 따라서 본 계약은 lens 프롬프트 템플릿에 `output_language` 를 **주입하지 않는다**. `output_language` 는 Runtime Coordinator 가 보유하고, render seat 에서만 사용한다.
 
 Lens 내부 추론 언어 (chain-of-thought, reasoning 단계) 도 English 로 유지한다. 다른 agent 가 본 lens 의 reasoning log 를 참조할 가능성이 있고, 언어 혼재 시 해석 품질이 낮아진다.
@@ -263,7 +263,7 @@ Experience 수집 + learn 파이프라인 전수에서 **"어느 섹션이 canon
 
 #### 8.5.3 Contract invariant (구현 시)
 
-- **Internal Body 는 English 단일 언어**. 다음 agent hand-off 경로에 있으므로 `design-principles/output-language-boundary.md §3.1` 의 Internal 범주.
+- **Internal Body 는 English 단일 언어**. 다음 agent hand-off 경로에 있으므로 `.onto/principles/output-language-boundary.md §3.1` 의 Internal 범주.
 - **Principal Summary 는 Internal Body 의 요약 재서술** 이지 새 정보원이 아님. Internal Body 에 없는 claim 을 Principal Summary 에 도입 금지.
 - Translation 은 `src/core-runtime/translate/render-for-user.ts` 의 render seat 를 통해서만. renderPointId 는 본 섹션 활성 시점에 `authority/external-render-points.yaml` 에 `review_lens_principal_summary` 신설.
 - `output_language: en` 일 때 Principal Summary 섹션은 **선택적 생략** — Internal Body 자체가 이미 영어이므로 중복.
@@ -391,7 +391,7 @@ You are {role}.
 Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
 hand-offs to other agents stay English-only regardless of `output_language`.
 Principal-facing translation happens at the Runtime Coordinator's render seat
-(design-principles/output-language-boundary.md).
+(.onto/principles/output-language-boundary.md).
 
 [Task Directives]
 - Begin Round 1 review.

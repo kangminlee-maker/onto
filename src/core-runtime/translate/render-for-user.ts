@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 /**
  * render-for-user — canonical render seat for `output_language`-translated
- * text (design-principles/output-language-boundary.md §4 / §5).
+ * text (.onto/principles/output-language-boundary.md §4 / §5).
  *
  * Every call site that emits text toward the developer / principal MUST
  * route through this module. The `output_language` config value is allowed

@@ -20,6 +20,10 @@ import {
   resolveQueuePath,
 } from "./queue.js";
 import type { GovernSubmitEvent } from "./types.js";
+import {
+  canonicalizeLayoutPath,
+  startsWithDirPrefix,
+} from "../discovery/path-normalization.js";
 
 export interface WorkloadEvidence {
   state_transitions?: number;
@@ -40,6 +44,18 @@ export interface PromotePrincipleProposal {
     agent_id: string;
     entry_marker: string;
   };
+  /**
+   * `category` is a proposal-schema label; the allowed `file_path`
+   * referent set is the full directory, not just strict subtypes.
+   *
+   *   category="design_principle" → accepts `.onto/principles/*`
+   *     (or legacy `design-principles/*`). This directory houses
+   *     principles, guidelines, and charters — the label is narrower
+   *     than the set for historical compatibility.
+   *
+   *   category="process" → accepts `.onto/processes/*`
+   *     (or legacy `processes/*`).
+   */
   target: {
     category: "design_principle" | "process";
     file_path: string;
@@ -162,16 +178,36 @@ export function executePromotePrinciple(
     return { success: false, reason: "workload_evidence.evidence_summary 필수.", gate_failed: "completeness" };
   }
 
-  // Target validation
-  if (!existsSync(join(projectRoot, proposal.target.file_path))) {
-    const parentDir = proposal.target.category === "design_principle" ? "design-principles" : "processes";
-    if (!proposal.target.file_path.startsWith(parentDir)) {
-      return {
-        success: false,
-        reason: `target.file_path '${proposal.target.file_path}' 가 존재하지 않고 category '${proposal.target.category}' 에 맞는 디렉토리 (${parentDir}/) 도 아님.`,
-        gate_failed: "validation",
-      };
-    }
+  // Target validation — seat integrity check.
+  //
+  // Always runs, regardless of whether the file already exists. Previously
+  // existence short-circuited validation, which let arbitrary paths bypass
+  // seat checks when the target happened to exist on disk.
+  //
+  // `design_principle` category maps to the full `.onto/principles/` set
+  // (which houses principles *and* guidelines/charters). Label is kept
+  // for proposal-schema compatibility; referent set is documented here
+  // so the label/scope mismatch is explicit, not implicit.
+  //
+  // `startsWithDirPrefix` enforces a segment boundary so near-miss paths
+  // like `.onto/principlesABC/foo.md` cannot slip past a prefix match.
+  const canonicalDir =
+    proposal.target.category === "design_principle"
+      ? ".onto/principles"
+      : ".onto/processes";
+  const legacyDir =
+    proposal.target.category === "design_principle"
+      ? "design-principles"
+      : "processes";
+  const rawPath = proposal.target.file_path;
+  const inCanonicalDir = startsWithDirPrefix(rawPath, canonicalDir);
+  const inLegacyDir = startsWithDirPrefix(rawPath, legacyDir);
+  if (!inCanonicalDir && !inLegacyDir) {
+    return {
+      success: false,
+      reason: `target.file_path '${rawPath}' 가 category '${proposal.target.category}' 에 맞는 디렉토리 (${canonicalDir}/ 또는 legacy ${legacyDir}/) 에 속하지 않음.`,
+      gate_failed: "validation",
+    };
   }
 
   // Read thresholds + pending queue
@@ -211,14 +247,17 @@ export function executePromotePrinciple(
     };
   }
 
-  // Queue append
+  // Queue append — persist the *canonical* path shape. Legacy prefixes
+  // (e.g., `design-principles/`) are rewritten to their `.onto/` form so
+  // downstream consumers don't have to re-normalize, and govern records
+  // remain consistent across the Phase 5+ migration window.
   const id = generateGovernId(now);
   const event: GovernSubmitEvent = {
     type: "submit",
     id,
     origin: "human",
     tag: "norm_change",
-    target: proposal.target.file_path,
+    target: canonicalizeLayoutPath(proposal.target.file_path),
     payload: {
       promotion_kind: "knowledge_to_principle",
       proposal,

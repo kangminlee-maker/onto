@@ -47,10 +47,10 @@
 
 ## 2.1 Language Policy
 
-Synthesize output 은 `design-principles/output-language-boundary.md` 의 two-axis 정책을 따른다.
+Synthesize output 은 `.onto/principles/output-language-boundary.md` 의 two-axis 정책을 따른다.
 
 - **Synthesis markdown body (consensus · disagreement · deliberation decision · per-item provenance · frontmatter)** 는 **English 고정**. 본 body 는 `ReviewRecord` 의 source 이며 subsequent session · learning extraction · audit 의 입력이 된다. 번역이 섞이면 cross-session 비교와 promote 파이프라인이 깨진다.
-- **Principal 직접 소비 섹션 (final review result 요약 등)**: `synthesis.md` 가 principal 에게 노출되는 최종 리포트이기도 하지만, 현재 프로토타입에서는 body 전체가 그대로 출력된다. "user-visible final summary" 를 별도 구조로 분리하여 Runtime Coordinator 의 render seat (`src/core-runtime/translate/render-for-user.ts`) 를 통해 번역하는 것은 후속 PR 의 scope 다 (`design-principles/output-language-boundary.md` §3.3).
+- **Principal 직접 소비 섹션 (final review result 요약 등)**: `synthesis.md` 가 principal 에게 노출되는 최종 리포트이기도 하지만, 현재 프로토타입에서는 body 전체가 그대로 출력된다. "user-visible final summary" 를 별도 구조로 분리하여 Runtime Coordinator 의 render seat (`src/core-runtime/translate/render-for-user.ts`) 를 통해 번역하는 것은 후속 PR 의 scope 다 (`.onto/principles/output-language-boundary.md` §3.3).
 - 따라서 본 계약은 synthesize 프롬프트 템플릿에 `output_language` 를 **주입하지 않는다**.
 
 Synthesize 내부 추론 언어 (deliberation reasoning, adjudication basis) 도 English 로 유지한다. 본 reasoning 은 `Deliberation Decision` 섹션에 기록되어 향후 세션에서도 참조된다.
@@ -302,7 +302,7 @@ You are synthesize.
 Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
 hand-offs to other agents stay English-only regardless of `output_language`.
 Principal-facing translation happens at the Runtime Coordinator's render seat
-(design-principles/output-language-boundary.md).
+(.onto/principles/output-language-boundary.md).
 
 [Task Directives]
 - Read all lens result files and the materialized input.

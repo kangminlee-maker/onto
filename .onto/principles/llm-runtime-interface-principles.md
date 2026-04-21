@@ -3,7 +3,7 @@
 > 상태: Active
 > 목적: `LLM`과 runtime 사이의 interface를 어떤 원칙과 기준으로 구성할지 고정한다.
 > 기준 문서:
-> - `design-principles/productization-charter.md`
+> - `.onto/principles/productization-charter.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -32,7 +32,7 @@
 runtime은 interface의 `meaning`이 아니라 `shape`를 고정한다.
 `LLM`은 그 shape 안에서 의미 판단을 수행한다.
 
-LLM/runtime 소유 분리의 상세 원칙은 `design-principles/llm-native-development-guideline.md`가 canonical이다.
+LLM/runtime 소유 분리의 상세 원칙은 `.onto/principles/llm-native-development-guideline.md`가 canonical이다.
 
 ---
 

@@ -1,10 +1,12 @@
-lexicon_version: "0.34.0"
+lexicon_version: "0.36.0"
 schema_version: "2"
 position: "Prototype-to-service ontology authority for the onto main repository."
 notes:
   - "This lexicon is the concept SSOT for the productization track."
   - "This file owns the concept INVENTORY. Naming RULES are owned by ontology-as-code-naming-charter.md."
   - "Structure: authoring_rules → shared_attributes → entities → terms."
+  - 'v0.36.0 corrective (Phase 5 review findings 전수 해소, 2026-04-21): Codex CLI core-axis 리뷰 (session 20260421-d4e3d70c) 가 발견한 CONS-1 / CONS-2 / UNIQ-COV-1/2 / UNIQ-EVO-1 / UNIQ-SEM-1/2 를 머지 전 해소. (1) CONS-1 `promote-principle.ts` target validation 3 결함: existsSync bypass 제거 (validation 항상 수행), `startsWith` → `startsWithDirPrefix` (segment-bound, `.onto/principlesABC/` 같은 near-miss 차단), queue persist 시 `canonicalizeLayoutPath` 적용 (legacy → canonical 변환 후 저장). (2) CONS-2 공용 layout-alias helper 추출: 신규 `src/core-runtime/discovery/path-normalization.ts` (LAYOUT_ALIASES + startsWithDirPrefix + canonicalizeLayoutPath). `promote-principle.ts` 와 `drift-engine.ts` 가 함께 소비. `installation-paths.ts` 의 LEGACY_DIR_OVERRIDES 와 일관성 테스트로 보호. `drift-engine.ts` GOVERNANCE_CORE_PREFIXES 를 dir-prefix / file-path 로 분리, `.onto/authority/` + `design-principles/` 추가 수용 (Phase 6 대비). (3) UNIQ-COV-1 `bin/onto:7` 주석의 legacy `design-principles/project-locality-principle.md` → `.onto/principles/product-locality-principle.md`. script 에 `DEFAULT_INCLUDE_FILES` + `--include-file` flag 신설 — extensionless tracked entrypoint 도 bulk run 에서 rewrite 가능. (4) UNIQ-COV-2 `promote-principle.test.ts` 에 process 분기 + edge case 11 test 추가 (canonical/legacy dual-path × segment-bound rejection × canonicalize persist). (5) UNIQ-EVO-1 migration script 의 `DEFAULT_EXCLUDE_PATH_PREFIXES` 에 `.onto/review/` 추가 + `--exclude-path-prefix` flag. Phase 6/7 bulk rerun 이 과거 review audit artifact 를 rewrite 하지 않도록 방어. (6) UNIQ-SEM-1 `design_principle` category label vs 실제 referent set (`.onto/principles/*` 전체, principle + guideline + charter) 불일치를 `PromotePrincipleProposal.target` JSDoc 에 명시 — 라벨은 proposal-schema compatibility 를 위해 유지. (7) UNIQ-SEM-2 migration script docstring: marker guard 가 load-bearing 인 조건 (new ⊃ old as substring) 을 phase 별로 명시 — Phase 1-5 는 no-op, Phase 6 만 load-bearing. Self-referential SSOT guard 강화: installation-paths + path-normalization 파일들을 DEFAULT_EXCLUDE_FILES 에 추가해 bulk rerun 이 legacy mapping 자체를 파괴하지 않도록. 검증: 95 test files / 1961 pass + 5 skip / tsc clean / lint clean / allowlist-guard 0 violations. canonical-advancing.'
+  - 'v0.35.0 corrective (repo layout migration Phase 5 — design-principles/ → .onto/principles/ (rename), 2026-04-21): 8 design principle markdown 을 `design-principles/` 에서 `.onto/principles/` 로 rename + 이동 (llm-native-development-guideline, llm-runtime-interface-principles, non-specialist-communication-guideline, ontology-as-code-guideline, ontology-as-code-naming-charter, output-language-boundary, product-locality-principle, productization-charter). 이전 Phase 와 달리 **디렉토리명 자체 변경** (design-principles → principles) 이라 Phase 0 resolver 에 `LEGACY_DIR_OVERRIDES` 신설 — `principles` kind 가 legacy `design-principles/` 로 fallback 매핑. 4 신규 test case (installation-paths.test.ts) 로 rename 동작 검증. 비-principle refs 갱신 (Python 스크립트 scripts/repo-layout-migration-replace.py 로 일괄 처리, Codex MINOR-1 해소): authority/core-lexicon.yaml (22 위치, changelog 40줄 보존), authority/external-render-points.yaml, scripts/check-onto-allowlist.sh ALLOWED + self-test Case 1 (6→7 pass paths), package.json, CI workflow, lint SCAN_ROOTS, 기타 CLAUDE.md·BLUEPRINT.md·README.md·process.md·AGENTS.md·CHANGELOG.md·learning-rules.md·.onto/commands/govern.md·.onto/principles/*·config.yml.example·src/core-runtime/**/*. Runtime fix: `src/core-runtime/govern/promote-principle.ts` 의 target validation 을 canonical (`.onto/principles`) + legacy (`design-principles`) 양쪽 수용하도록 확장. 신규 scripts/repo-layout-migration-replace.py: marker-based 이중 prefix 방지 + changelog preserve + extension 확장 (`.example, .toml, .ini, .env`) + `--old` trailing slash 강제로 substring-safe. Phase 4 의 config.yml.example 누락 (MAJOR-1) 같은 실수 방지. Phase 0 `resolveInstallationPath("principles", ...)` 가 이제 `.onto/principles/` 우선, legacy `design-principles/` fallback. Phase 7 까지 유지. canonical-advancing.'
   - 'v0.34.0 corrective (repo layout migration Phase 4 — processes/, 2026-04-21): 30 process contract + flow definition markdown 을 `processes/` 에서 `.onto/processes/` 로 일괄 이동 (top-level: backup, configuration, create-domain, evolve, feedback, govern, onboard, question, reconstruct, restore + review/* 16 + learn/* 4). 비-process refs 갱신 다수 카테고리: (1) Infrastructure 3 — `package.json` files 필드, `.github/workflows/lint-output-language-boundary.yml` path filter, `scripts/lint-output-language-boundary.ts` SCAN_ROOTS. (2) Allowlist guard 1 — `scripts/check-onto-allowlist.sh` ALLOWED + self-test Case 1 확장 (5→6 pass paths). (3) Authority 3 — `authority/core-lexicon.yaml` 27 비-changelog 위치 (Python 스크립트로 line 41+ 만 교체, changelog 보존) + 본 changelog, `authority/external-render-points.yaml` 9 file 필드, `authority/translation-reference.yaml` 7 defined_at. (4) Top-level docs — CLAUDE.md, BLUEPRINT.md, README.md, process.md, AGENTS.md, CHANGELOG.md, learning-rules.md 의 path 참조. (5) Design-principles — output-language-boundary.md. (6) Commands + roles 내부 processes/ refs. (7) Process 내부 self-refs — 상호 참조 갱신. (8) TS consumers — src/core-runtime/ 의 processes/ 경로 참조 + plugin-path + onboard + govern + 기타. Phase 0 `resolveInstallationPath("processes", ...)` 가 이제 `.onto/processes/` 를 우선 해석 (legacy fallback Phase 7 까지 유지). `~/.onto/...` (user-space) 에 processes/ 은 원래 없으므로 user-space KEEP 판단 불필요. canonical-advancing.'
   - 'v0.33.0 corrective (repo layout migration Phase 3 — roles/, 2026-04-21): 10 lens role 정의 markdown 을 `roles/` 에서 `.onto/roles/` 로 일괄 이동 (axiology, conciseness, coverage, dependency, evolution, logic, pragmatics, semantics, structure, synthesize). 비-role refs 갱신 26 파일: (1) Infrastructure 3 — `package.json` files 필드, `.github/workflows/lint-output-language-boundary.yml` path filter, `scripts/lint-output-language-boundary.ts` SCAN_ROOTS. (2) Authority 3 — `authority/core-lens-registry.yaml` 10 role_ref + 1 주석, `authority/translation-reference.yaml` has_role_definition_at, `authority/core-lexicon.yaml` (본 changelog). (3) Allowlist guard 1 — `scripts/check-onto-allowlist.sh` ALLOWED 배열 `.onto/roles` 추가 + self-test Case 1 확장. (4) Top-level + design-principles 6 — `CLAUDE.md` authority 위계 rank 8, `BLUEPRINT.md` §3 + tree, `README.md` tree, `process.md` touch point checklist + 4 prompt template 경로, `design-principles/product-locality-principle.md`, `design-principles/llm-runtime-interface-principles.md`. (5) Processes 9 — `processes/review/{review.md, shared-phenomenon-contract.md, execution-preparation-artifacts.md, lens-registry.md, lens-prompt-contract.md (23건), synthesize-prompt-contract.md}`, `processes/reconstruct.md`, `processes/question.md`, `processes/govern.md`. (6) TS consumer 4 — `src/core-runtime/cli/materialize-review-prompt-packets.ts` (`resolveRoleFileWithFallback` + `resolveRoleDefinitionPath` refactor — Phase 0 `resolveInstallationPath("roles", ...)` 활용), `src/core-runtime/discovery/onto-home.ts` 에러 메시지, `src/core-runtime/discovery/plugin-path.ts` docstring, `src/core-runtime/cli/e2e-start-review-session.test.ts` fixture 주석. `.onto/commands/` 0건 (Phase 1 시기에 role 참조 없음 확인). `isOntoRoot(dir)` dual-marker 체크는 Phase 0 에서 이미 구현. Custom role 해석은 mixed-layout (`.onto/roles/` + `roles/` 공존) 지원 유지 (Codex F-3 해소). `~/.onto/...` (user-space) 에 roles/ 은 원래 없음. Phase 0 `resolveInstallationPath("roles", ...)` 가 이제 `.onto/roles/` 를 우선 해석 (legacy fallback Phase 7 까지 유지). canonical-advancing.'
   - 'v0.32.0 corrective (repo layout migration Phase 2 — domains/, 2026-04-21): 11 subdomain × ≈8 `.md` = 91 domain knowledge file 을 `domains/` 에서 `.onto/domains/` 로 일괄 이동 (+ legacy `.DS_Store` 1건 함께 이동된 뒤 후속 수정에서 untracked). 비-domain refs 갱신 22 파일: (1) Infrastructure 2 — `package.json` files 필드, `setup-domains.sh` DOMAINS_SRC + 에러 메시지. (2) Authority 2 — `authority/core-lexicon.yaml` 2 notes (competency_question + competency_scope consumers) + 본 changelog 자체, `authority/translation-reference.yaml` 2 refs (competency_question.relations.stored_at + review-result template). (3) Top-level docs 4 — `BLUEPRINT.md`·`README.md` 트리 다이어그램, `process.md` touch point checklist + 신규 "`.onto/` structural subdir" 섹션, `.gitignore` guard 참조 주석. (4) Processes 2 — `processes/onboard.md` plugin bundle 경로 2건, `processes/review/record-contract.md` source_doc 1건. (5) Roles 9 — axiology/conciseness/coverage/dependency/evolution/logic/pragmatics/semantics/structure Domain document 경로 각 1건. (6) TS consumer 1 — `src/core-runtime/cli/materialize-review-prompt-packets.ts` resolveDomainDirectory docstring + 에러 메시지. (7) Domain self-ref 1 — `.onto/domains/llm-native-development/structure_spec.md` 예시 경로 (follow-up commit). `.onto/commands/` 0건·CLAUDE.md 0건·design-principles/ 0건 (모두 user-space/workflow 개념으로 판단되어 KEEP). 주요 소비자 `materialize-review-prompt-packets.ts` 는 Phase 0 `resolveInstallationPath("domains", ...)` 가 이제 `.onto/domains/` 를 우선 해석 (legacy fallback Phase 7 까지 유지). Dev-mode fallback 은 `isOntoRoot(projectRoot)` 로 gate (external project 오탐 방지, Codex review F-2 해소). 동시 도입 — `.onto/` allowlist guard CI lint (`scripts/check-onto-allowlist.sh` + `.github/workflows/onto-dir-allowlist.yml`) — Phase 1 의 enumerated-ephemeral gitignore 정책 failure mode 방어선. 초기 allowlist: `.onto/commands/`, `.onto/domains/`. Phase 3-6 각 단계는 allowlist 에 새 top-level subdir 추가 프로토콜 준수. `~/.onto/domains/` (user-installed domain docs) 참조는 user-space 이므로 범위 밖 — 보존. canonical-advancing.'
@@ -106,7 +108,7 @@ authoring_rules:
     required_slots: [term_id, canonical_label, korean_label, definition, term_status]
     optional_slots: [axis, allowed_values, notes, legacy_aliases, contract_ref, translation_mode]
   translation_policy:
-    # 용어 번역 정책 (design-principles/output-language-boundary.md §9 Layer 1).
+    # 용어 번역 정책 (.onto/principles/output-language-boundary.md §9 Layer 1).
     # Principal-facing 텍스트 렌더링 시 canonical identifier 가 mode 따라 처리됨.
     introduced_in: "v0.20.0 (2026-04-20) — 3-mode 초판"
     revised_in: "v0.21.0 (2026-04-20) — bilingual 완전 제거, default preserved 로 flip"
@@ -125,7 +127,7 @@ authoring_rules:
       - "v0.21.0 에서 bilingual mode 완전 제거. 기존 v0.20.0 의 6 bilingual 항목 (principal, principle, product, experience, medium, provenance) 은 모두 preserved (새 default) 로 흡수"
       - "이유: rank 1-4 authority 정의 개념 + command 어휘는 원어 통일이 일관성 원칙. 중간 지점 (첫 등장 병기) 을 별도 mode 로 유지할 경우 policy complexity 대비 실익 미미"
     scope_policy:
-      principle: "rank 1 (lexicon entities/terms) + rank 2-4 (design-principles/ + productization-charter + interface specs) 정의 개념 + CLI command 어휘는 전수 preserved"
+      principle: "rank 1 (lexicon entities/terms) + rank 2-4 (.onto/principles/ + productization-charter + interface specs) 정의 개념 + CLI command 어휘는 전수 preserved"
       rank5_and_lower: ".onto/processes/*.md + development-records/ 등은 정의보다 서술 성격. 개별 term 의 mode 는 rank 1-4 정의가 canonical"
     glossary_seat: "authority/translation-glossary/{lang}.yaml"
     glossary_role_v0_21:
@@ -175,7 +177,7 @@ authoring_rules:
     Operation은 독립 category가 아님. typed relation 또는 execution_rules_ref로 표현.
   authority_boundary: >
     이 파일은 개념 식별(definition, core_value, attributes, relations)을 소유.
-    실행 규칙(precondition, transition, constraint)은 .onto/processes/ 및 design-principles/에 위임.
+    실행 규칙(precondition, transition, constraint)은 .onto/processes/ 및 .onto/principles/에 위임.
     위임 대상 문서는 역방향으로 "개념 SSOT: core-lexicon.yaml의 {entity/term}" 참조를 갖추는 것을 권장.
   core_value_boundary: >
     core_value는 "이 개념이 온톨로지에 존재하는 이유"(existence justification)만 기술.
@@ -605,8 +607,8 @@ entities:
         target: principle
         note: "canonicalize 전이 (framework §6.3). snapshot copy 로 Tier 3 Principle 생성."
     execution_rules_ref:
-      data_accumulation: "design-principles/product-locality-principle.md §2.2"
-      consumption_precondition: "design-principles/product-locality-principle.md §2.2"
+      data_accumulation: ".onto/principles/product-locality-principle.md §2.2"
+      consumption_precondition: ".onto/principles/product-locality-principle.md §2.2"
       lifecycle_transition: ".onto/processes/learn/promote.md"
       storage_derivation: "framework v1.0 §12.7 — (tier, primary_scope) + maturity 로 디렉토리 결정. 예: primary_scope=product → {product}/.onto/learnings/, primary_scope=medium → ~/.onto/mediums/{X}/learnings/"
     notes:
@@ -712,7 +714,7 @@ entities:
         target: principle
         note: "Tier 2 → Tier 3 승격. snapshot copy (framework §6.3)."
     execution_rules_ref:
-      resolution_order: "design-principles/product-locality-principle.md §2.3"
+      resolution_order: ".onto/principles/product-locality-principle.md §2.3"
       lifecycle_transition: ".onto/processes/learn/promote-domain.md"
     notes:
       - "도메인 귀속은 파일 경로 규약 ({domain}/ 디렉토리) 에 의해 결정됨."
@@ -742,7 +744,7 @@ entities:
     definition: >
       규범적 결정으로 확정된 Tier 3 의무 obligation (framework v1.0 §3.3).
       모든 onto 활동이 준수해야 할 제약. canonicalize 경로로만 편집 가능 (snapshot copy).
-      본문은 design-principles/ (rank 2-4) 와 .onto/processes/ (rank 5) 에 존재한다.
+      본문은 .onto/principles/ (rank 2-4) 와 .onto/processes/ (rank 5) 에 존재한다.
       authority/core-lexicon.yaml (rank 1) 은 principle entity 정의만 담고 본문은 담지 않는다.
       promoted term 과는 별개 층 — promoted term 은 lexicon inventory (개념 식별) 이고,
       principle 은 normative commitment (행동 규범) 이다.
@@ -776,15 +778,15 @@ entities:
         semantics: "snapshot_reference (historical, not live)"
         note: "canonicalize 전이 (framework §6.3). Tier 1 learning · Tier 2 ontology/medium_reference/domain_document 중 하나를 source 로 받아 snapshot copy. R2-IA-4 — target 을 4 종 전체로 확장."
     execution_rules_ref:
-      authoring_path: "본문 배치는 design-principles/*.md (rank 2-4) 와 .onto/processes/*.md (rank 5). 본문 수정은 Principal 승인 또는 W-ID 기반 authoring. Tier 3 canonicalize 경로 (framework §6.3)."
-      lifecycle_transition: "principle entity 는 shared_attributes.lifecycle_status 를 보유 (seed→candidate→provisional→promoted→deprecated→retired). 기존에 등재된 instance (본 commit 시점의 design-principles/*, .onto/processes/*) 는 v0.15.0 기준 promoted 로 간주. deprecated/retired 전이의 canonical owner 는 M-08 refresh protocol (development-records/plan/20260413-refresh-protocol.md)."
+      authoring_path: "본문 배치는 .onto/principles/*.md (rank 2-4) 와 .onto/processes/*.md (rank 5). 본문 수정은 Principal 승인 또는 W-ID 기반 authoring. Tier 3 canonicalize 경로 (framework §6.3)."
+      lifecycle_transition: "principle entity 는 shared_attributes.lifecycle_status 를 보유 (seed→candidate→provisional→promoted→deprecated→retired). 기존에 등재된 instance (본 commit 시점의 .onto/principles/*, .onto/processes/*) 는 v0.15.0 기준 promoted 로 간주. deprecated/retired 전이의 canonical owner 는 M-08 refresh protocol (development-records/plan/20260413-refresh-protocol.md)."
       consumption_rule: "모든 onto 활동이 실행 전 관련 principle 을 ref. 위반 시 활동이 거부되거나 Principal 승인 요구."
       govern_zone: "framework v1.0 §11.1 zone matrix — 모든 T3 cell 은 govern 강제 zone."
     notes:
       - "W-D-05 (2026-04-16) 신설. lifecycle 통합 재정의 5 sub-task 중 S4."
       - "v0.15.0 (2026-04-20, framework v1.0 sync): attributes 확장 (primary_scope + secondary_scopes + source_commit_sha + source_ref + enforcement_state). canonicalized_from relation 신설 — 기존 'references learning' 을 더 정밀한 canonicalize snapshot 의미로 대체. target 을 Tier 1·2 의 4 entity (learning, ontology, medium_reference, domain_document) 로 확장."
       - "본 entity 는 principle 의 정의와 principle vs promoted term 구별 규칙만 담는다. 기존 promoted term (activity_enum, axis_enum 등) 의 principle-tier 재분류는 별도 W-ID (scope creep 방지)."
-      - "instance 본문 (각 design-principles 파일, 각 process 파일) 은 파일 시스템 배치로 식별. lexicon 은 이들을 개별 entity 로 등재하지 않음 (domain_document, learning 패턴과 동일)."
+      - "instance 본문 (각 `.onto/principles/` 파일, 각 `.onto/processes/` 파일) 은 파일 시스템 배치로 식별. lexicon 은 이들을 개별 entity 로 등재하지 않음 (domain_document, learning 패턴과 동일)."
       - "구별 규칙 (principle vs promoted term, Q2 Fix): principle 은 execution_rules (무엇을 해야 하는가) 를 포함. term 은 definition (무엇인가) 만 포함. execution_rules_ref 보유 여부가 1차 구분 단서."
 
   principal:
@@ -1557,7 +1559,7 @@ terms:
     term_status: "active"
     definition: "artifact 의 생성 경로·시점·근거. '어디서 왔는가, 누가/무엇이 생성했는가, 어떤 근거를 가지는가' 를 기록한다. LLM-native 시스템의 runtime 신뢰성 확보 축."
     notes:
-      - "Source: design-principles/llm-runtime-interface-principles.md (runtime 인터페이스 정책) + llm-native-development-guideline.md §항목 8 (declared boundary · provenance · degraded handling)."
+      - "Source: .onto/principles/llm-runtime-interface-principles.md (runtime 인터페이스 정책) + llm-native-development-guideline.md §항목 8 (declared boundary · provenance · degraded handling)."
       - "Consumers: review activity 의 binding.yaml, execution-preparation/target-snapshot.md, final-output.md, synthesis.md — 모든 산출물에 provenance 기록."
       - "관련 개념: evidence_seat (W-ID seat schema), dual-read fallback (canonical vs legacy path provenance)."
       - "Degraded policy: provenance 기록 실패 시 artifact 는 runtime-generated 로 기록 + log entry. Halt 하지 않음 (degraded handling)."
@@ -1607,7 +1609,7 @@ terms:
     korean_label: "학습에서 규범으로의 승격"
     axis: "lifecycle_nomenclature"
     term_status: "active"
-    definition: "promoted learning (knowledge) 중 일정 기준을 충족한 항목이 design-principles/ 또는 .onto/processes/ 의 principle 본문으로 승격되는 lifecycle 전이. 구체 기준과 경로는 W-C-03 에서 설계·구현."
+    definition: "promoted learning (knowledge) 중 일정 기준을 충족한 항목이 .onto/principles/ 또는 .onto/processes/ 의 principle 본문으로 승격되는 lifecycle 전이. 구체 기준과 경로는 W-C-03 에서 설계·구현."
     allowed_values: []
     notes:
       - "W-D-05 (2026-04-16) 신설 — 'promoted' 용어 3분리 중 3/3 (Semantic drift 해소)."

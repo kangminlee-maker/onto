@@ -4,11 +4,11 @@
 # 이 파일에 등록되지 않은 위치에서 `{output_language}` 를 참조하는 코드나
 # 문서는 (CI lint gate 가 활성화되면) 빌드 실패 대상이다.
 #
-# 엔트리 추가는 `design-principles/output-language-boundary.md` §4 절차에 따름:
+# 엔트리 추가는 `.onto/principles/output-language-boundary.md` §4 절차에 따름:
 #   1. rationale 필드에 "이 지점 이후 다른 agent 소비 없음" 증명
 #   2. PR 로 추가 — 리뷰어가 internal boundary 침범 여부 확인
 #
-# Canonical authority: design-principles/output-language-boundary.md
+# Canonical authority: .onto/principles/output-language-boundary.md
 # Loader / render seat: src/core-runtime/translate/render-for-user.ts
 # Schema version: v1 (2026-04-17)
 

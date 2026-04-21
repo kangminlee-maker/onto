@@ -132,7 +132,7 @@ target_scope_candidate:
 주체자 요청:
 
 ```text
-/onto:review design-principles/ontology-as-code-guideline.md
+/onto:review .onto/principles/ontology-as-code-guideline.md
 production semantic quality bar 기획이 완결적인지 검토해줘
 ```
 
@@ -142,7 +142,7 @@ production semantic quality bar 기획이 완결적인지 검토해줘
 entrypoint: review
 target_scope_candidate:
   kind: file
-  primary_ref: design-principles/ontology-as-code-guideline.md
+  primary_ref: .onto/principles/ontology-as-code-guideline.md
 intent_summary: production semantic quality bar planning의 완결성과 실용성을 검토한다.
 domain_recommendation: "@ontology"
 domain_selection_required: true

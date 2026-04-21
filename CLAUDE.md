@@ -5,21 +5,21 @@
 | 순위 | 역할 | 위치 |
 |---|---|---|
 | 1 | 개념 SSOT | authority/core-lexicon.yaml |
-| 2 | 개발 원칙: OaC | design-principles/ontology-as-code-guideline.md |
-| 2 | 개발 원칙: LLM-Native | design-principles/llm-native-development-guideline.md |
-| 2 | 개발 원칙: 비전문가 소통 | design-principles/non-specialist-communication-guideline.md |
-| 2 | 개발 원칙: product 우선 | design-principles/product-locality-principle.md |
-| 3 | 제품 방향 | design-principles/productization-charter.md |
-| 4 | 인터페이스 명세 | design-principles/llm-runtime-interface-principles.md |
-| 4 | 이름 규칙 | design-principles/ontology-as-code-naming-charter.md |
-| 4 | 출력 언어 경계 | design-principles/output-language-boundary.md |
+| 2 | 개발 원칙: OaC | .onto/principles/ontology-as-code-guideline.md |
+| 2 | 개발 원칙: LLM-Native | .onto/principles/llm-native-development-guideline.md |
+| 2 | 개발 원칙: 비전문가 소통 | .onto/principles/non-specialist-communication-guideline.md |
+| 2 | 개발 원칙: product 우선 | .onto/principles/product-locality-principle.md |
+| 3 | 제품 방향 | .onto/principles/productization-charter.md |
+| 4 | 인터페이스 명세 | .onto/principles/llm-runtime-interface-principles.md |
+| 4 | 이름 규칙 | .onto/principles/ontology-as-code-naming-charter.md |
+| 4 | 출력 언어 경계 | .onto/principles/output-language-boundary.md |
 | 5 | 기능별 계약 | .onto/processes/{feature}/*.md (계약 파일) |
 | 6 | 타입·구현 | src/core-runtime/ |
 | 7 | 운영 인프라 | process.md, learning-rules.md (루트) |
 | 8 | 기능 프로세스 | .onto/processes/*.md, .onto/commands/*.md, .onto/roles/*.md |
 
 authority/ 구성: 개념 SSOT + 3개 authority-adjacent data seat (core-lens-registry.yaml: 런타임 전용, translation-reference.yaml: 온보딩용 NON-AUTHORITATIVE, external-render-points.yaml: output_language 번역 whitelist)
-design-principles/ 구성: rank 2~4 개발 규범 문서 8개 (배포 제외)
+.onto/principles/ 구성: rank 2~4 개발 규범 문서 8개 (배포 제외)
 위계 밖: development-records/ (이력/참조)
 
 ## design/ 구조 (sprint-kit 흡수, 2026-04-10)

@@ -93,7 +93,7 @@ Agent 프롬프트에 주입하는 표준 블록. 새 agent prompt 를 추가할
 Respond in English. Reasoning, tool arguments, YAML / markdown emits, and
 hand-offs to other agents stay English-only regardless of `output_language`.
 Principal-facing translation happens at the Runtime Coordinator's render seat
-(design-principles/output-language-boundary.md).
+(.onto/principles/output-language-boundary.md).
 ```
 
 주입 위치 원칙:
@@ -151,7 +151,7 @@ Phase 2 번역 backend 가 도입되어도 **canonical identifier 의 번역 규
 
 > **rank 1-4 authority 정의 개념 + command 어휘는 원어 통일 (preserved).**
 >
-> Lexicon entities/terms (rank 1) + design-principles/productization-charter/interface-specs (rank 2-4) + CLI command 어휘는 번역 대상에서 제외. Translation 은 비-core prose 에만 명시적 opt-in 으로 적용.
+> Lexicon entities/terms (rank 1) + .onto/principles/productization-charter/interface-specs (rank 2-4) + CLI command 어휘는 번역 대상에서 제외. Translation 은 비-core prose 에만 명시적 opt-in 으로 적용.
 
 이유:
 - rank 1-4 개념은 lexicon-citation-check, experience → learn 파이프라인, synthesize output 의 cross-reference 의 anchor. 번역되면 이 anchor 가 깨짐
@@ -226,6 +226,6 @@ R3 은 v0.20.0 의 "preserved|bilingual 선언 시 glossary 필수" 에서 "tran
 ## 6. 관련 문서
 
 - `authority/external-render-points.yaml` — 허용된 render 지점 레지스트리
-- `design-principles/llm-runtime-interface-principles.md` — rank 4 동료 문서
-- `design-principles/llm-native-development-guideline.md` — rank 2. LLM-native 설계 원칙의 상위 컨텍스트
+- `.onto/principles/llm-runtime-interface-principles.md` — rank 4 동료 문서
+- `.onto/principles/llm-native-development-guideline.md` — rank 2. LLM-native 설계 원칙의 상위 컨텍스트
 - 초안 메모: `.onto/temp/output-language-boundary-proposal.md` (2026-04-17 세션의 5-layer 구조 제안. 본 문서는 해당 proposal 의 §1 원칙 + §L1 registry + §L2 render seat + §L3 CI gate + §L4 [Language Policy] boilerplate + §L5 doc 구조를 레포에 순차적으로 착륙시킨 결과. 5 레이어 중 L2 의 실제 번역 구현 + review contract 의 body/summary 구조적 split 만 trigger-based 이연)

@@ -55,7 +55,7 @@ project-local 우선 → home 보조. 자세한 병합 규칙은 §3 참조.
 ### 4.1 Output language (external-facing only)
 
 #### `output_language`
-- 용도: 개발자·이용자가 읽는 최종 텍스트의 언어. **내부 agent 프롬프트·artifact 는 English 고정** (`design-principles/output-language-boundary.md` 참조)
+- 용도: 개발자·이용자가 읽는 최종 텍스트의 언어. **내부 agent 프롬프트·artifact 는 English 고정** (`.onto/principles/output-language-boundary.md` 참조)
 - 유효값: ISO 639-1 code (`en`, `ko`, `ja`, ...)
 - 기본값: `en`
 - 사용: onboard 대화형, halt 메시지 렌더, 완료 리포트 렌더, help 출력
@@ -319,5 +319,5 @@ subagent_llm:                    # lens 는 Anthropic Haiku 로 비용 절감
 
 - Type 진실: `src/core-runtime/discovery/config-chain.ts` — 본 문서의 key 집합 변동 시 **가장 먼저** 확인해야 함
 - Resolver 구현: `resolveConfigChain()` 같은 파일
-- 출력 언어 경계 규범: `design-principles/output-language-boundary.md` (rank 4)
+- 출력 언어 경계 규범: `.onto/principles/output-language-boundary.md` (rank 4)
 - LLM Provider Resolution Ladder: `README.md` §"LLM Provider Configuration"

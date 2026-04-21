@@ -11,16 +11,15 @@
  * `createReadlineIo()` is the default production implementation,
  * backed by `node:readline/promises`.
  *
- * # Secret input (v1)
+ * # Secret input
  *
- * `askSecret()` currently uses the same readline prompt as `ask()` —
- * keys are visible as they're typed. Masking is a known gap; the
- * clean implementation requires taking over stdin in raw mode while
- * the readline interface is open, which conflicts with readline's
- * own data listeners. A follow-up PR will add a dedicated raw-mode
- * secret path (by closing rl, reading raw, reopening rl). In the
- * meantime, `.env` mode 0600 protects the keys at rest — only the
- * brief typing moment is visible.
+ * `askSecret()` masks input with asterisks on TTY. It closes the
+ * active readline interface, takes over stdin in raw mode, reads
+ * character by character echoing `*`, and reopens readline
+ * afterwards. Non-TTY environments fall back to plain readline
+ * (masking isn't possible without raw-mode support). See
+ * `readMaskedFromStdin` below for the recognized key bindings
+ * (Enter, Ctrl-C, Ctrl-D, Backspace).
  *
  * # Step functions
  *
@@ -34,10 +33,10 @@
  *
  * `runInteractivePrompts()` runs all six steps in order and returns
  * the fully-resolved `{ decisions, secrets }` pair that writer.ts
- * consumes. Non-interactive orchestration (PR 4 scope) will reuse the
- * same step functions with all flags pre-populated — prompts are
- * skipped when flags are set, so the mode difference collapses into
- * the flag resolution logic.
+ * consumes. The non-interactive orchestration path (`install/cli.ts
+ * #runNonInteractive`) reuses the step functions' flag-respect logic
+ * — when every flag is pre-populated, the prompts are skipped and
+ * the mode difference collapses to the flag resolution logic.
  */
 
 import readline from "node:readline/promises";
@@ -69,7 +68,7 @@ export interface PromptIO {
   /** Ask yes/no. Accepts y/yes/n/no case-insensitively. */
   askConfirm(prompt: string, defaultValue: boolean): Promise<boolean>;
 
-  /** Secret input (keys, URLs). v1: not masked — see module header. */
+  /** Secret input (keys, URLs). Masked on TTY, plain on non-TTY — see module header. */
   askSecret(prompt: string): Promise<string>;
 
   /** Print a line to the user (e.g. a section header). */
@@ -79,9 +78,80 @@ export interface PromptIO {
   close(): void;
 }
 
+/**
+ * Read a line from stdin with echo masking (asterisks per keypress).
+ *
+ * Takes full control of stdin via raw mode, consuming data events
+ * directly rather than through readline. The caller must have any
+ * active readline interface closed before entering this function —
+ * otherwise readline's own data listener would race with ours and
+ * eat characters before the mask loop sees them.
+ *
+ * Recognized inputs:
+ *   - Enter / newline       → resolve with buffered string
+ *   - Ctrl-C (0x03)          → reject with cancellation error
+ *   - Ctrl-D (0x04)          → resolve with buffered string (EOF)
+ *   - Backspace (0x7f, 0x08) → remove last char + visual backspace
+ *   - Printable chars        → append to buffer, echo "*"
+ *   - Other control chars    → ignored
+ */
+async function readMaskedFromStdin(prompt: string): Promise<string> {
+  process.stdout.write(`${prompt}: `);
+  return new Promise((resolve, reject) => {
+    const stdin = process.stdin;
+    stdin.setRawMode?.(true);
+    stdin.resume();
+    stdin.setEncoding("utf8");
+
+    let buffer = "";
+    const cleanup = (): void => {
+      stdin.off("data", onData);
+      stdin.setRawMode?.(false);
+      stdin.pause();
+    };
+
+    const onData = (chunk: string): void => {
+      for (const ch of chunk) {
+        const code = ch.charCodeAt(0);
+        if (ch === "\n" || ch === "\r") {
+          cleanup();
+          process.stdout.write("\n");
+          resolve(buffer);
+          return;
+        }
+        if (code === 3) {
+          cleanup();
+          process.stdout.write("\n");
+          reject(new Error("Install canceled (Ctrl-C)"));
+          return;
+        }
+        if (code === 4) {
+          cleanup();
+          process.stdout.write("\n");
+          resolve(buffer);
+          return;
+        }
+        if (code === 127 || code === 8) {
+          if (buffer.length > 0) {
+            buffer = buffer.slice(0, -1);
+            // Visually erase the last asterisk.
+            process.stdout.write("\b \b");
+          }
+          continue;
+        }
+        if (code < 32) continue;
+        buffer += ch;
+        process.stdout.write("*");
+      }
+    };
+
+    stdin.on("data", onData);
+  });
+}
+
 /** Default PromptIO backed by `node:readline/promises`. */
 export function createReadlineIo(): PromptIO {
-  const rl = readline.createInterface({
+  let rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
@@ -123,10 +193,34 @@ export function createReadlineIo(): PromptIO {
     return defaultValue;
   };
 
+  /**
+   * TTY → masked input (asterisks). Non-TTY → fall back to plain
+   * readline (no masking possible without raw mode).
+   *
+   * The TTY path must close + reopen the readline interface because
+   * both readline and our raw-mode listener bind to `process.stdin`;
+   * leaving readline open during the masked read makes it race us
+   * for input bytes. Close before, recreate after — any in-flight
+   * state (cursor line, completion state) is irrelevant across a
+   * secret prompt boundary.
+   */
   const askSecret: PromptIO["askSecret"] = async (prompt) => {
-    return (
-      await rl.question(`${prompt} (입력이 터미널에 그대로 보입니다): `)
-    ).trim();
+    const stdin = process.stdin;
+    const canRawMode =
+      Boolean(stdin.isTTY) && typeof stdin.setRawMode === "function";
+    if (!canRawMode) {
+      return (await rl.question(`${prompt}: `)).trim();
+    }
+    rl.close();
+    try {
+      const answer = await readMaskedFromStdin(prompt);
+      return answer.trim();
+    } finally {
+      rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+    }
   };
 
   const print: PromptIO["print"] = (text) => {

@@ -103,7 +103,7 @@ co-located claim들은 의미적으로 `corroboration`, `disagreement`, `partial
 Reverse application 은 §2–§3 규칙을 새로 만들지 않고 동일 규칙을 방향만 바꿔 사용한다.
 
 1. target 본문을 sampling 하여 관찰 가능한 phenomenon 을 §2 Phenomenon 단위로 추출한다
-2. 각 lens 의 perspective 정의(`roles/<lens>.md`)를 읽는다
+2. 각 lens 의 perspective 정의(`.onto/roles/<lens>.md`)를 읽는다
 3. 추출된 phenomenon 중 하나 이상이 해당 lens perspective 의 observation focus 와 §3 기준으로 co-locate 가능한지 판정한다
 4. 판정 결과가 긍정이면 그 lens 는 target 에 "relevant" 이다
 

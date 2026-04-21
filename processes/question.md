@@ -18,7 +18,7 @@ Determine `{session_domain}` per the "Domain Determination Rules" in `process.md
 Follows the **error handling rules** in `process.md`: halts the process on agent definition/query target read failure. Treats learning/domain document absence as "not yet available" and continues.
 
 1. **Agent file collection**:
-   - Definition: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/roles/{agent-id}.md`
+   - Definition: `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/.onto/roles/{agent-id}.md`
    - Verification learning: `~/.onto/learnings/{agent-id}.md`
    - Communication learning: `~/.onto/communication/common.md`
    - Skip if file does not exist.
@@ -46,7 +46,7 @@ You are {role}.
 Answer the question below from your specialized perspective.
 
 [Your Definition]
-{Content of ${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/roles/{agent-id}.md}
+{Content of ${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/.onto/roles/{agent-id}.md}
 
 [Past Learnings — Verification]
 {Content of ~/.onto/learnings/{agent-id}.md + {project}/.onto/learnings/{agent-id}.md. "Not yet available" if absent}

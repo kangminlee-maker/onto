@@ -94,7 +94,7 @@ The team lead collects only the items below. Per-agent learnings/domain document
    - Identifies the plugin path. (Used for path variables in teammate initial prompt)
 
 4. **Agent definition collection** (for all agents individually):
-   - `roles/{agent-id}.md` — role definition source material. The prompt-backed path reads the current repo copy and packages the needed content into deterministic prompt packets.
+   - `.onto/roles/{agent-id}.md` — role definition source material. The prompt-backed path reads the current repo copy and packages the needed content into deterministic prompt packets.
 
 ---
 

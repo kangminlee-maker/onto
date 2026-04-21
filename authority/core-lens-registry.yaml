@@ -17,43 +17,43 @@ lens_definitions:
   logic:
     purpose: "Logical consistency verification"
     semantic_scope: "Contradictions, type conflicts, constraint conflicts"
-    role_ref: "roles/logic.md"
+    role_ref: ".onto/roles/logic.md"
   structure:
     purpose: "Structural completeness verification"
     semantic_scope: "Isolated elements, broken paths, missing relations"
-    role_ref: "roles/structure.md"
+    role_ref: ".onto/roles/structure.md"
   dependency:
     purpose: "Dependency integrity verification"
     semantic_scope: "Cycles, reverse direction, diamond dependencies"
-    role_ref: "roles/dependency.md"
+    role_ref: ".onto/roles/dependency.md"
   semantics:
     purpose: "Semantic accuracy verification"
     semantic_scope: "Name-meaning alignment, synonyms/homonyms"
-    role_ref: "roles/semantics.md"
+    role_ref: ".onto/roles/semantics.md"
   pragmatics:
     purpose: "Pragmatic fitness verification"
     semantic_scope: "Queryability, competency question testing"
-    role_ref: "roles/pragmatics.md"
+    role_ref: ".onto/roles/pragmatics.md"
   evolution:
     purpose: "Evolution fitness verification"
     semantic_scope: "Breakage when adding new data/domains"
-    role_ref: "roles/evolution.md"
+    role_ref: ".onto/roles/evolution.md"
   coverage:
     purpose: "Domain coverage verification"
     semantic_scope: "Missing sub-areas, concept bias, gaps against standards"
-    role_ref: "roles/coverage.md"
+    role_ref: ".onto/roles/coverage.md"
   conciseness:
     purpose: "Conciseness verification"
     semantic_scope: "Duplicate definitions, over-specification, unnecessary distinctions"
-    role_ref: "roles/conciseness.md"
+    role_ref: ".onto/roles/conciseness.md"
   axiology:
     purpose: "Purpose and value alignment verification"
     semantic_scope: "Purpose drift, value conflict, mission misalignment"
-    role_ref: "roles/axiology.md"
+    role_ref: ".onto/roles/axiology.md"
   synthesize:
     purpose: "Review synthesis and adjudication"
     semantic_scope: "Consensus integration, disagreement preservation, final review output"
-    role_ref: "roles/synthesize.md"
+    role_ref: ".onto/roles/synthesize.md"
 
 # `full_review_lens_ids` — 9 lens 전수. review_mode 가 `full` 일 때 실행.
 # 9 lens 는 다양한 관점 (논리 / 구조 / 의존 / 의미 / 실용 / 진화 / 커버리지 /
@@ -111,7 +111,7 @@ core_axis_lens_ids:
   - semantics
   - structure
 
-# Core role IDs: these lenses have system-level role definitions in ontoHome/roles/.
+# Core role IDs: these lenses have system-level role definitions in ontoHome/.onto/roles/.
 # Project override is forbidden for these roles.
 core_role_ids:
   - logic

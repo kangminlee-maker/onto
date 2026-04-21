@@ -2,7 +2,7 @@
  * Plugin install path resolver.
  *
  * onto's canonical authority files (process.md, processes/, learning-rules.md,
- * roles/, etc.) are read at runtime from the install location. The path
+ * .onto/roles/, etc.) are read at runtime from the install location. The path
  * resolution must support multiple install scenarios:
  *
  * 1. Claude Code plugin install: `~/.claude/plugins/onto/`

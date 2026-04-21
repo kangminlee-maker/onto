@@ -32,7 +32,7 @@ concepts:
       - is_member_of: "agent panel"
       - produces: "review finding"
       - constrained_by: "domain document"
-      - has_role_definition_at: "roles/{agent-id}.md"
+      - has_role_definition_at: ".onto/roles/{agent-id}.md"
     disambiguation: >
       Not 'validator' (too narrow, implies pass/fail only).
       Not 'reviewer' (that describes the panel process, not a single agent).

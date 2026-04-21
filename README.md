@@ -500,7 +500,7 @@ onto/
 |   +-- backup.md            # Data backup
 |   +-- restore.md           # Data restore
 |   +-- health.md            # Learning health dashboard
-+-- roles/
++-- .onto/roles/
 |   +-- logic.md        # Logical consistency
 |   +-- structure.md    # Structural completeness
 |   +-- dependency.md   # Dependency integrity

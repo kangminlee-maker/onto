@@ -19,15 +19,15 @@
 
 이 계약은 현재 프로토타입의 아래 source material을 묶어 추출한 것이다.
 
-- `roles/logic.md`
-- `roles/structure.md`
-- `roles/dependency.md`
-- `roles/semantics.md`
-- `roles/pragmatics.md`
-- `roles/evolution.md`
-- `roles/coverage.md`
-- `roles/conciseness.md`
-- `roles/axiology.md`
+- `.onto/roles/logic.md`
+- `.onto/roles/structure.md`
+- `.onto/roles/dependency.md`
+- `.onto/roles/semantics.md`
+- `.onto/roles/pragmatics.md`
+- `.onto/roles/evolution.md`
+- `.onto/roles/coverage.md`
+- `.onto/roles/conciseness.md`
+- `.onto/roles/axiology.md`
 - `process.md`의 `Teammate Initial Prompt Template`
 - `process.md`의 `Codex Reviewer Prompt Template`
 - `processes/review/review.md`의 Round 1 task directives
@@ -49,7 +49,7 @@
 - `axiology`
 
 각 lens의 세부 perspective, observation focus, assertion type은
-개별 `roles/{lens-id}.md`가 source material로 제공한다.
+개별 `.onto/roles/{lens-id}.md`가 source material로 제공한다.
 
 ---
 
@@ -289,15 +289,15 @@ Principal Summary 에서 lexicon term 등장 시 `authority/core-lexicon.yaml §
 
 | Lens ID | Source material |
 |---|---|
-| `logic` | `roles/logic.md` |
-| `structure` | `roles/structure.md` |
-| `dependency` | `roles/dependency.md` |
-| `semantics` | `roles/semantics.md` |
-| `pragmatics` | `roles/pragmatics.md` |
-| `evolution` | `roles/evolution.md` |
-| `coverage` | `roles/coverage.md` |
-| `conciseness` | `roles/conciseness.md` |
-| `axiology` | `roles/axiology.md` |
+| `logic` | `.onto/roles/logic.md` |
+| `structure` | `.onto/roles/structure.md` |
+| `dependency` | `.onto/roles/dependency.md` |
+| `semantics` | `.onto/roles/semantics.md` |
+| `pragmatics` | `.onto/roles/pragmatics.md` |
+| `evolution` | `.onto/roles/evolution.md` |
+| `coverage` | `.onto/roles/coverage.md` |
+| `conciseness` | `.onto/roles/conciseness.md` |
+| `axiology` | `.onto/roles/axiology.md` |
 
 공통 wrapper rule은 role file이 아니라
 `process.md`와 `processes/review/review.md`에서 온다.
@@ -307,7 +307,7 @@ Principal Summary 에서 lexicon term 등장 시 `authority/core-lexicon.yaml §
 ## 9.1 Decision Preconditions
 
 일부 lens의 finding은 다른 lens의 사전 판단에 조건부이다.
-이 의존성은 `roles/*.md`가 아니라 이 계약이 단독 소유한다.
+이 의존성은 `.onto/roles/*.md`가 아니라 이 계약이 단독 소유한다.
 
 | Finding lens | Precondition | Upstream lens | 조건 미충족 시 |
 |---|---|---|---|
@@ -315,7 +315,7 @@ Principal Summary 에서 lexicon term 등장 시 `authority/core-lexicon.yaml §
 | `conciseness` (삭제/병합 claim) | semantic synonymy 확인 | `semantics` | finding은 `conditional` 상태. 최종 action으로 승격 불가 |
 
 - upstream evidence가 없으면 해당 finding의 `upstream_evidence_required`는 `true`이며, action은 조건부로 출력된다
-- 이 표의 확장은 이 계약에서만 수행한다. `roles/*.md`에는 복제하지 않는다
+- 이 표의 확장은 이 계약에서만 수행한다. `.onto/roles/*.md`에는 복제하지 않는다
 
 ---
 
@@ -372,7 +372,7 @@ fallback mode에서도 각 finding은 4요소를 모두 채운다. 각 요소는
 
 ### 9.3.3 Role-level 위임
 
-각 lens role 파일(`roles/<lens>.md`)은 본 절에 대한 포인터만 유지한다. 즉 §9.3 은 shared fallback mini-contract 의 유일한 canonical seat 이며, role-local 재진술은 금지한다 (CONS-1 지적 대응).
+각 lens role 파일(`.onto/roles/<lens>.md`)은 본 절에 대한 포인터만 유지한다. 즉 §9.3 은 shared fallback mini-contract 의 유일한 canonical seat 이며, role-local 재진술은 금지한다 (CONS-1 지적 대응).
 
 ---
 
@@ -382,7 +382,7 @@ fallback mode에서도 각 finding은 4요소를 모두 채운다. 각 요소는
 You are {role}.
 
 [Your Definition]
-{Content of roles/{lens-id}.md}
+{Content of .onto/roles/{lens-id}.md}
 
 [Context Self-Loading]
 {learnings/domain/communication/rules}

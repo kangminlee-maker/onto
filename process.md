@@ -58,7 +58,7 @@ When adding or removing an agent, all of the following files must be updated:
 
 | # | File | Update Item |
 |---|------|----------|
-| 1 | `roles/{agent-id}.md` | Create/delete role definition |
+| 1 | `.onto/roles/{agent-id}.md` | Create/delete role definition |
 | 2 | ~~`commands/ask-{dimension}.md`~~ | Retired (§1.2 ask 폐기). 단일 lens 질의는 review 경로 사용 |
 | 3 | `process.md` review lenses table | Add/delete row |
 | 4 | `process.md` domain document mapping | Add/delete row |
@@ -477,7 +477,7 @@ You are {role}.
 You are joining the {team name} team.
 
 [Your Definition]
-{Content of ${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/roles/{agent-id}.md}
+{Content of ${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/.onto/roles/{agent-id}.md}
 
 [Context Self-Loading]
 Read the files below and construct your own context. Skip if file does not exist:
@@ -512,7 +512,7 @@ Principal-facing translation happens at the Runtime Coordinator's render seat
 - Do not use metaphors or analogies.
 ```
 
-**Agent definitions** (roles/{agent-id}.md) are read by the team lead and included directly in the initial prompt (~14 lines per agent, minimal overhead). The remaining context is self-loaded by the teammate.
+**Agent definitions** (.onto/roles/{agent-id}.md) are read by the team lead and included directly in the initial prompt (~14 lines per agent, minimal overhead). The remaining context is self-loaded by the teammate.
 
 ### Codex Reviewer Prompt Template
 
@@ -528,7 +528,7 @@ Differences from the Teammate Initial Prompt Template:
 You are {role}.
 
 [Your Definition]
-{Content of roles/{agent-id}.md}
+{Content of .onto/roles/{agent-id}.md}
 
 [Context Self-Loading]
 Read the files below using `cat` and use them as your verification context.
@@ -583,7 +583,7 @@ Differences from the Codex Review Synthesize Prompt Template:
 You are synthesize (review synthesis stage).
 
 [Your Definition]
-{Content of roles/synthesize.md}
+{Content of .onto/roles/synthesize.md}
 
 [Context Self-Loading]
 Read the files below using the Read tool. Skip if file does not exist:
@@ -634,7 +634,7 @@ Differences from Codex Reviewer Prompt Template:
 You are synthesize (review synthesis stage).
 
 [Your Definition]
-{Content of roles/synthesize.md}
+{Content of .onto/roles/synthesize.md}
 
 [Context Self-Loading]
 Read the files below using `cat`. Skip if file does not exist:

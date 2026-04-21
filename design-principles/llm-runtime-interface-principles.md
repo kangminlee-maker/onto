@@ -132,7 +132,7 @@ artifact seat를 중심으로 구성한다.
 
 - input:
   - `materialized-input.md`
-  - `roles/logic.md`
+  - `.onto/roles/logic.md`
   - `interpretation.yaml`
   - `binding.yaml`
 - output:
@@ -160,7 +160,7 @@ artifact seat를 중심으로 구성한다.
 
 예:
 
-- `roles/logic.md`
+- `.onto/roles/logic.md`
 - `prompt-packets/logic.prompt.md`
 
 #### target boundary

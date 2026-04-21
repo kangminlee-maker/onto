@@ -167,6 +167,99 @@ Codex mode delegates reviewer passes to OpenAI Codex, reducing Claude token cons
 
 **If user selects no/skip:** No changes. Default `execution_mode` remains `agent-teams`.
 
+**3.8 Review execution axes (design doc §5 — Review UX Redesign P4)**
+
+This step replaces the older single-axis `execution_mode` question with the 6-axis review block introduced by the Review UX Redesign. When the project's `.onto/config.yml` already has a `review:` block, skip this step unless the user passes `--re-detect` (design doc §5.3).
+
+The stage has three sub-parts: **automatic detection**, **interactive selection**, **config write**. The onboard session delegates detection + write to two helper scripts so the prose stays short and deterministic.
+
+**3.8.1 Automatic detection (design doc §5.2 stages 1–4)**
+
+Run the detection helper and parse the JSON output:
+
+```bash
+npm run onboard:detect-review-axes --silent
+```
+
+Output shape:
+```json
+{
+  "detected": {
+    "host": "claude-code" | "codex-cli" | "plain-terminal",
+    "agent_teams_available": true | false,
+    "codex_available": true | false,
+    "litellm_endpoint": "http://..." | null
+  }
+}
+```
+
+Show the detected signals to the user in a short summary:
+
+```markdown
+## Review execution — detected environment
+
+| Axis | Detected |
+|---|---|
+| Host session | {host} |
+| Agent teams env (D) | {agent_teams_available} |
+| Codex binary available | {codex_available} |
+| LiteLLM endpoint | {litellm_endpoint or "not configured"} |
+```
+
+**3.8.2 Subagent provider 선택 (design doc §5.2 stage 5)**
+
+Present the enumerated options (filtered by detection — e.g. skip `codex` option when `codex_available=false`). Default is `main-native`.
+
+- `main-native` — default. No extra fields. Works on every host.
+- `codex` — only offer when `detected.codex_available=true`. Ask for `model_id` (default `gpt-5.4`) + `effort` (default `high`) + `max_concurrent_lenses` (default `6`).
+- `anthropic` — ask for `model_id` (e.g. `claude-opus-4.7`) + `max_concurrent_lenses` (default: total lens count, currently `9`; substitute the concrete integer). Requires `ANTHROPIC_API_KEY`.
+- `openai` — ask for `model_id` + `max_concurrent_lenses` (default: total lens count, currently `9`; substitute the concrete integer). Requires `OPENAI_API_KEY`.
+- `litellm` — only offer when `detected.litellm_endpoint` is non-null. Ask for `model_id` + `max_concurrent_lenses` (default `1`).
+
+> **`max_concurrent_lenses` must be a positive integer.** The validator rejects strings and non-integer numbers, so substitute the literal count (e.g. `9`) before composing the JSON. Design doc §2.3 uses the token `num_lenses` as shorthand for "all currently configured lenses, executed in parallel" — the actual value at the time of writing is **9** (the 9-lens review set).
+
+If the user chose a foreign provider that requires an API key and the key is missing, report this but do NOT block — the user may supply the key out-of-band.
+
+**3.8.3 Deliberation 선택 (design doc §5.2 stage 6)**
+
+Only ask when `detected.agent_teams_available=true` AND the chosen teamlead is `main` (the default; foreign teamlead overrides skip this). Present:
+
+- `synthesizer-only` (default) — lenses write independent verdicts; synthesizer reconciles.
+- `sendmessage-a2a` — lenses exchange messages during deliberation (requires agent teams env).
+
+Skip this step silently when `agent_teams_available=false` and force `synthesizer-only` (the validator would reject `sendmessage-a2a` anyway).
+
+**3.8.4 Config 쓰기 (design doc §5.2 stage 7)**
+
+Build the `OntoReviewConfig` object from the user's answers. Examples:
+
+Minimal (universal fallback — matches the absent-block default):
+```json
+{"teamlead":{"model":"main"},"subagent":{"provider":"main-native"}}
+```
+
+Claude Code + Codex subagent + teams env (recommended when all three are detected):
+```json
+{"teamlead":{"model":"main"},"subagent":{"provider":"codex","model_id":"gpt-5.4","effort":"high"},"max_concurrent_lenses":6,"lens_deliberation":"synthesizer-only"}
+```
+
+Invoke the write helper, passing `--strip-legacy-priority` when the file currently has an `execution_topology_priority` entry (so the migrated config has a single source of truth):
+
+```bash
+npm run onboard:write-review-block --silent -- .onto/config.yml '<JSON>' --strip-legacy-priority
+```
+
+The helper returns a JSON result on stdout:
+```json
+{"ok":true,"path":"/abs/path/.onto/config.yml","created":false,"replacedExistingBlock":false,"strippedLegacyPriority":true}
+```
+
+If `strippedLegacyPriority=true`, print the deprecation notice:
+
+> `execution_topology_priority` 필드가 발견되어 제거되었습니다. 이제 `review:` block 이 설정의 정본입니다.
+
+If the helper returns `{ok: false, errors: [...]}`, show each `{path, message}` entry verbatim and re-ask the relevant question. Do not proceed to step 4 until the write succeeds.
+
 ### 4. Completion Report
 
 ```markdown
@@ -178,6 +271,7 @@ Codex mode delegates reviewer passes to OpenAI Codex, reducing Claude token cons
 | Domains | {domains list / none (select per session)} |
 | Global domain documents | {N present per domain / not present (auto-accumulation pending)} |
 | Execution mode | {codex / agent-teams (default)} |
+| Review axes | {review block written / unchanged / skipped} |
 
 ### Next Steps
 - `/onto:review {target}` — run agent panel review

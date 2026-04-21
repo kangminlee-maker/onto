@@ -51,7 +51,9 @@
     "coordinator:status": "tsx src/core-runtime/cli/coordinator-state-machine.ts status",
     "review:coordinator-init-log": "tsx src/core-runtime/cli/coordinator-helpers.ts init-log",
     "review:coordinator-build-synthesize-packet": "tsx src/core-runtime/cli/coordinator-helpers.ts build-synthesize-packet",
-    "review:coordinator-write-execution-result": "tsx src/core-runtime/cli/coordinator-helpers.ts write-execution-result"
+    "review:coordinator-write-execution-result": "tsx src/core-runtime/cli/coordinator-helpers.ts write-execution-result",
+    "onboard:detect-review-axes": "tsx src/core-runtime/onboard/detect-review-axes.ts",
+    "onboard:write-review-block": "tsx src/core-runtime/onboard/write-review-block.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",

@@ -75,7 +75,7 @@ Executes the following upon user approval:
 - Asks the user first: "What language should agent output be in? (e.g., `en`, `ko`, `ja`) Default: `en`"
 - Creates `.onto/config.yml` with `output_language: {language}` as the first entry.
 - All subsequent onboarding messages are delivered in the configured language.
-- Full OntoConfig key surface: `processes/configuration.md` (SSOT)
+- Full OntoConfig key surface: `.onto/processes/configuration.md` (SSOT)
 
 **3.2 Create project learning directory**
 - Creates `.onto/learnings/` directory if it does not exist.
@@ -101,7 +101,7 @@ Executes the following upon user approval:
   3. Upon user approval: copies default documents (*.md) from the plugin's `.onto/domains/{domain}/` to `~/.onto/domains/{domain}/`. Also creates the `learnings/` directory. Skips files with identical content.
   4. If the domain does not exist in the plugin, suggests seed creation:
      "Domain documents for `{domain}` are not included in the plugin. Would you like to generate seed documents? (`/onto:create-domain {domain} {description}`). Seeds are LLM-generated drafts that improve through review experience."
-     Upon user approval: execute the create-domain process (`processes/create-domain.md`). If declined: skip (domain documents can be created later).
+     Upon user approval: execute the create-domain process (`.onto/processes/create-domain.md`). If declined: skip (domain documents can be created later).
 - Repeats the installation check for each domain in the `domains:` list.
 
 > **Note**: Default domains included in the plugin can be installed in bulk via `setup-domains.sh --all`, or selectively via `setup-domains.sh {domain1} {domain2}`.

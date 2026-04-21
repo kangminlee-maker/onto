@@ -15,7 +15,7 @@
     ".onto/domains/",
     "authority/",
     ".onto/commands/",
-    "processes/",
+    ".onto/processes/",
     "explorers/",
     "CLAUDE.md",
     "AGENTS.md"

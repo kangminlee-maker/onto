@@ -36,7 +36,7 @@ describe("render-for-user registry + rendering", () => {
 as_of: "2026-04-17"
 points:
   - id: halt_message_config_malformed
-    file: processes/reconstruct.md
+    file: .onto/processes/reconstruct.md
     section: "Halt event rendering"
     rationale: "user-facing halt text"
 `);
@@ -46,7 +46,7 @@ points:
     expect(registry.points).toHaveLength(1);
     expect(registry.points[0]).toMatchObject({
       id: "halt_message_config_malformed",
-      file: "processes/reconstruct.md",
+      file: ".onto/processes/reconstruct.md",
       section: "Halt event rendering",
       rationale: "user-facing halt text",
     });
@@ -66,7 +66,7 @@ points: []
 as_of: "2026-04-17"
 points:
   - id: phase_3_user_summary
-    file: processes/reconstruct.md
+    file: .onto/processes/reconstruct.md
     rationale: "summary the principal reads"
 `);
     expect(isRegisteredRenderPoint("phase_3_user_summary")).toBe(true);
@@ -78,7 +78,7 @@ points:
 as_of: "2026-04-17"
 points:
   - id: phase_5_completion_report
-    file: processes/reconstruct.md
+    file: .onto/processes/reconstruct.md
     rationale: "user-facing completion report"
 `);
     const out = renderForUser({
@@ -94,7 +94,7 @@ points:
 as_of: "2026-04-17"
 points:
   - id: halt_message_config_malformed
-    file: processes/reconstruct.md
+    file: .onto/processes/reconstruct.md
     rationale: "malformed config halt"
 `);
     expect(() =>
@@ -111,7 +111,7 @@ points:
 as_of: "2026-04-17"
 points:
   - id: incomplete_entry
-    file: processes/reconstruct.md
+    file: .onto/processes/reconstruct.md
 `);
     expect(() => loadRegistry()).toThrow(/missing required field/);
   });

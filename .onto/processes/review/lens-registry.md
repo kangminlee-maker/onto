@@ -73,13 +73,13 @@
 
 ### 4.3 Overlap-permitted lens claims
 
-여러 lens가 동일 현상에 대해 각자 lens-qualified claim을 내는 것이 허용된다. overlap 정책과 claim relation 분류의 normative seat는 `processes/review/shared-phenomenon-contract.md`이다.
+여러 lens가 동일 현상에 대해 각자 lens-qualified claim을 내는 것이 허용된다. overlap 정책과 claim relation 분류의 normative seat는 `.onto/processes/review/shared-phenomenon-contract.md`이다.
 
 ---
 
 ## 5. Execution Separation Rule
 
-실행 분리 규칙의 normative seat는 `processes/review/lens-prompt-contract.md` §3 (Core Execution Rule)이다. 이 섹션은 개관만 제공한다.
+실행 분리 규칙의 normative seat는 `.onto/processes/review/lens-prompt-contract.md` §3 (Core Execution Rule)이다. 이 섹션은 개관만 제공한다.
 
 `review lens`는 개념적으로도 실행상으로도 서로 독립이어야 한다.
 
@@ -100,14 +100,14 @@
 현재 `review`의 prompt-backed reference path에서
 각 lens와 synthesize 단계의 source material은 아래다.
 
-- 공통 lens wrapper: `process.md`, `processes/review/review.md`
+- 공통 lens wrapper: `process.md`, `.onto/processes/review/review.md`
 - 개별 lens perspective: `.onto/roles/{lens-id}.md`
 - synthesize specialization: `.onto/roles/synthesize.md`
 
 관련 계약 문서:
 
-- `processes/review/lens-prompt-contract.md`
-- `processes/review/synthesize-prompt-contract.md`
+- `.onto/processes/review/lens-prompt-contract.md`
+- `.onto/processes/review/synthesize-prompt-contract.md`
 
 ---
 

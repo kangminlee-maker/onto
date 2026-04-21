@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
     paths:
-      - 'processes/**'
+      - '.onto/processes/**'
       - '.onto/commands/**'
       - 'design-principles/**'
       - 'authority/external-render-points.yaml'

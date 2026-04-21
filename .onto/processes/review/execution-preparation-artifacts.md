@@ -3,9 +3,9 @@
 > 상태: Active
 > 목적: `검토 고정 (InvocationBinding)` 이후 lens 실행 전에 materialize되어야 하는 bridge artifact를 고정한다.
 > 기준 문서:
-> - `processes/review/productized-live-path.md`
-> - `processes/review/binding-contract.md`
-> - `processes/review/record-contract.md`
+> - `.onto/processes/review/productized-live-path.md`
+> - `.onto/processes/review/binding-contract.md`
+> - `.onto/processes/review/record-contract.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -120,7 +120,7 @@ plugin_root: /Users/kangmin/.claude/plugins/onto
 review_target_scope_kind: bundle
 resolved_target_refs:
   - /Users/kangmin/cowork/onto/process.md
-  - /Users/kangmin/cowork/onto/processes/review/review.md
+  - /Users/kangmin/cowork/onto/.onto/processes/review/review.md
 captured_at: 2026-04-04T15:21:00+09:00
 capture_reason: prompt-backed review execution
 ```
@@ -153,7 +153,7 @@ members:
   - ref: /Users/kangmin/cowork/onto/process.md
     label: process
     content_path: execution-preparation/materialized-input.md#process
-  - ref: /Users/kangmin/cowork/onto/processes/review/review.md
+  - ref: /Users/kangmin/cowork/onto/.onto/processes/review/review.md
     label: review_process
     content_path: execution-preparation/materialized-input.md#review_process
 ```
@@ -185,7 +185,7 @@ role_definition_refs:
   - /Users/kangmin/cowork/onto/.onto/roles/logic.md
 execution_rule_refs:
   - /Users/kangmin/cowork/onto/process.md
-  - /Users/kangmin/cowork/onto/processes/review/review.md
+  - /Users/kangmin/cowork/onto/.onto/processes/review/review.md
 ```
 
 원칙:
@@ -218,6 +218,6 @@ execution_rule_refs:
 
 다음 단계는 아래다.
 
-1. `processes/review/review.md`의 session directory wording을 이 artifact seats와 맞춘다
+1. `.onto/processes/review/review.md`의 session directory wording을 이 artifact seats와 맞춘다
 2. prompt-backed path에서 이 artifact 내용을 실제 field shape로 안정화한다
 3. later runtime replacement에서 file generator를 하나씩 치환한다

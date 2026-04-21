@@ -4,7 +4,7 @@
 **Type source**: `src/core-runtime/discovery/config-chain.ts` 의 `OntoConfig` interface (rank 6).
 **Merge logic**: `resolveConfigChain()` 같은 파일.
 
-이 문서는 기존에 여러 곳 (README §"LLM Provider Configuration", `processes/reconstruct.md` §"Build-time configuration", `processes/onboard.md`, `CHANGELOG.md`) 에 흩어져 있던 config 문서를 하나의 SSOT 로 통합한다. 문서 간 drift 가 자주 발생해 왔다. 이제부터는:
+이 문서는 기존에 여러 곳 (README §"LLM Provider Configuration", `.onto/processes/reconstruct.md` §"Build-time configuration", `.onto/processes/onboard.md`, `CHANGELOG.md`) 에 흩어져 있던 config 문서를 하나의 SSOT 로 통합한다. 문서 간 drift 가 자주 발생해 왔다. 이제부터는:
 
 - 각 key 의 **의미·기본값·유효값 범위** → 본 문서
 - 각 key 의 **런타임 사용 위치** → 본 문서 §"Key reference" 의 참조 링크
@@ -28,7 +28,7 @@ project-local 우선 → home 보조. 자세한 병합 규칙은 §3 참조.
 - **`onto onboard`** — 대화형으로 `output_language` 등 필수 필드 prompt. 대부분의 경우 권장.
 - **수동 작성** — 본 문서 §"Key reference" 를 참고해 yaml 직접 편집.
 
-`onto onboard` 상세 절차는 `processes/onboard.md` 참조. 특히 remote main 은 본 파일이 없으므로, 새 환경 진입 시 기본값은 항상 "unset → 런타임 auto-resolve" 로 동작한다.
+`onto onboard` 상세 절차는 `.onto/processes/onboard.md` 참조. 특히 remote main 은 본 파일이 없으므로, 새 환경 진입 시 기본값은 항상 "unset → 런타임 auto-resolve" 로 동작한다.
 
 ## 3. Resolution 체인 (병합 규칙)
 
@@ -295,7 +295,7 @@ subagent_llm:                    # lens 는 Anthropic Haiku 로 비용 절감
 ## 6. Validation 과 error-handling 정책
 
 - **파일 없음** — 모든 key 기본값 적용. 런타임 정상 동작 (대부분의 경우 auto-resolution 이 host 를 찾음)
-- **파일 있으나 malformed YAML** — parser 예외 → halt. 자세한 정책은 `processes/reconstruct.md` §"Build-time configuration"
+- **파일 있으나 malformed YAML** — parser 예외 → halt. 자세한 정책은 `.onto/processes/reconstruct.md` §"Build-time configuration"
 - **유효한 YAML 이나 type-invalid 값** — warning `config_type_invalid` 로그 + 해당 key default 로 fallback
 - **유효한 YAML 이나 out-of-range 값** — warning `config_out_of_range` 로그 + default fallback
 - **알 수 없는 key** — `x-*` / `custom.*` 네임스페이스 외에는 warning `config_unknown_key_ignored`. 무시됨
@@ -304,8 +304,8 @@ subagent_llm:                    # lens 는 Anthropic Haiku 로 비용 절감
 
 본 문서는 **key surface 의 SSOT** 이다. 다음 문서는 각자의 관심사에 한정하여 해당 key 를 언급하며, 정의/유효값/기본값 기술은 본 문서로 참조한다:
 
-- `processes/reconstruct.md` §"Build-time configuration" — reconstruct 가 소비하는 key 집합 + reconstruct-specific error handling
-- `processes/onboard.md` — config 생성 절차 (대화형 프롬프트)
+- `.onto/processes/reconstruct.md` §"Build-time configuration" — reconstruct 가 소비하는 key 집합 + reconstruct-specific error handling
+- `.onto/processes/onboard.md` — config 생성 절차 (대화형 프롬프트)
 - `.onto/commands/review.md` — review 관련 key 사용 방식 (CLI flag 와 config 의 관계)
 - `README.md` — 첫 진입자용 요약·quickstart
 - `CHANGELOG.md` — config 진화 이력

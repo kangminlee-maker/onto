@@ -3,7 +3,7 @@
 > 상태: Active
 > 목적: 현재 `onto` 프로토타입의 `/onto:review`가 먼저 수행해야 하는 `검토 해석 (InvocationInterpretation)` 책임을 고정한다.
 > 기준 문서:
-> - `processes/review/lens-registry.md`
+> - `.onto/processes/review/lens-registry.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -78,8 +78,8 @@
 7. `lens_selection_plan`
    - 특히 중요하게 보아야 할 lens 와 recommended lens set
    - shape: `always_include`, `recommended_lenses`, `rationale`
-   - **`always_include`** 는 `[axiology]` 를 포함해야 한다. 목적·가치 정합 검증은 모든 리뷰의 필수 구성이며, 그 어떤 리뷰 대상에서도 제외 불가하다. 이 원칙의 판정 규칙 층 seat 는 `processes/review/shared-phenomenon-contract.md §7.3 Axiology 제외 불가` 이다
-   - **`recommended_lenses`** 는 `processes/review/shared-phenomenon-contract.md §7.1 Reverse 적용 규칙` 에 따라 도출한다. 즉 target 본문 sampling → phenomenon 추출 → 각 lens perspective 와의 co-location 판정의 결과이다. 본 절은 이 결과의 output schema 만 소유하며, 판정 규칙은 §7 을 참조만 한다
+   - **`always_include`** 는 `[axiology]` 를 포함해야 한다. 목적·가치 정합 검증은 모든 리뷰의 필수 구성이며, 그 어떤 리뷰 대상에서도 제외 불가하다. 이 원칙의 판정 규칙 층 seat 는 `.onto/processes/review/shared-phenomenon-contract.md §7.3 Axiology 제외 불가` 이다
+   - **`recommended_lenses`** 는 `.onto/processes/review/shared-phenomenon-contract.md §7.1 Reverse 적용 규칙` 에 따라 도출한다. 즉 target 본문 sampling → phenomenon 추출 → 각 lens perspective 와의 co-location 판정의 결과이다. 본 절은 이 결과의 output schema 만 소유하며, 판정 규칙은 §7 을 참조만 한다
    - **`rationale`** 은 각 lens 선택이 어느 phenomenon 과의 co-location 에 근거하는지 명시한다
 8. `ambiguity_notes`
    - 모호한 점이 있으면 기록
@@ -185,7 +185,7 @@ ambiguity_notes:
 
 - `.onto/commands/review.md`
 - `process.md`의 domain determination rules
-- `processes/review/review.md`의 Step 0, Step 1.5
+- `.onto/processes/review/review.md`의 Step 0, Step 1.5
 
 즉 현재 `/onto:review` 프롬프트는 먼저 아래 순서를 따라야 한다.
 
@@ -196,7 +196,7 @@ ambiguity_notes:
 5. 그 다음에만 binding 단계로 넘어간다
 
 이때 productized prompt path에서는 이 단계가
-`processes/review/review.md`의 live step보다 먼저 한 번 실행된 것으로 간주한다.
+`.onto/processes/review/review.md`의 live step보다 먼저 한 번 실행된 것으로 간주한다.
 
 ---
 
@@ -245,4 +245,4 @@ prompt-backed path에서는 이 중 interpretation 결과를
 
 1. `검토 고정 계약 (review binding contract)`을 고정한다
 2. `.onto/commands/review.md`가 이 두 단계를 명시적으로 읽도록 바꾼다
-3. 이후 `processes/review/review.md` Step 0/1/1.5를 interpretation/binding 기준으로 다시 정리한다
+3. 이후 `.onto/processes/review/review.md` Step 0/1/1.5를 interpretation/binding 기준으로 다시 정리한다

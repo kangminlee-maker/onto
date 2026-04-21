@@ -6,7 +6,7 @@
  *
  * 현재 구현은 "환경 수준" classifier — project 에 ontology seat 이 존재했느냐를 시그널로 쓴다.
  * 세션별 ontology 소비 기록을 artifact 에 추가할 수 있게 되면 per-session 로직으로 확장한다.
- * (세부 설계 한계는 processes/review/ontology-path.md §5 참조)
+ * (세부 설계 한계는 .onto/processes/review/ontology-path.md §5 참조)
  *
  * 소비자: W-A-75/76 evidence, onto:health, refresh protocol
  */
@@ -118,7 +118,7 @@ const EXCLUDED_DIRS = new Set(["node_modules", ".git", ".onto", "dist", "build"]
  *
  * 현재는 "환경 수준" classifier — project 에 seat 이 존재하면 모든 세션이 r+,
  * 존재하지 않으면 모든 세션이 r− 로 라벨링된다. 세션별 per-session 라벨은
- * 향후 artifact 확장 후 구현 (processes/review/ontology-path.md §5 한계 항목).
+ * 향후 artifact 확장 후 구현 (.onto/processes/review/ontology-path.md §5 한계 항목).
  */
 export function classifyReviewPaths(
   entries: ReviewLogEntry[],

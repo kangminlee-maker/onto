@@ -23,7 +23,7 @@
 
 ## Verdict schema
 
-이 lens는 finding 마다 verdict state 와 logic-specific 출력 필드를 보유한다. 일반 출력 스키마는 `processes/review/lens-prompt-contract.md` §8.1 을 상속하며, 아래 요소를 추가한다.
+이 lens는 finding 마다 verdict state 와 logic-specific 출력 필드를 보유한다. 일반 출력 스키마는 `.onto/processes/review/lens-prompt-contract.md` §8.1 을 상속하며, 아래 요소를 추가한다.
 
 ### Verdict states
 
@@ -96,7 +96,7 @@ target 이 schema / model artifact 가 아닌 prose 계약 문서인 경우 clai
 
 `.onto/domains/{domain}/logic_rules.md` (`session_domain`이 설정된 경우).
 
-`session_domain` 이 `none` 이면 `processes/review/lens-prompt-contract.md` §9.3 Domain-None Fallback Rule 에 따라 domain document 없이 실행한다. 이때 logic lens 는 아래 generic check 를 수행한다.
+`session_domain` 이 `none` 이면 `.onto/processes/review/lens-prompt-contract.md` §9.3 Domain-None Fallback Rule 에 따라 domain document 없이 실행한다. 이때 logic lens 는 아래 generic check 를 수행한다.
 
 - **Intra-claim 모순** — 동일 문서 내 단일 claim 이 자기 모순적인 경우 (예: "X 는 필수이다" 와 "X 는 금지된다" 가 동일 문서 내 공존)
 - **명시된 claim 집합의 형식적 양립 가능성** — domain rule 참조 없이 claim 자체 구조만으로 unsatisfiability 판정 가능한 경우

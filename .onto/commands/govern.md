@@ -14,7 +14,7 @@ govern <subcommand> [options]
 | `route` | drift engine 분류 (§1.3 3 분기) + 필요 시 큐 append | (drift → pending 또는 no-op) |
 | `promote-principle` | knowledge → principle 승격 제안 (W-C-03) | — → pending (Quality/Frequency + Completeness gate 통과 시) |
 
-**Authority seat**: `processes/govern.md` (프로세스 계약). 큐 저장 경로: `.onto/govern/queue.ndjson` (프로젝트 로컬).
+**Authority seat**: `.onto/processes/govern.md` (프로세스 계약). 큐 저장 경로: `.onto/govern/queue.ndjson` (프로젝트 로컬).
 
 ## v0 범위 (bounded minimum surface, W-C-01)
 
@@ -87,9 +87,9 @@ onto govern route --json <ChangeProposal-json>
 **분류 결과 (`route`)**:
 - `self_apply`: drift 없는 local contained 변경. 큐 append 안 함 — caller 가 즉시 실행 가능.
 - `queue`: drift 가능성 있는 변경. 큐에 `origin=system, tag=drift` 로 append. payload.route=queue.
-- `principal_direct`: governance core (authority/, design-principles/, processes/govern.md) 변경. 큐에 append, payload.route=principal_direct marker. 자체 실행 금지, 반드시 Principal 직접 판정.
+- `principal_direct`: governance core (authority/, design-principles/, .onto/processes/govern.md) 변경. 큐에 append, payload.route=principal_direct marker. 자체 실행 금지, 반드시 Principal 직접 판정.
 
-분류 규칙과 수준 0→1 정합은 `processes/govern.md §11` 참조.
+분류 규칙과 수준 0→1 정합은 `.onto/processes/govern.md §11` 참조.
 
 ## CLI–Agent 책임 분리
 
@@ -115,6 +115,6 @@ projection 규칙: id 별로 그룹핑. submit 이 base entry, decide 가 있으
 
 ## 관련 개념
 
-- Authority seat: `processes/govern.md`
+- Authority seat: `.onto/processes/govern.md`
 - Lexicon: `authority/core-lexicon.yaml` entrypoint.instances.govern + `govern_process` entity (v0.12.0).
 - Types: `src/core-runtime/govern/types.ts` (`GovernSubmitEvent`, `GovernDecideEvent`, `GovernQueueEntry`, `originToTag`).

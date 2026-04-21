@@ -58,10 +58,10 @@ describe("drift-engine classifier (W-C-02 v0, §1.3 수준 0→1 3 분기)", () 
     expect(decision.route).toBe("principal_direct");
   });
 
-  it("boundary: processes/govern.md 는 governance core → principal_direct (self-modification 차단)", () => {
+  it("boundary: .onto/processes/govern.md 는 governance core → principal_direct (self-modification 차단)", () => {
     const decision = classifyProposal({
       summary: "govern process §8 scope 수정",
-      target_files: ["processes/govern.md"],
+      target_files: [".onto/processes/govern.md"],
       change_kind: "docs_only",
     });
     expect(decision.route).toBe("principal_direct");

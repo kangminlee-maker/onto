@@ -171,7 +171,7 @@ review_mode: core-axis
 
 - Handoff payload 의 `deliberation_channel === "sendmessage-a2a"`.
 - Coordinator (수동) 는 각 lens 실행 후 **agent 종료 금지**.
-- `processes/review/nested-spawn-coordinator-contract.md` §16 프로토콜 수행:
+- `.onto/processes/review/nested-spawn-coordinator-contract.md` §16 프로토콜 수행:
   1. Round 1: 각 lens 에게 다른 lens 출력 공유 + 재평가 SendMessage.
   2. (선택) Round 2: 수렴 / 지속적 이견 명시.
   3. Deliberation artifact 를 `{session_root}/deliberation/round{1,2}/<lens>-deliberation.md` 에 기록.
@@ -199,6 +199,6 @@ review_mode: core-axis
 ## 참고
 
 - Sketch v3: `development-records/evolve/20260418-execution-topology-priority-sketch.md`
-- Coordinator contract: `processes/review/nested-spawn-coordinator-contract.md` §2.2, §16
+- Coordinator contract: `.onto/processes/review/nested-spawn-coordinator-contract.md` §2.2, §16
 - PR-G (topology descriptor 전달): `src/core-runtime/cli/review-invoke.ts` 의 `emitCoordinatorStartHandoff`
 - PR-I (prompt 소비): PR #107

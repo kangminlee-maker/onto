@@ -1,7 +1,7 @@
 /**
  * Plugin install path resolver.
  *
- * onto's canonical authority files (process.md, processes/, learning-rules.md,
+ * onto's canonical authority files (process.md, .onto/processes/, learning-rules.md,
  * .onto/roles/, etc.) are read at runtime from the install location. The path
  * resolution must support multiple install scenarios:
  *
@@ -71,8 +71,8 @@ export function resolvePluginPath(): PluginPathResolution | null {
  * Resolve a plugin-relative path. Returns null when the plugin install is
  * not found.
  *
- * Example: `resolvePluginRelativePath("processes/reconstruct.md")` returns
- * `/home/user/.claude/plugins/onto/processes/reconstruct.md` (or whatever
+ * Example: `resolvePluginRelativePath(".onto/processes/reconstruct.md")` returns
+ * `/home/user/.claude/plugins/onto/.onto/processes/reconstruct.md` (or whatever
  * `ONTO_PLUGIN_DIR` resolves to).
  */
 export function resolvePluginRelativePath(relativePath: string): string | null {

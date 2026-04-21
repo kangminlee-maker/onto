@@ -43,16 +43,16 @@ ONTO_LLM_MOCK=1 npm run review:inline-http-unit-executor -- \
 > - `development-records/plan/20260404-prototype-to-service-productization-plan.md`
 > - `development-records/audit/20260404-prototype-runtime-llm-boundary-audit.md`
 > - `development-records/plan/20260404-review-prototype-to-product-mapping.md`
-> - `processes/review/lens-registry.md`
-> - `processes/review/interpretation-contract.md`
-> - `processes/review/binding-contract.md`
-> - `processes/review/productized-live-path.md`
-> - `processes/review/record-contract.md`
-> - `processes/review/record-field-mapping.md`
-> - `processes/review/execution-preparation-artifacts.md`
-> - `processes/review/prompt-execution-runner-contract.md`
-> - `processes/review/lens-prompt-contract.md`
-> - `processes/review/synthesize-prompt-contract.md`
+> - `.onto/processes/review/lens-registry.md`
+> - `.onto/processes/review/interpretation-contract.md`
+> - `.onto/processes/review/binding-contract.md`
+> - `.onto/processes/review/productized-live-path.md`
+> - `.onto/processes/review/record-contract.md`
+> - `.onto/processes/review/record-field-mapping.md`
+> - `.onto/processes/review/execution-preparation-artifacts.md`
+> - `.onto/processes/review/prompt-execution-runner-contract.md`
+> - `.onto/processes/review/lens-prompt-contract.md`
+> - `.onto/processes/review/synthesize-prompt-contract.md`
 > - `src/core-runtime/review/artifact-types.ts`
 > - `src/core-runtime/review/review-artifact-utils.ts`
 > - `src/core-runtime/cli/write-review-interpretation.ts`
@@ -487,7 +487,7 @@ onto/
 |   +-- productization-charter.md           # Product direction (rank 3)
 |   +-- llm-runtime-interface-principles.md # Interface spec (rank 4)
 |   +-- ontology-as-code-naming-charter.md  # Naming rules (rank 4)
-+-- processes/
++-- .onto/processes/
 |   +-- review.md           # Team review mode (6 steps)
 |   +-- question.md         # Individual query mode
 |   +-- build.md            # Ontology build (integral exploration)

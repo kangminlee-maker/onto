@@ -1,7 +1,7 @@
 # Domain Promotion Process
 
 > Promotes a seed domain from drafts/ to established domains/.
-> Related: Seeds are created by `processes/create-domain.md`. Feedback loop improves seeds via `processes/feedback.md`.
+> Related: Seeds are created by `.onto/processes/create-domain.md`. Feedback loop improves seeds via `.onto/processes/feedback.md`.
 
 Moves a domain from `~/.onto/drafts/{domain}/` to `~/.onto/domains/{domain}/` after verifying all promotion preconditions. This is a one-way operation — demotion is not supported.
 

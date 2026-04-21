@@ -2,11 +2,11 @@
 
 > 상태: Active
 > 목적: Claude Code 세션에서 Deterministic State Enforcer를 사용한 review 실행 계약을 정의한다.
-> authority: `processes/review/productized-live-path.md`의 하위 실행 계약
+> authority: `.onto/processes/review/productized-live-path.md`의 하위 실행 계약
 > 기준 문서:
-> - `processes/review/productized-live-path.md`
-> - `processes/review/prompt-execution-runner-contract.md`
-> - `processes/review/execution-preparation-artifacts.md`
+> - `.onto/processes/review/productized-live-path.md`
+> - `.onto/processes/review/prompt-execution-runner-contract.md`
+> - `.onto/processes/review/execution-preparation-artifacts.md`
 > - `src/core-runtime/review/artifact-types.ts`
 > - `.onto/temp/coordinator-state-machine-v3.md` (설계 v3)
 

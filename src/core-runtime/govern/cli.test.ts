@@ -78,7 +78,7 @@ describe("govern CLI v0", () => {
       "--origin",
       "system",
       "--target",
-      "processes/evolve.md",
+      ".onto/processes/evolve.md",
       "--json",
       JSON.stringify({ detected: "doc-code drift at §3" }),
       "--project-root",

@@ -104,7 +104,7 @@ const R2_GUIDANCE_TEMPLATE = (id: string, known: string): string =>
  * and `.git/` — those are either gitignored or held ephemeral.
  */
 const SCAN_ROOTS: readonly string[] = [
-  "processes",
+  ".onto/processes",
   ".onto/commands",
   "design-principles",
   "authority",

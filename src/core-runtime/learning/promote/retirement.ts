@@ -3,7 +3,7 @@
  *
  * Design authority:
  *   - learn-phase3-design-v2.md DD-6 (event marker 기반 퇴역)
- *   - processes/learn/promote.md Step 4a (event marker review)
+ *   - .onto/processes/learn/promote.md Step 4a (event marker review)
  *
  * Responsibility:
  *   - Identify global learnings carrying 2+ event markers (`applied-then-found-invalid`)

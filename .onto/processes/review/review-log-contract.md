@@ -10,7 +10,7 @@ canonicality: supporting
 source_refs:
   w_id: "W-A-71 (DL-017 점진성 seat)"
   onto_direction: "development-records/evolve/20260413-onto-direction.md §1.4 측면 1"
-  execution_result_contract: "processes/review/record-contract.md §5 execution_result_ref"
+  execution_result_contract: ".onto/processes/review/record-contract.md §5 execution_result_ref"
   artifact_types: "src/core-runtime/review/artifact-types.ts (ReviewExecutionResultArtifact)"
   reader_impl: "src/core-runtime/readers/review-log.ts"
 ---

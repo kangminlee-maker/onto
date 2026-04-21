@@ -3,11 +3,11 @@
 > 상태: Active
 > 목적: 현재 `onto` 프로토타입의 `review lens`들이 공통으로 따라야 하는 `lens 프롬프트 계약 (LensPromptContract)`을 고정한다.
 > 기준 문서:
-> - `processes/review/lens-registry.md`
-> - `processes/review/interpretation-contract.md`
-> - `processes/review/binding-contract.md`
+> - `.onto/processes/review/lens-registry.md`
+> - `.onto/processes/review/interpretation-contract.md`
+> - `.onto/processes/review/binding-contract.md`
 > - `process.md`
-> - `processes/review/review.md`
+> - `.onto/processes/review/review.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -30,7 +30,7 @@
 - `.onto/roles/axiology.md`
 - `process.md`의 `Teammate Initial Prompt Template`
 - `process.md`의 `Codex Reviewer Prompt Template`
-- `processes/review/review.md`의 Round 1 task directives
+- `.onto/processes/review/review.md`의 Round 1 task directives
 
 ---
 
@@ -226,7 +226,7 @@ Field-level 필수 규약의 유일 seat 이다. §8.1 output structure 는 본 
 ### 8.3 4-Field Claim Requirement
 
 모든 lens finding 은 `{target, evidence_anchor, claim, lens_id}` 4필드를 필수로 포함해야 한다.
-4필드의 의미와 co-location rule 은 `processes/review/shared-phenomenon-contract.md` 가 정의한다.
+4필드의 의미와 co-location rule 은 `.onto/processes/review/shared-phenomenon-contract.md` 가 정의한다.
 이 계약은 직렬화 형식만 소유한다.
 
 ### 8.4 Artifact Position
@@ -238,7 +238,7 @@ later productization에서는 이 markdown이
 structured lens artifact의 source가 된다.
 
 현재 기준의 aggregate primary artifact는
-`processes/review/record-contract.md`에서 정의하는 `ReviewRecord`다.
+`.onto/processes/review/record-contract.md`에서 정의하는 `ReviewRecord`다.
 
 ### 8.5 Internal Body vs Principal Summary (Output Structural Split)
 
@@ -277,7 +277,7 @@ Principal Summary 에서 lexicon term 등장 시 `authority/core-lexicon.yaml §
 
 #### 8.5.5 ReviewRecord 영향
 
-`processes/review/record-contract.md` 의 `ReviewRecord.lens_results` 는 Internal Body 만 source 로 본다. Principal Summary 는 **runtime-derived** (필요 시 render-for-user 호출로 재생성). 따라서 ReviewRecord 에 별도 필드 추가 불필요 — Internal Body 의 canonical 성이 보존됨.
+`.onto/processes/review/record-contract.md` 의 `ReviewRecord.lens_results` 는 Internal Body 만 source 로 본다. Principal Summary 는 **runtime-derived** (필요 시 render-for-user 호출로 재생성). 따라서 ReviewRecord 에 별도 필드 추가 불필요 — Internal Body 의 canonical 성이 보존됨.
 
 선택: `lens_results[].has_principal_summary: boolean` optional 힌트 필드 (기본 false). 본 필드는 runtime-coordinator 가 summary 재생성 시 decision 에 참고.
 
@@ -300,7 +300,7 @@ Principal Summary 에서 lexicon term 등장 시 `authority/core-lexicon.yaml §
 | `axiology` | `.onto/roles/axiology.md` |
 
 공통 wrapper rule은 role file이 아니라
-`process.md`와 `processes/review/review.md`에서 온다.
+`process.md`와 `.onto/processes/review/review.md`에서 온다.
 
 ---
 
@@ -324,7 +324,7 @@ Principal Summary 에서 lexicon term 등장 시 `authority/core-lexicon.yaml §
 모든 lens는 아래 공통 경계 규율을 따른다.
 
 1. 자기 perspective 의 observation focus 내에서만 finding 을 제기한다
-2. 다른 lens 의 perspective 에 해당하는 finding 도 자기 관점에서 독립적으로 제기할 수 있다 (overlap-permitted lens claims). overlap 정책과 claim relation 분류는 `processes/review/shared-phenomenon-contract.md` 가 정의한다
+2. 다른 lens 의 perspective 에 해당하는 finding 도 자기 관점에서 독립적으로 제기할 수 있다 (overlap-permitted lens claims). overlap 정책과 claim relation 분류는 `.onto/processes/review/shared-phenomenon-contract.md` 가 정의한다
 3. 검증에 사용한 domain rule 이나 usage-context 가정은 §8.2 Enforced Fields 에 기록한다
 4. **경계 밖 탐색이 필요하다고 판단되면**, 다음을 모두 수행한다:
    a. finding 에 `"boundary 밖 탐색이 필요함"` 을 명시한다

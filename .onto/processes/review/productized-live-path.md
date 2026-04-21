@@ -3,17 +3,17 @@
 > 상태: Active
 > 목적: `검토 (review)`의 `제품화된 실시간 경로 (productized live path)`를 canonical 실행 경로로 고정한다.
 > 하위 실행 계약:
-> - `processes/review/nested-spawn-coordinator-contract.md` — Claude Code 세션에서 Agent tool 기반 lens dispatch coordinator
+> - `.onto/processes/review/nested-spawn-coordinator-contract.md` — Claude Code 세션에서 Agent tool 기반 lens dispatch coordinator
 >
 > 기준 문서:
-> - `processes/review/interpretation-contract.md`
-> - `processes/review/binding-contract.md`
-> - `processes/review/lens-prompt-contract.md`
-> - `processes/review/synthesize-prompt-contract.md`
-> - `processes/review/record-contract.md`
-> - `processes/review/record-field-mapping.md`
-> - `processes/review/execution-preparation-artifacts.md`
-> - `processes/review/prompt-execution-runner-contract.md`
+> - `.onto/processes/review/interpretation-contract.md`
+> - `.onto/processes/review/binding-contract.md`
+> - `.onto/processes/review/lens-prompt-contract.md`
+> - `.onto/processes/review/synthesize-prompt-contract.md`
+> - `.onto/processes/review/record-contract.md`
+> - `.onto/processes/review/record-field-mapping.md`
+> - `.onto/processes/review/execution-preparation-artifacts.md`
+> - `.onto/processes/review/prompt-execution-runner-contract.md`
 > - `authority/core-lexicon.yaml`
 
 ---
@@ -27,7 +27,7 @@
 - `legacy source path`는 source material이다
 - 실제 productization target은 이 문서의 순서를 따른다
 
-`processes/review/review.md`는 prompt-backed reference execution의 source와 절차를 담되,
+`.onto/processes/review/review.md`는 prompt-backed reference execution의 source와 절차를 담되,
 live path authority는 이 문서가 가진다.
 
 ---
@@ -140,7 +140,7 @@ binding 다음에는 최소 아래 artifact가 materialize되어야 한다.
 
 이 단계는 later `ReviewRecord`와 runtime replacement의 bridge다.
 
-세부 contract는 `processes/review/execution-preparation-artifacts.md`를 따른다.
+세부 contract는 `.onto/processes/review/execution-preparation-artifacts.md`를 따른다.
 
 prompt-backed path에서도 실제 파일이 만들어져야 한다.
 즉 이 단계는 단순 개념 설명이 아니라 artifact materialization step이다.
@@ -261,7 +261,7 @@ later `learn/govern`가 읽을 canonical artifact는 `ReviewRecord`여야 한다
 
 은 최종적으로 `ReviewRecord`의 source/human-readable layer로 내려간다.
 
-세부 contract는 `processes/review/record-contract.md`를 따른다.
+세부 contract는 `.onto/processes/review/record-contract.md`를 따른다.
 
 prompt-backed path에서는 `final-output.md`를 먼저 render한 뒤,
 team lead 또는 bounded TS step이 마지막에 `review-record.yaml`을 actual aggregate로 assemble해야 한다.
@@ -302,7 +302,7 @@ later system handoff artifact를 분리한다.
 ## 4. What This Replaces
 
 이 live path가 canonical truth가 되면,
-기존 `processes/review/review.md`의 아래 항목은 source material로만 남는다.
+기존 `.onto/processes/review/review.md`의 아래 항목은 source material로만 남는다.
 
 - Step 0의 legacy domain selection wording
 - Step 1.5의 legacy complexity UI wording
@@ -318,6 +318,6 @@ live execution truth는 이 문서로 옮긴다.
 
 이 문서 다음 우선순위는 아래다.
 
-1. `processes/review/review.md`를 이 live path에 맞는 reference execution 문서로 더 축소한다
+1. `.onto/processes/review/review.md`를 이 live path에 맞는 reference execution 문서로 더 축소한다
 2. `review:invoke`를 host command path에 직접 연결하고, 내부에서는 `review:start-session` / `review:run-prompt-execution` / `review:complete-session` bounded steps를 유지한다
 3. deprecated Python prototypes를 제거하고 TS core path만 canonical path로 남긴다

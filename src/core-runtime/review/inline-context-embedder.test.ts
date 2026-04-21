@@ -125,10 +125,13 @@ Some unrelated content.
 
   it("expands ${ONTO_PLUGIN_DIR:-default} fallback notation", () => {
     // Set ONTO_PLUGIN_DIR to a real dir with a doc.
+    // Phase 4 layout: processes/ moved to .onto/processes/, so fixture
+    // must create the file at the new canonical location to match the
+    // packet path below.
     const pluginDir = path.join(scratchDir, "plugin");
-    mkdirSync(path.join(pluginDir, "processes"), { recursive: true });
+    mkdirSync(path.join(pluginDir, ".onto", "processes"), { recursive: true });
     writeFileSync(
-      path.join(pluginDir, "processes", "test.md"),
+      path.join(pluginDir, ".onto", "processes", "test.md"),
       "## Test Process\n",
       "utf8",
     );
@@ -136,7 +139,7 @@ Some unrelated content.
 
     try {
       const packet = `## Domain Documents
-- Primary: \${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/processes/test.md
+- Primary: \${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/.onto/processes/test.md
 `;
 
       const result = embedInlineContext(packet, { ontoHome, projectRoot });

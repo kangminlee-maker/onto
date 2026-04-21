@@ -9,7 +9,7 @@
  *
  * Phase 2 scope: domain documents only. The packet typically references:
  * - `~/.onto/domains/{domain}/{file}.md`
- * - `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/processes/...`
+ * - `${ONTO_PLUGIN_DIR:-~/.claude/plugins/onto}/.onto/processes/...`
  * - `~/.onto/learnings/...` (already inline; not re-embedded)
  *
  * Materialized input (target content) is already inlined in the packet

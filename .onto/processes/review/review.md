@@ -1,10 +1,10 @@
 # Review Reference Execution
 
 > The 9 review lenses plus a separate synthesize stage review a target from multiple perspectives.
-> Related: If learnings accumulate after review, promotion is possible via `processes/learn/promote.md`.
+> Related: If learnings accumulate after review, promotion is possible via `.onto/processes/learn/promote.md`.
 
 This document is the prompt-backed reference execution for `검토 (review)`.
-The canonical live execution authority is `processes/review/productized-live-path.md`.
+The canonical live execution authority is `.onto/processes/review/productized-live-path.md`.
 
 ## Canonical bounded path
 
@@ -29,14 +29,14 @@ it matches the productized live path and produces the same artifact truth.
 - **Synthesize stage**: `synthesize`
 
 **Productization mapping note**:
-- The canonical live execution truth is defined in `processes/review/productized-live-path.md`.
+- The canonical live execution truth is defined in `.onto/processes/review/productized-live-path.md`.
 - Step 0 and Step 1.5 are primary source material for `검토 해석 (InvocationInterpretation)`.
 - Step 1 and the deterministic parts of Step 2 are primary source material for `검토 고정 (InvocationBinding)`.
 - The independent review work of Step 2 maps to per-lens execution.
 - Step 3 maps to the synthesize stage.
 - In the prompt-backed reference path, each review lens is executed as a `ContextIsolatedReasoningUnit` so that lens-specific context remains isolated.
 - In a productized prompt path, Step 0 and Step 1.5 are executed as pre-process interpretation work and should not be semantically re-done a second time inside the live review pass.
-- In a productized prompt path, `round1/*.md` and `synthesis.md` are human-readable source layers, while the primary artifact is `review-record.yaml` per `processes/review/record-contract.md`.
+- In a productized prompt path, `round1/*.md` and `synthesis.md` are human-readable source layers, while the primary artifact is `review-record.yaml` per `.onto/processes/review/record-contract.md`.
 
 **Important boundary**:
 - Step 0, Step 1, and Step 1.5 below are not the canonical live execution order.
@@ -108,7 +108,7 @@ Step 1에서 수집한 리뷰 대상과 주체자(Principal)의 요청 형태에
 **경로 1 — Principal 이 경량 리뷰를 명시 요청한 경우:**
 사전 trigger (Q2/Q3) 는 건너뛴다. 곧바로 semantic lens relevance 판정을 수행한다.
 
-- 판정 규칙: `processes/review/shared-phenomenon-contract.md §7 Reverse Application` 을 따른다
+- 판정 규칙: `.onto/processes/review/shared-phenomenon-contract.md §7 Reverse Application` 을 따른다
 - 출력: `interpretation-contract.md §4.7 lens_selection_plan` shape
 - `axiology` 는 `always_include` 로 고정 (목적·가치 정합 검증은 모든 리뷰 필수). 이유는 `interpretation-contract.md §4.7` 소유
 - 결과를 주체자에게 제시하고 확인 후 경량 리뷰 실행
@@ -267,7 +267,7 @@ Productized prompt path 기준으로:
 
 - `round1/*.md`와 `synthesis.md`는 human-readable source layer다
 - primary artifact는 `review-record.yaml`이다
-- execution preparation artifact seat는 `processes/review/execution-preparation-artifacts.md`를 따른다
+- execution preparation artifact seat는 `.onto/processes/review/execution-preparation-artifacts.md`를 따른다
 
 **Step 2.1 — Write invocation artifacts**
 
@@ -280,9 +280,9 @@ The team lead writes:
 
 These artifacts must follow:
 
-- `processes/review/interpretation-contract.md`
-- `processes/review/binding-contract.md`
-- `processes/review/execution-preparation-artifacts.md`
+- `.onto/processes/review/interpretation-contract.md`
+- `.onto/processes/review/binding-contract.md`
+- `.onto/processes/review/execution-preparation-artifacts.md`
 
 Bounded runtime replacement for deterministic binding:
 
@@ -433,7 +433,7 @@ Each Lens-Specific Finding must include the following fields:
 - `claim`
 - `lens_id`
 - `upstream_evidence_required`
-For field semantics, see `processes/review/lens-prompt-contract.md` §8 Output Schema and `processes/review/shared-phenomenon-contract.md` §3, §5.
+For field semantics, see `.onto/processes/review/lens-prompt-contract.md` §8 Output Schema and `.onto/processes/review/shared-phenomenon-contract.md` §3, §5.
 Each finding body should retain the existing what/why/how to fix format.
 
 ### Newly Learned
@@ -547,7 +547,7 @@ Round 1에서 에이전트 에러 발생 시:
 
 Synthesize 단계의 dispatch 메커니즘은 `execution_realization` × `host_runtime` 두 축의 조합으로 분기한다. 어느 경로든 lens 결과 + execution-preparation artifacts를 그대로 전달한다는 본질은 동일하며, 차이는 전달 메커니즘과 deliberation 처리 위치다.
 
-<!-- derived-from: processes/review/binding-contract.md, resolved_execution_realization × resolved_host_runtime -->
+<!-- derived-from: .onto/processes/review/binding-contract.md, resolved_execution_realization × resolved_host_runtime -->
 
 | `execution_realization` | `host_runtime` | Dispatch 메커니즘 | Deliberation 처리 | Synthesize 실패 정책 |
 |---|---|---|---|---|
@@ -555,7 +555,7 @@ Synthesize 단계의 dispatch 메커니즘은 `execution_realization` × `host_r
 | `subagent` | `claude` | Agent tool with `subagent_type: "general-purpose"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 | 1회 동일 프롬프트로 Agent re-spawn; 실패 시 `process-halting-with-partial-result` |
 | `subagent` | `codex` | Agent tool with `subagent_type: "codex:codex-rescue"` | synthesize가 §6 in-process로 직접 수행. §4 실행 안 함 | 1회 동일 프롬프트로 Agent re-spawn; 실패 시 `process-halting-with-partial-result` |
 
-본 표의 discriminator는 binding artifact의 `resolved_execution_realization` + `resolved_host_runtime` 두 필드와 1:1 대응한다 (별도 enum이 아니다). 2축의 카르테시안 곱 중 `agent-teams + codex` 조합은 현재 unsupported다 — `processes/review/productized-live-path.md` §3.6 참조.
+본 표의 discriminator는 binding artifact의 `resolved_execution_realization` + `resolved_host_runtime` 두 필드와 1:1 대응한다 (별도 enum이 아니다). 2축의 카르테시안 곱 중 `agent-teams + codex` 조합은 현재 unsupported다 — `.onto/processes/review/productized-live-path.md` §3.6 참조.
 
 **Audit observability tradeoff**: cross-process 경로 (`agent-teams + claude`)는 deliberation을 별도 `deliberation.md` 파일로 산출하여 deliberation 자체의 감사 가능성이 높다. in-process 경로 (`subagent + *`)는 deliberation을 `synthesis.md`의 `Deliberation Decision` 섹션에 통합하여 감사 가능성이 상대적으로 낮다. 두 경로 간 audit observability 비대칭은 의도된 트레이드오프이며, 둘 다 contract §6.4의 single-source 규칙을 만족한다.
 
@@ -634,16 +634,16 @@ Classify at the lens-qualified claim unit, not by per-lens majority buckets. Mar
 
 ### Shared Phenomenon Summary
 - Group lens-qualified claims by co-location (`target` + `evidence_anchor`).
-- For each co-located group, classify claim relation per `processes/review/shared-phenomenon-contract.md` §4: `corroboration`, `disagreement`, `partial overlap`, or `dedup`.
+- For each co-located group, classify claim relation per `.onto/processes/review/shared-phenomenon-contract.md` §4: `corroboration`, `disagreement`, `partial overlap`, or `dedup`.
 
 Step 4 — Adjudication:
-Follow `processes/review/synthesize-prompt-contract.md` §4 Mandatory Execution Rules and §6 Deliberation Rule as the canonical adjudication rule.
+Follow `.onto/processes/review/synthesize-prompt-contract.md` §4 Mandatory Execution Rules and §6 Deliberation Rule as the canonical adjudication rule.
 Do not use simple majority as a substitute for reasoning.
 In removal vs. retention conflicts, especially when `conciseness` is involved, compare the rationales against system purpose and preserve unresolved disagreement when it cannot be closed.
 
 ### Deliberation Necessity
 
-본 외부 결정 트리는 `execution_realization: agent-teams` 경로에만 적용된다. `subagent` 및 `subagent + codex` 경로에서는 synthesize가 §6.3에 따라 자기 출력의 frontmatter `deliberation_status`를 직접 emit하며 (`not_needed` 또는 `performed`), 외부 "needed/not needed" 결정 단계가 없다. deliberation 트리거 조건의 canonical enumeration은 `processes/review/synthesize-prompt-contract.md` §6.1 / §6.2가 단일 source이며 두 경로 모두 동일 조건을 공유한다.
+본 외부 결정 트리는 `execution_realization: agent-teams` 경로에만 적용된다. `subagent` 및 `subagent + codex` 경로에서는 synthesize가 §6.3에 따라 자기 출력의 frontmatter `deliberation_status`를 직접 emit하며 (`not_needed` 또는 `performed`), 외부 "needed/not needed" 결정 단계가 없다. deliberation 트리거 조건의 canonical enumeration은 `.onto/processes/review/synthesize-prompt-contract.md` §6.1 / §6.2가 단일 source이며 두 경로 모두 동일 조건을 공유한다.
 
 Agent Teams 경로 기준, 다음 조건 중 하나라도 만족하면 "needed"로 답한다:
 - Do disagreement items exist?
@@ -715,7 +715,7 @@ Classify at the lens-qualified claim unit rather than by per-lens majority bucke
 - (Conservative synthesized review result that preserves lens evidence and system purpose)
 
 ### Shared Phenomenon Summary
-Classify co-located claim groups per `processes/review/shared-phenomenon-contract.md` §4.
+Classify co-located claim groups per `.onto/processes/review/shared-phenomenon-contract.md` §4.
 
 | Target | Evidence Anchor | Participating Lenses | Claim Relation | Notes |
 |---|---|---|---|---|
@@ -733,14 +733,14 @@ Codex 모드에서는 `synthesize`도 `codex:codex-rescue` Agent로 실행한다
 - 프롬프트: `process.md`의 **Codex Review Synthesize Prompt Template** 사용.
 - 프롬프트에 review lens의 결과 파일 경로를 포함한다. Codex가 파일을 직접 읽고 종합한다.
 - 결과를 `{session path}/synthesis.md`에 저장하도록 지시한다.
-- **In-process deliberation 지시**: process.md의 **Codex Review Synthesize Prompt Template**이 in-process deliberation directive 본문을 포함한다 — 별도 문구를 본 절에서 재나열하지 않는다. 의미 규칙은 `processes/review/synthesize-prompt-contract.md` §6이 단일 source다.
+- **In-process deliberation 지시**: process.md의 **Codex Review Synthesize Prompt Template**이 in-process deliberation directive 본문을 포함한다 — 별도 문구를 본 절에서 재나열하지 않는다. 의미 규칙은 `.onto/processes/review/synthesize-prompt-contract.md` §6이 단일 source다.
 - `synthesize` 실패 시: 1회 재시도 후에도 실패하면 `process-halting-with-partial-result`를 적용한다 (process.md Error Handling Rules 참조).
 
 ---
 
 ### 4. Reference Execution — Deliberation (Conditional, Agent Teams 전용)
 
-본 단계는 `execution_realization: agent-teams` 경로에서만 실행한다. `subagent` 및 `subagent + codex` 경로에서는 cross-process lens-to-lens 메시징 채널이 없으므로 `synthesize`가 §3 단계에서 `processes/review/synthesize-prompt-contract.md` §6의 in-process deliberation 절차를 이미 수행했다 — 본 §4를 실행하지 않고 §5로 진행한다.
+본 단계는 `execution_realization: agent-teams` 경로에서만 실행한다. `subagent` 및 `subagent + codex` 경로에서는 cross-process lens-to-lens 메시징 채널이 없으므로 `synthesize`가 §3 단계에서 `.onto/processes/review/synthesize-prompt-contract.md` §6의 in-process deliberation 절차를 이미 수행했다 — 본 §4를 실행하지 않고 §5로 진행한다.
 
 Agent Teams 경로에서도 본 단계는 synthesize의 §3 출력이 "deliberation needed"로 판정한 경우에만 실행한다. 경량 모드에서는 `synthesize`에게 'deliberation not needed' 지시를 포함한다.
 
@@ -841,8 +841,8 @@ Minimum `review-record.yaml` assembly input:
 - `final-output.md`
 - `error-log.md` (optional; required when degradation occurred)
 
-The aggregate contract follows `processes/review/record-contract.md`.
-Field mapping follows `processes/review/record-field-mapping.md`.
+The aggregate contract follows `.onto/processes/review/record-contract.md`.
+Field mapping follows `.onto/processes/review/record-field-mapping.md`.
 
 `final-output.md` should be the persisted human-readable rendering of the same final result delivered to the user.
 

@@ -62,8 +62,8 @@ async function detectDeliberationStatus(
   deliberationPath: string,
   binding: InvocationBindingArtifact,
 ): Promise<ReviewRecord["deliberation_status"]> {
-  // Precedence per `processes/review/synthesize-prompt-contract.md` §6.4
-  // and `processes/review/record-contract.md` §4.5:
+  // Precedence per `.onto/processes/review/synthesize-prompt-contract.md` §6.4
+  // and `.onto/processes/review/record-contract.md` §4.5:
   //
   //   1. execution-result.yaml (runner-owned, highest authority)
   //   2. synthesis.md frontmatter (synthesize-owned, primary source for

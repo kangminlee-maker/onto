@@ -49,7 +49,7 @@
 
 ## Finding evidence requirements
 
-각 axiology finding 은 일반 output schema (`processes/review/lens-prompt-contract.md` §8.1) 에 더해 아래 axiology-specific 필드를 포함한다.
+각 axiology finding 은 일반 output schema (`.onto/processes/review/lens-prompt-contract.md` §8.1) 에 더해 아래 axiology-specific 필드를 포함한다.
 
 - `value_authority_anchor` — 판단 근거로 인용한 authority 의 정확한 seat. 형식: `{source: <file path>, anchor: <§번호 | term id | line range>, excerpt: <판단에 직접 사용한 문장 1~2 줄>}`. 복수 가능
 - `value_type` — 판단이 다룬 가치 범주 중 하나: `purpose` / `stakeholder` / `principle` / `boundary` / `tradeoff` / `commitment`

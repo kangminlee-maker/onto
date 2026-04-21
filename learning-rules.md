@@ -252,8 +252,8 @@ If new communication entries have been added, notify the user:
 | 재진입 경로 | 조건 | 소유 |
 |---|---|---|
 | review → learn | review 실행 후 learning 생성 | review_process (core-lexicon.yaml) |
-| evolve → learn | evolve 프로세스에서 패턴 발견 시 learning 생성 | processes/evolve.md §6 |
-| reconstruct → learn | ontology 구축 중 learning 생성 | processes/reconstruct.md |
+| evolve → learn | evolve 프로세스에서 패턴 발견 시 learning 생성 | .onto/processes/evolve.md §6 |
+| reconstruct → learn | ontology 구축 중 learning 생성 | .onto/processes/reconstruct.md |
 | learn → review/evolve/reconstruct | promoted learning을 다음 활동에 소비 | loader.ts (promoted only) |
 | govern → learn | learning promotion 기준 정의 | §1.2 경계 계약 "govern이 기준, learn이 실행" |
 
@@ -283,6 +283,6 @@ promotion edge: `learn(promote) → promoted learning → review/evolve/reconstr
 | review_record | review | `{session}/review-record.yaml` | 검증 결과 + learning 생성 trigger |
 | scope artifacts | evolve | `{scope}/events.ndjson` + materialized views | scope lifecycle 관리 |
 | ontology | reconstruct | `{project}/.onto/builds/{session}/` | 도메인 지식 구조화 산출물 |
-| normative artifact | govern | `authority/`, `design-principles/`, `processes/` | 규범 등재·갱신·폐기 |
+| normative artifact | govern | `authority/`, `design-principles/`, `.onto/processes/` | 규범 등재·갱신·폐기 |
 
 cross-ref: `authority/core-lexicon.yaml#provisional_lifecycle` (W-D-01), `design-principles/product-locality-principle.md` §2.2.

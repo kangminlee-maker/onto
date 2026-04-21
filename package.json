@@ -12,7 +12,7 @@
     "bin/",
     "dist/",
     "roles/",
-    "domains/",
+    ".onto/domains/",
     "authority/",
     ".onto/commands/",
     "processes/",

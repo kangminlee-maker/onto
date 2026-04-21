@@ -9,7 +9,7 @@ set -e
 
 # Path configuration
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DOMAINS_SRC="$SCRIPT_DIR/domains"
+DOMAINS_SRC="$SCRIPT_DIR/.onto/domains"
 DOMAINS_DST="$HOME/.onto/domains"
 
 # Colors
@@ -130,7 +130,7 @@ main() {
     local available=$(get_available_domains)
 
     if [ -z "$available" ]; then
-        echo -e "${RED}No domains available for installation. Check the domains/ directory.${NC}"
+        echo -e "${RED}No domains available for installation. Check the .onto/domains/ directory.${NC}"
         exit 1
     fi
 

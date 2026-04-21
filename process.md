@@ -64,7 +64,7 @@ When adding or removing an agent, all of the following files must be updated:
 | 4 | `process.md` domain document mapping | Add/delete row |
 | 5 | `process.md` teammate initial prompt mapping | Add/delete row |
 | 6 | `processes/review.md` review lens + synthesize file list | Add/delete path |
-| 7 | `domains/*/` | Add/delete domain document template for the agent |
+| 7 | `.onto/domains/*/` | Add/delete domain document template for the agent |
 | 8 | `BLUEPRINT.md` agent section | Add/delete description |
 | 9 | `README.md` directory tree | Add/delete filename |
 | 10 | learning-rules.md | Update if learning storage rules change |
@@ -83,6 +83,17 @@ When adding or removing a process, all of the following files must be updated:
 | 5 | `BLUEPRINT.md` Processes section | Add/delete description |
 | 6 | `README.md` Commands section + directory tree | Add/delete entries |
 | 7 | learning-rules.md | Update if process affects learning storage |
+
+### Touch Point Checklist for Adding a New `.onto/` Structural Subdirectory
+
+When introducing a new versioned (tracked) subdirectory under `.onto/` — for example Phase 3-6 adds `.onto/roles/`, `.onto/processes/`, `.onto/principles/`, `.onto/authority/` — both of the following must be updated in the same PR:
+
+| # | File | Update Item |
+|---|------|----------|
+| 1 | `scripts/check-onto-allowlist.sh` | Append the new top-level name to the `ALLOWED` array (e.g., `".onto/roles"`) |
+| 2 | `.gitignore` | Review ephemeral list — no change if new dir is structural; if introducing ephemeral subdirs add patterns |
+
+The `onto-dir-allowlist` CI workflow (`.github/workflows/onto-dir-allowlist.yml`) fails the PR when a tracked `.onto/X/` path is neither in the structural allowlist nor ignored — catching the failure mode of Phase 1's enumerated-ephemeral gitignore policy (default-track flip).
 
 ### Review Synthesis Stage
 | ID | Role |

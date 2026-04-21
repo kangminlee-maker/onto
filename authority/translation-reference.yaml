@@ -519,7 +519,7 @@ concepts:
       tracing a path through its structure?
     relations:
       - used_by: "pragmatics"
-      - stored_at: "domains/{domain}/competency_qs.md"
+      - stored_at: ".onto/domains/{domain}/competency_qs.md"
       - standard_term_in: "ontology engineering"
     disambiguation: >
       Established term in ontology engineering (Gruninger & Fox, 1995).
@@ -1010,7 +1010,7 @@ templates:
       - Software: {example}
       - Law: {example}
       - Accounting: {example}
-    - **Domain document**: `domains/{domain}/{file}.md`
+    - **Domain document**: `.onto/domains/{domain}/{file}.md`
 
   review_result: |
     ---

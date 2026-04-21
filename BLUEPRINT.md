@@ -914,7 +914,7 @@ onto/
 │   ├── logic.md ... axiology.md
 │   └── synthesize.md
 ├── .onto/commands/          # Command definitions (Phase 1 layout)
-├── domains/                 # Domain base documents (9 domains × 8 files)
+├── .onto/domains/           # Domain base documents (9 domains × 8 files) (Phase 2 layout)
 ├── explorers/               # Explorer profiles (build only)
 ├── golden/                  # Golden examples per schema
 ├── src/core-runtime/        # TypeScript runtime

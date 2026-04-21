@@ -276,7 +276,7 @@ degradation_notes_ref: null
 per_lens_provenance:
   logic:
     domain_constraints_used:
-      - source_doc: domains/software-engineering/logic_rules.md
+      - source_doc: .onto/domains/software-engineering/logic_rules.md
         source_version_or_snapshot_id: 'commit:abc1234'
         anchor: '§3.2 — type-narrowing transitivity rule'
     domain_context_assumptions:

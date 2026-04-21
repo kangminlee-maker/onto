@@ -54,7 +54,7 @@ This section is the source of truth for all rules regarding frontmatter. When ot
 
 ## Directory Structure Rules (→Area 3)
 
-- Maximum depth: 3 levels (e.g., domains/software-engineering/concepts.md). This value is an empirical criterion for minimizing LLM traversal cost
+- Maximum depth: 3 levels (e.g., .onto/domains/software-engineering/concepts.md). This value is an empirical criterion for minimizing LLM traversal cost
 - Each directory expresses a single concern
 - Directory names use plural nouns or domain names (e.g., domains, roles, processes)
 - Do not create directories containing only a single file. Place the file in the parent directory

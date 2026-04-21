@@ -33,6 +33,7 @@ import {
   renderEventMarkerInstructions,
 } from "../learning/prompt-sections.js";
 import { resolveInstallationPath } from "../discovery/installation-paths.js";
+import { isOntoRoot } from "../discovery/onto-home.js";
 
 function requireString(
   value: string | boolean | undefined,
@@ -133,23 +134,29 @@ const LENS_DOMAIN_FILE_MAP: Record<string, string> = {
  * Resolution order (project-override rule):
  * 1. Project-level domain: {project}/.onto/domains/{domain}/
  * 2. User-level global domain: ~/.onto/domains/{domain}/
- * 3. Installation default: ontoHome/domains/{domain}/
+ * 3. Installation default: ontoHome/.onto/domains/{domain}/ (Phase 2 layout; legacy ontoHome/domains/ fallback retained through Phase 7)
+ * 4. Dev-mode fallback: projectRoot when it IS the onto installation (running from the onto repo itself)
  *
  * Directory-level all-or-nothing: the entire directory from one location is used.
- * Terminal failure: null (caller must error).
+ * Terminal failure: returns { dir: null, attempted: [...] } — caller formats the error.
+ * Returns the resolved directory with the accumulated attempted paths for error surfacing.
  */
 function resolveDomainDirectory(
   domain: string,
   projectRoot: string,
   ontoHome: string | undefined,
-): string | null {
+): { dir: string | null; attempted: string[] } {
+  const attempted: string[] = [];
+
   // 1. Project-level domain (highest priority)
   const projectDomainPath = path.join(projectRoot, ".onto", "domains", domain);
-  if (fsSync.existsSync(projectDomainPath)) return projectDomainPath;
+  attempted.push(projectDomainPath);
+  if (fsSync.existsSync(projectDomainPath)) return { dir: projectDomainPath, attempted };
 
   // 2. User-level global domain (~/.onto/domains/)
   const userDomainPath = path.join(os.homedir(), ".onto", "domains", domain);
-  if (fsSync.existsSync(userDomainPath)) return userDomainPath;
+  attempted.push(userDomainPath);
+  if (fsSync.existsSync(userDomainPath)) return { dir: userDomainPath, attempted };
 
   // 3. Installation default (ontoHome/{,.onto/}domains/)
   // Phase 0: resolveInstallationPath picks .onto/domains/ if present, else domains/.
@@ -157,22 +164,29 @@ function resolveDomainDirectory(
     try {
       const domainsRoot = resolveInstallationPath("domains", ontoHome);
       const homePath = path.join(domainsRoot, domain);
-      if (fsSync.existsSync(homePath)) return homePath;
+      attempted.push(homePath);
+      if (fsSync.existsSync(homePath)) return { dir: homePath, attempted };
     } catch {
       // No domains/ directory under ontoHome at all — skip to dev-mode fallback.
     }
   }
 
-  // 4. Dev-mode fallback: projectRoot acts as installRoot when running from the onto repo.
-  try {
-    const domainsRoot = resolveInstallationPath("domains", projectRoot);
-    const legacyPath = path.join(domainsRoot, domain);
-    if (fsSync.existsSync(legacyPath)) return legacyPath;
-  } catch {
-    // projectRoot has neither .onto/domains/ nor domains/ — terminal miss.
+  // 4. Dev-mode fallback: only when projectRoot is an onto installation itself
+  // (e.g. running `onto` from a clone of the onto repo). Without this gate an
+  // external project that happens to have a `domains/{X}/` directory at its
+  // root would be falsely picked up as an installation bundle.
+  if (isOntoRoot(projectRoot)) {
+    try {
+      const domainsRoot = resolveInstallationPath("domains", projectRoot);
+      const legacyPath = path.join(domainsRoot, domain);
+      attempted.push(legacyPath);
+      if (fsSync.existsSync(legacyPath)) return { dir: legacyPath, attempted };
+    } catch {
+      // projectRoot has neither .onto/domains/ nor domains/ — terminal miss.
+    }
   }
 
-  return null;
+  return { dir: null, attempted };
 }
 
 /**
@@ -345,12 +359,13 @@ export async function runMaterializeReviewPromptPacketsCli(
   let resolvedDomainDir: string | null = null;
   let domainAllFiles: string[] = [];
   if (!isNoDomain) {
-    resolvedDomainDir = resolveDomainDirectory(sessionDomain, projectRoot, ontoHome);
+    const resolution = resolveDomainDirectory(sessionDomain, projectRoot, ontoHome);
+    resolvedDomainDir = resolution.dir;
     if (!resolvedDomainDir) {
+      const searchedList = resolution.attempted.map((p) => `  - ${p}`).join("\n");
       throw new Error(
-        `Domain directory not found for "${sessionDomain}". ` +
-        `Searched: ${ontoHome ? path.join(ontoHome, "domains", sessionDomain) + " and " : ""}` +
-        `${path.join(projectRoot, "domains", sessionDomain)}`,
+        `Domain directory not found for "${sessionDomain}".\n` +
+        `Searched ${resolution.attempted.length} location(s):\n${searchedList}`,
       );
     }
     domainAllFiles = scanDomainFiles(resolvedDomainDir);

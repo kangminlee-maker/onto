@@ -11,6 +11,7 @@
   "files": [
     "bin/",
     "dist/",
+    ".claude-plugin/",
     ".onto/roles/",
     ".onto/domains/",
     ".onto/authority/",
@@ -19,7 +20,10 @@
     ".onto/principles/",
     "explorers/",
     "CLAUDE.md",
-    "AGENTS.md"
+    "AGENTS.md",
+    "process.md",
+    "learning-rules.md",
+    "config.yml.example"
   ],
   "scripts": {
     "prepare": "npm run build:ts-core",

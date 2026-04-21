@@ -107,6 +107,31 @@ export interface PreflightDetection {
   hostIsClaudeCode: boolean;
 }
 
+/**
+ * Secrets captured during interactive auth steps.
+ *
+ * Kept distinct from `InstallDecisions` for three reasons:
+ *
+ *   1. Values are sensitive — separating them makes it obvious which
+ *      fields must never be logged or persisted in state files.
+ *   2. Non-interactive mode skips this struct entirely; keys flow via
+ *      the process env / `--env-file` path instead.
+ *   3. The writer merges these into the existing `.env` rather than
+ *      overwriting, so the install flow contributes only the keys it
+ *      actually captured this session.
+ *
+ * All fields optional. Presence implies "user provided this in the
+ * current install session and writer should persist it".
+ */
+export interface EnvSecrets {
+  anthropicApiKey?: string;
+  openaiApiKey?: string;
+  /** `LITELLM_BASE_URL` env var — required for litellm provider. */
+  litellmBaseUrl?: string;
+  /** Optional — only when the litellm endpoint enforces auth. */
+  litellmApiKey?: string;
+}
+
 /** Destination paths derived from the chosen ProfileScope. */
 export interface InstallPaths {
   /** The scope's `.onto/config.yml` target. */

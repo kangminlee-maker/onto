@@ -54,8 +54,18 @@ export function spawnWatcherPane(
 
   const watcherArgs = `bash "${watcherScript}" "${sessionRoot}"`;
 
+  // Dry-run mode: detect the mechanism that would be used and report it,
+  // but skip the actual tmux/osascript spawn call. Intended for smoke
+  // tests and CI that want to cover the detection-priority regressions
+  // without producing a visible side pane or extra terminal tab on every
+  // run. Enabled via `ONTO_WATCHER_DRY_RUN=1`.
+  const dryRun = process.env.ONTO_WATCHER_DRY_RUN === "1";
+
   // Priority 1: tmux (works on any OS, most universal)
   if (process.env.TMUX) {
+    if (dryRun) {
+      return { spawned: true, mechanism: "tmux" };
+    }
     try {
       // Target the originating pane explicitly via $TMUX_PANE so the split
       // does not land on whichever pane happens to be active at spawn time.
@@ -95,6 +105,9 @@ export function spawnWatcherPane(
   ) {
     const rawSessionId = process.env.ITERM_SESSION_ID;
     if (rawSessionId) {
+      if (dryRun) {
+        return { spawned: true, mechanism: "iterm2" };
+      }
       try {
         const sessionUuid = rawSessionId.includes(":")
           ? (rawSessionId.split(":").pop() ?? rawSessionId)
@@ -141,6 +154,9 @@ export function spawnWatcherPane(
     process.platform === "darwin" &&
     process.env.TERM_PROGRAM === "Apple_Terminal"
   ) {
+    if (dryRun) {
+      return { spawned: true, mechanism: "apple_terminal" };
+    }
     try {
       const escapedCmd = watcherArgs.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
       const script =

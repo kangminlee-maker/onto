@@ -2,17 +2,19 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { tryResolveTopologyForHandoff } from "./review-invoke.js";
 
 // ---------------------------------------------------------------------------
-// These tests assert PR-G's coordinator handoff enrichment invariants:
+// Coordinator handoff descriptor invariants (P9.3, 2026-04-21):
 //
-// (1) Principals without `execution_topology_priority` → null descriptor
-//     (existing handoff payload shape unchanged; backward-compatible).
-// (2) Principals with `execution_topology_priority` AND a resolvable
-//     topology → non-null descriptor with all 6 static attributes,
-//     minus plan_trace (handoff payload stays compact).
+// (1) `tryResolveTopologyForHandoff` attempts axis-first resolution
+//     unconditionally; the former opt-in gate (config.review presence)
+//     is gone. Every review invocation that reaches a reachable host
+//     ships a descriptor.
+// (2) Resolvable topology → non-null descriptor with all 6 static
+//     attributes, minus plan_trace (handoff payload stays compact).
 // (3) Descriptor is JSON-serializable with deterministic shape —
 //     downstream coordinator consumers parse it unmodified.
-// (4) Topology fails to resolve (signals missing) → null, matching the
-//     PR-F fall-through policy.
+// (4) Returns null ONLY when ontoConfig is undefined (defensive) or
+//     the resolver itself returns `no_host` (axis + main_native
+//     degrade both failed, i.e. no Claude or Codex host reachable).
 // ---------------------------------------------------------------------------
 
 const ORIGINAL_ENV = { ...process.env };
@@ -33,28 +35,21 @@ describe("tryResolveTopologyForHandoff — null paths", () => {
   });
   afterEach(restoreEnv);
 
-  it("no config.review block → null (opt-in gate blocks descriptor)", () => {
-    // P9.2 (2026-04-21): opt-in gate switched from `execution_topology_priority`
-    // (removed) to `config.review` presence.
-    expect(tryResolveTopologyForHandoff({})).toBeNull();
-  });
-
-  it("undefined ontoConfig → null", () => {
+  it("undefined ontoConfig → null (defensive guard)", () => {
     expect(tryResolveTopologyForHandoff(undefined)).toBeNull();
   });
 
-  it("empty `review: {}` does NOT activate opt-in (PR #162 self-review M2)", () => {
-    // Regression guard: an accidentally-empty review block (YAML author
-    // wrote `review:` and forgot the body) must NOT be treated as
-    // opt-in. `hasReviewBlock` rejects zero-key objects.
-    process.env.CLAUDECODE = "1";
-    expect(
-      tryResolveTopologyForHandoff({ review: {} as never }),
-    ).toBeNull();
+  it("no host signals → null (resolver returns no_host)", () => {
+    // No CLAUDECODE, no codex session. With no reachable host even the
+    // main_native degrade cannot map — resolver returns no_host and the
+    // handoff payload omits the topology field.
+    expect(tryResolveTopologyForHandoff({})).toBeNull();
   });
 
-  it("review block set but no signal matches → null (no_host)", () => {
-    // No CLAUDECODE, no experimental flag, no codex, no litellm.
+  it("review block declares unreachable subagent → null (axis + degrade both fail)", () => {
+    // No CLAUDECODE, no experimental, no codex, no litellm. Axis-first
+    // derives `cc-teams-codex-subprocess` which fails requirements; the
+    // main_native degrade then fails to map (no host) → no_host.
     expect(
       tryResolveTopologyForHandoff({
         review: {
@@ -62,6 +57,37 @@ describe("tryResolveTopologyForHandoff — null paths", () => {
         },
       }),
     ).toBeNull();
+  });
+});
+
+describe("tryResolveTopologyForHandoff — always-on axis-first (P9.3)", () => {
+  beforeEach(() => {
+    delete process.env.CLAUDECODE;
+    delete process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
+  });
+  afterEach(restoreEnv);
+
+  it("plain CC session without review block → cc-main-agent-subagent descriptor via main_native degrade", () => {
+    // P9.3 invariant: every review invocation produces a descriptor
+    // when a host is reachable, even without an explicit `review:`
+    // axis block. Main_native degrade maps to cc-main-agent-subagent
+    // under CLAUDECODE=1.
+    process.env.CLAUDECODE = "1";
+    const descriptor = tryResolveTopologyForHandoff({});
+    expect(descriptor).not.toBeNull();
+    expect(descriptor!.id).toBe("cc-main-agent-subagent");
+  });
+
+  it("empty `review: {}` ALSO resolves via main_native degrade under CC host", () => {
+    // The former M2 opt-in guard is gone — empty review blocks are no
+    // longer distinct from absent ones at dispatch time. Both produce
+    // the same cc-main-agent-subagent descriptor on CLAUDECODE=1.
+    process.env.CLAUDECODE = "1";
+    const descriptor = tryResolveTopologyForHandoff({
+      review: {} as never,
+    });
+    expect(descriptor).not.toBeNull();
+    expect(descriptor!.id).toBe("cc-main-agent-subagent");
   });
 });
 

@@ -3,20 +3,20 @@ import type { OntoConfig } from "../discovery/config-chain.js";
 import { tryTopologyDerivedExecutor } from "./review-invoke.js";
 
 // ---------------------------------------------------------------------------
-// These tests assert PR-F's opt-in topology dispatch invariants:
+// Topology-derived executor dispatch invariants (P9.3, 2026-04-21):
 //
-// (1) Without `execution_topology_priority` → returns null
-//     (legacy resolveExecutorConfig path handles everything, no change).
-// (2) With `execution_topology_priority` AND a matching topology whose
-//     lens_spawn_mechanism has a standalone binary → returns the
-//     mapped ReviewUnitExecutorConfig (caller appends subagent/model
-//     args as usual).
-// (3) With `execution_topology_priority` AND a matching topology whose
-//     mechanism has NO standalone binary (claude-agent-tool,
-//     claude-teamcreate-member, codex-nested's teamlead location)
-//     → returns null (fall through to legacy or dedicated orchestrators).
-// (4) With `execution_topology_priority` but no matching topology
-//     (no_host) → returns null (legacy handles the no-host error).
+// (1) Dispatch is always attempted — the former opt-in gate
+//     (`execution_topology_priority` pre-P9.1, `config.review` presence
+//     in P9.2) is removed. Resolver's universal `main_native` degrade
+//     guarantees a viable topology whenever a host is reachable.
+// (2) Resolved topology whose lens_spawn_mechanism has a standalone
+//     binary → returns the mapped ReviewUnitExecutorConfig (caller
+//     appends subagent/model args as usual).
+// (3) Resolved topology whose mechanism has NO standalone binary
+//     (claude-agent-tool, claude-teamcreate-member, codex-nested's
+//     teamlead location) → returns null (fall through to coordinator
+//     or dedicated orchestrators).
+// (4) No reachable host (resolver returns `no_host`) → returns null.
 // (5) `[plan:executor]` STDERR line emitted on successful topology
 //     derivation, so operators can see topology → binary mapping.
 // ---------------------------------------------------------------------------
@@ -48,9 +48,20 @@ describe("tryTopologyDerivedExecutor — null paths (fall through)", () => {
     }
   });
 
-  it("no config.review block → null (opt-in gate blocks dispatch)", () => {
-    // P9.2 (2026-04-21): the opt-in gate is now `config.review` presence
-    // (was `execution_topology_priority` before field removal).
+  it("no config.review block + no host → null (resolver returns no_host)", () => {
+    // P9.3 (2026-04-21): dispatch attempts axis-first resolution for
+    // every review invocation. Without CLAUDECODE / codex signals the
+    // resolver's main_native degrade cannot map → no_host → null.
+    const result = tryTopologyDerivedExecutor({}, FAKE_HOME);
+    expect(result).toBeNull();
+  });
+
+  it("no config.review block + CC host → null (cc-main-agent-subagent has no standalone binary)", () => {
+    // P9.3 invariant: even without a review block the resolver maps
+    // main_native → cc-main-agent-subagent under CLAUDECODE=1. That
+    // topology's mechanism is claude-agent-tool which has no
+    // standalone binary, so dispatch falls through to coordinator.
+    process.env.CLAUDECODE = "1";
     const result = tryTopologyDerivedExecutor({}, FAKE_HOME);
     expect(result).toBeNull();
   });

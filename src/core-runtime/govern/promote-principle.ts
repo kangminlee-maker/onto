@@ -165,15 +165,24 @@ export function executePromotePrinciple(
   }
   const validCategories = ["principle", "process"];
   const rawCategory = (proposal.target?.category ?? "") as string;
-  if (!proposal.target?.file_path || !proposal.target?.section || !validCategories.includes(rawCategory)) {
+  // Missing required fields → completeness gate.
+  if (!proposal.target?.file_path || !proposal.target?.section || rawCategory.length === 0) {
+    return {
+      success: false,
+      reason: "target.file_path, section, category (principle|process) 필수.",
+      gate_failed: "completeness",
+    };
+  }
+  // Field present but value invalid → validation gate.
+  if (!validCategories.includes(rawCategory)) {
     const hint =
       rawCategory === "design_principle"
         ? " (legacy label 'design_principle' was renamed to 'principle' in Phase 7)"
         : "";
     return {
       success: false,
-      reason: `target.file_path, section, category (principle|process) 필수.${hint}`,
-      gate_failed: "completeness",
+      reason: `target.category '${rawCategory}' 는 허용되지 않음. 허용: principle | process.${hint}`,
+      gate_failed: "validation",
     };
   }
   if (!proposal.rationale || proposal.rationale.trim().length === 0) {
@@ -197,9 +206,13 @@ export function executePromotePrinciple(
   // Two-stage defense:
   //   1. Lexical segment-bound check — rejects near-miss directory names
   //      (`.onto/principlesABC/foo.md`) without touching the filesystem.
-  //   2. Normalized-canonical membership check — rejects traversal-shaped
-  //      inputs (`.onto/principles/../../etc/passwd`) that would pass the
-  //      lexical check but resolve outside projectRoot's canonical dir.
+  //   2. Normalized-descendant check — rejects traversal-shaped inputs
+  //      (`.onto/principles/../../etc/passwd`) that would pass the lexical
+  //      check but, after `path.resolve`, land outside the canonical dir.
+  //      This is path-seat containment on the normalized string, not
+  //      symlink-aware `realpath` containment — symlink escape is out of
+  //      scope within the current threat model (proposals are internal,
+  //      not arbitrary user-supplied paths).
   const canonicalDir =
     proposal.target.category === "principle"
       ? ".onto/principles"

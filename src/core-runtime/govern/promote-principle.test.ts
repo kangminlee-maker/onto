@@ -138,9 +138,34 @@ describe("promote-principle Completeness gate", () => {
     if (!result.success) expect(result.gate_failed).toBe("completeness");
   });
 
-  it("invalid category 거부", () => {
+  it("invalid category (field present, value unknown) → validation gate", () => {
     const result = executePromotePrinciple(
       makeProposal({ target: { category: "authority", file_path: ".onto/authority/x.yaml", section: "NEW" } }) as any,
+      tmpRoot,
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.gate_failed).toBe("validation");
+  });
+
+  it("legacy design_principle label → validation gate + migration hint", () => {
+    // Phase 7 review polish (UNIQ-gate-taxonomy): present-but-invalid value
+    // routes through the validation gate, not completeness. The hint must
+    // still guide callers to the new `principle` label.
+    const result = executePromotePrinciple(
+      makeProposal({ target: { category: "design_principle", file_path: ".onto/principles/x.md", section: "NEW" } }) as any,
+      tmpRoot,
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.gate_failed).toBe("validation");
+      expect(result.reason).toContain("design_principle");
+      expect(result.reason).toMatch(/renamed to 'principle'/);
+    }
+  });
+
+  it("empty category string → completeness gate (missing field)", () => {
+    const result = executePromotePrinciple(
+      makeProposal({ target: { category: "", file_path: ".onto/principles/x.md", section: "NEW" } }) as any,
       tmpRoot,
     );
     expect(result.success).toBe(false);
@@ -241,6 +266,53 @@ describe("promote-principle target validation — canonical/legacy dual-path", (
     );
     expect(result.success).toBe(false);
     if (!result.success) expect(result.gate_failed).toBe("validation");
+  });
+
+  // Phase 7 review polish (UNIQ-logic traversal): stage-2 normalized-descendant
+  // check 가 traversal-shaped input 을 실제로 거부하는지 executable 로 pin.
+  it("traversal: .onto/principles/../../../etc/passwd → validation 실패 (stage-2 normalized-descendant)", () => {
+    const result = executePromotePrinciple(
+      makeProposal({
+        target: {
+          category: "principle",
+          file_path: ".onto/principles/../../../etc/passwd",
+          section: "NEW",
+        },
+      }) as any,
+      tmpRoot,
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.gate_failed).toBe("validation");
+  });
+
+  it("traversal: .onto/principles/subdir/../../escape.md → validation 실패", () => {
+    const result = executePromotePrinciple(
+      makeProposal({
+        target: {
+          category: "principle",
+          file_path: ".onto/principles/subdir/../../escape.md",
+          section: "NEW",
+        },
+      }) as any,
+      tmpRoot,
+    );
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.gate_failed).toBe("validation");
+  });
+
+  it("traversal: 합법적 canonical 하위 경로 (.onto/principles/sub/deep/x.md) 는 통과", () => {
+    // Counter-example: stage-2 가 합법적 descendant 는 거부하지 않아야 함.
+    const result = executePromotePrinciple(
+      makeProposal({
+        target: {
+          category: "principle",
+          file_path: ".onto/principles/sub/deep/x.md",
+          section: "NEW",
+        },
+      }) as any,
+      tmpRoot,
+    );
+    expect(result.success).toBe(true);
   });
 
   it("wrong category dir: process 카테고리 + .onto/principles/ 경로 → validation 실패", () => {

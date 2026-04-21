@@ -158,8 +158,9 @@ function resolveDomainDirectory(
   attempted.push(userDomainPath);
   if (fsSync.existsSync(userDomainPath)) return { dir: userDomainPath, attempted };
 
-  // 3. Installation default (ontoHome/{,.onto/}domains/)
-  // Phase 0: resolveInstallationPath picks .onto/domains/ if present, else domains/.
+  // 3. Installation default (ontoHome/.onto/domains/)
+  // Phase 7 (2026-04-21): resolveInstallationPath resolves canonical
+  // .onto/domains/ only; legacy top-level domains/ is no longer accepted.
   if (typeof ontoHome === "string" && ontoHome.length > 0) {
     try {
       const domainsRoot = resolveInstallationPath("domains", ontoHome);

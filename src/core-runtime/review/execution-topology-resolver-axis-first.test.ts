@@ -332,6 +332,17 @@ describe("resolveExecutionTopology — P3 universal fallback (degrade to main_na
     // Negative: the retired ladder's "priority source=config" log shape
     // must NOT surface — any regression would revive the dead path.
     expect(res.plan_trace.some((l) => l.includes("priority source="))).toBe(false);
+    // Regression guard (PR #161 review): when `config.review` is present
+    // but its internal degrade exhausts, the outer resolver must NOT
+    // invoke a second `attemptMainNativeDegrade` with a misleading
+    // `<review-block-absent>` label. Exactly one `degraded: requested=`
+    // line should appear, and it must not carry that sentinel.
+    expect(
+      res.plan_trace.filter((l) => l.includes("degraded: requested=")).length,
+    ).toBe(1);
+    expect(
+      res.plan_trace.some((l) => l.includes("<review-block-absent>")),
+    ).toBe(false);
   });
 });
 

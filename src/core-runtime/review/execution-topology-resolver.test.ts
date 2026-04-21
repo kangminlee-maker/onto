@@ -349,6 +349,102 @@ describe("resolveExecutionTopology — P9.1 ladder retirement", () => {
 });
 
 // ---------------------------------------------------------------------------
+// (2-bis) checkTopologyRequirements — per-branch negative coverage
+//
+// Restored in PR #161 self-review (2026-04-21). Axis-first pipeline
+// produces each TopologyId, then the detailed requirements check rejects
+// it due to a single missing signal. The resolver returns `no_host` and
+// the plan_trace records the precise skip reason.
+// ---------------------------------------------------------------------------
+
+describe("checkTopologyRequirements — axis-first derives id but requirement fails", () => {
+  it("cc-teams-lens-agent-deliberation skips when lens_agent_teams_mode=false", () => {
+    const res = resolveExecutionTopology(
+      withSignals({
+        ontoConfig: {
+          review: {
+            subagent: { provider: "main-native" },
+            lens_deliberation: "sendmessage-a2a",
+          },
+          lens_agent_teams_mode: false,
+        },
+        claudeHost: true,
+        experimentalAgentTeams: true,
+      }),
+    );
+    const nohost = expectNoHost(res);
+    expect(
+      nohost.plan_trace.some((l) =>
+        l.includes("cc-teams-lens-agent-deliberation: skip — need config.lens_agent_teams_mode=true"),
+      ),
+    ).toBe(true);
+  });
+
+  it("cc-teams-codex-subprocess skips when codex binary missing", () => {
+    const res = resolveExecutionTopology(
+      withSignals({
+        ontoConfig: {
+          review: {
+            subagent: { provider: "codex", model_id: "gpt-5.4" },
+          },
+        },
+        claudeHost: true,
+        experimentalAgentTeams: true,
+        codexAvailable: false,
+      }),
+    );
+    const nohost = expectNoHost(res);
+    expect(
+      nohost.plan_trace.some((l) =>
+        l.includes("cc-teams-codex-subprocess: skip — need codex binary + ~/.codex/auth.json"),
+      ),
+    ).toBe(true);
+  });
+
+  it("cc-teams-litellm-sessions skips when LiteLLM endpoint missing", () => {
+    const res = resolveExecutionTopology(
+      withSignals({
+        ontoConfig: {
+          review: {
+            subagent: { provider: "litellm", model_id: "gpt-4o" },
+          },
+        },
+        claudeHost: true,
+        experimentalAgentTeams: true,
+        liteLlmEndpointAvailable: false,
+      }),
+    );
+    const nohost = expectNoHost(res);
+    expect(
+      nohost.plan_trace.some((l) =>
+        l.includes("cc-teams-litellm-sessions: skip — need LITELLM_BASE_URL or config.llm_base_url"),
+      ),
+    ).toBe(true);
+  });
+
+  it("codex-main-subprocess skips when codex binary missing despite session signal", () => {
+    const res = resolveExecutionTopology(
+      withSignals({
+        ontoConfig: {
+          review: {
+            subagent: { provider: "main-native" },
+          },
+        },
+        claudeHost: false,
+        codexSessionActive: true,
+        codexAvailable: false,
+      }),
+    );
+    const nohost = expectNoHost(res);
+    expect(
+      nohost.plan_trace.some((l) =>
+        l.includes("codex-main-subprocess: skip — need codex binary + ~/.codex/auth.json"),
+      ),
+    ).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // env-defaulting (no injected signals) — uses process.env
 // ---------------------------------------------------------------------------
 

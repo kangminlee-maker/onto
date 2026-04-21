@@ -448,18 +448,23 @@ export function resolveExecutionTopology(
     );
   }
 
-  // Axis-first → degrade → fail-fast. See `resolveAxisFirstTopology` for
-  // the axis-block pipeline and `attemptMainNativeDegrade` for the single
-  // universal fallback step.
+  // Axis-first → degrade → fail-fast. `resolveAxisFirstTopology` handles
+  // its own `main_native` degrade for validate/derive/map failures when
+  // `config.review` is present. The outer degrade below fires ONLY for
+  // the distinct "review block absent" case — otherwise we would emit a
+  // second misleading `degraded: requested=<review-block-absent>` line
+  // after the inner helper already exhausted the single-step fallback.
   const axisFirstId = resolveAxisFirstTopology(args.ontoConfig, signals, log);
   const resolvedId =
     axisFirstId ??
-    attemptMainNativeDegrade({
-      requested: "<review-block-absent>",
-      reason: "config.review block absent — legacy priority ladder retired in P9.1",
-      signals,
-      log,
-    });
+    (args.ontoConfig.review === undefined
+      ? attemptMainNativeDegrade({
+          requested: "<review-block-absent>",
+          reason: "config.review block absent — legacy priority ladder retired in P9.1",
+          signals,
+          log,
+        })
+      : null);
 
   const source = axisFirstId ? "review-axes" : "fallback-main-native";
 

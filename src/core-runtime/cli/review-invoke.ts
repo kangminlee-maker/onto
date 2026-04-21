@@ -2000,32 +2000,19 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     throw buildNoHostDetectedError();
   }
 
-  // P9.3-m1 (2026-04-21): resolve topology exactly once per invocation
-  // and thread the result through the 3 downstream consumers
-  // (tryResolveTopologyForHandoff, resolveExecutorConfig ×2,
-  // topologyForDispatch). Prior to this caching layer, each consumer
-  // re-called `resolveExecutionTopology` and re-emitted the full
-  // `[topology]` STDERR trace, producing 15+ duplicate trace lines per
-  // review run. `cachedTopology === null` is the explicit "caller
-  // resolved and got no_host" signal propagated to downstream helpers.
-  const cachedTopologyResolution = resolveExecutionTopology({
-    ontoConfig: setup.ontoConfig,
-  });
-  const cachedTopology: ExecutionTopology | null =
-    cachedTopologyResolution.type === "resolved"
-      ? cachedTopologyResolution.topology
-      : null;
-
   if (handoff.type === "coordinator_start") {
     // P9.3 (2026-04-21): resolver always attempts axis-first derivation,
     // so every coordinator handoff carries a topology descriptor (null
     // only when the resolver itself could not find a viable host). The
     // coordinator state machine follows it as canonical rather than
     // inferring from preferred_realization alone.
-    const topologyDescriptor = tryResolveTopologyForHandoff(
-      setup.ontoConfig,
-      cachedTopology,
-    );
+    //
+    // P9.3-m1 (2026-04-21): coordinator_start returns early before the
+    // prepare-only / full-dispatch split, so this branch has exactly
+    // ONE resolver consumer. No caching needed — let
+    // `tryResolveTopologyForHandoff` do its own resolve via the legacy
+    // two-argument call path.
+    const topologyDescriptor = tryResolveTopologyForHandoff(setup.ontoConfig);
     emitCoordinatorStartHandoff({
       preferredRealization: handoff.profile.execution_realization,
       requestedTarget: setup.resolvedInvokeInputs.requestedTarget,
@@ -2085,6 +2072,31 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     }
   }
 
+  // P9.3-m1 (2026-04-21): resolve topology EXACTLY ONCE for the full-
+  // dispatch path and thread it to the 3 downstream consumers
+  // (resolveExecutorConfig ×2 + topologyForDispatch). Placement here
+  // (post-prepareOnly, post-watcher-spawn) is deliberate:
+  //   - The coordinator_start branch returned earlier with its own
+  //     single resolver call, so it never reaches this cache.
+  //   - The prepare-only branch also returned earlier, preserving its
+  //     prior zero-resolver-call observability (no `[topology]` STDERR
+  //     lines emitted for `onto review --prepare-only`).
+  //
+  // Staleness assumption: `setup.ontoConfig` is readonly and
+  // `process.env` is not mutated inside `runReviewInvokeCli` between
+  // this cache site and the downstream helpers, so the cached snapshot
+  // stays authoritative. A future consumer that mutates env (e.g.
+  // injecting CLAUDECODE) between here and the helpers would silently
+  // drift — keep the mutation/consumption points adjacent or re-resolve
+  // explicitly in that case.
+  const cachedTopologyResolution = resolveExecutionTopology({
+    ontoConfig: setup.ontoConfig,
+  });
+  const cachedTopology: ExecutionTopology | null =
+    cachedTopologyResolution.type === "resolved"
+      ? cachedTopologyResolution.topology
+      : null;
+
   const resolvedRequestText = setup.resolvedInvokeInputs.requestText;
   const defaultExecutorConfig = resolveExecutorConfig(
     argv,
@@ -2102,11 +2114,9 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   );
 
   // P9.3-m1 (2026-04-21): reuse the cached topology instead of calling
-  // `resolveExecutionTopology` a fourth time. The cached value was
-  // resolved once at the top of this function from the same
-  // `setup.ontoConfig`, so the resolved descriptor is identical; the
-  // `null` branch corresponds to the prior `no_host` → `undefined`
-  // semantics expected by `executeReviewPromptExecution`.
+  // `resolveExecutionTopology` a third time. `null` corresponds to the
+  // prior `no_host` → `undefined` semantics expected by
+  // `executeReviewPromptExecution`.
   const topologyForDispatch: ExecutionTopology | undefined =
     cachedTopology ?? undefined;
 

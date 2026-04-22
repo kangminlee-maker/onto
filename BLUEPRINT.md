@@ -767,6 +767,8 @@ All learning modifications follow a tiered approval model:
 
 Lens execution is configured by **6 user-facing axes** (Review UX Redesign, P1 #152). Runtime derives one of 6 internal `TopologyShape` s and maps to the canonical `TopologyId` catalog. Legacy 2-axis model (`execution_realization × host_runtime`) is a backward-compat layer.
 
+> **Canonical key surface**: `.onto/processes/configuration.md` §4.5 "Review-specific" — `review:` axis block 의 전체 sub-key 정의 / 유효값 / 기본값 / 사용 예시 3개. 본 §7 은 그 key set 의 derived overview. Primary source 변경 시 본 섹션도 동기 (§"Update rule" per authoring standards).
+
 ### 7.1 The 6 Axes (Canonical as of 2026-04-21)
 
 | Axis | What it decides | Values / domain |

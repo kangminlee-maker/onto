@@ -284,6 +284,8 @@ Background tasks (learn/govern/promote) use cost-ordered provider resolution. Lo
 
 Credential 전무 시 fail-fast with cost-order guidance. Host main-model delegation (using the surrounding Claude Code / codex session's own model) belongs to a separate **execution realization** axis and is out of scope for this ladder.
 
+> **Review execution is a separate axis** — lens + synthesize 실행의 host/model 선택은 `.onto/config.yml` 의 `review:` axis block (A teamlead / B subagent / C concurrency / E deliberation) 에서 결정합니다. Background task LLM (본 섹션) 과 독립. 전체 key surface 는 `.onto/processes/configuration.md` §4.5 "Review-specific" 참조.
+
 ### Config examples
 
 **Auto (recommended)** — leave `.onto/config.yml` alone and let cost-order pick:

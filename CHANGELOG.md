@@ -2,6 +2,48 @@
 
 ## Unreleased
 
+### Changed — Config format unification + deterministic wrapper depth + Stage 3 verify (2026-04-22 pm)
+
+**7 PR 연속 머지** (`#186` ~ `#191`, F-1 `#189`). PR #185 의 D-1 smoke drift 세션에서 분기한 `deterministic CLI wrapper` 원칙을 **호출 → 모델 → 환경** 세 단계 깊이로 확장 + `review:` axis block (P1 Review UX Redesign, 2026-04-20) 의 doc/dogfooding/wrapper 3 layer 정합 + F-1 SE domain 잔여 2건 cross-domain 해소. Principal Stage 3 재verify 로 8건 중 5건 close + 2 건 부분 해소 + 1 건 잔존.
+
+#### Changed — `review:` axis block SSOT 확립
+
+- **PR #186** (`05f5645`): `.onto/processes/configuration.md` §4.5 Review-specific 확장. P1 Review UX Redesign 의 `review:` axis block (teamlead / subagent / lens_deliberation / max_concurrent_lenses) 을 canonical surface 로 등재. `subagent_llm` (§4.3) 과 관계 cross-reference, deprecated `execution_topology_priority` migration 경로 명시, 사용 예시 3개 (codex-nested-subprocess / cc-main-agent-subagent / lens-agent-deliberation 등가). 기존 top-level `max_concurrent_lenses` 는 P9.2 이후 runtime resolver 미사용을 "legacy alias" 로 표기.
+- **PR #187** (`3d17a0b`): 본 repo (onto framework 자체 개발 repo) 의 `.onto/config.yml` 을 tracked 로 전환, 다른 onto-X 사용자에게 신형식 canonical reference 제공. `.gitignore` 의 `.onto/config.yml` 제거 + `scripts/check-onto-allowlist.sh` 에 `ALLOWED_FILES` 배열 (단일 파일 exact-match 전용) 추가 + self-test case 4 (exact-match 회귀 방어) 추가. Repo-scoped policy — 다른 onto-X repo 는 자기 `.onto/config.yml` 을 자기 .gitignore 에서 계속 무시 가능.
+- **PR #188** (`96ae743`): `scripts/review-pr.sh` deterministic refinement. 기존 teamlead/subagent axis 를 host 환경 default 의존에서 **명시적 pin** (provider=codex, model_id=gpt-5.4, effort=high) 으로. `INTENT` 문자열에 model 임베드 + STDERR banner 로 review-record 와 운영 가시성 양쪽에 model 기록. 본 repo `.onto/config.yml` (PR #187) 과 값 정합. Topology: codex-main-subprocess → codex-nested-subprocess.
+
+#### Added — `deterministic CLI wrapper` 원칙 환경 단위 적용
+
+- **PR #191** (`52ed32b`): `scripts/host-env.sh` 신설 — 4 helper 함수 (`onto_env_codex_host` / `onto_env_claude_host` / `onto_env_claude_teams_host` / `onto_env_plain_terminal`) + self-test (fixture-based 4/4 case). 10 launcher (`scripts/review-pr.sh` + 9 smoke topology scripts) 의 inline `env -u CLAUDECODE -u …` 중복 인자 리스트를 함수 호출로 일괄 migration. 새 host signal 추가 시 한 곳만 수정하면 전체 launcher 자동 정합. `feedback_deterministic_cli_wrapper.md` (2026-04-22) 원칙의 3단계 확장: PR #185 (wrapper 신설) → PR #188 (model pin) → PR #191 (env helper).
+
+#### Test — spawn-watcher real-attach coverage
+
+- **PR #190** (`d257f90`): `src/core-runtime/cli/spawn-watcher.test.ts` 에 module-level `vi.mock("node:child_process")` 기반 real-attach test 6 case 추가 (12 → 18). 기존 dry-run (`ONTO_WATCHER_DRY_RUN=1`) 이 cover 하지 못하는 actual `spawnSync(tmux, ...)` / `spawnSync(osascript, ...)` 호출 경로 회귀 방어. Regression target: tmux `split-window` flag / iTerm2 osascript `"matched"` sentinel / Apple Terminal `do script`.
+
+#### Fixed — F-1 SE domain review follow-up 잔여 2건
+
+- **PR #189** (`ea232fb`): 2026-03-30 SE domain review 의 Stage 4 잔여 R-13 + R-17 해소.
+  - **R-13**: `.onto/domains/software-engineering/domain_scope.md:106` 의 Bias Detection threshold `⌈7/2.5⌉ = 3` 리터럴 → `⌈N/2.5⌉` 동적 식 + N 정의 (§Major Sub-areas 의 `###` 개수, count at review time). Cross-domain: `.onto/domains/ui-design/domain_scope.md:247` 도 같은 하드코딩 패턴 동시 정정.
+  - **R-17**: `.onto/domains/software-engineering/concepts.md:45` 의 `Module` 단일 정의 ([L2]) 를 두 의미로 분리 — `[L1] Module (language/runtime)` (ECMAScript module, Java module JEP 261, Go package, Python module) + `[L3] Module (architectural)` (independently deployable unit, modular-monolith). 도메인 전반의 Module 동음이의어 혼용 해소.
+
+#### Principal Stage 3 backlog — verify 결과 5건 close / 2건 부분 해소
+
+코드 변경 없이 memory 정정만. Principal Stage 3 원래 9 항목 중:
+- **Close** (8건): #1 W-B-07, #2 W-B-08 이미 registry-driven 2단 구조 완성 확인, #3 draft-packet.ts validate() 5 invariant 강제 확인, #4 W-A-63, #7 PR #14, #8 competency_scope/question v0.11.0, #9 provenance v0.11.0 + framework v1.0 transition types, #10 modularity_boundary v0.11.0
+- **부분 해소 (Phase 4 흡수)**: #5 dispatch target relation — v0.12.0 (W-C-01) 이 review 해소, evolve/reconstruct/learn/ask 4 activity 에 `deferred to Stage 3` 주석 잔존. #6 process entity — `govern_process` (1/5) 만 도입, 4 activity 미도입. 둘 다 Phase 4 activity v1 설계의 같은 lexicon cycle 에서 일괄 처리 권장.
+
+#### Migration
+
+- **Breaking 아님**. PR #186 doc + PR #187 이 본 repo `.gitignore` / allowlist script 변경 (repo-scoped) + PR #188 wrapper 내부 변경 + PR #190 test-only + PR #191 shell helper + PR #189 domain doc 정정. 외부 사용자 action 불필요.
+
+#### Design / memory
+
+- 세션 wrap: `project_session_20260422_pm_wrap.md`
+- 원칙 확립: `feedback_deterministic_cli_wrapper.md` (`호출 → 모델 → 환경` 3단 깊이 적용 예)
+- Principal Stage 3 정리: `project_principal_stage3_backlog.md` (2026-04-22 verify 반영)
+
+---
+
 ### Added — `onto install` first-run setup wizard (2026-04-21)
 
 **신규 CLI 명령**. onto 의 런타임 설정 (`config.yml`, `.env`, `.env.example`) 을 처음 1회 생성하는 마법사. Claude Code plugin / npm 두 설치 경로 모두에서 설치 후 한 번 실행한다. Onboard 와 책임 분리: install = onto 런타임 구성 (provider / 자격 증명 / 출력 언어), onboard = 프로젝트별 초기화 (domains / review execution axes / `.onto/review/` 동의).

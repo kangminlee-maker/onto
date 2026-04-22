@@ -1,6 +1,6 @@
 {
   "name": "onto-core",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Ontology-as-Code productization core — 9-lens review, domain knowledge management, deterministic state enforcement",
   "onto_release_channel": "beta",
   "onto_release_label": "onto-harness",

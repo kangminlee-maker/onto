@@ -114,7 +114,7 @@ cd "${SMOKE_TMP_ROOT}"
 # early-return before reaching the watcher call site).
 CODEX_THREAD_ID="smoke-${SMOKE_TOPOLOGY_ID}-$(date +%s)" \
   ONTO_WATCHER_DRY_RUN=1 \
-  env -u CLAUDECODE -u CLAUDE_PROJECT_DIR -u CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS \
+  onto_env_codex_host \
   node "${ONTO_CLI}" \
     "$(basename "${SMOKE_TARGET_FILE}")" "${SMOKE_INTENT}" \
     --project-root "${SMOKE_TMP_ROOT}" \

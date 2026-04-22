@@ -55,6 +55,11 @@ set -euo pipefail
 REF="${1:-main...HEAD}"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
+# Shared host-environment sanitizer. PR #185 follow-up #5 — keeps the
+# env-unset list single-source across review-pr.sh and the smoke launchers.
+# shellcheck disable=SC1091
+source "${REPO_ROOT}/scripts/host-env.sh"
+
 # Extract the right-hand ref from REF. Branch-separator parsing: try
 # three-dot first (`main...HEAD` → `HEAD`), then two-dot (`main..feat/xyz`
 # → `feat/xyz`). Literal-dot fallback would corrupt refs containing a `.`
@@ -152,7 +157,7 @@ STDOUT_LOG="${REVIEW_DIR}/review.stdout.log"
 STDERR_LOG="${REVIEW_DIR}/review.stderr.log"
 set +e
 CODEX_THREAD_ID="review-pr-$(date +%s)" \
-  env -u CLAUDECODE -u CLAUDE_PROJECT_DIR -u CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS \
+  onto_env_codex_host \
   node "${CLI}" \
     "$(basename "${DIFF_FILE}")" "${INTENT}" \
     --project-root "${REVIEW_DIR}" \

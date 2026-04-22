@@ -59,8 +59,7 @@ cd "${SMOKE_TMP_ROOT}"
 # signals unset (including CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS per
 # host-detection.ts CLAUDE_ENV_SIGNALS) so claudeHost reads false and the
 # external-codex teamlead shape derivation is unambiguous.
-env -u CLAUDECODE -u CLAUDE_PROJECT_DIR -u CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS \
-  -u CODEX_THREAD_ID -u CODEX_CI \
+onto_env_plain_terminal \
   node "${ONTO_CLI}" \
     "$(basename "${SMOKE_TARGET_FILE}")" "${SMOKE_INTENT}" \
     --project-root "${SMOKE_TMP_ROOT}" \

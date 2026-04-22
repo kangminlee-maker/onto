@@ -40,13 +40,17 @@ if ! curl -fsS --max-time 2 "${LITELLM_URL}/health" >/dev/null 2>&1 \
 fi
 
 # ── Config ─────────────────────────────────────────────────────────────────
+# P9.2 (2026-04-21): legacy `execution_topology_priority` field removed.
+# Axis-first: `subagent.provider=litellm` under Claude host + teams=true
+# derives shape `main-teams_foreign(litellm)` → cc-teams-litellm-sessions.
+# `llm_base_url` stays top-level (feeds resolver's litellm signal detection).
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
-execution_topology_priority:
-  - cc-teams-litellm-sessions
-review_mode: core-axis
 llm_base_url: ${LITELLM_URL}
-litellm:
-  model: llama-8b
+review:
+  subagent:
+    provider: litellm
+    model_id: llama-8b
+review_mode: core-axis
 EOF
 
 # ── Execute ────────────────────────────────────────────────────────────────

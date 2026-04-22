@@ -226,6 +226,152 @@ describe("executeReviewViaCodexNested — forwarding", () => {
     expect(calls[0]!.model).toBe("gpt-top");
     expect(calls[0]!.reasoning_effort).toBe("low");
   });
+
+  it("reads model/effort from review.subagent (P2 canonical location)", async () => {
+    const plan = buildPlan([{ lens_id: "l", packet_path: "/p", output_path: "/o" }], "");
+    fixture = await mkSession(plan);
+    const { impl, calls } = buildOrchestrator([{ lens_id: "l", status: "ok" }]);
+    await executeReviewViaCodexNested(
+      {
+        sessionRoot: fixture.sessionRoot,
+        ontoConfig: {
+          review: {
+            subagent: { provider: "codex", model_id: "gpt-sub", effort: "medium" },
+          },
+        },
+      },
+      impl,
+      staticInspector(new Set(["/o"])),
+    );
+    expect(calls[0]!.model).toBe("gpt-sub");
+    expect(calls[0]!.reasoning_effort).toBe("medium");
+  });
+
+  it("reads model/effort from review.teamlead.model when external codex teamlead", async () => {
+    const plan = buildPlan([{ lens_id: "l", packet_path: "/p", output_path: "/o" }], "");
+    fixture = await mkSession(plan);
+    const { impl, calls } = buildOrchestrator([{ lens_id: "l", status: "ok" }]);
+    await executeReviewViaCodexNested(
+      {
+        sessionRoot: fixture.sessionRoot,
+        ontoConfig: {
+          review: {
+            teamlead: { model: { provider: "codex", model_id: "gpt-tl", effort: "high" } },
+          },
+        },
+      },
+      impl,
+      staticInspector(new Set(["/o"])),
+    );
+    expect(calls[0]!.model).toBe("gpt-tl");
+    expect(calls[0]!.reasoning_effort).toBe("high");
+  });
+
+  it("review.subagent wins over top-level codex.* (P2 canonical > legacy)", async () => {
+    const plan = buildPlan([{ lens_id: "l", packet_path: "/p", output_path: "/o" }], "");
+    fixture = await mkSession(plan);
+    const { impl, calls } = buildOrchestrator([{ lens_id: "l", status: "ok" }]);
+    await executeReviewViaCodexNested(
+      {
+        sessionRoot: fixture.sessionRoot,
+        ontoConfig: {
+          review: {
+            subagent: { provider: "codex", model_id: "gpt-sub", effort: "medium" },
+          },
+          codex: { model: "gpt-legacy", effort: "high" },
+        },
+      },
+      impl,
+      staticInspector(new Set(["/o"])),
+    );
+    expect(calls[0]!.model).toBe("gpt-sub");
+    expect(calls[0]!.reasoning_effort).toBe("medium");
+  });
+
+  it("review.subagent with provider=main-native does NOT claim codex slot (falls through)", async () => {
+    // main-native subagent is not a codex provider → resolver should move on
+    // to teamlead → legacy → top-level, not pick up subagent.
+    const plan = buildPlan([{ lens_id: "l", packet_path: "/p", output_path: "/o" }], "");
+    fixture = await mkSession(plan);
+    const { impl, calls } = buildOrchestrator([{ lens_id: "l", status: "ok" }]);
+    await executeReviewViaCodexNested(
+      {
+        sessionRoot: fixture.sessionRoot,
+        ontoConfig: {
+          review: {
+            subagent: { provider: "main-native" },
+          },
+          codex: { model: "gpt-legacy", effort: "high" },
+        },
+      },
+      impl,
+      staticInspector(new Set(["/o"])),
+    );
+    expect(calls[0]!.model).toBe("gpt-legacy");
+    expect(calls[0]!.reasoning_effort).toBe("high");
+  });
+
+  it("passes sessionRoot-based stream_stdout_path/stream_stderr_path to orchestrator (live watcher)", async () => {
+    // The watcher pane's tail -f target is sessionRoot/nested-outer-*.log.
+    // The orchestrator must receive those absolute paths so spawn-watcher
+    // can tee outer codex stdout/stderr there as codex emits chunks. If
+    // the dispatch stopped plumbing these paths, streaming would silently
+    // fall back to memory-only capture.
+    const plan = buildPlan([{ lens_id: "l", packet_path: "/p", output_path: "/o" }], "");
+    fixture = await mkSession(plan);
+    const { impl, calls } = buildOrchestrator([{ lens_id: "l", status: "ok" }]);
+    await executeReviewViaCodexNested(
+      {
+        sessionRoot: fixture.sessionRoot,
+        ontoConfig: {},
+      },
+      impl,
+      staticInspector(new Set(["/o"])),
+    );
+    expect(calls[0]!.stream_stdout_path).toBe(
+      path.join(fixture.sessionRoot, "nested-outer-stdout.log"),
+    );
+    expect(calls[0]!.stream_stderr_path).toBe(
+      path.join(fixture.sessionRoot, "nested-outer-stderr.log"),
+    );
+  });
+
+  it("archives outer stdout/stderr to nested-outer-*.log under sessionRoot", async () => {
+    // Regression guard: outer codex diagnostics (ENV-BEFORE / ENV-AFTER /
+    // LENS_DISPATCH_SUMMARY) and raw stderr are otherwise unreachable
+    // after dispatch completes, because review-invoke's final JSON drops
+    // `nested_raw`. The archive step is what makes post-hoc auditing
+    // possible for the principal.
+    const plan = buildPlan([{ lens_id: "l", packet_path: "/p", output_path: "/o" }], "");
+    fixture = await mkSession(plan);
+    const { impl } = buildOrchestrator([{ lens_id: "l", status: "ok" }], {
+      outer_stdout:
+        "ENV-BEFORE lens=l packet=/p output=/o\n" +
+        "ENV-AFTER lens=l exit=0 output_bytes=42\n" +
+        'LENS_DISPATCH_SUMMARY:{"lens_results":[{"lens_id":"l","status":"ok"}]}\n',
+      outer_stderr: "some-warning from outer codex\n",
+    });
+    await executeReviewViaCodexNested(
+      {
+        sessionRoot: fixture.sessionRoot,
+        ontoConfig: {},
+      },
+      impl,
+      staticInspector(new Set(["/o"])),
+    );
+    const stdoutArchive = await fs.readFile(
+      path.join(fixture.sessionRoot, "nested-outer-stdout.log"),
+      "utf8",
+    );
+    const stderrArchive = await fs.readFile(
+      path.join(fixture.sessionRoot, "nested-outer-stderr.log"),
+      "utf8",
+    );
+    expect(stdoutArchive).toContain("ENV-BEFORE lens=l");
+    expect(stdoutArchive).toContain("ENV-AFTER lens=l");
+    expect(stdoutArchive).toContain("LENS_DISPATCH_SUMMARY:");
+    expect(stderrArchive).toContain("some-warning from outer codex");
+  });
 });
 
 // ---------------------------------------------------------------------------

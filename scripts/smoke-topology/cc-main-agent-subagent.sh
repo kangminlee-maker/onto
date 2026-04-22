@@ -30,9 +30,15 @@ export SMOKE_TOPOLOGY_ID="cc-main-agent-subagent"
 source "$(dirname "$0")/fixture.sh"
 
 # ── Config ─────────────────────────────────────────────────────────────────
+# P9.2 (2026-04-21): legacy `execution_topology_priority` field was removed.
+# Axis-first review block derives shape `main_native` → cc-main-agent-subagent
+# under Claude host + experimentalAgentTeams=false.
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
-execution_topology_priority:
-  - cc-main-agent-subagent
+review:
+  teamlead:
+    model: main
+  subagent:
+    provider: main-native
 review_mode: core-axis
 EOF
 
@@ -42,9 +48,10 @@ STDOUT_LOG="${SMOKE_TMP_ROOT}/review.stdout.log"
 
 cd "${SMOKE_TMP_ROOT}"
 # CLAUDECODE=1 to satisfy claudeHost signal. Codex session signals unset to
-# avoid codex-* topologies matching first (priority config forces this one
-# though).
+# avoid codex host detection. CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS must be
+# unset so shape derivation produces `main_native` (not `main-teams_native`).
 CLAUDECODE=1 env -u CLAUDE_PROJECT_DIR -u CODEX_THREAD_ID -u CODEX_CI \
+  -u CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS \
   node "${ONTO_CLI}" \
     "$(basename "${SMOKE_TARGET_FILE}")" "${SMOKE_INTENT}" \
     --project-root "${SMOKE_TMP_ROOT}" \

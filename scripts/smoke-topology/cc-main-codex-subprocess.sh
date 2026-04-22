@@ -41,13 +41,16 @@ if [[ ! -f "${HOME}/.codex/auth.json" ]]; then
 fi
 
 # ── Config ─────────────────────────────────────────────────────────────────
+# P9.2 (2026-04-21): legacy `execution_topology_priority` field removed.
+# Axis-first: `subagent.provider=codex` under Claude host + teams=false
+# derives shape `main_foreign(codex)` → cc-main-codex-subprocess.
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
-execution_topology_priority:
-  - cc-main-codex-subprocess
+review:
+  subagent:
+    provider: codex
+    model_id: gpt-5.4
+    effort: medium
 review_mode: core-axis
-codex:
-  model: gpt-5.4
-  effort: medium
 EOF
 
 # ── Execute ────────────────────────────────────────────────────────────────
@@ -55,11 +58,11 @@ STDERR_LOG="${SMOKE_TMP_ROOT}/review.stderr.log"
 STDOUT_LOG="${SMOKE_TMP_ROOT}/review.stdout.log"
 
 cd "${SMOKE_TMP_ROOT}"
-# Set CLAUDECODE=1 to satisfy cc-main-* requirement. Unset Codex session
-# signals to avoid codex-B matching first. Coordinator-start handoff emission
-# vs self path execution is decided by onto; for this topology (onto-main
-# teamlead) we expect self path.
+# CLAUDECODE=1 to satisfy claudeHost. Codex session env unset to avoid codex
+# host detection. CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS unset so shape stays
+# in the non-teams branch (`main_foreign` vs `main-teams_foreign`).
 CLAUDECODE=1 env -u CLAUDE_PROJECT_DIR -u CODEX_THREAD_ID -u CODEX_CI \
+  -u CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS \
   node "${ONTO_CLI}" \
     "$(basename "${SMOKE_TARGET_FILE}")" "${SMOKE_INTENT}" \
     --project-root "${SMOKE_TMP_ROOT}" \

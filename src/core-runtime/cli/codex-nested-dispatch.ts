@@ -130,6 +130,125 @@ const defaultInspector: OutputFileInspector = async (p) => {
 };
 
 // ---------------------------------------------------------------------------
+// Artifact archival
+// ---------------------------------------------------------------------------
+
+/**
+ * Fallback archive for outer codex stdout/stderr when streaming did NOT
+ * already write the files. Normally `spawnOuterCodex` is invoked with
+ * `stream_stdout_path` / `stream_stderr_path` and the on-disk files
+ * carry the authoritative content via `fs.createWriteStream`; in that
+ * case this helper sees non-empty files and returns without writing
+ * (prevents dual-writer drift — 3rd self-review U4).
+ *
+ * The memory-fallback path remains for:
+ *   - Legacy callers that do not pass stream_*_path
+ *   - Stream write failures that leave the file empty or absent
+ *
+ * Silently swallows write errors — an artifact write failure must not
+ * mask the actual dispatch outcome. Best-effort.
+ */
+async function archiveOuterStreamsIfMissing(
+  sessionRoot: string,
+  nestedResult: CodexNestedTeamleadResult,
+): Promise<void> {
+  const stdoutPath = path.join(sessionRoot, "nested-outer-stdout.log");
+  const stderrPath = path.join(sessionRoot, "nested-outer-stderr.log");
+  await Promise.all([
+    fallbackWrite(stdoutPath, nestedResult.outer_stdout ?? ""),
+    fallbackWrite(stderrPath, nestedResult.outer_stderr ?? ""),
+  ]);
+}
+
+async function fallbackWrite(targetPath: string, content: string): Promise<void> {
+  try {
+    const stat = await fs.stat(targetPath).catch(() => null);
+    if (stat && stat.size > 0) {
+      // Streaming writer produced a non-empty file — respect it as the
+      // single authority. Do not overwrite.
+      return;
+    }
+    await fs.writeFile(targetPath, content).catch(() => {});
+  } catch {
+    // Best-effort; never throw.
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Spawn-config resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the `model` / `effort` to pass to the codex-nested orchestrator.
+ *
+ * # Single knob, deliberate
+ *
+ * The orchestrator's `runCodexNestedTeamlead` currently accepts ONE
+ * `{ model, reasoning_effort }` pair and applies it to both the outer
+ * codex teamlead AND every inner codex lens subprocess. For the
+ * `codex-nested-subprocess` topology this is by design: the shape is
+ * `ext-teamlead_native` (external codex teamlead + nested codex lens),
+ * so teamlead and subagent ARE the same provider. Splitting the knob
+ * would be possible (separate `outer_*` / `inner_*` inputs), but
+ * would create four config-shape combinations that need to agree or
+ * error, for no empirical benefit observed in any current topology.
+ *
+ * # Resolution priority (highest first)
+ *
+ *   1. `review.subagent` when `provider === "codex"` — the P2
+ *      canonical location for the spawn target's config. In
+ *      `ext-teamlead_native` this single seat steers both outer and
+ *      inner codex.
+ *   2. `review.teamlead.model` when it is an explicit
+ *      `{ provider: "codex" }` spec — fallback when subagent is
+ *      `main-native` or absent but teamlead is an external codex.
+ *   3. Legacy top-level `codex.*` — pre-P2 configs still in the wild.
+ *   4. Legacy top-level `model` / `reasoning_effort` — even older shape.
+ *
+ * # Why P2 moved it + why this bridge exists
+ *
+ * Review UX Redesign P2 moved user-facing config into `review:` axis
+ * block, but `codex-nested-dispatch` initially kept reading only the
+ * legacy top-level `codex.*`. When a smoke script (or real principal)
+ * put `effort: medium` under `review.subagent` (the P2 canonical
+ * location), it silently fell through and the nested codex ran with
+ * `~/.codex/config.toml` defaults (often `xhigh`), causing outer
+ * teamlead timeouts during multi-lens dispatch (2026-04-22 D-1 smoke
+ * drift). This helper bridges the generation gap.
+ *
+ * Returns `{}` when nothing resolves — caller omits both fields from
+ * the orchestrator input (codex picks its own defaults).
+ */
+export function resolveCodexSpawnConfig(
+  config: OntoConfig,
+): { model?: string; effort?: string } {
+  const sub = config.review?.subagent;
+  if (sub && sub.provider === "codex") {
+    return {
+      ...(sub.model_id ? { model: sub.model_id } : {}),
+      ...(sub.effort ? { effort: sub.effort } : {}),
+    };
+  }
+  const tl = config.review?.teamlead?.model;
+  if (tl && tl !== "main" && tl.provider === "codex") {
+    return {
+      ...(tl.model_id ? { model: tl.model_id } : {}),
+      ...(tl.effort ? { effort: tl.effort } : {}),
+    };
+  }
+  if (config.codex?.model || config.codex?.effort) {
+    return {
+      ...(config.codex.model ? { model: config.codex.model } : {}),
+      ...(config.codex.effort ? { effort: config.codex.effort } : {}),
+    };
+  }
+  return {
+    ...(config.model ? { model: config.model } : {}),
+    ...(config.reasoning_effort ? { effort: config.reasoning_effort } : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Main bridge function
 // ---------------------------------------------------------------------------
 
@@ -168,21 +287,33 @@ export async function executeReviewViaCodexNested(
     }),
   );
 
+  const spawnConfig = resolveCodexSpawnConfig(args.ontoConfig);
+
+  // Stream paths live under sessionRoot so the watcher pane can `tail -f`
+  // them from the moment the outer codex starts emitting, instead of
+  // waiting for the post-hoc `archiveOuterStreams` batch write. With
+  // streaming active, these files are the single authority — no post-
+  // dispatch overwrite (3rd self-review U4: prevent dual-writer drift
+  // where two writers could diverge if one was interrupted mid-flush).
+  const streamStdoutPath = path.join(args.sessionRoot, "nested-outer-stdout.log");
+  const streamStderrPath = path.join(args.sessionRoot, "nested-outer-stderr.log");
+
   const nestedResult = await runImpl({
     lenses,
-    ...(args.ontoConfig.codex?.model ?? args.ontoConfig.model
-      ? { model: args.ontoConfig.codex?.model ?? args.ontoConfig.model! }
-      : {}),
-    ...(args.ontoConfig.codex?.effort ?? args.ontoConfig.reasoning_effort
-      ? {
-          reasoning_effort:
-            args.ontoConfig.codex?.effort ?? args.ontoConfig.reasoning_effort!,
-        }
-      : {}),
+    ...(spawnConfig.model ? { model: spawnConfig.model } : {}),
+    ...(spawnConfig.effort ? { reasoning_effort: spawnConfig.effort } : {}),
     ...(args.projectRoot ? { project_root: args.projectRoot } : {}),
     ...(typeof args.timeout_ms === "number" ? { timeout_ms: args.timeout_ms } : {}),
     ...(args.codex_bin ? { codex_bin: args.codex_bin } : {}),
+    stream_stdout_path: streamStdoutPath,
+    stream_stderr_path: streamStderrPath,
   });
+
+  // Archive step is the defense-in-depth fallback. Runs ONLY when the
+  // stream files are missing/empty (e.g. a legacy caller that skipped
+  // stream_*_path or a stream write failure). The normal case is a
+  // no-op so the streaming writer stays the single authority.
+  await archiveOuterStreamsIfMissing(args.sessionRoot, nestedResult);
 
   const participating: string[] = [];
   const degraded: string[] = [];

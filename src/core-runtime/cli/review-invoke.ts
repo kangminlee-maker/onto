@@ -2023,6 +2023,8 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   const resolvedProjectRoot = path.resolve(
     readSingleOptionValueFromArgv(setup.startArgv, "project-root") ?? ".",
   );
+  const rawOntoHome = readSingleOptionValueFromArgv(setup.startArgv, "onto-home");
+  const resolvedOntoHome = rawOntoHome ? path.resolve(rawOntoHome) : undefined;
 
   const noWatch = hasOptionFlag(argv, "no-watch");
 
@@ -2057,10 +2059,21 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
   // watcher to latch onto whichever session wrote `.latest-session` last.
   // Passing sessionRoot explicitly eliminates that race.
   if (!noWatch) {
-    const watcherResult = spawnWatcherPane(resolvedProjectRoot, sessionRoot);
+    const watcherResult = spawnWatcherPane(
+      resolvedProjectRoot,
+      sessionRoot,
+      resolvedOntoHome,
+    );
     if (watcherResult.spawned) {
+      // Distinguish dry-run (mechanism detected, no osascript/tmux invoked)
+      // from real attach (actual side pane / split / tab opened). Log
+      // readers need both to verify "did the pane appear?" without
+      // conflating it with "did detection logic reach the right branch?".
+      const action = watcherResult.dry_run
+        ? "detection via"
+        : "attached via";
       console.log(
-        `[review runner] live watcher attached via ${watcherResult.mechanism}`,
+        `[review runner] live watcher ${action} ${watcherResult.mechanism}`,
       );
     } else {
       console.log(

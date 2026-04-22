@@ -5,9 +5,31 @@ import path from "node:path";
 export type WatcherMechanism = "tmux" | "iterm2" | "apple_terminal";
 
 export interface SpawnWatcherResult {
+  /**
+   * `true` when the function confirmed that a watcher mechanism is
+   * available for this session — either because it actually invoked
+   * osascript/tmux to attach a pane (`dry_run` absent or false), or
+   * because `ONTO_WATCHER_DRY_RUN=1` asked the function to detect the
+   * mechanism without performing the attach (`dry_run === true`).
+   *
+   * The field does NOT by itself mean "a pane is visible to the
+   * principal". Callers that need to know about a real visible attach
+   * must check both `spawned === true` AND `dry_run !== true` (4th
+   * self-review CC1/CC-rename guard).
+   */
   spawned: boolean;
   mechanism?: WatcherMechanism;
   reason?: string;
+  /**
+   * True when the `spawned: true` result came from `ONTO_WATCHER_DRY_RUN=1`
+   * detection-only mode — no actual osascript / tmux split was invoked.
+   * Callers SHOULD distinguish this in user-facing logs so a reader can
+   * tell "mechanism detected" from "pane actually attached" (4th
+   * self-review Immediate Action #2 — field-level discrimination, with
+   * review-invoke log verb ("detection via" vs "attached via") as the
+   * corresponding user-visible signal).
+   */
+  dry_run?: boolean;
 }
 
 /**
@@ -45,17 +67,45 @@ export interface SpawnWatcherResult {
 export function spawnWatcherPane(
   projectRoot: string,
   sessionRoot: string,
+  ontoHome?: string,
 ): SpawnWatcherResult {
-  const watcherScript = path.join(projectRoot, "scripts", "onto-review-watch.sh");
+  // Resolution order for the watcher helper:
+  //   1. <projectRoot>/scripts/onto-review-watch.sh — co-located with the
+  //      review target (onto repo invocations, full-repo projects).
+  //   2. <ontoHome>/scripts/onto-review-watch.sh   — fallback when
+  //      projectRoot is an isolated workspace (e.g. scripts/review-pr.sh's
+  //      tmp dir that only carries .onto/config.yml + target) and the
+  //      watcher helper lives in the repo home.
+  // Without the fallback, any invocation with --project-root pointed at a
+  // non-repo location silently degrades to "watcher script not found"
+  // (observed 2026-04-22 self-review finding). The two-slot search keeps
+  // deterministic wrappers viable without forcing them to symlink or copy.
+  const candidates = [
+    path.join(projectRoot, "scripts", "onto-review-watch.sh"),
+  ];
+  if (ontoHome && ontoHome !== projectRoot) {
+    candidates.push(path.join(ontoHome, "scripts", "onto-review-watch.sh"));
+  }
+  const watcherScript = candidates.find((c) => fs.existsSync(c));
 
-  if (!fs.existsSync(watcherScript)) {
+  if (!watcherScript) {
     return { spawned: false, reason: "watcher script not found" };
   }
 
   const watcherArgs = `bash "${watcherScript}" "${sessionRoot}"`;
 
+  // Dry-run mode: detect the mechanism that would be used and report it,
+  // but skip the actual tmux/osascript spawn call. Intended for smoke
+  // tests and CI that want to cover the detection-priority regressions
+  // without producing a visible side pane or extra terminal tab on every
+  // run. Enabled via `ONTO_WATCHER_DRY_RUN=1`.
+  const dryRun = process.env.ONTO_WATCHER_DRY_RUN === "1";
+
   // Priority 1: tmux (works on any OS, most universal)
   if (process.env.TMUX) {
+    if (dryRun) {
+      return { spawned: true, mechanism: "tmux", dry_run: true };
+    }
     try {
       // Target the originating pane explicitly via $TMUX_PANE so the split
       // does not land on whichever pane happens to be active at spawn time.
@@ -95,6 +145,9 @@ export function spawnWatcherPane(
   ) {
     const rawSessionId = process.env.ITERM_SESSION_ID;
     if (rawSessionId) {
+      if (dryRun) {
+        return { spawned: true, mechanism: "iterm2", dry_run: true };
+      }
       try {
         const sessionUuid = rawSessionId.includes(":")
           ? (rawSessionId.split(":").pop() ?? rawSessionId)
@@ -141,6 +194,9 @@ export function spawnWatcherPane(
     process.platform === "darwin" &&
     process.env.TERM_PROGRAM === "Apple_Terminal"
   ) {
+    if (dryRun) {
+      return { spawned: true, mechanism: "apple_terminal", dry_run: true };
+    }
     try {
       const escapedCmd = watcherArgs.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
       const script =

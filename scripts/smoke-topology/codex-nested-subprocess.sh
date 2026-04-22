@@ -32,13 +32,22 @@ if [[ ! -f "${HOME}/.codex/auth.json" ]]; then
 fi
 
 # ── Config ─────────────────────────────────────────────────────────────────
+# P9.2 (2026-04-21): legacy `execution_topology_priority` field removed.
+# Axis-first: external codex teamlead + codex subagent (no Claude host, no
+# codex session active) derives shape `ext-teamlead_native` →
+# codex-nested-subprocess.
 cat > "${SMOKE_CONFIG_FILE}" <<EOF
-execution_topology_priority:
-  - codex-nested-subprocess
+review:
+  teamlead:
+    model:
+      provider: codex
+      model_id: gpt-5.4
+      effort: medium
+  subagent:
+    provider: codex
+    model_id: gpt-5.4
+    effort: medium
 review_mode: core-axis
-codex:
-  model: gpt-5.4
-  effort: medium
 EOF
 
 # ── Execute ────────────────────────────────────────────────────────────────
@@ -46,9 +55,12 @@ STDERR_LOG="${SMOKE_TMP_ROOT}/review.stderr.log"
 STDOUT_LOG="${SMOKE_TMP_ROOT}/review.stdout.log"
 
 cd "${SMOKE_TMP_ROOT}"
-# Force project-root to tmp so .onto/config.yml is picked up.
-# Unset any parent CLAUDECODE so codex-nested is preferred over claude paths.
-env -u CLAUDECODE -u CLAUDE_PROJECT_DIR -u CODEX_THREAD_ID -u CODEX_CI \
+# Force project-root to tmp so .onto/config.yml is picked up. All Claude
+# signals unset (including CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS per
+# host-detection.ts CLAUDE_ENV_SIGNALS) so claudeHost reads false and the
+# external-codex teamlead shape derivation is unambiguous.
+env -u CLAUDECODE -u CLAUDE_PROJECT_DIR -u CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS \
+  -u CODEX_THREAD_ID -u CODEX_CI \
   node "${ONTO_CLI}" \
     "$(basename "${SMOKE_TARGET_FILE}")" "${SMOKE_INTENT}" \
     --project-root "${SMOKE_TMP_ROOT}" \

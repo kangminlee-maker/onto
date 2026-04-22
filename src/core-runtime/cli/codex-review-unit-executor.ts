@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
@@ -60,6 +61,7 @@ async function runCodexSubagent(
   sandboxMode: string | boolean | undefined,
   reasoningEffort: string | boolean | undefined,
   configOverrides: string[],
+  unitId: string,
 ): Promise<void> {
   const codexArgs: string[] = [
     "exec",
@@ -91,14 +93,37 @@ async function runCodexSubagent(
     stdio: ["pipe", "pipe", "pipe"],
   });
 
+  // Real-time tee to disk: each codex stdout/stderr chunk is appended to
+  // the running log under the lens output directory so a watcher pane
+  // can `tail -f` it live. The in-memory buffers remain for final error
+  // reporting. Stream path mirrors the codex-nested topology pattern
+  // (hidden filename, sessionRoot/round1/.<lens>.running.log). The
+  // lifecycle — rename on failure / rm on success — happens after the
+  // child exits, below.
+  const outputDir = path.dirname(outputPath);
+  const runningLogPath = path.join(outputDir, `.${unitId}.running.log`);
+  let runningLogStream: fsSync.WriteStream | null = null;
+  try {
+    fsSync.mkdirSync(outputDir, { recursive: true });
+    runningLogStream = fsSync.createWriteStream(runningLogPath, { flags: "w" });
+    runningLogStream.write(
+      `ENV-BEFORE unit=${unitId} output=${outputPath}\n`,
+    );
+  } catch {
+    // Best-effort; streaming failure must not block the actual codex run.
+    runningLogStream = null;
+  }
+
   let stdout = "";
   let stderr = "";
 
   child.stdout.on("data", (chunk: Buffer | string) => {
     stdout += String(chunk);
+    if (runningLogStream) runningLogStream.write(chunk);
   });
   child.stderr.on("data", (chunk: Buffer | string) => {
     stderr += String(chunk);
+    if (runningLogStream) runningLogStream.write(chunk);
   });
 
   child.stdin.write(boundedPrompt);
@@ -115,7 +140,33 @@ async function runCodexSubagent(
     child.on("close", (code) => resolve(code ?? 1));
   });
 
+  // Flush the stream before deciding cleanup so tail -f readers see final
+  // bytes. ENV-AFTER line is written before close for parse parity with
+  // the codex-nested running log.
+  if (runningLogStream) {
+    try {
+      runningLogStream.write(`ENV-AFTER unit=${unitId} exit=${exitCode}\n`);
+    } catch {
+      // ignore
+    }
+    try {
+      runningLogStream.end();
+    } catch {
+      // ignore
+    }
+  }
+
   if (exitCode !== 0) {
+    // Failure path — persist running log for post-hoc inspection at a
+    // stable path (renaming from .running.log to .nested-stderr.log
+    // mirrors the codex-nested convention so downstream tooling sees a
+    // single "per-lens failure trace" filename regardless of topology).
+    try {
+      const nestedErrPath = path.join(outputDir, `.${unitId}.nested-stderr.log`);
+      fsSync.renameSync(runningLogPath, nestedErrPath);
+    } catch {
+      // running log may not exist (stream setup failed) — best effort
+    }
     const combinedMessage = [stderr.trim(), stdout.trim()]
       .filter((message) => message.length > 0)
       .join("\n");
@@ -124,6 +175,15 @@ async function runCodexSubagent(
         ? combinedMessage
         : `codex subagent executor exited with code ${exitCode}`,
     );
+  }
+
+  // Success — remove the running log to keep round1/ listing principal-
+  // facing lens outputs only. The watcher pane saw it live; the final
+  // result is in <outputPath>.
+  try {
+    fsSync.rmSync(runningLogPath, { force: true });
+  } catch {
+    // ignore
   }
 
   // Codex CLI -o flag may not reliably write the output file.
@@ -205,6 +265,7 @@ export async function runCodexReviewUnitExecutorCli(
     values["sandbox-mode"],
     values["reasoning-effort"],
     values["config-override"],
+    unitId,
   );
 
   const outputText = await fs.readFile(outputPath, "utf8");

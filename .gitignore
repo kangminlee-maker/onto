@@ -27,4 +27,15 @@ scopes/
 __pycache__/
 *.pyc
 node_modules/
-dist/
+
+# dist/ is tracked as a transition bridge (A1 in activation-determinism
+# redesign, 2026-04-23). Claude Code plugin install runs npm install with
+# --ignore-scripts, so the `prepare` hook that would build dist/ is skipped.
+# Committing dist/ gives plugin consumers a usable install from git clone.
+# Sunset conditions (development-records/evolve/20260423-activation-determinism-
+# redesign.md §3.1): (a) direct dist refs removed, (b) packaged execution
+# topology drops dist dep, (c) activation_descriptor valid on fresh install,
+# (d) package.json:files ships src or src+loader contract declared.
+# drafts/ contains WIP design iterations (Activation Determinism Redesign
+# v1~v6 v4 series). Kept local; not source of truth.
+drafts/

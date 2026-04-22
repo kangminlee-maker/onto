@@ -1,0 +1,276 @@
+/**
+ * Codex Nested Dispatch Bridge — PR-H (2026-04-18).
+ *
+ * # What this module is
+ *
+ * The bridge between review session artifacts (execution-plan.yaml +
+ * lens packet paths) and the PR-C codex-nested teamlead orchestrator.
+ * It reads the execution plan, constructs the
+ * `NestedLensDispatchInput`, invokes `runCodexNestedTeamlead`, and
+ * classifies per-lens outcomes into the
+ * `ReviewPromptExecutionResult`-compatible shape used downstream by
+ * `completeReviewSession`.
+ *
+ * # Why it exists
+ *
+ * PR-C delivered the orchestrator (`runCodexNestedTeamlead`) as a pure
+ * function over lens inputs → outcomes, intentionally decoupled from
+ * onto's session artifacts so it could be unit-tested without
+ * filesystem fixtures. PR-H adds the thin integration that the
+ * runner (`runReviewInvokeCli`) can branch into when the resolved
+ * topology is `codex-nested-subprocess`.
+ *
+ * Keeping this seat **separate** from `executeReviewPromptExecution`
+ * (which uses per-lens subprocess spawning) preserves the existing
+ * review flow for all other topologies — codex-nested-subprocess is
+ * architecturally different (one outer teamlead codex, N nested inner
+ * codexes) and does not fit the per-lens executor loop.
+ *
+ * # How it relates
+ *
+ * - `resolveExecutionTopology()` selects the topology id.
+ * - `tryResolveTopologyForHandoff()` (PR-G) surfaces it to the
+ *   coordinator; for non-claude topologies it also flows through
+ *   `runReviewInvokeCli` directly.
+ * - `executeReviewViaCodexNested()` (here) handles the nested-dispatch
+ *   execution phase — the equivalent of `executeReviewPromptExecution`
+ *   for the nested topology.
+ * - `completeReviewSession()` downstream consumes the result to compile
+ *   the final review record.
+ *
+ * # Scope of PR-H
+ *
+ * - Bridge function `executeReviewViaCodexNested`
+ * - Output-file validation (exists + non-empty) on top of orchestrator
+ *   outcomes — a per-lens `status: "ok"` in the orchestrator is
+ *   necessary but not sufficient; the file must actually be written.
+ * - Tests with injected orchestrator + injected filesystem
+ *
+ * **Deferred** to a subsequent integration PR:
+ *   - Synthesize step execution for codex-nested topology (this PR
+ *     returns `synthesis_executed: false` and defers synthesize to the
+ *     caller or a follow-up wire-in).
+ *   - Wire-in at `runReviewInvokeCli` (the caller branch itself).
+ *   - Error log and deliberation artifact integration.
+ *
+ * # Design reference
+ *
+ * - Sketch v3 §3.1 option codex-A
+ * - PR #101 (PR-C) — `runCodexNestedTeamlead`
+ * - Handoff §5 (PR-C scope), §10 risk 2 resolution
+ */
+import fs from "node:fs/promises";
+import path from "node:path";
+import { readYamlDocument } from "../review/review-artifact-utils.js";
+import { runCodexNestedTeamlead, } from "./codex-nested-teamlead-executor.js";
+const defaultInspector = async (p) => {
+    try {
+        const stat = await fs.stat(p);
+        return { exists: stat.isFile(), size: stat.size };
+    }
+    catch {
+        return { exists: false, size: 0 };
+    }
+};
+// ---------------------------------------------------------------------------
+// Artifact archival
+// ---------------------------------------------------------------------------
+/**
+ * Fallback archive for outer codex stdout/stderr when streaming did NOT
+ * already write the files. Normally `spawnOuterCodex` is invoked with
+ * `stream_stdout_path` / `stream_stderr_path` and the on-disk files
+ * carry the authoritative content via `fs.createWriteStream`; in that
+ * case this helper sees non-empty files and returns without writing
+ * (prevents dual-writer drift — 3rd self-review U4).
+ *
+ * The memory-fallback path remains for:
+ *   - Legacy callers that do not pass stream_*_path
+ *   - Stream write failures that leave the file empty or absent
+ *
+ * Silently swallows write errors — an artifact write failure must not
+ * mask the actual dispatch outcome. Best-effort.
+ */
+async function archiveOuterStreamsIfMissing(sessionRoot, nestedResult) {
+    const stdoutPath = path.join(sessionRoot, "nested-outer-stdout.log");
+    const stderrPath = path.join(sessionRoot, "nested-outer-stderr.log");
+    await Promise.all([
+        fallbackWrite(stdoutPath, nestedResult.outer_stdout ?? ""),
+        fallbackWrite(stderrPath, nestedResult.outer_stderr ?? ""),
+    ]);
+}
+async function fallbackWrite(targetPath, content) {
+    try {
+        const stat = await fs.stat(targetPath).catch(() => null);
+        if (stat && stat.size > 0) {
+            // Streaming writer produced a non-empty file — respect it as the
+            // single authority. Do not overwrite.
+            return;
+        }
+        await fs.writeFile(targetPath, content).catch(() => { });
+    }
+    catch {
+        // Best-effort; never throw.
+    }
+}
+// ---------------------------------------------------------------------------
+// Spawn-config resolution
+// ---------------------------------------------------------------------------
+/**
+ * Resolve the `model` / `effort` to pass to the codex-nested orchestrator.
+ *
+ * # Single knob, deliberate
+ *
+ * The orchestrator's `runCodexNestedTeamlead` currently accepts ONE
+ * `{ model, reasoning_effort }` pair and applies it to both the outer
+ * codex teamlead AND every inner codex lens subprocess. For the
+ * `codex-nested-subprocess` topology this is by design: the shape is
+ * `ext-teamlead_native` (external codex teamlead + nested codex lens),
+ * so teamlead and subagent ARE the same provider. Splitting the knob
+ * would be possible (separate `outer_*` / `inner_*` inputs), but
+ * would create four config-shape combinations that need to agree or
+ * error, for no empirical benefit observed in any current topology.
+ *
+ * # Resolution priority (highest first)
+ *
+ *   1. `review.subagent` when `provider === "codex"` — the P2
+ *      canonical location for the spawn target's config. In
+ *      `ext-teamlead_native` this single seat steers both outer and
+ *      inner codex.
+ *   2. `review.teamlead.model` when it is an explicit
+ *      `{ provider: "codex" }` spec — fallback when subagent is
+ *      `main-native` or absent but teamlead is an external codex.
+ *   3. Legacy top-level `codex.*` — pre-P2 configs still in the wild.
+ *   4. Legacy top-level `model` / `reasoning_effort` — even older shape.
+ *
+ * # Why P2 moved it + why this bridge exists
+ *
+ * Review UX Redesign P2 moved user-facing config into `review:` axis
+ * block, but `codex-nested-dispatch` initially kept reading only the
+ * legacy top-level `codex.*`. When a smoke script (or real principal)
+ * put `effort: medium` under `review.subagent` (the P2 canonical
+ * location), it silently fell through and the nested codex ran with
+ * `~/.codex/config.toml` defaults (often `xhigh`), causing outer
+ * teamlead timeouts during multi-lens dispatch (2026-04-22 D-1 smoke
+ * drift). This helper bridges the generation gap.
+ *
+ * Returns `{}` when nothing resolves — caller omits both fields from
+ * the orchestrator input (codex picks its own defaults).
+ */
+export function resolveCodexSpawnConfig(config) {
+    const sub = config.review?.subagent;
+    if (sub && sub.provider === "codex") {
+        return {
+            ...(sub.model_id ? { model: sub.model_id } : {}),
+            ...(sub.effort ? { effort: sub.effort } : {}),
+        };
+    }
+    const tl = config.review?.teamlead?.model;
+    if (tl && tl !== "main" && tl.provider === "codex") {
+        return {
+            ...(tl.model_id ? { model: tl.model_id } : {}),
+            ...(tl.effort ? { effort: tl.effort } : {}),
+        };
+    }
+    if (config.codex?.model || config.codex?.effort) {
+        return {
+            ...(config.codex.model ? { model: config.codex.model } : {}),
+            ...(config.codex.effort ? { effort: config.codex.effort } : {}),
+        };
+    }
+    return {
+        ...(config.model ? { model: config.model } : {}),
+        ...(config.reasoning_effort ? { effort: config.reasoning_effort } : {}),
+    };
+}
+// ---------------------------------------------------------------------------
+// Main bridge function
+// ---------------------------------------------------------------------------
+/**
+ * Execute a review via the codex-nested topology. Reads the execution
+ * plan from `sessionRoot/execution-plan.yaml`, dispatches all lens
+ * packets through one outer codex teamlead + inner codex per lens, and
+ * classifies outcomes into participating / degraded lens sets.
+ *
+ * An orchestrator `status: "ok"` is NOT sufficient for `participating` —
+ * the output file must exist AND be non-empty. This guards against the
+ * outer codex reporting success when the inner codex silently failed to
+ * write its `-o` output (a codex CLI quirk documented in §9 of
+ * `docs/codex-nested-topology-sandbox.md`).
+ *
+ * Injection:
+ *   - `runImpl`: replace the orchestrator (default: `runCodexNestedTeamlead`)
+ *   - `inspector`: replace the file-existence probe (default: `fs.stat`)
+ */
+export async function executeReviewViaCodexNested(args, runImpl = runCodexNestedTeamlead, inspector = defaultInspector) {
+    const executionPlanPath = path.join(args.sessionRoot, "execution-plan.yaml");
+    // `readYamlDocument` throws with a descriptive message when the file
+    // is missing or malformed — let it propagate so the caller sees the
+    // session artifact problem directly rather than a generic null check.
+    const plan = await readYamlDocument(executionPlanPath);
+    const lenses = plan.lens_prompt_packet_seats.map((seat) => ({
+        lens_id: seat.lens_id,
+        packet_path: seat.packet_path,
+        output_path: seat.output_path,
+    }));
+    const spawnConfig = resolveCodexSpawnConfig(args.ontoConfig);
+    // Stream paths live under sessionRoot so the watcher pane can `tail -f`
+    // them from the moment the outer codex starts emitting, instead of
+    // waiting for the post-hoc `archiveOuterStreams` batch write. With
+    // streaming active, these files are the single authority — no post-
+    // dispatch overwrite (3rd self-review U4: prevent dual-writer drift
+    // where two writers could diverge if one was interrupted mid-flush).
+    const streamStdoutPath = path.join(args.sessionRoot, "nested-outer-stdout.log");
+    const streamStderrPath = path.join(args.sessionRoot, "nested-outer-stderr.log");
+    const nestedResult = await runImpl({
+        lenses,
+        ...(spawnConfig.model ? { model: spawnConfig.model } : {}),
+        ...(spawnConfig.effort ? { reasoning_effort: spawnConfig.effort } : {}),
+        ...(args.projectRoot ? { project_root: args.projectRoot } : {}),
+        ...(typeof args.timeout_ms === "number" ? { timeout_ms: args.timeout_ms } : {}),
+        ...(args.codex_bin ? { codex_bin: args.codex_bin } : {}),
+        stream_stdout_path: streamStdoutPath,
+        stream_stderr_path: streamStderrPath,
+    });
+    // Archive step is the defense-in-depth fallback. Runs ONLY when the
+    // stream files are missing/empty (e.g. a legacy caller that skipped
+    // stream_*_path or a stream write failure). The normal case is a
+    // no-op so the streaming writer stays the single authority.
+    await archiveOuterStreamsIfMissing(args.sessionRoot, nestedResult);
+    const participating = [];
+    const degraded = [];
+    for (let i = 0; i < lenses.length; i += 1) {
+        const lens = lenses[i];
+        const outcome = nestedResult.outcomes[i];
+        const orchestratorOk = outcome?.status === "ok";
+        if (!orchestratorOk) {
+            degraded.push(lens.lens_id);
+            continue;
+        }
+        const probe = await inspector(lens.output_path);
+        if (probe.exists && probe.size > 0) {
+            participating.push(lens.lens_id);
+        }
+        else {
+            degraded.push(lens.lens_id);
+        }
+    }
+    // Determine halt_reason when orchestrator signalled teamlead-level
+    // failure (e.g., timeout, no summary) — surfaces to the caller for
+    // error reporting. Per-lens degradation alone does NOT halt.
+    let halt_reason;
+    if (!nestedResult.summary_parsed && nestedResult.outer_exit_code !== 0) {
+        halt_reason =
+            `codex-nested outer teamlead failed (exit=${nestedResult.outer_exit_code}, summary=${nestedResult.summary_parsed ? "parsed" : "missing"})`;
+    }
+    return {
+        session_root: args.sessionRoot,
+        executed_lens_count: lenses.length,
+        participating_lens_ids: participating,
+        degraded_lens_ids: degraded,
+        synthesis_executed: false,
+        synthesis_output_path: plan.synthesis_output_path,
+        error_log_path: plan.error_log_path ?? null,
+        nested_raw: nestedResult,
+        ...(halt_reason ? { halt_reason } : {}),
+    };
+}

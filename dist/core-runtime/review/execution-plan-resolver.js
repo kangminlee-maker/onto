@@ -1,0 +1,319 @@
+/**
+ * Unified ExecutionPlan resolver — Review Recovery PR-1 (R1 + R2 + R5).
+ *
+ * # What this module is
+ *
+ * A single resolver that computes the full infrastructure-layer plan for a
+ * review session: (a) which executor subprocess path to take (codex /
+ * ts_inline_http / agent-teams), (b) which external LLM provider to dispatch
+ * against, (c) retry policy, and (d) an observability trace of every
+ * decision point.
+ *
+ * # Why it exists
+ *
+ * Prior to PR-1 there were TWO independent resolvers making overlapping
+ * decisions in silence:
+ *   - Layer 1 (`resolveExecutionProfile` in review-invoke.ts) decided the
+ *     executor binary path from OntoConfig.host_runtime + env + host
+ *     detection, producing `{execution_realization, host_runtime}`.
+ *   - Layer 2 (`resolveProvider` in llm-caller.ts) decided the HTTP API
+ *     provider (Anthropic / OpenAI / LiteLLM / Codex) via cost-order ladder,
+ *     re-checking codex auth independently of Layer 1.
+ *
+ * When Layer 1 routed to `standalone / ts_inline_http` despite a valid codex
+ * OAuth state, the divergence was silent — Layer 2 never saw the Layer 1
+ * rationale and vice versa. Drill-down of 5 failed review runs (2026-04-17~18)
+ * traced every failure to a form of this silent divergence.
+ *
+ * # How it relates
+ *
+ * `resolveExecutionPlan` is the single seat. Both legacy wrappers
+ * (`resolveExecutionProfile` in review-invoke.ts, `resolveProvider` inside
+ * `callLlm`) delegate here and project the subset they need, so the two
+ * layers can never disagree again.
+ *
+ * # Scope of PR-1
+ *
+ * - Infrastructure transport (separation_rank + execution_realization +
+ *   host_runtime + provider_identity) — R1 + R2
+ * - Retry policy basic shape (timeout + attempts + backoff) — R4 per-error
+ *   `classify` is deferred to PR-2
+ * - Observability trace (plan_trace + `[plan]` STDERR) — R5 extension
+ *
+ * Deferred to PR-3: lens_dispatch budget, synthesize_strategy quorum.
+ *
+ * # Design reference
+ *
+ * `development-records/evolve/20260417-context-separation-ladder-design-sketch.md` §3.1
+ */
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+const DEFAULT_TIMEOUT_MS = Number(process.env.ONTO_LLM_TIMEOUT_MS) || 120_000;
+const DEFAULT_MAX_ATTEMPTS = 2;
+// ---------------------------------------------------------------------------
+// Observability
+// ---------------------------------------------------------------------------
+/**
+ * Plan-level STDERR log. Mirrors `[provider-ladder]` and `[model-call]`
+ * patterns (PR #91 / PR #93) so operators can reconstruct the full decision
+ * sequence from a single STDERR capture.
+ *
+ * No suppressor env var: decision rationale is load-bearing for review
+ * reproducibility. Tests capture via vi.spyOn(process.stderr, "write").
+ */
+function emitPlanLog(line) {
+    process.stderr.write(`[plan] ${line}\n`);
+}
+function readCodexAuthState() {
+    const codexAuthPath = path.join(os.homedir(), ".codex", "auth.json");
+    if (!fs.existsSync(codexAuthPath)) {
+        return { chatgptOAuth: false, openaiApiKey: null };
+    }
+    try {
+        const auth = JSON.parse(fs.readFileSync(codexAuthPath, "utf8"));
+        const oauth = auth.auth_mode === "chatgpt" ||
+            (auth.tokens && typeof auth.tokens.access_token === "string");
+        const openaiKey = typeof auth.OPENAI_API_KEY === "string" && auth.OPENAI_API_KEY.length > 0
+            ? auth.OPENAI_API_KEY
+            : null;
+        return { chatgptOAuth: Boolean(oauth), openaiApiKey: openaiKey };
+    }
+    catch {
+        return { chatgptOAuth: false, openaiApiKey: null };
+    }
+}
+// ---------------------------------------------------------------------------
+// Ladder resolution
+// ---------------------------------------------------------------------------
+/**
+ * Compute the ExecutionPlan by walking the context-separation ladder.
+ *
+ * Priority (higher rank = preferred, matches sketch §3.2):
+ *   P0  Mock (ONTO_LLM_MOCK=1)                        — test only
+ *   P1a Explicit --codex CLI flag                      — subprocess (S0)
+ *   P1f env ONTO_HOST_RUNTIME override                 — any rank
+ *   P2  Auto-detected Claude Code host (CLAUDECODE=1)  — host nested spawn (S2)
+ *   P3  Auto-detected codex binary + auth.json         — subprocess (S0)
+ *   P4  subagent_llm / external_http_provider config   — external HTTP (S1)
+ *   Fail-fast when nothing is viable.
+ *
+ * Historical note: the legacy `host_runtime` / `execution_realization` /
+ * `api_provider` fields that previously drove P1b-P1e config branches
+ * were removed from `OntoConfig` by PR-K (2026-04-18, sketch v3 §7.4 Phase D
+ * stage 3). The `review:` axis block is the canonical seat for these
+ * decisions now (P9.2, 2026-04-21). Legacy YAML configs are silently
+ * dropped during type narrowing (P9.5, 2026-04-21 — the prior load-time
+ * `LegacyFieldRemovedError` throw was retired); such configs fall
+ * through to `buildNoHostReason`'s 6-option setup guide when no viable
+ * path is detected.
+ */
+export function resolveExecutionPlan(args) {
+    const env = args.env ?? process.env;
+    const claudeHost = args.claudeHost ?? env.CLAUDECODE === "1";
+    const codexAvailable = args.codexAvailable ?? detectCodexBinaryAvailable();
+    const trace = [];
+    const log = (line) => {
+        emitPlanLog(line);
+        trace.push(line);
+    };
+    const retry_policy = {
+        timeout_ms: DEFAULT_TIMEOUT_MS,
+        max_attempts: DEFAULT_MAX_ATTEMPTS,
+        backoff: "exponential",
+    };
+    // P0: Mock — test envelope.
+    if (env.ONTO_LLM_MOCK === "1") {
+        log("P0 mock: matched (ONTO_LLM_MOCK=1)");
+        return {
+            type: "resolved",
+            plan: {
+                separation_rank: "S3",
+                execution_realization: "mock",
+                host_runtime: "mock",
+                provider_identity: "mock",
+                retry_policy,
+                plan_trace: trace,
+            },
+        };
+    }
+    // P1a: Explicit --codex flag. Overrides all other inputs.
+    if (args.explicitCodex) {
+        log("P1 explicit-codex: matched (--codex flag)");
+        return resolveCodexPlan(log, trace, retry_policy, args.ontoConfig);
+    }
+    // P1f: env ONTO_HOST_RUNTIME override.
+    const envHost = env.ONTO_HOST_RUNTIME?.trim().toLowerCase();
+    if (envHost === "codex") {
+        log("P1 env-override: ONTO_HOST_RUNTIME=codex");
+        return resolveCodexPlan(log, trace, retry_policy, args.ontoConfig);
+    }
+    if (envHost === "claude") {
+        log("P1 env-override: ONTO_HOST_RUNTIME=claude → agent-teams");
+        return {
+            type: "resolved",
+            plan: {
+                separation_rank: "S2",
+                execution_realization: "agent-teams",
+                host_runtime: "claude",
+                provider_identity: "claude-code",
+                retry_policy,
+                plan_trace: trace,
+            },
+        };
+    }
+    if (envHost === "litellm" ||
+        envHost === "anthropic" ||
+        envHost === "openai") {
+        log(`P1 env-override: ONTO_HOST_RUNTIME=${envHost} → ts_inline_http`);
+        return resolveExternalHttpPlan(log, trace, retry_policy, args.ontoConfig, { forcedProvider: envHost });
+    }
+    if (envHost === "standalone") {
+        log("P1 env-override: ONTO_HOST_RUNTIME=standalone → ts_inline_http");
+        return resolveExternalHttpPlan(log, trace, retry_policy, args.ontoConfig);
+    }
+    // P2: Auto-detected Claude Code host (stay-in-host).
+    if (claudeHost) {
+        log("P2 auto: claudeHost=true → agent-teams / host-nested-spawn");
+        return {
+            type: "resolved",
+            plan: {
+                separation_rank: "S2",
+                execution_realization: "agent-teams",
+                host_runtime: "claude",
+                provider_identity: "claude-code",
+                retry_policy,
+                plan_trace: trace,
+            },
+        };
+    }
+    // P3: Auto-detected codex (S0 preferred over S1 by separation rank).
+    //
+    // Note: detectCodexBinaryAvailable checks for binary-on-PATH + auth.json file
+    // presence only — not auth content. This preserves the legacy Layer 1 judgment
+    // (review-invoke's prior detectCodexAvailable), keeping "auth.json exists" as
+    // sufficient for routing; content validation (chatgpt OAuth vs API key) stays
+    // in callCodexCli at actual invocation time, matching the layer separation
+    // the prior code established.
+    if (codexAvailable) {
+        log("P3 auto: codex binary + auth.json present → subprocess");
+        return resolveCodexPlan(log, trace, retry_policy, args.ontoConfig);
+    }
+    log("P3 auto: codex binary unavailable → skip");
+    // P4: subagent_llm config or external_http_provider makes ts_inline_http viable.
+    if (args.ontoConfig.subagent_llm?.provider || hasExternalHttpConfig(args.ontoConfig)) {
+        log("P4 auto: subagent_llm or external_http_provider present → ts_inline_http");
+        return resolveExternalHttpPlan(log, trace, retry_policy, args.ontoConfig);
+    }
+    log("final: no viable path → no_host");
+    return {
+        type: "no_host",
+        plan_trace: trace,
+        reason: buildNoHostReason(),
+    };
+}
+// ---------------------------------------------------------------------------
+// Sub-resolvers
+// ---------------------------------------------------------------------------
+function resolveCodexPlan(log, trace, retry_policy, config) {
+    const modelId = config.codex?.model ?? config.model;
+    log(`codex plan: separation_rank=S0 executor=subprocess model_id=${modelId ?? "(codex default)"}`);
+    return {
+        type: "resolved",
+        plan: {
+            separation_rank: "S0",
+            execution_realization: "subagent",
+            host_runtime: "codex",
+            provider_identity: "codex",
+            ...(modelId ? { model_id: modelId } : {}),
+            retry_policy,
+            plan_trace: trace,
+        },
+    };
+}
+function resolveExternalHttpPlan(log, trace, retry_policy, config, opts) {
+    const providerField = pickExternalProviderField(config, opts);
+    if (!providerField.provider) {
+        log("external-http: no provider identified (external_http_provider, api_provider, subagent_llm.provider all unset)");
+        return {
+            type: "no_host",
+            plan_trace: trace,
+            reason: buildMissingExternalProviderReason(),
+        };
+    }
+    const provider = providerField.provider;
+    const modelId = (provider === "anthropic" && config.anthropic?.model) ||
+        (provider === "openai" && config.openai?.model) ||
+        (provider === "litellm" && config.litellm?.model) ||
+        config.subagent_llm?.model ||
+        config.model;
+    const base_url = provider === "litellm"
+        ? config.llm_base_url ?? config.subagent_llm?.base_url
+        : config.subagent_llm?.base_url;
+    log(`external-http plan: provider=${provider} source=${providerField.source} model_id=${modelId ?? "(unresolved)"} base_url=${base_url ?? "(default)"}`);
+    return {
+        type: "resolved",
+        plan: {
+            separation_rank: "S1",
+            execution_realization: "ts_inline_http",
+            host_runtime: provider,
+            provider_identity: provider,
+            ...(modelId ? { model_id: modelId } : {}),
+            ...(base_url ? { base_url } : {}),
+            retry_policy,
+            plan_trace: trace,
+        },
+    };
+}
+function pickExternalProviderField(config, opts) {
+    if (opts?.forcedProvider) {
+        return { provider: opts.forcedProvider, source: "forced (env ONTO_HOST_RUNTIME)" };
+    }
+    const ext = narrowExternalProvider(config.external_http_provider);
+    if (ext)
+        return { provider: ext, source: "external_http_provider" };
+    const subagent = narrowExternalProvider(config.subagent_llm?.provider);
+    if (subagent)
+        return { provider: subagent, source: "subagent_llm.provider" };
+    return { provider: null, source: "(none)" };
+}
+function narrowExternalProvider(value) {
+    if (value === "anthropic" || value === "openai" || value === "litellm") {
+        return value;
+    }
+    return null;
+}
+function hasExternalHttpConfig(config) {
+    return (Boolean(config.external_http_provider) ||
+        Boolean(config.subagent_llm?.provider));
+}
+// ---------------------------------------------------------------------------
+// Error messages
+// ---------------------------------------------------------------------------
+function buildNoHostReason() {
+    return [
+        "Review execution plan을 해소할 수 없습니다.",
+        "현재 감지 결과: Claude Code 세션 아님(CLAUDECODE unset), codex 바이너리 또는 ~/.codex/auth.json 부재, subagent_llm / external_http_provider 미설정.",
+        "",
+        "다음 중 한 가지로 해결하세요:",
+        "  1. Claude Code 세션에서 `onto review` 재실행",
+        "  2. codex CLI 설치 + `codex login` 후 재실행",
+        "  3. `--codex` 플래그로 codex subprocess 강제",
+        "  4. `.onto/config.yml` 에 `review:` axis block 추가 (docs/topology-migration-guide.md §7 참고)",
+        "  5. `.onto/config.yml` 에 external_http_provider: <anthropic|openai|litellm> + per-provider model 설정",
+        "  6. `ONTO_HOST_RUNTIME=standalone` env + external_http_provider config",
+    ].join("\n");
+}
+function buildMissingExternalProviderReason() {
+    return [
+        "External HTTP provider 미지정.",
+        "`.onto/config.yml` 에 다음 중 하나를 추가하세요:",
+        "  external_http_provider: anthropic    # 또는 openai | litellm",
+        "  # 또는",
+        "  subagent_llm: { provider: anthropic, model: <model-id> }",
+    ].join("\n");
+}

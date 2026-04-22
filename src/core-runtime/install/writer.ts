@@ -71,6 +71,19 @@ export function resolveInstallPaths(
       envExamplePath: path.join(ontoDir, ".env.example"),
     };
   }
+  // Sanity: project scope 는 HOME 에 쓰지 않는다. projectRoot === homeDir
+  // 는 `resolveProjectRoot` 의 walk-up 이 CWD 상위에서 `.onto/config.yml`
+  // 을 찾지 못하고 HOME 의 global config 를 잘못 집어온 상태를 의미한다
+  // (bug-report-install-profile-scope-20260422.md ❷ 재발 방지). 이 상태를
+  // 허용하면 `--profile-scope project` 가 global 을 덮어쓴다. walk-up 의
+  // HOME 경계 (project-root.ts) 가 primary 방어선, 여기는 2 차 방어선.
+  if (path.resolve(projectRoot) === path.resolve(homeDir)) {
+    throw new Error(
+      `resolveInstallPaths: project scope 가 HOME 디렉토리 (${homeDir}) 로 확정됐습니다. ` +
+        `global config 가 project config 로 오인된 상태입니다. ` +
+        `해결: --project-root <경로> 로 명시하거나, CWD 를 실제 프로젝트 디렉토리로 변경하세요.`,
+    );
+  }
   const ontoDir = path.join(projectRoot, ".onto");
   return {
     ontoDir,

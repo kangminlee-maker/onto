@@ -24,11 +24,18 @@
 #
 # Fixed behaviour (not overridable here — edit the script if you
 # truly need a different setup rather than ad-hoc assembly):
-#   - Topology:         codex-main-subprocess
-#                       (CODEX_THREAD_ID set, CLAUDE* unset → non-handoff path
-#                        so review-invoke reaches the watcher call site too)
+#   - Topology:         codex-nested-subprocess
+#                       (teamlead is an external codex spawn, NOT host main —
+#                        deterministic across machines. CODEX_THREAD_ID set,
+#                        CLAUDE* unset → non-handoff path so review-invoke
+#                        reaches the watcher call site too.)
 #   - Review mode:      full (9 lens)
-#   - Subagent:         main-native (onto TS teamlead spawns codex per lens)
+#   - Teamlead:         codex / gpt-5.4 / high  (axis-block pinned)
+#   - Subagent:         codex / gpt-5.4 / high  (axis-block pinned)
+#   - Model rationale:  pinning model_id + effort removes machine-local default
+#                       drift — same wrapper invocation = same model on any
+#                       reviewer's machine. Mirrors this repo's tracked
+#                       .onto/config.yml (PR #187, dogfooding consistency).
 #   - Watcher:          ENABLED (iTerm2 / tmux / Apple Terminal auto-detected)
 #   - Project root:     isolated tmp (config.yml + target diff only)
 #   - Onto home:        this repo (authority / roles / lens registry)
@@ -97,23 +104,43 @@ DIFF_BYTES=$(wc -c < "${DIFF_FILE}" | tr -d " ")
 DIFF_LINES=$(wc -l < "${DIFF_FILE}" | tr -d " ")
 echo "target diff: ${DIFF_BYTES} bytes, ${DIFF_LINES} lines (${REF})" >&2
 
-# Axis-first config: subagent=main-native under codex host → topology
-# resolves to codex-main-subprocess. Fixed.
-cat > "${REVIEW_DIR}/.onto/config.yml" <<'EOF'
+# Pinned model/effort (PR #188 deterministic refinement). Both teamlead
+# and subagent are external codex spawns with fixed model_id + effort,
+# so the wrapper produces the same review on any reviewer's machine
+# regardless of host codex env defaults. Topology resolves to
+# codex-nested-subprocess. Single source of truth for these values is
+# this repo's tracked `.onto/config.yml` (kept in sync intentionally).
+PIN_PROVIDER="codex"
+PIN_MODEL_ID="gpt-5.4"
+PIN_EFFORT="high"
+
+cat > "${REVIEW_DIR}/.onto/config.yml" <<EOF
 review:
   teamlead:
-    model: main
+    model:
+      provider: ${PIN_PROVIDER}
+      model_id: ${PIN_MODEL_ID}
+      effort: ${PIN_EFFORT}
   subagent:
-    provider: main-native
+    provider: ${PIN_PROVIDER}
+    model_id: ${PIN_MODEL_ID}
+    effort: ${PIN_EFFORT}
 review_mode: full
 EOF
 
 # Commit sha / intent for traceability in review-record. Record the
 # right-hand ref actually being reviewed (not unconditional HEAD) so
 # the metadata is meaningful when REF is e.g. `main...feat/xyz` and
-# HEAD is on a different branch.
+# HEAD is on a different branch. INTENT also embeds the pinned
+# model/effort so review-record's intent field carries the model
+# identity for retrospective grep / cost analysis.
 COMMIT_SHA="$(git -C "${REPO_ROOT}" rev-parse --short "${RIGHT_REF}")"
-INTENT="PR review (${REF} @ ${COMMIT_SHA})"
+INTENT="PR review (${REF} @ ${COMMIT_SHA}, ${PIN_PROVIDER}/${PIN_MODEL_ID}/${PIN_EFFORT})"
+
+# STDERR banner — same model/effort visible at invocation time for
+# the operator (no need to wait for review-record). Independent from
+# INTENT (record vs operational visibility serve different consumers).
+echo "model pin: ${PIN_PROVIDER}/${PIN_MODEL_ID}/${PIN_EFFORT}" >&2
 
 # ── Execute ────────────────────────────────────────────────────────────────
 # NOTE: --no-watch is DELIBERATELY ABSENT so the live watcher pane spawns

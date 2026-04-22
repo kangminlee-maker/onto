@@ -244,7 +244,7 @@ A triggered criterion indicates a review coverage problem, not necessarily a des
 
 ### Coverage Distribution
 
-- If 4+ of the 10 Key Sub-Areas are not represented → **insufficient coverage** (threshold: ⌈sub-area count / 2.5⌉ = 4)
+- If ⌈N/2.5⌉ or more of the Key Sub-Areas (§Key Sub-Areas) are not represented → **insufficient coverage**. **N** = the number of `###` subsections under §Key Sub-Areas (count at review time — do not hard-code). At review time the reviewer counts the current `###` headings under §Key Sub-Areas and computes the threshold from N, so adding or removing a sub-area updates the threshold automatically without editing this rule
 - If a specific sub-area accounts for >70% of total findings → **sub-area bias**
 
 ### State and Exception Coverage

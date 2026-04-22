@@ -36,11 +36,18 @@ ALLOWED=(
   ".onto/authority"
 )
 
+# Exact-match single files. Use this list (instead of ALLOWED) when a single
+# tracked file under `.onto/` does not belong to a structural subdirectory.
+# Added 2026-04-22: `.onto/config.yml` is tracked as a dogfooding canonical
+# reference (other onto-X repos still ignore it locally — repo-scoped policy).
+ALLOWED_FILES=(
+  ".onto/config.yml"
+)
+
 # Ephemeral subdirs are ignored via .gitignore (see repo root) and never
 # appear in `git ls-files` output. Listed here for documentation:
 #   .onto/review/       .onto/builds/       .onto/learnings/
 #   .onto/govern/       .onto/reconstruct/  .onto/temp/
-#   .onto/config.yml
 
 VERBOSE=false
 
@@ -89,6 +96,15 @@ check_paths() {
         break
       fi
     done
+    if [ "$is_match" = "false" ]; then
+      for exact in "${ALLOWED_FILES[@]}"; do
+        if [[ "$file" == "$exact" ]]; then
+          is_match=true
+          matched_prefix="$exact"
+          break
+        fi
+      done
+    fi
     if [ "$is_match" = "true" ]; then
       matched=$((matched + 1))
       [ "$VERBOSE" = "true" ] && printf "  [match] %s  →  %s/\n" "$file" "$matched_prefix"
@@ -191,12 +207,32 @@ run_self_test() {
     failed=$((failed + 1))
   fi
 
+  # Case 4: exact-match single-file allowlist (ALLOWED_FILES path).
+  # Verifies that single-file entries (e.g. `.onto/config.yml`) match
+  # without falling under the prefix/* logic. Regression target: someone
+  # removing the ALLOWED_FILES loop or merging it into ALLOWED would
+  # accidentally match `.onto/config.yml/foo` (a non-existent sub-path)
+  # while rejecting `.onto/config.yml` itself.
+  local -a exact_paths=(
+    ".onto/config.yml"
+  )
+  echo "[self-test] Case 4 (expect PASS): exact-match single-file allowlist"
+  local case4_out
+  case4_out=$(check_paths "${exact_paths[@]}" 2>&1) && case4_rc=0 || case4_rc=$?
+  if [ "$case4_rc" -eq 0 ] && echo "$case4_out" | grep -q "__SUMMARY__ matched=1 violations=0"; then
+    echo "  ✓ guard accepted exact-match allowlist file"
+  else
+    echo "  ✗ guard rejected exact-match allowlist file (regression)"
+    echo "$case4_out" | sed 's/^/    /'
+    failed=$((failed + 1))
+  fi
+
   echo ""
   if [ "$failed" -eq 0 ]; then
-    echo "[self-test] PASS — 3/3 cases succeeded."
+    echo "[self-test] PASS — 4/4 cases succeeded."
     return 0
   else
-    echo "[self-test] FAIL — ${failed}/3 case(s) failed. Guard logic regression."
+    echo "[self-test] FAIL — ${failed}/4 case(s) failed. Guard logic regression."
     return 1
   fi
 }
@@ -257,6 +293,10 @@ printf "[allowlist-guard] PASS — %s tracked .onto/ file(s) all within allowlis
 for prefix in "${ALLOWED[@]}"; do
   count=$(printf '%s\n' "${tracked[@]}" | grep -c "^${prefix}/" || true)
   printf "  %s/**  %s file(s)\n" "$prefix" "$count"
+done
+for exact in "${ALLOWED_FILES[@]}"; do
+  count=$(printf '%s\n' "${tracked[@]}" | grep -cFx "$exact" || true)
+  printf "  %s    %s file(s)\n" "$exact" "$count"
 done
 if [ "$VERBOSE" = "true" ]; then
   echo ""

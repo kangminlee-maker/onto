@@ -7,8 +7,27 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
+
+// Module-level mock of node:child_process.spawnSync. Hoisted by vitest
+// before the spawn-watcher import below, so spawn-watcher.ts picks up
+// the mocked binding at module-load time. The dry-run test paths in
+// other describe blocks never call spawnSync (they short-circuit on
+// `dry_run: true`), so the mock is inert for them.
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("node:child_process")>();
+  return {
+    ...actual,
+    spawnSync: vi.fn(),
+  };
+});
+
+import { spawnSync } from "node:child_process";
 import { spawnWatcherPane } from "./spawn-watcher.js";
+
+const mockedSpawnSync = vi.mocked(spawnSync);
 
 // ---------------------------------------------------------------------------
 // Fixture: temp project dir with (or without) the watcher script present.
@@ -322,5 +341,199 @@ describe("spawnWatcherPane — darwin platform gate", () => {
     } finally {
       restore();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PR #185 follow-up #2 — real-attach paths via child_process.spawnSync mock.
+//
+// Why this exists:
+//   The dry-run describe block above covers detection priority, but the
+//   actual osascript / tmux split-window invocation paths (spawn-watcher.ts
+//   L118-L122 tmux, L180-L185 iterm2, L206-L209 apple_terminal) are NEVER
+//   exercised by dry-run (it returns early on `dry_run: true` before the
+//   spawnSync call). Smoke scripts run with `ONTO_WATCHER_DRY_RUN=1` for
+//   the same reason — they cannot regress-guard the real spawnSync
+//   arguments. A change to `split-window` flags or the iTerm2 osascript
+//   "matched" sentinel parsing would slip through both layers silently.
+//
+// What this block adds:
+//   spawnSync is mocked at the module boundary (top of this file). Each
+//   test sets ONTO_WATCHER_DRY_RUN unset (so the real-attach path runs)
+//   and asserts on the args + return contract.
+// ---------------------------------------------------------------------------
+
+describe("spawnWatcherPane — real-attach (spawnSync mock)", () => {
+  let fixture: Fixture;
+  let envSnapshot: Record<string, string | undefined>;
+  let restorePlatform: () => void;
+
+  beforeEach(() => {
+    envSnapshot = saveEnv();
+    clearWatchedEnv();
+    fixture = mkProjectRoot(true);
+    // Real-attach path requires dry-run UNSET. Tests below add per-case env.
+    restorePlatform = stubDarwin();
+    mockedSpawnSync.mockReset();
+  });
+  afterEach(() => {
+    restorePlatform();
+    restoreEnv(envSnapshot);
+    if (fixture) fixture.cleanup();
+  });
+
+  it("tmux real-attach passes split-window args + targets $TMUX_PANE + refocuses", () => {
+    process.env.TMUX = "/tmp/tmux-1000/default,12345,0";
+    process.env.TMUX_PANE = "%5";
+    // Two spawnSync calls expected: split-window then select-pane -l.
+    mockedSpawnSync
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockReturnValueOnce({ status: 0, stdout: "", stderr: "", pid: 1, output: [], signal: null } as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockReturnValueOnce({ status: 0, stdout: "", stderr: "", pid: 2, output: [], signal: null } as any);
+
+    const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
+
+    expect(result.spawned).toBe(true);
+    expect(result.mechanism).toBe("tmux");
+    expect(result.dry_run).toBeUndefined();
+
+    expect(mockedSpawnSync).toHaveBeenCalledTimes(2);
+    const [tmuxBin, tmuxArgs] = mockedSpawnSync.mock.calls[0]!;
+    expect(tmuxBin).toBe("tmux");
+    // Args contract (regression guard for split-window flags + pane target):
+    //   split-window -h -l 60 -t %5 <bash watcher cmd>
+    expect(tmuxArgs).toEqual([
+      "split-window",
+      "-h",
+      "-l",
+      "60",
+      "-t",
+      "%5",
+      expect.stringContaining("onto-review-watch.sh"),
+    ]);
+    // Refocus call comes second.
+    const [refocusBin, refocusArgs] = mockedSpawnSync.mock.calls[1]!;
+    expect(refocusBin).toBe("tmux");
+    expect(refocusArgs).toEqual(["select-pane", "-l"]);
+  });
+
+  it("tmux without TMUX_PANE omits the -t flag", () => {
+    // Regression guard: spawn-watcher pushes -t only when TMUX_PANE is set.
+    // If someone always passes -t with empty value, tmux would error out.
+    process.env.TMUX = "/tmp/tmux-1000/default,12345,0";
+    // TMUX_PANE intentionally unset.
+    mockedSpawnSync
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockReturnValueOnce({ status: 0, stdout: "", stderr: "", pid: 1, output: [], signal: null } as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockReturnValueOnce({ status: 0, stdout: "", stderr: "", pid: 2, output: [], signal: null } as any);
+
+    const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
+    expect(result.spawned).toBe(true);
+
+    const [, tmuxArgs] = mockedSpawnSync.mock.calls[0]!;
+    expect(tmuxArgs).not.toContain("-t");
+    expect(tmuxArgs).toEqual([
+      "split-window",
+      "-h",
+      "-l",
+      "60",
+      expect.stringContaining("onto-review-watch.sh"),
+    ]);
+  });
+
+  it("tmux split failing (status != 0) falls through, no spawned=true", () => {
+    process.env.TMUX = "/tmp/tmux-1000/default,12345,0";
+    // Tmux split returns non-zero. Without other multiplexer signals,
+    // the function must report spawned=false (NOT bubble the failed
+    // split as a success).
+    mockedSpawnSync
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockReturnValueOnce({ status: 1, stdout: "", stderr: "split failed", pid: 1, output: [], signal: null } as any);
+
+    const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
+    expect(result.spawned).toBe(false);
+    expect(result.reason).toContain("no supported terminal multiplexer");
+    // Refocus must NOT run when split itself failed.
+    expect(mockedSpawnSync).toHaveBeenCalledTimes(1);
+  });
+
+  it("iTerm2 real-attach passes osascript with embedded UUID + 'matched' sentinel grants success", () => {
+    process.env.TERM_PROGRAM = "iTerm.app";
+    process.env.ITERM_SESSION_ID = "w0t1p2:ABCD1234-FAKE-UUID";
+    mockedSpawnSync.mockReturnValueOnce({
+      status: 0,
+      stdout: "matched",
+      stderr: "",
+      pid: 1,
+      output: [],
+      signal: null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+
+    const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
+    expect(result.spawned).toBe(true);
+    expect(result.mechanism).toBe("iterm2");
+
+    expect(mockedSpawnSync).toHaveBeenCalledTimes(1);
+    const [bin, args] = mockedSpawnSync.mock.calls[0]!;
+    expect(bin).toBe("osascript");
+    // -e flag + script string. The script must reference both the UUID
+    // suffix and the full session id (spawn-watcher matches either form).
+    expect(args![0]).toBe("-e");
+    const script = String(args![1]);
+    expect(script).toContain("ABCD1234-FAKE-UUID");
+    expect(script).toContain("w0t1p2:ABCD1234-FAKE-UUID");
+    expect(script).toContain("split vertically");
+    expect(script).toContain("onto-review-watch.sh");
+    expect(script).toContain('return "matched"');
+  });
+
+  it("iTerm2 osascript returning 'no-match' falls through, no spawned=true", () => {
+    // Regression guard: spawn-watcher requires the explicit "matched"
+    // sentinel. If the originating tab is closed (no-match), the osascript
+    // returns "no-match" and we must NOT report spawned=true (which would
+    // imply a pane is visible, when none was attached).
+    process.env.TERM_PROGRAM = "iTerm.app";
+    process.env.ITERM_SESSION_ID = "w0t1p2:ABCD1234-FAKE-UUID";
+    mockedSpawnSync.mockReturnValueOnce({
+      status: 0,
+      stdout: "no-match",
+      stderr: "",
+      pid: 1,
+      output: [],
+      signal: null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+
+    const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
+    expect(result.spawned).toBe(false);
+    expect(result.reason).toContain("no supported terminal multiplexer");
+  });
+
+  it("Apple Terminal real-attach passes osascript with do-script", () => {
+    process.env.TERM_PROGRAM = "Apple_Terminal";
+    mockedSpawnSync.mockReturnValueOnce({
+      status: 0,
+      stdout: "",
+      stderr: "",
+      pid: 1,
+      output: [],
+      signal: null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+
+    const result = spawnWatcherPane(fixture.projectRoot, fixture.sessionRoot);
+    expect(result.spawned).toBe(true);
+    expect(result.mechanism).toBe("apple_terminal");
+
+    const [bin, args] = mockedSpawnSync.mock.calls[0]!;
+    expect(bin).toBe("osascript");
+    expect(args![0]).toBe("-e");
+    const script = String(args![1]);
+    expect(script).toContain('tell application "Terminal"');
+    expect(script).toContain("do script");
+    expect(script).toContain("onto-review-watch.sh");
   });
 });

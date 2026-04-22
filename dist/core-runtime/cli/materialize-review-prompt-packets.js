@@ -1,0 +1,506 @@
+#!/usr/bin/env node
+import fsSync from "node:fs";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { parseArgs } from "node:util";
+import { pathToFileURL } from "node:url";
+import { fileExists, readYamlDocument, writeYamlDocument, toRelativePath, truncateForEmbedding, } from "../review/review-artifact-utils.js";
+import { printOntoReleaseChannelNotice } from "../release-channel/release-channel.js";
+import { loadLearningsForSession, renderLearningSection, formatLoadingSummary, } from "../learning/loader.js";
+import { readExtractMode } from "../learning/shared/mode.js";
+import { renderNewlyLearnedInstructions, renderEventMarkerInstructions, } from "../learning/prompt-sections.js";
+import { resolveInstallationPath } from "../discovery/installation-paths.js";
+import { isOntoRoot } from "../discovery/onto-home.js";
+function requireString(value, optionName) {
+    if (typeof value !== "string" || value.length === 0) {
+        throw new Error(`Missing required option --${optionName}`);
+    }
+    return value;
+}
+async function readOptionalText(targetPath) {
+    if (!(await fileExists(targetPath))) {
+        return "";
+    }
+    return fs.readFile(targetPath, "utf8");
+}
+function renderBoundaryPolicySection(binding, projectRoot, options) {
+    const toolsLine = options?.tools !== undefined ? `\n- tools: ${options.tools}` : "";
+    return `## Boundary Policy
+- web research: ${binding.boundary_policy.web_research_policy}
+- repo exploration: ${binding.boundary_policy.repo_exploration_policy}
+- recursive reference expansion: ${binding.boundary_policy.recursive_reference_expansion_policy}
+- filesystem allowed roots:
+${binding.boundary_policy.filesystem_scope.allowed_roots
+        .map((rootPath) => `  - ${toRelativePath(rootPath, projectRoot)}`)
+        .join("\n")}
+- source mutation: ${binding.boundary_policy.write_policy.source_mutation_policy}
+- allowed output refs:
+${binding.boundary_policy.write_policy.allowed_output_refs
+        .map((outputPath) => `  - ${toRelativePath(outputPath, projectRoot)}`)
+        .join("\n")}
+- extra exploration citation required: ${binding.boundary_policy.provenance_policy.extra_exploration_citation_required}
+- web source citation required: ${binding.boundary_policy.provenance_policy.web_source_citation_required}${toolsLine}`;
+}
+function renderBoundaryEnforcementSection(binding) {
+    return `## Boundary Enforcement Profile
+- prompt: ${binding.boundary_enforcement_profile.prompt_boundary_enforcement}
+- filesystem: ${binding.boundary_enforcement_profile.filesystem_boundary_enforcement}
+- network: ${binding.boundary_enforcement_profile.network_boundary_enforcement}
+- write: ${binding.boundary_enforcement_profile.write_boundary_enforcement}`;
+}
+function renderEffectiveBoundaryStateSection(binding, projectRoot) {
+    const state = binding.effective_boundary_state;
+    return `## Effective Boundary State
+- web research: requested=${state.web_research.requested_policy}, effective=${state.web_research.effective_policy}, guarantee=${state.web_research.guarantee_level}
+- repo exploration: requested=${state.repo_exploration.requested_policy}, effective=${state.repo_exploration.effective_policy}, guarantee=${state.repo_exploration.guarantee_level}
+- recursive reference expansion: requested=${state.recursive_reference_expansion.requested_policy}, effective=${state.recursive_reference_expansion.effective_policy}, guarantee=${state.recursive_reference_expansion.guarantee_level}
+- source mutation: requested=${state.source_mutation.requested_policy}, effective=${state.source_mutation.effective_policy}, guarantee=${state.source_mutation.guarantee_level}
+- filesystem effective allowed roots:
+${state.filesystem_scope.effective_allowed_roots
+        .map((rootPath) => `  - ${toRelativePath(rootPath, projectRoot)}`)
+        .join("\n")}
+- filesystem guarantee: ${state.filesystem_scope.guarantee_level}`;
+}
+const DEFAULT_MAX_EMBED_LINES = 300;
+// Core role IDs derived from .onto/authority/core-lens-registry.yaml (single source of truth)
+import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
+const CORE_ROLE_IDS = new Set(loadCoreLensRegistry().core_role_ids);
+/**
+ * Lens-to-domain file mapping. Each core lens reads one specific domain file.
+ * axiology and synthesize have no domain document (by design).
+ */
+const LENS_DOMAIN_FILE_MAP = {
+    logic: "logic_rules.md",
+    structure: "structure_spec.md",
+    dependency: "dependency_rules.md",
+    semantics: "concepts.md",
+    pragmatics: "competency_qs.md",
+    evolution: "extension_cases.md",
+    coverage: "domain_scope.md",
+    conciseness: "conciseness_rules.md",
+};
+/**
+ * Resolve domain directory per the Product Locality Principle §2.3:
+ *
+ * Resolution order (project-override rule):
+ * 1. Project-level domain: {project}/.onto/domains/{domain}/
+ * 2. User-level global domain: ~/.onto/domains/{domain}/
+ * 3. Installation default: ontoHome/.onto/domains/{domain}/ (Phase 2 layout; legacy ontoHome/domains/ fallback retained through Phase 7)
+ * 4. Dev-mode fallback: projectRoot when it IS the onto installation (running from the onto repo itself)
+ *
+ * Directory-level all-or-nothing: the entire directory from one location is used.
+ * Terminal failure: returns { dir: null, attempted: [...] } — caller formats the error.
+ * Returns the resolved directory with the accumulated attempted paths for error surfacing.
+ */
+function resolveDomainDirectory(domain, projectRoot, ontoHome) {
+    const attempted = [];
+    // 1. Project-level domain (highest priority)
+    const projectDomainPath = path.join(projectRoot, ".onto", "domains", domain);
+    attempted.push(projectDomainPath);
+    if (fsSync.existsSync(projectDomainPath))
+        return { dir: projectDomainPath, attempted };
+    // 2. User-level global domain (~/.onto/domains/)
+    const userDomainPath = path.join(os.homedir(), ".onto", "domains", domain);
+    attempted.push(userDomainPath);
+    if (fsSync.existsSync(userDomainPath))
+        return { dir: userDomainPath, attempted };
+    // 3. Installation default (ontoHome/.onto/domains/)
+    // Phase 7 (2026-04-21): resolveInstallationPath resolves canonical
+    // .onto/domains/ only; legacy top-level domains/ is no longer accepted.
+    if (typeof ontoHome === "string" && ontoHome.length > 0) {
+        try {
+            const domainsRoot = resolveInstallationPath("domains", ontoHome);
+            const homePath = path.join(domainsRoot, domain);
+            attempted.push(homePath);
+            if (fsSync.existsSync(homePath))
+                return { dir: homePath, attempted };
+        }
+        catch {
+            // No domains/ directory under ontoHome at all — skip to dev-mode fallback.
+        }
+    }
+    // 4. Dev-mode fallback: only when projectRoot is an onto installation itself
+    // (e.g. running `onto` from a clone of the onto repo). Without this gate an
+    // external project that happens to have a `domains/{X}/` directory at its
+    // root would be falsely picked up as an installation bundle.
+    if (isOntoRoot(projectRoot)) {
+        try {
+            const domainsRoot = resolveInstallationPath("domains", projectRoot);
+            const legacyPath = path.join(domainsRoot, domain);
+            attempted.push(legacyPath);
+            if (fsSync.existsSync(legacyPath))
+                return { dir: legacyPath, attempted };
+        }
+        catch {
+            // projectRoot has neither .onto/domains/ nor domains/ — terminal miss.
+        }
+    }
+    return { dir: null, attempted };
+}
+/**
+ * Scan a domain directory for all .md files, returning absolute paths.
+ * Includes both standard files (8 mapped) and extension files (9th+).
+ */
+/**
+ * Render the "Domain Document Refs" section for a lens prompt packet.
+ * - Primary: the lens-specific mapped file (mandatory reading for this lens)
+ * - Supplementary: other domain files (optional — agent decides whether to read)
+ *
+ * Domain documents cross-reference each other (e.g., logic_rules.md references
+ * concepts.md definitions). Providing supplementary refs as file paths (not
+ * embedded content) costs ~7 lines and gives the agent access to the full
+ * domain context when needed.
+ */
+function renderDomainDocumentRefsSection(lensId, domainDir, allDomainFiles, projectRoot) {
+    if (!domainDir || allDomainFiles.length === 0)
+        return "";
+    const mappedFileName = LENS_DOMAIN_FILE_MAP[lensId];
+    const lines = ["", "## Domain Document Refs"];
+    if (mappedFileName) {
+        const primaryPath = path.join(domainDir, mappedFileName);
+        if (fsSync.existsSync(primaryPath)) {
+            lines.push(`- primary: ${toRelativePath(primaryPath, projectRoot)}`);
+        }
+    }
+    const supplementary = allDomainFiles.filter((filePath) => path.basename(filePath) !== mappedFileName);
+    if (supplementary.length > 0) {
+        lines.push("- supplementary:");
+        for (const filePath of supplementary) {
+            lines.push(`  - ${toRelativePath(filePath, projectRoot)}`);
+        }
+    }
+    return lines.join("\n");
+}
+function scanDomainFiles(domainDir) {
+    try {
+        return fsSync.readdirSync(domainDir)
+            .filter((name) => name.endsWith(".md"))
+            .map((name) => path.join(domainDir, name))
+            .sort();
+    }
+    catch {
+        return [];
+    }
+}
+/**
+ * Resolve a role file inside `{baseDir}/.onto/roles/`.
+ *
+ * Phase 7 (2026-04-21) removed the legacy top-level `roles/` fallback and
+ * the pre-Phase-3 `onto_` filename prefix — both are dead code now that
+ * every resource has converged on the canonical seat. The function still
+ * returns the canonical path when the file is missing so that the
+ * downstream error message can surface the expected location.
+ */
+function resolveRoleFileWithFallback(baseDir, lensId) {
+    let rolesDir;
+    try {
+        rolesDir = resolveInstallationPath("roles", baseDir);
+    }
+    catch {
+        rolesDir = path.resolve(baseDir, ".onto", "roles");
+    }
+    return path.resolve(rolesDir, `${lensId}.md`);
+}
+/**
+ * Resolve role definition path per the Role/Domain policy:
+ * - Core roles: ontoHome installation only. Project override forbidden.
+ * - Custom roles: projectRoot → ontoHome fallback. Phase 7 dropped the
+ *   pre-migration mixed-layout acceptance — only `.onto/roles/` is
+ *   consulted now, via the shared Phase 0 resolver.
+ * - Terminal failure: caller throws after this returns a non-existent path.
+ */
+function resolveRoleDefinitionPath(lensId, projectRoot, ontoHome) {
+    if (CORE_ROLE_IDS.has(lensId)) {
+        const baseDir = typeof ontoHome === "string" && ontoHome.length > 0
+            ? ontoHome
+            : projectRoot;
+        return resolveRoleFileWithFallback(baseDir, lensId);
+    }
+    // Custom roles — project-side canonical seat first, then ontoHome.
+    const projectCanonical = path.resolve(projectRoot, ".onto", "roles", `${lensId}.md`);
+    if (fsSync.existsSync(projectCanonical))
+        return projectCanonical;
+    if (typeof ontoHome === "string" && ontoHome.length > 0) {
+        return resolveRoleFileWithFallback(ontoHome, lensId);
+    }
+    // No installation override and no project-side hit — return the canonical
+    // shape so the downstream error message points users at the expected
+    // location.
+    return projectCanonical;
+}
+export async function runMaterializeReviewPromptPacketsCli(argv) {
+    const { values } = parseArgs({
+        options: {
+            "project-root": { type: "string", default: "." },
+            "onto-home": { type: "string" },
+            "session-root": { type: "string" },
+            "max-embed-lines": { type: "string" },
+        },
+        strict: true,
+        allowPositionals: false,
+        args: argv,
+    });
+    let maxEmbedLines = typeof values["max-embed-lines"] === "string" && values["max-embed-lines"].length > 0
+        ? Number.parseInt(values["max-embed-lines"], 10)
+        : DEFAULT_MAX_EMBED_LINES;
+    if (!Number.isFinite(maxEmbedLines) || maxEmbedLines < 1) {
+        console.warn(`[onto] Invalid max-embed-lines value (${values["max-embed-lines"]}), using default ${DEFAULT_MAX_EMBED_LINES}.`);
+        maxEmbedLines = DEFAULT_MAX_EMBED_LINES;
+    }
+    const projectRoot = path.resolve(requireString(values["project-root"], "project-root"));
+    const sessionRoot = path.resolve(requireString(values["session-root"], "session-root"));
+    const interpretationPath = path.join(sessionRoot, "interpretation.yaml");
+    const bindingPath = path.join(sessionRoot, "binding.yaml");
+    const sessionMetadataPath = path.join(sessionRoot, "session-metadata.yaml");
+    const executionPlanPath = path.join(sessionRoot, "execution-plan.yaml");
+    const contextCandidateAssemblyPath = path.join(sessionRoot, "execution-preparation", "context-candidate-assembly.yaml");
+    const interpretation = await readYamlDocument(interpretationPath);
+    const binding = await readYamlDocument(bindingPath);
+    const sessionMetadata = await readYamlDocument(sessionMetadataPath);
+    const executionPlan = await readYamlDocument(executionPlanPath);
+    const promptPacketsRoot = executionPlan.prompt_packets_root ?? path.join(sessionRoot, "prompt-packets");
+    const materializedInputText = await readOptionalText(binding.materialized_input_path);
+    const lensPromptPacketSeats = executionPlan.lens_prompt_packet_seats ??
+        binding.resolved_lens_set.map((lensId) => ({
+            lens_id: lensId,
+            packet_path: path.join(promptPacketsRoot, `${lensId}.prompt.md`),
+            output_path: path.join(binding.round1_root, `${lensId}.md`),
+        }));
+    const synthesizePromptPacketPath = executionPlan.synthesize_prompt_packet_path ??
+        path.join(promptPacketsRoot, "synthesize.prompt.md");
+    await fs.mkdir(promptPacketsRoot, { recursive: true });
+    const ontoHome = typeof values["onto-home"] === "string" && values["onto-home"].length > 0
+        ? path.resolve(values["onto-home"])
+        : undefined;
+    // Resolve domain directory once for all lenses (directory-level all-or-nothing)
+    const sessionDomain = binding.resolved_session_domain;
+    const isNoDomain = !sessionDomain || sessionDomain === "none" || sessionDomain === "@-";
+    let resolvedDomainDir = null;
+    let domainAllFiles = [];
+    if (!isNoDomain) {
+        const resolution = resolveDomainDirectory(sessionDomain, projectRoot, ontoHome);
+        resolvedDomainDir = resolution.dir;
+        if (!resolvedDomainDir) {
+            const searchedList = resolution.attempted.map((p) => `  - ${p}`).join("\n");
+            throw new Error(`Domain directory not found for "${sessionDomain}".\n` +
+                `Searched ${resolution.attempted.length} location(s):\n${searchedList}`);
+        }
+        domainAllFiles = scanDomainFiles(resolvedDomainDir);
+    }
+    // Phase 2: Read extract mode from session metadata (R5-IA-R5-1: readExtractMode, no raw cast)
+    const extractMode = readExtractMode(sessionMetadata);
+    const extractEnabled = extractMode === "shadow" || extractMode === "active";
+    // C-1~C-4, C-7: Load learnings for all lens agents
+    // ONTO_LEARNING_LOAD_DISABLED=1: Phase 1 fallback — skip learning loading entirely
+    const learningDisabled = process.env.ONTO_LEARNING_LOAD_DISABLED === "1";
+    const lensIds = lensPromptPacketSeats.map((s) => s.lens_id);
+    const learningDomain = isNoDomain ? null : sessionDomain;
+    const { results: learningResults, manifest: learningManifest } = learningDisabled
+        ? { results: [], manifest: { session_domain: learningDomain ?? "none", agents_loaded: 0, total_items_loaded: 0, total_items_parsed: 0, total_items_skipped: 0, per_agent: [], learning_file_paths: [], degraded: false, degradation_reason: null } }
+        : loadLearningsForSession(lensIds, projectRoot, learningDomain);
+    const learningsByAgent = new Map(learningResults.map((r) => [r.agent_id, r]));
+    // C-7: Print loading summary
+    if (learningManifest.total_items_loaded > 0 || learningManifest.total_items_skipped > 0) {
+        console.error(formatLoadingSummary(learningManifest));
+    }
+    // Print warnings
+    for (const r of learningResults) {
+        for (const w of r.warnings) {
+            console.error(w);
+        }
+    }
+    for (const seat of lensPromptPacketSeats) {
+        const roleDefinitionPath = resolveRoleDefinitionPath(seat.lens_id, projectRoot, ontoHome);
+        const roleDefinitionText = await readOptionalText(roleDefinitionPath);
+        if (roleDefinitionText.trim().length === 0) {
+            throw new Error(`Role definition not found for ${seat.lens_id}. Searched: ${roleDefinitionPath}` +
+                (ontoHome ? ` (ontoHome: ${ontoHome})` : ""));
+        }
+        const lensPacketText = `# Review Lens Prompt Packet
+
+session_id: ${executionPlan.session_id}
+lens_id: ${seat.lens_id}
+execution_realization: ${executionPlan.execution_realization}
+host_runtime: ${executionPlan.host_runtime}
+review_mode: ${executionPlan.review_mode}
+session_domain: ${binding.resolved_session_domain}
+output_path: ${toRelativePath(seat.output_path, projectRoot)}
+request_summary: ${interpretation.intent_summary}
+
+## Canonical Role
+You are ${seat.lens_id}.
+Execute as a ContextIsolatedReasoningUnit.
+Do not read other lens outputs during Round 1.
+
+## Role Definition Source
+${toRelativePath(roleDefinitionPath, projectRoot)}
+
+${roleDefinitionText.trim().length > 0 ? `${roleDefinitionText.trim()}\n` : ""}
+
+## Authoritative Artifact Inputs
+- materialized input: ${toRelativePath(binding.materialized_input_path, projectRoot)}
+- role definition: ${toRelativePath(roleDefinitionPath, projectRoot)}
+- interpretation: ${toRelativePath(interpretationPath, projectRoot)}
+- binding: ${toRelativePath(bindingPath, projectRoot)}
+
+## Embedded Materialized Input
+
+${materializedInputText.trim().length > 0 ? truncateForEmbedding(materializedInputText.trim(), maxEmbedLines, toRelativePath(binding.materialized_input_path, projectRoot)) : "(unavailable)"}
+
+## Optional Context Inputs
+- session metadata: ${toRelativePath(sessionMetadataPath, projectRoot)}
+- target snapshot: ${toRelativePath(binding.target_snapshot_path, projectRoot)}
+- context candidate assembly: ${toRelativePath(contextCandidateAssemblyPath, projectRoot)}
+
+${renderBoundaryPolicySection(binding, projectRoot)}
+
+${renderBoundaryEnforcementSection(binding)}
+
+${renderEffectiveBoundaryStateSection(binding, projectRoot)}
+
+## Session Summary
+- requested target: ${toRelativePath(sessionMetadata.requested_target, projectRoot)}
+- target scope kind: ${binding.resolved_target_scope.kind}
+- resolved target refs:
+${binding.resolved_target_scope.resolved_refs
+            .map((resolvedRef) => `  - ${toRelativePath(resolvedRef, projectRoot)}`)
+            .join("\n")}
+- review mode: ${binding.resolved_review_mode}
+- lens set: ${binding.resolved_lens_set.join(", ")}
+
+## Execution Directives
+- Read the role definition and the materialized input first.
+- Prefer the smallest sufficient set of files.
+- Only read optional context inputs if the primary inputs are not enough.
+- Do not recursively chase additional document links or reference chains found inside the target text.
+- Use the materialized input as the authoritative target input.
+- Use only your lens-specific perspective.
+- Perform structural inspection first when applicable.
+- If you find an issue, state what, why, and how to fix it.
+- If you find no issue, state why it is correct.
+- Write your result to: ${toRelativePath(seat.output_path, projectRoot)}
+${renderDomainDocumentRefsSection(seat.lens_id, resolvedDomainDir, domainAllFiles, projectRoot)}
+${renderLearningSection(learningsByAgent.get(seat.lens_id)?.items ?? [])}
+${extractEnabled ? renderNewlyLearnedInstructions(learningDomain) : ""}
+${extractEnabled ? renderEventMarkerInstructions() : ""}
+`;
+        await fs.writeFile(seat.packet_path, lensPacketText.trimEnd() + "\n", "utf8");
+    }
+    // CC3: Auto-populate domain_context_refs in context-candidate-assembly.yaml
+    if (domainAllFiles.length > 0 && await fileExists(contextCandidateAssemblyPath)) {
+        const assembly = await readYamlDocument(contextCandidateAssemblyPath);
+        const existingRefs = Array.isArray(assembly?.domain_context_refs) ? assembly.domain_context_refs : [];
+        const mergedRefs = [...new Set([...existingRefs, ...domainAllFiles])];
+        if (mergedRefs.length > existingRefs.length) {
+            assembly.domain_context_refs = mergedRefs;
+            await writeYamlDocument(contextCandidateAssemblyPath, assembly);
+        }
+    }
+    // C-6b: Auto-populate learning_context_refs in context-candidate-assembly.yaml
+    if (learningManifest.learning_file_paths.length > 0 && await fileExists(contextCandidateAssemblyPath)) {
+        const assembly = await readYamlDocument(contextCandidateAssemblyPath);
+        const existingLearningRefs = Array.isArray(assembly?.learning_context_refs) ? assembly.learning_context_refs : [];
+        const mergedLearningRefs = [...new Set([...existingLearningRefs, ...learningManifest.learning_file_paths])];
+        if (mergedLearningRefs.length > existingLearningRefs.length) {
+            assembly.learning_context_refs = mergedLearningRefs;
+            await writeYamlDocument(contextCandidateAssemblyPath, assembly);
+        }
+    }
+    // C-6b: Write learning loading manifest
+    if (learningManifest.total_items_loaded > 0) {
+        const manifestPath = path.join(sessionRoot, "execution-preparation", "learning-manifest.yaml");
+        await writeYamlDocument(manifestPath, learningManifest);
+    }
+    const synthesizePacketText = `# Review Synthesize Prompt Packet
+
+session_id: ${executionPlan.session_id}
+execution_realization: ${executionPlan.execution_realization}
+host_runtime: ${executionPlan.host_runtime}
+review_mode: ${executionPlan.review_mode}
+session_domain: ${binding.resolved_session_domain}
+output_path: ${toRelativePath(executionPlan.synthesis_output_path, projectRoot)}
+request_summary: ${interpretation.intent_summary}
+
+## Canonical Role
+You are synthesize.
+You are not an independent review lens.
+You must preserve lens evidence and must not invent new independent perspectives.
+
+## Required Artifact Inputs
+- materialized input: ${toRelativePath(binding.materialized_input_path, projectRoot)}
+- interpretation: ${toRelativePath(interpretationPath, projectRoot)}
+- binding: ${toRelativePath(bindingPath, projectRoot)}
+
+## Optional Context Inputs
+- session metadata: ${toRelativePath(sessionMetadataPath, projectRoot)}
+- target snapshot: ${toRelativePath(binding.target_snapshot_path, projectRoot)}
+- context candidate assembly: ${toRelativePath(contextCandidateAssemblyPath, projectRoot)}
+
+${renderBoundaryPolicySection(binding, projectRoot, { tools: "required" })}
+
+${renderBoundaryEnforcementSection(binding)}
+
+${renderEffectiveBoundaryStateSection(binding, projectRoot)}
+
+## Participating Lens Outputs
+${(executionPlan.lens_execution_seats ?? binding.resolved_lens_set.map((lensId) => ({
+        lens_id: lensId,
+        output_path: path.join(binding.round1_root, `${lensId}.md`),
+    })))
+        .map((seat) => `- ${seat.lens_id}: ${toRelativePath(seat.output_path, projectRoot)}`)
+        .join("\n")}
+
+## Execution Directives
+- Read the materialized input first, then all participating lens outputs.
+- Prefer the smallest sufficient set of files.
+- Only read optional context inputs if the materialized input and lens outputs are not enough.
+- Do not recursively chase additional document links or reference chains found inside the target text or lens outputs.
+- Preserve consensus, axiology-proposed additional perspectives, and overlooked premises.
+- Do not invent New Perspectives yourself.
+- You are the deliberation actor. When lens findings disagree, perform the deliberation in-process: re-read the contested lens outputs and the materialized input, weigh each side against the cited evidence. Preserve the original lens positions in the Disagreement section without collapsing them into a single conclusion; record your resolution per contested point in the Deliberation Decision section. When evidence is insufficient to resolve a contested point, record that fact (with the gap) in Deliberation Decision rather than declaring deliberation unperformed. Cross-process lens-to-lens messaging is not part of this contract — synthesize itself resolves disagreement using the artifacts already in scope.
+- Start the output with YAML frontmatter using this exact field:
+  - \`deliberation_status: not_needed | performed\`
+  - Use \`not_needed\` when no lens disagreement exists.
+  - Use \`performed\` when you executed the deliberation above and recorded the resolution.
+  - Do not emit \`required_but_unperformed\`; that value is reserved for synthesize-task failure detected by the runner.
+- Write your result to: ${toRelativePath(executionPlan.synthesis_output_path, projectRoot)}
+
+## Required Output Sections
+Use exactly these heading names in your output. The downstream renderer extracts sections by exact heading match. Do not add numbering prefixes, suffixes, or rename these headings.
+
+\`\`\`
+## Consensus
+## Conditional Consensus
+## Disagreement
+## Deliberation Decision
+## Axiology-Proposed Additional Perspectives
+## Purpose Alignment Verification
+## Immediate Actions Required
+## Recommendations
+## Unique Finding Tagging
+\`\`\`
+
+The Deliberation Decision section records, per contested point, the resolution you reached (or "no contested points" when none exist). When \`deliberation_status: performed\`, every disagreement listed in the Disagreement section must have a corresponding entry here.
+
+## Tagging Completeness Rule
+Every finding from the participating lens outputs must be accounted for in exactly one of these four classification sections: Consensus, Conditional Consensus, Disagreement, or Unique Finding Tagging. A finding may additionally appear in other sections (Recommendations, Immediate Actions, etc.), but it must have a primary classification in one of the four. If a finding is part of a cross-lens consensus, classify it under Consensus or Conditional Consensus. If it is unique to a single lens, classify it under Unique Finding Tagging.
+`;
+    await fs.writeFile(synthesizePromptPacketPath, synthesizePacketText.trimEnd() + "\n", "utf8");
+    console.log(JSON.stringify({
+        prompt_packets_root: promptPacketsRoot,
+        lens_prompt_packet_count: lensPromptPacketSeats.length,
+        synthesize_prompt_packet_path: synthesizePromptPacketPath,
+    }, null, 2));
+    return 0;
+}
+async function main() {
+    await printOntoReleaseChannelNotice();
+    return runMaterializeReviewPromptPacketsCli(process.argv.slice(2));
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+    main().then((exitCode) => process.exit(exitCode), (error) => {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+    });
+}

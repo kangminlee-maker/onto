@@ -1,0 +1,64 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { resolveInstallationPath } from "./installation-paths.js";
+/**
+ * Strip "onto_" prefix from a lens/role ID, yielding the canonical bare form.
+ * Idempotent: bare IDs pass through unchanged.
+ */
+export function canonicalizeLensId(id) {
+    return id.startsWith("onto_") ? id.slice(5) : id;
+}
+let cached = null;
+function findRegistryPath() {
+    // Walk up from this file to find {installRoot}/{.onto/,}.onto/authority/core-lens-registry.yaml.
+    // Phase 0: resolveInstallationPath handles the dual-layout fallback per ancestor.
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    let current = __dirname;
+    const root = path.parse(current).root;
+    while (current !== root) {
+        try {
+            const authorityDir = resolveInstallationPath("authority", current);
+            const candidate = path.join(authorityDir, "core-lens-registry.yaml");
+            if (fs.existsSync(candidate))
+                return candidate;
+        }
+        catch {
+            // This ancestor is not an install root — keep walking.
+        }
+        current = path.dirname(current);
+    }
+    throw new Error("Cannot find .onto/authority/core-lens-registry.yaml");
+}
+function parseYamlSimple(text) {
+    // Minimal YAML parser for flat string arrays only
+    const result = {};
+    let currentKey = null;
+    for (const line of text.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("#") || trimmed.length === 0)
+            continue;
+        if (!trimmed.startsWith("-") && trimmed.endsWith(":")) {
+            currentKey = trimmed.slice(0, -1);
+            result[currentKey] = [];
+        }
+        else if (trimmed.startsWith("- ") && currentKey) {
+            result[currentKey].push(trimmed.slice(2).trim());
+        }
+    }
+    return result;
+}
+export function loadCoreLensRegistry() {
+    if (cached)
+        return cached;
+    const registryPath = findRegistryPath();
+    const text = fs.readFileSync(registryPath, "utf8");
+    const raw = parseYamlSimple(text);
+    cached = {
+        full_review_lens_ids: (raw.full_review_lens_ids ?? []).map(canonicalizeLensId),
+        core_axis_lens_ids: (raw.core_axis_lens_ids ?? []).map(canonicalizeLensId),
+        core_role_ids: (raw.core_role_ids ?? []).map(canonicalizeLensId),
+        always_include_lens_ids: (raw.always_include_lens_ids ?? []).map(canonicalizeLensId),
+    };
+    return cached;
+}

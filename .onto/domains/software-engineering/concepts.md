@@ -42,7 +42,8 @@ Layer 1 defines what the language/runtime provides. Layer 2 encodes design wisdo
 - [L2] Microservices = independently deployable services communicating via network. Benefits: independent scaling/deployment. Costs: distributed system complexity
 - [L2] Monolith = single deployable unit. Not inherently bad — simpler deployment, no network latency, easier debugging
 - [L2] Modular Monolith = monolith with enforced module boundaries. Monolith simplicity with microservice-like modularity
-- [L2] Module = an independently deployable or replaceable unit of code with a defined public interface
+- [L1] Module (language/runtime) = a unit recognized by the language's package/module system — ECMAScript module, Java module (JEP 261), Go package, Python module. Defines visibility and resolution scope at compile/load time
+- [L3] Module (architectural) = an independently deployable or replaceable unit of code with a defined public interface. Used in module-separation, modular-monolith, and module-boundary discussions. Often implemented as one or more L1 modules but the boundary is a design decision, not a language one
 - [L2] Dependency = a relationship where one module requires another's functionality. Circular dependencies indicate a design flaw
 - [L2] Bounded Context (DDD) = the scope within which a specific domain model is consistently applied. Coined by Eric Evans. "Customer" in billing has payment methods; "Customer" in shipping has addresses. Same word, different models
 - [L2] Anti-corruption Layer = a translation layer between bounded contexts that prevents one model from corrupting another

@@ -103,7 +103,7 @@ These are concept categories that must be addressed in any software system.
 
 ## Bias Detection Criteria
 
-- If 3 or more of the Major Sub-areas (§Major Sub-areas) are not represented at all → **insufficient coverage**. The threshold is ⌈sub-area count / 2.5⌉ (currently: ⌈7/2.5⌉ = 3)
+- If ⌈N/2.5⌉ or more of the Major Sub-areas (§Major Sub-areas) are not represented at all → **insufficient coverage**. **N** = the number of `###` subsections under §Major Sub-areas (count at review time — do not hard-code). At review time the reviewer counts the current `###` headings under §Major Sub-areas and computes the threshold from N, so adding or removing a sub-area updates the threshold automatically without editing this rule
 - If concepts from a specific area account for more than 70% of the total → **area bias**
 - If only the happy path is defined with no error path → **path bias**
 - If creation/use is defined but disposal/cleanup is missing → **incomplete lifecycle**

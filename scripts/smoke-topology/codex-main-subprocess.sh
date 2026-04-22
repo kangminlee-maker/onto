@@ -53,7 +53,7 @@ cd "${SMOKE_TMP_ROOT}"
 # CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS — see host-detection.ts
 # CLAUDE_ENV_SIGNALS) must be unset so claudeHost signal reads false.
 CODEX_THREAD_ID="smoke-${SMOKE_TOPOLOGY_ID}-$(date +%s)" \
-  env -u CLAUDECODE -u CLAUDE_PROJECT_DIR -u CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS \
+  onto_env_codex_host \
   node "${ONTO_CLI}" \
     "$(basename "${SMOKE_TARGET_FILE}")" "${SMOKE_INTENT}" \
     --project-root "${SMOKE_TMP_ROOT}" \

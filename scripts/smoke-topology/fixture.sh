@@ -28,6 +28,12 @@ if [[ ! -f "${ONTO_CLI}" ]]; then
   return 1 2>/dev/null || exit 1
 fi
 
+# Source the shared host-env sanitization helpers so each smoke script can
+# wrap its node invocation with `onto_env_codex_host` / `onto_env_claude_host`
+# / `onto_env_claude_teams_host` instead of inlining the env-unset list.
+# shellcheck disable=SC1091
+source "${ONTO_REPO_ROOT}/scripts/host-env.sh"
+
 SMOKE_TMP_ROOT="$(mktemp -d -t "onto-smoke-${SMOKE_TOPOLOGY_ID}-XXXX")"
 mkdir -p "${SMOKE_TMP_ROOT}/.onto"
 

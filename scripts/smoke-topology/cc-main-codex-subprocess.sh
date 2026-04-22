@@ -61,8 +61,7 @@ cd "${SMOKE_TMP_ROOT}"
 # CLAUDECODE=1 to satisfy claudeHost. Codex session env unset to avoid codex
 # host detection. CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS unset so shape stays
 # in the non-teams branch (`main_foreign` vs `main-teams_foreign`).
-CLAUDECODE=1 env -u CLAUDE_PROJECT_DIR -u CODEX_THREAD_ID -u CODEX_CI \
-  -u CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS \
+onto_env_claude_host \
   node "${ONTO_CLI}" \
     "$(basename "${SMOKE_TARGET_FILE}")" "${SMOKE_INTENT}" \
     --project-root "${SMOKE_TMP_ROOT}" \

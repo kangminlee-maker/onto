@@ -49,7 +49,7 @@ STDERR_LOG="${SMOKE_TMP_ROOT}/review.stderr.log"
 STDOUT_LOG="${SMOKE_TMP_ROOT}/review.stdout.log"
 
 cd "${SMOKE_TMP_ROOT}"
-CLAUDECODE=1 env -u CLAUDE_PROJECT_DIR -u CODEX_THREAD_ID -u CODEX_CI \
+onto_env_claude_teams_host \
   node "${ONTO_CLI}" \
     "$(basename "${SMOKE_TARGET_FILE}")" "${SMOKE_INTENT}" \
     --project-root "${SMOKE_TMP_ROOT}" \

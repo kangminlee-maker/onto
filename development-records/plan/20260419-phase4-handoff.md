@@ -58,6 +58,7 @@ development-records/plan/20260419-phase4-handoff.md 읽고 Phase 4 Stage 2 설�
 - **Log seat**: `.onto/dogfood/{activity}/{session-id}/` (gitignored, 6 파일 구조) + `development-records/dogfood/` aggregated dashboard (commit)
 - **Infra 재사용**: review-log.ts (W-A-71) + eval-persistence.ts (W-C-04) + usage-tracker.ts (W-A-72) raw data source
 - **Precedent**: PR #131 의 3-round self-review (이미 실행된 dogfood 첫 precedent)
+- **보강 (2026-04-22)**: 본 Log seat 는 dogfood layer 의 mirror seat 이며 5 활동의 본질 sink 가 아니다. 정본 규약 + Mandatory 재해석은 `.onto/processes/govern.md §14.6` (dogfood SDK-like sink 의존 방향 invariant) 참조.
 
 ## 3. Stage 2 설계 시작점 — Track C/D 순환 의존 해소
 

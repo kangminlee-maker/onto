@@ -127,6 +127,8 @@ W-C-05 consumption feedback dogfood 가 **방법론 prototype** — 5 활동 전
 
 **Seat 정책**: `.onto/dogfood/` 는 gitignored (session artifact), 단 집계된 dashboard 만 `development-records/dogfood/` 에 commit.
 
+> **보강 (2026-04-22)**: 본 §1.6.3 의 `.onto/dogfood/{activity}/{session-id}/` 는 dogfood layer 의 mirror seat 이며 5 활동의 본질 sink 가 아니다. 정본 규약 + 위치 가이드 + Q6 재해석은 `.onto/processes/govern.md §14.6` (dogfood SDK-like sink 의존 방향 invariant) 참조.
+
 ### 1.6.4 Product 개선 feedback loop
 
 로그 소비처 3 축:

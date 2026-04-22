@@ -247,7 +247,7 @@ reason: "Phase 4 Stage 2 dogfood 검증 중"
 - §0.1 invariant — govern 의 본질 contract (사후 검토 표면) 는 dogfood 와 독립해야 함. dogfood off → 본 seat 는 그대로 살아 있음
 - 의존 방향 보장: **govern (sink) ← dogfood (reader)** — dogfood 는 본 seat 를 mirror 하거나 옵저버로 구독, 역방향 write 없음
 - `.onto/govern/` 이 이미 gitignored (Step 3 §1.2) → 자동 ephemeral, tracked 증가 없음
-- queue 에 기록은 부적절 — queue 는 **pending decision** 전용, self_apply 는 완료 상태
+- queue 에 기록은 부적절 — self_apply 는 완료 상태이고 queue 는 entry kind (§1.3) 중 "pending decision / decided verdict / apply_failed / manual_edit / v0 freeform" 범주에 self_apply 가 들어가지 않음. self_apply 는 별도 `self-apply-log` seat 로 분리해야 entry kind 가 의미적 응집성 유지
 
 dogfood 와의 관계:
 - dogfood on → dogfood layer 가 본 seat 의 events.jsonl 을 read + 자체 분석/feedback 파이프라인에 mirror (구현 세션에서 dogfood-side reader 정의)
@@ -481,6 +481,21 @@ PR 머지 전 9-lens consensus 3 + UF 5 + Q1 (design sink TBD placeholder) + Q2 
 
 - **CCF-principal-direct-audit-contract**: record-manual-edit 의 multi-file 확장. 현 v1 은 single-file scope 명시 (§5.4) — multi-file 은 v1.1 schema 확장 backlog
 - **UF-step4-over-specification**: Step 4 본문의 같은 결정 반복은 양식 (option table + decision record + summary) 의 자연 결과 — 광범위 trim 은 별도 PR scope
+
+### 2차 review fix-up 반영 (PR #198 9-lens 재검토, 2026-04-22)
+
+1차 fix-up (위 표 8/8 해소) 후 재 review 가 새 consensus 4 + UF 4 발견. 정합성 충돌 3건은 본 PR 에서 처리, lifecycle gap 3건은 wrap-up §6.1.1 backlog 로 분리.
+
+| 2차 Finding ID | 분류 | 처리 위치 |
+|---|---|---|
+| CF-queue-ledger-contract-drift | 정합성 충돌 (필수) | §1.3 (정본) + §4.1 (정합화) + govern.md §14.6 (5-kind 확장) + wrap-up §3 (caption 정합) |
+| UF-staging-classified-as-essential-sink | 정합성 충돌 (필수) | wrap-up §3 — staging = transient seat (본질 sink 아님) 으로 표기 정정 |
+| UF-temp-design-sink-path-mismatch | 정합성 충돌 (필수) | govern.md §14.6 design 행 — 임시 sink path 를 `development-records/{evolve,design,plan,...}/<date>-<topic>.md` 로 일반화 (실제 패턴 반영) |
+| CF-apply-failed-recovery-gap | Lifecycle (구현 세션) | wrap-up §6.1.1 backlog |
+| CF-pause-scope-and-resume-gap | Lifecycle (구현 세션) | wrap-up §6.1.1 backlog |
+| CF-principal-direct-observability-gap | Lifecycle (구현 세션) | wrap-up §6.1.1 backlog |
+| UF-step4-decision-multi-owner-drift | 양식 (별도 PR) | wrap-up §6.3 (UF-step4-over-specification 와 동족) |
+| UF-purpose-alignment-evidence-gap | review wrapper 한계 | wrap-up §6.3 (review process backlog) |
 
 ### 두 결정점 default 채택
 

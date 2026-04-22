@@ -38,6 +38,29 @@ describe("resolveInstallPaths", () => {
     expect(paths.envExamplePath).toBe("/tmp/proj/.onto/.env.example");
     expect(paths.gitignorePath).toBe("/tmp/proj/.gitignore");
   });
+
+  // Defense line #2 (bug-report-install-profile-scope-20260422.md ❷):
+  // resolveProjectRoot 의 HOME 경계가 어쩌다 뚫리더라도 writer 단에서
+  // 한 번 더 차단.
+  it("project scope throws when projectRoot equals homeDir (defense #2)", () => {
+    expect(() =>
+      resolveInstallPaths("project", "/home/tester", "/home/tester"),
+    ).toThrow(/HOME 디렉토리/);
+  });
+
+  it("project scope throws for relative path collision with homeDir", () => {
+    // path.resolve 를 통해 비교하므로 표기 차이만으로 우회되지 않음.
+    expect(() =>
+      resolveInstallPaths("project", "/home/tester/", "/home/tester"),
+    ).toThrow(/HOME 디렉토리/);
+  });
+
+  it("global scope에서 homeDir 를 쓰는 것은 허용 (정상 path)", () => {
+    // global 은 ~/.onto/ 가 설계상 정상. sanity check 는 scope === 'project'
+    // 에만 적용되어야 함.
+    const paths = resolveInstallPaths("global", "/home/tester", "/home/tester");
+    expect(paths.ontoDir).toBe("/home/tester/.onto");
+  });
 });
 
 describe("renderConfigYml", () => {

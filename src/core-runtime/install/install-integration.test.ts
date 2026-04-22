@@ -155,6 +155,11 @@ describe("handleInstallCliWithOverrides — non-interactive E2E", () => {
   });
 
   it("project scope adds .onto/.env to .gitignore", async () => {
+    // Fix (bug-report-install-profile-scope-20260422.md ❸ defense line #3):
+    // `.gitignore` 는 git repo 에서만 수정. tmpProject 에 `.git/` 을
+    // 생성해야 `ensureGitignoreEntry` 가 정상 동작.
+    fs.mkdirSync(path.join(tmpProject, ".git"), { recursive: true });
+
     await runInstall(
       [
         "--non-interactive",
@@ -172,6 +177,31 @@ describe("handleInstallCliWithOverrides — non-interactive E2E", () => {
     const giPath = path.join(tmpProject, ".gitignore");
     expect(fs.existsSync(giPath)).toBe(true);
     expect(fs.readFileSync(giPath, "utf8")).toContain(".onto/.env");
+  });
+
+  it("project scope skips .gitignore when tmpProject has no .git (defense #3)", async () => {
+    // Regression guard for bug-report-install-profile-scope-20260422.md ❸ —
+    // HOME 또는 임의 dir 이 project root 로 잘못 해소된 경우에도
+    // `.gitignore` 를 건드리지 않는다.
+    await runInstall(
+      [
+        "--non-interactive",
+        "--profile-scope",
+        "project",
+        "--review-provider",
+        "anthropic",
+        "--learn-provider",
+        "same",
+        "--skip-validation",
+      ],
+      { envOverrides: { ANTHROPIC_API_KEY: "sk-ant-xyz" } },
+    );
+
+    const giPath = path.join(tmpProject, ".gitignore");
+    expect(fs.existsSync(giPath)).toBe(false);
+    // stdout summary 에 "skip" 메시지가 포함되어야 한다.
+    expect(stdout.join("")).toContain("skip");
+    expect(stdout.join("")).toContain("git repo 아님");
   });
 
   it("main-native review + separate learn provider succeeds with Claude Code host", async () => {

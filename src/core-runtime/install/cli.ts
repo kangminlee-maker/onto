@@ -411,6 +411,7 @@ async function runInstallAfterDecisions(args: PipelineArgs): Promise<number> {
   if (paths.gitignorePath) {
     gitignoreResult = ensureGitignoreEntry(paths.gitignorePath, {
       dryRun: flags.dryRun,
+      projectRoot,
     });
   }
 
@@ -498,7 +499,16 @@ function printCompletion(
   write(`  .env           → ${result.writtenTo.env}\n`);
   write(`  .env.example   → ${result.writtenTo.envExample}\n`);
   if (gitignoreResult) {
-    if (gitignoreResult.created) {
+    if (gitignoreResult.skipped) {
+      // Defense line #3 (bug-report-install-profile-scope-20260422.md ❸):
+      // project scope 가 git repo 가 아닐 때 `.gitignore` 건드리지 않음.
+      // 예: HOME 에 .gitignore 가 있어도 HOME 은 repo 가 아니므로 skip.
+      const reasonNote =
+        gitignoreResult.skipReason === "not-git-repo"
+          ? "(현재 디렉토리가 git repo 아님)"
+          : `(${gitignoreResult.skipReason ?? "unknown"})`;
+      write(`  .gitignore     → skip ${reasonNote}\n`);
+    } else if (gitignoreResult.created) {
       write("  .gitignore     → (생성) .onto/.env 추가됨\n");
     } else if (!gitignoreResult.alreadyPresent) {
       write("  .gitignore     → .onto/.env 추가됨\n");

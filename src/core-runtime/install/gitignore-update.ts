@@ -25,6 +25,7 @@
  */
 
 import fs from "node:fs";
+import path from "node:path";
 
 const CANONICAL_ENTRY = ".onto/.env";
 
@@ -46,8 +47,21 @@ export interface EnsureGitignoreEntryResult {
   alreadyPresent: boolean;
   /** Whether we created the file (did not exist before). */
   created: boolean;
-  /** Final on-disk content of `.gitignore`. */
-  content: string;
+  /** Final on-disk content of `.gitignore`. `undefined` when skipped. */
+  content: string | undefined;
+  /**
+   * True when the update was skipped — the call was gated by
+   * `options.projectRoot` and that directory has no `.git/`. Caller
+   * should surface this in the completion summary so the principal
+   * knows no `.gitignore` was touched.
+   *
+   * Added 2026-04-22 as the 3rd defense line for
+   * bug-report-install-profile-scope-20260422.md ❸ (HOME `.gitignore`
+   * in-place append 사고).
+   */
+  skipped?: boolean;
+  /** Machine-stable reason when skipped. Currently only `not-git-repo`. */
+  skipReason?: string;
 }
 
 /**
@@ -57,14 +71,34 @@ export interface EnsureGitignoreEntryResult {
  * but the entry isn't found. No-ops when the entry is already
  * present (as `/X`, `X`, `X  # comment`, etc.).
  *
+ * When `options.projectRoot` is provided, the function first verifies
+ * that `<projectRoot>/.git/` exists. If absent, the call returns a
+ * `skipped: true` result without touching the filesystem — prevents
+ * polluting a non-repo directory's `.gitignore` when `projectRoot`
+ * was mis-resolved (e.g. HOME). Backward compat: callers that omit
+ * `options.projectRoot` retain the previous unconditional behavior.
+ *
  * Returns the resulting file content so the caller can log it in
  * dry-run mode or include it in the completion summary.
  */
 export function ensureGitignoreEntry(
   gitignorePath: string,
-  options: { dryRun?: boolean } = {},
+  options: { dryRun?: boolean; projectRoot?: string } = {},
 ): EnsureGitignoreEntryResult {
-  const { dryRun = false } = options;
+  const { dryRun = false, projectRoot } = options;
+
+  if (projectRoot !== undefined) {
+    const gitDir = path.join(projectRoot, ".git");
+    if (!fs.existsSync(gitDir)) {
+      return {
+        alreadyPresent: false,
+        created: false,
+        content: undefined,
+        skipped: true,
+        skipReason: "not-git-repo",
+      };
+    }
+  }
 
   if (!fs.existsSync(gitignorePath)) {
     const content = `${CANONICAL_ENTRY}\n`;

@@ -257,10 +257,12 @@ function buildNestedDispatchScript(input: CodexNestedTeamleadInput): string {
     "#   - pipes the packet contents into `codex exec`",
     "#   - writes the last-message to <output_path> via `-o`",
     "#   - emits a single-line status JSON object to its .status file",
-    "#   - on failure, persists a 200-line stderr tail next to the lens",
-    "#     output (round1/.<lens>.nested-stderr.log) so post-hoc audit",
-    "#     can answer 'what actually failed inside this lens run?' even",
-    "#     after the outer TMPDIR is cleaned up.",
+    "#   - on failure, renames the full per-lens running log to",
+    "#     round1/.<lens>.nested-stderr.log so post-hoc audit can answer",
+    "#     'what actually failed inside this lens run?' even after the",
+    "#     outer dispatch exits. (Whole log; no bounded tail. The log",
+    "#     already lives under sessionRoot for watcher tail -f, so rename",
+    "#     is cheaper + preserves more context than a truncated tail.)",
     'for entry in "${LENSES[@]}"; do',
     '  IFS="|" read -r LENS_ID PACKET OUTPUT <<< "$entry"',
     "  (",
@@ -530,12 +532,30 @@ export async function spawnOuterCodex(
     });
   });
 
-  // Flush & close real-time tee streams before returning so tail -f readers
-  // see final bytes and the archive step finds a complete file.
-  if (stdoutStream) stdoutStream.end();
-  if (stderrStream) stderrStream.end();
+  // Flush & close real-time tee streams before returning. Calling .end()
+  // only requests flush — the actual on-disk write may still be pending
+  // in the Node stream's internal buffer. Await the `finish` event so
+  // downstream code (archiveOuterStreamsIfMissing) that stats these files
+  // sees their final size, not a partially flushed snapshot (4th self-
+  // review Immediate Action #1: stream finalization barrier).
+  await Promise.all([
+    awaitStreamFinish(stdoutStream),
+    awaitStreamFinish(stderrStream),
+  ]);
 
   return { stdout, stderr, exit_code: exitCode, timed_out: timedOut };
+}
+
+function awaitStreamFinish(stream: fs.WriteStream | null): Promise<void> {
+  if (!stream) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    // `finish` fires after the writable side drains AND after all bytes
+    // are flushed to the underlying resource. `end()` without this await
+    // returns before `fs.stat` would see the final size.
+    stream.once("finish", () => resolve());
+    stream.once("error", () => resolve()); // best-effort: don't block on write errors
+    stream.end();
+  });
 }
 
 /**

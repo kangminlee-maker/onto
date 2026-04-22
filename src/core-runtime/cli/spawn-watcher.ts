@@ -5,6 +5,18 @@ import path from "node:path";
 export type WatcherMechanism = "tmux" | "iterm2" | "apple_terminal";
 
 export interface SpawnWatcherResult {
+  /**
+   * `true` when the function confirmed that a watcher mechanism is
+   * available for this session — either because it actually invoked
+   * osascript/tmux to attach a pane (`dry_run` absent or false), or
+   * because `ONTO_WATCHER_DRY_RUN=1` asked the function to detect the
+   * mechanism without performing the attach (`dry_run === true`).
+   *
+   * The field does NOT by itself mean "a pane is visible to the
+   * principal". Callers that need to know about a real visible attach
+   * must check both `spawned === true` AND `dry_run !== true` (4th
+   * self-review CC1/CC-rename guard).
+   */
   spawned: boolean;
   mechanism?: WatcherMechanism;
   reason?: string;
@@ -12,7 +24,10 @@ export interface SpawnWatcherResult {
    * True when the `spawned: true` result came from `ONTO_WATCHER_DRY_RUN=1`
    * detection-only mode — no actual osascript / tmux split was invoked.
    * Callers SHOULD distinguish this in user-facing logs so a reader can
-   * tell "mechanism detected" from "pane actually attached".
+   * tell "mechanism detected" from "pane actually attached" (4th
+   * self-review Immediate Action #2 — field-level discrimination, with
+   * review-invoke log verb ("detection via" vs "attached via") as the
+   * corresponding user-visible signal).
    */
   dry_run?: boolean;
 }

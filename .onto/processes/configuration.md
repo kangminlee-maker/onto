@@ -180,11 +180,95 @@ Default 는 단일 값이 아니라 **invocation path + environment** 에 따라
 - 옛 `review_mode: light` 입력 시 stale-input friendly error 발생 (우선순위 ladder 진입 전 rejection). 자세한 migration 은 CHANGELOG.md 의 Consumer migration matrix 참조
 - Host-facing positional invoke (예: `/onto:review <target> <intent>`) 는 위 ladder 를 그대로 사용하지만, interactive interpretation 경로에서 principal 이 `--review-mode-recommendation` 으로 override 가능
 
-#### `max_concurrent_lenses`
-- 용도: lens 병렬 실행 상한
+#### `max_concurrent_lenses` (legacy top-level alias)
+- 용도: lens 병렬 실행 상한. **P9.2 (2026-04-21) 이후 runtime resolver 는 본 top-level 필드 대신 `review.max_concurrent_lenses` (Axis C, 아래 §4.5 review block) 만 본다.** 본 필드는 `OntoConfig` 타입에 남아있으나 review session 의 batch dispatch 결정에는 영향 없음 (`src/core-runtime/review/artifact-types.ts` L497-500 의 resolution order 참조)
 - 유효값: 양의 정수
-- 기본값: 9 (9-lens 전체 병렬)
-- 로컬 GPU 환경 권장: `1~3`. MLX 30B 단일 GPU 는 `1` 권장 (OOM 회피, 2026-04-17 세션 실증)
+- 기본값: 9 (9-lens 전체 병렬) — 본 필드만 두는 경우의 nominal default. 실제 default 는 review block 이 absent 일 때 topology catalog default 로 결정됨 (`execution-topology-resolver.ts`)
+- 로컬 GPU 환경 권장: `1~3`. MLX 30B 단일 GPU 는 `1` 권장 (OOM 회피, 2026-04-17 세션 실증). 새 config 에서는 `review.max_concurrent_lenses` 로 적는 것이 canonical
+
+#### `review:` — review execution axis block (canonical, P1 2026-04-20)
+
+`review:` block 은 Review UX Redesign P1 (2026-04-20, PR #152) 에서 도입된 6 axes (A teamlead / B subagent / C concurrency / D auto host detection / E lens deliberation / F effort) 중 user-facing 인 A·B·C·E 를 노출하는 canonical surface 다. P1 이전의 `execution_topology_priority` 배열을 대체한다.
+
+- 용도: review session 의 lens executor (subagent) + synthesize 단계 teamlead 를 명시적으로 선언
+- 유효값: 아래 4 개 sub-key. 모두 optional
+- 기본값: 미설정 시 universal fallback (teamlead=main / subagent=main-native / lens_deliberation=synthesizer-only / max_concurrent_lenses=topology default)
+- Type 진실: `src/core-runtime/discovery/config-chain.ts` 의 `OntoReviewConfig` (L245-L252)
+- Validator: `src/core-runtime/review/review-config-validator.ts`
+
+##### `review.teamlead.model`
+- 용도: 각 lens 결과를 모아 synthesize 단계를 수행하는 teamlead 역할의 model
+- 유효값:
+  - `"main"` — 현재 host session (Claude Code / Codex CLI) 의 main context 가 teamlead 를 겸함
+  - `{ provider, model_id, effort? }` — 외부 model 지정. `provider` ∈ {`codex`, `anthropic`, `openai`, `litellm`}, `model_id` 필수, `effort` 는 thinking-capable provider 에서만 의미
+- 기본값: `"main"`
+
+##### `review.subagent`
+- 용도: 각 lens 단위 (review unit) 를 실제로 실행하는 subagent 의 model. Discriminated union — `main-native` 분기와 외부 분기는 schema 가 다름
+- 유효값:
+  - `{ provider: "main-native" }` — host 가 제공하는 native subagent. Claude Code 에서는 Agent tool / Agent Teams, Codex CLI 에서는 자식 프로세스. `model_id` / `effort` 필드를 가질 수 없음 (validator 가 거부)
+  - `{ provider, model_id, effort? }` — 외부 model 지정. `provider` ∈ {`codex`, `anthropic`, `openai`, `litellm`}, `model_id` 필수
+- 기본값: `{ provider: "main-native" }`
+
+##### `review.lens_deliberation`
+- 용도: lens 간 deliberation 채널 선택 (Axis E)
+- 유효값:
+  - `synthesizer-only` — lens 가 독립 실행 후 synthesizer 가 종합 (표준 경로)
+  - `sendmessage-a2a` — lens agent 들이 SendMessage 로 상호 deliberation 라운드 수행. `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` 환경 + `lens_agent_teams_mode: true` 의 double opt-in 필요 (`config-chain.ts` L165-L177 참조)
+- 기본값: `synthesizer-only`
+
+##### `review.max_concurrent_lenses` (canonical concurrency, Axis C)
+- 용도: lens 병렬 실행 상한 user override
+- 유효값: 양의 정수
+- 기본값: 해당 topology 의 catalog default (`execution-topology-resolver.ts` 의 TOPOLOGY_CATALOG)
+- Resolution order (`artifact-types.ts` L497-500): `review.max_concurrent_lenses` > topology catalog default. 0/음수 override 는 무시되고 catalog default 가 적용됨
+
+##### `subagent_llm` 과의 관계 (§4.3 cross-reference)
+
+`subagent_llm` (§4.3) 은 Phase 2 host-decoupling 시절 (sketch v3) 도입된 subagent LLM 지정 필드, `review.subagent` 는 P1 Review UX Redesign 의 canonical replacement 다. **둘 다 lens executor 의 model 을 지정하는 같은 axis 의 두 세대**.
+
+- 새 config: `review.subagent` 만 사용 권장
+- 두 필드 동시 존재 시: axis-first resolver (`execution-topology-resolver.ts:resolveAxisFirstTopology`) 가 `config.review` 가 있으면 그 block 으로 derive, 없으면 universal `main_native` degrade 경로로 fallback. 즉 `review:` block 이 한 번이라도 작성되면 `subagent_llm` 은 review session 결정에 더 이상 영향을 주지 않음 (단, `host_runtime: standalone` 의 ts_inline_http executor 결정 등 다른 경로에서는 여전히 소비됨)
+
+##### Deprecated: `execution_topology_priority`
+- 상태: P9.2 (PR-K, 2026-04-18) 에서 `OntoConfig` 타입에서 제거. P9.5 (PR #166, 2026-04-21) 에서 deprecation 모듈 (`legacy-field-deprecation.ts`) 도 삭제
+- 현재 거동: silently inert. YAML 에 남아있어도 type-level consumer 가 없어 무시되며 warning 도 emit 안 됨
+- Migration:
+  - **자동**: `onto onboard --strip-legacy-priority` — legacy 필드를 제거하고 `review:` block 으로 동시 전환 (`.onto/processes/onboard.md:246-259` 참조)
+  - **수동**: 본 §4.5 `review:` axis block 으로 옮김. 7 topology id → axis 매핑 (authoritative): `src/core-runtime/review/review-config-legacy-translate.ts` 의 `legacyTopologyIdToAxes`. 예: `codex-nested-subprocess` → `teamlead.model = { provider: codex, model_id: <user fill>, effort: <user fill> }` + `subagent = { provider: codex, model_id: <user fill>, effort: <user fill> }`
+
+##### 사용 예시
+
+```yaml
+# 예시 1 — Claude Code 세션 + Codex CLI lens executor (codex-nested-subprocess 등가)
+review:
+  teamlead:
+    model:
+      provider: codex
+      model_id: gpt-5.4
+      effort: high
+  subagent:
+    provider: codex
+    model_id: gpt-5.4
+    effort: high
+
+# 예시 2 — Claude Code 세션 + native subagent (cc-main-agent-subagent 등가)
+review:
+  teamlead:
+    model: main
+  subagent:
+    provider: main-native
+  max_concurrent_lenses: 6
+
+# 예시 3 — A2A deliberation 활성화 (cc-teams-lens-agent-deliberation 등가)
+lens_agent_teams_mode: true
+review:
+  teamlead:
+    model: main
+  subagent:
+    provider: main-native
+  lens_deliberation: sendmessage-a2a
+```
 
 ### 4.6 Domain selection
 

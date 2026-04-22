@@ -30,8 +30,10 @@
 #      past L2059).
 #   2. spawn-watcher.ts detects at least one of: tmux / iTerm2 /
 #      Apple Terminal based on current env.
-#   3. The log line format `[review runner] live watcher attached via
-#      <mechanism>` is stable for downstream log parsers.
+#   3. The log line format is stable for downstream log parsers:
+#      - dry-run:    `[review runner] live watcher detection via <mechanism>`
+#      - real attach: `[review runner] live watcher attached via <mechanism>`
+#      This smoke asserts the dry-run form (ONTO_WATCHER_DRY_RUN=1).
 #
 # Requires:
 #   - codex binary + ~/.codex/auth.json  (base path same as

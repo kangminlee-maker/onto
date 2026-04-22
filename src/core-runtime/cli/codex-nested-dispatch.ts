@@ -134,25 +134,44 @@ const defaultInspector: OutputFileInspector = async (p) => {
 // ---------------------------------------------------------------------------
 
 /**
- * Persist the outer codex's captured stdout/stderr to files under
- * `<sessionRoot>`. Used for post-hoc inspection of nested-dispatch
- * diagnostics (ENV-BEFORE / ENV-AFTER / LENS_DISPATCH_SUMMARY) since the
- * orchestrator result is not propagated through review-invoke's final
- * JSON output.
+ * Fallback archive for outer codex stdout/stderr when streaming did NOT
+ * already write the files. Normally `spawnOuterCodex` is invoked with
+ * `stream_stdout_path` / `stream_stderr_path` and the on-disk files
+ * carry the authoritative content via `fs.createWriteStream`; in that
+ * case this helper sees non-empty files and returns without writing
+ * (prevents dual-writer drift — 3rd self-review U4).
+ *
+ * The memory-fallback path remains for:
+ *   - Legacy callers that do not pass stream_*_path
+ *   - Stream write failures that leave the file empty or absent
  *
  * Silently swallows write errors — an artifact write failure must not
- * mask the actual dispatch outcome. The archive is best-effort.
+ * mask the actual dispatch outcome. Best-effort.
  */
-async function archiveOuterStreams(
+async function archiveOuterStreamsIfMissing(
   sessionRoot: string,
   nestedResult: CodexNestedTeamleadResult,
 ): Promise<void> {
   const stdoutPath = path.join(sessionRoot, "nested-outer-stdout.log");
   const stderrPath = path.join(sessionRoot, "nested-outer-stderr.log");
   await Promise.all([
-    fs.writeFile(stdoutPath, nestedResult.outer_stdout ?? "").catch(() => {}),
-    fs.writeFile(stderrPath, nestedResult.outer_stderr ?? "").catch(() => {}),
+    fallbackWrite(stdoutPath, nestedResult.outer_stdout ?? ""),
+    fallbackWrite(stderrPath, nestedResult.outer_stderr ?? ""),
   ]);
+}
+
+async function fallbackWrite(targetPath: string, content: string): Promise<void> {
+  try {
+    const stat = await fs.stat(targetPath).catch(() => null);
+    if (stat && stat.size > 0) {
+      // Streaming writer produced a non-empty file — respect it as the
+      // single authority. Do not overwrite.
+      return;
+    }
+    await fs.writeFile(targetPath, content).catch(() => {});
+  } catch {
+    // Best-effort; never throw.
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -272,7 +291,10 @@ export async function executeReviewViaCodexNested(
 
   // Stream paths live under sessionRoot so the watcher pane can `tail -f`
   // them from the moment the outer codex starts emitting, instead of
-  // waiting for the post-hoc `archiveOuterStreams` batch write.
+  // waiting for the post-hoc `archiveOuterStreams` batch write. With
+  // streaming active, these files are the single authority — no post-
+  // dispatch overwrite (3rd self-review U4: prevent dual-writer drift
+  // where two writers could diverge if one was interrupted mid-flush).
   const streamStdoutPath = path.join(args.sessionRoot, "nested-outer-stdout.log");
   const streamStderrPath = path.join(args.sessionRoot, "nested-outer-stderr.log");
 
@@ -287,13 +309,11 @@ export async function executeReviewViaCodexNested(
     stream_stderr_path: streamStderrPath,
   });
 
-  // Archive the outer codex's stdout/stderr. When streaming was active
-  // (stream_*_path set above), the files already carry the content —
-  // this archive step becomes a no-op overwrite with the same bytes from
-  // the in-memory buffer, so the file is guaranteed complete even if
-  // the stream flush was interrupted. Keep it as a defense-in-depth
-  // guarantee rather than the primary write path.
-  await archiveOuterStreams(args.sessionRoot, nestedResult);
+  // Archive step is the defense-in-depth fallback. Runs ONLY when the
+  // stream files are missing/empty (e.g. a legacy caller that skipped
+  // stream_*_path or a stream write failure). The normal case is a
+  // no-op so the streaming writer stays the single authority.
+  await archiveOuterStreamsIfMissing(args.sessionRoot, nestedResult);
 
   const participating: string[] = [];
   const degraded: string[] = [];

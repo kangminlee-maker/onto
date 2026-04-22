@@ -164,12 +164,12 @@ print_header() {
     [ -n "${profile:-}" ]    && echo "  Profile: ${C_DIM}${profile}${C_RESET}"
   fi
   echo "${C_CYAN}════════════════════════════════════════════════════════════════${C_RESET}"
-  # If the outer codex real-time stream is available for this session,
-  # surface its path so the principal can open a side pane on it with
-  # `tail -f`. The main watcher pane continues rendering the error-log
-  # event stream; this hint exposes the raw codex reasoning/tool trace
-  # that would otherwise only appear after dispatch completes.
-  if [ -f "$NESTED_OUTER_STDOUT" ] || [ -e "$SESSION_ROOT/execution-plan.yaml" ]; then
+  # Nested-only hint: gate strictly on the outer stream file itself
+  # (not on execution-plan.yaml which exists for every topology). 3rd
+  # self-review CC1 guard: earlier `-f || -e execution-plan.yaml` gate
+  # emitted the hint for non-nested sessions too, where the file never
+  # materializes.
+  if [ -f "$NESTED_OUTER_STDOUT" ]; then
     echo "  ${C_DIM}Outer codex live stream (nested topology only):${C_RESET}"
     echo "  ${C_DIM}  tail -f '${NESTED_OUTER_STDOUT}'${C_RESET}"
     echo "${C_CYAN}════════════════════════════════════════════════════════════════${C_RESET}"

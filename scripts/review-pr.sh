@@ -48,12 +48,19 @@ set -euo pipefail
 REF="${1:-main...HEAD}"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
-# Extract the right-hand ref from REF (`main...HEAD` → `HEAD`,
-# `main..feat/xyz` → `feat/xyz`). Used below for COMMIT_SHA metadata so
-# the review record points at the actually-reviewed commit, not the
-# current checkout. Falls back to HEAD when REF has no dot separator.
-RIGHT_REF="${REF##*[.]}"
-if [[ -z "${RIGHT_REF}" || "${RIGHT_REF}" == "${REF}" ]]; then
+# Extract the right-hand ref from REF. Branch-separator parsing: try
+# three-dot first (`main...HEAD` → `HEAD`), then two-dot (`main..feat/xyz`
+# → `feat/xyz`). Literal-dot fallback would corrupt refs containing a `.`
+# (e.g. `main...release/1.2` naively splitting on last `.` yields `2`) —
+# fixed in 3rd self-review C2.
+if [[ "${REF}" == *...* ]]; then
+  RIGHT_REF="${REF##*...}"
+elif [[ "${REF}" == *..* ]]; then
+  RIGHT_REF="${REF##*..}"
+else
+  RIGHT_REF="HEAD"
+fi
+if [[ -z "${RIGHT_REF}" ]]; then
   RIGHT_REF="HEAD"
 fi
 

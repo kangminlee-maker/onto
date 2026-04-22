@@ -35,26 +35,14 @@ Step 3 §7 가 Step 4 로 이월한 4 항목을 단일 설계 문서로 통합:
 
 ### 0.1 설계 제약 — dogfood 는 SDK-like layer (주체자 인풋, 2026-04-22 pm)
 
-주체자 인풋: **dogfood 는 SDK 같은 역할 — off 가능해야 하고, 아키텍처에서 들어내기 쉬워야 한다**.
-
-함의 (architectural invariant):
-
-- govern 의 본질 contract (변화 추적, Principal 검토 표면) 는 dogfood 와 **독립**해야 한다. `dogfood off → govern 정상 작동` 보장
-- 의존 방향: **govern (sink) ← dogfood (reader)**. 역방향 의존 금지 — govern 이 dogfood path 에 직접 write 하면 dogfood removal 시 govern 본질이 깨진다
-- dogfood 는 govern 의 산출물을 **소비하는 reader layer** — sink 자체가 아님
-
-본 Step 의 결정점 영향 매트릭스:
+**정본**: `.onto/processes/govern.md §14.6` (dogfood SDK-like sink 의존 방향 invariant). 규칙·함의·5 활동 sink 위치·Q6 재해석은 정본 참조. 본 §0.1 은 그 invariant 의 Step 4 first application — 결정점 영향 매트릭스만 본 절에 보존.
 
 | 결정점 | dogfood 의존 위험 | 영향 |
 |---|---|---|
-| §6.1 self_apply 사후 보고 seat | **있음** | 추천 변경 — dogfood 통합 (A) → govern 내부 seat (재배정) |
+| §6.1 self_apply 사후 보고 seat | **있음** | 추천 변경 — dogfood 통합 (B) → govern 내부 seat (A 재배정) |
 | §6.2 pause flag 경로 | 없음 | `.onto/govern/` 내부 — 영향 없음 |
 | §6.3 diff 생성 전략 | 없음 | promote-executor in-process — 영향 없음 |
 | §6.4 manual edit 기록 | 없음 | govern queue append — 영향 없음 |
-
-Stage 1 Q6 (mandatory dogfood) 와의 정합: Q6 는 **Phase 4 dogfood 단계 한정의 mandatory 운영 정책** 이지, 일반 사용자 환경에서 dogfood 가 항상 켜져 있어야 한다는 의미가 아님. govern 의 본질 contract 는 두 환경 모두에서 동일하게 작동해야 한다.
-
-**정본 규약**: 본 invariant 는 `.onto/processes/govern.md §14.6` 에 운영 contract 로 정착됨. 본 §0.1 은 그 invariant 의 Step 4 설계 시점 first application — design-input.md §1.6.3 + handoff.md §2.3 에도 cross-ref 추가됨 (2026-04-22).
 
 ## 1. 현재 상태 (코드 근거)
 
@@ -89,6 +77,22 @@ v1 staging-driven `decide approve` 는 **promote-executor 재주입 → mutation
 | `onto learn pause` / `resume` (v1 신규) | learn v1 자동 편집 toggle | drift-engine gate 진입 차단 | Step 4 |
 
 **근거**: 두 시멘틱을 같은 `decide` 에 합치면 (a) freeform payload vs staging path lookup 의 라우팅 분기 복잡성 + (b) "v0 decide approve = 메모만, v1 decide approve = 실제 mutation" 가 사용자 mental model 에서 위험. 명령 분리가 surface contract 안전선.
+
+### 1.3 queue.ndjson semantic — event-sourced ledger of all governance events
+
+`queue.ndjson` 은 **single seat 이지만 entry kind 가 다중**:
+
+| Entry kind | origin event | 시점 | 후속 |
+|---|---|---|---|
+| pending decision (drift-engine staging) | `GovernSubmitEvent` with `payload.staging_path` | 자동 — drift-engine queue route | `decide-staged approve|reject` 또는 `apply_failed` |
+| decided verdict | `GovernDecideEvent` (verdict=approve|reject) | Principal 명시 결정 | 종결 (재판정 v0 미지원) |
+| apply 실패 outcome | `GovernApplyFailedEvent` (verdict 와 구별, §2.3) | apply 시점 | 재시도/조사 (구현 세션 정책) |
+| manual_edit marker (principal_direct) | `GovernSubmitEvent` with `payload.route="principal_direct"`, `manual_edit=true` (§5.4) | Principal 본인 편집 후 | 종결 (이미 완료 상태) |
+| v0 freeform | `GovernSubmitEvent` (staging_path 없음) | W-C-01 v0 호환 | 기존 `decide` (record-only) |
+
+**Semantic 통일**: queue.ndjson 은 "pending decision 전용 seat" 가 아니라 **all governance events 의 event-sourced ledger** — pending + decided + manual_edit + apply_failed + v0 freeform 모두 포함. consumer 는 entry kind 로 필터링한다 (예: `list-drift-candidates` 는 `kind=pending decision AND payload.staging_path` 필터).
+
+정본 규약: govern.md §14.6 location 표의 govern queue 행과 일치.
 
 ## 2. Principal UI flow — 신규 4 CLI 진입점
 
@@ -166,7 +170,7 @@ Next:
 2. **3-way drift 재검사** — 불일치면 abort (Principal `show` 시점과 actual apply 시점 사이 변동 방지). 메시지: `"target file changed since staging — re-run 'onto govern show <id>' or reject"`
 3. promote-executor 재주입 — `decision.yaml` 을 corresponding mutation step 에 inject 후 mutation 수행 (Step 3 §3.2)
 4. 성공 → staging directory 삭제 + queue 에 `GovernDecideEvent { verdict: "approve" }` append
-5. 실패 (mutation error) → staging 보존 + queue 에 `GovernDecideEvent { verdict: "reject", reason: "apply failed: <error>" }` append. 자동 retry 정책은 구현 세션 결정 (Stage 2 범위 밖)
+5. 실패 (mutation error) → staging 보존 + queue 에 **별도 event** `GovernApplyFailedEvent { id, reason: "apply failed: <error>", failed_at }` append. **Principal 의 명시적 reject 와 구별** — apply_failed 는 후속 재시도/조사 가능, reject 는 제안 자체 폐기. 재시도 정책 (자동 vs Principal 수동) 은 구현 세션 결정 (Stage 2 범위 밖). `GovernApplyFailedEvent` 는 신규 type 으로 `src/core-runtime/govern/types.ts` 에 추가 — 본 PR 은 design only, 코드 구현은 구현 세션
 
 **`--reason` 정책**:
 - approve: **optional** (생략 시 자동 `"approved at <ISO timestamp>"`)
@@ -211,14 +215,23 @@ reason: "Phase 4 Stage 2 dogfood 검증 중"
 
 ### 3.3 영향 범위
 
-**self_apply + queue 경로 전부 차단**:
+**learn v1 의 자동 mutation 만 차단**:
 - promote-executor 가 mutation step 진입 직전 flag 체크
 - flag 존재 → 그 mutation step skip + log "paused, skipped" 기록
 - 이미 staged 된 proposal 은 보존 (queue 비우지 않음). 새 proposal 생성만 차단
 
-**principal_direct 는 무관**:
-- Principal 이 직접 파일 편집하는 경로 — pause 대상 아님
-- `onto govern record-manual-edit` (§5.4) 도 무관 — 사후 기록일 뿐
+**Principal 명시 명령은 무관 (pause 가 차단하지 않는 경로)**:
+- `onto govern decide-staged <id> approve` — Principal 명시 승인이라 pause flag 무시 + mutation 수행. **근거**: pause 의 의도는 "learn v1 의 **자동** 편집 차단" 이지 "Principal 명시 작업 차단" 이 아님. Principal 도 차단해야 하는 경우는 emergency stop (별도 mechanism, 본 Step 4 범위 밖)
+- `onto govern decide-staged <id> reject` — mutation 없음, 항상 가능
+- principal_direct 경로 — Principal 이 직접 파일 편집, pause 대상 아님
+- `onto govern record-manual-edit` (§5.4) — 사후 기록, 무관
+
+**state matrix**:
+
+| 상태 | 자동 promote-executor mutation | decide-staged approve | decide-staged reject | record-manual-edit |
+|---|---|---|---|---|
+| paused | 차단 | 가능 | 가능 | 가능 |
+| resumed | 가능 | 가능 | 가능 | 가능 |
 
 ### 3.4 Pause 가 "잠시 멈춤" 의미를 보장하는 이유
 
@@ -281,7 +294,7 @@ self_apply 는 promote-executor 의 `createRecoverabilityCheckpoint` (Phase B Or
 
 | Route | 개입 시점 | Principal action | 1차 UI | 보고/추적 seat |
 |---|---|---|---|---|
-| **self_apply** | **사후** | (선택) 사후 검토 / rollback 요청 | promote session stdout summary | `.onto/govern/self-apply-log/<session>/events.jsonl` (dogfood 는 reader) |
+| **self_apply** | **사후** | (선택) 사후 검토. rollback CLI 는 v1.1 backlog (§4.4 — 본 v1 contract 는 검토만 보장) | promote session stdout summary | `.onto/govern/self-apply-log/<session>/events.jsonl` (dogfood 는 reader) |
 | **queue** | **사전** | approve / reject | `onto govern list-drift-candidates → show <id> → decide-staged <id>` | `.onto/govern/queue.ndjson` (decide event) + staging dir 삭제 |
 | **principal_direct** | **대신** | 본인 직접 편집 + manual record | 파일 편집기 + `onto govern record-manual-edit` | `.onto/govern/queue.ndjson` (route=principal_direct marker) |
 
@@ -305,7 +318,7 @@ self_apply 는 promote-executor 의 `createRecoverabilityCheckpoint` (Phase B Or
 
 | Route | 결정 빈도 | 결정 단위 | 1건당 시간 | 차단 옵션 |
 |---|---|---|---|---|
-| self_apply | 낮음 (사후 review 만) | dogfood log skim | 분 단위 | `onto learn pause` (사전, 일괄) |
+| self_apply | 낮음 (사후 review 만) | stdout summary review (또는 self-apply-log skim) | 분 단위 | `onto learn pause` (사전, 일괄) |
 | queue | 중간 (모든 cluster/batch) | show + decide | 분~10분 | `onto learn pause` (사전), reject (개별) |
 | principal_direct | 낮음 (Principal 자발) | 본인 편집 | 분~시간 | (자발이므로 차단 불필요) |
 
@@ -331,6 +344,11 @@ onto govern record-manual-edit \
   --target .onto/principles/output-language-boundary.md \
   --reason "translation policy refinement (Phase 2)"
 ```
+
+**v1 contract scope — single-file only**:
+- 본 명령은 single-file manual edit 만 지원 (single `--target`)
+- multi-file manual edit 은 (a) 명령을 여러 번 호출 또는 (b) v1.1 schema 확장 (`--target` 다중 또는 `--targets file1,file2,...`) — 후속 backlog
+- multi-file 단일 의도 (예: lexicon term rename 이 N 파일 동시 편집) 의 정합성 추적은 v1.1 결정. 현 v1 은 명령 호출 단위로 atomic — 여러 호출이 논리적 1 batch 임을 표현하려면 `--reason` 에 명시 (예: `"lexicon rename for X — file 1/3"`)
 
 기록 누락에 대한 enforcement 는 별도 backlog (v1.1 의 `onto govern audit` lint 같은 것).
 
@@ -443,3 +461,28 @@ dogfood entity 격상 안건은 lexicon Stage 3 backlog 또는 Phase 5 자율성
 - **Track B (reconstruct v1) 설계**: §0.1 invariant 가 reconstruct 의 sink 결정 (`.onto/reconstruct/<session>/`) 에 자동 적용 — dogfood 와 독립한 본질 sink 위치를 design 시점부터 보장
 - **Track A (learn v1 후속)**: learn 의 본질 sink (`.onto/learnings/*.md` + `_audit/`) 도 동일 invariant 적용. 추가 설계 변경 없음 (이미 dogfood path 와 분리)
 - **W-ID 부여**: Stage 2 종결 후 Q4 결정 (기존 축 연장) 따라 Track C → W-C-09~ / Track D → W-C-09~ (구현 세션 진입 시 확정)
+
+### review fix-up 반영 (PR #198 9-lens review, 2026-04-22)
+
+PR 머지 전 9-lens consensus 3 + UF 5 + Q1 (design sink TBD placeholder) + Q2 (pause 중 decide-staged 가능) 결정이 본 문서에 반영됨:
+
+| Finding ID | 처리 위치 | 변경 |
+|---|---|---|
+| CF-queue-seat-overload | §1.3 신설 + Stage 2 wrap-up §3 | queue.ndjson semantic 을 "event-sourced ledger of all governance events" 로 재정의 (5 entry kind) |
+| CF-design-sink-gap | govern.md §14.6 location 표 | design 행 추가 — 본질 sink 미정착 + 임시 sink (`development-records/design/<date>-<topic>.md`) 명시 + 절차 정착 시 invariant 자동 적용 |
+| CF-invariant-duplication | govern.md §14.6 (정본 보존) + design-input + handoff + 본 §0.1 | 비-canonical 문서의 산문을 cross-ref only 로 축소. 본 §0.1 도 결정점 영향 매트릭스만 보존 |
+| UF-rollback-request-broken-surface | §5.1 통합 표 | self_apply Principal action 에서 "rollback 요청" 제거 — "사후 검토 (rollback CLI 는 v1.1 backlog)" 로 명확화 |
+| UF-dogfood-review-surface-leak | §5.3 cognitive table | self_apply 결정 단위 "dogfood log skim" → "stdout summary review (또는 self-apply-log skim)" 변경 |
+| UF-approve-failure-collapsed-into-reject | §2.3 | apply 실패를 별도 event `GovernApplyFailedEvent` 로 분리 (verdict=reject 와 구별) |
+| UF-pause-transition-undefined-for-staged-items | §3.3 + state matrix | pause 중에도 Principal 명시 `decide-staged approve` 는 mutation 가능 (pause = "자동" 만 차단). Q2 결정 (a) 채택 |
+| UF-sink-term-overloaded | govern.md §14.6 본문 + 본 매트릭스 caption | "sink" = 본질 sink, "mirror seat" = dogfood layer log 위치 — 단어 분리 |
+
+후속 backlog (본 PR scope 외):
+
+- **CCF-principal-direct-audit-contract**: record-manual-edit 의 multi-file 확장. 현 v1 은 single-file scope 명시 (§5.4) — multi-file 은 v1.1 schema 확장 backlog
+- **UF-step4-over-specification**: Step 4 본문의 같은 결정 반복은 양식 (option table + decision record + summary) 의 자연 결과 — 광범위 trim 은 별도 PR scope
+
+### 두 결정점 default 채택
+
+- **Q1 (design 활동 sink 위치)**: `.onto/processes/design.md` 절차 미정착 → location 표에 design 행을 placeholder 로 추가 (임시 sink = `development-records/design/<date>-<topic>.md`, 절차 정착 시 invariant 자동 적용). invariant scope 축소 옵션 (b) 대신 honest 한 placeholder (a) 채택 — design 활동도 5 활동의 일원이라는 sphere 보존
+- **Q2 (pause 중 decide-staged 가능 여부)**: pause 의 의도 = "learn v1 의 **자동** 편집 차단" 이지 "Principal 명시 작업 차단" 이 아님. (a) decide-staged approve 가능 채택. 보수 옵션 (b) "전수 차단" 은 emergency stop 이라는 별도 mechanism 으로 분리 — 본 v1 범위 밖

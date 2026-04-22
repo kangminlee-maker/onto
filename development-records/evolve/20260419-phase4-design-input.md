@@ -127,7 +127,7 @@ W-C-05 consumption feedback dogfood 가 **방법론 prototype** — 5 활동 전
 
 **Seat 정책**: `.onto/dogfood/` 는 gitignored (session artifact), 단 집계된 dashboard 만 `development-records/dogfood/` 에 commit.
 
-> **보강 (2026-04-22, Phase 4 Stage 2 Step 4 §0.1)**: dogfood 는 SDK-like layer — off 가능 + 들어내기 쉬워야 함. 5 활동 본질 sink 는 **dogfood 와 독립** (의존 방향: 본질 sink ← dogfood reader). 본 §1.6.3 의 `.onto/dogfood/{activity}/{session-id}/` 는 dogfood 자체 layer 의 sink 이며, 5 활동의 산출물은 각 활동 namespace 내부 (`.onto/govern/`, `.onto/learnings/`, `.onto/reconstruct/` 등) 에 별도로 기록. dogfood log 는 **mirror/aggregation 결과** 이지 5 활동 본질 sink 의 위치가 아님. 정본 규약: `.onto/processes/govern.md §14.6`. Q6 mandatory 는 Phase 4 dogfood 단계 한정 운영 정책으로 재해석.
+> **보강 (2026-04-22)**: 본 §1.6.3 의 `.onto/dogfood/{activity}/{session-id}/` 는 dogfood layer 의 mirror seat 이며 5 활동의 본질 sink 가 아니다. 정본 규약 + 위치 가이드 + Q6 재해석은 `.onto/processes/govern.md §14.6` (dogfood SDK-like sink 의존 방향 invariant) 참조.
 
 ### 1.6.4 Product 개선 feedback loop
 

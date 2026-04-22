@@ -237,10 +237,18 @@ async function invokeExecutor(
     {
       cwd: projectRoot,
       stdio: ["ignore", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        ...(process.env.ONTO_HOME ? { ONTO_HOME: process.env.ONTO_HOME } : {}),
-      },
+      env: (() => {
+        const ontoHome = process.env.ONTO_HOME;
+        if (typeof ontoHome !== "string" || ontoHome.length === 0) {
+          throw new Error(
+            "ONTO_HOME not set when spawning lens executor. " +
+              "Activation/Execution Determinism Redesign B4 requires unconditional " +
+              "ONTO_HOME propagation so all lens children resolve the same install. " +
+              "Set ONTO_HOME at the runtime entry before dispatching executors.",
+          );
+        }
+        return { ...process.env, ONTO_HOME: ontoHome };
+      })(),
     },
   );
 

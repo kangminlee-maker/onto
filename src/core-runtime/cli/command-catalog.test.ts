@@ -64,6 +64,46 @@ describe("COMMAND_CATALOG (real catalog)", () => {
   it("RuntimeScriptEntry NOT in normalized invocation set", () => {
     const set = getNormalizedInvocationSet(COMMAND_CATALOG);
     expect(set.has("review:invoke")).toBe(false);
+    expect(set.has("coordinator:start")).toBe(false);
+    expect(set.has("onboard:detect-review-axes")).toBe(false);
+  });
+
+  // P1-1b expanded coverage
+  it("has expected entry counts (P1-1b populated)", () => {
+    const counts = { public: 0, runtime_script: 0, meta: 0 };
+    for (const entry of COMMAND_CATALOG.entries) counts[entry.kind]++;
+    expect(counts.public).toBe(20);
+    expect(counts.runtime_script).toBe(25);
+    expect(counts.meta).toBe(2);
+  });
+
+  it("includes deprecated legacy entries with valid lifecycle", () => {
+    const deprecated = COMMAND_CATALOG.entries.filter(
+      (e) => e.deprecated_since !== undefined,
+    );
+    const names = deprecated.map((e) =>
+      e.kind === "public" ? e.identity : "name" in e ? e.name : "",
+    );
+    expect(names).toContain("reclassify-insights");
+    expect(names).toContain("migrate-session-roots");
+    expect(names).toContain("build");
+  });
+
+  it("repair_path commands (install, config) are preboot", () => {
+    const repairPathEntries = COMMAND_CATALOG.entries.filter(
+      (e) => e.kind === "public" && e.repair_path === true,
+    );
+    expect(repairPathEntries.length).toBeGreaterThanOrEqual(2);
+    for (const entry of repairPathEntries) {
+      if (entry.kind === "public") expect(entry.phase).toBe("preboot");
+    }
+  });
+
+  it("nested slash commands use /onto:learn:* convention", () => {
+    const set = getNormalizedInvocationSet(COMMAND_CATALOG);
+    expect(set.has("/onto:learn:promote")).toBe(true);
+    expect(set.has("/onto:learn:health")).toBe(true);
+    expect(set.has("/onto:learn:promote-domain")).toBe(true);
   });
 });
 

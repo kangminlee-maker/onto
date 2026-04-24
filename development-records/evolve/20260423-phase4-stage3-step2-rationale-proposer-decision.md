@@ -10,12 +10,23 @@ purpose: |
 authority_stance: decision-record
 canonicality: scaffolding
 source_refs:
-  protocol: "development-records/evolve/20260423-phase4-stage3-step2-rationale-proposer-protocol.md (r6, 9/9 lens clean pass)"
+  protocol: "development-records/evolve/20260423-phase4-stage3-step2-rationale-proposer-protocol.md (r6, 9/9 lens clean pass + r3-amendment 본 PR)"
   step_1_decision: "development-records/evolve/20260423-phase4-stage3-step1-reconstruct-v1-axes.md (16 Q 승인)"
   step_1_flow_review: "development-records/evolve/20260422-phase4-stage3-step1-reconstruct-v1-flow-review.md"
   step_2_handoff: "development-records/plan/20260423-phase4-stage3-step2-handoff.md"
   review_sessions_final: ".onto/review/20260423-b10952d5/ (r6 review, 9/9 clean pass)"
+  step_4_decision: "development-records/evolve/20260424-phase4-stage3-step4-integration-decision.md (P-DEC-A1 amendment authority — 2026-04-25)"
   invariant: ".onto/processes/govern.md §14.6"
+revision_history:
+  - revision: r0
+    date: 2026-04-23
+    basis: "protocol r6 9/9 lens clean pass + Principal 일괄 승인"
+    scope_summary: "Q-S2-1~22 일괄 승인. PR #202 d15a17d main 머지"
+  - revision: r3-amendment
+    date: 2026-04-25
+    basis: "Step 4 P-DEC-A1 경로 A (2026-04-23 Principal 승인 + 2026-04-25 일괄 승인 reaffirm) — Step 4 PR 에서 병행 수행"
+    scope_summary: "Step 2 protocol 3 지점 additive patch — §6.3 gate_count = 1 write rule (Hook α populate 시 초기화, Hook γ 가 2 로 증가) + §3.4.1 rationale_state empty enum 신설 (Stage 2 Explorer entity 추가 canonical shape) + §6.3.1 pack_missing_areas 재해석 (Reviewer 는 v1 에서 미관여, semantic refinement v1.1 backlog). Q-S2-1~22 재검토 아님 — additive extension + forward-declared seat 정정만."
+    related_pr: "PR #<Step 4 PR number — merge 시 backfill>"
 ---
 
 # Phase 4 Stage 3 Step 2 — Rationale Proposer Protocol (Decision)

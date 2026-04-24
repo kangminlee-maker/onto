@@ -1879,6 +1879,13 @@ async function resolveReviewInvokeSetup(argv: string[]): Promise<ReviewInvokeSet
   let ontoHome: string | undefined;
   try {
     ontoHome = resolveOntoHome(ontoHomeFlag);
+    // Activation/Execution Determinism Redesign B4: propagate ONTO_HOME to
+    // process.env so spawned children (lens + synthesize executors in
+    // run-review-prompt-execution.ts:invokeExecutor) inherit the same
+    // install. Without this, `npm run review:invoke` bypasses the global
+    // `onto` CLI (which sets process.env.ONTO_HOME at src/cli.ts:667) and
+    // the synthesize-spawn guard throws.
+    process.env.ONTO_HOME = ontoHome;
   } catch {
     // When invoked via npm run (legacy path), onto home resolution from
     // import.meta.url or CWD will succeed. If it fails, we proceed without

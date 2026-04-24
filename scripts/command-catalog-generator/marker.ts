@@ -48,13 +48,11 @@ function buildTsSegmentStart(sourcePath: string, catalogHash: string): string {
   );
 }
 
-export type MarkdownMarkerInfo = {
-  sourcePath: string;
-  catalogHash: string;
-  body: string;
-};
-
-export type TsSegmentInfo = {
+/**
+ * Extracted marker payload. Both markdown and TypeScript variants decode into
+ * the same shape — sourcePath + catalogHash + body — so callers share one type.
+ */
+export type MarkerInfo = {
   sourcePath: string;
   catalogHash: string;
   body: string;
@@ -73,7 +71,7 @@ export function wrapMarkdownMarker(
 
 export function extractMarkdownMarker(
   fileContent: string,
-): MarkdownMarkerInfo | null {
+): MarkerInfo | null {
   const firstNewline = fileContent.indexOf("\n");
   if (firstNewline < 0) return null;
   // Strip a trailing \r so CRLF-encoded files (e.g., Windows checkouts with
@@ -117,7 +115,7 @@ export function wrapTypeScriptSegmentMarker(
 
 export function extractTypeScriptSegment(
   fileContent: string,
-): TsSegmentInfo | null {
+): MarkerInfo | null {
   const startIdx = fileContent.indexOf(TS_SEGMENT_START_PREFIX);
   if (startIdx < 0) return null;
   const startLineEnd = fileContent.indexOf("\n", startIdx);

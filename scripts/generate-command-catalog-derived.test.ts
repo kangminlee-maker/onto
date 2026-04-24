@@ -30,8 +30,17 @@ describe("parseArgs", () => {
     expect(parseArgs(["--target=markdown"]).target).toBe("markdown");
     expect(parseArgs(["--target=dispatcher"]).target).toBe("dispatcher");
     expect(parseArgs(["--target=help"]).target).toBe("help");
-    expect(parseArgs(["--target=scripts"]).target).toBe("scripts");
+    expect(parseArgs(["--target=package-scripts"]).target).toBe("package-scripts");
     expect(parseArgs(["--target=all"]).target).toBe("all");
+  });
+
+  it("rejects the old homonym --target=scripts", () => {
+    // Renamed to `package-scripts` so it does not collide with other senses
+    // of the word "scripts" in this subsystem (RuntimeScriptEntry, scripts/
+    // directory, npm scripts). Regression guard for the rename.
+    expect(() => parseArgs(["--target=scripts"])).toThrow(
+      /--target must be one of/,
+    );
   });
 
   it("parses combined flags in any order", () => {
@@ -69,6 +78,16 @@ describe("summarizeCatalog", () => {
     const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: false, target: "all" });
     expect(s.normalizedInvocationCount).toBeGreaterThan(s.entryCounts.public);
   });
+
+  it("marks every derive target as pending in P1-2a (no emitters shipped)", () => {
+    const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: false, target: "all" });
+    expect(s.deriveTargetStatus).toEqual({
+      markdown: "pending",
+      dispatcher: "pending",
+      help: "pending",
+      "package-scripts": "pending",
+    });
+  });
 });
 
 describe("formatSummary", () => {
@@ -80,6 +99,16 @@ describe("formatSummary", () => {
   it("reports dry-run: yes when dryRun is true", () => {
     const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: true, target: "all" });
     expect(formatSummary(s)).toMatch(/dry-run\s*: yes/);
+  });
+
+  it("renders a derive-target readiness block naming each phase", () => {
+    const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: true, target: "all" });
+    const out = formatSummary(s);
+    expect(out).toMatch(/derive targets:/);
+    expect(out).toMatch(/markdown\s+: pending \(lands in P1-2b\)/);
+    expect(out).toMatch(/dispatcher\s+: pending \(lands in P1-2c\)/);
+    expect(out).toMatch(/help\s+: pending \(lands in P1-2c\)/);
+    expect(out).toMatch(/package-scripts\s+: pending \(lands in P1-2c\)/);
   });
 });
 

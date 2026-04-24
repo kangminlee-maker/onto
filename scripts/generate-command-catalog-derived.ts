@@ -28,14 +28,27 @@ import type { CommandCatalog } from "../src/core-runtime/cli/command-catalog.js"
 import { computeCatalogHash } from "./command-catalog-generator/catalog-hash.js";
 import { listAvailableTemplates } from "./command-catalog-generator/template-loader.js";
 
-type Target = "markdown" | "dispatcher" | "help" | "scripts" | "all";
-const VALID_TARGETS: readonly Target[] = [
+// Derive targets. `package-scripts` (not `scripts`) disambiguates from the
+// scripts/ directory and RuntimeScriptEntry surfaces that also carry the
+// word "scripts" in this subsystem.
+type DeriveTarget = "markdown" | "dispatcher" | "help" | "package-scripts";
+type Target = DeriveTarget | "all";
+const DERIVE_TARGETS: readonly DeriveTarget[] = [
   "markdown",
   "dispatcher",
   "help",
-  "scripts",
-  "all",
+  "package-scripts",
 ];
+const VALID_TARGETS: readonly Target[] = [...DERIVE_TARGETS, "all"];
+
+// Which P1 sub-PR lands each derive target. P1-2a only reports readiness —
+// every target is "pending" until its emitter PR merges.
+const DERIVE_TARGET_PHASE: Readonly<Record<DeriveTarget, string>> = {
+  markdown: "P1-2b",
+  dispatcher: "P1-2c",
+  help: "P1-2c",
+  "package-scripts": "P1-2c",
+};
 
 export type GeneratorOptions = {
   dryRun: boolean;
@@ -65,6 +78,8 @@ export function parseArgs(argv: readonly string[]): GeneratorOptions {
   return { dryRun, target };
 }
 
+export type DeriveTargetStatus = "pending" | "ready";
+
 export type CatalogSummary = {
   catalogHash: string;
   entryCounts: { public: number; runtime_script: number; meta: number };
@@ -72,6 +87,7 @@ export type CatalogSummary = {
   availableTemplateCount: number;
   target: Target;
   dryRun: boolean;
+  deriveTargetStatus: Readonly<Record<DeriveTarget, DeriveTargetStatus>>;
 };
 
 export function summarizeCatalog(
@@ -81,6 +97,14 @@ export function summarizeCatalog(
   const entryCounts = { public: 0, runtime_script: 0, meta: 0 };
   for (const entry of catalog.entries) entryCounts[entry.kind]++;
   const normalized = getNormalizedInvocationSet(catalog);
+  // P1-2a ships infrastructure only — no emitters exist yet. P1-2b/c will
+  // flip individual targets to "ready" as their emitters land.
+  const deriveTargetStatus: Record<DeriveTarget, DeriveTargetStatus> = {
+    markdown: "pending",
+    dispatcher: "pending",
+    help: "pending",
+    "package-scripts": "pending",
+  };
   return {
     catalogHash: computeCatalogHash(catalog),
     entryCounts,
@@ -88,7 +112,20 @@ export function summarizeCatalog(
     availableTemplateCount: listAvailableTemplates().length,
     target: options.target,
     dryRun: options.dryRun,
+    deriveTargetStatus,
   };
+}
+
+function formatTargetStatusLines(
+  status: Readonly<Record<DeriveTarget, DeriveTargetStatus>>,
+): string[] {
+  const labelWidth = Math.max(...DERIVE_TARGETS.map((t) => t.length));
+  return DERIVE_TARGETS.map((t) => {
+    const state = status[t];
+    const suffix =
+      state === "pending" ? ` (lands in ${DERIVE_TARGET_PHASE[t]})` : "";
+    return `    ${t.padEnd(labelWidth)} : ${state}${suffix}`;
+  });
 }
 
 export function formatSummary(s: CatalogSummary): string {
@@ -101,6 +138,8 @@ export function formatSummary(s: CatalogSummary): string {
     `  templates available : ${s.availableTemplateCount}`,
     `  target              : ${s.target}`,
     `  dry-run             : ${s.dryRun ? "yes" : "no"}`,
+    "  derive targets:",
+    ...formatTargetStatusLines(s.deriveTargetStatus),
     "",
     "P1-2a: no derive output is written. Emitters land in P1-2b/c.",
   ].join("\n");

@@ -1,5 +1,3 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=de4af39551981ab057bbf9c5cf8eceed4844f7a5f4597564e4db83d4a6263e73 -->
-
 # Create Domain (Seed Generation)
 
 Generates seed domain documents for $ARGUMENTS. Expects: {domain-name} {description}.

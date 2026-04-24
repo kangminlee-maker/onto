@@ -1,5 +1,3 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=efd82ea9640a9ef96042d8814f2b5ea8d4ee0b5d760af23d2dfeea01ac1607de -->
-
 # Domain Document Feedback
 
 Feeds accumulated learnings back into domain documents for $ARGUMENTS.

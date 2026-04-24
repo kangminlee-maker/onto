@@ -13,6 +13,7 @@
  * file) does not create a runtime cycle.
  */
 
+import path from "node:path";
 import {
   CURRENT_CATALOG_VERSION,
   META_NAME_REGISTRY,
@@ -332,6 +333,69 @@ export function assertCatalogVersionSupported(catalog: CommandCatalog): void {
 }
 
 // ---------------------------------------------------------------------------
+// PublicEntry.doc_template_id uniqueness (P1-2b plan §D9)
+// ---------------------------------------------------------------------------
+
+export function assertDocTemplateIdUnique(catalog: CommandCatalog): void {
+  const seen = new Map<string, string>();
+  for (const entry of catalog.entries) {
+    if (entry.kind !== "public") continue;
+    const id = entry.doc_template_id;
+    const prior = seen.get(id);
+    if (prior !== undefined) {
+      throw new Error(
+        `doc_template_id collision: "${id}" claimed by both ` +
+          `"${prior}" and "${entry.identity}". Each PublicEntry must have a ` +
+          `unique doc_template_id (plan §D9).`,
+      );
+    }
+    seen.set(id, entry.identity);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// prompt_body_ref managed-tree containment (P1-2b plan §D25)
+// ---------------------------------------------------------------------------
+
+const MANAGED_TREE_RELATIVE = ".onto/commands/";
+
+/**
+ * Asserts every SlashRealization's `prompt_body_ref` resolves inside
+ * `.onto/commands/`. Uses path-resolution containment (not a prefix-only
+ * string check) so traversal segments (`..`) are normalized first —
+ * e.g., `.onto/commands/../elsewhere/x.md` fails.
+ *
+ * Resolution is done relative to a nominal root (`/`) rather than the actual
+ * project root because (a) the catalog is evaluated at import time from
+ * various CWDs, and (b) the invariant we want is "after resolution, the path
+ * is inside `.onto/commands/`" — which is independent of project root.
+ */
+export function assertPromptBodyRefInManagedTree(
+  catalog: CommandCatalog,
+): void {
+  // Use a fixed synthetic root so containment is a property of the ref string
+  // itself, not of the caller's CWD. Node's `path.resolve` normalizes `..`.
+  const root = path.resolve("/");
+  const managed = path.resolve(root, MANAGED_TREE_RELATIVE);
+  const managedPrefix = managed.endsWith(path.sep) ? managed : managed + path.sep;
+  for (const entry of catalog.entries) {
+    if (entry.kind !== "public") continue;
+    for (const r of entry.realizations) {
+      if (r.kind !== "slash" && r.kind !== "patterned_slash") continue;
+      const ref = r.kind === "slash" ? r.prompt_body_ref : r.prompt_body_ref;
+      const resolved = path.resolve(root, ref);
+      if (resolved !== managed && !resolved.startsWith(managedPrefix)) {
+        throw new Error(
+          `prompt_body_ref escapes managed tree: entry "${entry.identity}" ` +
+            `has realization prompt_body_ref="${ref}" which resolves to ` +
+            `"${resolved}" — not inside "${managed}". plan §D25.`,
+        );
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Single entry point — runs all runtime-load assertions
 // ---------------------------------------------------------------------------
 
@@ -346,6 +410,8 @@ export function validateCatalog(catalog: CommandCatalog): void {
   assertDeprecationLifecycle(catalog);
   assertRepairPathPreboot(catalog);
   assertNoAliasCollision(catalog);
+  assertDocTemplateIdUnique(catalog);
+  assertPromptBodyRefInManagedTree(catalog);
   // getNormalizedInvocationSet 호출 자체가 invariant 검증 (collision throw)
   getNormalizedInvocationSet(catalog);
 }

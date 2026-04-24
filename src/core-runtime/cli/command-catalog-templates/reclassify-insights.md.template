@@ -1,0 +1,5 @@
+# Onto Reclassify-Insights (deprecated)
+
+**Deprecated since** `0.2.0`. Superseded by `{{successor}}`.
+
+The reclassify-insights command reassigned learning pool insights between categories. Its behavior is now covered by `/onto:{{successor}}` (project → global promotion) and the learning-rules loop. New callers should use the successor; this entry remains in the catalog so deprecation lifecycle and alias resolution continue to reference it until its `removed_in` version is cut.

@@ -1,5 +1,3 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=5c8d813f62796ca6ccbf7cdacccb8cbec2d24c03856bc6a5b6df80a18f7f40a2 -->
-
 # Promote Domain (seed → established)
 
 Promotes a seed domain from drafts/ to domains/ for $ARGUMENTS.

@@ -1,0 +1,13 @@
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=61840498afa0a6ad5ee5369f313049204b530884f3835ebbe033d0b63d4e023c -->
+
+# Onto Coordinator (internal)
+
+Internal review-session state machine. Exposed so that subject sessions running in Claude Code (Agent Teams nested or flat spawn patterns) can drive the bounded path — `start` → spawn lens subagents → `next` → spawn synthesize subagent → `next` — with the same state tracking that other host-runtime paths receive via the review runner.
+
+This command is documented for completeness. Most users reach it indirectly via `onto review`; only subject sessions orchestrating Agent Teams manually invoke it directly.
+
+Subcommands:
+
+- `coordinator start <target> <intent>` — create session + return `awaiting_lens_dispatch` with per-lens agent prompts.
+- `coordinator next --session-root <path>` — advance to next state (synthesize dispatch, then completion).
+- `coordinator status --session-root <path>` — inspect current state + transitions.

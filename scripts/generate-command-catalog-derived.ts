@@ -1,21 +1,26 @@
 #!/usr/bin/env tsx
 /**
- * Command Catalog Generator — Phase 1 P1-2a entry script.
+ * Command Catalog Generator — Phase 1 P1-2b entry script.
  *
  * Design authority:
  *   development-records/evolve/20260423-phase-1-catalog-ssot-design.md §7
+ *   development-records/plan/... (P1-2b plan body, v9)
  *
- * Status (P1-2a): infrastructure only. This script loads the catalog, hashes
- * it, prints a summary, and exits. Actual derive logic (markdown, dispatcher,
- * cli.ts help segment, package.json scripts) is P1-2b and P1-2c.
+ * Status (P1-2b): markdown derive emitter shipped. Other targets still pending
+ * (dispatcher / help segment / package-scripts land in P1-2c).
  *
- * CLI surface (already stable for P1-2b/c — only new targets get added):
+ * CLI surface:
  *
- *   --dry-run           Do not write any files. Always honored by emitters.
- *   --target=<target>   One of: markdown | dispatcher | help | scripts | all.
- *                       Default: all. P1-2a ignores the value (no emitters
- *                       implemented yet) but validates the option so future
- *                       callers do not need to relearn the flag surface.
+ *   --dry-run                      Do not write any files. Always honored by emitters.
+ *   --target=<target>              One of: markdown | dispatcher | help | package-scripts | all.
+ *                                  Default: all. Unshipped targets print their phase.
+ *
+ * Bootstrap vs steady-state (plan §D18):
+ *   - Steady-state: `npm run generate:catalog -- --target=markdown` (this file).
+ *     Runs in default mode (snapshotMode=false); D13 case (ii) stays fail-closed.
+ *   - Bootstrap (one-time, authoring-only):
+ *     `UPDATE_SNAPSHOT=1 npx vitest run scripts/command-catalog-generator/markdown-diff0.test.ts`.
+ *     This is the ONLY path that flips snapshotMode=true.
  *
  * This script lives in the build/lint layer (design §4.2) and is therefore
  * NOT registered as a RuntimeScriptEntry in the catalog.
@@ -26,6 +31,10 @@ import { COMMAND_CATALOG } from "../src/core-runtime/cli/command-catalog.js";
 import { getNormalizedInvocationSet } from "../src/core-runtime/cli/command-catalog-helpers.js";
 import type { CommandCatalog } from "../src/core-runtime/cli/command-catalog.js";
 import { computeCatalogHash } from "./command-catalog-generator/catalog-hash.js";
+import {
+  deriveAllMarkdown,
+  type DeriveResult,
+} from "./command-catalog-generator/markdown-deriver.js";
 import { listAvailableTemplates } from "./command-catalog-generator/template-loader.js";
 
 // Derive targets. `package-scripts` (not `scripts`) disambiguates from the
@@ -78,6 +87,14 @@ export function parseArgs(argv: readonly string[]): GeneratorOptions {
   return { dryRun, target };
 }
 
+/**
+ * Static capability flag per derive target (plan §D8).
+ * `"ready"`  — the target's emitter code ships in the current runtime.
+ * `"pending"` — the emitter has not landed yet; the named phase will add it.
+ *
+ * This is NOT a per-run result. Whether a given invocation succeeded is
+ * communicated via exit code + stdout in the standard CLI convention.
+ */
 export type DeriveTargetStatus = "pending" | "ready";
 
 export type CatalogSummary = {
@@ -90,6 +107,14 @@ export type CatalogSummary = {
   deriveTargetStatus: Readonly<Record<DeriveTarget, DeriveTargetStatus>>;
 };
 
+/** Static capability map (plan §D8). Flips ONLY when emitter code ships. */
+const DERIVE_TARGET_CAPABILITY: Readonly<Record<DeriveTarget, DeriveTargetStatus>> = {
+  markdown: "ready", // P1-2b shipped.
+  dispatcher: "pending",
+  help: "pending",
+  "package-scripts": "pending",
+};
+
 export function summarizeCatalog(
   catalog: CommandCatalog,
   options: GeneratorOptions,
@@ -97,14 +122,6 @@ export function summarizeCatalog(
   const entryCounts = { public: 0, runtime_script: 0, meta: 0 };
   for (const entry of catalog.entries) entryCounts[entry.kind]++;
   const normalized = getNormalizedInvocationSet(catalog);
-  // P1-2a ships infrastructure only — no emitters exist yet. P1-2b/c will
-  // flip individual targets to "ready" as their emitters land.
-  const deriveTargetStatus: Record<DeriveTarget, DeriveTargetStatus> = {
-    markdown: "pending",
-    dispatcher: "pending",
-    help: "pending",
-    "package-scripts": "pending",
-  };
   return {
     catalogHash: computeCatalogHash(catalog),
     entryCounts,
@@ -112,7 +129,7 @@ export function summarizeCatalog(
     availableTemplateCount: listAvailableTemplates().length,
     target: options.target,
     dryRun: options.dryRun,
-    deriveTargetStatus,
+    deriveTargetStatus: DERIVE_TARGET_CAPABILITY,
   };
 }
 
@@ -130,7 +147,7 @@ function formatTargetStatusLines(
 
 export function formatSummary(s: CatalogSummary): string {
   return [
-    "command-catalog generator — P1-2a summary",
+    "command-catalog generator — summary",
     `  catalog hash        : ${s.catalogHash}`,
     `  entries             : ${s.entryCounts.public} public · ` +
       `${s.entryCounts.runtime_script} runtime_script · ${s.entryCounts.meta} meta`,
@@ -140,15 +157,33 @@ export function formatSummary(s: CatalogSummary): string {
     `  dry-run             : ${s.dryRun ? "yes" : "no"}`,
     "  derive targets:",
     ...formatTargetStatusLines(s.deriveTargetStatus),
-    "",
-    "P1-2a: no derive output is written. Emitters land in P1-2b/c.",
   ].join("\n");
+}
+
+export function formatDeriveResult(r: DeriveResult, dryRun: boolean): string {
+  const lines: string[] = [];
+  if (dryRun) {
+    lines.push(`  dry-run: would write ${r.skippedDryRun.length} file(s):`);
+    for (const rel of r.skippedDryRun) lines.push(`    - ${rel}`);
+  } else {
+    lines.push(`  wrote ${r.written.length} file(s):`);
+    for (const rel of r.written) lines.push(`    - ${rel}`);
+  }
+  return lines.join("\n");
 }
 
 function main(): void {
   const options = parseArgs(process.argv.slice(2));
   const summary = summarizeCatalog(COMMAND_CATALOG, options);
   process.stdout.write(formatSummary(summary) + "\n");
+
+  const shouldRunMarkdown =
+    options.target === "markdown" || options.target === "all";
+  if (shouldRunMarkdown) {
+    process.stdout.write("\n[markdown]\n");
+    const result = deriveAllMarkdown(COMMAND_CATALOG, { dryRun: options.dryRun });
+    process.stdout.write(formatDeriveResult(result, options.dryRun) + "\n");
+  }
 }
 
 // Use pathToFileURL (repo idiom, matches ~50 other entry scripts). It handles

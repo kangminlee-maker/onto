@@ -21,12 +21,12 @@
 const MD_MARKER_PREFIX =
   "<!-- GENERATED from ";
 const MD_MARKER_SUFFIX_TEMPLATE =
-  ". Edit catalog or template, then run `npm run generate:catalog`. catalog-hash=";
+  ". Edit catalog or template, then run `npm run generate:catalog`. derive-hash=";
 const MD_MARKER_TRAILING = " -->";
 
 const TS_SEGMENT_START_PREFIX =
   "// >>> GENERATED FROM CATALOG — do not edit; edit ";
-const TS_SEGMENT_START_SUFFIX_TEMPLATE = " instead. catalog-hash=";
+const TS_SEGMENT_START_SUFFIX_TEMPLATE = " instead. derive-hash=";
 const TS_SEGMENT_END = "// <<< END GENERATED";
 
 function buildMarkdownMarker(sourcePath: string, catalogHash: string): string {

@@ -1,5 +1,3 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=a08ac5b2f77f21c7624c5f387c6f3cef802220c341a94c50d4b56d1e9ed636f5 -->
-
 # Onto Review (9-Lens Review + Synthesize)
 
 Reviews $ARGUMENTS with the 9-lens review structure and a separate synthesize stage.

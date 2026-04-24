@@ -21,6 +21,7 @@
  * NOT registered as a RuntimeScriptEntry in the catalog.
  */
 
+import { pathToFileURL } from "node:url";
 import { COMMAND_CATALOG } from "../src/core-runtime/cli/command-catalog.js";
 import { getNormalizedInvocationSet } from "../src/core-runtime/cli/command-catalog-helpers.js";
 import type { CommandCatalog } from "../src/core-runtime/cli/command-catalog.js";
@@ -111,11 +112,14 @@ function main(): void {
   process.stdout.write(formatSummary(summary) + "\n");
 }
 
+// Use pathToFileURL (repo idiom, matches ~50 other entry scripts). It handles
+// Windows drive letters, UNC paths, and URL-reserved characters (#, %) that
+// a bare `new URL("file://" + path)` would mis-parse.
 const invokedDirectly =
   typeof process !== "undefined" &&
   Array.isArray(process.argv) &&
   process.argv[1] !== undefined &&
-  import.meta.url === new URL(`file://${process.argv[1]}`).href;
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (invokedDirectly) {
   try {

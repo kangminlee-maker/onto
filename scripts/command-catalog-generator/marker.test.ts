@@ -46,6 +46,18 @@ describe("wrapMarkdownMarker + extractMarkdownMarker", () => {
   it("extract returns null when marker is malformed", () => {
     expect(extractMarkdownMarker("<!-- GENERATED but nope -->\nbody")).toBeNull();
   });
+
+  it("tolerates CRLF-encoded files (bug_006 regression)", () => {
+    const body = "# review\n\nbody\n";
+    const lf = wrapMarkdownMarker(body, SRC, HASH);
+    const crlf = lf.replace(/\n/g, "\r\n");
+    const info = extractMarkdownMarker(crlf);
+    expect(info).not.toBeNull();
+    expect(info!.sourcePath).toBe(SRC);
+    expect(info!.catalogHash).toBe(HASH);
+    // Body bytes remain CRLF — only the marker line is normalized.
+    expect(info!.body.startsWith("# review")).toBe(true);
+  });
 });
 
 describe("wrapTypeScriptSegmentMarker + extractTypeScriptSegment", () => {
@@ -91,5 +103,24 @@ describe("wrapTypeScriptSegmentMarker + extractTypeScriptSegment", () => {
       HASH +
       "\nbody without terminator\n";
     expect(extractTypeScriptSegment(start)).toBeNull();
+  });
+
+  it("preserves body that contains the literal end sentinel (bug_002 regression)", () => {
+    const body =
+      'const MARKER_DOC = "catalog-derived regions end with // <<< END GENERATED";';
+    const wrapped = wrapTypeScriptSegmentMarker(body, SRC, HASH);
+    const info = extractTypeScriptSegment(wrapped);
+    expect(info).not.toBeNull();
+    expect(info!.body).toBe(body);
+  });
+
+  it("tolerates CRLF-encoded segments (bug_006 regression)", () => {
+    const body = "const X = 1;";
+    const lf = wrapTypeScriptSegmentMarker(body, SRC, HASH);
+    const crlf = lf.replace(/\n/g, "\r\n");
+    const info = extractTypeScriptSegment(crlf);
+    expect(info).not.toBeNull();
+    expect(info!.sourcePath).toBe(SRC);
+    expect(info!.catalogHash).toBe(HASH);
   });
 });

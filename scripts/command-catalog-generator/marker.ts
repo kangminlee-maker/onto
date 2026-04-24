@@ -76,7 +76,9 @@ export function extractMarkdownMarker(
 ): MarkdownMarkerInfo | null {
   const firstNewline = fileContent.indexOf("\n");
   if (firstNewline < 0) return null;
-  const firstLine = fileContent.slice(0, firstNewline);
+  // Strip a trailing \r so CRLF-encoded files (e.g., Windows checkouts with
+  // core.autocrlf=true) are not misclassified as malformed.
+  const firstLine = fileContent.slice(0, firstNewline).replace(/\r$/, "");
   if (!firstLine.startsWith(MD_MARKER_PREFIX)) return null;
   if (!firstLine.endsWith(MD_MARKER_TRAILING)) return null;
   const hashIdx = firstLine.indexOf(MD_MARKER_SUFFIX_TEMPLATE);
@@ -86,9 +88,16 @@ export function extractMarkdownMarker(
     hashIdx + MD_MARKER_SUFFIX_TEMPLATE.length,
     firstLine.length - MD_MARKER_TRAILING.length,
   );
-  // Skip the blank line that wrap inserts, if present.
+  // Skip the blank line that wrap inserts, if present (handle both LF and CRLF).
   let bodyStart = firstNewline + 1;
-  if (fileContent[bodyStart] === "\n") bodyStart += 1;
+  if (fileContent[bodyStart] === "\n") {
+    bodyStart += 1;
+  } else if (
+    fileContent[bodyStart] === "\r" &&
+    fileContent[bodyStart + 1] === "\n"
+  ) {
+    bodyStart += 2;
+  }
   return {
     sourcePath,
     catalogHash,
@@ -113,16 +122,23 @@ export function extractTypeScriptSegment(
   if (startIdx < 0) return null;
   const startLineEnd = fileContent.indexOf("\n", startIdx);
   if (startLineEnd < 0) return null;
-  const startLine = fileContent.slice(startIdx, startLineEnd);
+  // Strip a trailing \r so the catalogHash slice does not absorb it under CRLF.
+  const startLine = fileContent
+    .slice(startIdx, startLineEnd)
+    .replace(/\r$/, "");
   const hashIdx = startLine.indexOf(TS_SEGMENT_START_SUFFIX_TEMPLATE);
   if (hashIdx < 0) return null;
   const sourcePath = startLine.slice(TS_SEGMENT_START_PREFIX.length, hashIdx);
   const catalogHash = startLine.slice(
     hashIdx + TS_SEGMENT_START_SUFFIX_TEMPLATE.length,
   );
-  const endIdx = fileContent.indexOf(TS_SEGMENT_END, startLineEnd + 1);
-  if (endIdx < 0) return null;
-  const bodyRaw = fileContent.slice(startLineEnd + 1, endIdx);
+  // Line-anchor the end marker: require a preceding newline so the sentinel
+  // cannot match when it appears as a substring inside the body (e.g., a
+  // string literal or doc comment documenting the marker convention).
+  const endAnchor = "\n" + TS_SEGMENT_END;
+  const endAnchorIdx = fileContent.indexOf(endAnchor, startLineEnd);
+  if (endAnchorIdx < 0) return null;
+  const bodyRaw = fileContent.slice(startLineEnd + 1, endAnchorIdx + 1);
   const body = bodyRaw.endsWith("\n") ? bodyRaw.slice(0, -1) : bodyRaw;
   return { sourcePath, catalogHash, body };
 }

@@ -1333,9 +1333,11 @@ When the exploration loop terminates, finalization is performed in 4 steps. No s
    - Output: `aspect_totals` (global dictionary `{aspect_value: count}`): for each fact across all wip.yml elements, count occurrences by `fact.observation_aspect`. Phase 3 renders one row per aspect value present in this dictionary (dynamically — forward-compatible for new aspect values).
 ```
 
-#### Step 2: Focused lens queries (2a and 2b run in parallel, after Step 1 completes)
+#### Step 2: Focused lens queries + Hook γ (2a / 2b / 2c run in parallel, after Step 1 completes)
 
-These are focused lens queries per the "Focused Lens Query Protocol" above. The team lead dispatches each query as a fresh-context agent.
+<!-- canonical-mirror-of: step-3-rationale-reviewer §6.2 -->
+
+These are focused lens queries per the "Focused Lens Query Protocol" above (2a / 2b) plus Hook γ Rationale Reviewer dispatch (2c, v1 신규). The team lead dispatches each query as a fresh-context agent.
 
 **2a. Semantics lens — ubiquitous language cleanup**:
 
@@ -1357,6 +1359,68 @@ For each module, assess:
 - Or was this module intentionally low-priority given the system's domain?
 - Output: list of modules classified as "gap" or "acceptable_skip" with rationale
 ```
+
+**2c. Rationale Reviewer (Hook γ — v1 신규)**:
+
+Reviews `intent_inference` populated by Hook α in Stage 1 → 2 transition (§1.3.2 step 5d). Detects under-claim / over-claim / scope misclassification / pack-incompleteness in Proposer rationales. Role spec: `.onto/roles/rationale-reviewer.md` (Track B W-A-87 promotion). Full protocol: Step 3 §2~§7.
+
+##### Step 2c State Machine (`meta.step2c_review_state`)
+
+| State | Meaning | Resumption |
+|---|---|---|
+| `pre_gamma` | Phase 2 Step 1 finalize 후, Step 2 dispatch 진입 전 | Step 2 재진입 |
+| `gamma_skipped` | `inference_mode == none` OR `stage_transition_state ∈ {alpha_skipped, alpha_failed_continued_v0}` — Reviewer skip (intent_inference 없는 상태 review 무의미) | Step 3 직행 |
+| `gamma_in_progress` | Reviewer spawn 직전 ~ directive apply 직전 | Step 2 재진입 |
+| `gamma_completed` | Step 4b 에서 directive atomic apply 완료 | Phase 3 진입 |
+| `gamma_failed_retry_pending` | Full failure, Principal retry 응답 대기 | Step 2 재진입 (응답 후) |
+| `gamma_failed_continued_degraded` | Retry 실패 + Principal `[d] Continue with degraded` 선택 — `proposed` element 전수 Phase 3 escalate, raw.yml `rationale_review_degraded: true` 기록 | Phase 3 진입 |
+| `gamma_failed_aborted` | Retry 실패 + Principal `[a] Abort` — Phase 2 차단, wip.yml Stage 2 완료 상태 보존, `meta.stage = 2` 유지. 재시작 시 Phase 2 Step 2 부터 re-enter 가능 | 세션 종료 (Principal 재실행 결정 필요) |
+
+`meta.step2c_review_retry_count` (one-shot retry persistence, `≤ 1` bound): Step 2 §6.2 `stage_transition_retry_count` 와 동형. `gamma_completed` / `gamma_skipped` 도달 시 0 reset, `gamma_failed_*` 시 reset 하지 않음 (다음 재진입에 이전 retry 소비 이력 유지).
+
+##### Step 2c flow (parallel with 2a/2b, apply at Step 4b)
+
+1. **2c-precondition** check:
+   - `inference_mode == "none"` → `meta.step2c_review_state = "gamma_skipped"` (2a/2b 만 진행, 2c 미실행)
+   - `stage_transition_state ∈ {alpha_skipped, alpha_failed_continued_v0}` → `meta.step2c_review_state = "gamma_skipped"` (intent_inference 없음)
+   - `inference_mode ∈ {full, degraded}` AND `stage_transition_state == "alpha_completed"` → 2c dispatch 진행
+
+2. **2c-spawn**: `meta.step2c_review_state = "gamma_in_progress"` + fsync. Team lead spawns Rationale Reviewer (fresh agent, mirroring Axiology Adjudicator + Proposer pattern):
+   - Input package per Step 3 §2.1 (wip.yml 전수 + Step 2 결과 + manifest + provenance pair)
+   - Prompt = Step 3 §4 template + input package
+   - `wip_snapshot_hash` 계산 + 주입 (§3.7.1)
+
+3. **2c-directive 수신**:
+   - Schema validation per Step 3 §3.8 reject 1~12, §3.8.1 downgrade D1~D3
+   - Reject → §7.1 full failure (`meta.step2c_review_state = "gamma_failed_retry_pending"`)
+   - Downgrade → warning log + directive 보관 (apply 는 Step 4b 에서)
+
+4. **Step 2 완료 gate** (2a/2b/2c 병렬 수집 대기): 모두 directive 수신 (또는 skip 결정) 시 Step 3 진행. 2c 가 `gamma_failed_retry_pending` 시 Principal response 수신까지 대기. `gamma_failed_continued_degraded` 또는 `gamma_skipped` 시 2c directive empty 로 간주하여 Step 3 진행.
+
+5. **Step 3 (Axiology Adjudicator)** 통상 진행.
+
+6. **Step 4a (Synthesize)** — 2a/2b/2c/3 directives 를 단일 finalization directive 로 통합. `rationale_updates` 필드 신규 — 2c directive 의 updates[] 를 그대로 merge (Synthesize 는 semantic 변형 금지).
+
+7. **Step 4b (Runtime atomic apply)**:
+   - `rationale_updates` 의 각 update 를 Step 3 §3.8 validation 재검증 (2c 수신 시점과 Step 4b 시점 사이 wip.yml 변경 감지 — `wip_snapshot_hash` 재검증, Step 3 §3.7.1)
+   - Apply per-operation (canonical detail 은 Step 3 §3.2~§3.6):
+     - `operation: confirm` → Step 3 §3.2 (existing rationale 명시 유지, `provenance.gate_count` 1 → 2 increment)
+     - `operation: revise` → Step 3 §3.3 (rationale 교체, gate_count increment)
+     - `operation: mark_domain_scope_miss` → Step 3 §3.4
+     - `operation: mark_domain_pack_incomplete` → Step 3 §3.5
+     - `operation: populate_stage2_rationale` → Step 3 §3.6 (Stage 2 신규 entity 의 rationale populate, gate_count 1 유지)
+   - Directive 에 없는 `element_id`: runtime 은 변경 없음 (`provenance.reviewed_at` null 유지 → "Reviewer 미판정" downstream interpretation)
+   - Atomic write (temp + rename)
+   - `meta.step2c_review_state = "gamma_completed"`
+   - `meta.step2c_review_retry_count = 0` (reset)
+
+##### Step 2c failure handling
+
+Step 3 §7.1 의 full failure 경로:
+- Runtime presents Principal with retry / `[d] Continue with degraded` / `[a] Abort` choice
+- Retry: `step2c_review_retry_count` increment to 1 (atomic fsync), Reviewer re-spawn
+- `[d]` 경로: `meta.step2c_review_state = "gamma_failed_continued_degraded"`, raw.yml `rationale_review_degraded = true` (Step 4 §4.1 mirror seat), `proposed` element 전수가 Phase 3 Principal 판정으로 escalate (Step 4 §2.4)
+- `[a]` 경로: `meta.step2c_review_state = "gamma_failed_aborted"`, 세션 종료
 
 #### Step 3: Axiology Adjudicator (fresh context)
 
@@ -1425,12 +1489,36 @@ After 4b, Runtime also prepares the Phase 3 Unresolved Conflicts table using the
 | 1 | {epsilon summary} | N | N |
 
 ### Ontology Elements — N items
-| # | Type | Name | Certainty | Identified Stage | Identified Round | Summary |
-|---|---|---|---|---|---|---|
+| # | Type | Name | Certainty | Stage | Round | Rationale | Confidence | Summary |
+|---|---|---|---|---|---|---|---|---|
 
-- `Identified Stage` = `added_in_stage` (1 for Stage-1 origination, 2 for Stage-2 supplemental discovery). Lets users see which elements were discovered during behavior exploration vs structural survey.
+<!-- canonical-mirror-of: step-4-integration §2.2 -->
 
-### User Decision Required Items
+- `Stage` = `added_in_stage` (1 for Stage-1 origination, 2 for Stage-2 supplemental discovery). Lets users see which elements were discovered during behavior exploration vs structural survey.
+- **`Rationale` column** (v1 신규, Step 4 §2.2 canonical) — display rule per `intent_inference.rationale_state`:
+  - `proposed` — `inferred_meaning` summary (1 sentence) + "(pending review)" suffix, gray
+  - `reviewed` — `inferred_meaning` summary (1 sentence), normal
+  - `principal_*` (terminal: `principal_accepted` / `principal_modified` / `principal_rejected` / `principal_accepted_gap` / `principal_deferred` / `principal_confirmed_scope_miss`) — terminal state label + Principal decision summary, normal (terminal-distinct icon per Step 4 §2.2.1)
+  - `gap` — "(추론 실패)", red
+  - `domain_pack_incomplete` — "(pack 에 개념 부재)", yellow
+  - `domain_scope_miss` — "(도메인 범위 밖)" + override 가능 hint, gray (pre-Phase-3.5)
+  - `empty` — "—" (rationale 부재 canonical marker, Stage 2 Explorer 추가 entity)
+  - `carry_forward` — "(이전 세션 미판정)" + re-judgment hint, gray
+- **Single-gate badge** (Step 4 §2.3) — `provenance.gate_count == 1` element 에 "Single-gate (audit only)" yellow badge suffix (Hook γ 미개입 또는 `populate_stage2_rationale`-origin 의 quality-asymmetry audit signal).
+
+### User Decision Required Items (individual + grouped)
+
+<!-- canonical-mirror-of: step-4-integration §2.5 §2.6 §2.8 -->
+
+**Hook δ throttling + rendering** (Step 4 §2.5 canonical) — `intent_inference.rationale_state` terminal-pending element 에 priority score + 4-bucket exhaustive partition:
+- `individual` (priority top `max_individual_items` + grouping_threshold 미달 residual, hard cap 보존)
+- `group_sample` / `group_truncated` (same group within `max_group_rows` cap)
+- `throttled_out` (hard cap 초과 — `rationale-queue.yaml` 전수 audit)
+
+config defaults: `max_individual_items: 20` / `grouping_threshold: 5` / `group_summary_sample_count: 3` / `max_individual_items_hard_cap: 100` / `max_group_rows: 50`. Full algorithm + grouping key canonical table (`pack_missing_area` / `rationale_state` / `rationale_state_with_confidence` / `rationale_state_single_gate`) + priority formula + `rationale-queue.yaml` artifact schema: Step 4 §2.5~§2.8.
+
+**Row-level render decision** triple-read (Step 4 §2.8 canonical): `(reviewed_at, rationale_review_degraded, rationale_state)` minimum-sufficient disambiguation set.
+
 | # | Element | Certainty | Decision Question | Inference Quality (inferred only) |
 |---|---|---|---|---|
 
@@ -1438,6 +1526,8 @@ After 4b, Runtime also prepares the Phase 3 Unresolved Conflicts table using the
 - `inferred` items: sorted by inference quality (explanatory_power, coherence) — lower quality inferences are priority confirmation targets
 - `ambiguous` items: "Multiple interpretations are possible. Please choose" + each interpretation option with rationale
 - `not-in-source` items: "Cannot be confirmed from this source. Please provide the information"
+
+**v1 rationale states**: rendered per Step 4 §3.1 action-first canonical matrix — `accept` / `reject` / `modify` / `defer` / `provide_rationale` / `mark_acceptable_gap` / `override` action set per source state (UI disabled rules per Step 4 §3.3 `governed subject` derived view). Batch action vocabulary single enum (Step 4 §3.4): `{accept, reject, defer, mark_acceptable_gap}` (UI alias `_all` suffix not persisted).
 
 ### Unresolved Conflicts — N items (if any)
 | # | Priority | Kind | Subject | Position A (priority) | Position B (priority) | Unresolved Since |
@@ -1478,7 +1568,11 @@ No implicit timeout or silent-promotion occurs — user authority over the Phase
 
 ### Phase 3.5: User Decision Write-back (Runtime Coordinator)
 
-After the user responds to Phase 3, Runtime Coordinator applies the user decisions to wip.yml before Phase 4 Save:
+<!-- canonical-mirror-of: step-4-integration §3 -->
+
+After the user responds to Phase 3, Runtime Coordinator applies the user decisions to wip.yml before Phase 4 Save. **Runtime sole-writer** — LLM 불개입 (Step 4 §3.8 canonical).
+
+**v1 step sequencing** (Step 4 §3.5 canonical, atomic single fsync at step 5):
 
 1. **Unresolved conflicts table** — for each row:
    - If user selects **Position A** or **Position B**: update the corresponding `conflict` issue to `resolution: resolved`, record which position was chosen in `resolved_position: position_a | position_b`, and apply the chosen label to the target element via an `update` patch (no element mutation for epsilon conflicts — they do not correspond to elements).
@@ -1486,23 +1580,50 @@ After the user responds to Phase 3, Runtime Coordinator applies the user decisio
    - If user **defers** (explicit `defer` response or if the conflict is unaddressed when the user replies `confirmed` globally): update the `conflict` issue to `resolution: user_deferred` and leave the target element in its pre-confirmation state.
    - If user's response is **ambiguous or does not match any of the above patterns** (e.g., "kind of A and B combined", "A for subject X but B for Y", free-form note not clearly identifying a position): Runtime treats it as `user_resolved` with the raw reply preserved in `resolution_text`. The target element is NOT mutated. This default preserves the user's intent without silent misclassification as a specific position. Runtime may optionally log the ambiguity for post-reconstruct review.
 
-2. **User Decision Required Items (certainty-based)** — for each row:
+**1.5 Rationale decisions validation** (v1 신규, Step 4 §3.5.1 canonical):
+   - Schema validation per Step 4 §3.6 schema (rationale_decisions[] + batch_actions[])
+   - Target existence + source state currency vs **render-time snapshot** (`.onto/builds/{session}/phase3-snapshot.yml`, Step 4 §3.5.1 rule 3)
+   - Action × source state compat (Step 4 §3.3 derived from §3.1 matrix)
+   - Batch exact-match (4 grouping kinds — `pack_missing_area` / `rationale_state` / `rationale_state_with_confidence` / `rationale_state_single_gate`)
+   - `principal_provided_rationale` 필수 필드 (action ∈ {modify, provide_rationale, override})
+   - `"see below"` pending coverage (`global_reply == "see below"` 시 미-address pending 1+ → `phase_3_5_input_incomplete`. `domain_scope_miss` exception — Step 4 §3.2)
+   - Fail → all-or-nothing reject, `phase_3_5_input_invalid` halt + Phase 3 re-prompt (v0 invariant)
+
+**2. Rationale decisions apply** (v1 신규, Step 4 §3.5 + §3.1 action-first canonical matrix):
+   - `rationale_decisions[]` (individual) → terminal state per §3.1 action × source mapping (canonical: `accept` / `reject` / `modify` / `defer` / `provide_rationale` / `mark_acceptable_gap` / `override`; terminal: `principal_accepted` / `principal_rejected` / `principal_modified` / `principal_accepted_gap` / `principal_deferred` / `principal_confirmed_scope_miss`)
+   - `batch_actions[]` (group, single enum: `{accept, reject, defer, mark_acceptable_gap}`) → 동일 write path
+   - `principal_provided_rationale` populate (modify / provide_rationale / override 만)
+   - `provenance.principal_judged_at` populate (Step 4 §4.3 element-level single seat)
+   - 두 list 동일 element_id 시 individual 우선 (Step 4 §3.6 rule 3)
+   - `domain_scope_miss` accept terminal split: `principal_confirmed_scope_miss` (v1 신규, Step 4 §3.2)
+
+3. **User Decision Required Items (certainty-based)** — for each row:
    - If user confirms the proposed action: update the element's `certainty` and note the rationale in `user_confirmed_rationale`.
    - If user rejects or defers: update the element with `user_decision: deferred` and leave certainty unchanged.
 
-3. **Other user adjustments** (type changes, name corrections, etc. from Phase 3 global response): recorded as direct patches to wip.yml elements with `source: user_decision_phase3`.
+4. **Other user adjustments** (type changes, name corrections, etc. from Phase 3 global response): recorded as direct patches to wip.yml elements with `source: user_decision_phase3`.
 
-4. **Atomicity and crash safety**:
-   - Runtime applies all steps 1-3 as a single atomic wip.yml write (temp file + rename, or equivalent). Partial application is not exposed: either the full user-decision write-back is reflected in wip.yml or none of it is.
-   - If Runtime crashes mid-Phase-3.5, re-execution reads the pre-3.5 wip.yml and re-applies all decisions from the preserved Phase 3 response log (persisted as `meta.phase3_user_responses` in wip.yml — written once at Phase 3 response receipt, before step 1 of Phase 3.5). Phase 3.5 is **idempotent**: re-running with the same `phase3_user_responses` produces identical wip.yml state.
+5. **Atomicity and crash safety** (Step 4 §3.5 step 5 확장):
+   - Runtime applies all steps **1 + 1.5 + 2 + 3 + 4 + 8** as a single atomic wip.yml write (temp file + rename, or equivalent). Partial application is not exposed: either the full user-decision write-back is reflected in wip.yml or none of it is.
+   - If Runtime crashes mid-Phase-3.5, re-execution reads the pre-3.5 wip.yml and re-applies all decisions from the preserved Phase 3 response log (persisted as `meta.phase3_user_responses` in wip.yml — written once at Phase 3 response receipt, before step 1). Phase 3.5 is **idempotent**: re-running with the same `phase3_user_responses` produces identical wip.yml state.
 
-5. **Invariants after Phase 3.5**:
-   - No element has `certainty: pending` (all resolved to a concrete level, or promoted to `not-in-source` per step 3.5 below).
+6. **Invariants after Phase 3.5**:
+   - No element has `certainty: pending` (all resolved to a concrete level, or promoted to `not-in-source` per step 7 below).
    - All conflict issues have `resolution ∈ {resolved, user_resolved, user_deferred}` (no `pending`).
+   - **All `intent_inference.rationale_state` are terminal** (Step 4 §3.8.1 — 8 terminal: `principal_*` 6 + `carry_forward` + `domain_scope_miss` 미판정 유지). Intra-Phase-3.5 state (`reviewed` / `proposed` / `gap` / `domain_pack_incomplete` / `empty`) 잔존 = Runtime defect.
 
-6. **Pending-certainty promotion (final pass)**:
-   - For any element still at `certainty: pending` after steps 1-3 (e.g., deferred certainty decisions, unaddressed pending from earlier rounds): promote to `not-in-source`, preserve the prior level in `pre_defer_certainty` for provenance, and mark with `user_decision: promoted_on_defer`.
-   - This ensures invariant 5 holds unconditionally.
+7. **Pending-certainty promotion (final pass)**:
+   - For any element still at `certainty: pending` after steps 1-4 (e.g., deferred certainty decisions, unaddressed pending from earlier rounds): promote to `not-in-source`, preserve the prior level in `pre_defer_certainty` for provenance, and mark with `user_decision: promoted_on_defer`.
+   - This ensures invariant 6 holds unconditionally for `certainty`. `rationale_state` invariant (8 terminal) is enforced by step 8 sweep.
+
+**8. carry_forward sweep** (v1 신규, Step 4 §3.5.2 canonical):
+   - For each element with intra-Phase-3.5 `rationale_state ∈ {reviewed, proposed, gap, domain_pack_incomplete, empty}` AND `element_id` NOT in (rationale_decisions ∪ batch_actions) AND `global_reply == "confirmed"`:
+     - Capture `original_state = rationale_state` first (overwrite-before-capture bug 방지)
+     - Write order: `provenance.carry_forward_from = original_state` → `provenance.principal_judged_at = null` → `rationale_state = "carry_forward"`
+   - 제외 source states: `domain_scope_miss` (§3.2 special case 미판정 유지) / `carry_forward` (이전 reconstruct 의 이중 carry 금지) / `principal_*` (이미 per-item action 대상)
+   - `provenance.carry_forward_from_schema_version: "rationale_state/1.0"` (Step 4 §4.3 — 차기 reconstruct 의 Layer B bridge re-judgment migration rule 선택 input)
+
+**`global_reply` enum** (Step 4 §3.6 + r5 canonical): `"confirmed" | "see below"` only (`"other"` v1 enum 제거, free-form 은 `phase_3_5_input_invalid`). `"confirmed"` semantic = "본 세션 Phase 3 마감 + 미판정 element 는 carry_forward 로 차기 reconstruct 에 넘김" (semantic approval 아님 — Step 4 §3.6 documentation).
 
 ---
 
@@ -1522,9 +1643,12 @@ For the specific format of each schema, refer to the corresponding golden exampl
 
 **Common meta header** (identical across all schemas):
 
+<!-- canonical-mirror-of: step-4-integration §4.1 §4.2 -->
+
 ```yaml
 # Raw Ontology — generated via integral exploration
 meta:
+  # v0 baseline:
   schema: ./schema.yml
   source_type: {code | spreadsheet | database | document | mixed}
   domain: {domain}
@@ -1534,7 +1658,53 @@ meta:
   convergence: converged | max_rounds_reached
   unexplored_directions: [{unexplored areas — when max_rounds_reached}]
   agents: [explorer, {lens list}, synthesize]
+
+  # v1 extension (Step 4 §4.1 canonical) — intent_inference mode (session level):
+  inference_mode: full | degraded | none
+  degraded_reason: pack_optional_missing | pack_quality_floor | pack_tier_minimal | null
+  fallback_reason: user_flag | principal_confirmed_no_domain | proposer_failure_downgraded | null
+  domain_quality_tier: full | partial | minimal | null    # populate when inference_mode ∈ {full, degraded}
+
+  # v1 — manifest pair (Step 1 §6.2):
+  manifest_schema_version: string | null                  # e.g. "1.0"
+  domain_manifest_version: string | null                  # manifest.domain_manifest_version
+  domain_manifest_hash: string | null                     # manifest.version_hash
+  manifest_recovery_from_malformed: boolean               # manifest.recovery_from_malformed mirror (audit signal)
+
+  # v1 — γ review session-level summary (Step 3 §7):
+  rationale_review_degraded: boolean
+  rationale_reviewer_failures_streak: integer
+  rationale_reviewer_contract_version: string | null
+  rationale_proposer_contract_version: string | null
+
+  # v1 — pack-level aggregation (Step 2 §6.3.1, narrowed):
+  pack_missing_areas:
+    - grouping_key:
+        manifest_ref: string
+        heading: string
+      element_ids: array of string
+
+  # v1 — γ review artifact provenance:
+  step2c_review_state: completed | partial | degraded | aborted | null
+  step2c_review_retry_count: integer | null
+
+  # v0 baseline (extended schema §3.6):
+  phase3_user_responses:
+    received_at: string
+    global_reply: "confirmed" | "see below"               # v1 enum restrict (Step 4 §3.6)
+    rationale_decisions: [...]                            # v1 신규 (Step 4 §3.6)
+    batch_actions: [...]                                  # v1 신규
+    conflict_decisions: [...]
+    certainty_decisions: [...]
+    other_adjustments: [...]
 ```
+
+**Mutual exclusion + co-occurrence matrix** (Step 4 §4.2 canonical, runtime validation on raw.yml write):
+- `inference_mode == full` → `degraded_reason / fallback_reason IS NULL`, `domain_quality_tier == 'full'`
+- `inference_mode == degraded` → `degraded_reason IS NOT NULL`, `fallback_reason IS NULL`, `domain_quality_tier == manifest.quality_tier` (1:1 mirror)
+- `inference_mode == degraded AND degraded_reason == 'pack_optional_missing'` → `domain_quality_tier ∈ {full, partial}` (minimal 금지 — `pack_tier_minimal` precedence)
+- `inference_mode == none` → `degraded_reason IS NULL`, `fallback_reason IS NOT NULL`, `domain_quality_tier IS NULL`, `rationale_review_degraded == false`
+- 위반 시 `raw_yml_meta_invariant_violation` halt (Step 4 §4.2)
 
 **Schema C default format** (when Schema C is selected, or as reference for custom schemas):
 
@@ -1554,6 +1724,38 @@ elements:
       locations: [{source locations}]
       deltas: [{delta IDs}]
     details: {}
+
+    # v1 intent_inference block (Step 4 §4.3 canonical) — populated when
+    # inference_mode ∈ {full, degraded}. omit when inference_mode == "none" (v0 호환).
+    intent_inference:
+      rationale_state: reviewed | proposed | gap | domain_pack_incomplete | domain_scope_miss | empty | carry_forward | principal_accepted | principal_modified | principal_rejected | principal_accepted_gap | principal_deferred | principal_confirmed_scope_miss
+        # intra-Phase-3.5: reviewed / proposed / gap / domain_pack_incomplete / domain_scope_miss / empty
+        # terminal (8): carry_forward / domain_scope_miss (미판정 유지) / principal_* (6)
+      inferred_meaning: string | null
+      justification: string | null
+      domain_refs: array | null
+      confidence: low | medium | high | null
+      state_reason: string | null
+      principal_provided_rationale: object | null         # populated when action ∈ {modify, provide_rationale, override}
+      principal_note: string | null
+      provenance:
+        # element-level provenance (single seat — gate_count + principal_judged_at + carry_forward_from)
+        proposed_at: string | null
+        proposed_by: string | null
+        proposer_contract_version: string | null
+        reviewed_at: string | null
+        reviewed_by: string | null
+        reviewer_contract_version: string | null
+        principal_judged_at: string | null                # Phase 3.5 step 2 single seat
+        gate_count: integer                               # v1 range {1, 2}, future-extensible
+        carry_forward_from: string | null                 # Phase 3.5 step 8 sweep capture, Layer B bridge
+        carry_forward_from_schema_version: string | null  # e.g. "rationale_state/1.0"
+        wip_snapshot_hash: string | null                  # Step 3 §3.7.1
+        domain_files_content_hash: string | null          # Step 3 §3.7.1
+        hash_algorithm: string | null                     # e.g. "sha256"
+        input_chunks: integer | null                      # v1 default 1
+        truncated_fields: array | null
+        effective_injected_files: array | null            # Step 2 §3.6
 
 relations:
   - id: {relation ID}

@@ -323,7 +323,7 @@ export async function appendMarkdownLogEntry(
 }
 
 export function readSingleOptionValueFromArgv(
-  argv: string[],
+  argv: readonly string[],
   optionName: string,
 ): string | undefined {
   const optionToken = `--${optionName}`;

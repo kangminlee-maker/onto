@@ -102,12 +102,16 @@ describe("Stage 2 — derive pipeline", () => {
     // Bootstrap / resnapshot branch (plan §D18/§D27). snapshotMode=true
     // downgrades D13 case (ii) so existing markerless files can be
     // overwritten with marker-prefixed versions.
-    it("UPDATE_SNAPSHOT=1 — writes markdown with snapshotMode=true (bootstrap)", () => {
+    it("UPDATE_SNAPSHOT=1 — materializes markdown with snapshotMode=true (bootstrap, idempotent)", () => {
+      // P1-3 idempotency parity: every emitted file is either freshly
+      // written (first bootstrap or after a catalog edit) or skipped as
+      // unchanged (rerun on a clean tree). Both states are healthy; only
+      // a deriver error or a missing emission set would be wrong.
       const result = deriveAllMarkdown(COMMAND_CATALOG, {
         snapshotMode: true,
         projectRoot: REPO_ROOT,
       });
-      expect(result.written.length).toBeGreaterThan(0);
+      expect(result.written.length + result.skippedUnchanged.length).toBeGreaterThan(0);
     });
   } else {
     it("default mode — byte-compare each emitted .md against committed file", () => {

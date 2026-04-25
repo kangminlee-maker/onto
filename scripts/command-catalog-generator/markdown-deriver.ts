@@ -49,9 +49,19 @@ export const DERIVE_SCHEMA_VERSION = "1";
 
 /** Plan §D13 v9 — the ONLY permitted catalog-backed-but-non-derived paths
  * under `.onto/commands/`. Any other markerless file under the scanned
- * directory fails closed. */
+ * directory fails closed.
+ *
+ * Admission criteria (P1-2b REC-7): a path enters this allowlist only when
+ * it is a hand-authored CLI contract document for a command whose runtime
+ * handler does not yet exist (so it cannot be a PublicEntry yet). The path
+ * must be removed from the list once the handler ships and the command is
+ * registered as a regular PublicEntry. */
 export const CATALOG_BACKED_NON_DERIVED_EXCEPTIONS: readonly string[] = [
   ".onto/commands/help.md",
+  // `onto domain init` — CLI contract authored in PR #219 (track-b W-A-81).
+  // Runtime handler not yet implemented; remove from allowlist when the
+  // command is added as a PublicEntry with a CliRealization.
+  ".onto/commands/domain-init.md",
 ];
 
 const MARKER_SOURCE_REF = "src/core-runtime/cli/command-catalog.ts";
@@ -302,6 +312,8 @@ export type DeriveAllOptions = {
 export type DeriveResult = {
   written: string[];
   skippedDryRun: string[];
+  /** Files whose existing bytes already matched the derived content (P1-3 idempotency). */
+  skippedUnchanged: string[];
   classification: ExistingFileClass[];
 };
 
@@ -375,17 +387,27 @@ export function deriveAllMarkdown(
 
   const written: string[] = [];
   const skippedDryRun: string[] = [];
+  const skippedUnchanged: string[] = [];
 
   if (dryRun) {
     for (const w of toWrite) skippedDryRun.push(w.rel);
-    return { written, skippedDryRun, classification };
+    return { written, skippedDryRun, skippedUnchanged, classification };
   }
 
   for (const w of toWrite) {
     const parentDir = path.dirname(w.absPath);
     if (!existsSync(parentDir)) mkdirSync(parentDir, { recursive: true });
+    // P1-3 idempotency parity (review §"5 target" claim): skip the write
+    // when the on-disk bytes already equal the derived content. The other
+    // four target emitters (dispatcher / preboot-dispatch / cli-help /
+    // package-scripts) use the same short-circuit; markdown was the
+    // outlier rewriting unconditionally.
+    if (existsSync(w.absPath) && readFileSync(w.absPath, "utf8") === w.content) {
+      skippedUnchanged.push(w.rel);
+      continue;
+    }
     writeFileSync(w.absPath, w.content, "utf8");
     written.push(w.rel);
   }
-  return { written, skippedDryRun, classification };
+  return { written, skippedDryRun, skippedUnchanged, classification };
 }

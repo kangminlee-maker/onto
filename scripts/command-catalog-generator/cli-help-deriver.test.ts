@@ -117,6 +117,44 @@ describe("Stage 1 — cli-help-deriver unit + determinism", () => {
     expect(mainIdx).toBeGreaterThan(segmentIdx);
   });
 
+  // P1-2c review (session 20260425-8e502229) UF-COVERAGE-CLI-BOOTSTRAP-MULTILINE
+  // — make the multi-line `import { ... } from "...";` shape an explicit
+  // regression fixture, since the splice heuristic was originally regex-based
+  // around `from "..."` line-end detection. P1-3 absorbs this deferred item.
+  it("spliceCliHelpSegment handles multi-line imports (regression for P1-2c UF-COVERAGE)", () => {
+    const original = [
+      `import { foo } from "bar";`,
+      "import {",
+      "  alpha,",
+      "  beta,",
+      "  gamma,",
+      `} from "multi-line-module";`,
+      `import sideEffect from "side";`,
+      "",
+      "export function main() {}",
+      "",
+    ].join("\n");
+    const segment = deriveCliHelpSegment(COMMAND_CATALOG);
+    const updated = spliceCliHelpSegment(original, segment, true);
+
+    // The multi-line import block must be preserved entirely (not chopped in
+    // the middle by the splice).
+    expect(updated).toContain("import {\n  alpha,\n  beta,\n  gamma,\n} from \"multi-line-module\";");
+    // The single-line side-effect import must also be preserved.
+    expect(updated).toContain(`import sideEffect from "side";`);
+    // The segment must land AFTER all three imports — including the multi-line
+    // one's closing line and the side-effect import that follows it.
+    const closingLineIdx = updated.indexOf(`} from "multi-line-module";`);
+    const sideEffectIdx = updated.indexOf(`import sideEffect from "side";`);
+    const segmentIdx = updated.indexOf("const ONTO_HELP_TEXT");
+    expect(closingLineIdx).toBeGreaterThan(0);
+    expect(sideEffectIdx).toBeGreaterThan(closingLineIdx);
+    expect(segmentIdx).toBeGreaterThan(sideEffectIdx);
+    // Function declaration still follows the segment.
+    const mainIdx = updated.indexOf("export function main()");
+    expect(mainIdx).toBeGreaterThan(segmentIdx);
+  });
+
   it("snapshotMode=true without UPDATE_SNAPSHOT=1 throws", () => {
     if (process.env.UPDATE_SNAPSHOT === "1") return;
     expect(() =>

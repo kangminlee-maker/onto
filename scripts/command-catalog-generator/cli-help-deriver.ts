@@ -106,11 +106,16 @@ export function buildHelpLines(catalog: CommandCatalog): string[] {
 /**
  * Render the segment body (a TS const declaration). Each help line is
  * JSON-stringified to handle quotes / backslashes safely.
+ *
+ * The const is `export`ed (P1-3) so `preboot-dispatch.ts` can import it
+ * when the catalog-derived dispatcher routes `--help`/`-h`/bare-onto to
+ * the preboot path. Direct invocation of cli.ts continues to use
+ * ONTO_HELP_TEXT locally as well.
  */
 export function renderHelpSegmentBody(catalog: CommandCatalog): string {
   const lines = buildHelpLines(catalog);
   const arrayLiterals = lines.map((line) => `  ${JSON.stringify(line)},`).join("\n");
-  return `const ONTO_HELP_TEXT = [\n${arrayLiterals}\n].join("\\n");\n`;
+  return `export const ONTO_HELP_TEXT = [\n${arrayLiterals}\n].join("\\n");\n`;
 }
 
 export function deriveCliHelpSegment(catalog: CommandCatalog): string {

@@ -17,9 +17,22 @@ import path from "node:path";
 import {
   CURRENT_CATALOG_VERSION,
   META_NAME_REGISTRY,
-  type CatalogEntry,
-  type CommandCatalog,
+} from "./catalog-meta.js";
+import type {
+  CatalogEntry,
+  CommandCatalog,
 } from "./command-catalog.js";
+
+// ---------------------------------------------------------------------------
+// Module-level constants — declared at the top so circular-import callers
+// (e.g., command-catalog.ts auto-validate on load) cannot hit a TDZ before
+// these initialize. P1-3 surfaced this when dispatcher.ts imported
+// `getNormalizedInvocationSet` which forced helpers.ts to evaluate, then
+// command-catalog.ts's bottom `validateCatalog(...)` ran while helpers.ts
+// was still in its imports — `MANAGED_TREE_RELATIVE` was uninitialized.
+// ---------------------------------------------------------------------------
+
+const MANAGED_TREE_RELATIVE = ".onto/commands/";
 
 // ---------------------------------------------------------------------------
 // DispatchTarget + NormalizedInvocationSet (design doc §4.7)
@@ -227,10 +240,12 @@ export function assertRuntimeScriptsReferenceExists(
 // ---------------------------------------------------------------------------
 
 function compareSemver(a: string, b: string): number {
-  const parts = (s: string): number[] =>
-    s.split(".").map((p) => Number.parseInt(p, 10));
-  const av = parts(a);
-  const bv = parts(b);
+  // Inlined `parts` to avoid an esbuild __name-helper edge case observed when
+  // dispatcher.ts (P1-3) imports this module via tsx — the named arrow form
+  // tripped `TypeError: __name is not a function` at runtime even though
+  // vitest's bundler handled it fine.
+  const av = a.split(".").map((p) => Number.parseInt(p, 10));
+  const bv = b.split(".").map((p) => Number.parseInt(p, 10));
   const len = Math.max(av.length, bv.length);
   for (let i = 0; i < len; i++) {
     const ai = av[i] ?? 0;
@@ -356,8 +371,6 @@ export function assertDocTemplateIdUnique(catalog: CommandCatalog): void {
 // ---------------------------------------------------------------------------
 // prompt_body_ref managed-tree containment (P1-2b plan §D25)
 // ---------------------------------------------------------------------------
-
-const MANAGED_TREE_RELATIVE = ".onto/commands/";
 
 /**
  * Asserts every SlashRealization's `prompt_body_ref` resolves inside

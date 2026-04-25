@@ -66,19 +66,30 @@ const userArgs = process.argv.slice(2);
 
 if (!tryDelegateToLocal(userArgs)) {
   // ---------------------------------------------------------------------------
-  // No local installation — run from this (global/development) binary
+  // No local installation — run from this (global/development) binary.
+  //
+  // P1-3 (catalog → CLI subcommand dispatch authority): the entry point is
+  // the catalog-derived `dispatcher.ts`. It routes by phase — preboot →
+  // preboot-dispatch.ts, post_boot → cli.ts main(). Slash invocations and
+  // `npm run` paths do not enter here. bin/onto stays Delegation/Handoff only.
   // ---------------------------------------------------------------------------
 
-  const distEntry = path.join(ontoRoot, "dist", "cli.js");
-  const srcEntry = path.join(ontoRoot, "src", "cli.ts");
+  const distDispatcher = path.join(ontoRoot, "dist", "core-runtime", "cli", "dispatcher.js");
+  const srcDispatcher = path.join(ontoRoot, "src", "core-runtime", "cli", "dispatcher.ts");
 
-  if (fs.existsSync(distEntry)) {
-    // Production: use compiled JS
-    await import(distEntry);
+  process.env.ONTO_HOME = process.env.ONTO_HOME ?? ontoRoot;
+
+  if (fs.existsSync(distDispatcher)) {
+    // Production: import the compiled dispatcher and call dispatch().
+    const { dispatch } = await import(distDispatcher);
+    const code = await dispatch(userArgs);
+    process.exit(code ?? 0);
   } else {
-    // Development: use tsx
+    // Development: spawn tsx with dispatcher.ts as the entry. The generated
+    // dispatcher.ts has an `import.meta.url`-gated auto-call that fires when
+    // it is the process entry, mirroring cli.ts's pattern.
     const tsxBin = path.join(ontoRoot, "node_modules", ".bin", "tsx");
-    const args = [srcEntry, ...userArgs];
+    const args = [srcDispatcher, ...userArgs];
     try {
       execSync(`"${tsxBin}" ${args.map(a => `"${a}"`).join(" ")}`, {
         stdio: "inherit",

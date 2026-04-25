@@ -1,9 +1,29 @@
 /**
- * Catalog hash — stable SHA-256 of the COMMAND_CATALOG's canonical JSON.
+ * Catalog hash utilities — stable SHA-256 over canonical-JSON inputs.
  *
- * Purpose (design doc §9.1): every derived artifact embeds this hash in its
- * GENERATED marker so CI drift check (P1-4) can verify that catalog + derived
- * were produced from the same snapshot. Determinism requirements:
+ * Two distinct hashes participate in the runtime/CI drift contract; both
+ * are derived from the catalog through this module but they cover
+ * different scopes:
+ *
+ *   1. **Per-entry derive hash** (`computeEntryDeriveHash`): inputs are a
+ *      single PublicEntry + that entry's `.md.template` content + the
+ *      deriver's schema version. Used by the markdown deriver — each
+ *      `.onto/commands/*.md` carries its own derive-hash marker.
+ *   2. **Target-scoped derive hash** (`computeTargetDeriveHash`): inputs
+ *      are a target-id label + the whole catalog + the deriver's schema
+ *      version. Used by the markered whole-file emitters (dispatcher.ts,
+ *      preboot-dispatch.ts) and the `src/cli.ts` help segment. Each
+ *      target's marker carries its OWN target-namespaced digest, NOT the
+ *      raw catalog hash.
+ *
+ * Operator-facing diagnostics call the embedded value a **target-scoped
+ * derive-hash**, never the catalog hash, because two emitters can produce
+ * two different markers from the same catalog snapshot.
+ *
+ * `computeCatalogHash` exists as a primitive for the catalog summary +
+ * future CI drift checks but is not currently embedded in any marker.
+ *
+ * Determinism requirements (apply to all three helpers):
  *
  *   - Object keys are emitted in sorted order so insertion order does not
  *     leak into the hash.

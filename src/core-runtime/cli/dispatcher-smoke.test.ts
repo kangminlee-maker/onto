@@ -122,4 +122,20 @@ describe("dispatcher smoke (P1-3)", () => {
     expect(r.stdout).toContain("next");
     expect(r.stdout).toContain("status");
   });
+
+  // P1-3 5th review (session 20260425-db4ba824) — close the dispatcher
+  // boundary regression by verifying that NORMALIZED-recognized but
+  // bin/onto-inadmissible invocations are rejected at dispatcher.ts, not
+  // forwarded into cli.ts main(). The 4th-pass commit (d46a9e8) added
+  // the rejection logic; this case is the standing regression guard.
+  it("slash invocation rejected at dispatcher boundary — bin/onto /onto:review → exit 1", () => {
+    const r = runOnto(["/onto:review"]);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("slash command");
+    expect(r.stderr).toContain("/onto:review");
+    // The error must not be the generic "Unknown subcommand" — that would
+    // mean dispatcher leaked the slash key downstream instead of rejecting
+    // at the boundary.
+    expect(r.stderr).not.toContain("Unknown subcommand");
+  });
 });

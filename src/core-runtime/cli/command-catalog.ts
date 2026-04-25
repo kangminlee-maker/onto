@@ -1,19 +1,43 @@
 /**
- * Command Catalog — migration evidence (Phase 1 P1-1a, 2026-04-23)
+ * Command Catalog — runtime authority (Phase 1 P1-3, 2026-04-25)
  *
- * Authority status: evidence only. Existing 5 surfaces (`.onto/commands/*.md`,
- * `package.json:scripts`, `src/cli.ts` switch, `.claude-plugin/plugin.json`,
- * `bin/onto`) remain authoritative until P1-3 dispatcher integration + P1-4
- * CI drift check activation.
+ * Authority status: **runtime authority**. The catalog-derived
+ * `dispatcher.ts` + `preboot-dispatch.ts` are now the live entry point —
+ * `bin/onto` imports `dispatch()` directly, and routes by phase:
+ *   - preboot → `preboot-dispatch.ts` (catalog-derived)
+ *   - post_boot → `cli.ts` `main()` (legacy handler switch preserved)
+ *
+ * Catalog edits cascade-invalidate the dispatcher / preboot-dispatch /
+ * markdown / cli help marker hashes. `assertCatalogHash()` at dispatcher load
+ * fails fast on stale derived (Activation Determinism Redesign §3.5).
+ * P1-4 will add the CI drift workflow that prevents un-regenerated catalog
+ * edits from landing on main.
  *
  * Design authority:
  *   `development-records/evolve/20260423-phase-1-catalog-ssot-design.md`
+ *   `development-records/evolve/20260423-activation-determinism-redesign.md`
  *
- * Sub-PR: P1-1a (types + helpers + minimal entries + tests).
- *   P1-1b will populate the full surface (16+ public + 33+ runtime scripts).
+ * Sub-PR ladder:
+ *   P1-1a/1b types + entries · P1-2a/b/c emitter trio · P1-3 (this) bin/onto
+ *   integration · P1-4 CI drift workflow (next).
  */
 
+import {
+  CATALOG_VERSION_HISTORY as _CATALOG_VERSION_HISTORY,
+  CURRENT_CATALOG_VERSION as _CURRENT_CATALOG_VERSION,
+  META_NAME_REGISTRY as _META_NAME_REGISTRY,
+  type RegisteredMetaName as _RegisteredMetaName,
+} from "./catalog-meta.js";
 import { validateCatalog } from "./command-catalog-helpers.js";
+
+// Re-export catalog metadata under their historical names so existing callers
+// that import these from `command-catalog.js` keep working. P1-3: moved to
+// `catalog-meta.ts` to break the circular value-import that caused TDZ in
+// dispatcher.ts (see catalog-meta.ts header).
+export const META_NAME_REGISTRY = _META_NAME_REGISTRY;
+export type RegisteredMetaName = _RegisteredMetaName;
+export const CURRENT_CATALOG_VERSION = _CURRENT_CATALOG_VERSION;
+export const CATALOG_VERSION_HISTORY = _CATALOG_VERSION_HISTORY;
 
 // ---------------------------------------------------------------------------
 // Type definitions (design doc §4.1)
@@ -95,22 +119,10 @@ export type CommandCatalog = {
 };
 
 // ---------------------------------------------------------------------------
-// Migration registry (design doc §4.5)
+// Migration registry (design doc §4.5) — see catalog-meta.ts for the
+// canonical declarations. They are re-exported above so existing imports
+// from `command-catalog.js` keep working unchanged.
 // ---------------------------------------------------------------------------
-
-export const META_NAME_REGISTRY = ["help", "version"] as const;
-export type RegisteredMetaName = (typeof META_NAME_REGISTRY)[number];
-
-export const CURRENT_CATALOG_VERSION = 1;
-
-export const CATALOG_VERSION_HISTORY = {
-  1: {
-    introduced_in: "0.3.0",
-    description:
-      "Initial catalog with three entry kinds (PublicEntry + RuntimeScriptEntry + MetaEntry).",
-    breaking_changes: [],
-  },
-} as const;
 
 // ---------------------------------------------------------------------------
 // Catalog declaration — P1-1b populated entries

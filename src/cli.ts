@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
+import { pathToFileURL } from "node:url";
 import { resolveOntoHome } from "./core-runtime/discovery/onto-home.js";
 import { resolveProjectRoot } from "./core-runtime/discovery/project-root.js";
 import {
@@ -15,7 +16,7 @@ import {
 } from "./core-runtime/review/review-artifact-utils.js";
 
 // >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=8c76847aedc1b5cf802f0491c1311e296cb1f261ecc4f5eed270148abe764827
-const ONTO_HELP_TEXT = [
+export const ONTO_HELP_TEXT = [
   "Usage: onto <subcommand> [options]",
   "",
   "Subcommands:",
@@ -686,10 +687,10 @@ function loadOntoEnvFile(filePath: string): void {
   }
 }
 
-async function main(): Promise<number> {
+export async function main(argvOverride?: readonly string[]): Promise<number> {
   await printOntoReleaseChannelNotice();
 
-  const argv = process.argv.slice(2);
+  const argv = argvOverride ?? process.argv.slice(2);
   const subcommand = argv[0];
   const subcommandArgv = argv.slice(1);
 
@@ -798,10 +799,21 @@ async function main(): Promise<number> {
   }
 }
 
-main().then(
-  (exitCode) => process.exit(exitCode),
-  (error: unknown) => {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  },
-);
+// Auto-run only when this module is the entry point (matches the repo idiom
+// used by every other tsx entry script). Importing this module from
+// dispatcher.ts / preboot-dispatch.ts no longer triggers main automatically.
+const invokedDirectly =
+  typeof process !== "undefined" &&
+  Array.isArray(process.argv) &&
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main().then(
+    (exitCode) => process.exit(exitCode),
+    (error: unknown) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    },
+  );
+}

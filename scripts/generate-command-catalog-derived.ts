@@ -48,18 +48,28 @@ import {
   deriveAllPackageScripts,
   type DerivePackageScriptsResult,
 } from "./command-catalog-generator/package-scripts-deriver.js";
+import {
+  deriveAllPrebootDispatch,
+  type DerivePrebootDispatchResult,
+} from "./command-catalog-generator/preboot-dispatch-deriver.js";
 import { listAvailableTemplates } from "./command-catalog-generator/template-loader.js";
 
 // Derive targets. `package-scripts` (not `scripts`) disambiguates from the
 // scripts/ directory and RuntimeScriptEntry surfaces that also carry the
 // word "scripts" in this subsystem.
-type DeriveTarget = "markdown" | "dispatcher" | "help" | "package-scripts";
+type DeriveTarget =
+  | "markdown"
+  | "dispatcher"
+  | "help"
+  | "package-scripts"
+  | "preboot-dispatch";
 type Target = DeriveTarget | "all";
 const DERIVE_TARGETS: readonly DeriveTarget[] = [
   "markdown",
   "dispatcher",
   "help",
   "package-scripts",
+  "preboot-dispatch",
 ];
 const VALID_TARGETS: readonly Target[] = [...DERIVE_TARGETS, "all"];
 
@@ -69,6 +79,7 @@ const DERIVE_TARGET_PHASE: Readonly<Record<DeriveTarget, string>> = {
   dispatcher: "P1-2c",
   help: "P1-2c",
   "package-scripts": "P1-2c",
+  "preboot-dispatch": "P1-3",
 };
 
 export type GeneratorOptions = {
@@ -125,6 +136,7 @@ const DERIVE_TARGET_CAPABILITY: Readonly<Record<DeriveTarget, DeriveTargetStatus
   dispatcher: "ready", // P1-2c shipped.
   help: "ready", // P1-2c shipped.
   "package-scripts": "ready", // P1-2c shipped.
+  "preboot-dispatch": "ready", // P1-3 shipped.
 };
 
 export function summarizeCatalog(
@@ -224,6 +236,13 @@ function formatPackageScriptsResult(
   return [head, ...drift].join("\n");
 }
 
+function formatPrebootDispatchResult(
+  r: DerivePrebootDispatchResult,
+  dryRun: boolean,
+): string {
+  return formatSingleFileResult(r.emissionPath, r.written, r.skippedDryRun, dryRun);
+}
+
 function main(): void {
   const options = parseArgs(process.argv.slice(2));
   const summary = summarizeCatalog(COMMAND_CATALOG, options);
@@ -276,6 +295,17 @@ function main(): void {
       projectRoot: repoRoot,
     });
     process.stdout.write(formatPackageScriptsResult(result, options.dryRun) + "\n");
+  }
+
+  const shouldRunPrebootDispatch =
+    options.target === "preboot-dispatch" || options.target === "all";
+  if (shouldRunPrebootDispatch) {
+    process.stdout.write("\n[preboot-dispatch]\n");
+    const result = deriveAllPrebootDispatch(COMMAND_CATALOG, {
+      dryRun: options.dryRun,
+      projectRoot: repoRoot,
+    });
+    process.stdout.write(formatPrebootDispatchResult(result, options.dryRun) + "\n");
   }
 }
 

@@ -31,6 +31,7 @@ describe("parseArgs", () => {
     expect(parseArgs(["--target=dispatcher"]).target).toBe("dispatcher");
     expect(parseArgs(["--target=help"]).target).toBe("help");
     expect(parseArgs(["--target=package-scripts"]).target).toBe("package-scripts");
+    expect(parseArgs(["--target=preboot-dispatch"]).target).toBe("preboot-dispatch");
     expect(parseArgs(["--target=all"]).target).toBe("all");
   });
 
@@ -79,13 +80,14 @@ describe("summarizeCatalog", () => {
     expect(s.normalizedInvocationCount).toBeGreaterThan(s.entryCounts.public);
   });
 
-  it("marks all 4 derive targets as ready (P1-2b + P1-2c shipped)", () => {
+  it("marks all 5 derive targets as ready (P1-2b + P1-2c + P1-3 shipped)", () => {
     const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: false, target: "all" });
     expect(s.deriveTargetStatus).toEqual({
       markdown: "ready",
       dispatcher: "ready",
       help: "ready",
       "package-scripts": "ready",
+      "preboot-dispatch": "ready",
     });
   });
 });
@@ -96,7 +98,7 @@ describe("formatSummary", () => {
     expect(formatSummary(s)).toMatch(/dry-run\s*: yes/);
   });
 
-  it("renders all 4 derive targets as ready (no pending suffix)", () => {
+  it("renders all 5 derive targets as ready (no pending suffix)", () => {
     const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: true, target: "all" });
     const out = formatSummary(s);
     expect(out).toMatch(/derive targets:/);
@@ -104,6 +106,7 @@ describe("formatSummary", () => {
     expect(out).toMatch(/dispatcher\s+: ready/);
     expect(out).toMatch(/help\s+: ready/);
     expect(out).toMatch(/package-scripts\s+: ready/);
+    expect(out).toMatch(/preboot-dispatch\s+: ready/);
     expect(out).not.toMatch(/pending/);
   });
 });

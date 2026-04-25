@@ -55,16 +55,27 @@ export function checkDeriveHash(args: {
 /**
  * Format a stderr-friendly message for the bypassed case. The dispatcher
  * still proceeds — this is only the human-readable warning.
+ *
+ * Operator-facing terminology uses **target-scoped derive-hash** (P1-3 4th
+ * review UF-SEMANTICS-DERIVE-HASH-DIAGNOSTIC). The hash is the per-target
+ * digest the deriver embedded in the marker, not the raw catalog hash.
  */
 export function formatBypassWarning(targetLabel: string, bypassEnvVar: string): string {
   return (
-    `[onto] WARNING: ${targetLabel} derive-hash mismatch — bypassed via ${bypassEnvVar}=1.\n`
+    `[onto] WARNING: ${targetLabel}: target-scoped derive-hash mismatch — bypassed via ${bypassEnvVar}=1.\n`
   );
 }
 
 /**
  * Format a stderr-friendly fail message for the mismatch case. The
  * dispatcher will then exit non-zero.
+ *
+ * Operator-facing terminology uses **target-scoped derive-hash** (P1-3 4th
+ * review UF-SEMANTICS-DERIVE-HASH-DIAGNOSTIC) so the message names the
+ * comparand correctly: it is the per-target digest the deriver embedded in
+ * the marker, not the raw catalog hash. The "actual" line says
+ * `recomputed` to make it clear the live value is computed at runtime,
+ * not read from the catalog file.
  */
 export function formatMismatchError(args: {
   targetLabel: string;
@@ -74,9 +85,10 @@ export function formatMismatchError(args: {
   bypassEnvVar: string;
 }): string {
   return (
-    `[onto] ${args.targetLabel} derive-hash mismatch (catalog edit not regenerated).\n` +
-    `  expected (marker): ${args.expected}\n` +
-    `  actual   (catalog): ${args.actual}\n` +
+    `[onto] ${args.targetLabel}: target-scoped derive-hash mismatch.\n` +
+    `  The committed ${args.targetLabel} was emitted from a different catalog state than the one currently loaded.\n` +
+    `  expected (marker):    ${args.expected}\n` +
+    `  actual   (recomputed): ${args.actual}\n` +
     `Resolution: ${args.regenCommand}\n` +
     `Bypass for dev workflow: ${args.bypassEnvVar}=1\n`
   );

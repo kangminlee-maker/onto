@@ -159,13 +159,29 @@ export async function dispatch(argv: readonly string[]): Promise<number> {
     );
     return 1;
   }
+  // Boundary: bin/onto admits only cli and meta invocations. NORMALIZED also
+  // contains slash and patterned_slash keys (used by markdown derive + the
+  // host's slash dispatcher), but these are not bin/onto subcommands and
+  // must be rejected explicitly here so the boundary is closed at the
+  // dispatcher rather than relying on a downstream cli.ts fallback.
+  if (
+    target.entry_kind === "public" &&
+    target.realization_kind !== "cli"
+  ) {
+    process.stderr.write(
+      \`[onto] "\${arg}" is a slash command, not a bin/onto subcommand. \` +
+        \`Invoke it as /onto:... inside Claude Code, or call its cli \` +
+        \`realization (if any) instead.\\n\`,
+    );
+    return 1;
+  }
   // MetaEntry (help/version) is always preboot by schema; route directly.
   // For bare-onto sentinel we forward the full argv (already empty by definition).
   if (target.entry_kind === "meta") {
     const { dispatchPreboot } = await import("./preboot-dispatch.js");
     return dispatchPreboot(arg, arg === BARE_ONTO_SENTINEL ? argv : argv.slice(1));
   }
-  // PublicEntry — phase derived from PHASE_MAP at emit time.
+  // PublicEntry cli realization — phase derived from PHASE_MAP at emit time.
   const phase = PHASE_MAP[arg] ?? "post_boot";
   if (phase === "preboot") {
     const { dispatchPreboot } = await import("./preboot-dispatch.js");

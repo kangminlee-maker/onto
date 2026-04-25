@@ -751,6 +751,9 @@ convergence_status:
 
 #### 1.3 Stage Transition
 
+<!-- canonical-mirror-of: step-2-rationale-proposer §6.2 -->
+<!-- canonical-mirror-of: step-1-flow-review §7.1 -->
+
 **When a Stage 1 missing Entity is discovered in Stage 2**:
 - The Explorer reports it as fact_type: entity (Stage fact_type scope exception).
 - The Runtime Coordinator adds it to wip.yml with added_in_stage: 2, note: "supplemental discovery in Stage 2".
@@ -766,32 +769,97 @@ Certainty of Stage 1 elements can change in Stage 2 via three policy classes. Op
 | Upgrade **to `observed`** (`pending → observed`, `inferred → observed`) | **Only via Explorer re-emission + Tier 1 exact match** | Lenses do not traverse the source (see Role Boundary). Requires a subsequent Explorer delta with a concrete source location; Runtime's dedup/merge logic detects the match **only via Tier 1 (normalized token multiset identity)** and upgrades `certainty`, appends to `source.locations`, records `certainty_upgraded_at_round` + `upgrade_source: explorer_reconfirmation` for provenance. **Tier 2 near-matches (Jaccard-flagged) do NOT trigger upgrade** — they create a new element and a `conflict` issue for Adjudicator resolution in a later round. This preserves Tier 1 as the sole deterministic identity gate |
 | Element **type change** (element_type) | Not allowed | If type change is needed, record in issues and present to user in Phase 3 |
 
+##### 1.3.1 Hook α State Machine (`meta.stage_transition_state`)
+
+Hook α (Rationale Proposer) is the v1 LLM call inserted between Stage 1 finalize and Stage 2 Round 0 to populate `intent_inference` for Stage 1's confirmed entities. The transition lifecycle is tracked by `meta.stage_transition_state`:
+
+| State | Meaning | Resumption |
+|---|---|---|
+| `pre_alpha` | Stage 1 finalize complete, Hook α not yet entered | Hook α re-entry possible |
+| `alpha_skipped` | `inference_mode == none` or `entity_list` empty — Hook α skipped, Stage 2 may proceed | Stage 2 exploration entry |
+| `alpha_in_progress` | Proposer spawn started, directive apply not yet complete | Hook α re-entry possible |
+| `alpha_completed` | Directive applied atomically, Stage 2 may proceed | Stage 2 exploration entry |
+| `alpha_failed_retry_pending` | Full failure occurred, awaiting Principal retry response | Hook α re-entry possible |
+| `alpha_failed_continued_v0` | Retry exhausted, Principal selected `[v] Switch to v0-only` — `intent_inference` not populated, `inference_mode` downgraded to `none` in raw.yml. `meta.stage` promoted to 2 | Stage 2 exploration entry |
+| `alpha_failed_aborted` | Retry exhausted, Principal selected `[a] Abort` — Stage 2 entry blocked, `meta.stage` retained at 1, wip.yml preserved | Session terminated; Principal must decide on re-execution (wip.yml inheritance choice) |
+
+`meta.stage_transition_retry_count` (one-shot retry persistence): atomically incremented to 1 with fsync when Principal selects retry after `alpha_failed_retry_pending`. Resumption-safe.
+
+##### 1.3.2 Stage 1 → Stage 2 Transition Flow (with Hook α)
+
 When Stage 1 terminates (convergence or maximum 5 rounds reached):
+
 1. The Runtime Coordinator finalizes Stage 1's wip.yml.
-2. Updates wip.yml's `meta.stage` to 2.
-3. The team lead delivers Stage 2 initial directives to the Explorer:
+2. Preserves Stage 1's module list as `meta.stage1_module_inventory` (original module list from Phase 0.5.1 / Round 0) and `meta.stage1_uncovered_modules` = stage1_module_inventory − modules with ≥1 fact after Stage 1.
+3. **Replaces** `meta.module_inventory` with the Entity list confirmed in Stage 1. From this point (determined by `meta.stage == 2`), `module_inventory` semantically means "Entities to cover with behavior facts."
+4. Sets `meta.stage_transition_state = "pre_alpha"` and `meta.stage_transition_retry_count = 0`. **`meta.stage` remains 1** until Hook α completes or skips successfully (Step 2 r2 fix — prevents half-complete state on Hook α failure).
 
-```
-[Stage 2 Initial Exploration Directive]
-Based on Entities identified in Stage 1, survey their behaviors:
-1. State transition rules for each Entity (value change conditions and triggers for state fields)
-2. Service/gateway methods → classify as command (state-changing) or query (read-only)
-3. Hardcoded business constants (policy_constant)
-4. Business flows between entities (flow)
+   **=== Hook α — Rationale Proposer (Step 2 §6.2) ===**
 
-[fact_type Scope]
-This is Stage 2. Focus on state_transition, command, query, policy_constant, flow.
+   5a. **v1 entry precondition check**:
+       - If `inference_mode == "none"` OR `entity_list.length == 0`:
+         - `meta.stage_transition_state = "alpha_skipped"`
+         - `meta.stage = 2`
+         - Skip to step 6 (Stage 2 exploration; Hook α not invoked)
+       - If `inference_mode ∈ {full, degraded}` AND `entity_list.length ≥ 1`:
+         - Proceed to 5b
 
-Reference Stage 1 wip.yml: {wip.yml path}
-```
+   5b. `meta.stage_transition_state = "alpha_in_progress"` + fsync (crash recovery).
+       Team lead spawns Rationale Proposer (fresh agent per invocation, mirroring Axiology Adjudicator pattern):
+       - Input package per Step 2 §2.1 (wip.yml elements + manifest + domain pack + config)
+       - Prompt = Step 2 §4 template + input package
+       - Role spec: `.onto/roles/rationale-proposer.md` (Track B W-A-86 promotion)
 
-4. Restart the integral loop from Stage 2's Round 0.
-5. At Stage transition, Runtime Coordinator:
-   - Preserves Stage 1's module list as `meta.stage1_module_inventory` (original module list from Phase 0.5.1 / Round 0).
-   - Preserves `meta.stage1_uncovered_modules` = stage1_module_inventory − modules with ≥1 fact after Stage 1.
-   - **Replaces** `meta.module_inventory` with the Entity list confirmed in Stage 1. From this point (determined by `meta.stage == 2`), `module_inventory` semantically means "Entities to cover with behavior facts."
-6. In Stage 2, an entity is "covered" when ≥1 fact of type `state_transition`, `command`, or `query` references it in `structured_data.entity` / `structured_data.target_entities`. `policy_constant` and `flow` facts do not count toward Stage 2 coverage (they're cross-cutting).
-7. The convergence formula's "Coverage satisfied" uses `module_inventory` under the current Stage's semantics (source modules in Stage 1 when `meta.stage == 1`, Entities in Stage 2 when `meta.stage == 2`). `meta.stage` is the single source of truth for which semantics apply.
+   5c. Receive Proposer directive:
+       - Schema validation per Step 2 §3.7 reject conditions 1~9, §3.7.1 downgrade D1~D3
+       - Reject → §7.1 full failure path (`meta.stage_transition_state = "alpha_failed_retry_pending"`)
+       - Downgrade → warning log + apply proceeds
+
+   5d. Atomic directive apply:
+       - For each `proposal.target_element_id`, populate `wip.yml.elements[].intent_inference`:
+         - `inferred_meaning` / `justification` / `domain_refs` / `confidence` (post-validation values only; populated only when outcome == `proposed`)
+         - `rationale_state` = directive's `outcome` ("proposed" / "gap" / "domain_scope_miss" / "domain_pack_incomplete")
+         - `state_reason` (when outcome ∈ {gap, domain_scope_miss, domain_pack_incomplete})
+         - `provenance` block (full copy from directive)
+         - **`provenance.gate_count = 1`** (Step 2 r3-amendment, Step 4 P-DEC-A1 — Principal approved 2026-04-23): initialized on Hook α populate for **all outcomes**. Hook γ subsequently increments to 2 on revise/confirm/mark_*. Pair with Step 3 §3.7.2 canonical and Step 4 §2.3 single-gate badge consume.
+       - Atomic write (temp file + rename, or equivalent)
+       - `meta.stage_transition_state = "alpha_completed"`
+       - `meta.stage = 2`
+
+   **=== Hook α step end ===**
+
+6. Team lead delivers Stage 2 initial directives to the Explorer (reachable when `meta.stage_transition_state ∈ {alpha_completed, alpha_skipped, alpha_failed_continued_v0}`; `alpha_failed_aborted` does not reach this gate — session terminated):
+
+   ```
+   [Stage 2 Initial Exploration Directive]
+   Based on Entities identified in Stage 1, survey their behaviors:
+   1. State transition rules for each Entity (value change conditions and triggers for state fields)
+   2. Service/gateway methods → classify as command (state-changing) or query (read-only)
+   3. Hardcoded business constants (policy_constant)
+   4. Business flows between entities (flow)
+
+   [fact_type Scope]
+   This is Stage 2. Focus on state_transition, command, query, policy_constant, flow.
+
+   Reference Stage 1 wip.yml: {wip.yml path}
+   ```
+
+   When `meta.stage_transition_state ∈ {alpha_skipped, alpha_failed_continued_v0}`, the `[entity_intent_inferences]` block in subsequent Explorer prompts is empty (no gating elements available).
+
+7. Restart the integral loop from Stage 2's Round 0.
+
+##### 1.3.3 Stage 2 coverage semantics
+
+8. In Stage 2, an entity is "covered" when ≥1 fact of type `state_transition`, `command`, or `query` references it in `structured_data.entity` / `structured_data.target_entities`. `policy_constant` and `flow` facts do not count toward Stage 2 coverage (they're cross-cutting).
+9. The convergence formula's "Coverage satisfied" uses `module_inventory` under the current Stage's semantics (source modules in Stage 1 when `meta.stage == 1`, Entities in Stage 2 when `meta.stage == 2`). `meta.stage` is the single source of truth for which semantics apply.
+
+##### 1.3.4 Hook α failure handling
+
+Step 2 §7.1 defines the full failure path for `alpha_failed_retry_pending`:
+- Runtime presents Principal with retry / `[v] Switch to v0-only` / `[a] Abort` choice
+- Retry consumes one-shot retry budget (`stage_transition_retry_count` increment to 1, atomic fsync before re-spawn)
+- `[v]` path: `meta.stage_transition_state = "alpha_failed_continued_v0"`, `meta.stage = 2`, raw.yml `inference_mode = "none"` with `fallback_reason = "proposer_failure_downgraded"` (Step 1 §4.7 enum, populated at Phase 4 save)
+- `[a]` path: `meta.stage_transition_state = "alpha_failed_aborted"`, session terminated
 
 #### 1.4 Cross-Round Ontology Accumulation
 

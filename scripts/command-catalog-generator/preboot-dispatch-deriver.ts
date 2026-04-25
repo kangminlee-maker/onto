@@ -62,7 +62,7 @@ export function collectPrebootCliInvocations(
 }
 
 /** Render the body of preboot-dispatch.ts (no markers; caller wraps). */
-export function renderPrebootDispatchBody(catalog: CommandCatalog): string {
+export function renderPrebootDispatchBody(catalog: CommandCatalog, hash: string): string {
   const prebootInvocations = collectPrebootCliInvocations(catalog);
   const literalArray = prebootInvocations
     .map((s) => `  ${JSON.stringify(s)},`)
@@ -76,19 +76,65 @@ export function renderPrebootDispatchBody(catalog: CommandCatalog): string {
  * \`main()\`, which keeps its existing handler switch and bootstrap logic
  * (Q3(A) — handoff 20260425-phase-1-3-resume.md §5).
  *
+ * Module load runs \`assertPrebootDispatchDeriveHash()\` (mirror of dispatcher.ts
+ * §3.5 guard) so a stale preboot-dispatch.ts fails fast even if dispatcher.ts
+ * itself is current. \`ONTO_ALLOW_STALE_DISPATCHER=1\` bypass mirrors dispatcher.
+ *
+ * Imports of cli.ts (\`ONTO_HELP_TEXT\`, \`main\`) are dynamic — preboot must
+ * not pull cli.ts into the module load graph just to emit a help string
+ * (avoids the dependency reversal flagged in P1-3 review UF-DEPENDENCY-PREBOOT-REVERSE-IMPORT).
+ *
  * To regenerate: \`npm run generate:catalog -- --target=preboot-dispatch\`.
  * Direct edits will be overwritten and fail the P1-4 CI drift check.
  */
 
-import { ONTO_HELP_TEXT } from "../../cli.js";
+import { computeTargetDeriveHash } from "./catalog-hash.js";
+import { COMMAND_CATALOG } from "./command-catalog.js";
+import {
+  checkDeriveHash,
+  formatBypassWarning,
+  formatMismatchError,
+} from "./derive-hash-guard.js";
 import { readOntoVersion } from "../release-channel/release-channel.js";
 
 const BARE_ONTO_SENTINEL = "<<bare>>";
+
+const EXPECTED_DERIVE_HASH = "${hash}";
+const DERIVE_SCHEMA_VERSION = "${DERIVE_SCHEMA_VERSION}";
+const TARGET_ID = "${TARGET_ID}";
+const BYPASS_ENV_VAR = "ONTO_ALLOW_STALE_DISPATCHER";
 
 /** Cli-backed preboot invocations (catalog-derived at emit time). */
 const PREBOOT_PUBLIC_INVOCATIONS: ReadonlySet<string> = new Set([
 ${literalArray}
 ]);
+
+function assertPrebootDispatchDeriveHash(): void {
+  const actual = computeTargetDeriveHash(TARGET_ID, COMMAND_CATALOG, DERIVE_SCHEMA_VERSION);
+  const result = checkDeriveHash({
+    expected: EXPECTED_DERIVE_HASH,
+    actual,
+    env: process.env,
+    bypassEnvVar: BYPASS_ENV_VAR,
+  });
+  if (result.kind === "ok") return;
+  if (result.kind === "bypassed") {
+    process.stderr.write(formatBypassWarning("preboot-dispatch.ts", BYPASS_ENV_VAR));
+    return;
+  }
+  process.stderr.write(
+    formatMismatchError({
+      targetLabel: "preboot-dispatch.ts",
+      expected: result.expected,
+      actual: result.actual,
+      regenCommand: "npm run generate:catalog -- --target=preboot-dispatch",
+      bypassEnvVar: BYPASS_ENV_VAR,
+    }),
+  );
+  process.exit(1);
+}
+
+assertPrebootDispatchDeriveHash();
 
 export async function dispatchPreboot(
   invocation: string,
@@ -99,6 +145,8 @@ export async function dispatchPreboot(
     invocation === "-h" ||
     invocation === BARE_ONTO_SENTINEL
   ) {
+    // Dynamic import: preboot must not statically depend on cli.ts.
+    const { ONTO_HELP_TEXT } = await import("../../cli.js");
     console.log(ONTO_HELP_TEXT);
     return 0;
   }
@@ -121,8 +169,8 @@ export async function dispatchPreboot(
 }
 
 export function derivePrebootDispatch(catalog: CommandCatalog): string {
-  const body = renderPrebootDispatchBody(catalog);
   const hash = computeTargetDeriveHash(TARGET_ID, catalog, DERIVE_SCHEMA_VERSION);
+  const body = renderPrebootDispatchBody(catalog, hash);
   return wrapTypeScriptSegmentMarker(body, MARKER_SOURCE_REF, hash);
 }
 

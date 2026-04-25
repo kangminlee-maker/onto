@@ -1,11 +1,21 @@
 /**
- * Command Catalog — runtime authority (Phase 1 P1-3, 2026-04-25)
+ * Command Catalog — CLI subcommand dispatch authority (Phase 1 P1-3, 2026-04-25)
  *
- * Authority status: **runtime authority**. The catalog-derived
- * `dispatcher.ts` + `preboot-dispatch.ts` are now the live entry point —
- * `bin/onto` imports `dispatch()` directly, and routes by phase:
+ * Authority status: **CLI subcommand dispatch authority**. Scope is the
+ * `bin/onto <subcommand>` entry path — the catalog-derived `dispatcher.ts`
+ * + `preboot-dispatch.ts` route every CLI subcommand:
  *   - preboot → `preboot-dispatch.ts` (catalog-derived)
  *   - post_boot → `cli.ts` `main()` (legacy handler switch preserved)
+ *
+ * Out of scope (intentionally) — these consume the catalog as data without
+ * routing through `dispatcher.ts`:
+ *   - Slash invocations (`/onto:review`, `/onto:feedback`, ...) — Claude Code
+ *     dispatches these via the markdown files at `.onto/commands/*.md`.
+ *     The catalog is still the SSOT for the markdown content (P1-2b
+ *     deriver), but the runtime path is the host's slash dispatcher,
+ *     not `bin/onto`.
+ *   - `npm run review:*` and other RuntimeScriptEntry invocations —
+ *     dispatched by npm, not by bin/onto.
  *
  * Catalog edits cascade-invalidate the dispatcher / preboot-dispatch /
  * markdown / cli help marker hashes. `assertDispatcherDeriveHash()` at

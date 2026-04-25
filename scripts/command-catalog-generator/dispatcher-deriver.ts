@@ -5,11 +5,17 @@
  * Output: `src/core-runtime/cli/dispatcher.ts` — entire file is generated,
  *         wrapped in TS segment markers (start at line 1, end at last line).
  *
- * P1-3 authority status: catalog-derived runtime authority. `bin/onto`
- * imports `dispatch()` and routes by phase:
+ * P1-3 authority status: **CLI subcommand dispatch authority**. Scope is
+ * the `bin/onto <subcommand>` entry path. `bin/onto` imports `dispatch()`
+ * and routes by phase:
  *   - preboot → preboot-dispatch.ts (also catalog-derived)
  *   - post_boot → cli.ts main() (legacy switch table — Q3(A) handoff
  *     20260425-phase-1-3-resume.md §5)
+ *
+ * Slash invocations and `npm run` script invocations consume the catalog
+ * as data (markdown derive / package.json scripts) but do not route
+ * through this dispatcher — see command-catalog.ts header for the full
+ * authority-scope statement.
  *
  * The emitted body embeds an `assertDispatcherDeriveHash()` entry guard
  * (Activation Determinism Redesign §3.5) — at module-load time it recomputes
@@ -71,12 +77,15 @@ function renderDispatcherBody(catalog: CommandCatalog, hash: string): string {
   const phaseMap = computePhaseMap(catalog);
   const phaseMapJson = JSON.stringify(phaseMap, Object.keys(phaseMap).sort(), 2);
   return `/**
- * Command dispatcher — derived artifact (P1-3 catalog-derived runtime authority).
+ * Command dispatcher — derived artifact (P1-3 CLI subcommand dispatch authority).
  *
  * \`bin/onto\` imports \`dispatch()\` and forwards argv. The dispatcher routes
- * by phase: preboot invocations go to preboot-dispatch.ts (catalog-derived),
- * post_boot invocations delegate to cli.ts main() (legacy handler switch
- * preserved through P1-3 — Q3(A) decision).
+ * \`bin/onto <subcommand>\` invocations only — slash and \`npm run\` paths
+ * consume the catalog separately and do not enter here.
+ *
+ * Routing by phase: preboot invocations go to preboot-dispatch.ts
+ * (catalog-derived), post_boot invocations delegate to cli.ts main()
+ * (legacy handler switch preserved through P1-3 — Q3(A) decision).
  *
  * Module load also runs \`assertDispatcherDeriveHash()\` (Activation Determinism
  * §3.5): recomputes the dispatcher's target-scoped derive hash and compares

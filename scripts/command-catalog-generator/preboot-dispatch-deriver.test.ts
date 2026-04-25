@@ -53,11 +53,26 @@ describe("Stage 1 — preboot-dispatch-deriver unit + determinism", () => {
     expect(a).toBe(b);
   });
 
-  it("emitted body declares dispatchPreboot + imports ONTO_HELP_TEXT", () => {
-    const body = renderPrebootDispatchBody(COMMAND_CATALOG);
+  it("emitted body declares dispatchPreboot + dynamic-imports ONTO_HELP_TEXT (no static cli.ts dep)", () => {
+    const body = renderPrebootDispatchBody(COMMAND_CATALOG, "deadbeef".repeat(8));
     expect(body).toContain("export async function dispatchPreboot");
-    expect(body).toContain("import { ONTO_HELP_TEXT } from");
+    // Dynamic import — preboot must not pull cli.ts into the static module
+    // graph (P1-3 review UF-DEPENDENCY-PREBOOT-REVERSE-IMPORT).
+    expect(body).toContain('await import("../../cli.js")');
+    // No top-level static import of ONTO_HELP_TEXT.
+    expect(body).not.toMatch(/^import\s+\{\s*ONTO_HELP_TEXT\s*\}/m);
     expect(body).toContain("readOntoVersion");
+  });
+
+  it("emitted body wires assertPrebootDispatchDeriveHash entry guard", () => {
+    const body = renderPrebootDispatchBody(COMMAND_CATALOG, "feedface".repeat(8));
+    expect(body).toContain("function assertPrebootDispatchDeriveHash");
+    expect(body).toContain("checkDeriveHash");
+    expect(body).toContain("ONTO_ALLOW_STALE_DISPATCHER");
+    // The hash placeholder must be substituted into the body (string equality
+    // here would be brittle; just verify the const declaration site exists
+    // and contains a hex-shaped string).
+    expect(body).toMatch(/const EXPECTED_DERIVE_HASH = "[0-9a-f]{64}";/);
   });
 
   it("output round-trips through extractTypeScriptSegment", () => {

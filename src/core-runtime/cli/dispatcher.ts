@@ -1,11 +1,14 @@
 // >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=eaf20c87e3cd44683be6dcad4b353bf96965b0ffef4c90ae60f070c0533e04d4
 /**
- * Command dispatcher — derived artifact (P1-3 catalog-derived runtime authority).
+ * Command dispatcher — derived artifact (P1-3 CLI subcommand dispatch authority).
  *
  * `bin/onto` imports `dispatch()` and forwards argv. The dispatcher routes
- * by phase: preboot invocations go to preboot-dispatch.ts (catalog-derived),
- * post_boot invocations delegate to cli.ts main() (legacy handler switch
- * preserved through P1-3 — Q3(A) decision).
+ * `bin/onto <subcommand>` invocations only — slash and `npm run` paths
+ * consume the catalog separately and do not enter here.
+ *
+ * Routing by phase: preboot invocations go to preboot-dispatch.ts
+ * (catalog-derived), post_boot invocations delegate to cli.ts main()
+ * (legacy handler switch preserved through P1-3 — Q3(A) decision).
  *
  * Module load also runs `assertDispatcherDeriveHash()` (Activation Determinism
  * §3.5): recomputes the dispatcher's target-scoped derive hash and compares

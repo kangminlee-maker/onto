@@ -68,9 +68,10 @@ if (!tryDelegateToLocal(userArgs)) {
   // ---------------------------------------------------------------------------
   // No local installation — run from this (global/development) binary.
   //
-  // P1-3 (catalog → runtime authority): the entry point is the catalog-
-  // derived `dispatcher.ts`. It routes by phase — preboot → preboot-dispatch.ts,
-  // post_boot → cli.ts main(). bin/onto stays Delegation/Handoff only.
+  // P1-3 (catalog → CLI subcommand dispatch authority): the entry point is
+  // the catalog-derived `dispatcher.ts`. It routes by phase — preboot →
+  // preboot-dispatch.ts, post_boot → cli.ts main(). Slash invocations and
+  // `npm run` paths do not enter here. bin/onto stays Delegation/Handoff only.
   // ---------------------------------------------------------------------------
 
   const distDispatcher = path.join(ontoRoot, "dist", "core-runtime", "cli", "dispatcher.js");

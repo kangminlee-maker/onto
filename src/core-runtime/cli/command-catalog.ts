@@ -557,6 +557,8 @@ export const COMMAND_CATALOG: CommandCatalog = {
       name: "review:finalize-session",
       script_path: "src/core-runtime/cli/assemble-review-record.ts",
       invoker: "tsx",
+      deprecated_since: "0.2.2",
+      successor: "review:assemble-record",
       description: "Assemble review-record.yaml (alias of assemble-record).",
     },
     {

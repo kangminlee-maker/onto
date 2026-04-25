@@ -1,26 +1,26 @@
 #!/usr/bin/env tsx
 /**
- * Command Catalog Generator — Phase 1 P1-2b entry script.
+ * Command Catalog Generator — Phase 1 P1-2c entry script.
  *
  * Design authority:
  *   development-records/evolve/20260423-phase-1-catalog-ssot-design.md §7
- *   development-records/plan/... (P1-2b plan body, v9)
  *
- * Status (P1-2b): markdown derive emitter shipped. Other targets still pending
- * (dispatcher / help segment / package-scripts land in P1-2c).
+ * Status (P1-2c): all 4 derive emitters shipped — markdown (P1-2b),
+ * dispatcher / cli help segment / package.json scripts (P1-2c).
  *
  * CLI surface:
  *
  *   --dry-run                      Do not write any files. Always honored by emitters.
  *   --target=<target>              One of: markdown | dispatcher | help | package-scripts | all.
- *                                  Default: all. Unshipped targets print their phase.
+ *                                  Default: all.
  *
  * Bootstrap vs steady-state (plan §D18):
- *   - Steady-state: `npm run generate:catalog -- --target=markdown` (this file).
- *     Runs in default mode (snapshotMode=false); D13 case (ii) stays fail-closed.
- *   - Bootstrap (one-time, authoring-only):
- *     `UPDATE_SNAPSHOT=1 npx vitest run scripts/command-catalog-generator/markdown-diff0.test.ts`.
- *     This is the ONLY path that flips snapshotMode=true.
+ *   - Steady-state: `npm run generate:catalog -- --target=<x>`. Runs in
+ *     default mode (snapshotMode=false); D13 case (ii) stays fail-closed.
+ *   - Bootstrap (one-time, authoring-only): UPDATE_SNAPSHOT=1 vitest path
+ *     for the corresponding test file. markdown uses markdown-diff0.test.ts;
+ *     dispatcher / cli-help / package-scripts use their own *-deriver.test.ts.
+ *     UPDATE_SNAPSHOT=1 is the only path that flips snapshotMode=true.
  *
  * This script lives in the build/lint layer (design §4.2) and is therefore
  * NOT registered as a RuntimeScriptEntry in the catalog.

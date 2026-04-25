@@ -101,8 +101,7 @@ export function buildExpectedScripts(
 export type ScriptDriftIssue =
   | { kind: "missing-from-package"; name: string; expected: string }
   | { kind: "value-mismatch"; name: string; expected: string; actual: string }
-  | { kind: "orphan-package-script"; name: string; actual: string }
-  | { kind: "missing-excluded"; name: string };
+  | { kind: "orphan-package-script"; name: string; actual: string };
 
 /**
  * Compare current scripts vs expected. Returns drift issues without throwing

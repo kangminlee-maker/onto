@@ -1,4 +1,4 @@
-// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=09145bd15ccdc9d827143e561959e919c495ce46d84922c99b3b8e3f6943c33f
+// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=48ff0bea8a3fd27f816db64be5d87f058166911fb6a3221005a50108a46d9155
 /**
  * Command dispatcher — derived artifact (P1-2c emit-only; P1-3 wires bin/onto).
  *

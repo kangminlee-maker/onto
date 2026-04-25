@@ -129,7 +129,8 @@ export function deriveAllDispatcher(
       throw new Error(
         `Handwritten content at generator-managed path "${EMISSION_PATH}" ` +
           `(no TS segment marker found). The deriver would overwrite it. ` +
-          `Bootstrap this state via UPDATE_SNAPSHOT=1 vitest dispatcher-diff0.test.ts. ` +
+          `Bootstrap this state via UPDATE_SNAPSHOT=1 npx vitest run ` +
+          `scripts/command-catalog-generator/dispatcher-deriver.test.ts. ` +
           `plan §D13 case (ii), §D18.`,
       );
     }

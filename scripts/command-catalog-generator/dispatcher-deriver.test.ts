@@ -72,12 +72,15 @@ describe("Stage 1 — deriveDispatcher unit + determinism", () => {
 
 describe("Stage 2 — derive pipeline", () => {
   if (SHOULD_UPDATE) {
-    it("UPDATE_SNAPSHOT=1 — writes dispatcher.ts with snapshotMode=true (bootstrap)", () => {
+    it("UPDATE_SNAPSHOT=1 — materializes dispatcher.ts with snapshotMode=true (bootstrap, idempotent)", () => {
+      // `written` is true on first bootstrap, false on subsequent reruns when
+      // the bytes are already aligned (skip-when-unchanged in deriveAllDispatcher).
+      // The seat must be repeatable, so we do not assert on `written`.
       const result = deriveAllDispatcher(COMMAND_CATALOG, {
         snapshotMode: true,
         projectRoot: REPO_ROOT,
       });
-      expect(result.written).toBe(true);
+      expect(typeof result.written).toBe("boolean");
       expect(existsSync(DISPATCHER_ABS)).toBe(true);
     });
   } else {

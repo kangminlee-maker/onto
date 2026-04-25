@@ -552,21 +552,26 @@ export const COMMAND_CATALOG: CommandCatalog = {
       invoker: "tsx",
       description: "Render review final-output.md from session artifacts.",
     },
+    // `review:finalize-session` and `review:assemble-record` are coexisting
+    // synonyms pointing at `assemble-review-record.ts`. The canonical authority
+    // chain (BLUEPRINT.md, productized-live-path.md, review.md, runtime
+    // bounded_complete_steps in complete-review-session.ts) treats
+    // `review:finalize-session` as the de-facto primary lifecycle name.
+    // `review:assemble-record` is retained as an alternate invocation that
+    // matches the script filename. Neither is deprecated.
     {
       kind: "runtime_script",
       name: "review:finalize-session",
       script_path: "src/core-runtime/cli/assemble-review-record.ts",
       invoker: "tsx",
-      deprecated_since: "0.2.2",
-      successor: "review:assemble-record",
-      description: "Assemble review-record.yaml (alias of assemble-record).",
+      description: "Assemble review-record.yaml — final step in the review lifecycle.",
     },
     {
       kind: "runtime_script",
       name: "review:assemble-record",
       script_path: "src/core-runtime/cli/assemble-review-record.ts",
       invoker: "tsx",
-      description: "Assemble final review-record.yaml.",
+      description: "Assemble review-record.yaml — alternate invocation name (matches script filename).",
     },
     {
       kind: "runtime_script",

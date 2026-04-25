@@ -7,9 +7,12 @@
  * post_boot invocations delegate to cli.ts main() (legacy handler switch
  * preserved through P1-3 — Q3(A) decision).
  *
- * Module load also runs `assertCatalogHash()` (Activation Determinism §3.5):
- * recomputes the whole-catalog derive hash and compares against the marker
- * hash. Mismatch fails fast, unless `ONTO_ALLOW_STALE_DISPATCHER=1` bypasses.
+ * Module load also runs `assertDispatcherDeriveHash()` (Activation Determinism
+ * §3.5): recomputes the dispatcher's target-scoped derive hash and compares
+ * against the marker hash. Mismatch fails fast, unless
+ * `ONTO_ALLOW_STALE_DISPATCHER=1` bypasses. The decision logic lives in
+ * `derive-hash-guard.ts` (pure, unit-testable) so the negative path is
+ * exercised without mutating this generated file.
  *
  * To regenerate: `npm run generate:catalog -- --target=dispatcher`.
  * Direct edits will be overwritten and fail the P1-4 CI drift check.
@@ -19,6 +22,11 @@ import { pathToFileURL } from "node:url";
 import { computeTargetDeriveHash } from "./catalog-hash.js";
 import { getNormalizedInvocationSet } from "./command-catalog-helpers.js";
 import { COMMAND_CATALOG } from "./command-catalog.js";
+import {
+  checkDeriveHash,
+  formatBypassWarning,
+  formatMismatchError,
+} from "./derive-hash-guard.js";
 
 const NORMALIZED = getNormalizedInvocationSet(COMMAND_CATALOG);
 const BARE_ONTO_SENTINEL = "<<bare>>";
@@ -26,12 +34,9 @@ const BARE_ONTO_SENTINEL = "<<bare>>";
 const EXPECTED_DERIVE_HASH = "eaf20c87e3cd44683be6dcad4b353bf96965b0ffef4c90ae60f070c0533e04d4";
 const DERIVE_SCHEMA_VERSION = "1";
 const TARGET_ID = "dispatcher";
+const BYPASS_ENV_VAR = "ONTO_ALLOW_STALE_DISPATCHER";
 
 const PHASE_MAP: Readonly<Record<string, "preboot" | "post_boot">> = {
-  "--help": "preboot",
-  "--version": "preboot",
-  "-h": "preboot",
-  "-v": "preboot",
   "build": "post_boot",
   "config": "preboot",
   "coordinator": "post_boot",
@@ -47,26 +52,32 @@ const PHASE_MAP: Readonly<Record<string, "preboot" | "post_boot">> = {
   "review": "post_boot"
 };
 
-function assertCatalogHash(): void {
+function assertDispatcherDeriveHash(): void {
   const actual = computeTargetDeriveHash(TARGET_ID, COMMAND_CATALOG, DERIVE_SCHEMA_VERSION);
-  if (actual === EXPECTED_DERIVE_HASH) return;
-  if (process.env.ONTO_ALLOW_STALE_DISPATCHER === "1") {
-    process.stderr.write(
-      "[onto] WARNING: dispatcher.ts derive-hash mismatch — bypassed via ONTO_ALLOW_STALE_DISPATCHER=1.\n",
-    );
+  const result = checkDeriveHash({
+    expected: EXPECTED_DERIVE_HASH,
+    actual,
+    env: process.env,
+    bypassEnvVar: BYPASS_ENV_VAR,
+  });
+  if (result.kind === "ok") return;
+  if (result.kind === "bypassed") {
+    process.stderr.write(formatBypassWarning("dispatcher.ts", BYPASS_ENV_VAR));
     return;
   }
   process.stderr.write(
-    "[onto] dispatcher.ts derive-hash mismatch (catalog edit not regenerated).\n" +
-      `  expected (marker): ${EXPECTED_DERIVE_HASH}\n` +
-      `  actual   (catalog): ${actual}\n` +
-      "Resolution: npm run generate:catalog -- --target=dispatcher\n" +
-      "Bypass for dev workflow: ONTO_ALLOW_STALE_DISPATCHER=1\n",
+    formatMismatchError({
+      targetLabel: "dispatcher.ts",
+      expected: result.expected,
+      actual: result.actual,
+      regenCommand: "npm run generate:catalog -- --target=dispatcher",
+      bypassEnvVar: BYPASS_ENV_VAR,
+    }),
   );
   process.exit(1);
 }
 
-assertCatalogHash();
+assertDispatcherDeriveHash();
 
 export async function dispatch(argv: readonly string[]): Promise<number> {
   const arg = argv[0] ?? BARE_ONTO_SENTINEL;

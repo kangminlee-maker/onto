@@ -187,11 +187,14 @@ export function formatSummary(s: CatalogSummary): string {
 export function formatDeriveResult(r: DeriveResult, dryRun: boolean): string {
   const lines: string[] = [];
   if (dryRun) {
-    lines.push(`  dry-run: would write ${r.skippedDryRun.length} file(s):`);
+    lines.push(`  dry-run: would inspect ${r.skippedDryRun.length} file(s):`);
     for (const rel of r.skippedDryRun) lines.push(`    - ${rel}`);
   } else {
-    lines.push(`  wrote ${r.written.length} file(s):`);
-    for (const rel of r.written) lines.push(`    - ${rel}`);
+    lines.push(
+      `  wrote ${r.written.length} file(s); ${r.skippedUnchanged.length} unchanged:`,
+    );
+    for (const rel of r.written) lines.push(`    - ${rel} (wrote)`);
+    for (const rel of r.skippedUnchanged) lines.push(`    - ${rel} (unchanged)`);
   }
   return lines.join("\n");
 }

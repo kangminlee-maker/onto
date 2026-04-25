@@ -98,4 +98,28 @@ describe("dispatcher smoke (P1-3)", () => {
     expect(r.status).toBe(0);
     expect(r.stdout).toMatch(/^onto-core \d+\.\d+\.\d+/);
   });
+
+  // P1-3 review Must 1 — exercise the dispatcher's PHASE_MAP routing
+  // beyond meta-only. `info` is a preboot PublicEntry that flows through
+  // dispatcher → preboot-dispatch → cli.ts main; `coordinator` (no args)
+  // is a post_boot PublicEntry that flows through dispatcher → cli.ts main.
+
+  it("preboot PublicEntry — bin/onto info → exit 0 + JSON with onto_home key", () => {
+    const r = runOnto(["info"]);
+    expect(r.status).toBe(0);
+    // info prints a JSON blob describing the install. The exact shape is
+    // owned by cli.ts; this assertion is shape-only so cosmetic edits do
+    // not falsely fail the smoke.
+    expect(r.stdout).toContain("onto_home");
+    expect(r.stdout).toContain("installation_mode");
+  });
+
+  it("post_boot PublicEntry — bin/onto coordinator (no args) → exit 0 + subcommand help", () => {
+    const r = runOnto(["coordinator"]);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("Usage: onto coordinator <subcommand>");
+    expect(r.stdout).toContain("start");
+    expect(r.stdout).toContain("next");
+    expect(r.stdout).toContain("status");
+  });
 });

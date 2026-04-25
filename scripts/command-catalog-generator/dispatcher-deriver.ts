@@ -26,7 +26,6 @@ import path from "node:path";
 import type {
   CommandCatalog,
   PublicEntry,
-  MetaEntry,
   CliRealization,
 } from "../../src/core-runtime/cli/command-catalog.js";
 import { computeTargetDeriveHash } from "./catalog-hash.js";
@@ -43,29 +42,26 @@ const MARKER_SOURCE_REF = "src/core-runtime/cli/command-catalog.ts";
 const EMISSION_PATH = "src/core-runtime/cli/dispatcher.ts";
 
 /**
- * Compute the invocation → phase map at deriver time. Only CLI-callable
- * invocations are included (cli realizations of PublicEntry + meta flags).
- * Slash and patterned_slash invocations live in NORMALIZED but are unreachable
- * via `bin/onto`, so they are deliberately omitted from the phase map.
+ * Compute the invocation → phase map at deriver time. Public CLI invocations
+ * only — meta entries are deliberately excluded because the dispatcher
+ * routes them through the `target.entry_kind === "meta"` short-circuit
+ * before consulting `PHASE_MAP`. Including them duplicated the routing
+ * decision (P1-3 review UF-CONCISENESS-PHASE-MAP-REDUNDANT).
+ *
+ * Slash and patterned_slash invocations live in `NORMALIZED` but are
+ * unreachable via `bin/onto`, so they are also omitted.
  */
 export function computePhaseMap(
   catalog: CommandCatalog,
 ): Record<string, "preboot" | "post_boot"> {
   const map: Record<string, "preboot" | "post_boot"> = {};
   for (const entry of catalog.entries) {
-    if (entry.kind === "public") {
-      const pub = entry as PublicEntry;
-      const cli = pub.realizations.find(
-        (r): r is CliRealization => r.kind === "cli",
-      );
-      if (cli) map[cli.invocation] = pub.phase;
-    } else if (entry.kind === "meta") {
-      const meta = entry as MetaEntry;
-      for (const r of meta.realizations) {
-        map[r.invocation] = meta.phase; // always preboot (schema invariant)
-      }
-    }
-    // RuntimeScriptEntry: no CLI invocation, skipped.
+    if (entry.kind !== "public") continue;
+    const pub = entry as PublicEntry;
+    const cli = pub.realizations.find(
+      (r): r is CliRealization => r.kind === "cli",
+    );
+    if (cli) map[cli.invocation] = pub.phase;
   }
   return map;
 }
@@ -81,9 +77,12 @@ function renderDispatcherBody(catalog: CommandCatalog, hash: string): string {
  * post_boot invocations delegate to cli.ts main() (legacy handler switch
  * preserved through P1-3 — Q3(A) decision).
  *
- * Module load also runs \`assertCatalogHash()\` (Activation Determinism §3.5):
- * recomputes the whole-catalog derive hash and compares against the marker
- * hash. Mismatch fails fast, unless \`ONTO_ALLOW_STALE_DISPATCHER=1\` bypasses.
+ * Module load also runs \`assertDispatcherDeriveHash()\` (Activation Determinism
+ * §3.5): recomputes the dispatcher's target-scoped derive hash and compares
+ * against the marker hash. Mismatch fails fast, unless
+ * \`ONTO_ALLOW_STALE_DISPATCHER=1\` bypasses. The decision logic lives in
+ * \`derive-hash-guard.ts\` (pure, unit-testable) so the negative path is
+ * exercised without mutating this generated file.
  *
  * To regenerate: \`npm run generate:catalog -- --target=dispatcher\`.
  * Direct edits will be overwritten and fail the P1-4 CI drift check.
@@ -93,6 +92,11 @@ import { pathToFileURL } from "node:url";
 import { computeTargetDeriveHash } from "./catalog-hash.js";
 import { getNormalizedInvocationSet } from "./command-catalog-helpers.js";
 import { COMMAND_CATALOG } from "./command-catalog.js";
+import {
+  checkDeriveHash,
+  formatBypassWarning,
+  formatMismatchError,
+} from "./derive-hash-guard.js";
 
 const NORMALIZED = getNormalizedInvocationSet(COMMAND_CATALOG);
 const BARE_ONTO_SENTINEL = "<<bare>>";
@@ -100,29 +104,36 @@ const BARE_ONTO_SENTINEL = "<<bare>>";
 const EXPECTED_DERIVE_HASH = "${hash}";
 const DERIVE_SCHEMA_VERSION = "${DERIVE_SCHEMA_VERSION}";
 const TARGET_ID = "${TARGET_ID}";
+const BYPASS_ENV_VAR = "ONTO_ALLOW_STALE_DISPATCHER";
 
 const PHASE_MAP: Readonly<Record<string, "preboot" | "post_boot">> = ${phaseMapJson};
 
-function assertCatalogHash(): void {
+function assertDispatcherDeriveHash(): void {
   const actual = computeTargetDeriveHash(TARGET_ID, COMMAND_CATALOG, DERIVE_SCHEMA_VERSION);
-  if (actual === EXPECTED_DERIVE_HASH) return;
-  if (process.env.ONTO_ALLOW_STALE_DISPATCHER === "1") {
-    process.stderr.write(
-      "[onto] WARNING: dispatcher.ts derive-hash mismatch — bypassed via ONTO_ALLOW_STALE_DISPATCHER=1.\\n",
-    );
+  const result = checkDeriveHash({
+    expected: EXPECTED_DERIVE_HASH,
+    actual,
+    env: process.env,
+    bypassEnvVar: BYPASS_ENV_VAR,
+  });
+  if (result.kind === "ok") return;
+  if (result.kind === "bypassed") {
+    process.stderr.write(formatBypassWarning("dispatcher.ts", BYPASS_ENV_VAR));
     return;
   }
   process.stderr.write(
-    "[onto] dispatcher.ts derive-hash mismatch (catalog edit not regenerated).\\n" +
-      \`  expected (marker): \${EXPECTED_DERIVE_HASH}\\n\` +
-      \`  actual   (catalog): \${actual}\\n\` +
-      "Resolution: npm run generate:catalog -- --target=dispatcher\\n" +
-      "Bypass for dev workflow: ONTO_ALLOW_STALE_DISPATCHER=1\\n",
+    formatMismatchError({
+      targetLabel: "dispatcher.ts",
+      expected: result.expected,
+      actual: result.actual,
+      regenCommand: "npm run generate:catalog -- --target=dispatcher",
+      bypassEnvVar: BYPASS_ENV_VAR,
+    }),
   );
   process.exit(1);
 }
 
-assertCatalogHash();
+assertDispatcherDeriveHash();
 
 export async function dispatch(argv: readonly string[]): Promise<number> {
   const arg = argv[0] ?? BARE_ONTO_SENTINEL;

@@ -1333,9 +1333,11 @@ When the exploration loop terminates, finalization is performed in 4 steps. No s
    - Output: `aspect_totals` (global dictionary `{aspect_value: count}`): for each fact across all wip.yml elements, count occurrences by `fact.observation_aspect`. Phase 3 renders one row per aspect value present in this dictionary (dynamically — forward-compatible for new aspect values).
 ```
 
-#### Step 2: Focused lens queries (2a and 2b run in parallel, after Step 1 completes)
+#### Step 2: Focused lens queries + Hook γ (2a / 2b / 2c run in parallel, after Step 1 completes)
 
-These are focused lens queries per the "Focused Lens Query Protocol" above. The team lead dispatches each query as a fresh-context agent.
+<!-- canonical-mirror-of: step-3-rationale-reviewer §6.2 -->
+
+These are focused lens queries per the "Focused Lens Query Protocol" above (2a / 2b) plus Hook γ Rationale Reviewer dispatch (2c, v1 신규). The team lead dispatches each query as a fresh-context agent.
 
 **2a. Semantics lens — ubiquitous language cleanup**:
 
@@ -1357,6 +1359,68 @@ For each module, assess:
 - Or was this module intentionally low-priority given the system's domain?
 - Output: list of modules classified as "gap" or "acceptable_skip" with rationale
 ```
+
+**2c. Rationale Reviewer (Hook γ — v1 신규)**:
+
+Reviews `intent_inference` populated by Hook α in Stage 1 → 2 transition (§1.3.2 step 5d). Detects under-claim / over-claim / scope misclassification / pack-incompleteness in Proposer rationales. Role spec: `.onto/roles/rationale-reviewer.md` (Track B W-A-87 promotion). Full protocol: Step 3 §2~§7.
+
+##### Step 2c State Machine (`meta.step2c_review_state`)
+
+| State | Meaning | Resumption |
+|---|---|---|
+| `pre_gamma` | Phase 2 Step 1 finalize 후, Step 2 dispatch 진입 전 | Step 2 재진입 |
+| `gamma_skipped` | `inference_mode == none` OR `stage_transition_state ∈ {alpha_skipped, alpha_failed_continued_v0}` — Reviewer skip (intent_inference 없는 상태 review 무의미) | Step 3 직행 |
+| `gamma_in_progress` | Reviewer spawn 직전 ~ directive apply 직전 | Step 2 재진입 |
+| `gamma_completed` | Step 4b 에서 directive atomic apply 완료 | Phase 3 진입 |
+| `gamma_failed_retry_pending` | Full failure, Principal retry 응답 대기 | Step 2 재진입 (응답 후) |
+| `gamma_failed_continued_degraded` | Retry 실패 + Principal `[d] Continue with degraded` 선택 — `proposed` element 전수 Phase 3 escalate, raw.yml `rationale_review_degraded: true` 기록 | Phase 3 진입 |
+| `gamma_failed_aborted` | Retry 실패 + Principal `[a] Abort` — Phase 2 차단, wip.yml Stage 2 완료 상태 보존, `meta.stage = 2` 유지. 재시작 시 Phase 2 Step 2 부터 re-enter 가능 | 세션 종료 (Principal 재실행 결정 필요) |
+
+`meta.step2c_review_retry_count` (one-shot retry persistence, `≤ 1` bound): Step 2 §6.2 `stage_transition_retry_count` 와 동형. `gamma_completed` / `gamma_skipped` 도달 시 0 reset, `gamma_failed_*` 시 reset 하지 않음 (다음 재진입에 이전 retry 소비 이력 유지).
+
+##### Step 2c flow (parallel with 2a/2b, apply at Step 4b)
+
+1. **2c-precondition** check:
+   - `inference_mode == "none"` → `meta.step2c_review_state = "gamma_skipped"` (2a/2b 만 진행, 2c 미실행)
+   - `stage_transition_state ∈ {alpha_skipped, alpha_failed_continued_v0}` → `meta.step2c_review_state = "gamma_skipped"` (intent_inference 없음)
+   - `inference_mode ∈ {full, degraded}` AND `stage_transition_state == "alpha_completed"` → 2c dispatch 진행
+
+2. **2c-spawn**: `meta.step2c_review_state = "gamma_in_progress"` + fsync. Team lead spawns Rationale Reviewer (fresh agent, mirroring Axiology Adjudicator + Proposer pattern):
+   - Input package per Step 3 §2.1 (wip.yml 전수 + Step 2 결과 + manifest + provenance pair)
+   - Prompt = Step 3 §4 template + input package
+   - `wip_snapshot_hash` 계산 + 주입 (§3.7.1)
+
+3. **2c-directive 수신**:
+   - Schema validation per Step 3 §3.8 reject 1~12, §3.8.1 downgrade D1~D3
+   - Reject → §7.1 full failure (`meta.step2c_review_state = "gamma_failed_retry_pending"`)
+   - Downgrade → warning log + directive 보관 (apply 는 Step 4b 에서)
+
+4. **Step 2 완료 gate** (2a/2b/2c 병렬 수집 대기): 모두 directive 수신 (또는 skip 결정) 시 Step 3 진행. 2c 가 `gamma_failed_retry_pending` 시 Principal response 수신까지 대기. `gamma_failed_continued_degraded` 또는 `gamma_skipped` 시 2c directive empty 로 간주하여 Step 3 진행.
+
+5. **Step 3 (Axiology Adjudicator)** 통상 진행.
+
+6. **Step 4a (Synthesize)** — 2a/2b/2c/3 directives 를 단일 finalization directive 로 통합. `rationale_updates` 필드 신규 — 2c directive 의 updates[] 를 그대로 merge (Synthesize 는 semantic 변형 금지).
+
+7. **Step 4b (Runtime atomic apply)**:
+   - `rationale_updates` 의 각 update 를 Step 3 §3.8 validation 재검증 (2c 수신 시점과 Step 4b 시점 사이 wip.yml 변경 감지 — `wip_snapshot_hash` 재검증, Step 3 §3.7.1)
+   - Apply per-operation (canonical detail 은 Step 3 §3.2~§3.6):
+     - `operation: confirm` → Step 3 §3.2 (existing rationale 명시 유지, `provenance.gate_count` 1 → 2 increment)
+     - `operation: revise` → Step 3 §3.3 (rationale 교체, gate_count increment)
+     - `operation: mark_domain_scope_miss` → Step 3 §3.4
+     - `operation: mark_domain_pack_incomplete` → Step 3 §3.5
+     - `operation: populate_stage2_rationale` → Step 3 §3.6 (Stage 2 신규 entity 의 rationale populate, gate_count 1 유지)
+   - Directive 에 없는 `element_id`: runtime 은 변경 없음 (`provenance.reviewed_at` null 유지 → "Reviewer 미판정" downstream interpretation)
+   - Atomic write (temp + rename)
+   - `meta.step2c_review_state = "gamma_completed"`
+   - `meta.step2c_review_retry_count = 0` (reset)
+
+##### Step 2c failure handling
+
+Step 3 §7.1 의 full failure 경로:
+- Runtime presents Principal with retry / `[d] Continue with degraded` / `[a] Abort` choice
+- Retry: `step2c_review_retry_count` increment to 1 (atomic fsync), Reviewer re-spawn
+- `[d]` 경로: `meta.step2c_review_state = "gamma_failed_continued_degraded"`, raw.yml `rationale_review_degraded = true` (Step 4 §4.1 mirror seat), `proposed` element 전수가 Phase 3 Principal 판정으로 escalate (Step 4 §2.4)
+- `[a]` 경로: `meta.step2c_review_state = "gamma_failed_aborted"`, 세션 종료
 
 #### Step 3: Axiology Adjudicator (fresh context)
 

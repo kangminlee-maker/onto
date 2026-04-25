@@ -1643,9 +1643,12 @@ For the specific format of each schema, refer to the corresponding golden exampl
 
 **Common meta header** (identical across all schemas):
 
+<!-- canonical-mirror-of: step-4-integration §4.1 §4.2 -->
+
 ```yaml
 # Raw Ontology — generated via integral exploration
 meta:
+  # v0 baseline:
   schema: ./schema.yml
   source_type: {code | spreadsheet | database | document | mixed}
   domain: {domain}
@@ -1655,7 +1658,53 @@ meta:
   convergence: converged | max_rounds_reached
   unexplored_directions: [{unexplored areas — when max_rounds_reached}]
   agents: [explorer, {lens list}, synthesize]
+
+  # v1 extension (Step 4 §4.1 canonical) — intent_inference mode (session level):
+  inference_mode: full | degraded | none
+  degraded_reason: pack_optional_missing | pack_quality_floor | pack_tier_minimal | null
+  fallback_reason: user_flag | principal_confirmed_no_domain | proposer_failure_downgraded | null
+  domain_quality_tier: full | partial | minimal | null    # populate when inference_mode ∈ {full, degraded}
+
+  # v1 — manifest pair (Step 1 §6.2):
+  manifest_schema_version: string | null                  # e.g. "1.0"
+  domain_manifest_version: string | null                  # manifest.domain_manifest_version
+  domain_manifest_hash: string | null                     # manifest.version_hash
+  manifest_recovery_from_malformed: boolean               # manifest.recovery_from_malformed mirror (audit signal)
+
+  # v1 — γ review session-level summary (Step 3 §7):
+  rationale_review_degraded: boolean
+  rationale_reviewer_failures_streak: integer
+  rationale_reviewer_contract_version: string | null
+  rationale_proposer_contract_version: string | null
+
+  # v1 — pack-level aggregation (Step 2 §6.3.1, narrowed):
+  pack_missing_areas:
+    - grouping_key:
+        manifest_ref: string
+        heading: string
+      element_ids: array of string
+
+  # v1 — γ review artifact provenance:
+  step2c_review_state: completed | partial | degraded | aborted | null
+  step2c_review_retry_count: integer | null
+
+  # v0 baseline (extended schema §3.6):
+  phase3_user_responses:
+    received_at: string
+    global_reply: "confirmed" | "see below"               # v1 enum restrict (Step 4 §3.6)
+    rationale_decisions: [...]                            # v1 신규 (Step 4 §3.6)
+    batch_actions: [...]                                  # v1 신규
+    conflict_decisions: [...]
+    certainty_decisions: [...]
+    other_adjustments: [...]
 ```
+
+**Mutual exclusion + co-occurrence matrix** (Step 4 §4.2 canonical, runtime validation on raw.yml write):
+- `inference_mode == full` → `degraded_reason / fallback_reason IS NULL`, `domain_quality_tier == 'full'`
+- `inference_mode == degraded` → `degraded_reason IS NOT NULL`, `fallback_reason IS NULL`, `domain_quality_tier == manifest.quality_tier` (1:1 mirror)
+- `inference_mode == degraded AND degraded_reason == 'pack_optional_missing'` → `domain_quality_tier ∈ {full, partial}` (minimal 금지 — `pack_tier_minimal` precedence)
+- `inference_mode == none` → `degraded_reason IS NULL`, `fallback_reason IS NOT NULL`, `domain_quality_tier IS NULL`, `rationale_review_degraded == false`
+- 위반 시 `raw_yml_meta_invariant_violation` halt (Step 4 §4.2)
 
 **Schema C default format** (when Schema C is selected, or as reference for custom schemas):
 
@@ -1675,6 +1724,38 @@ elements:
       locations: [{source locations}]
       deltas: [{delta IDs}]
     details: {}
+
+    # v1 intent_inference block (Step 4 §4.3 canonical) — populated when
+    # inference_mode ∈ {full, degraded}. omit when inference_mode == "none" (v0 호환).
+    intent_inference:
+      rationale_state: reviewed | proposed | gap | domain_pack_incomplete | domain_scope_miss | empty | carry_forward | principal_accepted | principal_modified | principal_rejected | principal_accepted_gap | principal_deferred | principal_confirmed_scope_miss
+        # intra-Phase-3.5: reviewed / proposed / gap / domain_pack_incomplete / domain_scope_miss / empty
+        # terminal (8): carry_forward / domain_scope_miss (미판정 유지) / principal_* (6)
+      inferred_meaning: string | null
+      justification: string | null
+      domain_refs: array | null
+      confidence: low | medium | high | null
+      state_reason: string | null
+      principal_provided_rationale: object | null         # populated when action ∈ {modify, provide_rationale, override}
+      principal_note: string | null
+      provenance:
+        # element-level provenance (single seat — gate_count + principal_judged_at + carry_forward_from)
+        proposed_at: string | null
+        proposed_by: string | null
+        proposer_contract_version: string | null
+        reviewed_at: string | null
+        reviewed_by: string | null
+        reviewer_contract_version: string | null
+        principal_judged_at: string | null                # Phase 3.5 step 2 single seat
+        gate_count: integer                               # v1 range {1, 2}, future-extensible
+        carry_forward_from: string | null                 # Phase 3.5 step 8 sweep capture, Layer B bridge
+        carry_forward_from_schema_version: string | null  # e.g. "rationale_state/1.0"
+        wip_snapshot_hash: string | null                  # Step 3 §3.7.1
+        domain_files_content_hash: string | null          # Step 3 §3.7.1
+        hash_algorithm: string | null                     # e.g. "sha256"
+        input_chunks: integer | null                      # v1 default 1
+        truncated_fields: array | null
+        effective_injected_files: array | null            # Step 2 §3.6
 
 relations:
   - id: {relation ID}

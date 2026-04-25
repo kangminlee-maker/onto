@@ -29,7 +29,7 @@ describe("wrapMarkdownMarker + extractMarkdownMarker", () => {
   it("produces the documented marker line on first line", () => {
     const wrapped = wrapMarkdownMarker("content\n", SRC, HASH);
     expect(wrapped.startsWith("<!-- GENERATED from ")).toBe(true);
-    expect(wrapped.includes(`catalog-hash=${HASH}`)).toBe(true);
+    expect(wrapped.includes(`derive-hash=${HASH}`)).toBe(true);
     expect(wrapped.split("\n")[0]).toMatch(/ -->$/);
   });
 
@@ -99,7 +99,7 @@ describe("wrapTypeScriptSegmentMarker + extractTypeScriptSegment", () => {
     const start =
       "// >>> GENERATED FROM CATALOG — do not edit; edit " +
       SRC +
-      " instead. catalog-hash=" +
+      " instead. derive-hash=" +
       HASH +
       "\nbody without terminator\n";
     expect(extractTypeScriptSegment(start)).toBeNull();

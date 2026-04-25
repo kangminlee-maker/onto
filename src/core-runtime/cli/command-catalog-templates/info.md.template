@@ -1,0 +1,16 @@
+# Onto Info
+
+Reports installation mode (`development` / `project` / `user`), onto home path, project root, catalog version, and runtime signals. Useful for verifying `ONTO_HOME` propagation and detecting multi-install ambiguity before running other commands.
+
+`onto info` is a preboot command — it does not require bootstrap to succeed and does not read `.onto/config.yml`.
+
+Example:
+
+```
+$ onto info
+installation_mode: development
+onto_home: /Users/alice/cowork/onto
+project_root: /Users/alice/cowork/onto
+catalog_version: 1
+...
+```

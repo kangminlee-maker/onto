@@ -1,5 +1,3 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=3cae1dbbb99abef0011731000cc8830cf66dd55a2981dc168093b5836a43da7f -->
-
 # Onto Reconstruct
 
 `reconstruct` activity 의 CLI entry. 소스 (codebase / spreadsheet / database / document) 를 분석하여 domain ontology 초안을 산출한다.

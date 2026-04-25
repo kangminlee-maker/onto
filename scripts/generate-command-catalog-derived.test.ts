@@ -8,7 +8,7 @@
 
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { COMMAND_CATALOG } from "../src/core-runtime/cli/command-catalog.js";
 import {
@@ -79,10 +79,10 @@ describe("summarizeCatalog", () => {
     expect(s.normalizedInvocationCount).toBeGreaterThan(s.entryCounts.public);
   });
 
-  it("marks every derive target as pending in P1-2a (no emitters shipped)", () => {
+  it("marks markdown as ready (P1-2b shipped) and other targets as pending", () => {
     const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: false, target: "all" });
     expect(s.deriveTargetStatus).toEqual({
-      markdown: "pending",
+      markdown: "ready",
       dispatcher: "pending",
       help: "pending",
       "package-scripts": "pending",
@@ -91,24 +91,38 @@ describe("summarizeCatalog", () => {
 });
 
 describe("formatSummary", () => {
-  it("contains a note that no derive output is written in P1-2a", () => {
-    const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: true, target: "all" });
-    expect(formatSummary(s)).toMatch(/no derive output is written/);
-  });
-
   it("reports dry-run: yes when dryRun is true", () => {
     const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: true, target: "all" });
     expect(formatSummary(s)).toMatch(/dry-run\s*: yes/);
   });
 
-  it("renders a derive-target readiness block naming each phase", () => {
+  it("renders derive-target readiness with markdown ready + others pending", () => {
     const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: true, target: "all" });
     const out = formatSummary(s);
     expect(out).toMatch(/derive targets:/);
-    expect(out).toMatch(/markdown\s+: pending \(lands in P1-2b\)/);
+    expect(out).toMatch(/markdown\s+: ready/);
     expect(out).toMatch(/dispatcher\s+: pending \(lands in P1-2c\)/);
     expect(out).toMatch(/help\s+: pending \(lands in P1-2c\)/);
     expect(out).toMatch(/package-scripts\s+: pending \(lands in P1-2c\)/);
+  });
+});
+
+describe("docblock drift regression (v7 review finding)", () => {
+  it("docblock does not advertise obsolete --target=scripts", () => {
+    const source = readFileSync(
+      resolve(__dirname, "generate-command-catalog-derived.ts"),
+      "utf8",
+    );
+    // Grab only the leading docblock (first /** ... */ comment after any shebang).
+    const match = source.match(/\/\*\*[\s\S]*?\*\//);
+    expect(match).not.toBeNull();
+    const docblock = match![0];
+    // The obsolete token is "--target=scripts" as a literal example.
+    // "package-scripts" must appear somewhere in the docblock (as a valid
+    // target value mentioned in the list); "--target=scripts\b" must NOT
+    // appear at all (it was the F1-renamed obsolete form).
+    expect(docblock).not.toMatch(/--target=scripts\b/);
+    expect(docblock).toMatch(/\bpackage-scripts\b/);
   });
 });
 
@@ -139,7 +153,7 @@ describe("end-to-end subprocess", () => {
       ["tsx", scriptPath, "--dry-run", "--target=all"],
       { cwd: repoRoot, encoding: "utf8" },
     );
-    expect(out).toMatch(/command-catalog generator — P1-2a summary/);
+    expect(out).toMatch(/command-catalog generator — summary/);
     expect(out).toMatch(/dry-run\s*: yes/);
   });
 

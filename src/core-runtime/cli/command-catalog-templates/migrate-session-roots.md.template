@@ -1,0 +1,5 @@
+# Onto Migrate-Session-Roots (deprecated)
+
+**Deprecated since** `0.2.0`. Scheduled for **removal in** `{{removed_in}}`.
+
+One-time migration tool that moved pre-Phase-7 session root layouts into the `.onto/` layout. The migration has completed for every supported install; no new caller should need it. This entry remains in the catalog only until the `removed_in` version cut.

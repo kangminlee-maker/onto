@@ -1,5 +1,3 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=377b9b3c295c0a680d93f1e5322ae53574332d1c9c9af25e6effe82ee9b3ab45 -->
-
 # Data Restore
 
 Restores onto user data from a previous backup. If no argument, lists available backups.

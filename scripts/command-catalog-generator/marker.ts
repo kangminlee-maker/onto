@@ -1,16 +1,24 @@
 /**
  * Generated marker — wrap/extract helpers for derived artifacts.
  *
- * Two marker formats (design doc §7.3):
+ * Two marker formats (design doc §7.3 + P1-2b plan §D6/§D7 v3):
  *
  *   1. Markdown whole-file marker (for .onto/commands/**\/*.md):
- *      First line of the file is a single HTML comment naming the catalog as
- *      source and embedding the catalog hash so CI drift check (P1-4) can
- *      compare the hash in the marker against a freshly-computed catalog hash.
+ *      First line of the file is a single HTML comment embedding a
+ *      **per-entry `derive-hash`** (computed from the DERIVE_SCHEMA_VERSION,
+ *      the single catalog entry, and the single template content — see
+ *      `catalog-hash.ts:computeEntryDeriveHash`). The hash lets the P1-4 CI
+ *      drift check detect template/catalog edits that were not accompanied
+ *      by a regeneration of the .md.
  *
  *   2. TypeScript segment marker (for src/cli.ts help + dispatcher emit):
  *      A pair of line comments delimits a catalog-owned region inside an
- *      otherwise hand-written file. The hash lives inside the start marker.
+ *      otherwise hand-written file. The same per-entry `derive-hash` lives
+ *      inside the start marker.
+ *
+ * Naming: the marker label was `catalog-hash=` in P1-2a (when the hash was
+ * a single composite over the whole catalog). P1-2b v3 narrowed the hash
+ * scope to per-entry inputs and renamed the label to `derive-hash=`.
  *
  * Both wrap helpers produce deterministic output (same input → same bytes).
  * Both extract helpers are defensive — they return `null` if the marker is
@@ -21,12 +29,12 @@
 const MD_MARKER_PREFIX =
   "<!-- GENERATED from ";
 const MD_MARKER_SUFFIX_TEMPLATE =
-  ". Edit catalog or template, then run `npm run generate:catalog`. catalog-hash=";
+  ". Edit catalog or template, then run `npm run generate:catalog`. derive-hash=";
 const MD_MARKER_TRAILING = " -->";
 
 const TS_SEGMENT_START_PREFIX =
   "// >>> GENERATED FROM CATALOG — do not edit; edit ";
-const TS_SEGMENT_START_SUFFIX_TEMPLATE = " instead. catalog-hash=";
+const TS_SEGMENT_START_SUFFIX_TEMPLATE = " instead. derive-hash=";
 const TS_SEGMENT_END = "// <<< END GENERATED";
 
 function buildMarkdownMarker(sourcePath: string, catalogHash: string): string {

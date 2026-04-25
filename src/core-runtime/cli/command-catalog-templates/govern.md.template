@@ -1,5 +1,3 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=2ca07022b531172dd4c5ffd52a47b4ed90ca82d27dd066abba5e3667fe40d80c -->
-
 # Onto Govern
 
 프로젝트 규범(authority 문서, process 문서 등)의 변경 제안과 문서-코드 drift 감지 항목을 큐에 쌓고, 주체자(principal)가 판정하는 체계.

@@ -1,5 +1,3 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=c214e460e7499d68f7dddd69c1a3a621760e73e69fa7e57686f7086af358d71c -->
-
 # Promote Learnings
 
 Promotes project-level learnings to global-level. If $ARGUMENTS is provided, targets only the specified agent; otherwise, targets all agents.

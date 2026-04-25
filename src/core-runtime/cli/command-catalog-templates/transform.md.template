@@ -1,5 +1,3 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=75bb84088d055196e84caeab8a732730dcb1ad3f6f53a8db47ebbdb78f2291e1 -->
-
 # Onto Transform
 
 Transforms a built Raw Ontology into the user's desired format. $ARGUMENTS specifies the target file for transform. If not specified, `.onto/builds/{session ID}/raw.yml` is used as the target.

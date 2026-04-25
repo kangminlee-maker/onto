@@ -56,3 +56,22 @@ export function readTemplate(
   if (!existsSync(path)) return null;
   return readFileSync(path, "utf8");
 }
+
+/**
+ * Load every template in the directory into `{docTemplateId → content}`.
+ *
+ * Keys are inserted in sorted order so iteration over the returned object
+ * is deterministic — the markdown deriver relies on this for byte-identical
+ * output across runs.
+ */
+export function loadAllTemplates(
+  templatesDir: string = DEFAULT_TEMPLATES_DIR,
+): Record<string, string> {
+  const ids = listAvailableTemplates(templatesDir); // already sorted
+  const out: Record<string, string> = {};
+  for (const id of ids) {
+    const content = readTemplate(id, templatesDir);
+    if (content !== null) out[id] = content;
+  }
+  return out;
+}

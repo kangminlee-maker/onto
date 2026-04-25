@@ -18,10 +18,12 @@ import {
 import {
   assertCatalogVersionSupported,
   assertDeprecationLifecycle,
+  assertDocTemplateIdUnique,
   assertEntryRealizationsNonEmpty,
   assertMetaNameRegistered,
   assertNoAliasCollision,
   assertNoRuntimeScriptCollision,
+  assertPromptBodyRefInManagedTree,
   assertRepairPathPreboot,
   assertReservedNamespaceUnused,
   assertRuntimeScriptsReferenceExists,
@@ -661,6 +663,120 @@ describe("getNormalizedInvocationSet — patterned realization", () => {
 // ---------------------------------------------------------------------------
 // Normalized invocation set — same-name slash + cli (no collision)
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// assertDocTemplateIdUnique (P1-2b §D9)
+// ---------------------------------------------------------------------------
+
+describe("assertDocTemplateIdUnique", () => {
+  it("real catalog passes (every PublicEntry has unique doc_template_id)", () => {
+    expect(() => assertDocTemplateIdUnique(COMMAND_CATALOG)).not.toThrow();
+  });
+
+  it("throws on duplicate doc_template_id across two PublicEntries", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "a",
+        phase: "post_boot",
+        doc_template_id: "dup",
+        description: "x",
+        realizations: [
+          { kind: "cli", invocation: "a", cli_dispatch: { handler_module: "src/cli.ts" } },
+        ],
+      },
+      {
+        kind: "public",
+        identity: "b",
+        phase: "post_boot",
+        doc_template_id: "dup",
+        description: "y",
+        realizations: [
+          { kind: "cli", invocation: "b", cli_dispatch: { handler_module: "src/cli.ts" } },
+        ],
+      },
+    ]);
+    expect(() => assertDocTemplateIdUnique(catalog)).toThrow(
+      /doc_template_id collision/,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// assertPromptBodyRefInManagedTree (P1-2b §D25)
+// ---------------------------------------------------------------------------
+
+describe("assertPromptBodyRefInManagedTree", () => {
+  it("real catalog passes (every prompt_body_ref is inside .onto/commands/)", () => {
+    expect(() =>
+      assertPromptBodyRefInManagedTree(COMMAND_CATALOG),
+    ).not.toThrow();
+  });
+
+  it("rejects a traversal that escapes the managed tree", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "bad",
+        phase: "post_boot",
+        doc_template_id: "bad",
+        description: "x",
+        realizations: [
+          {
+            kind: "slash",
+            invocation: "/onto:bad",
+            prompt_body_ref: ".onto/commands/../elsewhere/bad.md",
+          },
+        ],
+      },
+    ]);
+    expect(() => assertPromptBodyRefInManagedTree(catalog)).toThrow(
+      /escapes managed tree/,
+    );
+  });
+
+  it("rejects an absolute path outside the managed tree", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "bad",
+        phase: "post_boot",
+        doc_template_id: "bad",
+        description: "x",
+        realizations: [
+          {
+            kind: "slash",
+            invocation: "/onto:bad",
+            prompt_body_ref: "/tmp/outside.md",
+          },
+        ],
+      },
+    ]);
+    expect(() => assertPromptBodyRefInManagedTree(catalog)).toThrow(
+      /escapes managed tree/,
+    );
+  });
+
+  it("accepts a nested-subdir path inside the managed tree", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "ok",
+        phase: "post_boot",
+        doc_template_id: "ok",
+        description: "x",
+        realizations: [
+          {
+            kind: "slash",
+            invocation: "/onto:learn:ok",
+            prompt_body_ref: ".onto/commands/learn/ok.md",
+          },
+        ],
+      },
+    ]);
+    expect(() => assertPromptBodyRefInManagedTree(catalog)).not.toThrow();
+  });
+});
 
 describe("getNormalizedInvocationSet — same identity, different realizations", () => {
   it("PublicEntry with both slash + cli does not collide (different invocation strings)", () => {

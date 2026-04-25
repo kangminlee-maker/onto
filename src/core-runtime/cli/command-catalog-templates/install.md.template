@@ -1,5 +1,3 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=347543d625d1743b4c3475406e15a5d6e687e969a42e067da78b63988f2f80e7 -->
-
 # Onto Install
 
 Runs the first-time setup wizard — chooses profile scope, review / learn providers, auth sources, and output language, then writes `config.yml`, `.env`, and `.env.example` to `~/.onto/` (global) or `<repo>/.onto/` (project).

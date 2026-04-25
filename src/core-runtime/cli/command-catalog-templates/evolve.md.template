@@ -1,5 +1,3 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=38d69d3957a5977dac5237f03b1f2667546e5c035d6b23627fd1ff7dadba12f4 -->
-
 # Onto Evolve
 
 온톨로지를 기반으로 기존 설계 대상에 새 영역을 설계하는 evolve 활동.

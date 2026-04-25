@@ -13,7 +13,7 @@
  *
  * Location note (P1-3): this file lives under `src/core-runtime/cli/` (not
  * `scripts/`) so the runtime — specifically the generated `dispatcher.ts`
- * `assertCatalogHash()` entry guard — can import it. The
+ * `assertDispatcherDeriveHash()` entry guard — can import it. The
  * `scripts/command-catalog-generator/catalog-hash.ts` shim re-exports from
  * here so existing deriver-side imports stay intact.
  */

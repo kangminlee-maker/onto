@@ -11,11 +11,12 @@
  *   - post_boot → cli.ts main() (legacy switch table — Q3(A) handoff
  *     20260425-phase-1-3-resume.md §5)
  *
- * The emitted body embeds an `assertCatalogHash()` entry guard (Activation
- * Determinism Redesign §3.5) — at module-load time it recomputes the
- * dispatcher's whole-catalog derive hash and compares against the marker
- * hash. Mismatch → stderr + exit 1, unless `ONTO_ALLOW_STALE_DISPATCHER=1`
- * is set (Q1(C) — bypass for dev workflows mid-edit).
+ * The emitted body embeds an `assertDispatcherDeriveHash()` entry guard
+ * (Activation Determinism Redesign §3.5) — at module-load time it recomputes
+ * the dispatcher's target-scoped derive hash via `computeTargetDeriveHash`
+ * and compares against the marker hash. Mismatch → stderr + exit 1, unless
+ * `ONTO_ALLOW_STALE_DISPATCHER=1` is set (Q1(C) — bypass for dev workflows
+ * mid-edit). The decision logic itself lives in `derive-hash-guard.ts`.
  *
  * Steady-state: `npm run generate:catalog -- --target=dispatcher`.
  * Bootstrap: UPDATE_SNAPSHOT=1 path identical to other emitters.

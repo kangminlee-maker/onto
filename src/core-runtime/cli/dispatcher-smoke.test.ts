@@ -7,8 +7,8 @@
  * runtime; deriver-side `*-deriver.test.ts` tests verify byte-output but
  * never load the emitted file.
  *
- * The `assertCatalogHash()` runtime guard is implicitly exercised on every
- * spawn: if the EXPECTED_DERIVE_HASH (in the generated dispatcher.ts)
+ * The `assertDispatcherDeriveHash()` runtime guard is implicitly exercised
+ * on every spawn: if the EXPECTED_DERIVE_HASH (in the generated dispatcher.ts)
  * disagrees with the live catalog, dispatcher's module load fails fast
  * with a non-zero exit code. So a passing smoke = the catalog and
  * dispatcher.ts are in sync.

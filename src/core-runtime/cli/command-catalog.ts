@@ -8,10 +8,10 @@
  *   - post_boot → `cli.ts` `main()` (legacy handler switch preserved)
  *
  * Catalog edits cascade-invalidate the dispatcher / preboot-dispatch /
- * markdown / cli help marker hashes. `assertCatalogHash()` at dispatcher load
- * fails fast on stale derived (Activation Determinism Redesign §3.5).
- * P1-4 will add the CI drift workflow that prevents un-regenerated catalog
- * edits from landing on main.
+ * markdown / cli help marker hashes. `assertDispatcherDeriveHash()` at
+ * dispatcher load fails fast on stale derived (Activation Determinism
+ * Redesign §3.5). P1-4 will add the CI drift workflow that prevents
+ * un-regenerated catalog edits from landing on main.
  *
  * Design authority:
  *   `development-records/evolve/20260423-phase-1-catalog-ssot-design.md`

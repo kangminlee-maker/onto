@@ -1,4 +1,4 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=41b9ca7558aefeea1b42eb7b5f163dad78f5e86e497486d730d516784fa0b306 -->
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=21ff68f07ac622598feee141c4492192f278819150016d198dc6ae075f6bde11 -->
 
 # Onto Migrate-Session-Roots (deprecated)
 

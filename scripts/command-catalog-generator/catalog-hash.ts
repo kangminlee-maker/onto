@@ -75,3 +75,30 @@ export function computeEntryDeriveHash(
   });
   return createHash("sha256").update(canonical).digest("hex");
 }
+
+/**
+ * Whole-catalog target derive hash (P1-2c).
+ *
+ * Used by markered emitters whose output spans the entire catalog rather
+ * than a single PublicEntry: dispatcher.ts and the src/cli.ts help segment.
+ *
+ * Note: `package.json:scripts` is the fourth derive target but is
+ * **markerless** by design (§9.1) — its drift guard is a 1:1 set + value
+ * invariant rather than a hash. It does not consume this helper.
+ *
+ * `targetId` namespaces the hash so two emitters cannot accidentally produce
+ * the same digest from the same catalog. `deriveSchemaVersion` cascade-
+ * invalidates a target's markers when its deriver rules change.
+ */
+export function computeTargetDeriveHash(
+  targetId: string,
+  catalog: CommandCatalog,
+  deriveSchemaVersion: string,
+): string {
+  const canonical = canonicalJsonStringify({
+    derive_schema_version: deriveSchemaVersion,
+    target_id: targetId,
+    catalog,
+  });
+  return createHash("sha256").update(canonical).digest("hex");
+}

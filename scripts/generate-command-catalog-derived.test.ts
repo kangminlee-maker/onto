@@ -79,13 +79,13 @@ describe("summarizeCatalog", () => {
     expect(s.normalizedInvocationCount).toBeGreaterThan(s.entryCounts.public);
   });
 
-  it("marks markdown as ready (P1-2b shipped) and other targets as pending", () => {
+  it("marks all 4 derive targets as ready (P1-2b + P1-2c shipped)", () => {
     const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: false, target: "all" });
     expect(s.deriveTargetStatus).toEqual({
       markdown: "ready",
-      dispatcher: "pending",
-      help: "pending",
-      "package-scripts": "pending",
+      dispatcher: "ready",
+      help: "ready",
+      "package-scripts": "ready",
     });
   });
 });
@@ -96,14 +96,15 @@ describe("formatSummary", () => {
     expect(formatSummary(s)).toMatch(/dry-run\s*: yes/);
   });
 
-  it("renders derive-target readiness with markdown ready + others pending", () => {
+  it("renders all 4 derive targets as ready (no pending suffix)", () => {
     const s = summarizeCatalog(COMMAND_CATALOG, { dryRun: true, target: "all" });
     const out = formatSummary(s);
     expect(out).toMatch(/derive targets:/);
     expect(out).toMatch(/markdown\s+: ready/);
-    expect(out).toMatch(/dispatcher\s+: pending \(lands in P1-2c\)/);
-    expect(out).toMatch(/help\s+: pending \(lands in P1-2c\)/);
-    expect(out).toMatch(/package-scripts\s+: pending \(lands in P1-2c\)/);
+    expect(out).toMatch(/dispatcher\s+: ready/);
+    expect(out).toMatch(/help\s+: ready/);
+    expect(out).toMatch(/package-scripts\s+: ready/);
+    expect(out).not.toMatch(/pending/);
   });
 });
 

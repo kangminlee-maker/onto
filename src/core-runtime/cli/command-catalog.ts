@@ -70,7 +70,8 @@ export type RuntimeScriptEntry = Common & {
   kind: "runtime_script";
   name: string;
   script_path: string;
-  invoker: "tsx" | "node-dist";
+  invoker: "tsx" | "node-dist" | "bash";
+  args?: readonly string[];
 };
 
 export type MetaRealization =
@@ -431,7 +432,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       identity: "reclassify-insights",
       phase: "post_boot",
       doc_template_id: "reclassify-insights",
-      description: "[deprecated] Reclassify insights — superseded by promote.",
+      description: "Reclassify insights — superseded by promote.",
       deprecated_since: "0.2.0",
       successor: "promote",
       realizations: [
@@ -444,7 +445,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       identity: "migrate-session-roots",
       phase: "post_boot",
       doc_template_id: "migrate-session-roots",
-      description: "[deprecated] One-time migration tool — scheduled for removal.",
+      description: "One-time migration tool — scheduled for removal.",
       deprecated_since: "0.2.0",
       removed_in: "0.3.0",
       realizations: [
@@ -457,7 +458,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       identity: "build",
       phase: "post_boot",
       doc_template_id: "build",
-      description: "[deprecated] Build ontology — superseded by reconstruct.",
+      description: "Build ontology — superseded by reconstruct.",
       deprecated_since: "0.2.0",
       successor: "reconstruct",
       realizations: [{ kind: "cli", invocation: "build", cli_dispatch: CLI_HANDLER }],
@@ -551,19 +552,26 @@ export const COMMAND_CATALOG: CommandCatalog = {
       invoker: "tsx",
       description: "Render review final-output.md from session artifacts.",
     },
+    // `review:finalize-session` and `review:assemble-record` are coexisting
+    // synonyms pointing at `assemble-review-record.ts`. The canonical authority
+    // chain (BLUEPRINT.md, productized-live-path.md, review.md, runtime
+    // bounded_complete_steps in complete-review-session.ts) treats
+    // `review:finalize-session` as the de-facto primary lifecycle name.
+    // `review:assemble-record` is retained as an alternate invocation that
+    // matches the script filename. Neither is deprecated.
     {
       kind: "runtime_script",
       name: "review:finalize-session",
       script_path: "src/core-runtime/cli/assemble-review-record.ts",
       invoker: "tsx",
-      description: "Assemble review-record.yaml (alias of assemble-record).",
+      description: "Assemble review-record.yaml — final step in the review lifecycle.",
     },
     {
       kind: "runtime_script",
       name: "review:assemble-record",
       script_path: "src/core-runtime/cli/assemble-review-record.ts",
       invoker: "tsx",
-      description: "Assemble final review-record.yaml.",
+      description: "Assemble review-record.yaml — alternate invocation name (matches script filename).",
     },
     {
       kind: "runtime_script",
@@ -576,7 +584,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       kind: "runtime_script",
       name: "review:watch",
       script_path: "scripts/onto-review-watch.sh",
-      invoker: "tsx",
+      invoker: "bash",
       description: "Live watcher pane for review session progress.",
     },
     {
@@ -584,6 +592,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       name: "review:coordinator-init-log",
       script_path: "src/core-runtime/cli/coordinator-helpers.ts",
       invoker: "tsx",
+      args: ["init-log"],
       description: "Coordinator helper: init session log.",
     },
     {
@@ -591,6 +600,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       name: "review:coordinator-build-synthesize-packet",
       script_path: "src/core-runtime/cli/coordinator-helpers.ts",
       invoker: "tsx",
+      args: ["build-synthesize-packet"],
       description: "Coordinator helper: build synthesize packet.",
     },
     {
@@ -598,6 +608,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       name: "review:coordinator-write-execution-result",
       script_path: "src/core-runtime/cli/coordinator-helpers.ts",
       invoker: "tsx",
+      args: ["write-execution-result"],
       description: "Coordinator helper: write execution result.",
     },
 
@@ -610,6 +621,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       name: "coordinator:start",
       script_path: "src/core-runtime/cli/coordinator-state-machine.ts",
       invoker: "tsx",
+      args: ["start"],
       description: "Coordinator state machine: start.",
     },
     {
@@ -617,6 +629,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       name: "coordinator:next",
       script_path: "src/core-runtime/cli/coordinator-state-machine.ts",
       invoker: "tsx",
+      args: ["next"],
       description: "Coordinator state machine: next step.",
     },
     {
@@ -624,6 +637,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       name: "coordinator:status",
       script_path: "src/core-runtime/cli/coordinator-state-machine.ts",
       invoker: "tsx",
+      args: ["status"],
       description: "Coordinator state machine: status.",
     },
 
@@ -654,7 +668,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       kind: "runtime_script",
       name: "migrate:agent-id-rename",
       script_path: "scripts/migrate-agent-id-rename.sh",
-      invoker: "tsx",
+      invoker: "bash",
       description: "One-time migration: agent-id rename.",
     },
 

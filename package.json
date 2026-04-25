@@ -31,6 +31,7 @@
     "check:ts-core": "tsc -p tsconfig.json --noEmit",
     "lint:output-language-boundary": "tsx scripts/lint-output-language-boundary.ts",
     "generate:catalog": "tsx scripts/generate-command-catalog-derived.ts",
+    "check:catalog-drift": "tsx scripts/check-catalog-drift.ts",
     "test:e2e": "bash src/core-runtime/cli/e2e-review-invoke.test.sh",
     "test:e2e:promote": "tsx src/core-runtime/learning/promote/e2e-promote.test.ts",
     "test:e2e:start-review-session": "tsx src/core-runtime/cli/e2e-start-review-session.test.ts",

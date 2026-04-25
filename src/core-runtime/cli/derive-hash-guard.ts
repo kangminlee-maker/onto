@@ -23,6 +23,17 @@
  * separate from the side-effects, so the negative path can be exercised
  * by `derive-hash-guard.test.ts` without mutating the generated
  * `dispatcher.ts` or spawning a subprocess.
+ *
+ * Authority of the bypass env var (P1-4):
+ *   `ONTO_ALLOW_STALE_DISPATCHER=1` is a **dev-workflow-only** escape for
+ *   local mid-edit cycles where the deriver has not yet been re-run. The
+ *   `determinism-regression` GitHub workflow (`.github/workflows/
+ *   determinism-regression.yml`) does NOT honor this env var — it runs
+ *   `check:catalog-drift` directly and that script never reads it. CI is
+ *   the canonical drift gate; the runtime entry guards in dispatcher.ts /
+ *   preboot-dispatch.ts are defense-in-depth for invocations that bypass
+ *   CI (e.g., a developer running `bin/onto` against an unsynced local
+ *   working tree).
  */
 
 export type DeriveHashCheckResult =

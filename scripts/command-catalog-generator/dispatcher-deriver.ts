@@ -24,6 +24,12 @@
  * `ONTO_ALLOW_STALE_DISPATCHER=1` is set (Q1(C) — bypass for dev workflows
  * mid-edit). The decision logic itself lives in `derive-hash-guard.ts`.
  *
+ * Authority of drift detection (P1-4): the canonical gate is the
+ * `determinism-regression` CI workflow which runs `npm run check:catalog-drift`
+ * over all 5 derive targets and never honors the bypass env var. The runtime
+ * entry guard here is defense-in-depth for `bin/onto` invocations against
+ * an unsynced local working tree.
+ *
  * Steady-state: `npm run generate:catalog -- --target=dispatcher`.
  * Bootstrap: UPDATE_SNAPSHOT=1 path identical to other emitters.
  */

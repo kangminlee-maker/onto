@@ -1,0 +1,59 @@
+name: determinism-regression
+
+# Phase 1 P1-4 — catalog drift guard.
+#
+# Authority:
+#   development-records/evolve/20260423-phase-1-catalog-ssot-design.md §9
+#   development-records/evolve/20260423-activation-determinism-redesign.md §8
+#
+# Purpose: fail closed when a PR (or push to main) lands a catalog change
+# without regenerating its 5 derived artifacts. Without this gate, the
+# runtime entry guards in dispatcher.ts / preboot-dispatch.ts catch drift
+# only at invocation time, and the cli-help segment + package.json scripts
+# have no module-load guard at all.
+#
+# `paths:` filter mirrors every input that can flip a derived artifact:
+# the catalog itself, the deriver code, the templates, the existing
+# derived files, and this workflow file. Any of those changing requires
+# the drift check to pass.
+#
+# `ONTO_ALLOW_STALE_DISPATCHER=1` is intentionally NOT honored here.
+# That env var is a dev-workflow escape (mid-edit local runs); CI is the
+# main-protection gate and must run fail-closed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'src/core-runtime/cli/command-catalog.ts'
+      - 'src/core-runtime/cli/command-catalog-helpers.ts'
+      - 'src/core-runtime/cli/dispatcher.ts'
+      - 'src/core-runtime/cli/preboot-dispatch.ts'
+      - 'src/core-runtime/cli/catalog-hash.ts'
+      - 'src/core-runtime/cli/derive-hash-guard.ts'
+      - 'src/cli.ts'
+      - 'scripts/check-catalog-drift.ts'
+      - 'scripts/generate-command-catalog-derived.ts'
+      - 'scripts/command-catalog-generator/**'
+      - 'src/core-runtime/cli/command-catalog-templates/**'
+      - '.onto/commands/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/determinism-regression.yml'
+
+jobs:
+  catalog-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Verify catalog ↔ derived artifacts are in sync
+        run: npm run check:catalog-drift

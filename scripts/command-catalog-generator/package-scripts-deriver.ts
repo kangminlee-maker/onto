@@ -39,6 +39,7 @@ export const EXCLUDED_PACKAGE_SCRIPTS: readonly string[] = [
   "check:ts-core",
   "lint:output-language-boundary",
   "generate:catalog",
+  "check:catalog-drift",
   "test:e2e",
   "test:e2e:promote",
   "test:e2e:start-review-session",

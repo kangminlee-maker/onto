@@ -312,11 +312,13 @@ shared_phenomenon_summary:
 현재 bounded runtime replacement는 아래 TS core path를 따른다.
 
 ```bash
-npm run review:assemble-record -- \
+npm run review:finalize-session -- \
   --project-root {project} \
   --session-root "{session path}" \
   --request-text "{original user request}"
 ```
+
+(`review:finalize-session`은 review lifecycle의 canonical name이다. `review:assemble-record`는 같은 스크립트를 가리키는 alternate invocation으로, script 파일명에 맞춘 이름이다.)
 
 중요:
 

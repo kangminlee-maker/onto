@@ -1489,12 +1489,36 @@ After 4b, Runtime also prepares the Phase 3 Unresolved Conflicts table using the
 | 1 | {epsilon summary} | N | N |
 
 ### Ontology Elements — N items
-| # | Type | Name | Certainty | Identified Stage | Identified Round | Summary |
-|---|---|---|---|---|---|---|
+| # | Type | Name | Certainty | Stage | Round | Rationale | Confidence | Summary |
+|---|---|---|---|---|---|---|---|---|
 
-- `Identified Stage` = `added_in_stage` (1 for Stage-1 origination, 2 for Stage-2 supplemental discovery). Lets users see which elements were discovered during behavior exploration vs structural survey.
+<!-- canonical-mirror-of: step-4-integration §2.2 -->
 
-### User Decision Required Items
+- `Stage` = `added_in_stage` (1 for Stage-1 origination, 2 for Stage-2 supplemental discovery). Lets users see which elements were discovered during behavior exploration vs structural survey.
+- **`Rationale` column** (v1 신규, Step 4 §2.2 canonical) — display rule per `intent_inference.rationale_state`:
+  - `proposed` — `inferred_meaning` summary (1 sentence) + "(pending review)" suffix, gray
+  - `reviewed` — `inferred_meaning` summary (1 sentence), normal
+  - `principal_*` (terminal: `principal_accepted` / `principal_modified` / `principal_rejected` / `principal_accepted_gap` / `principal_deferred` / `principal_confirmed_scope_miss`) — terminal state label + Principal decision summary, normal (terminal-distinct icon per Step 4 §2.2.1)
+  - `gap` — "(추론 실패)", red
+  - `domain_pack_incomplete` — "(pack 에 개념 부재)", yellow
+  - `domain_scope_miss` — "(도메인 범위 밖)" + override 가능 hint, gray (pre-Phase-3.5)
+  - `empty` — "—" (rationale 부재 canonical marker, Stage 2 Explorer 추가 entity)
+  - `carry_forward` — "(이전 세션 미판정)" + re-judgment hint, gray
+- **Single-gate badge** (Step 4 §2.3) — `provenance.gate_count == 1` element 에 "Single-gate (audit only)" yellow badge suffix (Hook γ 미개입 또는 `populate_stage2_rationale`-origin 의 quality-asymmetry audit signal).
+
+### User Decision Required Items (individual + grouped)
+
+<!-- canonical-mirror-of: step-4-integration §2.5 §2.6 §2.8 -->
+
+**Hook δ throttling + rendering** (Step 4 §2.5 canonical) — `intent_inference.rationale_state` terminal-pending element 에 priority score + 4-bucket exhaustive partition:
+- `individual` (priority top `max_individual_items` + grouping_threshold 미달 residual, hard cap 보존)
+- `group_sample` / `group_truncated` (same group within `max_group_rows` cap)
+- `throttled_out` (hard cap 초과 — `rationale-queue.yaml` 전수 audit)
+
+config defaults: `max_individual_items: 20` / `grouping_threshold: 5` / `group_summary_sample_count: 3` / `max_individual_items_hard_cap: 100` / `max_group_rows: 50`. Full algorithm + grouping key canonical table (`pack_missing_area` / `rationale_state` / `rationale_state_with_confidence` / `rationale_state_single_gate`) + priority formula + `rationale-queue.yaml` artifact schema: Step 4 §2.5~§2.8.
+
+**Row-level render decision** triple-read (Step 4 §2.8 canonical): `(reviewed_at, rationale_review_degraded, rationale_state)` minimum-sufficient disambiguation set.
+
 | # | Element | Certainty | Decision Question | Inference Quality (inferred only) |
 |---|---|---|---|---|
 
@@ -1502,6 +1526,8 @@ After 4b, Runtime also prepares the Phase 3 Unresolved Conflicts table using the
 - `inferred` items: sorted by inference quality (explanatory_power, coherence) — lower quality inferences are priority confirmation targets
 - `ambiguous` items: "Multiple interpretations are possible. Please choose" + each interpretation option with rationale
 - `not-in-source` items: "Cannot be confirmed from this source. Please provide the information"
+
+**v1 rationale states**: rendered per Step 4 §3.1 action-first canonical matrix — `accept` / `reject` / `modify` / `defer` / `provide_rationale` / `mark_acceptable_gap` / `override` action set per source state (UI disabled rules per Step 4 §3.3 `governed subject` derived view). Batch action vocabulary single enum (Step 4 §3.4): `{accept, reject, defer, mark_acceptable_gap}` (UI alias `_all` suffix not persisted).
 
 ### Unresolved Conflicts — N items (if any)
 | # | Priority | Kind | Subject | Position A (priority) | Position B (priority) | Unresolved Since |

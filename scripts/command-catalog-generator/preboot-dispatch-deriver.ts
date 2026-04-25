@@ -19,6 +19,12 @@
  * derive time and embedded as a constant in the emitted body. Catalog
  * change → marker hash change → re-emit required.
  *
+ * Authority of drift detection (P1-4): same as dispatcher-deriver — the
+ * `determinism-regression` CI workflow is the canonical gate; the
+ * `assertPrebootDispatchDeriveHash()` entry guard emitted here is
+ * defense-in-depth for unsynced local working trees.
+ * `ONTO_ALLOW_STALE_DISPATCHER=1` is dev-only and not honored by CI.
+ *
  * Steady-state: `npm run generate:catalog -- --target=preboot-dispatch`.
  * Bootstrap: UPDATE_SNAPSHOT=1 vitest path identical to dispatcher-deriver
  * (plan §D18 / §D27 reused).

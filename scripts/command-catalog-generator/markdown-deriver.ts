@@ -316,6 +316,21 @@ export function deriveAllMarkdown(
   const dryRun = opts.dryRun ?? false;
   const snapshotMode = opts.snapshotMode ?? false;
 
+  // Structural gate: `snapshotMode: true` is the bootstrap-only escape that
+  // downgrades D13 case (ii) CONFLICT → ACCEPT (plan §D22 v9). It must only
+  // be reachable from the UPDATE_SNAPSHOT branch of markdown-diff0.test.ts
+  // (plan §D27). Binding it to the env var closes the gap the PR#212 review
+  // (C1 / IA-1) flagged: without this check, any caller — including a stray
+  // test or a foot-gun script — could pass `snapshotMode: true` and silently
+  // overwrite markerless files in the managed tree.
+  if (snapshotMode && process.env.UPDATE_SNAPSHOT !== "1") {
+    throw new Error(
+      "snapshotMode=true requires UPDATE_SNAPSHOT=1 in the environment. " +
+        "This path is the sole bootstrap seat (plan §D18/§D27). Use: " +
+        "`UPDATE_SNAPSHOT=1 npx vitest run scripts/command-catalog-generator/markdown-diff0.test.ts`.",
+    );
+  }
+
   // §D22 v9 note on validateCatalog binding:
   // validateCatalog(catalog) runs at module-import time inside
   // command-catalog.ts itself (line near bottom: `validateCatalog(COMMAND_CATALOG)`).

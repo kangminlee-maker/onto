@@ -376,14 +376,25 @@ describe("deriveMarkdown + per-entry derive-hash (D6/D15)", () => {
 
 describe("deriveAllMarkdown", () => {
   let tmp: string;
+  let priorUpdateSnapshot: string | undefined;
 
   beforeEach(() => {
     tmp = mkdtempSync(path.join(tmpdir(), "onto-derive-"));
     mkdirSync(path.join(tmp, ".onto/commands"), { recursive: true });
+    // The PR#212 IA-1 gate requires UPDATE_SNAPSHOT=1 before snapshotMode=true
+    // is accepted. Tests exercising snapshotMode=true opt in explicitly so the
+    // gate remains production-facing rather than test-blocking.
+    priorUpdateSnapshot = process.env.UPDATE_SNAPSHOT;
+    process.env.UPDATE_SNAPSHOT = "1";
   });
 
   afterEach(() => {
     rmSync(tmp, { recursive: true, force: true });
+    if (priorUpdateSnapshot === undefined) {
+      delete process.env.UPDATE_SNAPSHOT;
+    } else {
+      process.env.UPDATE_SNAPSHOT = priorUpdateSnapshot;
+    }
   });
 
   function fixtureCatalog(): CommandCatalog {
@@ -464,5 +475,24 @@ describe("deriveAllMarkdown", () => {
     );
     expect(content).toContain("# Info");
     expect(content).toContain("derive-hash=");
+  });
+
+  it("snapshotMode=true throws when UPDATE_SNAPSHOT is not set (PR#212 IA-1 gate)", () => {
+    const catalog = fixtureCatalog();
+    const templatesDir = setupTemplateDir();
+    // Temporarily drop the env var for this single test; beforeEach re-sets it.
+    const saved = process.env.UPDATE_SNAPSHOT;
+    delete process.env.UPDATE_SNAPSHOT;
+    try {
+      expect(() =>
+        deriveAllMarkdown(catalog, {
+          projectRoot: tmp,
+          templatesDir,
+          snapshotMode: true,
+        }),
+      ).toThrow(/UPDATE_SNAPSHOT=1/);
+    } finally {
+      if (saved !== undefined) process.env.UPDATE_SNAPSHOT = saved;
+    }
   });
 });

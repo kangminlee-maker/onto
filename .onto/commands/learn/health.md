@@ -1,6 +1,6 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=6665ddc37cb2c96603297a57fdec14b0e619e7d489c570e6a9c9acc4e030bb78 -->
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=a9edffcbe59603c96afbe3b5b141f51639b2e7d20e9e148264d69803c2e3e026 -->
 
-# /onto:health
+# /onto:learn:health
 
 Shows learning pool health dashboard. No agent spawning required.
 

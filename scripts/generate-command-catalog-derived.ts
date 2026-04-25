@@ -26,7 +26,8 @@
  * NOT registered as a RuntimeScriptEntry in the catalog.
  */
 
-import { pathToFileURL } from "node:url";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { COMMAND_CATALOG } from "../src/core-runtime/cli/command-catalog.js";
 import { getNormalizedInvocationSet } from "../src/core-runtime/cli/command-catalog-helpers.js";
 import type { CommandCatalog } from "../src/core-runtime/cli/command-catalog.js";
@@ -181,7 +182,15 @@ function main(): void {
     options.target === "markdown" || options.target === "all";
   if (shouldRunMarkdown) {
     process.stdout.write("\n[markdown]\n");
-    const result = deriveAllMarkdown(COMMAND_CATALOG, { dryRun: options.dryRun });
+    // Anchor projectRoot to the script's own repo-local location so
+    // classification + write targets don't drift with the caller's CWD
+    // (PR#212 review IA-2 / UF-DEP-ROOT).
+    const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+    const repoRoot = path.resolve(scriptDir, "..");
+    const result = deriveAllMarkdown(COMMAND_CATALOG, {
+      dryRun: options.dryRun,
+      projectRoot: repoRoot,
+    });
     process.stdout.write(formatDeriveResult(result, options.dryRun) + "\n");
   }
 }

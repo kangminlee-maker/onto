@@ -1,4 +1,4 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=b6a0ce44eee44baabbc9823c8ef5500359f19315d22a0cec481792261042b592 -->
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=e63480f51842af65b13ef44284f6441a25da96e71f8ceeca75e29bbdfe903816 -->
 
 # Onto Reclassify-Insights (deprecated)
 

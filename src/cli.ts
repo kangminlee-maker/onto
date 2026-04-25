@@ -14,6 +14,39 @@ import {
   readSingleOptionValueFromArgv,
 } from "./core-runtime/review/review-artifact-utils.js";
 
+// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=9471c1e057dc2f7e0e6f69741299c84ddc0eb845d823b5e0c916e4dd4ce13a1c
+const ONTO_HELP_TEXT = [
+  "Usage: onto <subcommand> [options]",
+  "",
+  "Subcommands:",
+  "  info                    Show installation mode, onto home, project root, and runtime info.",
+  "  config                  Inspect or modify onto configuration (repair-path).",
+  "  install                 First-run setup wizard (providers, auth, output language). Repair-path.",
+  "  review                  9-lens review with separate synthesize stage.",
+  "  coordinator             Internal review orchestration state machine (Agent Teams nested spawn).",
+  "  evolve                  Evolve ontology — design and apply changes via aligned process.",
+  "  reconstruct             Reconstruct ontology from analysis targets (code, docs, etc.).",
+  "  govern                  Govern principles — track, propose, decide.",
+  "  promote                 Promote project-level learnings to global-level.",
+  "  health                  Show learning pool health dashboard (global or project).",
+  "  reclassify-insights     [DEPRECATED since 0.2.0 → promote] Reclassify insights — superseded by promote.",
+  "  migrate-session-roots   [DEPRECATED since 0.2.0 → removed in 0.3.0] One-time migration tool — scheduled for removal.",
+  "  build                   [DEPRECATED since 0.2.0 → reconstruct] Build ontology — superseded by reconstruct.",
+  "",
+  "Options:",
+  "  --onto-home <path>         Override onto installation directory",
+  "  --project-root <path>      Override target project root",
+  "  --prepare-only             Prepare session without executing lenses",
+  "  --allow-onto-init          Allow .onto/ creation in new projects (non-interactive)",
+  "  --version, -v              Show version",
+  "  --help, -h                 Show this help",
+  "",
+  "Installation:",
+  "  npm install -g onto-core   Global install (onto command everywhere)",
+  "  npm install onto-core      Project install (npx onto within project, version pinned)",
+].join("\n");
+// <<< END GENERATED
+
 /**
  * Trust Boundary: check if .onto/ directory needs to be created in the
  * target project. If .onto/ doesn't exist yet, ask for user confirmation
@@ -755,41 +788,7 @@ async function main(): Promise<number> {
     case "--help":
     case "-h":
     case undefined:
-      console.log(
-        [
-          "Usage: onto <subcommand> [options]",
-          "",
-          "Subcommands:",
-          "  evolve start <description>   Start an evolve scope",
-          "  reconstruct <subcommand>    Reconstruct activity CLI (start/explore/complete)",
-          "  govern <subcommand>         Govern queue CLI (submit/list/decide)",
-          "  review <target> <intent>   Run 9-lens review",
-          "  review --complete-session   Complete a prepared session",
-          "  coordinator start|next|status  State machine coordinated review",
-          "  info                        Show installation mode, onto home, project root",
-          "  promote                     Phase 3 promote (analyze)",
-          "  promote --apply <id>         Apply approved decisions",
-          "  promote --resolve-conflict <id> --select <attempt-id>  Resolve recovery conflict",
-          "  promote --status <id>        Inspect ApplyExecutionState",
-          "  reclassify-insights         Reclassify [insight] role tags",
-          "  migrate-session-roots       Move pre-v3 sessions under review/",
-          "  health [project]            Learning pool health dashboard (default: global)",
-          "  config [subcommand]         Inspect / edit onto config (show/set/edit/re-detect/validate)",
-          "  install                     First-run setup (profile, providers, auth)",
-          "",
-          "Options:",
-          "  --onto-home <path>         Override onto installation directory",
-          "  --project-root <path>      Override target project root",
-          "  --prepare-only             Prepare session without executing lenses",
-          "  --allow-onto-init          Allow .onto/ creation in new projects (non-interactive)",
-          "  --version, -v              Show version",
-          "  --help, -h                 Show this help",
-          "",
-          "Installation:",
-          "  npm install -g onto-core   Global install (onto command everywhere)",
-          "  npm install onto-core       Project install (npx onto within project, version pinned)",
-        ].join("\n"),
-      );
+      console.log(ONTO_HELP_TEXT);
       return 0;
 
     default:

@@ -33,9 +33,21 @@ import { getNormalizedInvocationSet } from "../src/core-runtime/cli/command-cata
 import type { CommandCatalog } from "../src/core-runtime/cli/command-catalog.js";
 import { computeCatalogHash } from "./command-catalog-generator/catalog-hash.js";
 import {
+  deriveAllCliHelp,
+  type DeriveCliHelpResult,
+} from "./command-catalog-generator/cli-help-deriver.js";
+import {
+  deriveAllDispatcher,
+  type DeriveDispatcherResult,
+} from "./command-catalog-generator/dispatcher-deriver.js";
+import {
   deriveAllMarkdown,
   type DeriveResult,
 } from "./command-catalog-generator/markdown-deriver.js";
+import {
+  deriveAllPackageScripts,
+  type DerivePackageScriptsResult,
+} from "./command-catalog-generator/package-scripts-deriver.js";
 import { listAvailableTemplates } from "./command-catalog-generator/template-loader.js";
 
 // Derive targets. `package-scripts` (not `scripts`) disambiguates from the
@@ -51,8 +63,7 @@ const DERIVE_TARGETS: readonly DeriveTarget[] = [
 ];
 const VALID_TARGETS: readonly Target[] = [...DERIVE_TARGETS, "all"];
 
-// Which P1 sub-PR lands each derive target. P1-2a only reports readiness —
-// every target is "pending" until its emitter PR merges.
+// Which P1 sub-PR landed each derive target.
 const DERIVE_TARGET_PHASE: Readonly<Record<DeriveTarget, string>> = {
   markdown: "P1-2b",
   dispatcher: "P1-2c",
@@ -111,9 +122,9 @@ export type CatalogSummary = {
 /** Static capability map (plan §D8). Flips ONLY when emitter code ships. */
 const DERIVE_TARGET_CAPABILITY: Readonly<Record<DeriveTarget, DeriveTargetStatus>> = {
   markdown: "ready", // P1-2b shipped.
-  dispatcher: "pending",
-  help: "pending",
-  "package-scripts": "pending",
+  dispatcher: "ready", // P1-2c shipped.
+  help: "ready", // P1-2c shipped.
+  "package-scripts": "ready", // P1-2c shipped.
 };
 
 export function summarizeCatalog(
@@ -173,25 +184,98 @@ export function formatDeriveResult(r: DeriveResult, dryRun: boolean): string {
   return lines.join("\n");
 }
 
+function formatSingleFileResult(
+  emissionPath: string,
+  written: boolean,
+  skippedDryRun: boolean,
+  dryRun: boolean,
+): string {
+  if (dryRun || skippedDryRun) {
+    return `  dry-run: would update ${emissionPath}`;
+  }
+  return written
+    ? `  wrote ${emissionPath}`
+    : `  unchanged ${emissionPath}`;
+}
+
+function formatDispatcherResult(r: DeriveDispatcherResult, dryRun: boolean): string {
+  return formatSingleFileResult(r.emissionPath, r.written, r.skippedDryRun, dryRun);
+}
+
+function formatCliHelpResult(r: DeriveCliHelpResult, dryRun: boolean): string {
+  return formatSingleFileResult(r.emissionPath, r.written, r.skippedDryRun, dryRun);
+}
+
+function formatPackageScriptsResult(
+  r: DerivePackageScriptsResult,
+  dryRun: boolean,
+): string {
+  const head = formatSingleFileResult(
+    r.emissionPath,
+    r.written,
+    r.skippedDryRun,
+    dryRun,
+  );
+  if (r.driftBefore.length === 0) return head;
+  const drift = r.driftBefore.map((i) => {
+    const name = (i as { name?: string }).name ?? "?";
+    return `    drift: ${i.kind} :: ${name}`;
+  });
+  return [head, ...drift].join("\n");
+}
+
 function main(): void {
   const options = parseArgs(process.argv.slice(2));
   const summary = summarizeCatalog(COMMAND_CATALOG, options);
   process.stdout.write(formatSummary(summary) + "\n");
 
+  // Anchor projectRoot to the script's own repo-local location so
+  // classification + write targets don't drift with the caller's CWD
+  // (PR#212 review IA-2 / UF-DEP-ROOT).
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const repoRoot = path.resolve(scriptDir, "..");
+
   const shouldRunMarkdown =
     options.target === "markdown" || options.target === "all";
   if (shouldRunMarkdown) {
     process.stdout.write("\n[markdown]\n");
-    // Anchor projectRoot to the script's own repo-local location so
-    // classification + write targets don't drift with the caller's CWD
-    // (PR#212 review IA-2 / UF-DEP-ROOT).
-    const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-    const repoRoot = path.resolve(scriptDir, "..");
     const result = deriveAllMarkdown(COMMAND_CATALOG, {
       dryRun: options.dryRun,
       projectRoot: repoRoot,
     });
     process.stdout.write(formatDeriveResult(result, options.dryRun) + "\n");
+  }
+
+  const shouldRunDispatcher =
+    options.target === "dispatcher" || options.target === "all";
+  if (shouldRunDispatcher) {
+    process.stdout.write("\n[dispatcher]\n");
+    const result = deriveAllDispatcher(COMMAND_CATALOG, {
+      dryRun: options.dryRun,
+      projectRoot: repoRoot,
+    });
+    process.stdout.write(formatDispatcherResult(result, options.dryRun) + "\n");
+  }
+
+  const shouldRunHelp = options.target === "help" || options.target === "all";
+  if (shouldRunHelp) {
+    process.stdout.write("\n[help]\n");
+    const result = deriveAllCliHelp(COMMAND_CATALOG, {
+      dryRun: options.dryRun,
+      projectRoot: repoRoot,
+    });
+    process.stdout.write(formatCliHelpResult(result, options.dryRun) + "\n");
+  }
+
+  const shouldRunPackageScripts =
+    options.target === "package-scripts" || options.target === "all";
+  if (shouldRunPackageScripts) {
+    process.stdout.write("\n[package-scripts]\n");
+    const result = deriveAllPackageScripts(COMMAND_CATALOG, {
+      dryRun: options.dryRun,
+      projectRoot: repoRoot,
+    });
+    process.stdout.write(formatPackageScriptsResult(result, options.dryRun) + "\n");
   }
 }
 

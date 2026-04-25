@@ -1568,7 +1568,11 @@ No implicit timeout or silent-promotion occurs — user authority over the Phase
 
 ### Phase 3.5: User Decision Write-back (Runtime Coordinator)
 
-After the user responds to Phase 3, Runtime Coordinator applies the user decisions to wip.yml before Phase 4 Save:
+<!-- canonical-mirror-of: step-4-integration §3 -->
+
+After the user responds to Phase 3, Runtime Coordinator applies the user decisions to wip.yml before Phase 4 Save. **Runtime sole-writer** — LLM 불개입 (Step 4 §3.8 canonical).
+
+**v1 step sequencing** (Step 4 §3.5 canonical, atomic single fsync at step 5):
 
 1. **Unresolved conflicts table** — for each row:
    - If user selects **Position A** or **Position B**: update the corresponding `conflict` issue to `resolution: resolved`, record which position was chosen in `resolved_position: position_a | position_b`, and apply the chosen label to the target element via an `update` patch (no element mutation for epsilon conflicts — they do not correspond to elements).
@@ -1576,23 +1580,50 @@ After the user responds to Phase 3, Runtime Coordinator applies the user decisio
    - If user **defers** (explicit `defer` response or if the conflict is unaddressed when the user replies `confirmed` globally): update the `conflict` issue to `resolution: user_deferred` and leave the target element in its pre-confirmation state.
    - If user's response is **ambiguous or does not match any of the above patterns** (e.g., "kind of A and B combined", "A for subject X but B for Y", free-form note not clearly identifying a position): Runtime treats it as `user_resolved` with the raw reply preserved in `resolution_text`. The target element is NOT mutated. This default preserves the user's intent without silent misclassification as a specific position. Runtime may optionally log the ambiguity for post-reconstruct review.
 
-2. **User Decision Required Items (certainty-based)** — for each row:
+**1.5 Rationale decisions validation** (v1 신규, Step 4 §3.5.1 canonical):
+   - Schema validation per Step 4 §3.6 schema (rationale_decisions[] + batch_actions[])
+   - Target existence + source state currency vs **render-time snapshot** (`.onto/builds/{session}/phase3-snapshot.yml`, Step 4 §3.5.1 rule 3)
+   - Action × source state compat (Step 4 §3.3 derived from §3.1 matrix)
+   - Batch exact-match (4 grouping kinds — `pack_missing_area` / `rationale_state` / `rationale_state_with_confidence` / `rationale_state_single_gate`)
+   - `principal_provided_rationale` 필수 필드 (action ∈ {modify, provide_rationale, override})
+   - `"see below"` pending coverage (`global_reply == "see below"` 시 미-address pending 1+ → `phase_3_5_input_incomplete`. `domain_scope_miss` exception — Step 4 §3.2)
+   - Fail → all-or-nothing reject, `phase_3_5_input_invalid` halt + Phase 3 re-prompt (v0 invariant)
+
+**2. Rationale decisions apply** (v1 신규, Step 4 §3.5 + §3.1 action-first canonical matrix):
+   - `rationale_decisions[]` (individual) → terminal state per §3.1 action × source mapping (canonical: `accept` / `reject` / `modify` / `defer` / `provide_rationale` / `mark_acceptable_gap` / `override`; terminal: `principal_accepted` / `principal_rejected` / `principal_modified` / `principal_accepted_gap` / `principal_deferred` / `principal_confirmed_scope_miss`)
+   - `batch_actions[]` (group, single enum: `{accept, reject, defer, mark_acceptable_gap}`) → 동일 write path
+   - `principal_provided_rationale` populate (modify / provide_rationale / override 만)
+   - `provenance.principal_judged_at` populate (Step 4 §4.3 element-level single seat)
+   - 두 list 동일 element_id 시 individual 우선 (Step 4 §3.6 rule 3)
+   - `domain_scope_miss` accept terminal split: `principal_confirmed_scope_miss` (v1 신규, Step 4 §3.2)
+
+3. **User Decision Required Items (certainty-based)** — for each row:
    - If user confirms the proposed action: update the element's `certainty` and note the rationale in `user_confirmed_rationale`.
    - If user rejects or defers: update the element with `user_decision: deferred` and leave certainty unchanged.
 
-3. **Other user adjustments** (type changes, name corrections, etc. from Phase 3 global response): recorded as direct patches to wip.yml elements with `source: user_decision_phase3`.
+4. **Other user adjustments** (type changes, name corrections, etc. from Phase 3 global response): recorded as direct patches to wip.yml elements with `source: user_decision_phase3`.
 
-4. **Atomicity and crash safety**:
-   - Runtime applies all steps 1-3 as a single atomic wip.yml write (temp file + rename, or equivalent). Partial application is not exposed: either the full user-decision write-back is reflected in wip.yml or none of it is.
-   - If Runtime crashes mid-Phase-3.5, re-execution reads the pre-3.5 wip.yml and re-applies all decisions from the preserved Phase 3 response log (persisted as `meta.phase3_user_responses` in wip.yml — written once at Phase 3 response receipt, before step 1 of Phase 3.5). Phase 3.5 is **idempotent**: re-running with the same `phase3_user_responses` produces identical wip.yml state.
+5. **Atomicity and crash safety** (Step 4 §3.5 step 5 확장):
+   - Runtime applies all steps **1 + 1.5 + 2 + 3 + 4 + 8** as a single atomic wip.yml write (temp file + rename, or equivalent). Partial application is not exposed: either the full user-decision write-back is reflected in wip.yml or none of it is.
+   - If Runtime crashes mid-Phase-3.5, re-execution reads the pre-3.5 wip.yml and re-applies all decisions from the preserved Phase 3 response log (persisted as `meta.phase3_user_responses` in wip.yml — written once at Phase 3 response receipt, before step 1). Phase 3.5 is **idempotent**: re-running with the same `phase3_user_responses` produces identical wip.yml state.
 
-5. **Invariants after Phase 3.5**:
-   - No element has `certainty: pending` (all resolved to a concrete level, or promoted to `not-in-source` per step 3.5 below).
+6. **Invariants after Phase 3.5**:
+   - No element has `certainty: pending` (all resolved to a concrete level, or promoted to `not-in-source` per step 7 below).
    - All conflict issues have `resolution ∈ {resolved, user_resolved, user_deferred}` (no `pending`).
+   - **All `intent_inference.rationale_state` are terminal** (Step 4 §3.8.1 — 8 terminal: `principal_*` 6 + `carry_forward` + `domain_scope_miss` 미판정 유지). Intra-Phase-3.5 state (`reviewed` / `proposed` / `gap` / `domain_pack_incomplete` / `empty`) 잔존 = Runtime defect.
 
-6. **Pending-certainty promotion (final pass)**:
-   - For any element still at `certainty: pending` after steps 1-3 (e.g., deferred certainty decisions, unaddressed pending from earlier rounds): promote to `not-in-source`, preserve the prior level in `pre_defer_certainty` for provenance, and mark with `user_decision: promoted_on_defer`.
-   - This ensures invariant 5 holds unconditionally.
+7. **Pending-certainty promotion (final pass)**:
+   - For any element still at `certainty: pending` after steps 1-4 (e.g., deferred certainty decisions, unaddressed pending from earlier rounds): promote to `not-in-source`, preserve the prior level in `pre_defer_certainty` for provenance, and mark with `user_decision: promoted_on_defer`.
+   - This ensures invariant 6 holds unconditionally for `certainty`. `rationale_state` invariant (8 terminal) is enforced by step 8 sweep.
+
+**8. carry_forward sweep** (v1 신규, Step 4 §3.5.2 canonical):
+   - For each element with intra-Phase-3.5 `rationale_state ∈ {reviewed, proposed, gap, domain_pack_incomplete, empty}` AND `element_id` NOT in (rationale_decisions ∪ batch_actions) AND `global_reply == "confirmed"`:
+     - Capture `original_state = rationale_state` first (overwrite-before-capture bug 방지)
+     - Write order: `provenance.carry_forward_from = original_state` → `provenance.principal_judged_at = null` → `rationale_state = "carry_forward"`
+   - 제외 source states: `domain_scope_miss` (§3.2 special case 미판정 유지) / `carry_forward` (이전 reconstruct 의 이중 carry 금지) / `principal_*` (이미 per-item action 대상)
+   - `provenance.carry_forward_from_schema_version: "rationale_state/1.0"` (Step 4 §4.3 — 차기 reconstruct 의 Layer B bridge re-judgment migration rule 선택 input)
+
+**`global_reply` enum** (Step 4 §3.6 + r5 canonical): `"confirmed" | "see below"` only (`"other"` v1 enum 제거, free-form 은 `phase_3_5_input_invalid`). `"confirmed"` semantic = "본 세션 Phase 3 마감 + 미판정 element 는 carry_forward 로 차기 reconstruct 에 넘김" (semantic approval 아님 — Step 4 §3.6 documentation).
 
 ---
 

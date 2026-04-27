@@ -36,6 +36,13 @@ import { buildPhase3SnapshotDocument } from "../../reconstruct/phase3-snapshot-w
 // at production runtime invocation. Spawn modules are small + side-effect-free
 // at import time, so paying the load cost on every handler import is
 // negligible compared to the production-break risk.
+import {
+  makeCodexExplorer,
+  makeMockExplorer,
+  type SpawnExplorer,
+} from "../../reconstruct/explorer/spawn-explorer.js";
+import type { Stage1ExplorerDirective } from "../../reconstruct/explorer/stage1-directive-types.js";
+import { runStage1RoundZero } from "../../reconstruct/explorer/stage1-scanner.js";
 import { makeCodexProposer } from "../../reconstruct/spawn-proposer.js";
 import { makeCodexReviewer } from "../../reconstruct/spawn-reviewer.js";
 
@@ -69,6 +76,7 @@ export interface ReconstructSessionEvent {
     | "config_absent_default_v1_applied"
     | "config_malformed"
     | "config_parse_failed"
+    | "stage1_scanner_failed"
     | "coordinator_invariant_violation"
     | "coordinator_failed_alpha"
     | "coordinator_failed_gamma"
@@ -666,12 +674,12 @@ function appendCycleTerminalEventBestEffort(
  *   - Phase 3 inputs are empty (coordinator's switch-gating handles the
  *     v0/v1 propagation; UI-driven user response is a future concern).
  */
-function buildExploreCoordinatorOptions(args: {
+async function buildExploreCoordinatorOptions(args: {
   projectRoot: string;
   sessionsDir: string;
   sessionId: string;
   useMock: boolean;
-}): ReconstructExploreCoordinatorOptions {
+}): Promise<ReconstructExploreCoordinatorOptions> {
   const root = sessionRoot(args.sessionsDir, args.sessionId);
   const session = readState(root);
 
@@ -694,17 +702,37 @@ function buildExploreCoordinatorOptions(args: {
     ? buildMockSpawnDeps()
     : buildCodexSpawnDeps({ projectRoot: args.projectRoot, configRaw });
 
-  // 3. Stub Stage 1 entities (1 placeholder — real scanner is follow-up)
-  const stubEntity: HookAlphaEntityInput = {
-    id: "STUB-001",
-    type: "entity",
-    name: "Placeholder",
-    definition: `Stub entity for session ${args.sessionId} (real Stage 1 scanner is a follow-up commit).`,
-    certainty: "ambiguous",
-    source: { locations: [session.source] },
-    relations_summary: [],
-  };
+  const runtimeVersion = "v1.0.0-caller-wire";
 
+  // 3. Stage 1 Round 0 entities — real scanner replaces the prior stub
+  //    fixture (PR #241 STUB-001). Mock mode synthesizes a deterministic
+  //    minimal directive (1 entity / 1 module) so `--mock` callers exercise
+  //    the same wiring path without paying LLM cost.
+  const spawnExplorer: SpawnExplorer = args.useMock
+    ? buildMockExplorerSpawn({
+        sessionId: args.sessionId,
+        source: session.source,
+        runtimeVersion,
+      })
+    : buildCodexExplorerSpawn({
+        projectRoot: args.projectRoot,
+        configRaw,
+      });
+
+  const stage1Result = await runStage1RoundZero(
+    {
+      profile: "codebase",
+      source: session.source,
+      intent: session.intent,
+      sessionId: args.sessionId,
+      runtimeVersion,
+    },
+    { spawnExplorer },
+  );
+
+  // 4. Stub manifest — Stage 1 scanner produces entities, not the domain
+  //    manifest (which is sourced from the per-domain pack reader, a separate
+  //    follow-up commit). Manifest stays a placeholder until that reader lands.
   const stubManifest: HookAlphaManifestInput = {
     manifest_schema_version: "1.0",
     domain_name: "stub-domain",
@@ -714,7 +742,7 @@ function buildExploreCoordinatorOptions(args: {
     referenced_files: [],
   };
 
-  // 4. Phase 3 inputs — empty (caller / UI builds real responses in future).
+  // 5. Phase 3 inputs — empty (caller / UI builds real responses in future).
   //
   // UF-EVOLUTION-1 (caller responsibility on v0 fallback): When the resolved
   // switches set inference_mode = "none" (full v0 fallback), the cycle's
@@ -735,7 +763,7 @@ function buildExploreCoordinatorOptions(args: {
 
   return {
     configRaw,
-    entityList: [stubEntity],
+    entityList: stage1Result.entities,
     manifest: stubManifest,
     injectedFiles: [],
     proposerContractVersion: "1.0",
@@ -746,9 +774,74 @@ function buildExploreCoordinatorOptions(args: {
     renderedElementIds: new Set(),
     throttledOutAddressableIds: new Set(),
     deps,
-    runtimeVersion: "v1.0.0-caller-wire",
+    runtimeVersion,
     stage: 1,
   };
+}
+
+/**
+ * Build the codex-backed Stage 1 explorer spawn factory. Reuses the same
+ * codex config (model / reasoningEffort) extracted by buildCodexSpawnDeps —
+ * the explorer runs in the same codex subprocess profile as proposer/reviewer
+ * for transport consistency.
+ */
+function buildCodexExplorerSpawn(args: {
+  projectRoot: string;
+  configRaw: unknown;
+}): SpawnExplorer {
+  const codexConfig = extractCodexConfig(args.configRaw);
+  return makeCodexExplorer({
+    projectRoot: args.projectRoot,
+    sandboxMode: "read-only",
+    ...(codexConfig.model !== undefined ? { model: codexConfig.model } : {}),
+    ...(codexConfig.effort !== undefined
+      ? { reasoningEffort: codexConfig.effort }
+      : {}),
+  });
+}
+
+/**
+ * Build a deterministic mock Stage 1 explorer spawn for `--mock` mode.
+ * Emits a single synthetic entity bound to the session's source path so
+ * downstream coordinator wiring exercises the same pipeline as production.
+ */
+function buildMockExplorerSpawn(args: {
+  sessionId: string;
+  source: string;
+  runtimeVersion: string;
+}): SpawnExplorer {
+  const directive: Stage1ExplorerDirective = {
+    profile: "codebase",
+    entities: [
+      {
+        id: "MOCK-E1",
+        type: "entity",
+        name: "MockPlaceholder",
+        definition: `Mock entity for session ${args.sessionId} (--mock flag — no LLM invoked).`,
+        certainty: "ambiguous",
+        source: { locations: [args.source] },
+        relations_summary: [],
+        module_id: "MOCK-M1",
+      },
+    ],
+    module_inventory: [
+      {
+        module_id: "MOCK-M1",
+        module_path: args.source,
+        description: "mock module (--mock flag)",
+      },
+    ],
+    provenance: {
+      explored_at: new Date().toISOString(),
+      explored_by: "stage1-explorer",
+      explorer_contract_version: "1.0",
+      session_id: args.sessionId,
+      runtime_version: args.runtimeVersion,
+      input_chunks: 1,
+      truncated_fields: [],
+    },
+  };
+  return makeMockExplorer(directive);
 }
 
 /**
@@ -991,7 +1084,7 @@ export async function handleReconstructCli(
         | undefined;
       if (!noCoordinator) {
         try {
-          coordinatorOptions = buildExploreCoordinatorOptions({
+          coordinatorOptions = await buildExploreCoordinatorOptions({
             projectRoot,
             sessionsDir,
             sessionId,
@@ -1005,13 +1098,23 @@ export async function handleReconstructCli(
           // finalize, and (b) audit / govern reader has the same observable
           // surface as coordinator-level failures.
           //
+          // Stage 1 scanner failures (entities-scanner PR) get a dedicated
+          // event type `stage1_scanner_failed` so post-hoc audit can
+          // distinguish them from config parse failures. Detection: the
+          // Stage1ScannerError class name; falling back to config_parse_failed
+          // for anything else (manifest reader / unforeseen wire errors).
+          //
           // Append is best-effort: if the session state itself is unreadable
           // (e.g. invalid sessionId) we fall through to the original error
           // path without state mutation. The original throw message is still
           // surfaced via console.error.
           const detail = error instanceof Error ? error.message : String(error);
+          const eventType =
+            error instanceof Error && error.name === "Stage1ScannerError"
+              ? "stage1_scanner_failed"
+              : "config_parse_failed";
           appendCycleTerminalEventBestEffort(sessionsDir, sessionId, {
-            type: "config_parse_failed",
+            type: eventType,
             emitted_at: new Date().toISOString(),
             detail,
           });

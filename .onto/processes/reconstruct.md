@@ -977,6 +977,8 @@ patch:
 The ontology is updated each round at `{project}/.onto/builds/{session ID}/wip.yml`.
 Delta originals are saved at `{project}/.onto/builds/{session ID}/deltas/d-{round}-{seq}.yml`.
 
+<!-- runtime-mirror-of: step-2-protocol §6.2 §6.3 §6.3.1 + step-3-protocol §6.2 §6.3 + step-4-integration §3.6 §4.3 -->
+
 ```yaml
 # wip.yml — updated each round
 meta:
@@ -994,13 +996,51 @@ meta:
   synthesize_failures_streak: {int, resets on success or Stage transition}
   # Cross-round accumulation of unresolved conflicts (for Phase 2 Step 4 collation):
   cumulative_unresolved_conflicts: [{conflict_id, conflict_kind, subject, unresolved_since, position_a, position_b}]
+
+  # v1 — Stage transition state machine (Hook α / Rationale Proposer; Step 2 protocol §6.2):
+  stage_transition_state: pre_alpha | alpha_skipped | alpha_in_progress | alpha_completed | alpha_failed_retry_pending | alpha_failed_continued_v0 | alpha_failed_aborted
+  stage_transition_retry_count: {int — one-shot retry budget; max 1; reset to 0 on alpha_completed / alpha_skipped}
+
+  # v1 — Step 2c review state machine (Hook γ / Rationale Reviewer; Step 3 protocol §6.2):
+  step2c_review_state: pre_gamma | gamma_skipped | gamma_in_progress | gamma_completed | gamma_failed_retry_pending | gamma_failed_continued_degraded | gamma_failed_aborted
+  step2c_review_retry_count: {int — one-shot retry budget; max 1; reset to 0 on gamma_completed / gamma_skipped}
+  rationale_reviewer_failures_streak: {int — cross-stage degradation counter; reset rule per Step 3 protocol §7.4}
+
+  # v1 — pack-level aggregation (Step 2 protocol §6.3.1, narrowed: domain_pack_incomplete-only + non-semantic grouping):
+  pack_missing_areas:
+    - grouping_key:
+        manifest_ref: "{manifest.referenced_files[].path}"
+        heading: "{exact heading match in domain md}"
+      element_ids: [{entity ids with rationale_state == domain_pack_incomplete pointing at this grouping_key}]
+
   # Phase 3 user response log — required for Phase 3.5 idempotent replay and crash recovery.
   # Write-once at Phase 3 response receipt; never mutated thereafter. Cleared when Phase 4 Save succeeds.
   # Absence of this field after Phase 3 prompt was rendered = resumption trigger: Runtime re-enters Phase 3
   # and re-renders the same summary from existing wip.yml (see Phase 3 "Resumption" bullet).
   phase3_user_responses:
     received_at: "{ISO 8601 UTC timestamp when user submitted the Phase 3 reply}"
-    global_reply: confirmed | adjustments_provided
+    global_reply: "confirmed" | "see below"     # v1 enum (Step 4 §3.6 — v0 "adjustments_provided" / "other" deprecated)
+    # v1 — per-element rationale persistence (Step 4 §3.6 — Hook δ Phase 3 reply; Step 4 §3.6.1 input buffer):
+    rationale_decisions:
+      - element_id: "{string id matching wip.yml element id, case-sensitive exact match}"
+        action: accept | reject | modify | defer | provide_rationale | mark_acceptable_gap | override
+        principal_provided_rationale:           # populated when action ∈ {modify, provide_rationale, override}
+          inferred_meaning: "{string}"
+          justification: "{string}"
+        principal_note: "{free-form text or null}"
+        decided_at: "{ISO 8601 UTC — Principal action UI event}"
+    # v1 — group action persistence (Step 4 §3.6 + §3.4.1 grouping_key canonical):
+    batch_actions:
+      - action: accept | reject | defer | mark_acceptable_gap
+        target_group:
+          kind: "pack_missing_area" | "rationale_state" | "rationale_state_with_confidence" | "rationale_state_single_gate"
+          manifest_ref: "{populated when kind == pack_missing_area; null otherwise}"
+          heading: "{populated when kind == pack_missing_area; null otherwise}"
+          rationale_state: "{populated when kind ∈ rationale_state* family; null otherwise}"
+          confidence: "{populated when kind == rationale_state_with_confidence (e.g. low); null otherwise}"
+        target_element_ids: [{element_id list — Runtime expands group at apply}]
+        decided_at: "{ISO 8601 UTC}"
+    # v0 baseline — preserved across v1 (conflict / certainty / other_adjustments path):
     conflict_decisions:
       - conflict_id: "{string id matching Synthesize output conflict_id, case-sensitive exact match}"
         decision: position_a | position_b | user_resolved | user_deferred
@@ -1010,13 +1050,19 @@ meta:
         decision: confirmed | rejected | deferred
         user_rationale: "{optional free-form text}"
     other_adjustments: "{free-form text from user's Phase 3 global reply; advisory only — not applied deterministically by Runtime}"
-  # Consistency rule: if global_reply == "confirmed", conflict_decisions and certainty_decisions MAY still be populated
-  # (user confirms globally AND addresses some items); unaddressed items default to user_deferred.
-  # If global_reply == "adjustments_provided", at least one of conflict_decisions / certainty_decisions / other_adjustments MUST be non-empty.
-  # Violation handler: if the user submits global_reply == "adjustments_provided" with all three fields empty,
-  # Runtime does NOT write phase3_user_responses, logs `phase3_response_inconsistent` warning to session-log, and
-  # re-prompts Phase 3 with a clarifying message ("You indicated adjustments, but none were provided. Please specify,
-  # or reply 'confirmed' to proceed."). Phase 3 is interactive, so re-prompt is the natural recovery path (no halt).
+  # Consistency rule (v1, Step 4 §3.6 canonical):
+  #   - global_reply == "confirmed":
+  #       per-item rationale_decisions / batch_actions / conflict_decisions / certainty_decisions MAY still be populated
+  #       (user confirms globally AND addresses some items). Unaddressed pending intent_inference elements are closed
+  #       deterministically by the Phase 3.5 carry_forward sweep (§3.5.2). Other-category unaddressed items default
+  #       to user_deferred (v0 semantics).
+  #   - global_reply == "see below":
+  #       Phase 3.5 sweep is NOT executed. Every pending intent_inference element MUST be addressed by either
+  #       rationale_decisions or batch_actions. If 1+ pending elements remain unaddressed, Runtime halts with
+  #       `phase_3_5_input_incomplete` and re-prompts Phase 3 listing the unaddressed ids. If 0 pending elements
+  #       remain unaddressed, Runtime implicitly promotes global_reply to "confirmed" and the sweep runs.
+  #   - v0 enums "adjustments_provided" / "other" are deprecated — Runtime rejects with `phase_3_5_input_invalid`
+  #     and re-prompts Phase 3 (interactive recovery path, no halt).
   #
   # Extensibility path: adding a new top-level field to phase3_user_responses (e.g., a future
   # `ambiguity_decisions` category) requires (1) adding the schema declaration here, (2) updating the
@@ -1060,6 +1106,41 @@ elements:
       locations: [{source location list}]
       scope: {exploration scope}
     details: {type-specific details}
+
+    # v1 intent_inference block (Step 2 protocol §6.3 + Step 3 protocol §3.x §6.3 + Step 4 §4.3) —
+    # populated when meta.inference_mode ∈ {full, degraded}. Phase 3.5 terminalizes rationale_state to
+    # one of 8 terminal values; intra-Phase-3.5 values (reviewed / proposed / gap / domain_pack_incomplete /
+    # empty) are valid only during the loop. raw.yml mirrors this block with `omit` semantics when
+    # inference_mode == "none" (Step 4 §4.3).
+    intent_inference:
+      rationale_state: reviewed | proposed | gap | domain_pack_incomplete | domain_scope_miss | empty | carry_forward | principal_accepted | principal_modified | principal_rejected | principal_accepted_gap | principal_deferred | principal_confirmed_scope_miss
+      inferred_meaning: "{string or null}"
+      justification: "{string or null}"
+      domain_refs: [{domain_ref objects or null}]
+      confidence: low | medium | high | null    # post-validation value — Step 2 protocol §3.7.1 downgrade reflected
+      state_reason: "{string or null}"          # populated when rationale_state ∈ {gap, domain_scope_miss, domain_pack_incomplete}
+      principal_provided_rationale:             # populated by Hook δ when action ∈ {modify, provide_rationale, override}
+        inferred_meaning: "{string}"
+        justification: "{string}"
+      principal_note: "{string or null}"        # Hook δ populated
+      provenance:
+        # element-level single seat — gate_count + principal_judged_at + carry_forward_from
+        proposed_at: "{ISO 8601 UTC or null}"
+        proposed_by: "{rationale-proposer or null}"
+        proposer_contract_version: "{e.g. \"1.0\" or null}"
+        reviewed_at: "{ISO 8601 UTC or null}"
+        reviewed_by: "{rationale-reviewer or null}"
+        reviewer_contract_version: "{e.g. \"1.0\" or null}"
+        principal_judged_at: "{ISO 8601 UTC or null — Phase 3.5 step 2; null on carry_forward / domain_scope_miss preservation}"
+        gate_count: {int — v1 range {1, 2}; Hook α inits to 1, Hook γ increments to 2; future-extensible}
+        carry_forward_from: "{rationale_state captured by §3.5.2 sweep; null when not carried}"
+        carry_forward_from_schema_version: "{e.g. \"rationale_state/1.0\" — Layer B bridge migration version}"
+        wip_snapshot_hash: "{Step 3 protocol §3.7.1 hash or null}"
+        domain_files_content_hash: "{Step 3 protocol §3.7.1 hash or null}"
+        hash_algorithm: "{e.g. \"sha256\" or null}"
+        input_chunks: {int — v1 default 1, or null}
+        truncated_fields: [{field-name strings or null}]
+        effective_injected_files: [{file-path strings or null — Step 2 protocol §3.6}]
 
 # relations, constraints, issues also follow the same accumulation structure (with certainty)
 ```

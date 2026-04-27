@@ -92,6 +92,16 @@ export interface HookDeltaResult {
  * rationale_state weight (×1000):
  *   empty=11, gap=10, domain_pack_incomplete=10, proposed=9 (γ-degraded only),
  *   domain_scope_miss=5, reviewed=4, principal_*=0, carry_forward=0
+ *
+ * Note (review UF-LOGIC-02 — terminal-rendered dual scope clarification):
+ * `domain_scope_miss` 는 Step 1 §4.2 의 terminal state 정의에 속하지만 Step 4
+ * §3.1 matrix 가 Phase 3 에서 Principal 의 추가 action 을 허용 (accept →
+ * principal_confirmed_scope_miss / override → principal_modified / defer →
+ * principal_deferred). 즉 γ 판정 후 Principal explicit confirmation 미수신
+ * 상태에서는 surface 대상 — weight=5 (non-zero) 가 그것 표현. "미판정 +
+ * global confirmed" 시 §3.1 matrix 의 special-case row 가 domain_scope_miss
+ * 를 그대로 유지 (sweep 대상 아님, §3.5.2). terminal 정의와 rendered 동작이
+ * spec 의도된 dual scope.
  */
 const RATIONALE_STATE_WEIGHT: Record<RationaleState, number> = {
   empty: 11,

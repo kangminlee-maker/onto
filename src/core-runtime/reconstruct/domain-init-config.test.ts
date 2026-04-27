@@ -176,6 +176,24 @@ describe("runDomainInitFromConfig (W-A-96)", () => {
     }
   });
 
+  it("config_schema_invalid — config.name mismatch with CLI domainName (review F1)", async () => {
+    seedPackFiles(ontoHome, "demo", { "concepts.md": "# c\n" });
+    const configPath = writeConfigFile(workDir, {
+      ...validConfig,
+      name: "different-name", // mismatches CLI args.domainName="demo"
+    });
+    const r = await runDomainInitFromConfig(
+      { branch: "init", domainName: "demo" },
+      configPath,
+      deps(),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.code).toBe("config_schema_invalid");
+      expect(r.detail).toContain("identity SSOT");
+    }
+  });
+
   it("config_schema_invalid — required field missing", async () => {
     seedPackFiles(ontoHome, "demo", { "concepts.md": "# c\n" });
     const c = { ...validConfig } as Record<string, unknown>;

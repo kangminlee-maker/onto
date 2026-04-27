@@ -234,6 +234,19 @@ export async function runDomainInitFromConfig(
   }
   const config = validated.config;
 
+  // Identity SSOT: config.name must match args.domainName (review F1).
+  // Without this check, config.name was an orphan field — declared required
+  // by §5.6 schema but ignored at manifest write (which used args.domainName).
+  // Now both must agree, eliminating the dual-authority ambiguity flagged by
+  // 6 review lenses.
+  if (config.name !== args.domainName) {
+    return {
+      ok: false,
+      code: "config_schema_invalid",
+      detail: `config.name="${config.name}" does not match CLI domain name "${args.domainName}" (identity SSOT)`,
+    };
+  }
+
   // semver grammar (§5.6.1) — distinct §5.6.3 code
   if (!isValidDomainManifestVersion(config.domain_manifest_version)) {
     return {

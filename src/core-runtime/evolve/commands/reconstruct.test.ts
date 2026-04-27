@@ -345,6 +345,82 @@ describe("executeReconstructComplete", () => {
     ).toThrow(/explore cycle to be successful.*config_parse_failed/);
   });
 
+  // PR #242 round 2 review conditional consensus fix (coverage lens):
+  // the new cycle-terminal event types added in round 1 fix-up
+  // (stage1_scanner_failed / wire_build_failed) need explicit lifecycle
+  // gate coverage so the filter expansion is locked in by tests.
+  it("stage1_scanner_failed event 후 complete → 거부 (cycle-terminal event)", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: "c-stage1-fail-1",
+    });
+    const root = join(tmpRoot, "c-stage1-fail-1");
+    const stateBefore = JSON.parse(
+      readFileSync(join(root, "reconstruct-state.json"), "utf-8"),
+    );
+    const stateWithStage1Failure = {
+      ...stateBefore,
+      current_state: "exploring",
+      events: [
+        {
+          type: "stage1_scanner_failed",
+          emitted_at: "2026-04-27T20:00:00Z",
+          detail: "validation (orphan_module_ref): entity \"E1\".module_id=\"M-NOT\" not in module_inventory",
+        },
+      ],
+    };
+    writeFileSync(
+      join(root, "reconstruct-state.json"),
+      JSON.stringify(stateWithStage1Failure, null, 2),
+      "utf-8",
+    );
+
+    expect(() =>
+      executeReconstructComplete({
+        sessionsDir: tmpRoot,
+        sessionId: "c-stage1-fail-1",
+      }),
+    ).toThrow(/explore cycle to be successful.*stage1_scanner_failed/);
+  });
+
+  it("wire_build_failed event 후 complete → 거부 (cycle-terminal event)", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: "c-wire-fail-1",
+    });
+    const root = join(tmpRoot, "c-wire-fail-1");
+    const stateBefore = JSON.parse(
+      readFileSync(join(root, "reconstruct-state.json"), "utf-8"),
+    );
+    const stateWithWireFailure = {
+      ...stateBefore,
+      current_state: "exploring",
+      events: [
+        {
+          type: "wire_build_failed",
+          emitted_at: "2026-04-27T20:00:00Z",
+          detail: "ENOENT: no such file or directory",
+        },
+      ],
+    };
+    writeFileSync(
+      join(root, "reconstruct-state.json"),
+      JSON.stringify(stateWithWireFailure, null, 2),
+      "utf-8",
+    );
+
+    expect(() =>
+      executeReconstructComplete({
+        sessionsDir: tmpRoot,
+        sessionId: "c-wire-fail-1",
+      }),
+    ).toThrow(/explore cycle to be successful.*wire_build_failed/);
+  });
+
   it("placeholder mode (events 부재) → backward compat 통과", async () => {
     // Sessions that ran without --coordinator (no coordinator events recorded)
     // bypass the lifecycle gate — tested implicitly by the 'exploring →

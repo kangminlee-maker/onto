@@ -26,6 +26,7 @@ const VALID_CERTAINTY_VALUES = new Set<Stage1Entity["certainty"]>([
 ]);
 
 export type Stage1DirectiveRejectCode =
+  | "malformed_directive_shape"
   | "invalid_profile"
   | "empty_entities"
   | "duplicate_entity_id"
@@ -59,6 +60,46 @@ export function validateStage1Directive(
   directive: Stage1ExplorerDirective,
   input: Stage1ValidatorInput,
 ): Stage1ValidationResult {
+  // Runtime shape guards (PR #242 round 2 review conditional consensus —
+  // dependency + coverage lens). The TypeScript signature constrains
+  // compile-time callers, but runtime input arrives via parsed YAML cast
+  // (`raw as Stage1ExplorerDirective` in spawn-explorer.ts), so a malformed
+  // LLM emission can reach this entry with field shapes that violate the
+  // schema. Without these guards, accesses like `directive.entities.length`
+  // would throw a generic TypeError at the CLI catch — bypassing the typed
+  // `Stage1ScannerError(stage="validation")` path the audit lifecycle gate
+  // depends on (caller catch routes `malformed_directive_shape` rejects via
+  // the scanner error class so `stage1_scanner_failed` is recorded).
+  const root = directive as unknown as Record<string, unknown>;
+  if (!root || typeof root !== "object" || Array.isArray(root)) {
+    return reject(
+      "malformed_directive_shape",
+      `directive root must be an object, got ${Array.isArray(root) ? "array" : typeof root}`,
+    );
+  }
+  if (!Array.isArray(root.entities)) {
+    return reject(
+      "malformed_directive_shape",
+      `directive.entities must be an array, got ${Array.isArray(root.entities) ? "array" : typeof root.entities}`,
+    );
+  }
+  if (!Array.isArray(root.module_inventory)) {
+    return reject(
+      "malformed_directive_shape",
+      `directive.module_inventory must be an array, got ${typeof root.module_inventory}`,
+    );
+  }
+  if (
+    !root.provenance ||
+    typeof root.provenance !== "object" ||
+    Array.isArray(root.provenance)
+  ) {
+    return reject(
+      "malformed_directive_shape",
+      `directive.provenance must be an object`,
+    );
+  }
+
   // profile gate (non-codebase rejected at the entry point — type-level seam)
   if (directive.profile !== input.acceptedProfile) {
     return reject(
@@ -74,9 +115,35 @@ export function validateStage1Directive(
     );
   }
 
-  // entity id uniqueness
+  // entity id uniqueness — also gates each entity is an object (round 2
+  // shape guard: e.id access on a non-object element would throw generic
+  // TypeError otherwise).
   const entityIdSet = new Set<string>();
   for (const e of directive.entities) {
+    if (!e || typeof e !== "object" || Array.isArray(e)) {
+      return reject(
+        "malformed_directive_shape",
+        "each directive.entities entry must be an object",
+      );
+    }
+    if (typeof e.id !== "string") {
+      return reject(
+        "malformed_directive_shape",
+        `entity entry must have a string id, got ${typeof e.id}`,
+      );
+    }
+    if (!Array.isArray(e.relations_summary)) {
+      return reject(
+        "malformed_directive_shape",
+        `entity "${e.id}".relations_summary must be an array, got ${typeof e.relations_summary}`,
+      );
+    }
+    if (!e.source || typeof e.source !== "object" || !Array.isArray(e.source.locations)) {
+      return reject(
+        "malformed_directive_shape",
+        `entity "${e.id}".source must be an object with a locations array`,
+      );
+    }
     if (entityIdSet.has(e.id)) {
       return reject("duplicate_entity_id", `duplicate entity id "${e.id}"`);
     }
@@ -111,9 +178,22 @@ export function validateStage1Directive(
     );
   }
 
-  // module_inventory module_id uniqueness
+  // module_inventory module_id uniqueness — also gates each module is an
+  // object with a string module_id (round 2 shape guard).
   const moduleIdSet = new Set<string>();
   for (const m of directive.module_inventory) {
+    if (!m || typeof m !== "object" || Array.isArray(m)) {
+      return reject(
+        "malformed_directive_shape",
+        "each directive.module_inventory entry must be an object",
+      );
+    }
+    if (typeof m.module_id !== "string") {
+      return reject(
+        "malformed_directive_shape",
+        `module_inventory entry must have a string module_id, got ${typeof m.module_id}`,
+      );
+    }
     if (moduleIdSet.has(m.module_id)) {
       return reject(
         "duplicate_module_id",

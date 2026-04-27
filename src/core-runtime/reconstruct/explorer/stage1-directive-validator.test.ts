@@ -170,6 +170,49 @@ describe("validateStage1Directive", () => {
     });
   });
 
+  describe("malformed shape (round 2 hardening)", () => {
+    it("rejects directive.entities that is not an array", () => {
+      const directive = baseDirective();
+      (directive as unknown as Record<string, unknown>).entities = "not-an-array";
+      const result = validateStage1Directive(directive, baseInput());
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.code).toBe("malformed_directive_shape");
+    });
+
+    it("rejects directive.module_inventory that is not an array", () => {
+      const directive = baseDirective();
+      (directive as unknown as Record<string, unknown>).module_inventory = null;
+      const result = validateStage1Directive(directive, baseInput());
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.code).toBe("malformed_directive_shape");
+    });
+
+    it("rejects entity.relations_summary that is not an array", () => {
+      const directive = baseDirective();
+      (directive.entities[0] as unknown as Record<string, unknown>).relations_summary =
+        "not-an-array";
+      const result = validateStage1Directive(directive, baseInput());
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.code).toBe("malformed_directive_shape");
+    });
+
+    it("rejects entity entry that is not an object (e.g. null)", () => {
+      const directive = baseDirective();
+      (directive.entities as unknown as unknown[])[0] = null;
+      const result = validateStage1Directive(directive, baseInput());
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.code).toBe("malformed_directive_shape");
+    });
+
+    it("rejects directive.provenance that is not an object", () => {
+      const directive = baseDirective();
+      (directive as unknown as Record<string, unknown>).provenance = "string-instead-of-object";
+      const result = validateStage1Directive(directive, baseInput());
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.code).toBe("malformed_directive_shape");
+    });
+  });
+
   describe("relations_summary integrity", () => {
     it("rejects relations_summary referencing unknown entity", () => {
       const directive = baseDirective();

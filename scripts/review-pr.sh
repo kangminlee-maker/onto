@@ -96,6 +96,23 @@ REVIEW_DIR="$(mktemp -d -t onto-review-pr-XXXXXX)"
 mkdir -p "${REVIEW_DIR}/.onto"
 echo "review workspace: ${REVIEW_DIR}" >&2
 
+# Authority + principles mount (post-PR232 backlog F1, 2026-04-27).
+#
+# Axiology lens 가 5 round review 동안 모두 indeterminate 였던 원인은
+# isolated tmp project root 안에 rank 1-3 canonical authority inputs
+# (lexicon / 원칙 / 헌장) 이 부재했기 때문. host repo 의 authority + principles
+# + CLAUDE.md 를 isolated tmp 의 .onto/ 와 project root 에 cp 로 mount —
+# read-only consume 만이며 host 측 mutation 가능성 없음 (axiology 는 read 만).
+if [[ -d "${REPO_ROOT}/.onto/authority" ]]; then
+  cp -R "${REPO_ROOT}/.onto/authority" "${REVIEW_DIR}/.onto/authority"
+fi
+if [[ -d "${REPO_ROOT}/.onto/principles" ]]; then
+  cp -R "${REPO_ROOT}/.onto/principles" "${REVIEW_DIR}/.onto/principles"
+fi
+if [[ -f "${REPO_ROOT}/CLAUDE.md" ]]; then
+  cp "${REPO_ROOT}/CLAUDE.md" "${REVIEW_DIR}/CLAUDE.md"
+fi
+
 # Generate the diff as the review target. Empty diff → abort so we do
 # not burn LLM tokens on a no-op review.
 DIFF_FILE="${REVIEW_DIR}/pr.diff"

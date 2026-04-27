@@ -114,6 +114,24 @@ export interface IntentInferenceProvenance {
 }
 
 /**
+ * Step 4 §3.6.1: element-level principal_provided_rationale persistence sink.
+ * Populated by Phase 3.5 applyToElement when the principal supplies an
+ * explicit rationale via `modify` / `provide_rationale` / `override` actions.
+ *
+ * Persistence rationale (PR #232 r5 C3 BLOCKING resolution — post-PR232 patch):
+ *   IntentInference now carries the principal-supplied rationale in a separate
+ *   field rather than overwriting the original Hook α/γ generation. This
+ *   preserves the original inference for audit / future comparison while
+ *   downstream consumers continue to read inferred_meaning / justification
+ *   (which are also updated, mirroring the principal text, for backward
+ *   compat with v0/v1 consumers that expect a single textual seat).
+ */
+export interface PrincipalProvidedRationale {
+  inferred_meaning: string;
+  justification: string;
+}
+
+/**
  * Step 2 §3.5.1: state_reason field — single unified persistence sink.
  * Populated for outcomes ∈ {gap, domain_scope_miss, domain_pack_incomplete}.
  */
@@ -125,6 +143,11 @@ export interface IntentInference {
   justification?: string;
   domain_refs?: DomainRef[]; // outcome 별 카디널리티 — §3.2~§3.5
   confidence?: Confidence; // post-validation value
+  // Step 4 §3.6.1 element-level principal_provided_rationale.
+  // Populated by Phase 3.5 (applyToElement) on modify/provide_rationale/override.
+  // Co-existence with inferred_meaning/justification is intentional — original
+  // Hook α/γ generation 과 principal supply 의 audit 분리.
+  principal_provided_rationale?: PrincipalProvidedRationale;
   provenance: IntentInferenceProvenance;
 }
 

@@ -9,9 +9,14 @@
 //   coordinator 의 boot 단계 building block — coordinator 가 boot 시 본
 //   helper 호출 → invariant 위반 시 halt → switch 별 Hook 분기 dispatch.
 //
-//   Caller-side wire (reconstruct.md prompt 가 coordinator 호출하는
-//   production runtime path) 는 **여전히 별도 commit scope** — 본 commit
-//   단계에서는 coordinator + unit test 가 wire shape 의 contract layer.
+//   *Coordinator-level spec wiring 와 actual production runtime effect 는
+//   분리* — 본 commit 단계에서는 coordinator + unit test 가 wire shape 의
+//   contract layer. Production runtime caller (reconstruct.md prompt 또는
+//   cli/reconstruct-invoke.ts) + `onConfigAbsent` log sink + raw.yml writer
+//   의 `writeIntentInferenceToRawYml` consumption + `config_malformed`
+//   caller halt UX — 4 항목 모두 *별도 commit scope*. CC-1 narrowing 의
+//   정확한 list 는 INTEGRATION.md "다음 commit scope" + configuration.md
+//   §4.11 (d) "다음 commit scope" 참조.
 //
 //   Mirror seats (review 가 어느 surface 를 봐도 동일 contract):
 //     1. `.onto/config.yml` reconstruct block 위 CONTRACT comment

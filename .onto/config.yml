@@ -30,13 +30,17 @@ codex:
 # Source authority: Step 4 §8.3 + .onto/processes/govern.md §14.6
 # Self-dogfood ON — 본 onto 자기 적용 시점 v1 mode default. 다른 product 는 false 로 v0 fallback.
 #
-# CONTRACT (post-PR232 wire commit): The deterministic spec entry that consumes
-# the block below is `src/core-runtime/reconstruct/coordinator.ts`'s
-# `runReconstructCoordinator()` — boot-time switch load + invariant check (halt
-# on violation) + Hook α / γ / δ gating + Phase 3.5 dispatch. Caller-side wire
-# (reconstruct.md prompt invoking the coordinator from production runtime) is
-# still a separate commit scope; this commit lands the coordinator + unit
-# tests as the wire-shape contract layer.
+# CONTRACT (post-PR232 wire commit + review C-1/C-2/CC-1 fix-up): The
+# deterministic spec entry that consumes the block below is
+# `src/core-runtime/reconstruct/coordinator.ts`'s `runReconstructCoordinator()`
+# — boot-time switch load + invariant check (halt on violation) + Hook α / γ /
+# δ gating + Phase 3.5 dispatch + `config_malformed` fail-close (root non-
+# object/array → halt distinct from absent). *Coordinator-level spec wiring 와
+# actual production runtime effect 는 분리* — this commit lands the coordinator
+# + unit tests as the wire-shape contract layer; production runtime caller
+# (reconstruct.md prompt 또는 cli/reconstruct-invoke.ts), `onConfigAbsent` log
+# sink, raw.yml writer 의 `writeIntentInferenceToRawYml` consumption, and
+# `config_malformed` caller halt UX — 4 항목 모두 별도 commit scope.
 # Mirror seats: src/core-runtime/reconstruct/dogfood-switches.ts header CONTRACT
 # block + configuration.md §4.11 (d) + src/core-runtime/reconstruct/
 # INTEGRATION.md "Production wiring" section.

@@ -2,7 +2,7 @@
 //
 // Coordinator switch-gating + invariant-halt behavior tests.
 //
-// Cycle coverage (4 mode + audit signal + spy verification):
+// Cycle coverage (4 mode + audit signal + spy verification + C-2 malformed):
 //   1. full v1 (all switches on)        → α + γ + δ + Phase 3.5 invoked
 //   2. v1 without review                → α + δ + Phase 3.5 invoked, γ skipped_by_switch
 //   3. v0 fallback (all switches off)   → α self-skips (inference_mode=none),
@@ -10,6 +10,9 @@
 //   4. invariant violation              → halt before any Hook invocation
 //   5. config-absent silent default     → onConfigAbsent emit + v1 mode applied
 //   6. spy: switches off → spawnProposer / spawnReviewer 호출 0회 (§14.6 inv 2)
+//   7. config_malformed (review C-2)    → array root / scalar root → halt with
+//                                          kind="config_malformed"; onConfigAbsent
+//                                          NOT fired; no Hook invocation
 
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -416,5 +419,55 @@ describe("runReconstructCoordinator — Cycle 6: §14.6 invariant 2 (들어내�
       makeDeps({ spawnReviewer: reviewerSpy }),
     );
     expect(reviewerSpy).toHaveBeenCalledTimes(0);
+  });
+});
+
+// =============================================================================
+// Cycle 7 — config_malformed (review C-2 fail-close split)
+// =============================================================================
+
+describe("runReconstructCoordinator — Cycle 7: config_malformed halt (C-2)", () => {
+  it("configRaw is array → halt with kind=config_malformed (no Hook, no audit)", async () => {
+    const onAbsent = vi.fn();
+    const proposerSpy = vi.fn(makeMockProposer());
+    const reviewerSpy = vi.fn(makeMockReviewer());
+    const result = await runReconstructCoordinator(
+      makeInput({ configRaw: [1, 2, 3] }),
+      makeDeps({
+        onConfigAbsent: onAbsent,
+        spawnProposer: proposerSpy,
+        spawnReviewer: reviewerSpy,
+      }),
+    );
+    expect(result.kind).toBe("config_malformed");
+    if (result.kind !== "config_malformed") return;
+    expect(result.detail).toMatch(/array/);
+    // C-2 fail-close: malformed != absent — onConfigAbsent must NOT fire
+    expect(onAbsent).toHaveBeenCalledTimes(0);
+    // No Hook invocation — halt is before any dispatch
+    expect(proposerSpy).toHaveBeenCalledTimes(0);
+    expect(reviewerSpy).toHaveBeenCalledTimes(0);
+  });
+
+  it("configRaw is scalar string → halt with kind=config_malformed", async () => {
+    const onAbsent = vi.fn();
+    const result = await runReconstructCoordinator(
+      makeInput({ configRaw: "not-an-object" }),
+      makeDeps({ onConfigAbsent: onAbsent }),
+    );
+    expect(result.kind).toBe("config_malformed");
+    if (result.kind !== "config_malformed") return;
+    expect(result.detail).toMatch(/string/);
+    expect(onAbsent).toHaveBeenCalledTimes(0);
+  });
+
+  it("configRaw is scalar number → halt with kind=config_malformed", async () => {
+    const result = await runReconstructCoordinator(
+      makeInput({ configRaw: 42 }),
+      makeDeps(),
+    );
+    expect(result.kind).toBe("config_malformed");
+    if (result.kind !== "config_malformed") return;
+    expect(result.detail).toMatch(/number/);
   });
 });

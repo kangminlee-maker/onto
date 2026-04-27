@@ -397,22 +397,26 @@ Runtime impl: `src/core-runtime/reconstruct/dogfood-switches.ts` (loader + depen
   - **wire commit 시 추가 권고 (v1.1 candidate)**: `loadReconstructDogfoodSwitches()` 가 부재 config 를 detect 시 console.warn 또는 session-log 에 `reconstruct_config_absent_default_v1_applied` 신호 emit — explicit silent-default audit log
 - **v1.1 backlog (fail-explicit 전환)**: `reconstruct.config_required: bool` switch 도입 시 부재를 fail-explicit (`reconstruct_config_required` halt) 으로 전환 (migration window 종료 후). 본 PR 의 silent default 는 *transition seat* 으로만 유지 — wire commit 시 transition window 명시 필수
 
-**(d) Production wiring gap — Helper-only scope (no production runtime effect yet, r2+r3+r4 강화)**:
+**(d) Production wiring — Coordinator spec entry landed (post-PR232 wire commit)**:
 
-> **CONTRACT (PR #232, 4 mirror seats 동일 sentence)**:
-> - `.onto/config.yml` 의 `reconstruct:` block 은 **현재 reconstruct runtime 에서 read 되지 않는다** — helper / spec / test contract surface only
-> - v1 mode 가 unconditional default — switch 가 `false` 여도 reconstruct runtime 은 v1 path 를 그대로 실행 (wire 부재)
-> - Production wire (`.onto/config.yml` consumer + Hook gating switch consumption + dependency invariant rejection edge) 는 **별도 commit scope**
+> **CONTRACT (4 mirror seats 동일 sentence)**:
+> - `.onto/config.yml` 의 `reconstruct:` block 의 *deterministic spec entry* 는 `src/core-runtime/reconstruct/coordinator.ts` 의 `runReconstructCoordinator()` — boot 시 switch load + invariant check (위반 시 halt) + Hook α / γ / δ + Phase 3.5 dispatch 를 single-shot full cycle 로 wire
+> - Caller-side wire (reconstruct.md prompt 가 coordinator 호출하는 production runtime path) 는 **여전히 별도 commit scope** — 본 commit 단계에서는 coordinator + unit test (`coordinator.test.ts`) 가 wire shape 의 contract layer
+> - 즉 본 commit 이전 helper-only scope (`loadReconstructDogfoodSwitches()` + `checkSwitchInvariants()`) 위에 *coordinator* 가 한 단계 추가 — production caller 진입 시점에 coordinator 호출만 wire 하면 full production effect
 
 **4 mirror seats** (review 가 어느 surface 를 봐도 동일 contract):
 1. `.onto/config.yml` reconstruct: block 위 CONTRACT comment
 2. `src/core-runtime/reconstruct/dogfood-switches.ts` 파일 header CONTRACT block
 3. `.onto/processes/configuration.md` §4.11 (d) (본 항목)
-4. `src/core-runtime/reconstruct/INTEGRATION.md` W-A-104 row
+4. `src/core-runtime/reconstruct/INTEGRATION.md` "Production wiring" section
 
-- **현 stage helper layer caller**: `dogfood-switches.test.ts` (17 test) + `e2e-smoke.test.ts` (37 test) 두 test file 만. production reconstruct runtime caller 부재
-- **W-A-104 mock dispatcher 의 의미**: production wire shape 의 *spec contract* 정의 (test = wiring shape spec). 실제 wire 는 동일 mock 형태의 dispatcher 를 *real codex spawn* 으로 교체하는 1:1 대응
-- **실제 wire commit 의 scope** (별도 PR / Track B 다음 commit 묶음 또는 reconstruct v1 production 진입 시점): Coordinator class 신설 (또는 기존 Coordinator 의 reconstruct entry path 확장) + `.onto/config.yml` read at boot + dependency invariant rejection edge + Hook gating switch consumption
+- **현 stage caller**: `coordinator.test.ts` (11 test, 4 mode + invariant halt + spy + audit) + `dogfood-switches.test.ts` (17 test) + `e2e-smoke.test.ts` (37 test) — production reconstruct.md prompt 가 coordinator 호출하는 wire 만 부재
+- **Coordinator 의 switch gating 효과**:
+  - `v1_inference == false` → coordinator 가 `inference_mode = "none"` 으로 매핑 → Hook α 자체 skip (alpha_skipped) → Hook γ 도 propagation 으로 skip → Hook δ 미호출
+  - `phase3_rationale_review == false` → coordinator 가 Hook γ invocation 자체 skip (`gamma: { kind: "skipped_by_switch", reason: "phase3_rationale_review_disabled" }`)
+  - `write_intent_inference_to_raw_yml == false` → coordinator 가 `result.writeIntentInferenceToRawYml = false` 로 propagate (raw.yml writer 가 element-level intent_inference omit)
+- **Silent-default audit signal**: coordinator 가 `configRaw == null` 또는 `reconstruct:` block 부재 detect 시 `deps.onConfigAbsent?.()` 호출 — caller 가 console.warn 또는 session-log 에 `reconstruct_config_absent_default_v1_applied` emit (post-PR232 backlog A2 해소)
+- **다음 commit scope** (production caller wire): reconstruct.md prompt 본문이 coordinator 호출 (또는 cli/reconstruct-invoke.ts 신설) — 본 PR 의 unit test 가 wire shape 의 spec mirror 이므로 caller 측 변경만 필요
 
 **(e) Partial-disable mode — first-class supported modes (coverage U6, r2 신규)**:
 

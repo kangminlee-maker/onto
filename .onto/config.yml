@@ -30,12 +30,16 @@ codex:
 # Source authority: Step 4 §8.3 + .onto/processes/govern.md §14.6
 # Self-dogfood ON — 본 onto 자기 적용 시점 v1 mode default. 다른 product 는 false 로 v0 fallback.
 #
-# CONTRACT (PR #232): The block below is currently NOT read by reconstruct
-# runtime — helper / spec / test contract surface only. Production wire
-# (`.onto/config.yml` consumer + Hook gating + invariant rejection edge) is
-# a separate commit scope. Mirror seats: src/core-runtime/reconstruct/
-# dogfood-switches.ts header SCOPE block + configuration.md §4.11 (d) +
-# src/core-runtime/reconstruct/INTEGRATION.md W-A-104 row.
+# CONTRACT (post-PR232 wire commit): The deterministic spec entry that consumes
+# the block below is `src/core-runtime/reconstruct/coordinator.ts`'s
+# `runReconstructCoordinator()` — boot-time switch load + invariant check (halt
+# on violation) + Hook α / γ / δ gating + Phase 3.5 dispatch. Caller-side wire
+# (reconstruct.md prompt invoking the coordinator from production runtime) is
+# still a separate commit scope; this commit lands the coordinator + unit
+# tests as the wire-shape contract layer.
+# Mirror seats: src/core-runtime/reconstruct/dogfood-switches.ts header CONTRACT
+# block + configuration.md §4.11 (d) + src/core-runtime/reconstruct/
+# INTEGRATION.md "Production wiring" section.
 reconstruct:
   v1_inference:
     enabled: true

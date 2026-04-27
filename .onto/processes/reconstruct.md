@@ -1057,10 +1057,19 @@ meta:
   #       deterministically by the Phase 3.5 carry_forward sweep (§3.5.2). Other-category unaddressed items default
   #       to user_deferred (v0 semantics).
   #   - global_reply == "see below":
-  #       Phase 3.5 sweep is NOT executed. Every pending intent_inference element MUST be addressed by either
-  #       rationale_decisions or batch_actions. If 1+ pending elements remain unaddressed, Runtime halts with
-  #       `phase_3_5_input_incomplete` and re-prompts Phase 3 listing the unaddressed ids. If 0 pending elements
-  #       remain unaddressed, Runtime implicitly promotes global_reply to "confirmed" and the sweep runs.
+  #       Phase 3.5 sweep is NOT executed.
+  #       v1 implementation scope (`validatePhase35Input` §3.6 see-below check, current PR):
+  #         Runtime checks the *throttled-out addressable* element subset only — i.e. pending elements
+  #         that landed in `rationale-queue.yaml`'s `throttled_out` bucket and are not in `domain_scope_miss`.
+  #         If 1+ throttled-out addressable element remains unaddressed by rationale_decisions / batch_actions,
+  #         Runtime halts with `phase_3_5_input_incomplete` and re-prompts Phase 3 listing the unaddressed ids.
+  #         If 0 throttled-out addressable elements remain unaddressed, validation passes; sweep stays skipped.
+  #       v1.1 backlog (Step 4 §3.6 r4 deterministic closure full-scope amendment):
+  #         The original Step 4 §3.6 r4 spec calls for *every* pending intent_inference element (not just
+  #         throttled-out) to be addressed under "see below". Expanding the check to the full pending set
+  #         requires either (a) protocol amendment narrowing r4 to throttled-out scope to match the v1
+  #         implementation, or (b) implementation patch widening the check to all pending elements with
+  #         `domain_scope_miss` exception. Decision deferred — current PR documents the v1 narrow scope.
   #   - v0 enums "adjustments_provided" / "other" are deprecated — Runtime rejects with `phase_3_5_input_invalid`
   #     and re-prompts Phase 3 (interactive recovery path, no halt).
   #
@@ -1667,7 +1676,7 @@ After the user responds to Phase 3, Runtime Coordinator applies the user decisio
    - Action × source state compat (Step 4 §3.3 derived from §3.1 matrix)
    - Batch exact-match (4 grouping kinds — `pack_missing_area` / `rationale_state` / `rationale_state_with_confidence` / `rationale_state_single_gate`)
    - `principal_provided_rationale` 필수 필드 (action ∈ {modify, provide_rationale, override})
-   - `"see below"` pending coverage (`global_reply == "see below"` 시 미-address pending 1+ → `phase_3_5_input_incomplete`. `domain_scope_miss` exception — Step 4 §3.2)
+   - `"see below"` pending coverage **v1 implementation scope** (throttled-out addressable subset only — `validatePhase35Input` §3.6 see-below check): `global_reply == "see below"` 시 *throttled-out addressable* element 1+ 가 미-address → `phase_3_5_input_incomplete`. `domain_scope_miss` exception — Step 4 §3.2. **v1.1 backlog**: Step 4 §3.6 r4 의 full-scope (전체 pending 강제 cover) 와 v1 narrow scope (throttled-out only) 사이 결정 deferred — protocol amendment 또는 implementation widen 둘 중 하나 선택
    - Fail → all-or-nothing reject, `phase_3_5_input_invalid` halt + Phase 3 re-prompt (v0 invariant)
 
 **2. Rationale decisions apply** (v1 신규, Step 4 §3.5 + §3.1 action-first canonical matrix):

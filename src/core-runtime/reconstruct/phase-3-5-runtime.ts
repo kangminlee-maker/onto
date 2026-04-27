@@ -441,16 +441,50 @@ export function carryForwardSweep(
 // Top-level orchestration: validate → apply → sweep
 // ============================================================================
 
-export interface Phase35RuntimeResult {
-  /** combined updates map (rationale_decisions + batch_actions + sweep) */
-  elementUpdates: Map<string, IntentInference>;
-  /** for audit / debugging */
-  excludedFromSweep: Set<string>;
-}
+export type Phase35RuntimeResult =
+  | {
+      ok: true;
+      /** combined updates map (rationale_decisions + batch_actions + sweep) */
+      elementUpdates: Map<string, IntentInference>;
+      /** for audit / debugging */
+      excludedFromSweep: Set<string>;
+    }
+  | {
+      ok: false;
+      validationFailure: Phase35ValidationResult & { ok: false };
+    };
 
+/**
+ * §3.5 lifecycle: **validate → apply → sweep** (review consensus blocker).
+ *
+ * fail-closed: validatePhase35Input 가 ok=false 이면 apply/sweep 진입하지 않고
+ * 즉시 validationFailure return. 이로써 invalid input 이 wip 에 mutation 되는
+ * 경로 차단 — review 가 지적한 "validate 가 caller 책임" gap 해소.
+ *
+ * Caller (Runtime Coordinator) 의 책임은 validatePhase35Input 의 4 input
+ * (responses / currentInferences / snapshot / renderedElementIds /
+ * throttledOutAddressableIds) 을 build 하여 본 함수에 전달.
+ */
 export function runPhase35(
-  input: Phase35ApplyInput,
+  input: Phase35ApplyInput & {
+    snapshot: Phase35ValidationInput["snapshot"];
+    renderedElementIds: Phase35ValidationInput["renderedElementIds"];
+    throttledOutAddressableIds: Phase35ValidationInput["throttledOutAddressableIds"];
+  },
 ): Phase35RuntimeResult {
+  // step 1.5 validate (review consensus blocker — runtime fail-closed)
+  const validation = validatePhase35Input({
+    responses: input.responses,
+    currentInferences: input.currentInferences,
+    snapshot: input.snapshot,
+    renderedElementIds: input.renderedElementIds,
+    throttledOutAddressableIds: input.throttledOutAddressableIds,
+  });
+  if (!validation.ok) {
+    return { ok: false, validationFailure: validation };
+  }
+
+  // step 2 apply
   const apply = applyRationaleDecisions(input);
 
   // Build "after-apply" snapshot for sweep — current state + apply updates
@@ -459,6 +493,7 @@ export function runPhase35(
     afterApply.set(id, inf);
   }
 
+  // step 8 sweep
   const sweep = carryForwardSweep({
     globalReply: input.responses.global_reply,
     currentInferences: afterApply,
@@ -470,10 +505,10 @@ export function runPhase35(
   for (const [id, inf] of sweep.updates.entries()) combined.set(id, inf);
 
   // §3.8.1 invariant: post-apply + sweep 후 모든 element 가 terminal state 여야 함
-  // (단, 본 함수는 in-memory result 만 반환 — caller 가 enforce)
   void TERMINAL_RATIONALE_STATES;
 
   return {
+    ok: true,
     elementUpdates: combined,
     excludedFromSweep: apply.excludedFromSweep,
   };

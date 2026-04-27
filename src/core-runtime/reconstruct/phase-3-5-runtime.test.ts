@@ -392,7 +392,7 @@ describe("carryForwardSweep (§3.5.2 r3 fix — capture-before-overwrite)", () =
   });
 });
 
-describe("runPhase35 — orchestration (apply + sweep)", () => {
+describe("runPhase35 — orchestration (validate → apply → sweep, fail-closed)", () => {
   function inferences() {
     const m = new Map<string, IntentInference>();
     m.set("E1", inf("reviewed"));
@@ -401,7 +401,16 @@ describe("runPhase35 — orchestration (apply + sweep)", () => {
     return m;
   }
 
-  it("apply for E1, sweep for E2 + E3", () => {
+  function snapshotFor(map: Map<string, IntentInference>) {
+    return buildPhase3SnapshotDocument({
+      session_id: "S",
+      written_at: "t",
+      intentInferences: map,
+    });
+  }
+
+  it("apply for E1, sweep for E2 + E3 (validation passes)", () => {
+    const map = inferences();
     const r = runPhase35({
       responses: {
         received_at: "t",
@@ -411,9 +420,14 @@ describe("runPhase35 — orchestration (apply + sweep)", () => {
         ],
         batch_actions: [],
       },
-      currentInferences: inferences(),
+      currentInferences: map,
       judgedAt: "t",
+      snapshot: snapshotFor(map),
+      renderedElementIds: new Set(["E1", "E2", "E3"]),
+      throttledOutAddressableIds: new Set(),
     });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
     expect(r.elementUpdates.get("E1")!.rationale_state).toBe(
       "principal_accepted",
     );
@@ -423,7 +437,8 @@ describe("runPhase35 — orchestration (apply + sweep)", () => {
     expect(r.elementUpdates.get("E3")!.provenance.carry_forward_from).toBe("empty");
   });
 
-  it("see-below mode: no sweep occurs", () => {
+  it("see-below mode: no sweep occurs (validation passes)", () => {
+    const map = inferences();
     const r = runPhase35({
       responses: {
         received_at: "t",
@@ -433,11 +448,38 @@ describe("runPhase35 — orchestration (apply + sweep)", () => {
         ],
         batch_actions: [],
       },
-      currentInferences: inferences(),
+      currentInferences: map,
       judgedAt: "t",
+      snapshot: snapshotFor(map),
+      renderedElementIds: new Set(["E1", "E2", "E3"]),
+      throttledOutAddressableIds: new Set(),
     });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
     expect(r.elementUpdates.get("E1")!.rationale_state).toBe("principal_accepted");
     expect(r.elementUpdates.has("E2")).toBe(false); // no sweep in see-below
     expect(r.elementUpdates.has("E3")).toBe(false);
+  });
+
+  it("fail-closed: validation failure short-circuits apply/sweep (review consensus blocker)", () => {
+    const map = inferences();
+    const r = runPhase35({
+      responses: {
+        received_at: "t",
+        global_reply: "confirmed",
+        rationale_decisions: [
+          { element_id: "E_HALLUCINATED", action: "accept", decided_at: "t" },
+        ],
+        batch_actions: [],
+      },
+      currentInferences: map,
+      judgedAt: "t",
+      snapshot: snapshotFor(map),
+      renderedElementIds: new Set(),
+      throttledOutAddressableIds: new Set(),
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.validationFailure.code).toBe("phase_3_5_input_invalid");
   });
 });

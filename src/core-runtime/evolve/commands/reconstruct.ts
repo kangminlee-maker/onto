@@ -30,6 +30,14 @@ import type {
 } from "../../reconstruct/hook-alpha.js";
 import type { Phase3UserResponses } from "../../reconstruct/phase-3-5-runtime.js";
 import { buildPhase3SnapshotDocument } from "../../reconstruct/phase3-snapshot-write.js";
+// Top-level static imports for spawn factories (PR #241 review round 2
+// UF-DEPENDENCY-1 fix). The previous lazy `require(...)` form was incompatible
+// with the project's ESM-first TypeScript module resolution and would break
+// at production runtime invocation. Spawn modules are small + side-effect-free
+// at import time, so paying the load cost on every handler import is
+// negligible compared to the production-break risk.
+import { makeCodexProposer } from "../../reconstruct/spawn-proposer.js";
+import { makeCodexReviewer } from "../../reconstruct/spawn-reviewer.js";
 
 // ─── Types ───
 
@@ -60,6 +68,7 @@ export interface ReconstructSessionEvent {
   type:
     | "config_absent_default_v1_applied"
     | "config_malformed"
+    | "config_parse_failed"
     | "coordinator_invariant_violation"
     | "coordinator_failed_alpha"
     | "coordinator_failed_gamma"
@@ -448,20 +457,30 @@ export function executeReconstructComplete(
   }
 
   // PR #241 review C-3 fix (lifecycle gate): when the session has run any
-  // coordinator cycle (events array is populated), the *most recent*
-  // coordinator event must be `coordinator_completed` — otherwise the cycle
-  // halted (config_malformed / invariant_violation / failed_alpha / failed_gamma
-  // / failed_phase35) and the session has not produced a finalizable state.
-  // Sessions that ran in placeholder mode (no coordinator events) bypass
+  // cycle-terminal explore attempt (events array contains coordinator_* or
+  // config_malformed / config_parse_failed), the *most recent* such event
+  // must be `coordinator_completed` — otherwise the cycle halted and the
+  // session has not produced a finalizable state.
+  //
+  // PR #241 review round 2 UF-STRUCTURE-1 fix: config_parse_failed (raised
+  // by the explore handler when `.onto/config.yml` parse throws *before*
+  // executeReconstructExplore runs) is now also a cycle-terminal event,
+  // so a parse failure correctly blocks subsequent complete invocations.
+  //
+  // config_absent_default_v1_applied is *not* cycle-terminal — it is an
+  // informational audit signal emitted alongside a successful cycle.
+  // Sessions that ran in placeholder mode (no cycle events at all) bypass
   // this gate for backward compat.
-  const coordinatorEvents = (state.events ?? []).filter((e) =>
-    e.type.startsWith("coordinator_") || e.type === "config_malformed",
+  const cycleTerminalEvents = (state.events ?? []).filter((e) =>
+    e.type.startsWith("coordinator_") ||
+    e.type === "config_malformed" ||
+    e.type === "config_parse_failed",
   );
-  if (coordinatorEvents.length > 0) {
-    const last = coordinatorEvents[coordinatorEvents.length - 1]!;
+  if (cycleTerminalEvents.length > 0) {
+    const last = cycleTerminalEvents[cycleTerminalEvents.length - 1]!;
     if (last.type !== "coordinator_completed") {
       throw new Error(
-        `[reconstruct] complete requires the most recent coordinator cycle to be successful — last event was "${last.type}"${last.detail ? ` (${last.detail})` : ""}. Re-run \`onto reconstruct explore\` until a coordinator_completed cycle is recorded, then retry complete.`,
+        `[reconstruct] complete requires the most recent explore cycle to be successful — last cycle-terminal event was "${last.type}"${last.detail ? ` (${last.detail})` : ""}. Re-run \`onto reconstruct explore\` until a coordinator_completed cycle is recorded, then retry complete.`,
       );
     }
   }
@@ -579,6 +598,55 @@ function nonFlagArgs(argv: string[]): string[] {
 
 function defaultSessionsDir(projectRoot: string): string {
   return join(projectRoot, ".onto", "reconstruct");
+}
+
+/**
+ * Append a *cycle-terminal* event to the session's `state.events` array and
+ * transition `current_state` to `exploring`, best-effort.
+ *
+ * Used by the explore handler's pre-coordinator failure paths (config parse,
+ * wire-build errors) so that audit signals reach `state.events` even when
+ * the failure happens before `executeReconstructExplore` runs. The
+ * `exploring` transition is intentional — it lets the downstream
+ * `executeReconstructComplete` lifecycle gate observe the failure (otherwise
+ * the session stays in `gathering_context` and the upstream gathering-context
+ * check throws a less informative error before the cycle-terminal gate
+ * fires).
+ *
+ * Caller responsibility: pass only *cycle-terminal* event types (e.g.
+ * `config_parse_failed`, `config_malformed`). Informational-only events such
+ * as `config_absent_default_v1_applied` should be appended through a
+ * different path that does not transition state.
+ *
+ * Best-effort: if the session state is missing or unreadable, the function
+ * silently no-ops — the caller's primary error path (console.error + exit
+ * code) still surfaces the failure. We never throw from this helper because
+ * the caller is already in an error path and the audit append is a
+ * supplementary observability signal, not a correctness requirement.
+ */
+function appendCycleTerminalEventBestEffort(
+  sessionsDir: string,
+  sessionId: string,
+  event: ReconstructSessionEvent,
+): void {
+  try {
+    const root = sessionRoot(sessionsDir, sessionId);
+    if (!existsSync(stateFile(root))) return;
+    const state = readState(root);
+    // `converted` sessions are immutable from this path.
+    const nextCurrentState: ReconstructBoundedState =
+      state.current_state === "converted" ? "converted" : "exploring";
+    const next: ReconstructSessionState = {
+      ...state,
+      current_state: nextCurrentState,
+      last_updated_at: event.emitted_at,
+      events: [...(state.events ?? []), event],
+    };
+    writeState(root, next);
+  } catch {
+    // Audit-append is best-effort; swallow any error here so it does not
+    // mask the caller's primary failure path.
+  }
 }
 
 // ─── Coordinator wire helpers (post-PR236 caller wire commit) ───
@@ -759,15 +827,9 @@ function buildCodexSpawnDeps(args: {
   projectRoot: string;
   configRaw: unknown;
 }): CoordinatorDeps {
-  // Lazy-load to avoid pulling spawn modules into the placeholder-only path.
-  // Keeps `executeReconstructExplore` placeholder mode dependency-free.
-  // Module is small (no side effects on import) — safe to import top-level
-  // when `--no-coordinator` is not used.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { makeCodexProposer } = require("../../reconstruct/spawn-proposer.js") as typeof import("../../reconstruct/spawn-proposer.js");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { makeCodexReviewer } = require("../../reconstruct/spawn-reviewer.js") as typeof import("../../reconstruct/spawn-reviewer.js");
-
+  // makeCodexProposer / makeCodexReviewer are imported statically at module
+  // top (PR #241 review round 2 UF-DEPENDENCY-1 fix — was lazy `require()`
+  // which is ESM-incompatible).
   const codexConfig = extractCodexConfig(args.configRaw);
 
   const spawnProposer = makeCodexProposer({
@@ -936,9 +998,24 @@ export async function handleReconstructCli(
             useMock,
           });
         } catch (error) {
-          console.error(
-            `[onto] reconstruct explore wire build error: ${error instanceof Error ? error.message : String(error)}`,
-          );
+          // PR #241 review round 2 UF-STRUCTURE-1 fix: config parse failures
+          // (and other pre-coordinator wire-build failures) MUST be appended
+          // to state.events so that (a) the lifecycle gate in
+          // executeReconstructComplete sees the failure and refuses to
+          // finalize, and (b) audit / govern reader has the same observable
+          // surface as coordinator-level failures.
+          //
+          // Append is best-effort: if the session state itself is unreadable
+          // (e.g. invalid sessionId) we fall through to the original error
+          // path without state mutation. The original throw message is still
+          // surfaced via console.error.
+          const detail = error instanceof Error ? error.message : String(error);
+          appendCycleTerminalEventBestEffort(sessionsDir, sessionId, {
+            type: "config_parse_failed",
+            emitted_at: new Date().toISOString(),
+            detail,
+          });
+          console.error(`[onto] reconstruct explore wire build error: ${detail}`);
           return 1;
         }
       }

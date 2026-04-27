@@ -266,7 +266,7 @@ describe("executeReconstructComplete", () => {
 
     expect(() =>
       executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "c-fail-1" }),
-    ).toThrow(/coordinator cycle to be successful.*coordinator_failed_alpha/);
+    ).toThrow(/explore cycle to be successful.*coordinator_failed_alpha/);
   });
 
   it("coordinator_completed event 후 complete → 정상 진행", async () => {
@@ -303,6 +303,46 @@ describe("executeReconstructComplete", () => {
       sessionId: "c-ok-1",
     });
     expect(result.state.current_state).toBe("converted");
+  });
+
+  // PR #241 review round 2 UF-STRUCTURE-1 fix
+  it("config_parse_failed event 후 complete → 거부 (cycle-terminal event)", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: "c-parse-fail-1",
+    });
+    const root = join(tmpRoot, "c-parse-fail-1");
+    const stateBefore = JSON.parse(
+      readFileSync(join(root, "reconstruct-state.json"), "utf-8"),
+    );
+    const stateWithParseFailure = {
+      ...stateBefore,
+      // appendCycleTerminalEventBestEffort transitions current_state to
+      // `exploring` in real production — mirror that here so the lifecycle
+      // gate (downstream of the gathering_context check) actually fires.
+      current_state: "exploring",
+      events: [
+        {
+          type: "config_parse_failed",
+          emitted_at: "2026-04-27T20:00:00Z",
+          detail: "Failed to parse .onto/config.yml: bad indentation",
+        },
+      ],
+    };
+    writeFileSync(
+      join(root, "reconstruct-state.json"),
+      JSON.stringify(stateWithParseFailure, null, 2),
+      "utf-8",
+    );
+
+    expect(() =>
+      executeReconstructComplete({
+        sessionsDir: tmpRoot,
+        sessionId: "c-parse-fail-1",
+      }),
+    ).toThrow(/explore cycle to be successful.*config_parse_failed/);
   });
 
   it("placeholder mode (events 부재) → backward compat 통과", async () => {

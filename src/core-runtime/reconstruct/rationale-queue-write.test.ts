@@ -169,11 +169,47 @@ describe("buildRationaleQueueDocument (W-A-91)", () => {
       intentInferences: inferences,
     });
     expect(doc.entries[0]!.intent_inference_snapshot).toEqual({
+      present: false, // review UF-PRAGMATICS-01: distinguish missing from blank
       inferred_meaning: null,
       justification: null,
       domain_refs: [],
       state_reason: null,
     });
+  });
+
+  it("present=true for blank inference (rationale_state=empty), distinguishing from missing (review UF-PRAGMATICS-01)", () => {
+    const inferences = new Map<string, IntentInference>();
+    inferences.set("E1", {
+      rationale_state: "empty", // present, but content fields all null
+      provenance: provenance(),
+    });
+    const result: HookDeltaResult = {
+      entries: [
+        {
+          element_id: "E1",
+          render_bucket: "individual",
+          priority_score: 11000,
+          rationale_state: "empty",
+          confidence: null,
+          gate_count: 1,
+          grouping_kind: "rationale_state",
+        },
+      ],
+      rendered_count: 1,
+      throttled_out_count: 0,
+      total_pending_count: 1,
+      gate_count_histogram: { "1": 1 },
+      rationale_review_degraded: false,
+    };
+    const doc = buildRationaleQueueDocument({
+      session_id: "S",
+      written_at: "t",
+      hookDeltaResult: result,
+      intentInferences: inferences,
+    });
+    const snap = doc.entries[0]!.intent_inference_snapshot;
+    expect(snap.present).toBe(true); // distinguishes from missing
+    expect(snap.inferred_meaning).toBeNull();
   });
 });
 

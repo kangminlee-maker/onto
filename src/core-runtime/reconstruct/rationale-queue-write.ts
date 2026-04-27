@@ -24,8 +24,16 @@ export const RATIONALE_QUEUE_FILENAME = "rationale-queue.yaml" as const;
 /**
  * Element-level snapshot of intent_inference content (subset persisted in
  * rationale-queue.yaml entries[].intent_inference_snapshot per §2.7).
+ *
+ * `present` (review UF-PRAGMATICS-01) distinguishes:
+ *   - false: the wip element has no intent_inference at all (Stage 2 explorer
+ *     just added the entity, Hook α did not run yet, or it was skipped)
+ *   - true: intent_inference exists but its content fields may individually
+ *     be null (e.g. rationale_state=empty, or rationale_state=domain_scope_miss
+ *     with cleared inferred_meaning/justification)
  */
 export interface IntentInferenceSnapshot {
+  present: boolean;
   inferred_meaning: string | null;
   justification: string | null;
   domain_refs: { manifest_ref: string; heading: string; excerpt: string }[];
@@ -103,6 +111,7 @@ function snapshotInference(
 ): IntentInferenceSnapshot {
   if (!inf) {
     return {
+      present: false,
       inferred_meaning: null,
       justification: null,
       domain_refs: [],
@@ -110,6 +119,7 @@ function snapshotInference(
     };
   }
   return {
+    present: true,
     inferred_meaning: inf.inferred_meaning ?? null,
     justification: inf.justification ?? null,
     domain_refs: inf.domain_refs ?? [],

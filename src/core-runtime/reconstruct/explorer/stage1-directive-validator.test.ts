@@ -170,6 +170,60 @@ describe("validateStage1Directive", () => {
     });
   });
 
+  describe("relations_summary integrity", () => {
+    it("rejects relations_summary referencing unknown entity", () => {
+      const directive = baseDirective();
+      directive.entities[0]!.relations_summary = [
+        { related_id: "E-NOT-IN-DIRECTIVE", relation_type: "owned_by" },
+      ];
+      const result = validateStage1Directive(directive, baseInput());
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.code).toBe("orphan_relation_target");
+    });
+
+    it("accepts self-referencing relations_summary (entity may relate to itself)", () => {
+      const directive = baseDirective();
+      directive.entities[0]!.relations_summary = [
+        { related_id: "E1", relation_type: "self_loop" },
+      ];
+      const result = validateStage1Directive(directive, baseInput());
+      expect(result.ok).toBe(true);
+    });
+
+    it("accepts cross-entity relations_summary when both ids exist", () => {
+      const directive = baseDirective({
+        entities: [
+          {
+            id: "E1",
+            type: "entity",
+            name: "User",
+            definition: "principal",
+            certainty: "observed",
+            source: { locations: ["src/a.ts"] },
+            relations_summary: [
+              { related_id: "E2", relation_type: "owned_by" },
+            ],
+            module_id: "M1",
+          },
+          {
+            id: "E2",
+            type: "entity",
+            name: "Session",
+            definition: "auth session",
+            certainty: "inferred",
+            source: { locations: ["src/b.ts"] },
+            relations_summary: [
+              { related_id: "E1", relation_type: "owns" },
+            ],
+            module_id: "M1",
+          },
+        ],
+      });
+      const result = validateStage1Directive(directive, baseInput());
+      expect(result.ok).toBe(true);
+    });
+  });
+
   describe("module_inventory", () => {
     it("rejects empty module_inventory", () => {
       const result = validateStage1Directive(

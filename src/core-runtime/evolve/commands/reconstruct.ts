@@ -42,7 +42,10 @@ import {
   type SpawnExplorer,
 } from "../../reconstruct/explorer/spawn-explorer.js";
 import type { Stage1ExplorerDirective } from "../../reconstruct/explorer/stage1-directive-types.js";
-import { runStage1RoundZero } from "../../reconstruct/explorer/stage1-scanner.js";
+import {
+  runStage1RoundZero,
+  Stage1ScannerError,
+} from "../../reconstruct/explorer/stage1-scanner.js";
 import { makeCodexProposer } from "../../reconstruct/spawn-proposer.js";
 import { makeCodexReviewer } from "../../reconstruct/spawn-reviewer.js";
 
@@ -77,6 +80,7 @@ export interface ReconstructSessionEvent {
     | "config_malformed"
     | "config_parse_failed"
     | "stage1_scanner_failed"
+    | "wire_build_failed"
     | "coordinator_invariant_violation"
     | "coordinator_failed_alpha"
     | "coordinator_failed_gamma"
@@ -466,14 +470,22 @@ export function executeReconstructComplete(
 
   // PR #241 review C-3 fix (lifecycle gate): when the session has run any
   // cycle-terminal explore attempt (events array contains coordinator_* or
-  // config_malformed / config_parse_failed), the *most recent* such event
-  // must be `coordinator_completed` — otherwise the cycle halted and the
-  // session has not produced a finalizable state.
+  // config_malformed / config_parse_failed / stage1_scanner_failed /
+  // wire_build_failed), the *most recent* such event must be
+  // `coordinator_completed` — otherwise the cycle halted and the session
+  // has not produced a finalizable state.
   //
   // PR #241 review round 2 UF-STRUCTURE-1 fix: config_parse_failed (raised
   // by the explore handler when `.onto/config.yml` parse throws *before*
-  // executeReconstructExplore runs) is now also a cycle-terminal event,
-  // so a parse failure correctly blocks subsequent complete invocations.
+  // executeReconstructExplore runs) is a cycle-terminal event, so a parse
+  // failure correctly blocks subsequent complete invocations.
+  //
+  // PR #242 review round 1 conditional consensus fix: Stage 1 scanner
+  // failures (Stage1ScannerError) and other wire-build failures
+  // (manifest reader / unforeseen wiring) get distinct cycle-terminal
+  // event types (stage1_scanner_failed / wire_build_failed) instead of
+  // the catch-all config_parse_failed — preserves typed metadata for
+  // post-hoc audit while still blocking complete on any wire failure.
   //
   // config_absent_default_v1_applied is *not* cycle-terminal — it is an
   // informational audit signal emitted alongside a successful cycle.
@@ -482,7 +494,9 @@ export function executeReconstructComplete(
   const cycleTerminalEvents = (state.events ?? []).filter((e) =>
     e.type.startsWith("coordinator_") ||
     e.type === "config_malformed" ||
-    e.type === "config_parse_failed",
+    e.type === "config_parse_failed" ||
+    e.type === "stage1_scanner_failed" ||
+    e.type === "wire_build_failed",
   );
   if (cycleTerminalEvents.length > 0) {
     const last = cycleTerminalEvents[cycleTerminalEvents.length - 1]!;
@@ -801,14 +815,34 @@ function buildCodexExplorerSpawn(args: {
 }
 
 /**
+ * Sentinel timestamp used in mock explorer provenance so two `--mock`
+ * invocations of the same wrapper produce byte-identical directive
+ * fixtures (post-PR242 review round 1 axiology UF — mock determinism).
+ *
+ * Epoch anchor (Unix 0) signals at a glance that this is a fixture
+ * timestamp, not an audit-meaningful one. Tests that need wall-clock
+ * timestamps inject `exploredAt` explicitly.
+ */
+const MOCK_EXPLORER_EXPLORED_AT_SENTINEL = "1970-01-01T00:00:00.000Z";
+
+/**
  * Build a deterministic mock Stage 1 explorer spawn for `--mock` mode.
  * Emits a single synthetic entity bound to the session's source path so
  * downstream coordinator wiring exercises the same pipeline as production.
+ *
+ * Determinism contract: with the same `sessionId` + `source` +
+ * `runtimeVersion` + `exploredAt` (default sentinel), the emitted
+ * directive is byte-identical across invocations. Audit-meaningful
+ * timestamping happens at the review-record / session-event level —
+ * that is where wall-clock observation belongs.
  */
 function buildMockExplorerSpawn(args: {
   sessionId: string;
   source: string;
   runtimeVersion: string;
+  /** Override the sentinel for tests that assert on actual wall-clock
+   *  semantics. Production callers leave undefined → sentinel applied. */
+  exploredAt?: string;
 }): SpawnExplorer {
   const directive: Stage1ExplorerDirective = {
     profile: "codebase",
@@ -832,7 +866,7 @@ function buildMockExplorerSpawn(args: {
       },
     ],
     provenance: {
-      explored_at: new Date().toISOString(),
+      explored_at: args.exploredAt ?? MOCK_EXPLORER_EXPLORED_AT_SENTINEL,
       explored_by: "stage1-explorer",
       explorer_contract_version: "1.0",
       session_id: args.sessionId,
@@ -1091,28 +1125,50 @@ export async function handleReconstructCli(
             useMock,
           });
         } catch (error) {
-          // PR #241 review round 2 UF-STRUCTURE-1 fix: config parse failures
-          // (and other pre-coordinator wire-build failures) MUST be appended
+          // PR #241 review round 2 UF-STRUCTURE-1 + PR #242 review round 1
+          // conditional consensus fix: wire-build failures MUST be appended
           // to state.events so that (a) the lifecycle gate in
           // executeReconstructComplete sees the failure and refuses to
           // finalize, and (b) audit / govern reader has the same observable
           // surface as coordinator-level failures.
           //
-          // Stage 1 scanner failures (entities-scanner PR) get a dedicated
-          // event type `stage1_scanner_failed` so post-hoc audit can
-          // distinguish them from config parse failures. Detection: the
-          // Stage1ScannerError class name; falling back to config_parse_failed
-          // for anything else (manifest reader / unforeseen wire errors).
+          // Failure taxonomy (3 cycle-terminal event types — distinct
+          // post-hoc audit surfaces):
+          //   stage1_scanner_failed — Stage1ScannerError instance. Detail
+          //     preserves typed `stage` ("spawn"|"validation") + optional
+          //     validator `code` for retrospective grep / dispatch.
+          //   config_parse_failed   — `.onto/config.yml` YAML parse throw
+          //     (recognized by the wrapping error message). PR #241 had
+          //     this as catch-all; narrowed here to just parse failure.
+          //   wire_build_failed     — anything else thrown during wire
+          //     build (manifest reader / spawn dep build / unforeseen).
+          //     Distinct so audit does not mistake it for config parse.
+          //
+          // Detection uses `instanceof` for Stage1ScannerError (the class
+          // is imported at top-level — string-based `error.name` matching
+          // was fragile against bundler renames; PR #242 review pragmatics
+          // finding addressed).
           //
           // Append is best-effort: if the session state itself is unreadable
           // (e.g. invalid sessionId) we fall through to the original error
           // path without state mutation. The original throw message is still
           // surfaced via console.error.
-          const detail = error instanceof Error ? error.message : String(error);
-          const eventType =
-            error instanceof Error && error.name === "Stage1ScannerError"
-              ? "stage1_scanner_failed"
-              : "config_parse_failed";
+          let detail: string;
+          let eventType: ReconstructSessionEvent["type"];
+          if (error instanceof Stage1ScannerError) {
+            eventType = "stage1_scanner_failed";
+            const codeSuffix = error.code ? ` (${error.code})` : "";
+            detail = `${error.stage}${codeSuffix}: ${error.message}`;
+          } else if (
+            error instanceof Error &&
+            error.message.startsWith("[onto] Failed to parse .onto/config.yml")
+          ) {
+            eventType = "config_parse_failed";
+            detail = error.message;
+          } else {
+            eventType = "wire_build_failed";
+            detail = error instanceof Error ? error.message : String(error);
+          }
           appendCycleTerminalEventBestEffort(sessionsDir, sessionId, {
             type: eventType,
             emitted_at: new Date().toISOString(),

@@ -109,15 +109,24 @@ export interface Stage1ExplorerDirective {
 /**
  * Result returned to the caller (handleReconstructCli) by `runStage1RoundZero`.
  *
- * - `entities` is a wire-compat HookAlphaEntityInput[] — caller passes this
- *   directly into the coordinator options without further transformation.
- * - `directive` preserves the original explorer output (including
- *   module_inventory + provenance) for downstream consumers (raw-yml writer +
- *   future Round N convergence).
+ * Canonical-source contract (PR #242 review round 1 conciseness UF):
+ * - **`entities`** is the canonical entity-fact source for the **coordinator
+ *   wire path** (Hook α/γ `entityList` input). It is a wire-compat
+ *   HookAlphaEntityInput[] — `module_id` stripped — so the caller forwards
+ *   it without further transformation. **Coordinator-bound consumers MUST
+ *   read `entities`** (not `directive.entities`) — the strip is intentional.
+ * - **`directive`** is the canonical source for **directive-aware
+ *   consumers** that need the full explorer emission: `module_inventory`
+ *   (Round N convergence denominator), provenance fields (audit / record),
+ *   and the per-entity `module_id` back-link. Raw-yml writer + future
+ *   Round N reuse this form.
  *
- * The split avoids forcing the caller to import directive types just to
- * fulfill the coordinator contract, while keeping the full directive
- * available for future use without re-running the LLM call.
+ * Both forms describe the same entities; the only difference is `module_id`
+ * presence. There is no `entities` ↔ `directive.entities` mismatch — they
+ * are derived from the same validator-accepted directive within
+ * `runStage1RoundZero`. The split exists so coordinator callers do not pull
+ * directive-only fields into Hook α input, while preserving full data for
+ * downstream readers without re-running the LLM call.
  */
 export interface Stage1RoundZeroResult {
   entities: HookAlphaEntityInput[];

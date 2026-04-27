@@ -32,6 +32,7 @@ export type Stage1DirectiveRejectCode =
   | "empty_module_inventory"
   | "duplicate_module_id"
   | "orphan_module_ref"
+  | "orphan_relation_target"
   | "invalid_certainty"
   | "empty_source_locations"
   | "provenance_mismatch";
@@ -129,6 +130,22 @@ export function validateStage1Directive(
         "orphan_module_ref",
         `entity "${e.id}".module_id="${e.module_id}" not in module_inventory`,
       );
+    }
+  }
+
+  // every relations_summary[].related_id ∈ entity_id_set (PR #242 review
+  // consensus 2/9 — structure + dependency lens). Self-references are
+  // permitted (an entity may relate to itself); the gate is that the
+  // target id must exist in the directive so downstream consumers can
+  // dereference without dangling pointers.
+  for (const e of directive.entities) {
+    for (const rel of e.relations_summary) {
+      if (!entityIdSet.has(rel.related_id)) {
+        return reject(
+          "orphan_relation_target",
+          `entity "${e.id}".relations_summary references unknown entity "${rel.related_id}" (relation_type="${rel.relation_type}")`,
+        );
+      }
     }
   }
 

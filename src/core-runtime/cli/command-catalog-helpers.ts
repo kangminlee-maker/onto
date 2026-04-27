@@ -92,9 +92,12 @@ export function getNormalizedInvocationSet(
     if (entry.kind === "public") {
       const identity = entry.identity;
       // P2-B: collect cli realizations once for canonical lookup + alias invariant.
-      const cliRealizations = entry.realizations.filter(
-        (r): r is CliRealization => r.kind === "cli",
-      );
+      // R2-PR-3: PublicEntry union (Cli | SlashOnly) — filter return type 가 union
+      // 이라 type predicate narrowing 불가 → explicit cast (PublicSlashOnlyEntry 의
+      // realizations 는 Cli 부재 → cast 안전).
+      const cliRealizations: CliRealization[] = entry.realizations.filter(
+        (r) => r.kind === "cli",
+      ) as CliRealization[];
 
       for (const r of entry.realizations) {
         if (r.kind === "cli") {
@@ -127,7 +130,9 @@ export function getNormalizedInvocationSet(
       }
 
       // P2-B (RFC-1 §4.2.1): aliases NORMALIZED projection — single-cli only.
-      if (entry.aliases !== undefined && entry.aliases.length > 0) {
+      // R2-PR-3: aliases 가 PublicCliEntry 에만 존재 (PublicSlashOnlyEntry 부재) — narrowing.
+      const aliases = "aliases" in entry ? entry.aliases : undefined;
+      if (aliases !== undefined && aliases.length > 0) {
         if (cliRealizations.length === 0) {
           throw new Error(
             `Aliases on PublicEntry "${identity}" require ≥1 CliRealization. ` +
@@ -141,7 +146,7 @@ export function getNormalizedInvocationSet(
           );
         }
         const canonical = cliRealizations[0]!.invocation;
-        for (const alias of entry.aliases) {
+        for (const alias of aliases) {
           addOrThrow(set, alias, {
             entry_kind: "public",
             identity,
@@ -389,7 +394,14 @@ export type ExecutorAvailability = "present" | "intentionally_absent";
 export function getCliExecutorAvailability(
   entry: PublicEntry,
 ): ExecutorAvailability {
-  return entry.historical_no_executor === true ? "intentionally_absent" : "present";
+  // R2-PR-3: historical_no_executor 는 PublicCliEntry 전용 — narrowing 필요.
+  // PublicSlashOnlyEntry 는 cli realization 부재 → executor availability 개념 무관 →
+  // dispatcher 가 본 helper 호출 전 cli realization 확인 (cli realization 없는
+  // entry 는 "present" fallback 으로 무해).
+  if ("historical_no_executor" in entry && entry.historical_no_executor === true) {
+    return "intentionally_absent";
+  }
+  return "present";
 }
 
 /**
@@ -492,12 +504,16 @@ export function assertHistoricalNoExecutorBidirectional(
 ): void {
   for (const entry of catalog.entries) {
     if (entry.kind !== "public") continue;
-    const cliInvocations = entry.realizations
-      .filter((r): r is CliRealization => r.kind === "cli")
-      .map((r) => r.invocation);
+    // R2-PR-3: PublicEntry union — filter type predicate narrowing 미보장. cast 사용.
+    const cliInvocations: string[] = (
+      entry.realizations.filter((r) => r.kind === "cli") as CliRealization[]
+    ).map((r) => r.invocation);
     const hasCli = cliInvocations.length > 0;
 
-    if (entry.historical_no_executor === true) {
+    // R2-PR-3: historical_no_executor 는 PublicCliEntry 전용 — narrowing.
+    // PublicSlashOnlyEntry 는 cli realization 부재 → 본 invariant 무관 (skip).
+    const historical = "historical_no_executor" in entry ? entry.historical_no_executor : undefined;
+    if (historical === true) {
       // (1) transient PR-2 invariant — cli realization 보유 entry 만 (R2-PR-3 schema split 전)
       if (!hasCli) {
         throw new Error(
@@ -536,6 +552,28 @@ export function assertHistoricalNoExecutorBidirectional(
           );
         }
       }
+    }
+  }
+}
+
+/**
+ * R2-PR-3 (RFC-2 §4.4.3 v5): PublicCliEntry 의 ontology canonical invariant —
+ * "has at least one CLI realization". type-level discriminator (`phase` field) 가
+ * fast-fail 하지만 catalog 의 array literal 에 cli realization 부재 시 type 만으로
+ * catch 못 함 → 본 validator 가 module-load 시 throw (canonical owner).
+ */
+export function assertPublicCliEntryHasCliRealization(catalog: CommandCatalog): void {
+  for (const entry of catalog.entries) {
+    if (entry.kind !== "public") continue;
+    // PublicCliEntry 의 discriminator: phase field 존재
+    if (!("phase" in entry)) continue;
+    const hasCli = entry.realizations.some((r) => r.kind === "cli");
+    if (!hasCli) {
+      throw new Error(
+        `PublicCliEntry "${entry.identity}" has phase but no CliRealization. ` +
+          `PublicCliEntry requires at least one CLI realization (RFC-2 §4.4.3 canonical invariant). ` +
+          `Either add a cli realization or convert to PublicSlashOnlyEntry by removing phase.`,
+      );
     }
   }
 }
@@ -615,8 +653,10 @@ export function assertNoAliasCollision(catalog: CommandCatalog): void {
   const aliasOwners = new Map<string, string>();
   for (const entry of catalog.entries) {
     if (entry.kind !== "public") continue;
-    if (entry.aliases === undefined) continue;
-    for (const alias of entry.aliases) {
+    // R2-PR-3: aliases 는 PublicCliEntry 전용 — narrowing.
+    const aliases = "aliases" in entry ? entry.aliases : undefined;
+    if (aliases === undefined) continue;
+    for (const alias of aliases) {
       // alias ↔ 다른 entry 의 invocation 충돌
       const invocationOwner = invocationOwners.get(alias);
       if (invocationOwner !== undefined && invocationOwner !== entryName(entry)) {
@@ -739,6 +779,7 @@ export function validateCatalog(
   assertSuccessorReferenceExists(catalog);
   assertRuntimeScriptsReferenceExists(catalog);
   assertDeprecationLifecycle(catalog, options?.currentVersion);
+  assertPublicCliEntryHasCliRealization(catalog);
   assertNoAliasCollision(catalog);
   assertDocTemplateIdUnique(catalog);
   assertPromptBodyRefInManagedTree(catalog);

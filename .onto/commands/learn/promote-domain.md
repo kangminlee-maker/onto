@@ -1,4 +1,4 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=798c82e8ab8b78d0fda857f0c38f367ff320b22a36a3a485940dc95b5edf2a2c -->
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=0c0e5b83c0456207b83d8fc62339a8596acc5d28068815ef35bb532bd1399ba3 -->
 
 # Promote Domain (seed → established)
 

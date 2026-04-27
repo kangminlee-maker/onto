@@ -1,4 +1,4 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=de4af39551981ab057bbf9c5cf8eceed4844f7a5f4597564e4db83d4a6263e73 -->
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=290ad4c084968334b6aba46507b0da0ead7f4e6c0371ff355100d824b9375e82 -->
 
 # Create Domain (Seed Generation)
 

@@ -128,27 +128,64 @@ export type PublicRealization =
   | CliRealization
   | PatternedSlashRealization;
 
-export type PublicEntry = Common & {
+/**
+ * R2-PR-3 (RFC-2 §4.4): PublicEntry schema split — PublicCliEntry vs
+ * PublicSlashOnlyEntry. cli realization 보유 entry 의 phase 는 routing 의 의미
+ * (preboot/post_boot dispatcher 분기), slash-only 의 phase 는 decorative —
+ * v8 결정으로 schema 분기. type-level + validator 병행 enforcement.
+ */
+type PublicEntryCommon = Common & {
   kind: "public";
   identity: string;
-  phase: "preboot" | "post_boot";
   contract_ref?: string;
   doc_template_id: string;
-  realizations: readonly PublicRealization[];
   runtime_scripts?: readonly string[];
-  /** P2-B (RFC-1 §4.2.0): aliases 는 PublicEntry 전용. cli realization 보유
-   * 한 single-cli entry 에서만 허용 (multi-cli + alias 는 canonical 모호성으로
-   * future seam). NORMALIZED 에 alias key 로 등록되며 canonical_cli_invocation
-   * 으로 dispatcher 가 변환 후 forward (silent no-op 차단). */
+};
+
+/**
+ * R2-PR-3 (RFC-2 §4.4 v5): PublicCliEntry — cli realization 보유 entry.
+ * - **Ontology canonical invariant**: "has at least one CLI realization"
+ *   (canonical owner = `assertPublicCliEntryHasCliRealization` validator)
+ * - **Type-level discriminator**: `phase` field 의 존재 — TS 가 `"phase" in entry`
+ *   로 narrowing. cli realization presence 의 type-level enforcement 는 tuple
+ *   ordering 비용 (catalog 의 [slash, cli] 순서 entry 다수) vs 표현력 한계 — RFC-2
+ *   v8 의 결정대로 validator 가 canonical owner, type-level 은 phase discriminator
+ *   에 의존 (실제 cli 부재 시 validator 가 module-load 시 throw).
+ * - phase 필수 (cli realization 의 routing phase)
+ * - historical_no_executor 위치 (R2-PR-2 에서 broad PublicEntry 에 추가, R2-PR-3 에서 이동)
+ * - aliases 위치 (P2-B 에서 PublicEntry 로 이전, R2-PR-3 에서 이동)
+ */
+export type PublicCliEntry = PublicEntryCommon & {
+  phase: "preboot" | "post_boot";
+  realizations: readonly PublicRealization[];
+  /** P2-B (RFC-1 §4.2.0): aliases 는 PublicCliEntry 전용. single-cli entry 에서만
+   * 허용 (multi-cli + alias 는 canonical 모호성으로 future seam). NORMALIZED 에
+   * alias key 로 등록되며 canonical_cli_invocation 으로 dispatcher 가 변환 후
+   * forward (silent no-op 차단). */
   aliases?: readonly string[];
   /** R2-PR-2 (RFC-2 §4.2.1): deprecated PublicCliEntry 가 historical/informational
    * compatibility 를 위해 catalog 에 보존되되 executor dispatch 가 의도적으로 부재함.
-   * true 시: cli realization 보유 + deprecated_since 설정 + cli.ts main case 부재 (또는
-   * 본문이 placeholder) — dispatcher 가 lifecycle policy 분기에서 intercept (cli.ts
-   * main 위임 전 notice + return 1). default false. R2-PR-3 schema split 후
-   * PublicCliEntry 로 자동 narrowing. 검증: assertHistoricalNoExecutorBidirectional. */
+   * true 시: deprecated_since 설정 + cli.ts main case 부재 (또는 본문이 placeholder) —
+   * dispatcher 가 lifecycle policy 분기에서 intercept (cli.ts main 위임 전 notice + return 1).
+   * default false. 검증: assertHistoricalNoExecutorBidirectional. */
   historical_no_executor?: boolean;
 };
+
+/**
+ * R2-PR-3 (RFC-2 §4.4): PublicSlashOnlyEntry — slash realization 만 보유.
+ * - phase field 부재 (cli routing 무관, decorative 격차 닫음)
+ * - aliases 부재 (P2-B 의 cli realization 한정 invariant)
+ * - historical_no_executor 부재 (R2-PR-2 의 cli realization 한정 invariant)
+ * - tuple type — at least 1 slash/patterned_slash realization
+ */
+export type PublicSlashOnlyEntry = PublicEntryCommon & {
+  realizations: readonly [
+    SlashRealization | PatternedSlashRealization,
+    ...(SlashRealization | PatternedSlashRealization)[],
+  ];
+};
+
+export type PublicEntry = PublicCliEntry | PublicSlashOnlyEntry;
 
 export type RuntimeScriptEntry = Common & {
   kind: "runtime_script";
@@ -384,7 +421,6 @@ export const COMMAND_CATALOG: CommandCatalog = {
     {
       kind: "public",
       identity: "feedback",
-      phase: "post_boot",
       doc_template_id: "feedback",
       description: "Submit feedback for ontology evolution.",
       contract_ref: ".onto/processes/feedback.md",
@@ -400,7 +436,6 @@ export const COMMAND_CATALOG: CommandCatalog = {
     {
       kind: "public",
       identity: "backup",
-      phase: "post_boot",
       doc_template_id: "backup",
       description: "Backup onto session and learning data.",
       contract_ref: ".onto/processes/backup.md",
@@ -416,7 +451,6 @@ export const COMMAND_CATALOG: CommandCatalog = {
     {
       kind: "public",
       identity: "restore",
-      phase: "post_boot",
       doc_template_id: "restore",
       description: "Restore onto session and learning data from backup.",
       contract_ref: ".onto/processes/restore.md",
@@ -432,7 +466,6 @@ export const COMMAND_CATALOG: CommandCatalog = {
     {
       kind: "public",
       identity: "transform",
-      phase: "post_boot",
       doc_template_id: "transform",
       description: "Transform ontology between formats.",
       contract_ref: ".onto/processes/transform.md",
@@ -448,7 +481,6 @@ export const COMMAND_CATALOG: CommandCatalog = {
     {
       kind: "public",
       identity: "create-domain",
-      phase: "post_boot",
       doc_template_id: "create-domain",
       description: "Create a new domain knowledge structure.",
       contract_ref: ".onto/processes/create-domain.md",
@@ -464,7 +496,6 @@ export const COMMAND_CATALOG: CommandCatalog = {
     {
       kind: "public",
       identity: "onboard",
-      phase: "post_boot",
       doc_template_id: "onboard",
       description: "Set up onto environment for a project.",
       contract_ref: ".onto/processes/onboard.md",
@@ -481,7 +512,6 @@ export const COMMAND_CATALOG: CommandCatalog = {
     {
       kind: "public",
       identity: "promote-domain",
-      phase: "post_boot",
       doc_template_id: "promote-domain",
       description: "Promote a project domain to global.",
       realizations: [

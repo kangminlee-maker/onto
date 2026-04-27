@@ -1,4 +1,4 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=377b9b3c295c0a680d93f1e5322ae53574332d1c9c9af25e6effe82ee9b3ab45 -->
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=942383fc51736752f561e9798c047c16170e3d34cbb72abcf67abaa81d5d4269 -->
 
 # Data Restore
 

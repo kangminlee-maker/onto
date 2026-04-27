@@ -97,7 +97,6 @@ export type PublicEntry = Common & {
   kind: "public";
   identity: string;
   phase: "preboot" | "post_boot";
-  repair_path?: boolean;
   contract_ref?: string;
   doc_template_id: string;
   realizations: readonly PublicRealization[];
@@ -180,9 +179,8 @@ export const COMMAND_CATALOG: CommandCatalog = {
       kind: "public",
       identity: "config",
       phase: "preboot",
-      repair_path: true,
       doc_template_id: "config",
-      description: "Inspect or modify onto configuration (repair-path).",
+      description: "Inspect or modify onto configuration.",
       contract_ref: ".onto/processes/configuration.md",
       realizations: [{ kind: "cli", invocation: "config", cli_dispatch: CLI_HANDLER }],
     },
@@ -191,9 +189,8 @@ export const COMMAND_CATALOG: CommandCatalog = {
       kind: "public",
       identity: "install",
       phase: "preboot",
-      repair_path: true,
       doc_template_id: "install",
-      description: "First-run setup wizard (providers, auth, output language). Repair-path.",
+      description: "First-run setup wizard (providers, auth, output language).",
       contract_ref: ".onto/processes/install.md",
       realizations: [
         {

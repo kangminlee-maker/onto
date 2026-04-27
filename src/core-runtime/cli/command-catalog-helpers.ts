@@ -333,23 +333,6 @@ export function assertDeprecationLifecycle(catalog: CommandCatalog): void {
 }
 
 // ---------------------------------------------------------------------------
-// repair_path → preboot constraint (design doc §4.3)
-// ---------------------------------------------------------------------------
-
-export function assertRepairPathPreboot(catalog: CommandCatalog): void {
-  for (const entry of catalog.entries) {
-    if (entry.kind !== "public") continue;
-    if (entry.repair_path === true && entry.phase !== "preboot") {
-      throw new Error(
-        `repair_path constraint violation: PublicEntry "${entry.identity}" ` +
-          `has repair_path=true but phase="${entry.phase}". ` +
-          `repair_path requires phase="preboot".`,
-      );
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Realizations non-empty (design doc §4.3)
 // ---------------------------------------------------------------------------
 
@@ -512,7 +495,6 @@ export function validateCatalog(catalog: CommandCatalog): void {
   assertSuccessorReferenceExists(catalog);
   assertRuntimeScriptsReferenceExists(catalog);
   assertDeprecationLifecycle(catalog);
-  assertRepairPathPreboot(catalog);
   assertNoAliasCollision(catalog);
   assertDocTemplateIdUnique(catalog);
   assertPromptBodyRefInManagedTree(catalog);

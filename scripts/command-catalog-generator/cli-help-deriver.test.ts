@@ -23,6 +23,7 @@ import { describe, expect, it } from "vitest";
 import { COMMAND_CATALOG } from "../../src/core-runtime/cli/command-catalog.js";
 import {
   CLI_HELP_EMISSION_PATH,
+  buildHelpLines,
   buildSubcommandLines,
   deriveAllCliHelp,
   deriveCliHelpSegment,
@@ -92,6 +93,39 @@ describe("Stage 1 — cli-help-deriver unit + determinism", () => {
     const allBlock = out.slice(allStart);
     expect(defaultBlock).not.toContain("[DEPRECATED");
     expect(allBlock).toContain("[DEPRECATED");
+  });
+
+  // R2-§8-PR-1 — footer is view-conditional. Default view advertises the
+  // flag so users can discover it; all-view omits the now-redundant line.
+  it("default-view footer advertises --include-deprecated flag", () => {
+    const lines = buildHelpLines(COMMAND_CATALOG);
+    const advertised = lines.some(
+      (l) => l.includes("--include-deprecated") && l.includes("With --help"),
+    );
+    expect(advertised).toBe(true);
+  });
+
+  it("all-view footer omits the --include-deprecated advertisement", () => {
+    const lines = buildHelpLines(COMMAND_CATALOG, { includeDeprecated: true });
+    const advertised = lines.some(
+      (l) => l.includes("--include-deprecated") && l.includes("With --help"),
+    );
+    expect(advertised).toBe(false);
+  });
+
+  it("--help line wording is view-agnostic (no 'active subcommands only' claim)", () => {
+    // Regression for review feedback: the all-view used to inherit a footer
+    // that claimed "active subcommands only" while deprecated rows were
+    // simultaneously visible. The wording is now uniform across views.
+    const defaultLines = buildHelpLines(COMMAND_CATALOG);
+    const allLines = buildHelpLines(COMMAND_CATALOG, {
+      includeDeprecated: true,
+    });
+    for (const lines of [defaultLines, allLines]) {
+      const helpLine = lines.find((l) => l.match(/^\s+--help, -h\s/));
+      expect(helpLine).toBeDefined();
+      expect(helpLine).not.toContain("active subcommands only");
+    }
   });
 
   it("spliceCliHelpSegment replaces an existing segment in place", () => {

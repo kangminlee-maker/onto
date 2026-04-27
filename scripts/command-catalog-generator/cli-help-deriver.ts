@@ -45,8 +45,17 @@ const STATIC_HEADER: readonly string[] = [
   "Subcommands:",
 ];
 
-/** Static suffix block. Options/Installation sections are not catalog-derived. */
-const STATIC_FOOTER: readonly string[] = [
+/**
+ * Static suffix blocks. Options/Installation sections are not catalog-derived.
+ *
+ * The footer is view-conditional (R2-§8-PR-1): the default view advertises
+ * `--include-deprecated` so users can discover the flag, while the all-view
+ * (already showing deprecated rows) omits the redundant advertisement. The
+ * `--help, -h` line itself stays view-agnostic — it tells the same story in
+ * either view, so we never have to claim "active subcommands only" while
+ * deprecated rows are visibly present.
+ */
+const STATIC_FOOTER_OPTIONS_HEAD: readonly string[] = [
   "",
   "Options:",
   "  --onto-home <path>         Override onto installation directory",
@@ -54,8 +63,14 @@ const STATIC_FOOTER: readonly string[] = [
   "  --prepare-only             Prepare session without executing lenses",
   "  --allow-onto-init          Allow .onto/ creation in new projects (non-interactive)",
   "  --version, -v              Show version",
-  "  --help, -h                 Show this help (active subcommands only)",
-  "  --include-deprecated       With --help: also list deprecated subcommands",
+  "  --help, -h                 Show this help",
+];
+
+/** Default-view-only flag advertisement (R2-§8-PR-1). */
+const FLAG_LINE_INCLUDE_DEPRECATED =
+  "  --include-deprecated       With --help: also list deprecated subcommands";
+
+const STATIC_FOOTER_INSTALL: readonly string[] = [
   "",
   "Installation:",
   "  npm install -g onto-core   Global install (onto command everywhere)",
@@ -115,6 +130,17 @@ export function buildSubcommandLines(
   return out;
 }
 
+function buildStaticFooter(opts: BuildHelpOptions): string[] {
+  const includeDeprecated = opts.includeDeprecated ?? false;
+  return [
+    ...STATIC_FOOTER_OPTIONS_HEAD,
+    // All-view already shows deprecated rows — the flag advertisement is
+    // redundant noise. Default view keeps it for discoverability.
+    ...(includeDeprecated ? [] : [FLAG_LINE_INCLUDE_DEPRECATED]),
+    ...STATIC_FOOTER_INSTALL,
+  ];
+}
+
 export function buildHelpLines(
   catalog: CommandCatalog,
   opts: BuildHelpOptions = {},
@@ -122,7 +148,7 @@ export function buildHelpLines(
   return [
     ...STATIC_HEADER,
     ...buildSubcommandLines(catalog, opts),
-    ...STATIC_FOOTER,
+    ...buildStaticFooter(opts),
   ];
 }
 

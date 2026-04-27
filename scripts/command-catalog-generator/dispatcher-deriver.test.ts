@@ -16,9 +16,13 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { COMMAND_CATALOG } from "../../src/core-runtime/cli/command-catalog.js";
+import {
+  COMMAND_CATALOG,
+  type CommandCatalog,
+} from "../../src/core-runtime/cli/command-catalog.js";
 import {
   DISPATCHER_EMISSION_PATH,
+  computePhaseMap,
   deriveAllDispatcher,
   deriveDispatcher,
 } from "./dispatcher-deriver.js";
@@ -110,4 +114,126 @@ describe("Stage 2 — derive pipeline", () => {
       ).not.toThrow();
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// P2-C (RFC-1 §4.3): computePhaseMap multi-CLI iteration + collision throw
+// ---------------------------------------------------------------------------
+
+describe("computePhaseMap — multi-CLI iteration (P2-C)", () => {
+  function makeCatalog(entries: CommandCatalog["entries"]): CommandCatalog {
+    return { version: 1, entries };
+  }
+
+  it("real catalog: every cli realization invocation present with entry phase", () => {
+    const map = computePhaseMap(COMMAND_CATALOG);
+    // Spot check: info (preboot), review (post_boot)
+    expect(map["info"]).toBe("preboot");
+    expect(map["review"]).toBe("post_boot");
+    // 모든 PublicEntry 의 cli realization 이 등록됐는지 — count 검증.
+    let cliInvocationCount = 0;
+    for (const entry of COMMAND_CATALOG.entries) {
+      if (entry.kind !== "public") continue;
+      for (const r of entry.realizations) {
+        if (r.kind === "cli") cliInvocationCount++;
+      }
+    }
+    expect(Object.keys(map).length).toBe(cliInvocationCount);
+  });
+
+  it("multi-CLI entry: 모든 cli invocation 이 동일 phase 로 등록", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "compound",
+        phase: "post_boot",
+        doc_template_id: "compound",
+        description: "x",
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "compound",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+          {
+            kind: "cli",
+            invocation: "compound-alt",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+    ]);
+    const map = computePhaseMap(catalog);
+    expect(map["compound"]).toBe("post_boot");
+    expect(map["compound-alt"]).toBe("post_boot");
+    // P2-A 이전 (find for first cli): map["compound-alt"] 는 undefined →
+    // dispatcher 가 default post_boot 로 silent fallback. P2-C 이후 explicit 등록.
+  });
+
+  it("phase collision throws — defense-in-depth (NORMALIZED 가 invocation 충돌은 우선 catch)", () => {
+    // 같은 invocation 이 두 entry 에서 다른 phase 로 등록되는 경우.
+    // NORMALIZED 가 invocation collision 으로 throw 가 우선이지만, computePhaseMap
+    // 자체도 deriver-time defense-in-depth 로 throw 하는지 검증.
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "alpha",
+        phase: "preboot",
+        doc_template_id: "alpha",
+        description: "x",
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "shared",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+      {
+        kind: "public",
+        identity: "beta",
+        phase: "post_boot",
+        doc_template_id: "beta",
+        description: "y",
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "shared",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+    ]);
+    expect(() => computePhaseMap(catalog)).toThrow(
+      /Phase collision.*shared.*preboot.*post_boot/s,
+    );
+  });
+
+  it("same entry, same phase, multiple cli — no throw (entry-level phase invariant)", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "harmonized",
+        phase: "preboot",
+        doc_template_id: "harmonized",
+        description: "x",
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "harmonized",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+          {
+            kind: "cli",
+            invocation: "harmonized-alt",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+    ]);
+    expect(() => computePhaseMap(catalog)).not.toThrow();
+    const map = computePhaseMap(catalog);
+    expect(map["harmonized"]).toBe("preboot");
+    expect(map["harmonized-alt"]).toBe("preboot");
+  });
 });

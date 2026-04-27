@@ -55,8 +55,12 @@ import {
  * 으로 PHASE_MAP 조회 + canonical 보존 forwarding (alias 도 동일 path —
  * NORMALIZED 가 alias key 에 canonical 매핑). PHASE_MAP / PUBLIC_DISPATCH_TABLE
  * 알리아스 미등록 (single canonical lookup seat — RFC-1 §4.2.3, §4.2.4).
+ * P2-C: 3→4 — computePhaseMap 이 모든 CliRealization iterate (was: first only).
+ * 한 entry 의 다수 cli invocation 이 같은 phase 에 등록 — multi-CLI 도입 시
+ * silent misroute 차단 (RFC-1 §4.3). 다른 entry 와의 invocation 충돌은
+ * NORMALIZED 가 이미 catch — 본 변경은 deriver-time defense-in-depth.
  */
-export const DERIVE_SCHEMA_VERSION = "3";
+export const DERIVE_SCHEMA_VERSION = "4";
 
 const TARGET_ID = "dispatcher";
 const MARKER_SOURCE_REF = "src/core-runtime/cli/command-catalog.ts";
@@ -71,6 +75,15 @@ const EMISSION_PATH = "src/core-runtime/cli/dispatcher.ts";
  *
  * Slash and patterned_slash invocations live in `NORMALIZED` but are
  * unreachable via `bin/onto`, so they are also omitted.
+ *
+ * P2-C (RFC-1 §4.3): iterate **모든** CliRealization (was: `find` 으로 첫 cli
+ * 만). schema 가 multi-CLI 허용하므로 한 entry 의 다수 cli invocation 모두
+ * PHASE_MAP 에 등록 — 미래 multi-CLI 도입 시 silent misroute 차단.
+ *
+ * Phase collision throw: 한 entry 의 모든 cli invocation 은 같은 phase
+ * (entry-level phase). 다른 entry 의 invocation 과 충돌은 NORMALIZED 가
+ * 이미 catch — 본 검사는 deriver-time defense-in-depth (예: 미래 NORMALIZED
+ * 변경 시 phase 모순이 silent 로 빠지지 않도록).
  */
 export function computePhaseMap(
   catalog: CommandCatalog,
@@ -79,10 +92,20 @@ export function computePhaseMap(
   for (const entry of catalog.entries) {
     if (entry.kind !== "public") continue;
     const pub = entry as PublicEntry;
-    const cli = pub.realizations.find(
-      (r): r is CliRealization => r.kind === "cli",
-    );
-    if (cli) map[cli.invocation] = pub.phase;
+    for (const r of pub.realizations) {
+      if (r.kind !== "cli") continue;
+      const cli = r as CliRealization;
+      const existing = map[cli.invocation];
+      if (existing !== undefined && existing !== pub.phase) {
+        throw new Error(
+          `Phase collision in computePhaseMap: invocation "${cli.invocation}" mapped to ` +
+            `both ${existing} and ${pub.phase}. ` +
+            `한 entry 의 모든 cli invocation 은 같은 phase. 다른 entry 와의 invocation ` +
+            `충돌은 NORMALIZED 가 catch — 본 throw 는 deriver-time defense-in-depth.`,
+        );
+      }
+      map[cli.invocation] = pub.phase;
+    }
   }
   return map;
 }

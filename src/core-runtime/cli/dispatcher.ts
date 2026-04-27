@@ -1,4 +1,4 @@
-// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=b0f975dd8cf30d31729e64cee6239312ce82a6578f34a738d8f757012ea1c633
+// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=edb185ea45f0c3fa2a16407a1ee9f87cf3c6ee74adfb2c01f401b3fbb1fa8332
 /**
  * Command dispatcher — derived artifact (P1-3 CLI subcommand dispatch authority).
  *
@@ -34,8 +34,8 @@ import {
 const NORMALIZED = getNormalizedInvocationSet(COMMAND_CATALOG);
 const BARE_ONTO_SENTINEL = "<<bare>>";
 
-const EXPECTED_DERIVE_HASH = "b0f975dd8cf30d31729e64cee6239312ce82a6578f34a738d8f757012ea1c633";
-const DERIVE_SCHEMA_VERSION = "3";
+const EXPECTED_DERIVE_HASH = "edb185ea45f0c3fa2a16407a1ee9f87cf3c6ee74adfb2c01f401b3fbb1fa8332";
+const DERIVE_SCHEMA_VERSION = "4";
 const TARGET_ID = "dispatcher";
 const BYPASS_ENV_VAR = "ONTO_ALLOW_STALE_DISPATCHER";
 

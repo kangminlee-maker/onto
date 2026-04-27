@@ -226,7 +226,7 @@ export async function runDomainInit(
   return { ok: true, manifestPath, backupPath };
 }
 
-function scanPackMarkdown(packDir: string): string[] {
+export function scanPackMarkdown(packDir: string): string[] {
   if (!fs.existsSync(packDir)) return [];
   const entries = readdirSync(packDir, { withFileTypes: true });
   const md = entries
@@ -286,13 +286,13 @@ async function readVersion(
   return { error: "user_aborted", detail: "exceeded 3 invalid version attempts" };
 }
 
-function writeManifestAtomic(manifestPath: string, manifest: ParsedManifest): void {
+export function writeManifestAtomic(manifestPath: string, manifest: ParsedManifest): void {
   const tmpPath = `${manifestPath}.tmp-${process.pid}-${Date.now()}`;
   fs.writeFileSync(tmpPath, yamlStringify(manifest));
   fs.renameSync(tmpPath, manifestPath);
 }
 
-function backupExistingManifest(
+export function backupExistingManifest(
   packDir: string,
   manifestPath: string,
   now: Date,

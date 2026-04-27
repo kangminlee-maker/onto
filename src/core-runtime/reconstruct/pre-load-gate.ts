@@ -2,7 +2,7 @@
 //
 // Domain pack manifest pre-load gate. Step 4 §5.4.2 canonical.
 //
-// 6 sequential halt conditions (parse-first, hash-last per §5.4.2):
+// Sequential halt conditions (parse-first, hash-last per §5.4.2):
 //   1. YAML parse fail / file missing                       → manifest_malformed
 //   2. Top-level non-mapping                                → manifest_malformed
 //   3. Required field missing (6 fields per §5.4.2 r6)      → manifest_malformed
@@ -10,6 +10,7 @@
 //   5. referenced_files structural type error               → manifest_malformed
 //   6. Identity mismatch (basename(packDir) ≠ domain_name)  → manifest_identity_mismatch
 //   7. domain_manifest_version semver grammar invalid (§5.6.1) → manifest_version_format_invalid
+//   7.5. required:true file existence (review F2, §5.5 line 1234) → manifest_malformed
 //   8. version_hash recompute (§5.5) ≠ stored               → manifest_version_hash_mismatch
 
 import { existsSync, readFileSync } from "node:fs";
@@ -164,6 +165,23 @@ export function preLoadManifest(packDir: string): PreLoadGateResult {
       code: "manifest_version_format_invalid",
       detail: `domain_manifest_version "${String(obj.domain_manifest_version)}" does not match grammar MAJOR.MINOR.PATCH (no leading zeros, no v-prefix, no pre-release)`,
     };
+  }
+
+  // 7.5. required:true file existence check (review F2, §5.5 line 1234)
+  // spec: "file_hash = '__missing__'  # required: false 인 경우 정상,
+  //         required: true 는 halt"
+  // hash recompute 이전에 enforce — sentinel-based hash 가 missing file 을
+  // stable 하게 hash 하므로 hash compare 가 이 violation 을 catch 못 함.
+  // 3 review lens 합의 (structure + dependency + coverage).
+  for (const entry of obj.referenced_files as ReferencedFileEntry[]) {
+    if (entry.required) {
+      const absolute = join(packDir, entry.path);
+      if (!existsSync(absolute)) {
+        return malformed(
+          `required file "${entry.path}" missing at ${absolute} (referenced_files[].required=true)`,
+        );
+      }
+    }
   }
 
   // 8. version_hash recompute + compare — manifest_version_hash_mismatch

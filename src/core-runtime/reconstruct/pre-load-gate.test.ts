@@ -221,6 +221,58 @@ describe("pre-load-gate (W-A-99)", () => {
     );
   });
 
+  describe("manifest_malformed — required file existence (review F2)", () => {
+    it("required:true file present → ok", () => {
+      const packDir = buildValidPackDir(tmpDir);
+      const result = preLoadManifest(packDir);
+      expect(result.ok).toBe(true);
+    });
+
+    it("required:true file missing → manifest_malformed (sentinel-hash bypass blocked)", () => {
+      const packDir = buildValidPackDir(tmpDir);
+      // delete a required file — without F2 fix, hash would not detect because
+      // computePackContentMap returns __missing__ sentinel deterministically
+      fs.unlinkSync(path.join(packDir, "concepts.md"));
+      const result = preLoadManifest(packDir);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.code).toBe("manifest_malformed");
+        expect(result.detail).toContain("concepts.md");
+        expect(result.detail).toContain("required");
+      }
+    });
+
+    it("required:false file missing → F2 does NOT halt (hash mismatch catches it later)", () => {
+      const packDir = buildValidPackDir(tmpDir);
+      // structure.md is required:false in the fixture. F2 must not fire for
+      // optional files — but the file's deletion does change pack content,
+      // which the hash recompute (step 8) catches. The point: F2 narrowly
+      // halts required:true only.
+      fs.unlinkSync(path.join(packDir, "structure.md"));
+      const result = preLoadManifest(packDir);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        // Confirms F2 did NOT fire; control passed to hash compare
+        expect(result.code).toBe("manifest_version_hash_mismatch");
+      }
+    });
+
+    it("required:true check fires before hash recompute (precedence)", () => {
+      const packDir = buildValidPackDir(tmpDir);
+      // delete required file AND corrupt stored version_hash —
+      // F2 should report manifest_malformed (file missing) before hash mismatch
+      fs.unlinkSync(path.join(packDir, "concepts.md"));
+      rewriteManifest(packDir, {
+        version_hash: "sha256:" + "0".repeat(64),
+      });
+      const result = preLoadManifest(packDir);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.code).toBe("manifest_malformed");
+      }
+    });
+  });
+
   describe("manifest_version_hash_mismatch", () => {
     it("classified file edited after manifest write", () => {
       const packDir = buildValidPackDir(tmpDir);

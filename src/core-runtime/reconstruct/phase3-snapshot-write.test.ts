@@ -11,6 +11,7 @@ import {
   detectStaleElements,
   emitPhase3Snapshot,
   PHASE3_SNAPSHOT_FILENAME,
+  PHASE3_SNAPSHOT_SCHEMA_VERSION,
 } from "./phase3-snapshot-write.js";
 import type { IntentInference } from "./wip-element-types.js";
 
@@ -33,6 +34,16 @@ function provenance(gateCount = 1): IntentInference["provenance"] {
 }
 
 describe("buildPhase3SnapshotDocument (W-A-92)", () => {
+  it("declares schema version 1.0 (review UF-EVOLUTION-02)", () => {
+    expect(PHASE3_SNAPSHOT_SCHEMA_VERSION).toBe("1.0");
+    const doc = buildPhase3SnapshotDocument({
+      session_id: "S",
+      written_at: "t",
+      intentInferences: new Map(),
+    });
+    expect(doc.version).toBe("1.0");
+  });
+
   it("captures rationale_state + gate_count + confidence per element", () => {
     const inferences = new Map<string, IntentInference | undefined>();
     inferences.set("E1", {

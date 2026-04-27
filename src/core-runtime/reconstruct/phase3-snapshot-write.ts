@@ -27,6 +27,7 @@ import type {
 } from "./wip-element-types.js";
 
 export const PHASE3_SNAPSHOT_FILENAME = "phase3-snapshot.yml" as const;
+export const PHASE3_SNAPSHOT_SCHEMA_VERSION = "1.0" as const;
 
 export interface Phase3SnapshotEntry {
   element_id: string;
@@ -36,6 +37,9 @@ export interface Phase3SnapshotEntry {
 }
 
 export interface Phase3SnapshotDocument {
+  /** schema version (review UF-EVOLUTION-02). Bump on schema changes so
+   *  W-A-93 stale-check consumer can branch on incompatible versions. */
+  version: typeof PHASE3_SNAPSHOT_SCHEMA_VERSION;
   session_id: string;
   written_at: string; // ISO 8601 UTC
   elements: Phase3SnapshotEntry[];
@@ -68,6 +72,7 @@ export function buildPhase3SnapshotDocument(
     };
   });
   return {
+    version: PHASE3_SNAPSHOT_SCHEMA_VERSION,
     session_id: input.session_id,
     written_at: input.written_at,
     elements,

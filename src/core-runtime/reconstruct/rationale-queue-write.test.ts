@@ -177,6 +177,92 @@ describe("buildRationaleQueueDocument (W-A-91)", () => {
     });
   });
 
+  it("preserves confidence downgrade trail when caller passes confidenceDowngrades (review UF-PRAGMATICS-03)", () => {
+    const inferences = new Map<string, IntentInference>();
+    inferences.set("E1", {
+      rationale_state: "proposed",
+      confidence: "low", // post-downgrade
+      provenance: provenance(),
+    });
+    const result: HookDeltaResult = {
+      entries: [
+        {
+          element_id: "E1",
+          render_bucket: "individual",
+          priority_score: 9000,
+          rationale_state: "proposed",
+          confidence: "low",
+          gate_count: 1,
+          grouping_kind: null,
+        },
+      ],
+      rendered_count: 1,
+      throttled_out_count: 0,
+      total_pending_count: 1,
+      gate_count_histogram: { "1": 1 },
+      rationale_review_degraded: false,
+    };
+    const downgrades = new Map<string, import("./rationale-queue-write.js").ConfidenceDowngradeRecord[]>();
+    downgrades.set("E1", [
+      {
+        rule: "D2",
+        original: "high",
+        downgraded: "low",
+        reason: "domain_refs.length == 0",
+      },
+    ]);
+    const doc = buildRationaleQueueDocument({
+      session_id: "S",
+      written_at: "t",
+      hookDeltaResult: result,
+      intentInferences: inferences,
+      confidenceDowngrades: downgrades,
+    });
+    const entry = doc.entries[0]!;
+    expect(entry.confidence_downgrade).toHaveLength(1);
+    expect(entry.confidence_downgrade![0]).toEqual({
+      rule: "D2",
+      original: "high",
+      downgraded: "low",
+      reason: "domain_refs.length == 0",
+    });
+  });
+
+  it("omits confidence_downgrade when no warnings for the element", () => {
+    const inferences = new Map<string, IntentInference>();
+    inferences.set("E1", {
+      rationale_state: "proposed",
+      confidence: "high",
+      provenance: provenance(),
+    });
+    const result: HookDeltaResult = {
+      entries: [
+        {
+          element_id: "E1",
+          render_bucket: "individual",
+          priority_score: 9000,
+          rationale_state: "proposed",
+          confidence: "high",
+          gate_count: 1,
+          grouping_kind: null,
+        },
+      ],
+      rendered_count: 1,
+      throttled_out_count: 0,
+      total_pending_count: 1,
+      gate_count_histogram: { "1": 1 },
+      rationale_review_degraded: false,
+    };
+    const doc = buildRationaleQueueDocument({
+      session_id: "S",
+      written_at: "t",
+      hookDeltaResult: result,
+      intentInferences: inferences,
+      // confidenceDowngrades omitted
+    });
+    expect(doc.entries[0]!.confidence_downgrade).toBeUndefined();
+  });
+
   it("preserves Hook δ grouping_kind + grouping_key_value (review UF-PRAGMATICS-02)", () => {
     const inferences = new Map<string, IntentInference>();
     inferences.set("E1", { rationale_state: "domain_pack_incomplete", provenance: provenance() });

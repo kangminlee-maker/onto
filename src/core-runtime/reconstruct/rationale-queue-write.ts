@@ -44,6 +44,19 @@ export interface IntentInferenceSnapshot {
   state_reason: string | null;
 }
 
+/**
+ * Confidence downgrade record (review UF-PRAGMATICS-03).
+ * Hook α §3.7.1 / Hook γ §3.8.1 의 D1/D2/D3 downgrade 가 final confidence
+ * 만 store 하고 cause 가 사라지는 문제 해소 — audit consumer (govern /
+ * learn) 가 "왜 downgraded" 를 reconstruct 가능.
+ */
+export interface ConfidenceDowngradeRecord {
+  rule: "D1" | "D2" | "D3";
+  original: "low" | "medium" | "high";
+  downgraded: "low" | "medium" | "high";
+  reason: string;
+}
+
 export interface RationaleQueueEntry {
   element_id: string;
   render_bucket: "individual" | "group_sample" | "group_truncated" | "throttled_out";
@@ -56,6 +69,9 @@ export interface RationaleQueueEntry {
   grouping_kind: GroupingKind | null;
   /** Resolved grouping key value when grouping_kind != null. omitted otherwise. */
   grouping_key_value?: NonNullable<RenderEntry["grouping_key_value"]>;
+  /** D1/D2/D3 downgrade trail for this element (review UF-PRAGMATICS-03).
+   *  omitted when no downgrade occurred. */
+  confidence_downgrade?: ConfidenceDowngradeRecord[];
   intent_inference_snapshot: IntentInferenceSnapshot;
 }
 
@@ -80,6 +96,13 @@ export interface RationaleQueueBuildInput {
    * the persisted intent_inference_snapshot subset.
    */
   intentInferences: Map<string, IntentInference>;
+  /**
+   * Per-element confidence downgrade trail (review UF-PRAGMATICS-03).
+   * Caller (Runtime Coordinator) groups Hook α / Hook γ validator warnings
+   * by target_element_id and passes them in. Optional — when omitted, no
+   * confidence_downgrade field is written on entries.
+   */
+  confidenceDowngrades?: Map<string, ConfidenceDowngradeRecord[]>;
 }
 
 /**
@@ -106,6 +129,11 @@ export function buildRationaleQueueDocument(
       // Hook δ §3.4.1 grouping_key_value preserved when present (UF-PRAGMATICS-02)
       if (e.grouping_key_value !== undefined) {
         entry.grouping_key_value = e.grouping_key_value;
+      }
+      // Confidence downgrade trail (UF-PRAGMATICS-03)
+      const downgrades = input.confidenceDowngrades?.get(e.element_id);
+      if (downgrades && downgrades.length > 0) {
+        entry.confidence_downgrade = downgrades;
       }
       return entry;
     },

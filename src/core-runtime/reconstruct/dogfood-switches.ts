@@ -2,6 +2,15 @@
 //
 // Reconstruct dogfood switches — SDK-like invariant 4점 보존.
 //
+// SCOPE (PR #232 r2 contract — helper layer, no production runtime effect yet):
+//   본 module 은 Step 4 §8.3 의 3 switch 를 helper / loader / invariant
+//   check 로 spec mirror 하는 *helper layer*. production Runtime Coordinator
+//   가 본 module 을 호출해 `.onto/config.yml` 을 read + Hook 분기를 gate
+//   하는 wire 는 **본 PR 에 포함되지 않음** — 별도 commit 필요.
+//   현재 caller 는 e2e-smoke.test.ts (Cycle 1-9) 와 dogfood-switches.test.ts
+//   만. 실제 reconstruct runtime 의 분기 동작은 wire commit 이전까지
+//   본 switch 의 영향을 받지 않는다 (v1 mode 가 unconditional default).
+//
 // 3 switch (Step 4 §8.3):
 //   - v1_inference                  Hook α/γ/δ 전체 enable/disable
 //   - phase3_rationale_review       Hook γ (Step 2c review) 만 enable/disable

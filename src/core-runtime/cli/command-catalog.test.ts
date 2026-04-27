@@ -525,6 +525,162 @@ describe("assertNoAliasCollision", () => {
       /Alias collision.*shared.*a.*b/s,
     );
   });
+
+  // P2-B (RFC-1 §4.2.2): alias ↔ 전체 invocation namespace cross-check.
+  it("throws when alias collides with another entry's cli invocation", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "alpha",
+        phase: "post_boot",
+        doc_template_id: "alpha",
+        description: "x",
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "alpha",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+      {
+        kind: "public",
+        identity: "beta",
+        phase: "post_boot",
+        doc_template_id: "beta",
+        description: "y",
+        aliases: ["alpha"],  // ← collides with alpha entry's invocation
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "beta",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+    ]);
+    expect(() => assertNoAliasCollision(catalog)).toThrow(
+      /Alias collision.*alpha.*beta.*alpha/s,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P2-B (RFC-1 §4.2.1): alias NORMALIZED projection invariants
+// ---------------------------------------------------------------------------
+
+describe("getNormalizedInvocationSet — alias projection (P2-B)", () => {
+  it("registers alias as cli target with canonical_cli_invocation", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "coordinator",
+        phase: "post_boot",
+        doc_template_id: "coordinator",
+        description: "x",
+        aliases: ["coord"],
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "coordinator",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+    ]);
+    const set = getNormalizedInvocationSet(catalog);
+    // Both canonical and alias map to cli targets with the same canonical_cli_invocation.
+    const coord = set.get("coord");
+    const coordinator = set.get("coordinator");
+    expect(coord).toEqual({
+      entry_kind: "public",
+      identity: "coordinator",
+      realization_kind: "cli",
+      canonical_cli_invocation: "coordinator",
+    });
+    expect(coordinator).toEqual({
+      entry_kind: "public",
+      identity: "coordinator",
+      realization_kind: "cli",
+      canonical_cli_invocation: "coordinator",
+    });
+  });
+
+  it("throws on slash-only PublicEntry with aliases (cli realization required)", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "feedback",
+        phase: "post_boot",
+        doc_template_id: "feedback",
+        description: "x",
+        aliases: ["fb"],
+        realizations: [
+          {
+            kind: "slash",
+            invocation: "/onto:feedback",
+            prompt_body_ref: ".onto/commands/feedback.md",
+          },
+        ],
+      },
+    ]);
+    expect(() => getNormalizedInvocationSet(catalog)).toThrow(
+      /Aliases on PublicEntry.*feedback.*require ≥1 CliRealization/s,
+    );
+  });
+
+  it("throws on multi-CLI PublicEntry with aliases (canonical 모호성, future seam)", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "compound",
+        phase: "post_boot",
+        doc_template_id: "compound",
+        description: "x",
+        aliases: ["cmp"],
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "compound",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+          {
+            kind: "cli",
+            invocation: "compound-alt",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+    ]);
+    expect(() => getNormalizedInvocationSet(catalog)).toThrow(
+      /Aliases on multi-CLI PublicEntry.*compound.*not supported/s,
+    );
+  });
+
+  it("cli realization target carries canonical_cli_invocation = self invocation", () => {
+    // Verifies the type-level invariant — canonical_cli_invocation only on
+    // cli targets, set to the self-invocation string when not aliased.
+    const set = getNormalizedInvocationSet(COMMAND_CATALOG);
+    const info = set.get("info");
+    expect(info?.entry_kind).toBe("public");
+    if (info && info.entry_kind === "public" && info.realization_kind === "cli") {
+      expect(info.canonical_cli_invocation).toBe("info");
+    } else {
+      throw new Error("expected info to be a cli target with canonical_cli_invocation");
+    }
+  });
+
+  it("slash target does NOT carry canonical_cli_invocation field (type-level invariant)", () => {
+    const set = getNormalizedInvocationSet(COMMAND_CATALOG);
+    const review = set.get("/onto:review");
+    expect(review?.entry_kind).toBe("public");
+    if (review && review.entry_kind === "public") {
+      // type narrowing: realization_kind for slash targets is "slash" or "patterned_slash".
+      expect(review.realization_kind).not.toBe("cli");
+      // No canonical_cli_invocation on slash targets — type system enforces this.
+      expect((review as Record<string, unknown>).canonical_cli_invocation).toBeUndefined();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

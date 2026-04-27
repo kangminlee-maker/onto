@@ -50,9 +50,13 @@ import {
 /** Bumped when dispatcher emit rules change. Cascade-invalidates the marker.
  * P2-A: 1→2 — meta routing forwards `{ meta_name: target.name }`,
  * public preboot routing forwards `{ public_invocation: arg }` (Contract A discriminator).
- * Dead `target === undefined && arg === BARE_ONTO_SENTINEL` branch removed
- * (NORMALIZED honors `default_for: "bare_onto"` so unreachable). */
-export const DERIVE_SCHEMA_VERSION = "2";
+ * Dead `target === undefined && arg === BARE_ONTO_SENTINEL` branch removed.
+ * P2-B: 2→3 — canonical lookup. cli target 의 `target.canonical_cli_invocation`
+ * 으로 PHASE_MAP 조회 + canonical 보존 forwarding (alias 도 동일 path —
+ * NORMALIZED 가 alias key 에 canonical 매핑). PHASE_MAP / PUBLIC_DISPATCH_TABLE
+ * 알리아스 미등록 (single canonical lookup seat — RFC-1 §4.2.3, §4.2.4).
+ */
+export const DERIVE_SCHEMA_VERSION = "3";
 
 const TARGET_ID = "dispatcher";
 const MARKER_SOURCE_REF = "src/core-runtime/cli/command-catalog.ts";
@@ -195,19 +199,22 @@ export async function dispatch(argv: readonly string[]): Promise<number> {
     );
   }
   // PublicEntry cli realization — phase derived from PHASE_MAP at emit time.
-  // P2-A: preboot path forwards \`{ public_invocation: arg }\` (Contract A
-  // discriminator). post_boot path delegates to cli.ts main unchanged.
-  const phase = PHASE_MAP[arg] ?? "post_boot";
+  // P2-B: canonical lookup — alias 가 들어와도 NORMALIZED 가 canonical 보유.
+  // dispatcher 가 \`target.canonical_cli_invocation\` 으로 변환 후 forward.
+  // PHASE_MAP / PUBLIC_DISPATCH_TABLE 은 canonical key 만 (single seat).
+  const canonical = target.canonical_cli_invocation;
+  const phase = PHASE_MAP[canonical] ?? "post_boot";
   if (phase === "preboot") {
     const { dispatchPreboot } = await import("./preboot-dispatch.js");
     return dispatchPreboot(
-      { public_invocation: arg },
+      { public_invocation: canonical },
       argv.slice(1),
     );
   }
-  // post_boot — delegate to cli.ts main with full argv (subcommand at front).
+  // post_boot — delegate to cli.ts main with [canonical, ...tail] so cli.ts
+  // main 의 argv[0] switch 가 alias 가 아닌 canonical case 와 매치.
   const { main } = await import("../../cli.js");
-  return main(argv);
+  return main([canonical, ...argv.slice(1)]);
 }
 
 // Auto-run when dispatcher.ts is the process entry (matches cli.ts gating).

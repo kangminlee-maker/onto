@@ -53,9 +53,13 @@ export const CATALOG_VERSION_HISTORY = _CATALOG_VERSION_HISTORY;
 // Type definitions (design doc §4.1)
 // ---------------------------------------------------------------------------
 
+// P2-B: `aliases` 가 Common 에서 PublicEntry 로 이전 (RFC-1 §4.2.0).
+// 현 catalog usage 0 — type 정의 변경만, 데이터 영향 없음.
+// schema-runtime alignment: runtime 이 PublicEntry 만 honor (cli realization
+// 한정 invariant — slash-only / multi-cli / meta entry 의 alias 는 build-time
+// throw, getNormalizedInvocationSet 에서 강제).
 type Common = {
   description: string;
-  aliases?: readonly string[];
   deprecated_since?: string;
   removed_in?: string;
   successor?: string;
@@ -98,6 +102,11 @@ export type PublicEntry = Common & {
   doc_template_id: string;
   realizations: readonly PublicRealization[];
   runtime_scripts?: readonly string[];
+  /** P2-B (RFC-1 §4.2.0): aliases 는 PublicEntry 전용. cli realization 보유
+   * 한 single-cli entry 에서만 허용 (multi-cli + alias 는 canonical 모호성으로
+   * future seam). NORMALIZED 에 alias key 로 등록되며 canonical_cli_invocation
+   * 으로 dispatcher 가 변환 후 forward (silent no-op 차단). */
+  aliases?: readonly string[];
 };
 
 export type RuntimeScriptEntry = Common & {

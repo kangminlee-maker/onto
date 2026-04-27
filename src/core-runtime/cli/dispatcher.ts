@@ -1,4 +1,4 @@
-// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=2ebc7231039e7169e487b91259427632fc9ac5ce3530483dbb785f56e8eda11a
+// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=b0f975dd8cf30d31729e64cee6239312ce82a6578f34a738d8f757012ea1c633
 /**
  * Command dispatcher — derived artifact (P1-3 CLI subcommand dispatch authority).
  *
@@ -34,8 +34,8 @@ import {
 const NORMALIZED = getNormalizedInvocationSet(COMMAND_CATALOG);
 const BARE_ONTO_SENTINEL = "<<bare>>";
 
-const EXPECTED_DERIVE_HASH = "2ebc7231039e7169e487b91259427632fc9ac5ce3530483dbb785f56e8eda11a";
-const DERIVE_SCHEMA_VERSION = "2";
+const EXPECTED_DERIVE_HASH = "b0f975dd8cf30d31729e64cee6239312ce82a6578f34a738d8f757012ea1c633";
+const DERIVE_SCHEMA_VERSION = "3";
 const TARGET_ID = "dispatcher";
 const BYPASS_ENV_VAR = "ONTO_ALLOW_STALE_DISPATCHER";
 
@@ -122,19 +122,22 @@ export async function dispatch(argv: readonly string[]): Promise<number> {
     );
   }
   // PublicEntry cli realization — phase derived from PHASE_MAP at emit time.
-  // P2-A: preboot path forwards `{ public_invocation: arg }` (Contract A
-  // discriminator). post_boot path delegates to cli.ts main unchanged.
-  const phase = PHASE_MAP[arg] ?? "post_boot";
+  // P2-B: canonical lookup — alias 가 들어와도 NORMALIZED 가 canonical 보유.
+  // dispatcher 가 `target.canonical_cli_invocation` 으로 변환 후 forward.
+  // PHASE_MAP / PUBLIC_DISPATCH_TABLE 은 canonical key 만 (single seat).
+  const canonical = target.canonical_cli_invocation;
+  const phase = PHASE_MAP[canonical] ?? "post_boot";
   if (phase === "preboot") {
     const { dispatchPreboot } = await import("./preboot-dispatch.js");
     return dispatchPreboot(
-      { public_invocation: arg },
+      { public_invocation: canonical },
       argv.slice(1),
     );
   }
-  // post_boot — delegate to cli.ts main with full argv (subcommand at front).
+  // post_boot — delegate to cli.ts main with [canonical, ...tail] so cli.ts
+  // main 의 argv[0] switch 가 alias 가 아닌 canonical case 와 매치.
   const { main } = await import("../../cli.js");
-  return main(argv);
+  return main([canonical, ...argv.slice(1)]);
 }
 
 // Auto-run when dispatcher.ts is the process entry (matches cli.ts gating).

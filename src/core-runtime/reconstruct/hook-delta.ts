@@ -115,6 +115,7 @@ const RATIONALE_STATE_WEIGHT: Record<RationaleState, number> = {
   principal_modified: 0,
   principal_deferred: 0,
   principal_accepted_gap: 0,
+  principal_confirmed_scope_miss: 0,
   carry_forward: 0,
 };
 

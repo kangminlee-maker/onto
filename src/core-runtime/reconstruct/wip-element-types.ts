@@ -1,14 +1,16 @@
 // runtime-mirror-of: step-1-flow-review §4.2 + step-2-rationale-proposer §3.6
+//                    + step-4-integration §3.1 + §3.2 + §3.5.2
 //
 // wip.yml element + intent_inference type scaffolding.
 // Initial seat for W-A-88 (Hook α). W-A-89 (Hook γ) / W-A-90 (Hook δ) /
 // W-A-93 (Phase 3.5) / W-A-94 (raw.yml meta) all import these types.
 //
-// Step 1 §4.2 RationaleState lifecycle (12 enum):
+// Step 1 §4.2 RationaleState lifecycle + Step 4 §3.2 r2 amendment (13 enum):
 //   intermediate (5): empty | proposed | reviewed | gap | domain_pack_incomplete
-//   terminal     (7): principal_accepted | principal_rejected | principal_modified
+//   terminal     (8): principal_accepted | principal_rejected | principal_modified
 //                    | principal_deferred | principal_accepted_gap | carry_forward
-//                    | domain_scope_miss
+//                    | domain_scope_miss | principal_confirmed_scope_miss
+//                    (W-A-93 r2 CONSENSUS 2 — accept on domain_scope_miss split)
 
 export type RationaleState =
   // intermediate (Phase 3.5 종료 전 terminal 로 전이 필수)
@@ -17,12 +19,13 @@ export type RationaleState =
   | "reviewed"
   | "gap"
   | "domain_pack_incomplete"
-  // terminal (Phase 4 Save 허용)
+  // terminal (Phase 4 Save 허용 — 8 enum, Step 4 §3.2 r2 amendment)
   | "principal_accepted"
   | "principal_rejected"
   | "principal_modified"
   | "principal_deferred"
   | "principal_accepted_gap"
+  | "principal_confirmed_scope_miss" // r2 CONSENSUS 2 신규 — accept on domain_scope_miss
   | "carry_forward"
   | "domain_scope_miss";
 
@@ -40,6 +43,7 @@ export const TERMINAL_RATIONALE_STATES = new Set<RationaleState>([
   "principal_modified",
   "principal_deferred",
   "principal_accepted_gap",
+  "principal_confirmed_scope_miss",
   "carry_forward",
   "domain_scope_miss",
 ]);
@@ -101,7 +105,12 @@ export interface IntentInferenceProvenance {
   reviewer_contract_version?: string;
 
   // Hook δ (W-A-93) populate 시 추가됨 — interface 에 forward declared
-  principal_judged_at?: string;
+  principal_judged_at?: string | null;
+
+  // §3.5.2 carry_forward sweep bridge field (W-A-93)
+  // null when rationale_state != "carry_forward"; one of the 5 source states
+  // when rationale_state == "carry_forward"
+  carry_forward_from?: RationaleState | null;
 }
 
 /**

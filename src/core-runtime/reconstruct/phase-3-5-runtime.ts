@@ -245,8 +245,16 @@ export function validatePhase35Input(
     }
   }
 
-  // §3.6 see-below mode: throttled_out + addressable element 1+ 가
-  // per-item/batch 에 address 안 됨 → phase_3_5_input_incomplete halt
+  // §3.6 see-below mode — v1 narrow scope (PR #232 r3 fix-up alignment):
+  //   * Implementation checks the *throttled-out addressable* subset only (Hook δ
+  //     `throttled_out` bucket × non-domain_scope_miss). If 1+ such element is
+  //     unaddressed by per-item/batch action → phase_3_5_input_incomplete halt.
+  //   * Step 4 §3.6 r4 spec calls for *every* pending intent_inference element
+  //     (full-scope cover); the v1 implementation deliberately narrows this to
+  //     throttled-out scope. The narrow ↔ full-scope reconciliation is a v1.1
+  //     backlog (protocol amendment narrowing r4 OR implementation widening
+  //     to all pending). Mirror seats: `.onto/processes/reconstruct.md` line
+  //     1059~1071 wip schema comment + line 1679 §3.5.1 본문.
   if (input.responses.global_reply === "see below") {
     const addressed = new Set<string>();
     for (const d of input.responses.rationale_decisions) addressed.add(d.element_id);

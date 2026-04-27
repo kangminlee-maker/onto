@@ -317,6 +317,127 @@ review:
     org_policy: ...
   ```
 
+### 4.11 Reconstruct dogfood switches (P4 W-A-103, 2026-04-27)
+
+<!-- runtime-mirror-of: step-4-integration §8.2 §8.3 + govern §14.6 -->
+
+reconstruct activity 의 v1 (intent_inference + Hook α/γ/δ) 적용 여부를 제어하는 SDK-like dogfood 차단 스위치 3개. 본 onto 자기 적용 시점에는 모두 `enabled: true` (default v1 mode), 다른 product 가 v0 fallback 으로 사용하려면 `false` 로 설정.
+
+#### `reconstruct.v1_inference.enabled`
+- 용도: Hook α (Rationale Proposer) + Hook γ (Rationale Reviewer) + Hook δ (Phase 3 rationale rendering) 전체 enable/disable
+- 기본값: `true`
+- `false` 시: reconstruct runtime 은 v0 flow (rationale 없음) 동일. wip.yml `intent_inference` block 미작성, raw.yml 의 element-level intent_inference omit, Phase 3 rendering 의 Rationale column 비활성화
+
+#### `reconstruct.phase3_rationale_review.enabled`
+- 용도: Hook γ (Step 2c review) 만 enable/disable. Hook α / Hook δ 는 영향 없음
+- 기본값: `true`
+- `false` 시: Step 2c parallel dispatch 단계에서 2c (Reviewer) 만 skip. proposed element 의 review 없이 직접 Phase 3 진입
+- **Dependency**: `v1_inference.enabled == false` 이면 본 switch 도 함께 false 여야 함 — `phase3_rationale_review_requires_v1_inference` invariant 위반 시 runtime 거부
+
+#### `reconstruct.write_intent_inference_to_raw_yml.enabled`
+- 용도: raw.yml `elements[].intent_inference` block 기록 여부
+- 기본값: `true`
+- `false` 시: 본 element-level block 을 raw.yml 에서 omit. wip.yml 단계에는 v1 mode 로 동작하지만 govern reader 는 v0 raw.yml 만 본다
+- **Dependency**: `v1_inference.enabled == false` 이면 본 switch 도 함께 false 여야 함 — `write_intent_inference_to_raw_yml_requires_v1_inference` invariant 위반 시 runtime 거부
+
+#### Default block (`.onto/config.yml` self-dogfood ON)
+```yaml
+reconstruct:
+  v1_inference:
+    enabled: true
+  phase3_rationale_review:
+    enabled: true
+  write_intent_inference_to_raw_yml:
+    enabled: true
+```
+
+#### v0 fallback block (다른 product 의 dogfood OFF)
+```yaml
+reconstruct:
+  v1_inference:
+    enabled: false
+  phase3_rationale_review:
+    enabled: false
+  write_intent_inference_to_raw_yml:
+    enabled: false
+```
+
+#### §14.6 invariant 4점 보존 검증
+
+| invariant | 검증 |
+|---|---|
+| 1. dogfood off 가능 | 위 v0 fallback block 으로 reconstruct 가 v0 flow 동일 작동 |
+| 2. 들어내기 용이 | switch + `src/core-runtime/reconstruct/` 디렉토리 삭제로 v0 복귀 |
+| 3. govern reader 친화 | `manifest.yaml` + `raw.yml.meta` atomic write 보존 (W-A-94/97/100) |
+| 4. 본질 sink ≠ dogfood sink | wip 본질 sink (Phase 0~3.5 lifecycle) ↔ raw mirror sink (govern audit) 분리 (W-A-100) |
+
+Runtime impl: `src/core-runtime/reconstruct/dogfood-switches.ts` (loader + dependency invariant check). W-A-104 E2E smoke 가 4점 invariant 를 cycle 단위로 검증.
+
+#### Review fix-up notes (PR #232 r1)
+
+**(a) `{enabled: boolean}` wrapper shape rationale (conciseness lens)**:
+- 각 switch 는 plain `boolean` 이 아닌 `{enabled: boolean}` object 로 표현. 의도된 future-extensibility — v1.1+ 에 per-switch metadata (예: `allowed_overrides`, `requires_confirmation`, `audit_log_seat`) 를 같은 object 안에 추가 가능
+- plain boolean 으로 reduce 시 첫 metadata 추가에서 schema break 발생 → wrapper 는 SDK forward-compat seat
+
+**(b) `write_intent_inference_to_raw_yml=false` 의 omit semantic (pragmatics lens)**:
+- 본 switch 가 `false` 일 때 raw.yml 의 `elements[].intent_inference` block 은 omit
+- govern reader 가 *v0 fallback* 과 *v1 mode 의 write 억제* 를 구별하는 path:
+  - `meta.inference_mode == "none"` + `intent_inference` block 부재 → **v0 fallback** (Step 4 §4.3 omit semantic, full v0 path)
+  - `meta.inference_mode ∈ {full, degraded}` + `intent_inference` block 부재 → **v1 mode 의 write 억제** (`write_intent_inference_to_raw_yml=false` 적용 결과 — wip 에는 v1 data 가 있지만 raw 에 미작성)
+- 즉 두 case 의 distinction 은 `meta.inference_mode` field 가 single source. 별도 `omit_reason` field 는 추가하지 않음 (W-A-94 raw-meta-extended-schema 의 minimal-add 원칙 보존)
+
+**(c) Silent default v1 semantic — RISK + migration window (evolution + axiology re-eval, r4 추가 강화)**:
+
+> **본 PR scope 한정**: 현재 fall-through 는 helper layer 만 — production runtime 이 config 를 read 하지 않으므로 silent default 의 *runtime risk 는 wire commit 시점에 비로소 발현*. 본 PR 단계에서는 doc/spec 표면의 risk 만 존재. wire commit 진입 시 아래 backlog 가 우선순위 1 fix-up.
+
+- `reconstruct:` config block 부재 시 loader 는 **default v1 mode ON** 으로 fall-through. 이는 dogfood self-application 자연성을 위한 의도된 silent default — 그러나 **v0 product 가 본 PR 머지 후 ontology binary 를 upgrade 시 silent v1 진입 risk** 가 존재 (wire 시점 발현)
+- **명시적 권고 (v0 product / migration window)**:
+  - 부재 의존 금지 — v0 product 는 위 v0 fallback block 을 `.onto/config.yml` 에 **explicit 선언 필수**
+  - migration audit: govern reader 또는 dashboard 가 `meta.inference_mode` 분포를 monitor 해서 의도치 않은 v1 진입 detect
+  - **wire commit 시 추가 권고 (v1.1 candidate)**: `loadReconstructDogfoodSwitches()` 가 부재 config 를 detect 시 console.warn 또는 session-log 에 `reconstruct_config_absent_default_v1_applied` 신호 emit — explicit silent-default audit log
+- **v1.1 backlog (fail-explicit 전환)**: `reconstruct.config_required: bool` switch 도입 시 부재를 fail-explicit (`reconstruct_config_required` halt) 으로 전환 (migration window 종료 후). 본 PR 의 silent default 는 *transition seat* 으로만 유지 — wire commit 시 transition window 명시 필수
+
+**(d) Production wiring gap — Helper-only scope (no production runtime effect yet, r2+r3+r4 강화)**:
+
+> **CONTRACT (PR #232, 4 mirror seats 동일 sentence)**:
+> - `.onto/config.yml` 의 `reconstruct:` block 은 **현재 reconstruct runtime 에서 read 되지 않는다** — helper / spec / test contract surface only
+> - v1 mode 가 unconditional default — switch 가 `false` 여도 reconstruct runtime 은 v1 path 를 그대로 실행 (wire 부재)
+> - Production wire (`.onto/config.yml` consumer + Hook gating switch consumption + dependency invariant rejection edge) 는 **별도 commit scope**
+
+**4 mirror seats** (review 가 어느 surface 를 봐도 동일 contract):
+1. `.onto/config.yml` reconstruct: block 위 CONTRACT comment
+2. `src/core-runtime/reconstruct/dogfood-switches.ts` 파일 header CONTRACT block
+3. `.onto/processes/configuration.md` §4.11 (d) (본 항목)
+4. `src/core-runtime/reconstruct/INTEGRATION.md` W-A-104 row
+
+- **현 stage helper layer caller**: `dogfood-switches.test.ts` (17 test) + `e2e-smoke.test.ts` (37 test) 두 test file 만. production reconstruct runtime caller 부재
+- **W-A-104 mock dispatcher 의 의미**: production wire shape 의 *spec contract* 정의 (test = wiring shape spec). 실제 wire 는 동일 mock 형태의 dispatcher 를 *real codex spawn* 으로 교체하는 1:1 대응
+- **실제 wire commit 의 scope** (별도 PR / Track B 다음 commit 묶음 또는 reconstruct v1 production 진입 시점): Coordinator class 신설 (또는 기존 Coordinator 의 reconstruct entry path 확장) + `.onto/config.yml` read at boot + dependency invariant rejection edge + Hook gating switch consumption
+
+**(e) Partial-disable mode — first-class supported modes (coverage U6, r2 신규)**:
+
+3 switch × 2 boolean = 8 조합 중 SDK 가 *정합* 으로 인정하는 mode:
+
+| mode | v1_inference | phase3_rationale_review | write_intent_inference_to_raw_yml | use case |
+|---|---|---|---|---|
+| **full v1** (default, dogfood ON) | true | true | true | 본 onto 자기 적용 / 모든 v1 hook 활성 |
+| **v1 without review** | true | false | true | Hook γ Reviewer 만 skip — Hook α (intent inference) + Hook δ (Phase 3 rendering) 활성, review 비용 절감 |
+| **v1 wip-only** | true | true | false | wip.yml 단계만 v1, raw.yml 은 v0 schema 유지 (govern reader 가 v0 raw.yml 만 본다) |
+| **v1 wip-only without review** | true | false | false | 위 두 partial 조합 — wip 만 v1, review skip |
+| **full v0** (v0 fallback) | false | false | false | 다른 product 의 v0 mode |
+
+3 invalid 조합 (dependency invariant violation, runtime reject):
+- `v1_inference=false + phase3_rationale_review=true` → `phase3_rationale_review_requires_v1_inference`
+- `v1_inference=false + write_intent_inference_to_raw_yml=true` → `write_intent_inference_to_raw_yml_requires_v1_inference`
+- 위 두 violation 동시 발생 시 두 violation 모두 list 에 reject
+
+본 5 mode 는 모두 *의도된 use case* — 그러나 본 PR 의 *behavioral lifecycle 검증* 은 **3 mode 만**:
+
+- **`e2e-smoke.test.ts` 검증 scope**: Cycle 1 (full v1 happy path) + Cycle 2 (full v0 fallback) + Cycle 3 (3 dependency invariant reject case)
+- **검증 미포함 (spec-only declaration, behavioral lifecycle 부재)**: partial-disable 3 mode — `v1 without review` / `v1 wip-only` / `v1 wip-only without review`. **본 PR 의 lifecycle/E2E test 가 이 3 mode 를 직접 검증하지 않는다** (helper-only contract surface)
+
+**v1.1 backlog (partial mode lifecycle 검증)**: 3 partial mode 의 use case 가 정해지는 시점 (예: production 환경에서 review 비용 절감 mode 또는 v0 reader 와의 hybrid mode) 에 `e2e-smoke.test.ts` 에 cycle 3개 추가. 본 PR 단계에서는 *config schema spec + helper invariant* 만 declare, behavioral runtime 검증은 wire commit 또는 v1.1 cycle 추가 시점
+
 ## 5. 사용 예시 — 시나리오별 minimum config
 
 ### 5.1 Claude Code 세션 (권장 기본)

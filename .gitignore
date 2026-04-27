@@ -39,3 +39,10 @@ node_modules/
 # drafts/ contains WIP design iterations (Activation Determinism Redesign
 # v1~v6 v4 series). Kept local; not source of truth.
 drafts/
+
+# Environment files — secrets / per-machine config. `.env.example` is the
+# tracked template that documents required + optional vars; the actual
+# `.env` (or any variant) is local-only and must not enter the repo.
+.env
+.env.*
+!.env.example

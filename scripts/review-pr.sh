@@ -1,58 +1,177 @@
 #!/usr/bin/env bash
 #
-# review-pr.sh — PR review via codex-main-subprocess + full 9-lens.
+# review-pr.sh — PR review via codex-nested-subprocess + full 9-lens.
 #
-# Deterministic wrapper. The purpose is to remove LLM-level command
-# assembly (diff generation, env unset list, config block, executor
-# paths, flag choices) that is otherwise error-prone on every run
-# (e.g. `--no-watch` accidentally inherited from smoke-script copy).
-# The subject principal only picks a git ref range; everything else
-# is fixed here.
+# Deterministic wrapper. The purpose is to remove LLM-level ASSEMBLY
+# (diff generation, env unset list, config block, executor paths, flag
+# choices) that is otherwise error-prone on every run. The principal
+# picks a git ref range and an LLM choice; everything else is wired here.
+#
+# Wrapper-internal vs principal-controllable — boundary clarification
+# (2026-04-28 redesign + 2026-04-28 round 2 follow-up):
+#   - Wrapper-internal (always wrapper-side): topology selection, env
+#     unset list, diff generation, executor path, watcher-spawn flags,
+#     workspace setup, authority/principles mount. These have no
+#     informational value if user-decided per call; LLM/operator would
+#     just re-derive the same value every time.
+#   - Principal-controllable: provider, model_id, effort. These affect
+#     review behavior along multiple axes — provider rail (capability
+#     semantics, billing source, runtime authority, availability),
+#     model capability, reasoning depth (effort).
+#
+# Provider contract (round 2 axiology consensus — provider is governed
+# by wrapper-side allowlist; model_id is left flexible per provider).
+# Supported providers + their prerequisites + per-provider defaults +
+# valid effort vocabulary:
+#
+#   codex      | binary on PATH + ~/.codex/auth.json (OAuth/ChatGPT)
+#              | default model: gpt-5.5  (mirrors .onto/config.yml)
+#              | effort: low | medium | high | xhigh
+#   anthropic  | ANTHROPIC_API_KEY env
+#              | default model: claude-sonnet-4-6
+#              | effort: low | medium | high
+#   openai     | OPENAI_API_KEY env (or ~/.codex/auth.json OPENAI_API_KEY)
+#              | default model: gpt-5.4
+#              | effort: low | medium | high | xhigh
+#   litellm    | LITELLM_BASE_URL env (or cli/config llm_base_url)
+#              | default model: (none — must be specified explicitly)
+#              | effort: low | medium | high | xhigh (pass-through to backend)
+#
+# Out-of-scope providers (rejected by this wrapper):
+#   main-native — host session must spawn lenses directly; this wrapper
+#                 is a nested subprocess so main-native is incompatible.
+#   standalone  — no LLM rail; 9-lens review without LLM is meaningless
+#                 here, so the wrapper rejects rather than silently
+#                 produces empty findings.
 #
 # Usage:
-#   bash scripts/review-pr.sh [GIT_REF_RANGE]
+#   bash scripts/review-pr.sh [--provider <name>] [--model <id>]
+#                              [--effort <level>] [GIT_REF_RANGE]
 #
 #   GIT_REF_RANGE defaults to `main...HEAD` (three-dot, symmetric).
-#   This mirrors GitHub's PR diff semantics: changes on the right-hand
-#   side (HEAD) since its merge-base with main, so branches that
-#   diverged do not blame each other for mainline drift.
+#   This mirrors GitHub's PR diff semantics.
+#
+#   Override priority (high → low):
+#     1. CLI flag       (--provider <name> / --model <id> / --effort <level>)
+#     2. script default (DEFAULT_PROVIDER below; default model is per-provider)
+#
+#   Empty CLI values are rejected (no silent fall-through to defaults).
+#
+#   Why no env override layer: provider/model/effort are project-wide
+#   review behavior, owned by `.onto/config.yml` 의 review block (the
+#   dogfood-tracked canonical config). The wrapper deliberately ignores
+#   that block to preserve cross-machine determinism, but it does NOT
+#   reintroduce the same axis under a `REVIEW_PR_*` env namespace —
+#   that would just relocate the drift surface from one config to
+#   another. Per-call overrides go through CLI flags only. `.env`'s
+#   sole responsibility is provider auth secrets (see Prereqs below).
+#
+#   model_id is intentionally left free-form once provider is resolved —
+#   new model_ids in any allowed provider can be tried without wrapper
+#   edits. Provider, however, is allowlist-enforced; effort is enforced
+#   against the provider-specific vocabulary above.
+#
+#   Audit trail: INTENT (review-record) + STDERR banner record the
+#   resolved provider/model/effort, regardless of override path used.
 #
 #   Explicit examples:
-#     bash scripts/review-pr.sh main...HEAD        # default
-#     bash scripts/review-pr.sh main...feat/xyz    # review feat/xyz as PR
-#     bash scripts/review-pr.sh HEAD~3..HEAD       # last 3 commits (two-dot)
+#     bash scripts/review-pr.sh                                 # all defaults (codex / gpt-5.5)
+#     bash scripts/review-pr.sh --provider anthropic            # anthropic + default model
+#     bash scripts/review-pr.sh --provider openai --model gpt-5.4
+#     bash scripts/review-pr.sh --effort xhigh                  # codex deeper reasoning
+#     bash scripts/review-pr.sh --provider litellm --model gpt-4o-2024-08-06
+#     bash scripts/review-pr.sh --model gpt-5.4 main...feat/xyz
 #
-# Fixed behaviour (not overridable here — edit the script if you
-# truly need a different setup rather than ad-hoc assembly):
-#   - Topology:         codex-nested-subprocess
-#                       (teamlead is an external codex spawn, NOT host main —
-#                        deterministic across machines. CODEX_THREAD_ID set,
-#                        CLAUDE* unset → non-handoff path so review-invoke
-#                        reaches the watcher call site too.)
+# Wrapper-internal (NOT overridable here — these are assembly):
+#   - Topology:         codex-nested-subprocess for codex provider,
+#                       ts_inline_http for anthropic/openai/litellm.
+#                       The wrapper's CODEX_THREAD_ID + CLAUDE-unset env
+#                       gate the codex-nested path; non-codex providers
+#                       route through review-invoke's ts_inline_http
+#                       self-execute regardless of those env values.
 #   - Review mode:      full (9 lens)
-#   - Teamlead:         codex / gpt-5.4 / high  (axis-block pinned)
-#   - Subagent:         codex / gpt-5.4 / high  (axis-block pinned)
-#   - Model rationale:  pinning model_id + effort removes machine-local default
-#                       drift — same wrapper invocation = same model on any
-#                       reviewer's machine. Mirrors this repo's tracked
-#                       .onto/config.yml (PR #187, dogfooding consistency).
 #   - Watcher:          ENABLED (iTerm2 / tmux / Apple Terminal auto-detected)
 #   - Project root:     isolated tmp (config.yml + target diff only)
 #   - Onto home:        this repo (authority / roles / lens registry)
 #   - Session artifact: preserved on success so round1/*.md + synthesis.md
 #                       remain inspectable
 #
-# Prereqs:
-#   - codex binary on PATH + ~/.codex/auth.json
-#   - repo's `dist/core-runtime/cli/review-invoke.js` built
-#     (`npm run build:ts-core`)
+# Why explicit defaults (not host-codex / host-env fall-through):
+#   Each provider's host-side default varies across machines (codex's
+#   ~/.codex/config.toml; anthropic env different across shells; etc).
+#   Falling through silently would produce different review results on
+#   different machines. The wrapper writes provider/model/effort
+#   EXPLICITLY into the inline config.yml so the chosen values are
+#   visible + recorded — regardless of override path used.
+#
+# Prereqs (provider-dependent — checked after provider resolution):
+#   codex     → codex binary on PATH + ~/.codex/auth.json
+#   anthropic → ANTHROPIC_API_KEY env
+#   openai    → OPENAI_API_KEY env (or ~/.codex/auth.json field)
+#   litellm   → LITELLM_BASE_URL env
+#   (review-invoke.js is required for all providers — checked unconditionally)
 #
 # Exit: 0 review completed / non-zero invoke failed (tmp preserved for
 # debugging).
 
 set -euo pipefail
 
-REF="${1:-main...HEAD}"
+# ── Argument parsing ─────────────────────────────────────────────────────────
+# Override slots accept CLI flags first; resolution against env + defaults
+# happens after the prereq + workspace setup so a single resolution path
+# produces all consumed values. Empty CLI values are rejected here; empty
+# env values are rejected at the resolution site.
+PROVIDER_OVERRIDE=""
+MODEL_ID_OVERRIDE=""
+EFFORT_OVERRIDE=""
+REF=""
+
+print_help() {
+  # Print everything from line 2 up to (but not including) the first
+  # `set -euo pipefail` line — that line is the body boundary, so the
+  # header section is whatever precedes it. Dynamic boundary so help
+  # output stays accurate as the header grows.
+  awk 'NR==1 {next} /^set -euo/ {exit} {print}' "$0" | sed 's/^#\{0,1\}//'
+  exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --provider)
+      [[ $# -ge 2 && -n "$2" ]] || { echo "ERROR: --provider requires a non-empty value" >&2; exit 2; }
+      PROVIDER_OVERRIDE="$2"; shift 2;;
+    --model)
+      [[ $# -ge 2 && -n "$2" ]] || { echo "ERROR: --model requires a non-empty value" >&2; exit 2; }
+      MODEL_ID_OVERRIDE="$2"; shift 2;;
+    --effort)
+      [[ $# -ge 2 && -n "$2" ]] || { echo "ERROR: --effort requires a non-empty value" >&2; exit 2; }
+      EFFORT_OVERRIDE="$2"; shift 2;;
+    -h|--help) print_help;;
+    --)
+      # POSIX end-of-flags marker. Optional positional REF may follow;
+      # extra positionals beyond REF are an error so callers do not
+      # accidentally feed garbage into git ref parsing.
+      shift
+      if [[ $# -gt 0 ]]; then
+        [[ -z "${REF}" ]] || {
+          echo "ERROR: REF already set to '${REF}'; got extra positional after '--': '$1'" >&2
+          exit 2
+        }
+        REF="$1"
+        shift
+        [[ $# -eq 0 ]] || {
+          echo "ERROR: extra positional args after '--': $*" >&2
+          exit 2
+        }
+      fi
+      break;;
+    -*) echo "ERROR: unknown flag: $1 (see --help)" >&2; exit 2;;
+    *)
+      [[ -z "${REF}" ]] || { echo "ERROR: REF already set to '${REF}'; got extra positional '$1'" >&2; exit 2; }
+      REF="$1"; shift;;
+  esac
+done
+REF="${REF:-main...HEAD}"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
 # Shared host-environment sanitizer. PR #185 follow-up #5 — keeps the
@@ -63,8 +182,6 @@ source "${REPO_ROOT}/scripts/host-env.sh"
 # Extract the right-hand ref from REF. Branch-separator parsing: try
 # three-dot first (`main...HEAD` → `HEAD`), then two-dot (`main..feat/xyz`
 # → `feat/xyz`). Literal-dot fallback would corrupt refs containing a `.`
-# (e.g. `main...release/1.2` naively splitting on last `.` yields `2`) —
-# fixed in 3rd self-review C2.
 if [[ "${REF}" == *...* ]]; then
   RIGHT_REF="${REF##*...}"
 elif [[ "${REF}" == *..* ]]; then
@@ -72,19 +189,136 @@ elif [[ "${REF}" == *..* ]]; then
 else
   RIGHT_REF="HEAD"
 fi
-if [[ -z "${RIGHT_REF}" ]]; then
-  RIGHT_REF="HEAD"
+[[ -n "${RIGHT_REF}" ]] || RIGHT_REF="HEAD"
+
+# ── Provider / model / effort resolution + contract enforcement ────────────
+# Override layers: CLI flag > script default. No env layer — see the
+# header's "Why no env override layer" rationale. Provider/model/effort
+# are project review behavior, sourced from `.onto/config.yml` 의 review
+# block as canonical; this wrapper writes its own copy for cross-machine
+# determinism, so reintroducing an env override would just relocate
+# drift. Defaults below are kept in sync with `.onto/config.yml` 의
+# review block (dogfood SSOT — bump in lockstep when the project's
+# review default changes).
+DEFAULT_PROVIDER="codex"
+DEFAULT_EFFORT="high"
+
+PROVIDER="${PROVIDER_OVERRIDE:-${DEFAULT_PROVIDER}}"
+EFFORT="${EFFORT_OVERRIDE:-${DEFAULT_EFFORT}}"
+
+# Per-provider default model — wrapper-level fallback when --model is
+# not specified. User-provided values pass through unchanged (model_id
+# remains free-form per round 2 axiology guidance).
+#   codex     → gpt-5.5  (mirrors .onto/config.yml review.subagent.model_id)
+#   anthropic → claude-sonnet-4-6
+#   openai    → gpt-5.4  (codex CLI 의 ChatGPT subscription 이 아닌 직접 OpenAI API)
+#   litellm   → ""       (backend 다양성 → explicit --model 필수)
+default_model_for_provider() {
+  case "$1" in
+    codex)     echo "gpt-5.5" ;;
+    anthropic) echo "claude-sonnet-4-6" ;;
+    openai)    echo "gpt-5.4" ;;
+    litellm)   echo "" ;;
+    *)         echo "" ;;
+  esac
+}
+
+DEFAULT_MODEL_ID="$(default_model_for_provider "${PROVIDER}")"
+MODEL_ID="${MODEL_ID_OVERRIDE:-${DEFAULT_MODEL_ID}}"
+
+# Provider allowlist (axiology consensus — contract-governed). Reject
+# main-native (host-session-only; incompatible with nested-subprocess
+# wrapper) and standalone (no-LLM mode; 9-lens review meaningless here).
+case "$PROVIDER" in
+  codex|anthropic|openai|litellm) ;;
+  main-native|standalone)
+    echo "ERROR: provider '$PROVIDER' is incompatible with this wrapper (codex-nested-subprocess topology)." >&2
+    echo "       main-native requires a host session (Claude Code / Codex CLI)." >&2
+    echo "       standalone has no LLM rail (9-lens review needs at least one)." >&2
+    exit 2
+    ;;
+  *)
+    echo "ERROR: unsupported provider '$PROVIDER'" >&2
+    echo "       Allowed: codex | anthropic | openai | litellm" >&2
+    exit 2
+    ;;
+esac
+
+# Per-provider effort vocabulary enforcement. codex/openai support
+# 4-level (low/medium/high/xhigh); anthropic supports 3-level
+# (low/medium/high; thinking budget mapping). litellm passes through
+# to the backend so any of the four levels is admitted as input.
+case "$PROVIDER" in
+  codex|openai)
+    case "$EFFORT" in
+      low|medium|high|xhigh) ;;
+      *)
+        echo "ERROR: provider '$PROVIDER' does not accept effort '$EFFORT' (valid: low | medium | high | xhigh)" >&2
+        exit 2
+        ;;
+    esac
+    ;;
+  anthropic)
+    case "$EFFORT" in
+      low|medium|high) ;;
+      *)
+        echo "ERROR: provider 'anthropic' does not accept effort '$EFFORT' (valid: low | medium | high — xhigh is not in the anthropic vocabulary)" >&2
+        exit 2
+        ;;
+    esac
+    ;;
+  litellm)
+    case "$EFFORT" in
+      low|medium|high|xhigh) ;;
+      *)
+        echo "ERROR: invalid effort '$EFFORT' (valid: low | medium | high | xhigh; semantics are pass-through to the litellm backend)" >&2
+        exit 2
+        ;;
+    esac
+    ;;
+esac
+
+# Model required check — litellm has no wrapper default, so an explicit
+# model_id (CLI flag or env) is mandatory.
+if [[ -z "${MODEL_ID}" ]]; then
+  echo "ERROR: provider '$PROVIDER' requires an explicit --model (no wrapper default for this provider)" >&2
+  exit 2
 fi
 
-# ── Prereqs ────────────────────────────────────────────────────────────────
-if ! command -v codex >/dev/null 2>&1; then
-  echo "ERROR: codex binary not found on PATH. Install codex CLI and run \`codex login\`." >&2
-  exit 2
-fi
-if [[ ! -f "${HOME}/.codex/auth.json" ]]; then
-  echo "ERROR: ~/.codex/auth.json missing. Run \`codex login\`." >&2
-  exit 2
-fi
+# Per-provider prerequisite check — fail-fast before workspace creation.
+case "$PROVIDER" in
+  codex)
+    command -v codex >/dev/null 2>&1 || {
+      echo "ERROR: codex provider requires 'codex' binary on PATH. Install codex CLI and run \`codex login\`." >&2
+      exit 2
+    }
+    [[ -f "${HOME}/.codex/auth.json" ]] || {
+      echo "ERROR: codex provider requires ~/.codex/auth.json. Run \`codex login\`." >&2
+      exit 2
+    }
+    ;;
+  anthropic)
+    [[ -n "${ANTHROPIC_API_KEY:-}" ]] || {
+      echo "ERROR: anthropic provider requires ANTHROPIC_API_KEY env (per-token API access)." >&2
+      exit 2
+    }
+    ;;
+  openai)
+    if [[ -z "${OPENAI_API_KEY:-}" ]] && \
+       ! grep -q '"OPENAI_API_KEY"' "${HOME}/.codex/auth.json" 2>/dev/null; then
+      echo "ERROR: openai provider requires OPENAI_API_KEY env or ~/.codex/auth.json with OPENAI_API_KEY field." >&2
+      exit 2
+    fi
+    ;;
+  litellm)
+    [[ -n "${LITELLM_BASE_URL:-}" ]] || {
+      echo "ERROR: litellm provider requires LITELLM_BASE_URL env (the proxy endpoint)." >&2
+      exit 2
+    }
+    ;;
+esac
+
+# review-invoke.js prerequisite — provider-independent.
 CLI="${REPO_ROOT}/dist/core-runtime/cli/review-invoke.js"
 if [[ ! -f "${CLI}" ]]; then
   echo "ERROR: review-invoke.js not built at ${CLI}. Run \`npm run build:ts-core\` first." >&2
@@ -96,13 +330,16 @@ REVIEW_DIR="$(mktemp -d -t onto-review-pr-XXXXXX)"
 mkdir -p "${REVIEW_DIR}/.onto"
 echo "review workspace: ${REVIEW_DIR}" >&2
 
+# Cleanup-on-error trap: if anything below this line fails, the
+# workspace remains for inspection. This trap is intentionally NOT
+# invoked on normal success so artifacts (synthesis.md / final-output.md)
+# stay readable.
+# (Removed cleanup trap — keep failure artifacts for inspection.)
+
 # Authority + principles mount (post-PR232 backlog F1, 2026-04-27).
-#
-# Axiology lens 가 5 round review 동안 모두 indeterminate 였던 원인은
-# isolated tmp project root 안에 rank 1-3 canonical authority inputs
-# (lexicon / 원칙 / 헌장) 이 부재했기 때문. host repo 의 authority + principles
-# + CLAUDE.md 를 isolated tmp 의 .onto/ 와 project root 에 cp 로 mount —
-# read-only consume 만이며 host 측 mutation 가능성 없음 (axiology 는 read 만).
+# Axiology lens reads rank 1-3 canonical inputs (lexicon / 원칙 / 헌장)
+# from the project root. host repo's authority + principles + CLAUDE.md
+# are read-only mounted into the isolated tmp.
 if [[ -d "${REPO_ROOT}/.onto/authority" ]]; then
   cp -R "${REPO_ROOT}/.onto/authority" "${REVIEW_DIR}/.onto/authority"
 fi
@@ -126,49 +363,57 @@ DIFF_BYTES=$(wc -c < "${DIFF_FILE}" | tr -d " ")
 DIFF_LINES=$(wc -l < "${DIFF_FILE}" | tr -d " ")
 echo "target diff: ${DIFF_BYTES} bytes, ${DIFF_LINES} lines (${REF})" >&2
 
-# Pinned model/effort (PR #188 deterministic refinement). Both teamlead
-# and subagent are external codex spawns with fixed model_id + effort,
-# so the wrapper produces the same review on any reviewer's machine
-# regardless of host codex env defaults. Topology resolves to
-# codex-nested-subprocess. Single source of truth for these values is
-# this repo's tracked `.onto/config.yml` (kept in sync intentionally).
-PIN_PROVIDER="codex"
-PIN_MODEL_ID="gpt-5.4"
-PIN_EFFORT="high"
+# YAML-safe scalar emission. Reject control characters (newline, tab,
+# null, etc) outright rather than try to escape them — provider/model/
+# effort identifiers should never contain control characters, and
+# multi-line YAML values would change meaning. Backslash and double-quote
+# are escaped for safe interpolation into double-quoted YAML scalars.
+yaml_quote_or_reject() {
+  local field="$1"
+  local v="$2"
+  if [[ "$v" =~ [[:cntrl:]] ]]; then
+    echo "ERROR: ${field} value contains a control character (newline/tab/etc); refusing YAML emission" >&2
+    exit 2
+  fi
+  v="${v//\\/\\\\}"
+  v="${v//\"/\\\"}"
+  printf '"%s"' "$v"
+}
+PROVIDER_Q="$(yaml_quote_or_reject provider "$PROVIDER")"
+MODEL_ID_Q="$(yaml_quote_or_reject model_id "$MODEL_ID")"
+EFFORT_Q="$(yaml_quote_or_reject effort "$EFFORT")"
 
 cat > "${REVIEW_DIR}/.onto/config.yml" <<EOF
 review:
   teamlead:
     model:
-      provider: ${PIN_PROVIDER}
-      model_id: ${PIN_MODEL_ID}
-      effort: ${PIN_EFFORT}
+      provider: ${PROVIDER_Q}
+      model_id: ${MODEL_ID_Q}
+      effort: ${EFFORT_Q}
   subagent:
-    provider: ${PIN_PROVIDER}
-    model_id: ${PIN_MODEL_ID}
-    effort: ${PIN_EFFORT}
+    provider: ${PROVIDER_Q}
+    model_id: ${MODEL_ID_Q}
+    effort: ${EFFORT_Q}
 review_mode: full
 EOF
 
 # Commit sha / intent for traceability in review-record. Record the
-# right-hand ref actually being reviewed (not unconditional HEAD) so
-# the metadata is meaningful when REF is e.g. `main...feat/xyz` and
-# HEAD is on a different branch. INTENT also embeds the pinned
-# model/effort so review-record's intent field carries the model
-# identity for retrospective grep / cost analysis.
+# right-hand ref actually being reviewed and the resolved (post-override)
+# provider/model/effort so the audit trail is accurate regardless of
+# override path used.
 COMMIT_SHA="$(git -C "${REPO_ROOT}" rev-parse --short "${RIGHT_REF}")"
-INTENT="PR review (${REF} @ ${COMMIT_SHA}, ${PIN_PROVIDER}/${PIN_MODEL_ID}/${PIN_EFFORT})"
+INTENT="PR review (${REF} @ ${COMMIT_SHA}, ${PROVIDER}/${MODEL_ID}/${EFFORT})"
 
 # STDERR banner — same model/effort visible at invocation time for
-# the operator (no need to wait for review-record). Independent from
-# INTENT (record vs operational visibility serve different consumers).
-echo "model pin: ${PIN_PROVIDER}/${PIN_MODEL_ID}/${PIN_EFFORT}" >&2
+# the operator (no need to wait for review-record).
+echo "model: ${PROVIDER}/${MODEL_ID}/${EFFORT}" >&2
 
 # ── Execute ────────────────────────────────────────────────────────────────
 # NOTE: --no-watch is DELIBERATELY ABSENT so the live watcher pane spawns
 # (iTerm2 split / tmux split / Apple Terminal tab, whichever the current
-# env supports). CLAUDE_* unset + CODEX_THREAD_ID set routes through the
-# non-handoff dispatch path so the watcher call site is actually reached.
+# env supports). For non-codex providers, review-invoke routes through
+# ts_inline_http self-execute and the codex-host env values below are
+# inert (review-invoke ignores them when host_runtime is not codex).
 cd "${REVIEW_DIR}"
 STDOUT_LOG="${REVIEW_DIR}/review.stdout.log"
 STDERR_LOG="${REVIEW_DIR}/review.stderr.log"

@@ -7,6 +7,37 @@ domains:
 # Reference: .onto/processes/configuration.md §4.5
 # Equivalent of legacy `execution_topology_priority: [codex-nested-subprocess]`
 # per src/core-runtime/review/review-config-legacy-translate.ts:legacyTopologyIdToAxes.
+#
+# Axis contract (PR #243 — 2026-04-28):
+#   provider — review-invoke dispatch 의 6-shape topology 결정 axis.
+#              valid values:
+#                codex        — codex CLI subprocess (ChatGPT subscription)
+#                anthropic    — Anthropic API (HTTP)
+#                openai       — OpenAI API (HTTP)
+#                litellm      — litellm proxy (다양한 backend)
+#                main-native  — host session 자체가 lens spawn (Claude Code /
+#                               Codex CLI 안에서만 의미 — wrapper script
+#                               에서는 reject)
+#                standalone   — LLM 호출 없이 fixture only
+#   model_id — provider 결정 후 free-form. 신규 model_id 가 wrapper /
+#              CLI 변경 없이 시도 가능.
+#   effort   — provider 별 vocabulary:
+#                codex / openai / litellm → low | medium | high | xhigh
+#                anthropic                → low | medium | high
+#                main-native / standalone → effort 의미 없음 (무시)
+#
+# Secret separation (PR #243 — 2026-04-28):
+#   Provider 인증 자격 (ANTHROPIC_API_KEY / OPENAI_API_KEY /
+#   LITELLM_BASE_URL) 은 `.env` 에 두며 본 file 에 두지 않습니다 —
+#   `.onto/config.yml` 은 dogfood-tracked (commit 대상) 라 secret 직접
+#   포함 위험. 본 file 의 review block 은 *behavior config* 만, secret
+#   은 `.env` (gitignored). 자세한 사용법은 repo root 의 `.env.example`.
+#
+# Wrapper alignment:
+#   `scripts/review-pr.sh` 의 DEFAULT_* 가 본 review block 과 sync 입니다
+#   (codex / gpt-5.5 / high). 본 review block 변경 시 wrapper default 도
+#   lockstep 으로 갱신 (cross-machine determinism 위해 wrapper 가 host
+#   config 를 read 하지 않으므로 정합 책임은 작성자).
 review:
   teamlead:
     model:

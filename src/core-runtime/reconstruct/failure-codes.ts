@@ -86,7 +86,7 @@ export const CANONICAL_FAILURE_CODES: Record<
       "CI wrote a --config YAML omitting the `domain_manifest_version` field",
     recovery: {
       interactive:
-        "config_schema_invalid is non-interactive specific. Switch to `onto domain init --regenerate {domain}` (interactive) to re-author the manifest, OR fix the config and use the non-interactive recovery path below.",
+        "config_schema_invalid is non-interactive specific. To recover interactively, switch path: run `onto domain init --regenerate {domain}` without --config to re-author the manifest fields directly via prompts (no config file involved).",
       non_interactive:
         "Edit the config file (`--config <path>` YAML) so the missing/invalid field is corrected, then re-run the same `onto domain init --regenerate {domain} --config <path>` command. --regenerate is required (manifest cannot be re-created without it).",
     },

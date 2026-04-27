@@ -48,6 +48,7 @@ describe("Stage 1 — cli-help-deriver unit + determinism", () => {
     const marker = extractTypeScriptSegment(out);
     expect(marker).not.toBeNull();
     expect(marker?.body).toContain("const ONTO_HELP_TEXT");
+    expect(marker?.body).toContain("const ONTO_HELP_TEXT_ALL");
     expect(marker?.body).toContain('].join("\\n")');
   });
 
@@ -59,12 +60,38 @@ describe("Stage 1 — cli-help-deriver unit + determinism", () => {
     expect(lines.some((l) => l.match(/^\s+info\s/))).toBe(true);
   });
 
-  it("deprecated entries carry a [DEPRECATED] marker", () => {
+  it("default view excludes deprecated entries (R2-§8-PR-1)", () => {
     const lines = buildSubcommandLines(COMMAND_CATALOG);
+    expect(lines.some((l) => l.includes("[DEPRECATED"))).toBe(false);
+    // Sanity: at least one active cli-backed entry remains.
+    expect(lines.some((l) => l.match(/^\s+info\s/))).toBe(true);
+  });
+
+  it("includeDeprecated=true surfaces the [DEPRECATED] marker rows", () => {
+    const lines = buildSubcommandLines(COMMAND_CATALOG, {
+      includeDeprecated: true,
+    });
     const deprecated = lines.filter((l) => l.includes("[DEPRECATED"));
     // build / reclassify-insights / migrate-session-roots are all marked
     // deprecated_since: "0.2.0" in the catalog.
     expect(deprecated.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("renderHelpSegmentBody emits both ONTO_HELP_TEXT and ONTO_HELP_TEXT_ALL", () => {
+    const out = deriveCliHelpSegment(COMMAND_CATALOG);
+    expect(out).toContain("export const ONTO_HELP_TEXT =");
+    expect(out).toContain("export const ONTO_HELP_TEXT_ALL =");
+    // The all-view must contain at least one [DEPRECATED] line; the
+    // default-view const must not. We rely on ordering: ONTO_HELP_TEXT
+    // comes before ONTO_HELP_TEXT_ALL in renderHelpSegmentBody.
+    const defaultStart = out.indexOf("export const ONTO_HELP_TEXT =");
+    const allStart = out.indexOf("export const ONTO_HELP_TEXT_ALL =");
+    expect(defaultStart).toBeGreaterThan(-1);
+    expect(allStart).toBeGreaterThan(defaultStart);
+    const defaultBlock = out.slice(defaultStart, allStart);
+    const allBlock = out.slice(allStart);
+    expect(defaultBlock).not.toContain("[DEPRECATED");
+    expect(allBlock).toContain("[DEPRECATED");
   });
 
   it("spliceCliHelpSegment replaces an existing segment in place", () => {

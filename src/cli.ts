@@ -30,6 +30,34 @@ export const ONTO_HELP_TEXT = [
   "  govern                  Govern principles — track, propose, decide.",
   "  promote                 Promote project-level learnings to global-level.",
   "  health                  Show learning pool health dashboard (global or project).",
+  "",
+  "Options:",
+  "  --onto-home <path>         Override onto installation directory",
+  "  --project-root <path>      Override target project root",
+  "  --prepare-only             Prepare session without executing lenses",
+  "  --allow-onto-init          Allow .onto/ creation in new projects (non-interactive)",
+  "  --version, -v              Show version",
+  "  --help, -h                 Show this help (active subcommands only)",
+  "  --include-deprecated       With --help: also list deprecated subcommands",
+  "",
+  "Installation:",
+  "  npm install -g onto-core   Global install (onto command everywhere)",
+  "  npm install onto-core      Project install (npx onto within project, version pinned)",
+].join("\n");
+export const ONTO_HELP_TEXT_ALL = [
+  "Usage: onto <subcommand> [options]",
+  "",
+  "Subcommands:",
+  "  info                    Show installation mode, onto home, project root, and runtime info.",
+  "  config                  Inspect or modify onto configuration.",
+  "  install                 First-run setup wizard (providers, auth, output language).",
+  "  review                  9-lens review with separate synthesize stage.",
+  "  coordinator             Internal review orchestration state machine (Agent Teams nested spawn).",
+  "  evolve                  Evolve ontology — design and apply changes via aligned process.",
+  "  reconstruct             Reconstruct ontology from analysis targets (code, docs, etc.).",
+  "  govern                  Govern principles — track, propose, decide.",
+  "  promote                 Promote project-level learnings to global-level.",
+  "  health                  Show learning pool health dashboard (global or project).",
   "  reclassify-insights     [DEPRECATED since 0.2.0 → promote] Reclassify insights — superseded by promote.",
   "  migrate-session-roots   [DEPRECATED since 0.2.0 → removed in 0.3.0] One-time migration tool — scheduled for removal.",
   "  build                   [DEPRECATED since 0.2.0 → reconstruct] Build ontology — superseded by reconstruct.",
@@ -40,7 +68,8 @@ export const ONTO_HELP_TEXT = [
   "  --prepare-only             Prepare session without executing lenses",
   "  --allow-onto-init          Allow .onto/ creation in new projects (non-interactive)",
   "  --version, -v              Show version",
-  "  --help, -h                 Show this help",
+  "  --help, -h                 Show this help (active subcommands only)",
+  "  --include-deprecated       With --help: also list deprecated subcommands",
   "",
   "Installation:",
   "  npm install -g onto-core   Global install (onto command everywhere)",
@@ -780,9 +809,14 @@ export async function main(argvOverride?: readonly string[]): Promise<number> {
 
     case "--help":
     case "-h":
-    case undefined:
-      console.log(ONTO_HELP_TEXT);
+    case undefined: {
+      // R2-§8-PR-1: `--include-deprecated` opts in to deprecated rows.
+      const includeDeprecated = subcommandArgv.some(
+        (a) => a === "--include-deprecated",
+      );
+      console.log(includeDeprecated ? ONTO_HELP_TEXT_ALL : ONTO_HELP_TEXT);
       return 0;
+    }
 
     default:
       console.error(`[onto] Unknown subcommand: ${subcommand}`);

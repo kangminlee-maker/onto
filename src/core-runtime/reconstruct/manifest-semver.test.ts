@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  compareDomainManifestVersion,
   isValidDomainManifestVersion,
   parseDomainManifestVersion,
 } from "./manifest-semver.js";
@@ -55,6 +56,32 @@ describe("manifest-semver — grammar parse (W-A-99 prereq subset)", () => {
       expect(isValidDomainManifestVersion(0)).toBe(false);
       expect(isValidDomainManifestVersion({ major: 0 })).toBe(false);
       expect(isValidDomainManifestVersion(["0.3.0"])).toBe(false);
+    });
+  });
+
+  describe("compareDomainManifestVersion (W-A-95 prereq)", () => {
+    function p(s: string) {
+      return parseDomainManifestVersion(s)!;
+    }
+
+    it.each([
+      ["0.3.0", "0.3.0", 0],
+      ["0.3.1", "0.3.0", 1],
+      ["0.3.0", "0.3.1", -1],
+      ["0.4.0", "0.3.99", 1],
+      ["1.0.0", "0.99.99", 1],
+      ["0.99.99", "1.0.0", -1],
+      ["10.0.0", "9.99.99", 1],
+    ])("compare(%s, %s) = %s", (a, b, expected) => {
+      expect(compareDomainManifestVersion(p(a), p(b))).toBe(expected);
+    });
+
+    it("major precedence over minor and patch", () => {
+      expect(compareDomainManifestVersion(p("2.0.0"), p("1.99.99"))).toBe(1);
+    });
+
+    it("minor precedence over patch", () => {
+      expect(compareDomainManifestVersion(p("0.2.0"), p("0.1.99"))).toBe(1);
     });
   });
 });

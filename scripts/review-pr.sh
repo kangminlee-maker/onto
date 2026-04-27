@@ -25,7 +25,7 @@
 # valid effort vocabulary:
 #
 #   codex      | binary on PATH + ~/.codex/auth.json (OAuth/ChatGPT)
-#              | default model: gpt-5.4
+#              | default model: gpt-5.5  (mirrors .onto/config.yml)
 #              | effort: low | medium | high | xhigh
 #   anthropic  | ANTHROPIC_API_KEY env
 #              | default model: claude-sonnet-4-6
@@ -53,11 +53,18 @@
 #
 #   Override priority (high → low):
 #     1. CLI flag       (--provider <name> / --model <id> / --effort <level>)
-#     2. env variable   (REVIEW_PR_PROVIDER / REVIEW_PR_MODEL / REVIEW_PR_EFFORT)
-#     3. script default (DEFAULT_PROVIDER below; default model is per-provider)
+#     2. script default (DEFAULT_PROVIDER below; default model is per-provider)
 #
-#   Empty values are rejected at every override slot (CLI flag + env)
-#   so the principal's empty-string is never silently absorbed by `:-`.
+#   Empty CLI values are rejected (no silent fall-through to defaults).
+#
+#   Why no env override layer: provider/model/effort are project-wide
+#   review behavior, owned by `.onto/config.yml` 의 review block (the
+#   dogfood-tracked canonical config). The wrapper deliberately ignores
+#   that block to preserve cross-machine determinism, but it does NOT
+#   reintroduce the same axis under a `REVIEW_PR_*` env namespace —
+#   that would just relocate the drift surface from one config to
+#   another. Per-call overrides go through CLI flags only. `.env`'s
+#   sole responsibility is provider auth secrets (see Prereqs below).
 #
 #   model_id is intentionally left free-form once provider is resolved —
 #   new model_ids in any allowed provider can be tried without wrapper
@@ -68,13 +75,12 @@
 #   resolved provider/model/effort, regardless of override path used.
 #
 #   Explicit examples:
-#     bash scripts/review-pr.sh                                 # all defaults (codex)
+#     bash scripts/review-pr.sh                                 # all defaults (codex / gpt-5.5)
 #     bash scripts/review-pr.sh --provider anthropic            # anthropic + default model
-#     bash scripts/review-pr.sh --provider openai --model gpt-5.5
+#     bash scripts/review-pr.sh --provider openai --model gpt-5.4
 #     bash scripts/review-pr.sh --effort xhigh                  # codex deeper reasoning
 #     bash scripts/review-pr.sh --provider litellm --model gpt-4o-2024-08-06
-#     REVIEW_PR_PROVIDER=anthropic bash scripts/review-pr.sh
-#     bash scripts/review-pr.sh --model gpt-5.5 main...feat/xyz
+#     bash scripts/review-pr.sh --model gpt-5.4 main...feat/xyz
 #
 # Wrapper-internal (NOT overridable here — these are assembly):
 #   - Topology:         codex-nested-subprocess for codex provider,
@@ -186,43 +192,39 @@ fi
 [[ -n "${RIGHT_REF}" ]] || RIGHT_REF="HEAD"
 
 # ── Provider / model / effort resolution + contract enforcement ────────────
-# Empty env values are rejected here (matching the CLI-flag empty reject
-# at the parser site) so the principal's empty intent is never silently
-# absorbed by `:-`.
-require_nonempty_env() {
-  local var_name="$1"
-  local var_value="${!var_name:-}"
-  if [[ -z "${!var_name+set}" ]]; then return 0; fi  # unset — fall through
-  if [[ -z "${var_value}" ]]; then
-    echo "ERROR: ${var_name} is set but empty (use \`unset ${var_name}\` to fall through to defaults)" >&2
-    exit 2
-  fi
-}
-require_nonempty_env REVIEW_PR_PROVIDER
-require_nonempty_env REVIEW_PR_MODEL
-require_nonempty_env REVIEW_PR_EFFORT
-
+# Override layers: CLI flag > script default. No env layer — see the
+# header's "Why no env override layer" rationale. Provider/model/effort
+# are project review behavior, sourced from `.onto/config.yml` 의 review
+# block as canonical; this wrapper writes its own copy for cross-machine
+# determinism, so reintroducing an env override would just relocate
+# drift. Defaults below are kept in sync with `.onto/config.yml` 의
+# review block (dogfood SSOT — bump in lockstep when the project's
+# review default changes).
 DEFAULT_PROVIDER="codex"
 DEFAULT_EFFORT="high"
 
-PROVIDER="${PROVIDER_OVERRIDE:-${REVIEW_PR_PROVIDER:-${DEFAULT_PROVIDER}}}"
-EFFORT="${EFFORT_OVERRIDE:-${REVIEW_PR_EFFORT:-${DEFAULT_EFFORT}}}"
+PROVIDER="${PROVIDER_OVERRIDE:-${DEFAULT_PROVIDER}}"
+EFFORT="${EFFORT_OVERRIDE:-${DEFAULT_EFFORT}}"
 
 # Per-provider default model — wrapper-level fallback when --model is
 # not specified. User-provided values pass through unchanged (model_id
 # remains free-form per round 2 axiology guidance).
+#   codex     → gpt-5.5  (mirrors .onto/config.yml review.subagent.model_id)
+#   anthropic → claude-sonnet-4-6
+#   openai    → gpt-5.4  (codex CLI 의 ChatGPT subscription 이 아닌 직접 OpenAI API)
+#   litellm   → ""       (backend 다양성 → explicit --model 필수)
 default_model_for_provider() {
   case "$1" in
-    codex)     echo "gpt-5.4" ;;
+    codex)     echo "gpt-5.5" ;;
     anthropic) echo "claude-sonnet-4-6" ;;
     openai)    echo "gpt-5.4" ;;
-    litellm)   echo "" ;;  # litellm requires explicit model — no wrapper default
+    litellm)   echo "" ;;
     *)         echo "" ;;
   esac
 }
 
 DEFAULT_MODEL_ID="$(default_model_for_provider "${PROVIDER}")"
-MODEL_ID="${MODEL_ID_OVERRIDE:-${REVIEW_PR_MODEL:-${DEFAULT_MODEL_ID}}}"
+MODEL_ID="${MODEL_ID_OVERRIDE:-${DEFAULT_MODEL_ID}}"
 
 # Provider allowlist (axiology consensus — contract-governed). Reject
 # main-native (host-session-only; incompatible with nested-subprocess

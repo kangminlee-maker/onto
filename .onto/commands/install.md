@@ -1,4 +1,4 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=347543d625d1743b4c3475406e15a5d6e687e969a42e067da78b63988f2f80e7 -->
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=454902d6d6a31d38dd3dd39c96db568019617dae8bac34460dc85855c7c34f1c -->
 
 # Onto Install
 

@@ -1,4 +1,4 @@
-// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=c86f4897e4730c3a108afbfe73a51c2381c758f8778b597a1f1fee1ee94cc951
+// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=4f8c34c43000cd10543db958733c3c656f4b367bf90c2050f5ef1c0d7188a5a7
 /**
  * Preboot dispatcher — derived artifact (P2-A — RFC-1 §4.1.2 thin shim).
  *
@@ -31,7 +31,7 @@ import {
   type PublicDispatchTable,
 } from "./dispatch-preboot-core.js";
 
-const EXPECTED_DERIVE_HASH = "c86f4897e4730c3a108afbfe73a51c2381c758f8778b597a1f1fee1ee94cc951";
+const EXPECTED_DERIVE_HASH = "4f8c34c43000cd10543db958733c3c656f4b367bf90c2050f5ef1c0d7188a5a7";
 const DERIVE_SCHEMA_VERSION = "2";
 const TARGET_ID = "preboot-dispatch";
 const BYPASS_ENV_VAR = "ONTO_ALLOW_STALE_DISPATCHER";

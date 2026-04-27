@@ -15,14 +15,14 @@ import {
   readSingleOptionValueFromArgv,
 } from "./core-runtime/review/review-artifact-utils.js";
 
-// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=5e2421cbd1c6e8759d9fc638164c1bc1329b7a7393973c0ff05aa216794f98e3
+// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=01fbd5a6b98ef8da5567e439667285c30fb5227a7c9553f86c50705f4931d201
 export const ONTO_HELP_TEXT = [
   "Usage: onto <subcommand> [options]",
   "",
   "Subcommands:",
   "  info                    Show installation mode, onto home, project root, and runtime info.",
-  "  config                  Inspect or modify onto configuration (repair-path).",
-  "  install                 First-run setup wizard (providers, auth, output language). Repair-path.",
+  "  config                  Inspect or modify onto configuration.",
+  "  install                 First-run setup wizard (providers, auth, output language).",
   "  review                  9-lens review with separate synthesize stage.",
   "  coordinator             Internal review orchestration state machine (Agent Teams nested spawn).",
   "  evolve                  Evolve ontology — design and apply changes via aligned process.",

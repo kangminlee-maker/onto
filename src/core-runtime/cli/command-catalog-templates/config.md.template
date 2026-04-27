@@ -1,6 +1,6 @@
 # Onto Config
 
-Inspects or modifies the onto configuration chain (`~/.onto/config.yml` + `<project>/.onto/config.yml`). Repair-path: `onto config` can run even when bootstrap has failed, so that the configuration that caused the failure can be repaired without a working environment.
+Inspects or modifies the onto configuration chain (`~/.onto/config.yml` + `<project>/.onto/config.yml`).
 
 Subcommands (see contract doc for the full list): `show`, `validate`, `edit`, `repair`.
 

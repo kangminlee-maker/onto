@@ -24,7 +24,6 @@ import {
   assertNoAliasCollision,
   assertNoRuntimeScriptCollision,
   assertPromptBodyRefInManagedTree,
-  assertRepairPathPreboot,
   assertReservedNamespaceUnused,
   assertRuntimeScriptsReferenceExists,
   assertSuccessorReferenceExists,
@@ -89,16 +88,6 @@ describe("COMMAND_CATALOG (real catalog)", () => {
     expect(names).toContain("reclassify-insights");
     expect(names).toContain("migrate-session-roots");
     expect(names).toContain("build");
-  });
-
-  it("repair_path commands (install, config) are preboot", () => {
-    const repairPathEntries = COMMAND_CATALOG.entries.filter(
-      (e) => e.kind === "public" && e.repair_path === true,
-    );
-    expect(repairPathEntries.length).toBeGreaterThanOrEqual(2);
-    for (const entry of repairPathEntries) {
-      if (entry.kind === "public") expect(entry.phase).toBe("preboot");
-    }
   });
 
   it("nested slash commands use /onto:learn:* convention", () => {
@@ -392,56 +381,6 @@ describe("assertDeprecationLifecycle", () => {
       },
     ]);
     expect(() => assertDeprecationLifecycle(catalog)).not.toThrow();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// repair_path → preboot
-// ---------------------------------------------------------------------------
-
-describe("assertRepairPathPreboot", () => {
-  it("throws when repair_path: true but phase: post_boot", () => {
-    const catalog = makeCatalog([
-      {
-        kind: "public",
-        identity: "x",
-        phase: "post_boot",
-        doc_template_id: "x",
-        description: "x",
-        repair_path: true,
-        realizations: [
-          {
-            kind: "cli",
-            invocation: "x",
-            cli_dispatch: { handler_module: "src/cli.ts" },
-          },
-        ],
-      },
-    ]);
-    expect(() => assertRepairPathPreboot(catalog)).toThrow(
-      /repair_path.*phase="post_boot".*requires phase="preboot"/s,
-    );
-  });
-
-  it("passes when repair_path: true with phase: preboot", () => {
-    const catalog = makeCatalog([
-      {
-        kind: "public",
-        identity: "install",
-        phase: "preboot",
-        doc_template_id: "install",
-        description: "x",
-        repair_path: true,
-        realizations: [
-          {
-            kind: "cli",
-            invocation: "install",
-            cli_dispatch: { handler_module: "src/cli.ts" },
-          },
-        ],
-      },
-    ]);
-    expect(() => assertRepairPathPreboot(catalog)).not.toThrow();
   });
 });
 

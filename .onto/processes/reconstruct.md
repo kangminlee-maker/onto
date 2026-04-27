@@ -1713,7 +1713,9 @@ After the user responds to Phase 3, Runtime Coordinator applies the user decisio
    - 제외 source states: `domain_scope_miss` (§3.2 special case 미판정 유지) / `carry_forward` (이전 reconstruct 의 이중 carry 금지) / `principal_*` (이미 per-item action 대상)
    - `provenance.carry_forward_from_schema_version: "rationale_state/1.0"` (Step 4 §4.3 — 차기 reconstruct 의 Layer B bridge re-judgment migration rule 선택 input)
 
-**`global_reply` enum** (Step 4 §3.6 + r5 canonical): `"confirmed" | "see below"` only (`"other"` v1 enum 제거, free-form 은 `phase_3_5_input_invalid`). `"confirmed"` semantic = "본 세션 Phase 3 마감 + 미판정 element 는 carry_forward 로 차기 reconstruct 에 넘김" (semantic approval 아님 — Step 4 §3.6 documentation).
+**`global_reply` enum** (Step 4 §3.6 + r5 canonical): `"confirmed" | "see below"` only (`"other"` v1 enum 제거, free-form 은 `phase_3_5_input_invalid`).
+- `"confirmed"` semantic = "본 세션 Phase 3 마감 + 미판정 element 는 carry_forward 로 차기 reconstruct 에 넘김" (semantic approval 아님 — Step 4 §3.6 documentation).
+- `"see below"` semantic (v1 narrow scope, PR #232 r3 fix-up): Phase 3.5 sweep skip + *throttled-out addressable* element subset 만 강제 cover (`validatePhase35Input` §3.6 see-below check). Hook δ `throttled_out` bucket 외의 일반 pending element 가 미-address 라도 v1 implementation 은 통과 — 이는 Step 4 §3.6 r4 의 full-scope deterministic closure 와 partial drift 이며, **v1.1 backlog** (protocol amendment narrowing r4 OR implementation widening) 에 reconciliation 결정 deferred.
 
 ---
 

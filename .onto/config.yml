@@ -11,24 +11,31 @@ review:
   teamlead:
     model:
       provider: codex
-      model_id: gpt-5.4
+      model_id: gpt-5.5
       effort: high
   subagent:
     provider: codex
-    model_id: gpt-5.4
+    model_id: gpt-5.5
     effort: high
 review_mode: full
 
 # Background task LLM (learn / govern / promote)
 # Reference: .onto/processes/configuration.md §4.4
 codex:
-  model: gpt-5.4
+  model: gpt-5.5
   effort: high
 
 # Reconstruct dogfood switches (P4 W-A-103, 2026-04-27)
 # Reference: .onto/processes/configuration.md §4.11
 # Source authority: Step 4 §8.3 + .onto/processes/govern.md §14.6
 # Self-dogfood ON — 본 onto 자기 적용 시점 v1 mode default. 다른 product 는 false 로 v0 fallback.
+#
+# CONTRACT (PR #232): The block below is currently NOT read by reconstruct
+# runtime — helper / spec / test contract surface only. Production wire
+# (`.onto/config.yml` consumer + Hook gating + invariant rejection edge) is
+# a separate commit scope. Mirror seats: src/core-runtime/reconstruct/
+# dogfood-switches.ts header SCOPE block + configuration.md §4.11 (d) +
+# src/core-runtime/reconstruct/INTEGRATION.md W-A-104 row.
 reconstruct:
   v1_inference:
     enabled: true

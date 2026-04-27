@@ -17,6 +17,8 @@ LLM agent 호출을 대신.
 
 ## Production wiring 책임 — Track B phase 4
 
+> **CONTRACT (PR #232, 4 mirror seats 동일 sentence)**: `.onto/config.yml` 의 `reconstruct:` block 은 **현재 reconstruct runtime 에서 read 되지 않는다** — helper / spec / test contract surface only. v1 mode 가 unconditional default (switch 가 false 여도 reconstruct runtime 은 v1 path 그대로 실행, wire 부재). Production wire 는 **별도 commit scope**.
+
 | W-ID | scope | 책임 module |
 |---|---|---|
 | W-A-101 | wip.yml schema mirror — Step 1 §4 + Step 2/3/4 wip 변경 통합. authority seat (`reconstruct.md §wip.yml schema`) update | (no new runtime module — type-only) |

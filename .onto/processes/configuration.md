@@ -386,23 +386,33 @@ Runtime impl: `src/core-runtime/reconstruct/dogfood-switches.ts` (loader + depen
   - `meta.inference_mode ∈ {full, degraded}` + `intent_inference` block 부재 → **v1 mode 의 write 억제** (`write_intent_inference_to_raw_yml=false` 적용 결과 — wip 에는 v1 data 가 있지만 raw 에 미작성)
 - 즉 두 case 의 distinction 은 `meta.inference_mode` field 가 single source. 별도 `omit_reason` field 는 추가하지 않음 (W-A-94 raw-meta-extended-schema 의 minimal-add 원칙 보존)
 
-**(c) Silent default v1 semantic — RISK + migration window (evolution + axiology re-eval, r2 강화)**:
-- `reconstruct:` config block 부재 시 loader 는 **default v1 mode ON** 으로 fall-through. 이는 dogfood self-application 자연성을 위한 의도된 silent default — 그러나 **v0 product 가 본 PR 머지 후 ontology binary 를 upgrade 시 silent v1 진입 risk** 가 존재
+**(c) Silent default v1 semantic — RISK + migration window (evolution + axiology re-eval, r4 추가 강화)**:
+
+> **본 PR scope 한정**: 현재 fall-through 는 helper layer 만 — production runtime 이 config 를 read 하지 않으므로 silent default 의 *runtime risk 는 wire commit 시점에 비로소 발현*. 본 PR 단계에서는 doc/spec 표면의 risk 만 존재. wire commit 진입 시 아래 backlog 가 우선순위 1 fix-up.
+
+- `reconstruct:` config block 부재 시 loader 는 **default v1 mode ON** 으로 fall-through. 이는 dogfood self-application 자연성을 위한 의도된 silent default — 그러나 **v0 product 가 본 PR 머지 후 ontology binary 를 upgrade 시 silent v1 진입 risk** 가 존재 (wire 시점 발현)
 - **명시적 권고 (v0 product / migration window)**:
   - 부재 의존 금지 — v0 product 는 위 v0 fallback block 을 `.onto/config.yml` 에 **explicit 선언 필수**
   - migration audit: govern reader 또는 dashboard 가 `meta.inference_mode` 분포를 monitor 해서 의도치 않은 v1 진입 detect
-- **v1.1 backlog (fail-explicit 전환)**: `reconstruct.config_required: bool` switch 도입 시 부재를 fail-explicit 으로 전환 (migration window 종료 후). 본 PR 의 silent default 는 *transition seat* 으로만 유지
+  - **wire commit 시 추가 권고 (v1.1 candidate)**: `loadReconstructDogfoodSwitches()` 가 부재 config 를 detect 시 console.warn 또는 session-log 에 `reconstruct_config_absent_default_v1_applied` 신호 emit — explicit silent-default audit log
+- **v1.1 backlog (fail-explicit 전환)**: `reconstruct.config_required: bool` switch 도입 시 부재를 fail-explicit (`reconstruct_config_required` halt) 으로 전환 (migration window 종료 후). 본 PR 의 silent default 는 *transition seat* 으로만 유지 — wire commit 시 transition window 명시 필수
 
-**(d) Production wiring gap — Helper-only scope (no production runtime effect yet, r2 강화)**:
+**(d) Production wiring gap — Helper-only scope (no production runtime effect yet, r2+r3+r4 강화)**:
 
-> **CONTRACT — 본 PR 의 명시적 scope**:
-> - 본 PR 의 dogfood switch 도입 layer 는 **helper + spec + test** 만. **production Coordinator wire 는 본 PR 에 포함되지 않음** — 별도 commit 필요
-> - `.onto/config.yml` 의 `reconstruct:` block 은 **현재 runtime 동작에 영향 없음** — Coordinator 가 read 하지 않음
-> - Switch 가 *문서/계약/테스트* surface 에서 spec 을 형성하고, 이후 wire commit 이 *behavior surface* 를 형성
+> **CONTRACT (PR #232, 4 mirror seats 동일 sentence)**:
+> - `.onto/config.yml` 의 `reconstruct:` block 은 **현재 reconstruct runtime 에서 read 되지 않는다** — helper / spec / test contract surface only
+> - v1 mode 가 unconditional default — switch 가 `false` 여도 reconstruct runtime 은 v1 path 를 그대로 실행 (wire 부재)
+> - Production wire (`.onto/config.yml` consumer + Hook gating switch consumption + dependency invariant rejection edge) 는 **별도 commit scope**
 
-- **현 stage helper layer**: `loadReconstructDogfoodSwitches()` + `checkSwitchInvariants()` + `dogfood-switches.test.ts` (17 test) + `e2e-smoke.test.ts` (37 test) — production caller 에서 호출되지 않음
-- **W-A-104 mock dispatcher 의 의미**: production wire shape 의 *spec contract* 정의. 실제 wire 작업은 같은 mock 형태의 dispatcher 를 *real codex spawn* 으로 교체하는 1:1 대응
-- **실제 wire commit 의 scope** (별도 PR): Coordinator class 신설 (또는 기존 Coordinator 의 reconstruct entry path 확장) + `.onto/config.yml` read at boot + dependency invariant rejection edge + Hook gating switch consumption. Track B 다음 commit 묶음 또는 reconstruct v1 production 진입 시점
+**4 mirror seats** (review 가 어느 surface 를 봐도 동일 contract):
+1. `.onto/config.yml` reconstruct: block 위 CONTRACT comment
+2. `src/core-runtime/reconstruct/dogfood-switches.ts` 파일 header CONTRACT block
+3. `.onto/processes/configuration.md` §4.11 (d) (본 항목)
+4. `src/core-runtime/reconstruct/INTEGRATION.md` W-A-104 row
+
+- **현 stage helper layer caller**: `dogfood-switches.test.ts` (17 test) + `e2e-smoke.test.ts` (37 test) 두 test file 만. production reconstruct runtime caller 부재
+- **W-A-104 mock dispatcher 의 의미**: production wire shape 의 *spec contract* 정의 (test = wiring shape spec). 실제 wire 는 동일 mock 형태의 dispatcher 를 *real codex spawn* 으로 교체하는 1:1 대응
+- **실제 wire commit 의 scope** (별도 PR / Track B 다음 commit 묶음 또는 reconstruct v1 production 진입 시점): Coordinator class 신설 (또는 기존 Coordinator 의 reconstruct entry path 확장) + `.onto/config.yml` read at boot + dependency invariant rejection edge + Hook gating switch consumption
 
 **(e) Partial-disable mode — first-class supported modes (coverage U6, r2 신규)**:
 
@@ -421,7 +431,12 @@ Runtime impl: `src/core-runtime/reconstruct/dogfood-switches.ts` (loader + depen
 - `v1_inference=false + write_intent_inference_to_raw_yml=true` → `write_intent_inference_to_raw_yml_requires_v1_inference`
 - 위 두 violation 동시 발생 시 두 violation 모두 list 에 reject
 
-본 5 mode 는 모두 *의도된 use case* — `e2e-smoke.test.ts` Cycle 1 (full v1) + Cycle 2 (full v0) + Cycle 3 (3 invariant reject) 가 핵심 mode 검증, partial 조합 (v1 without review / v1 wip-only) 의 cycle 추가는 v1.1 backlog (use case driven 시점)
+본 5 mode 는 모두 *의도된 use case* — 그러나 본 PR 의 *behavioral lifecycle 검증* 은 **3 mode 만**:
+
+- **`e2e-smoke.test.ts` 검증 scope**: Cycle 1 (full v1 happy path) + Cycle 2 (full v0 fallback) + Cycle 3 (3 dependency invariant reject case)
+- **검증 미포함 (spec-only declaration, behavioral lifecycle 부재)**: partial-disable 3 mode — `v1 without review` / `v1 wip-only` / `v1 wip-only without review`. **본 PR 의 lifecycle/E2E test 가 이 3 mode 를 직접 검증하지 않는다** (helper-only contract surface)
+
+**v1.1 backlog (partial mode lifecycle 검증)**: 3 partial mode 의 use case 가 정해지는 시점 (예: production 환경에서 review 비용 절감 mode 또는 v0 reader 와의 hybrid mode) 에 `e2e-smoke.test.ts` 에 cycle 3개 추가. 본 PR 단계에서는 *config schema spec + helper invariant* 만 declare, behavioral runtime 검증은 wire commit 또는 v1.1 cycle 추가 시점
 
 ## 5. 사용 예시 — 시나리오별 minimum config
 

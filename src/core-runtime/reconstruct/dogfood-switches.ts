@@ -2,14 +2,20 @@
 //
 // Reconstruct dogfood switches — SDK-like invariant 4점 보존.
 //
-// SCOPE (PR #232 r2 contract — helper layer, no production runtime effect yet):
-//   본 module 은 Step 4 §8.3 의 3 switch 를 helper / loader / invariant
-//   check 로 spec mirror 하는 *helper layer*. production Runtime Coordinator
-//   가 본 module 을 호출해 `.onto/config.yml` 을 read + Hook 분기를 gate
-//   하는 wire 는 **본 PR 에 포함되지 않음** — 별도 commit 필요.
-//   현재 caller 는 e2e-smoke.test.ts (Cycle 1-9) 와 dogfood-switches.test.ts
-//   만. 실제 reconstruct runtime 의 분기 동작은 wire commit 이전까지
-//   본 switch 의 영향을 받지 않는다 (v1 mode 가 unconditional default).
+// CONTRACT (PR #232 — helper / spec / test contract surface only):
+//   `.onto/config.yml` 의 `reconstruct:` block 은 현재 reconstruct runtime
+//   에서 read 되지 않는다 (no production runtime effect yet). 본 module 의
+//   `loadReconstructDogfoodSwitches()` + `checkSwitchInvariants()` 는
+//   Step 4 §8.3 의 3 switch 를 spec mirror 하는 *helper layer* — caller 는
+//   현재 `e2e-smoke.test.ts` (Cycle 1-9) + `dogfood-switches.test.ts` 만.
+//   v1 mode 가 unconditional default — switch 가 false 여도 reconstruct
+//   runtime 은 v1 path 를 그대로 실행 (wire 부재).
+//
+//   Production wire (`.onto/config.yml` 의 reconstruct: block 을 boot 시
+//   read + Hook gating switch consumption + dependency invariant rejection
+//   edge) 는 **별도 commit scope**. Mirror seats: `.onto/config.yml`
+//   reconstruct block CONTRACT comment + `.onto/processes/configuration.md`
+//   §4.11 (d) + `src/core-runtime/reconstruct/INTEGRATION.md` W-A-104 row.
 //
 // 3 switch (Step 4 §8.3):
 //   - v1_inference                  Hook α/γ/δ 전체 enable/disable

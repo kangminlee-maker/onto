@@ -229,6 +229,22 @@ describe("validateProposerDirective — 9 reject conditions (§3.7)", () => {
     if (!r.ok) expect(r.code).toBe("provenance_mismatch");
   });
 
+  it("UF-EVOLUTION-01: unsupported proposer_contract_version → provenance_mismatch", () => {
+    const directive: ProposerDirective = {
+      proposals: [
+        { target_element_id: "E1", outcome: "gap", state_reason: "x" },
+        { target_element_id: "E2", outcome: "gap", state_reason: "y" },
+      ],
+      provenance: baseProvenance({ proposer_contract_version: "9.99" }),
+    };
+    const r = validateProposerDirective(directive, baseInput());
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.code).toBe("provenance_mismatch");
+      expect(r.detail).toContain("proposer_contract_version");
+    }
+  });
+
   it("rule 7: provenance.domain_manifest_hash mismatch → provenance_mismatch", () => {
     const directive: ProposerDirective = {
       proposals: [

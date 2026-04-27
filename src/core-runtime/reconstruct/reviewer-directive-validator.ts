@@ -74,11 +74,29 @@ export function isIntentInferenceEmpty(
   return inference.rationale_state === "empty";
 }
 
+/**
+ * Supported reviewer_contract_version list (review UF-EVOLUTION-01).
+ * v1 baseline = "1.0". Mirror of SUPPORTED_PROPOSER_CONTRACT_VERSIONS pattern.
+ */
+export const SUPPORTED_REVIEWER_CONTRACT_VERSIONS = ["1.0"] as const;
+
 export function validateReviewerDirective(
   directive: ReviewerDirective,
   input: ReviewerValidatorInput,
 ): ReviewerValidationResult {
   const warnings: ReviewerDowngradeWarning[] = [];
+
+  // reviewer_contract_version compatibility (review UF-EVOLUTION-01)
+  if (
+    !SUPPORTED_REVIEWER_CONTRACT_VERSIONS.includes(
+      directive.provenance.reviewer_contract_version as (typeof SUPPORTED_REVIEWER_CONTRACT_VERSIONS)[number],
+    )
+  ) {
+    return reject(
+      "provenance_mismatch",
+      `provenance.reviewer_contract_version "${directive.provenance.reviewer_contract_version}" not in supported list [${SUPPORTED_REVIEWER_CONTRACT_VERSIONS.join(", ")}]`,
+    );
+  }
 
   // rule 9: provenance manifest fields match input
   if (

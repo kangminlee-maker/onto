@@ -294,6 +294,19 @@ describe("validateReviewerDirective — 12 reject conditions (§3.8)", () => {
     if (!r.ok) expect(r.code).toBe("populate_stage2_target_not_empty");
   });
 
+  it("UF-EVOLUTION-01: unsupported reviewer_contract_version → provenance_mismatch", () => {
+    const directive: ReviewerDirective = {
+      updates: [],
+      provenance: baseProvenance({ reviewer_contract_version: "9.99" }),
+    };
+    const r = validateReviewerDirective(directive, baseInput());
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.code).toBe("provenance_mismatch");
+      expect(r.detail).toContain("reviewer_contract_version");
+    }
+  });
+
   it("rule 9: provenance.manifest_schema_version mismatch", () => {
     const directive: ReviewerDirective = {
       updates: [],

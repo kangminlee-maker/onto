@@ -10,6 +10,13 @@ import type {
 } from "./proposer-directive-types.js";
 import type { Confidence } from "./wip-element-types.js";
 
+/**
+ * Supported proposer_contract_version list (review UF-EVOLUTION-01).
+ * v1 baseline = "1.0". Future bumps add versions; runtime rejects directives
+ * with unsupported contract version → provenance_mismatch.
+ */
+export const SUPPORTED_PROPOSER_CONTRACT_VERSIONS = ["1.0"] as const;
+
 export type DirectiveRejectCode =
   | "proposals_count_mismatch" // rule 1
   | "duplicate_target_element_id" // rule 2
@@ -89,6 +96,18 @@ export function validateProposerDirective(
         `target_element_id "${p.target_element_id}" not in entity_list`,
       );
     }
+  }
+
+  // proposer_contract_version compatibility (review UF-EVOLUTION-01)
+  if (
+    !SUPPORTED_PROPOSER_CONTRACT_VERSIONS.includes(
+      directive.provenance.proposer_contract_version as (typeof SUPPORTED_PROPOSER_CONTRACT_VERSIONS)[number],
+    )
+  ) {
+    return reject(
+      "provenance_mismatch",
+      `provenance.proposer_contract_version "${directive.provenance.proposer_contract_version}" not in supported list [${SUPPORTED_PROPOSER_CONTRACT_VERSIONS.join(", ")}]`,
+    );
   }
 
   // rule 7: provenance manifest fields match input

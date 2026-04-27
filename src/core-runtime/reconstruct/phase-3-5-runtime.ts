@@ -19,8 +19,14 @@ import {
 import { TERMINAL_RATIONALE_STATES } from "./wip-element-types.js";
 import type {
   IntentInference,
+  PrincipalProvidedRationale,
   RationaleState,
 } from "./wip-element-types.js";
+
+// Re-export for downstream callers that import from phase-3-5-runtime.ts
+// (the type's canonical seat is wip-element-types.ts since it is persisted on
+// IntentInference per Step 4 §3.6.1).
+export type { PrincipalProvidedRationale } from "./wip-element-types.js";
 
 // ============================================================================
 // §3.6 phase3_user_responses schema
@@ -37,10 +43,9 @@ export type RationaleAction =
 
 export type BatchAction = "accept" | "reject" | "defer" | "mark_acceptable_gap";
 
-export interface PrincipalProvidedRationale {
-  inferred_meaning: string;
-  justification: string;
-}
+// PrincipalProvidedRationale 의 canonical 정의는 wip-element-types.ts —
+// IntentInference.principal_provided_rationale 가 persisted state. 본 파일은
+// re-export (line ~20) 만.
 
 export interface RationaleDecision {
   element_id: string;
@@ -349,13 +354,23 @@ function applyToElement(
     },
   };
 
-  // For modify / provide_rationale / override: replace inferred_meaning + justification
+  // Step 4 §3.6.1: persist principal-supplied rationale on a dedicated field
+  // (canonical seat IntentInference.principal_provided_rationale). Also mirror
+  // into inferred_meaning / justification so downstream v0/v1 consumers that
+  // expect a single textual seat continue to work without branching.
+  // Original Hook α/γ generation 은 별도 field 가 신설되었으므로 audit 시
+  // principal supply 가 어느 element 에 적용되었는지 식별 가능 (PR #232 r5
+  // C3 BLOCKING resolution — post-PR232 patch).
   if (
     decision.action === "modify" ||
     decision.action === "provide_rationale" ||
     decision.action === "override"
   ) {
     const ppr = decision.principal_provided_rationale!;
+    next.principal_provided_rationale = {
+      inferred_meaning: ppr.inferred_meaning,
+      justification: ppr.justification,
+    };
     next.inferred_meaning = ppr.inferred_meaning;
     next.justification = ppr.justification;
     delete next.state_reason;

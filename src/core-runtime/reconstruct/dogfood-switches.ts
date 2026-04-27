@@ -2,20 +2,27 @@
 //
 // Reconstruct dogfood switches — SDK-like invariant 4점 보존.
 //
-// CONTRACT (PR #232 — helper / spec / test contract surface only):
-//   `.onto/config.yml` 의 `reconstruct:` block 은 현재 reconstruct runtime
-//   에서 read 되지 않는다 (no production runtime effect yet). 본 module 의
-//   `loadReconstructDogfoodSwitches()` + `checkSwitchInvariants()` 는
-//   Step 4 §8.3 의 3 switch 를 spec mirror 하는 *helper layer* — caller 는
-//   현재 `e2e-smoke.test.ts` (Cycle 1-9) + `dogfood-switches.test.ts` 만.
-//   v1 mode 가 unconditional default — switch 가 false 여도 reconstruct
-//   runtime 은 v1 path 를 그대로 실행 (wire 부재).
+// CONTRACT (post-PR232 wire commit — Coordinator spec entry):
+//   `.onto/config.yml` 의 `reconstruct:` block 의 deterministic spec entry 는
+//   `coordinator.ts` 의 `runReconstructCoordinator()`. 본 helper
+//   (`loadReconstructDogfoodSwitches()` + `checkSwitchInvariants()`) 가
+//   coordinator 의 boot 단계 building block — coordinator 가 boot 시 본
+//   helper 호출 → invariant 위반 시 halt → switch 별 Hook 분기 dispatch.
 //
-//   Production wire (`.onto/config.yml` 의 reconstruct: block 을 boot 시
-//   read + Hook gating switch consumption + dependency invariant rejection
-//   edge) 는 **별도 commit scope**. Mirror seats: `.onto/config.yml`
-//   reconstruct block CONTRACT comment + `.onto/processes/configuration.md`
-//   §4.11 (d) + `src/core-runtime/reconstruct/INTEGRATION.md` W-A-104 row.
+//   *Coordinator-level spec wiring 와 actual production runtime effect 는
+//   분리* — 본 commit 단계에서는 coordinator + unit test 가 wire shape 의
+//   contract layer. Production runtime caller (reconstruct.md prompt 또는
+//   cli/reconstruct-invoke.ts) + `onConfigAbsent` log sink + raw.yml writer
+//   의 `writeIntentInferenceToRawYml` consumption + `config_malformed`
+//   caller halt UX — 4 항목 모두 *별도 commit scope*. CC-1 narrowing 의
+//   정확한 list 는 INTEGRATION.md "다음 commit scope" + configuration.md
+//   §4.11 (d) "다음 commit scope" 참조.
+//
+//   Mirror seats (review 가 어느 surface 를 봐도 동일 contract):
+//     1. `.onto/config.yml` reconstruct block 위 CONTRACT comment
+//     2. 본 파일 header (현 위치)
+//     3. `.onto/processes/configuration.md` §4.11 (d)
+//     4. `src/core-runtime/reconstruct/INTEGRATION.md` Production wiring section
 //
 // 3 switch (Step 4 §8.3):
 //   - v1_inference                  Hook α/γ/δ 전체 enable/disable

@@ -15,19 +15,32 @@ injection (예: `runHookAlpha({ spawnProposer })`, `runHookGamma({ spawnReviewer
 `runDomainInit({ io, now })`) 으로 testability 를 확보. mock dispatcher 가
 LLM agent 호출을 대신.
 
-## Production wiring 책임 — Track B phase 4
+## Production wiring — Coordinator spec entry landed (post-PR232 wire commit)
 
-> **CONTRACT (PR #232, 4 mirror seats 동일 sentence)**: `.onto/config.yml` 의 `reconstruct:` block 은 **현재 reconstruct runtime 에서 read 되지 않는다** — helper / spec / test contract surface only. v1 mode 가 unconditional default (switch 가 false 여도 reconstruct runtime 은 v1 path 그대로 실행, wire 부재). Production wire 는 **별도 commit scope**.
+> **CONTRACT (4 mirror seats 동일 sentence)**: `.onto/config.yml` 의 `reconstruct:` block 의 deterministic spec entry 는 `coordinator.ts` 의 `runReconstructCoordinator()` — boot 시 switch load + invariant check (위반 시 halt) + Hook α / γ / δ + Phase 3.5 dispatch 를 single-shot full cycle 로 wire. Caller-side wire (reconstruct.md prompt 가 coordinator 호출하는 production runtime path) 는 **여전히 별도 commit scope** — 본 commit 단계에서는 coordinator + unit test 가 wire shape 의 contract layer. *coordinator-level spec wiring 와 actual production runtime effect 는 분리 — 후자는 다음 4 항목 (이 섹션 마지막)*.
 
 | W-ID | scope | 책임 module |
 |---|---|---|
 | W-A-101 | wip.yml schema mirror — Step 1 §4 + Step 2/3/4 wip 변경 통합. authority seat (`reconstruct.md §wip.yml schema`) update | (no new runtime module — type-only) |
 | W-A-102 | mirror marker final coherence — `canonical-mirror-of` (W-A-80~87) + `runtime-mirror-of` (W-A-88~104) 양 scope cross-cutting verify | (audit + 1 fix: W-A-101 marker prefix `step-{2,3}-protocol` → `step-{2,3}-rationale-{proposer,reviewer}` 정합. INTEGRATION.md 는 integration narrative — marker 의무 없음 명시) |
 | W-A-103 | dogfood off switches — `.onto/config.yml` reconstruct dogfood disable. §14.6 4 점 (off 가능 / 들어내기 / govern friendly / 본질 ≠ dogfood) 검증 | config schema |
-| **W-A-104** | **E2E smoke** — full v1 cycle (mock): `onto domain init` (W-A-95/96) → reconstruct (Hook α/γ/δ) → Phase 3 → Phase 3.5 → raw.yml assemble. **Mock LLM dispatcher 가 *production wiring 의 spec contract* 정의 (test = wiring shape spec). 실제 production Coordinator wire 작업 — `.onto/config.yml` read at boot + Hook gating switch consumption + dependency invariant rejection edge — 는 본 W-ID 의 scope 밖 (별도 commit, configuration.md §4.11 (d) 와 정합).** | new E2E test module (helper-only scope, no production runtime effect yet) |
+| W-A-104 | E2E smoke — full v1 cycle (mock): `onto domain init` (W-A-95/96) → reconstruct (Hook α/γ/δ) → Phase 3 → Phase 3.5 → raw.yml assemble | E2E test module (`e2e-smoke.test.ts`) |
+| **post-PR232** | **Coordinator wire commit** — `runReconstructCoordinator()` deterministic spec entry: boot switch load + invariant halt + Hook α/γ/δ + Phase 3.5 dispatch with switch gating. Production caller wire 는 4 항목 미완 (이 섹션 마지막). | `coordinator.ts` + `coordinator.test.ts` (14 test, 4 mode + invariant halt + spy + audit + config_malformed) |
 
-W-A-104 가 phase 3 의 13 modules 를 wired sequence 로 연결. 그 전까지는
-modules 가 individually self-contained.
+Switch gating 효과 (Step 4 §8.3 + configuration.md §4.11, review C-1 fix-up):
+- `v1_inference == false` → coordinator 가 inferenceMode=`none` 매핑 → Hook α 가 inference_mode=`none` 으로 자체 skip. Hook γ 는 invariant 가 `phase3_rationale_review == false` 강제하므로 *coordinator-level invocation skip* (`skipped_by_switch`) — Hook γ 자체 self-skip path 와 결합되지 않음. Hook δ 미호출.
+- `v1_inference == true + phase3_rationale_review == false` (v1 without review) → Hook γ coordinator-level invocation skip. Hook α/δ 정상.
+- `write_intent_inference_to_raw_yml == false` → coordinator 가 `result.writeIntentInferenceToRawYml = false` propagate (raw.yml writer 가 omit).
+
+Silent-default audit signal: coordinator 가 `configRaw == null` 또는 `reconstruct:` block 부재 detect 시 `deps.onConfigAbsent?.()` emit — caller 가 `reconstruct_config_absent_default_v1_applied` 로 log (post-PR232 backlog A2 해소).
+
+`config_malformed` fail-close split (review C-2): `.onto/config.yml` root 가 non-object/array 일 때 coordinator 가 `kind: "config_malformed"` halt + detail 반환. *absent* 와 분리 — silent default 적용 안 됨, `onConfigAbsent` 도 emit 안 됨.
+
+**다음 commit scope** (review CC-1 — narrowing 정확화. 본 PR 단계에서 *모두* 미완 항목):
+1. **Production caller** — reconstruct.md prompt 본문이 coordinator 호출 (또는 cli/reconstruct-invoke.ts 신설). 본 PR 까지는 unit test 만 caller.
+2. **`onConfigAbsent` log sink** — caller 가 신호를 console.warn / session-log / dashboard 어디로 emit 할지 선택 + 구현.
+3. **raw.yml writer 의 `writeIntentInferenceToRawYml` consumption** — Phase 3.5 결과 → raw.yml save 단계에서 element-level `intent_inference` block omit 의 실제 writer 구현.
+4. **`config_malformed` caller halt UX** — caller 의 user-facing error message + interactive recovery 정의 (C-2 fix 는 fail-close 만 보장).
 
 ## 검증 안 되는 영역 (phase 4 까지 deferred)
 

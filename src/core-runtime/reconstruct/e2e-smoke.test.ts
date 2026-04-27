@@ -577,11 +577,14 @@ describe("E2E smoke — Cycle 4: action variation (reject / modify / defer)", ()
     if (!result.ok) return;
     expect(result.elementUpdates.get("E1")?.rationale_state).toBe("principal_rejected");
     expect(result.elementUpdates.get("E2")?.rationale_state).toBe("principal_modified");
-    // applyToElement (modify) overwrites inferred_meaning + justification —
-    // implementation 은 element-level `principal_provided_rationale` field 를
-    // 별도 persist 하지 않고 inferred_meaning/justification 에 overwrite.
-    // Step 4 §3.6.1 canonical seat (`element-level principal_provided_rationale`)
-    // 와의 partial drift — backlog finding, 본 cycle 은 implementation 동작 검증.
+    // Step 4 §3.6.1 canonical seat: element-level principal_provided_rationale
+    // 가 별도 field 로 persist (PR #232 r5 C3 BLOCKING resolution). 동시에
+    // inferred_meaning / justification 에도 mirror — downstream v0/v1
+    // consumer 가 single textual seat 으로 read 할 수 있도록.
+    expect(result.elementUpdates.get("E2")?.principal_provided_rationale).toEqual({
+      inferred_meaning: "revised meaning",
+      justification: "principal-provided",
+    });
     expect(result.elementUpdates.get("E2")?.inferred_meaning).toBe("revised meaning");
     expect(result.elementUpdates.get("E2")?.justification).toBe("principal-provided");
     expect(result.elementUpdates.get("E3")?.rationale_state).toBe("principal_deferred");

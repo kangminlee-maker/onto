@@ -397,22 +397,37 @@ Runtime impl: `src/core-runtime/reconstruct/dogfood-switches.ts` (loader + depen
   - **wire commit 시 추가 권고 (v1.1 candidate)**: `loadReconstructDogfoodSwitches()` 가 부재 config 를 detect 시 console.warn 또는 session-log 에 `reconstruct_config_absent_default_v1_applied` 신호 emit — explicit silent-default audit log
 - **v1.1 backlog (fail-explicit 전환)**: `reconstruct.config_required: bool` switch 도입 시 부재를 fail-explicit (`reconstruct_config_required` halt) 으로 전환 (migration window 종료 후). 본 PR 의 silent default 는 *transition seat* 으로만 유지 — wire commit 시 transition window 명시 필수
 
-**(d) Production wiring gap — Helper-only scope (no production runtime effect yet, r2+r3+r4 강화)**:
+**(d) Production wiring — Coordinator spec entry landed (post-PR232 wire commit)**:
 
-> **CONTRACT (PR #232, 4 mirror seats 동일 sentence)**:
-> - `.onto/config.yml` 의 `reconstruct:` block 은 **현재 reconstruct runtime 에서 read 되지 않는다** — helper / spec / test contract surface only
-> - v1 mode 가 unconditional default — switch 가 `false` 여도 reconstruct runtime 은 v1 path 를 그대로 실행 (wire 부재)
-> - Production wire (`.onto/config.yml` consumer + Hook gating switch consumption + dependency invariant rejection edge) 는 **별도 commit scope**
+> **CONTRACT (4 mirror seats 동일 sentence)**:
+> - `.onto/config.yml` 의 `reconstruct:` block 의 *deterministic spec entry* 는 `src/core-runtime/reconstruct/coordinator.ts` 의 `runReconstructCoordinator()` — boot 시 switch load + invariant check (위반 시 halt) + Hook α / γ / δ + Phase 3.5 dispatch 를 single-shot full cycle 로 wire
+> - Caller-side wire (reconstruct.md prompt 가 coordinator 호출하는 production runtime path) 는 **여전히 별도 commit scope** — 본 commit 단계에서는 coordinator + unit test (`coordinator.test.ts`) 가 wire shape 의 contract layer
+> - 즉 본 commit 이전 helper-only scope (`loadReconstructDogfoodSwitches()` + `checkSwitchInvariants()`) 위에 *coordinator* 가 한 단계 추가 — production caller 진입 시점에 coordinator 호출만 wire 하면 full production effect
 
 **4 mirror seats** (review 가 어느 surface 를 봐도 동일 contract):
 1. `.onto/config.yml` reconstruct: block 위 CONTRACT comment
 2. `src/core-runtime/reconstruct/dogfood-switches.ts` 파일 header CONTRACT block
 3. `.onto/processes/configuration.md` §4.11 (d) (본 항목)
-4. `src/core-runtime/reconstruct/INTEGRATION.md` W-A-104 row
+4. `src/core-runtime/reconstruct/INTEGRATION.md` "Production wiring" section
 
-- **현 stage helper layer caller**: `dogfood-switches.test.ts` (17 test) + `e2e-smoke.test.ts` (37 test) 두 test file 만. production reconstruct runtime caller 부재
-- **W-A-104 mock dispatcher 의 의미**: production wire shape 의 *spec contract* 정의 (test = wiring shape spec). 실제 wire 는 동일 mock 형태의 dispatcher 를 *real codex spawn* 으로 교체하는 1:1 대응
-- **실제 wire commit 의 scope** (별도 PR / Track B 다음 commit 묶음 또는 reconstruct v1 production 진입 시점): Coordinator class 신설 (또는 기존 Coordinator 의 reconstruct entry path 확장) + `.onto/config.yml` read at boot + dependency invariant rejection edge + Hook gating switch consumption
+- **현 stage caller**: `coordinator.test.ts` (14 test, 4 mode + invariant halt + spy + audit + config_malformed) + `dogfood-switches.test.ts` (17 test) + `e2e-smoke.test.ts` (37 test) — production reconstruct.md prompt 가 coordinator 호출하는 wire 는 미완 (다음 commit scope 1번 항목 참조)
+- **Coordinator 의 switch gating 효과** (review C-1 fix-up — Hook γ skip path 명확화):
+  - `v1_inference == false` (full v0 fallback)
+    - Invariant 가 `phase3_rationale_review == false` 와 `write_intent_inference_to_raw_yml == false` 도 강제 (둘 중 하나라도 true 이면 boot 시 `invariant_violation` halt)
+    - coordinator 가 `inferenceMode = "none"` 매핑
+    - Hook α 는 invocation 발생하되 `inference_mode == "none"` 으로 자체 skip (`alpha_skipped`)
+    - Hook γ 는 `phase3_rationale_review == false` 강제 효과로 *coordinator-level invocation skip* (`gamma: { kind: "skipped_by_switch" }`) — Hook γ 의 자체 `inference_mode_none` / `alpha_skipped` self-skip path 와 결합되지 않음 (coordinator 가 그 전 단계에서 차단)
+    - Hook δ 미호출 (coordinator 가 `v1_inference` off 시 dispatch step skip)
+  - `v1_inference == true + phase3_rationale_review == false` (v1 without review)
+    - Hook α 정상 실행, Hook γ 는 coordinator-level invocation skip (`skipped_by_switch`), Hook δ 정상 실행
+  - `write_intent_inference_to_raw_yml == false`: `result.writeIntentInferenceToRawYml = false` propagate (raw.yml writer 가 element-level intent_inference omit)
+- **Silent-default audit signal** (post-PR232 backlog A2 해소): coordinator 가 `configRaw == null` 또는 `reconstruct:` block 부재 detect 시 `deps.onConfigAbsent?.()` 호출 — caller 가 console.warn 또는 session-log 에 `reconstruct_config_absent_default_v1_applied` emit
+- **`config_malformed` fail-close split** (review C-2): `.onto/config.yml` root 가 non-object/array (예: array root, scalar) 일 때 coordinator 가 `kind: "config_malformed"` halt + detail 반환. *absent* (`configRaw == null/undefined`) 와 분리 — silent default 적용 안 됨, `onConfigAbsent` 도 emit 안 됨. caller 의 fail-explicit UX 책임
+- **다음 commit scope** (review CC-1 — *narrowing 정확화*. 본 PR 단계에서 *모두* 미완 항목):
+  1. **Production caller**: reconstruct.md prompt 본문이 coordinator 호출 (또는 cli/reconstruct-invoke.ts 신설) — 본 PR 단계는 unit test 만 caller
+  2. **`onConfigAbsent` log sink**: caller (reconstruct.md prompt 또는 cli entry) 가 `reconstruct_config_absent_default_v1_applied` 신호를 console.warn / session-log / dashboard 등 어디로 emit 할지 선택 + 구현
+  3. **raw.yml writer 의 `writeIntentInferenceToRawYml` consumption**: Phase 3.5 결과 → raw.yml save 단계에서 `result.writeIntentInferenceToRawYml === false` 일 때 element-level `intent_inference` block omit 의 실제 writer 구현
+  4. **`config_malformed` caller halt UX**: caller 가 본 result kind 에 대한 user-facing error message + interactive recovery 또는 explicit halt 정의 (review C-2 fix 가 fail-close 만 보장 — UX 는 caller 책임)
 
 **(e) Partial-disable mode — first-class supported modes (coverage U6, r2 신규)**:
 

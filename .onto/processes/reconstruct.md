@@ -1756,6 +1756,17 @@ meta:
   degraded_reason: pack_optional_missing | pack_quality_floor | pack_tier_minimal | null
   fallback_reason: user_flag | principal_confirmed_no_domain | proposer_failure_downgraded | null
   domain_quality_tier: full | partial | minimal | null    # populate when inference_mode ∈ {full, degraded}
+  # `inference_mode == "none"` 의 multi-path distinguish (post-PR232 backlog A4, 2026-04-27):
+  # `inference_mode == "none"` 자체는 *intent_inference 비활성* 만 의미하며 v0 fallback /
+  # fail-close path / Hook α failure downgrade 등 여러 진입 path 가 존재. govern reader 가
+  # 진입 path 를 distinguish 하려면 `fallback_reason` enum 을 single source 로 사용:
+  #   - `user_flag`                       → Principal 이 `--v0-only` 등 명시적 v0 mode 선택
+  #   - `principal_confirmed_no_domain`   → domain pack 부재 시 Principal 이 v0 진행 confirm
+  #   - `proposer_failure_downgraded`     → Hook α full failure 후 Principal `[v] Switch to
+  #                                         v0-only` 선택 (Step 2 §7.1 retry exhausted path)
+  #   - null                              → §4.2 invariant 위반 — runtime halt
+  # 위 3 enum + null = 모든 가능한 진입 path 의 enumeration. govern reader 가
+  # `inference_mode == "none"` 만 보지 말고 항상 `fallback_reason` 도 read 해야.
 
   # v1 — manifest pair (Step 1 §6.2):
   manifest_schema_version: string | null                  # e.g. "1.0"

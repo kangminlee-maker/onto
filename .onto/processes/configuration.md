@@ -317,6 +317,62 @@ review:
     org_policy: ...
   ```
 
+### 4.11 Reconstruct dogfood switches (P4 W-A-103, 2026-04-27)
+
+<!-- runtime-mirror-of: step-4-integration §8.2 §8.3 + govern §14.6 -->
+
+reconstruct activity 의 v1 (intent_inference + Hook α/γ/δ) 적용 여부를 제어하는 SDK-like dogfood 차단 스위치 3개. 본 onto 자기 적용 시점에는 모두 `enabled: true` (default v1 mode), 다른 product 가 v0 fallback 으로 사용하려면 `false` 로 설정.
+
+#### `reconstruct.v1_inference.enabled`
+- 용도: Hook α (Rationale Proposer) + Hook γ (Rationale Reviewer) + Hook δ (Phase 3 rationale rendering) 전체 enable/disable
+- 기본값: `true`
+- `false` 시: reconstruct runtime 은 v0 flow (rationale 없음) 동일. wip.yml `intent_inference` block 미작성, raw.yml 의 element-level intent_inference omit, Phase 3 rendering 의 Rationale column 비활성화
+
+#### `reconstruct.phase3_rationale_review.enabled`
+- 용도: Hook γ (Step 2c review) 만 enable/disable. Hook α / Hook δ 는 영향 없음
+- 기본값: `true`
+- `false` 시: Step 2c parallel dispatch 단계에서 2c (Reviewer) 만 skip. proposed element 의 review 없이 직접 Phase 3 진입
+- **Dependency**: `v1_inference.enabled == false` 이면 본 switch 도 함께 false 여야 함 — `phase3_rationale_review_requires_v1_inference` invariant 위반 시 runtime 거부
+
+#### `reconstruct.write_intent_inference_to_raw_yml.enabled`
+- 용도: raw.yml `elements[].intent_inference` block 기록 여부
+- 기본값: `true`
+- `false` 시: 본 element-level block 을 raw.yml 에서 omit. wip.yml 단계에는 v1 mode 로 동작하지만 govern reader 는 v0 raw.yml 만 본다
+- **Dependency**: `v1_inference.enabled == false` 이면 본 switch 도 함께 false 여야 함 — `write_intent_inference_to_raw_yml_requires_v1_inference` invariant 위반 시 runtime 거부
+
+#### Default block (`.onto/config.yml` self-dogfood ON)
+```yaml
+reconstruct:
+  v1_inference:
+    enabled: true
+  phase3_rationale_review:
+    enabled: true
+  write_intent_inference_to_raw_yml:
+    enabled: true
+```
+
+#### v0 fallback block (다른 product 의 dogfood OFF)
+```yaml
+reconstruct:
+  v1_inference:
+    enabled: false
+  phase3_rationale_review:
+    enabled: false
+  write_intent_inference_to_raw_yml:
+    enabled: false
+```
+
+#### §14.6 invariant 4점 보존 검증
+
+| invariant | 검증 |
+|---|---|
+| 1. dogfood off 가능 | 위 v0 fallback block 으로 reconstruct 가 v0 flow 동일 작동 |
+| 2. 들어내기 용이 | switch + `src/core-runtime/reconstruct/` 디렉토리 삭제로 v0 복귀 |
+| 3. govern reader 친화 | `manifest.yaml` + `raw.yml.meta` atomic write 보존 (W-A-94/97/100) |
+| 4. 본질 sink ≠ dogfood sink | wip 본질 sink (Phase 0~3.5 lifecycle) ↔ raw mirror sink (govern audit) 분리 (W-A-100) |
+
+Runtime impl: `src/core-runtime/reconstruct/dogfood-switches.ts` (loader + dependency invariant check). W-A-104 E2E smoke 가 4점 invariant 를 cycle 단위로 검증.
+
 ## 5. 사용 예시 — 시나리오별 minimum config
 
 ### 5.1 Claude Code 세션 (권장 기본)

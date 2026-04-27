@@ -24,3 +24,15 @@ review_mode: full
 codex:
   model: gpt-5.4
   effort: high
+
+# Reconstruct dogfood switches (P4 W-A-103, 2026-04-27)
+# Reference: .onto/processes/configuration.md §4.11
+# Source authority: Step 4 §8.3 + .onto/processes/govern.md §14.6
+# Self-dogfood ON — 본 onto 자기 적용 시점 v1 mode default. 다른 product 는 false 로 v0 fallback.
+reconstruct:
+  v1_inference:
+    enabled: true
+  phase3_rationale_review:
+    enabled: true
+  write_intent_inference_to_raw_yml:
+    enabled: true

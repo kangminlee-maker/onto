@@ -17,6 +17,27 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import yaml from "yaml";
+import {
+  type CoordinatorDeps,
+  type CoordinatorInput,
+  type CoordinatorResult,
+  runReconstructCoordinator,
+} from "../../reconstruct/coordinator.js";
+import type {
+  HookAlphaEntityInput,
+  HookAlphaManifestInput,
+} from "../../reconstruct/hook-alpha.js";
+import type { Phase3UserResponses } from "../../reconstruct/phase-3-5-runtime.js";
+import { buildPhase3SnapshotDocument } from "../../reconstruct/phase3-snapshot-write.js";
+// Top-level static imports for spawn factories (PR #241 review round 2
+// UF-DEPENDENCY-1 fix). The previous lazy `require(...)` form was incompatible
+// with the project's ESM-first TypeScript module resolution and would break
+// at production runtime invocation. Spawn modules are small + side-effect-free
+// at import time, so paying the load cost on every handler import is
+// negligible compared to the production-break risk.
+import { makeCodexProposer } from "../../reconstruct/spawn-proposer.js";
+import { makeCodexReviewer } from "../../reconstruct/spawn-reviewer.js";
 
 // ─── Types ───
 
@@ -24,6 +45,38 @@ export type ReconstructBoundedState =
   | "gathering_context"
   | "exploring"
   | "converted";
+
+/**
+ * Audit / lifecycle event recorded on the session. Persisted to
+ * `reconstruct-state.json` so post-hoc inspection (govern reader, dashboards,
+ * support) can reconstruct what happened without rerunning the cycle.
+ *
+ * Event kinds (extend as new audit signals land):
+ *   - config_absent_default_v1_applied — coordinator emitted onConfigAbsent
+ *     because `.onto/config.yml` lacked a `reconstruct:` block (silent default
+ *     v1 mode applied). Mirrors PR #232 backlog A2.
+ *   - config_malformed — `.onto/config.yml` root was non-object/array; explore
+ *     halted before any Hook (review C-2 fail-close split).
+ *   - coordinator_invariant_violation — switches violated dependency
+ *     invariants (e.g. phase3_rationale_review on while v1_inference off).
+ *   - coordinator_failed_alpha / failed_gamma / failed_phase35 — corresponding
+ *     CoordinatorResult variants.
+ *   - coordinator_completed — full v1 cycle completed; element_updates_count
+ *     captured for audit.
+ */
+export interface ReconstructSessionEvent {
+  type:
+    | "config_absent_default_v1_applied"
+    | "config_malformed"
+    | "config_parse_failed"
+    | "coordinator_invariant_violation"
+    | "coordinator_failed_alpha"
+    | "coordinator_failed_gamma"
+    | "coordinator_failed_phase35"
+    | "coordinator_completed";
+  emitted_at: string; // ISO 8601 UTC
+  detail?: string;
+}
 
 export interface ReconstructSessionState {
   session_id: string;
@@ -42,6 +95,12 @@ export interface ReconstructSessionState {
    * complete 시에만 채워지며, 실제 검증 결과는 별도 artifact 에 저장한다.
    */
   principal_review_status: "pending" | "requested" | "passed" | "rejected";
+  /**
+   * Audit / lifecycle events. Append-only — never rewritten by callers.
+   * Optional in the type so legacy state files (pre-caller-wire) load without
+   * needing migration; missing reads as `[]`.
+   */
+  events?: ReconstructSessionEvent[];
 }
 
 export interface ReconstructStartOptions {
@@ -65,11 +124,61 @@ export interface ReconstructStepOptions {
   now?: () => string;
 }
 
+/**
+ * Optional coordinator wire input for `executeReconstructExplore`. When
+ * present, explore invokes `runReconstructCoordinator` with the supplied
+ * inputs + spawn dependencies; when absent, explore falls back to the v0
+ * placeholder behavior (state transition + invocations++ only) for backward
+ * compatibility with legacy callers.
+ *
+ * Caller wire scope (post-PR236, this commit): handleReconstructCli builds
+ * this options block from `.onto/config.yml` + stub Stage 1 fixtures
+ * (entities + manifest). Real Stage 1 entities scanner is a follow-up commit
+ * (Option B series — captured in caller wire handoff doc).
+ */
+export interface ReconstructExploreCoordinatorOptions {
+  /** parsed `.onto/config.yml` (or null when absent — coordinator emits
+   *  onConfigAbsent + applies silent default v1) */
+  configRaw: unknown;
+  /** Stage 1 entity list — Hook α input. Empty array → α self-skips. */
+  entityList: HookAlphaEntityInput[];
+  /** manifest — Hook α/γ input */
+  manifest: HookAlphaManifestInput;
+  injectedFiles: string[];
+  proposerContractVersion: string;
+  /** runtime-computed canonical hashes for Hook γ */
+  wipSnapshotHash: string;
+  domainFilesContentHash: string;
+  /** Phase 3.5 user response — caller's responsibility (UI / interactive
+   *  prompt). v0 mode: caller may omit individual decisions; coordinator's
+   *  switch gating handles propagation. */
+  phase3Responses: Phase3UserResponses;
+  phase3JudgedAt: string;
+  renderedElementIds: Set<string>;
+  throttledOutAddressableIds: Set<string>;
+  /** caller-provided spawn deps (codex / mock / inline-http variants chosen
+   *  by handleReconstructCli based on host config) */
+  deps: CoordinatorDeps;
+  runtimeVersion: string;
+  /** propagated to Hook α meta — usually 1 for Stage 1 cycles */
+  stage?: 1 | 2;
+  requestedInferenceMode?: "full" | "degraded";
+}
+
+export interface ReconstructStepOptionsWithCoordinator
+  extends ReconstructStepOptions {
+  coordinator?: ReconstructExploreCoordinatorOptions;
+}
+
 export interface ReconstructStepResult {
   success: boolean;
   session_id: string;
   state: ReconstructSessionState;
   next_action: string;
+  /** Present when explore ran a full v1 coordinator cycle. The discriminated
+   *  union from `runReconstructCoordinator` is forwarded as-is so callers
+   *  (e.g. raw.yml writer in a follow-up commit) can branch on `kind`. */
+  coordinator_result?: CoordinatorResult;
 }
 
 // ─── Internal helpers ───
@@ -150,13 +259,30 @@ export function executeReconstructStart(
 /**
  * Step 2 — explore: build runtime 의 탐색 loop 1회 호출.
  *
- * 현 단계는 bounded placeholder — state 만 `exploring` 으로 전이하고 invocations 을 증가.
- * 실제 Explorer/lens loop 실행은 후속 W-ID 에서 build runtime 과 연결한다.
- * 이 분리 자체가 W-A-74 의 증분: CLI 관찰 가능 surface 를 build runtime 구현보다 먼저 확보.
+ * Two modes (selected by presence of `options.coordinator`):
+ *
+ *   A. **Coordinator wire mode** (caller supplies `coordinator` block) —
+ *      runs `runReconstructCoordinator` with the supplied entities + manifest
+ *      + spawn deps + Phase 3.5 input. Result is forwarded on
+ *      `coordinator_result`. Audit signals (config_absent / config_malformed /
+ *      invariant_violation / failed_*  / completed) are appended to
+ *      `state.events`. State transitions to `exploring` regardless of cycle
+ *      outcome (the cycle's failure does not collapse the session — only halts
+ *      the current invocation; caller can re-invoke).
+ *
+ *   B. **Placeholder mode** (no `coordinator` option, legacy behavior) — state
+ *      transitions to `exploring` and `explore_invocations` increments.
+ *      Retained for backward compatibility with pre-caller-wire callers
+ *      (existing unit tests, scripts that exercise the bounded surface only).
+ *
+ * Caller wire scope (post-PR236, this commit): `handleReconstructCli` builds
+ * `coordinator` from `.onto/config.yml` + stub Stage 1 entities/manifest. Real
+ * Stage 1 entities scanner + raw.yml writer integration are follow-up commits
+ * (Option B series — caller wire handoff doc captures them).
  */
-export function executeReconstructExplore(
-  options: ReconstructStepOptions,
-): ReconstructStepResult {
+export async function executeReconstructExplore(
+  options: ReconstructStepOptionsWithCoordinator,
+): Promise<ReconstructStepResult> {
   const root = sessionRoot(options.sessionsDir, options.sessionId);
   if (!existsSync(stateFile(root))) {
     throw new Error(`[reconstruct] session not found: ${options.sessionId}`);
@@ -169,7 +295,125 @@ export function executeReconstructExplore(
     );
   }
 
-  const now = (options.now ?? nowIso)();
+  const nowFn = options.now ?? nowIso;
+  const now = nowFn();
+
+  // ── Mode A: coordinator wire ────────────────────────────────────────────
+  if (options.coordinator) {
+    const coord = options.coordinator;
+    const newEvents: ReconstructSessionEvent[] = [];
+
+    // onConfigAbsent sink — appends to events (review C-1 + post-PR232 backlog A2)
+    const configAbsentDeps: CoordinatorDeps = {
+      ...coord.deps,
+      onConfigAbsent: () => {
+        // Caller may have provided their own onConfigAbsent (e.g. console.warn).
+        // We still append the audit event so post-hoc inspection sees it.
+        coord.deps.onConfigAbsent?.();
+        newEvents.push({
+          type: "config_absent_default_v1_applied",
+          emitted_at: nowFn(),
+          detail: "coordinator applied silent default v1 (configRaw absent)",
+        });
+      },
+    };
+
+    const cycleInput: CoordinatorInput = {
+      configRaw: coord.configRaw,
+      stage: coord.stage ?? 1,
+      ...(coord.requestedInferenceMode !== undefined
+        ? { requestedInferenceMode: coord.requestedInferenceMode }
+        : {}),
+      entityList: coord.entityList,
+      manifest: coord.manifest,
+      injectedFiles: coord.injectedFiles,
+      sessionId: options.sessionId,
+      runtimeVersion: coord.runtimeVersion,
+      proposerContractVersion: coord.proposerContractVersion,
+      wipSnapshotHash: coord.wipSnapshotHash,
+      domainFilesContentHash: coord.domainFilesContentHash,
+      phase3Responses: coord.phase3Responses,
+      phase3Snapshot: buildPhase3SnapshotDocument({
+        session_id: options.sessionId,
+        written_at: now,
+        intentInferences: new Map(),
+      }),
+      phase3JudgedAt: coord.phase3JudgedAt,
+      renderedElementIds: coord.renderedElementIds,
+      throttledOutAddressableIds: coord.throttledOutAddressableIds,
+    };
+
+    const result = await runReconstructCoordinator(cycleInput, configAbsentDeps);
+
+    // Append result event
+    switch (result.kind) {
+      case "config_malformed":
+        newEvents.push({
+          type: "config_malformed",
+          emitted_at: nowFn(),
+          detail: result.detail,
+        });
+        break;
+      case "invariant_violation":
+        newEvents.push({
+          type: "coordinator_invariant_violation",
+          emitted_at: nowFn(),
+          detail: result.violations.join(", "),
+        });
+        break;
+      case "failed_alpha":
+        newEvents.push({
+          type: "coordinator_failed_alpha",
+          emitted_at: nowFn(),
+          detail: `alpha kind=${result.alpha.kind}`,
+        });
+        break;
+      case "failed_gamma":
+        newEvents.push({
+          type: "coordinator_failed_gamma",
+          emitted_at: nowFn(),
+          detail: `gamma kind=${result.gamma.kind}`,
+        });
+        break;
+      case "failed_phase35":
+        newEvents.push({
+          type: "coordinator_failed_phase35",
+          emitted_at: nowFn(),
+          detail: `${result.phase35Failure.validationFailure.code}: ${result.phase35Failure.validationFailure.detail}`,
+        });
+        break;
+      case "completed":
+        newEvents.push({
+          type: "coordinator_completed",
+          emitted_at: nowFn(),
+          detail: `element_updates_count=${result.phase35.elementUpdates.size}, write_intent_inference_to_raw_yml=${result.writeIntentInferenceToRawYml}`,
+        });
+        break;
+    }
+
+    const next: ReconstructSessionState = {
+      ...state,
+      current_state: "exploring",
+      last_updated_at: now,
+      explore_invocations: state.explore_invocations + 1,
+      events: [...(state.events ?? []), ...newEvents],
+    };
+
+    writeState(root, next);
+
+    return {
+      success: result.kind === "completed",
+      session_id: options.sessionId,
+      state: next,
+      next_action:
+        result.kind === "completed"
+          ? "Cycle completed. Call `onto reconstruct explore` again to continue or `onto reconstruct complete` to finalize."
+          : `Cycle halted (${result.kind}). Inspect state.events for detail; fix root cause and re-invoke.`,
+      coordinator_result: result,
+    };
+  }
+
+  // ── Mode B: placeholder (legacy backward compat) ─────────────────────────
   const next: ReconstructSessionState = {
     ...state,
     current_state: "exploring",
@@ -210,6 +454,35 @@ export function executeReconstructComplete(
   }
   if (state.current_state === "converted") {
     throw new Error(`[reconstruct] session already converted: ${options.sessionId}`);
+  }
+
+  // PR #241 review C-3 fix (lifecycle gate): when the session has run any
+  // cycle-terminal explore attempt (events array contains coordinator_* or
+  // config_malformed / config_parse_failed), the *most recent* such event
+  // must be `coordinator_completed` — otherwise the cycle halted and the
+  // session has not produced a finalizable state.
+  //
+  // PR #241 review round 2 UF-STRUCTURE-1 fix: config_parse_failed (raised
+  // by the explore handler when `.onto/config.yml` parse throws *before*
+  // executeReconstructExplore runs) is now also a cycle-terminal event,
+  // so a parse failure correctly blocks subsequent complete invocations.
+  //
+  // config_absent_default_v1_applied is *not* cycle-terminal — it is an
+  // informational audit signal emitted alongside a successful cycle.
+  // Sessions that ran in placeholder mode (no cycle events at all) bypass
+  // this gate for backward compat.
+  const cycleTerminalEvents = (state.events ?? []).filter((e) =>
+    e.type.startsWith("coordinator_") ||
+    e.type === "config_malformed" ||
+    e.type === "config_parse_failed",
+  );
+  if (cycleTerminalEvents.length > 0) {
+    const last = cycleTerminalEvents[cycleTerminalEvents.length - 1]!;
+    if (last.type !== "coordinator_completed") {
+      throw new Error(
+        `[reconstruct] complete requires the most recent explore cycle to be successful — last cycle-terminal event was "${last.type}"${last.detail ? ` (${last.detail})` : ""}. Re-run \`onto reconstruct explore\` until a coordinator_completed cycle is recorded, then retry complete.`,
+      );
+    }
   }
 
   const now = (options.now ?? nowIso)();
@@ -327,6 +600,317 @@ function defaultSessionsDir(projectRoot: string): string {
   return join(projectRoot, ".onto", "reconstruct");
 }
 
+/**
+ * Append a *cycle-terminal* event to the session's `state.events` array and
+ * transition `current_state` to `exploring`, best-effort.
+ *
+ * Used by the explore handler's pre-coordinator failure paths (config parse,
+ * wire-build errors) so that audit signals reach `state.events` even when
+ * the failure happens before `executeReconstructExplore` runs. The
+ * `exploring` transition is intentional — it lets the downstream
+ * `executeReconstructComplete` lifecycle gate observe the failure (otherwise
+ * the session stays in `gathering_context` and the upstream gathering-context
+ * check throws a less informative error before the cycle-terminal gate
+ * fires).
+ *
+ * Caller responsibility: pass only *cycle-terminal* event types (e.g.
+ * `config_parse_failed`, `config_malformed`). Informational-only events such
+ * as `config_absent_default_v1_applied` should be appended through a
+ * different path that does not transition state.
+ *
+ * Best-effort: if the session state is missing or unreadable, the function
+ * silently no-ops — the caller's primary error path (console.error + exit
+ * code) still surfaces the failure. We never throw from this helper because
+ * the caller is already in an error path and the audit append is a
+ * supplementary observability signal, not a correctness requirement.
+ */
+function appendCycleTerminalEventBestEffort(
+  sessionsDir: string,
+  sessionId: string,
+  event: ReconstructSessionEvent,
+): void {
+  try {
+    const root = sessionRoot(sessionsDir, sessionId);
+    if (!existsSync(stateFile(root))) return;
+    const state = readState(root);
+    // `converted` sessions are immutable from this path.
+    const nextCurrentState: ReconstructBoundedState =
+      state.current_state === "converted" ? "converted" : "exploring";
+    const next: ReconstructSessionState = {
+      ...state,
+      current_state: nextCurrentState,
+      last_updated_at: event.emitted_at,
+      events: [...(state.events ?? []), event],
+    };
+    writeState(root, next);
+  } catch {
+    // Audit-append is best-effort; swallow any error here so it does not
+    // mask the caller's primary failure path.
+  }
+}
+
+// ─── Coordinator wire helpers (post-PR236 caller wire commit) ───
+
+/**
+ * Build the `ReconstructExploreCoordinatorOptions` block from CLI inputs +
+ * `.onto/config.yml`. Constitutes the bridge between handleReconstructCli's
+ * argument-only entry and the coordinator's typed input contract.
+ *
+ * Scope (this commit):
+ *   - `.onto/config.yml` is read (or absent → coordinator applies silent default)
+ *   - spawn deps come from spawn-proposer / spawn-reviewer factories (codex
+ *     production path or `--mock` deterministic stub)
+ *   - entities + manifest are *stub fixtures* — single placeholder entity
+ *     pinned to the session source. Real Stage 1 entities scanner is a
+ *     follow-up commit (Option B series, captured in caller wire handoff).
+ *   - Phase 3 inputs are empty (coordinator's switch-gating handles the
+ *     v0/v1 propagation; UI-driven user response is a future concern).
+ */
+function buildExploreCoordinatorOptions(args: {
+  projectRoot: string;
+  sessionsDir: string;
+  sessionId: string;
+  useMock: boolean;
+}): ReconstructExploreCoordinatorOptions {
+  const root = sessionRoot(args.sessionsDir, args.sessionId);
+  const session = readState(root);
+
+  // 1. Load `.onto/config.yml` (absent → null → coordinator silent default v1)
+  const configPath = join(args.projectRoot, ".onto", "config.yml");
+  let configRaw: unknown = null;
+  if (existsSync(configPath)) {
+    const text = readFileSync(configPath, "utf-8");
+    try {
+      configRaw = yaml.parse(text);
+    } catch (e) {
+      throw new Error(
+        `[onto] Failed to parse .onto/config.yml: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+
+  // 2. Build spawn deps — codex (production) or mock (--mock flag)
+  const deps: CoordinatorDeps = args.useMock
+    ? buildMockSpawnDeps()
+    : buildCodexSpawnDeps({ projectRoot: args.projectRoot, configRaw });
+
+  // 3. Stub Stage 1 entities (1 placeholder — real scanner is follow-up)
+  const stubEntity: HookAlphaEntityInput = {
+    id: "STUB-001",
+    type: "entity",
+    name: "Placeholder",
+    definition: `Stub entity for session ${args.sessionId} (real Stage 1 scanner is a follow-up commit).`,
+    certainty: "ambiguous",
+    source: { locations: [session.source] },
+    relations_summary: [],
+  };
+
+  const stubManifest: HookAlphaManifestInput = {
+    manifest_schema_version: "1.0",
+    domain_name: "stub-domain",
+    domain_manifest_version: "1.0.0",
+    version_hash: "stub" + "0".repeat(60),
+    quality_tier: "minimal",
+    referenced_files: [],
+  };
+
+  // 4. Phase 3 inputs — empty (caller / UI builds real responses in future).
+  //
+  // UF-EVOLUTION-1 (caller responsibility on v0 fallback): When the resolved
+  // switches set inference_mode = "none" (full v0 fallback), the cycle's
+  // Hook α self-skips so currentInferences is empty by Phase 3.5. The caller
+  // (this helper) is the *single sink* responsible for not building any
+  // rationale_decisions / batch_actions in that case — the coordinator does
+  // NOT auto-prune phase3Responses against the switches because the caller
+  // owns the UI-driven user input contract. Empty responses (as below) are
+  // the only safe default; future UI-driven callers must preserve the
+  // invariant `inference_mode === "none" → no decisions / no batch_actions`.
+  // See PR #236 review session 20260427-0fcb42d1 UF-EVOLUTION-1.
+  const emptyPhase3Responses: Phase3UserResponses = {
+    received_at: new Date().toISOString(),
+    global_reply: "confirmed",
+    rationale_decisions: [],
+    batch_actions: [],
+  };
+
+  return {
+    configRaw,
+    entityList: [stubEntity],
+    manifest: stubManifest,
+    injectedFiles: [],
+    proposerContractVersion: "1.0",
+    wipSnapshotHash: "stub-wip-snapshot-hash",
+    domainFilesContentHash: "stub-domain-files-content-hash",
+    phase3Responses: emptyPhase3Responses,
+    phase3JudgedAt: new Date().toISOString(),
+    renderedElementIds: new Set(),
+    throttledOutAddressableIds: new Set(),
+    deps,
+    runtimeVersion: "v1.0.0-caller-wire",
+    stage: 1,
+  };
+}
+
+/**
+ * Mock spawn deps — deterministic stub for `--mock` flag and unit tests.
+ * Never invokes any LLM. The mock proposer emits a single proposal with
+ * outcome=`gap` (pre-canned shape; real LLM 호출 부재이므로 inferred meaning
+ * 산출 불가 → gap 이 가장 honest fixture). Reviewer returns confirm.
+ */
+function buildMockSpawnDeps(): CoordinatorDeps {
+  return {
+    spawnProposer: async (input) => ({
+      proposals: input.entityList.map((e) => ({
+        target_element_id: e.id,
+        outcome: "gap" as const,
+        state_reason:
+          "mock spawn — no LLM invoked (--mock flag or test fixture)",
+      })),
+      provenance: {
+        proposed_at: new Date().toISOString(),
+        proposed_by: "rationale-proposer" as const,
+        proposer_contract_version: input.proposerContractVersion,
+        manifest_schema_version: input.manifest.manifest_schema_version,
+        domain_manifest_version: input.manifest.domain_manifest_version,
+        domain_manifest_hash: input.manifest.version_hash,
+        domain_quality_tier: input.manifest.quality_tier,
+        session_id: input.sessionId,
+        runtime_version: input.runtimeVersion,
+        input_chunks: 1,
+        truncated_fields: [],
+        effective_injected_files: input.injectedFiles,
+      },
+    }),
+    spawnReviewer: async () => ({
+      updates: [],
+      provenance: {
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: "rationale-reviewer" as const,
+        reviewer_contract_version: "1.0",
+        manifest_schema_version: "1.0",
+        domain_manifest_version: "1.0.0",
+        domain_manifest_hash: "stub" + "0".repeat(60),
+        domain_quality_tier: "minimal" as const,
+        session_id: "mock",
+        runtime_version: null,
+        wip_snapshot_hash: "stub-wip-snapshot-hash",
+        domain_files_content_hash: "stub-domain-files-content-hash",
+        hash_algorithm: "yaml@2.8.2 + sha256",
+        input_chunks: 1,
+        truncated_fields: [],
+        effective_injected_files: [],
+      },
+    }),
+    now: () => new Date(),
+    systemPurpose: "mock-spawn",
+    onConfigAbsent: () => {
+      console.warn(
+        "[onto] reconstruct: `.onto/config.yml` absent or `reconstruct:` block missing — silent default v1 mode applied.",
+      );
+    },
+  };
+}
+
+/**
+ * Codex spawn deps — production path. Uses `makeCodexProposer` /
+ * `makeCodexReviewer` (spawn-proposer.ts / spawn-reviewer.ts) with config
+ * read from `.onto/config.yml`'s `codex.model` / `codex.effort` (or
+ * defaults). The validator input builders are bound here so the spawn
+ * factories can validate against pre-computed entity ids / manifest refs.
+ *
+ * Out of scope (follow-up commits):
+ *   - host_runtime != "codex" branches (anthropic / openai / litellm /
+ *     standalone) — currently codex-only path
+ *   - retry / degraded_continue orchestration (caller-side)
+ */
+function buildCodexSpawnDeps(args: {
+  projectRoot: string;
+  configRaw: unknown;
+}): CoordinatorDeps {
+  // makeCodexProposer / makeCodexReviewer are imported statically at module
+  // top (PR #241 review round 2 UF-DEPENDENCY-1 fix — was lazy `require()`
+  // which is ESM-incompatible).
+  const codexConfig = extractCodexConfig(args.configRaw);
+
+  const spawnProposer = makeCodexProposer({
+    projectRoot: args.projectRoot,
+    sandboxMode: "read-only",
+    ...(codexConfig.model !== undefined ? { model: codexConfig.model } : {}),
+    ...(codexConfig.effort !== undefined
+      ? { reasoningEffort: codexConfig.effort }
+      : {}),
+    buildValidatorInput: (input) => ({
+      entityIds: input.entityList.map((e) => e.id),
+      manifestReferencedFiles: input.manifest.referenced_files.map((f) => f.path),
+      injectedFiles: input.injectedFiles,
+      optionalFiles: new Set(
+        input.manifest.referenced_files
+          .filter((f) => !f.required)
+          .map((f) => f.path),
+      ),
+      expectedManifestSchemaVersion: input.manifest.manifest_schema_version,
+      expectedDomainManifestHash: input.manifest.version_hash,
+    }),
+  });
+
+  const spawnReviewer = makeCodexReviewer({
+    projectRoot: args.projectRoot,
+    sandboxMode: "read-only",
+    ...(codexConfig.model !== undefined ? { model: codexConfig.model } : {}),
+    ...(codexConfig.effort !== undefined
+      ? { reasoningEffort: codexConfig.effort }
+      : {}),
+    reviewerContractVersion: "1.0",
+    buildValidatorInput: (input) => ({
+      elementInferences: input.elementInferences,
+      manifestReferencedFiles: input.manifest.referenced_files.map((f) => f.path),
+      injectedFiles: input.injectedFiles,
+      optionalFiles: new Set(
+        input.manifest.referenced_files
+          .filter((f) => !f.required)
+          .map((f) => f.path),
+      ),
+      expectedManifestSchemaVersion: input.manifest.manifest_schema_version,
+      expectedDomainManifestHash: input.manifest.version_hash,
+      expectedWipSnapshotHash: input.wipSnapshotHash,
+      expectedDomainFilesContentHash: input.domainFilesContentHash,
+    }),
+  });
+
+  return {
+    spawnProposer,
+    spawnReviewer,
+    now: () => new Date(),
+    systemPurpose: "onto reconstruct (codex spawn)",
+    onConfigAbsent: () => {
+      console.warn(
+        "[onto] reconstruct: `.onto/config.yml` absent or `reconstruct:` block missing — silent default v1 mode applied.",
+      );
+    },
+  };
+}
+
+interface CodexHostConfig {
+  model?: string;
+  effort?: string;
+}
+
+function extractCodexConfig(configRaw: unknown): CodexHostConfig {
+  if (configRaw === null || typeof configRaw !== "object" || Array.isArray(configRaw)) {
+    return {};
+  }
+  const obj = configRaw as Record<string, unknown>;
+  const codex = obj.codex;
+  if (codex === undefined || codex === null || typeof codex !== "object" || Array.isArray(codex)) {
+    return {};
+  }
+  const codexObj = codex as Record<string, unknown>;
+  return {
+    ...(typeof codexObj.model === "string" ? { model: codexObj.model } : {}),
+    ...(typeof codexObj.effort === "string" ? { effort: codexObj.effort } : {}),
+  };
+}
+
 export async function handleReconstructCli(
   _ontoHome: string,
   argv: string[],
@@ -393,10 +977,68 @@ export async function handleReconstructCli(
         console.error("[onto] reconstruct explore requires --session-id.");
         return 1;
       }
+
+      // Build coordinator wire input (post-PR236 — caller wire commit).
+      // CLI flags (extend as needed):
+      //   --no-coordinator    fall back to v0 placeholder mode (legacy)
+      //   --mock              use mock spawn (no LLM cost; for dev / dry-run)
+      // Default: codex spawn (production path).
+      const noCoordinator = subArgv.includes("--no-coordinator");
+      const useMock = subArgv.includes("--mock");
+
+      let coordinatorOptions:
+        | ReconstructExploreCoordinatorOptions
+        | undefined;
+      if (!noCoordinator) {
+        try {
+          coordinatorOptions = buildExploreCoordinatorOptions({
+            projectRoot,
+            sessionsDir,
+            sessionId,
+            useMock,
+          });
+        } catch (error) {
+          // PR #241 review round 2 UF-STRUCTURE-1 fix: config parse failures
+          // (and other pre-coordinator wire-build failures) MUST be appended
+          // to state.events so that (a) the lifecycle gate in
+          // executeReconstructComplete sees the failure and refuses to
+          // finalize, and (b) audit / govern reader has the same observable
+          // surface as coordinator-level failures.
+          //
+          // Append is best-effort: if the session state itself is unreadable
+          // (e.g. invalid sessionId) we fall through to the original error
+          // path without state mutation. The original throw message is still
+          // surfaced via console.error.
+          const detail = error instanceof Error ? error.message : String(error);
+          appendCycleTerminalEventBestEffort(sessionsDir, sessionId, {
+            type: "config_parse_failed",
+            emitted_at: new Date().toISOString(),
+            detail,
+          });
+          console.error(`[onto] reconstruct explore wire build error: ${detail}`);
+          return 1;
+        }
+      }
+
       try {
-        const result = executeReconstructExplore({ sessionsDir, sessionId });
+        const result = await executeReconstructExplore({
+          sessionsDir,
+          sessionId,
+          ...(coordinatorOptions ? { coordinator: coordinatorOptions } : {}),
+        });
+
+        // config_malformed: review C-2 fail-explicit UX (Option (a))
+        if (result.coordinator_result?.kind === "config_malformed") {
+          console.error(
+            `[onto] Malformed config: ${result.coordinator_result.detail}.`,
+          );
+          console.error(
+            "       Edit `.onto/config.yml` to fix the root structure (must be a YAML mapping), then retry.",
+          );
+          return 1;
+        }
         console.log(JSON.stringify({ status: "explored", ...result }, null, 2));
-        return 0;
+        return result.success ? 0 : 1;
       } catch (error) {
         console.error(
           `[onto] reconstruct explore error: ${error instanceof Error ? error.message : String(error)}`,

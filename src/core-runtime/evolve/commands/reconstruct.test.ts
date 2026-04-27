@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdirSync, rmSync, readFileSync, existsSync } from "node:fs";
+import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -115,10 +115,10 @@ describe("executeReconstructExplore", () => {
     });
   }
 
-  it("gathering_context → exploring 전이 + invocation 증가", () => {
+  it("gathering_context → exploring 전이 + invocation 증가", async () => {
     startFixture("e1");
 
-    const result = executeReconstructExplore({
+    const result = await executeReconstructExplore({
       sessionsDir: tmpRoot,
       sessionId: "e1",
     });
@@ -128,46 +128,46 @@ describe("executeReconstructExplore", () => {
     expect(result.state.explore_invocations).toBe(1);
   });
 
-  it("여러 번 호출 시 invocations 누적", () => {
+  it("여러 번 호출 시 invocations 누적", async () => {
     startFixture("e2");
 
-    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
-    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
-    const result = executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
+    await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
+    await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
+    const result = await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
 
     expect(result.state.explore_invocations).toBe(3);
   });
 
-  it("존재하지 않는 session id 는 에러", () => {
-    expect(() =>
+  it("존재하지 않는 session id 는 에러", async () => {
+    await expect(
       executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "nope" }),
-    ).toThrow(/session not found/);
+    ).rejects.toThrow(/session not found/);
   });
 
-  it("converted 이후 explore 는 에러", () => {
+  it("converted 이후 explore 는 에러", async () => {
     startFixture("e3");
-    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e3" });
+    await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e3" });
     executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "e3" });
 
-    expect(() =>
+    await expect(
       executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e3" }),
-    ).toThrow(/already converted/);
+    ).rejects.toThrow(/already converted/);
   });
 });
 
 describe("executeReconstructComplete", () => {
-  function startAndExplore(id: string) {
+  async function startAndExplore(id: string) {
     executeReconstructStart({
       source: "./src",
       intent: "t",
       sessionsDir: tmpRoot,
       sessionId: id,
     });
-    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: id });
+    await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: id });
   }
 
-  it("exploring → converted 전이 + ontology-draft.md 생성", () => {
-    startAndExplore("c1");
+  it("exploring → converted 전이 + ontology-draft.md 생성", async () => {
+    await startAndExplore("c1");
 
     const result = executeReconstructComplete({
       sessionsDir: tmpRoot,
@@ -180,9 +180,9 @@ describe("executeReconstructComplete", () => {
     expect(existsSync(result.state.ontology_draft_path!)).toBe(true);
   });
 
-  it("draft 파일에 source/intent/invocations 가 포함된다", () => {
-    startAndExplore("c2");
-    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "c2" });
+  it("draft 파일에 source/intent/invocations 가 포함된다", async () => {
+    await startAndExplore("c2");
+    await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "c2" });
 
     executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "c2" });
 
@@ -192,8 +192,8 @@ describe("executeReconstructComplete", () => {
     expect(draft).toContain("explore invocations: 2");
   });
 
-  it("Principal 검증 경로: complete 는 principal_review_status = requested", () => {
-    startAndExplore("c3");
+  it("Principal 검증 경로: complete 는 principal_review_status = requested", async () => {
+    await startAndExplore("c3");
 
     const result = executeReconstructComplete({
       sessionsDir: tmpRoot,
@@ -216,8 +216,8 @@ describe("executeReconstructComplete", () => {
     ).toThrow(/requires at least one explore/);
   });
 
-  it("이미 converted 된 session 재 complete 는 에러", () => {
-    startAndExplore("c5");
+  it("이미 converted 된 session 재 complete 는 에러", async () => {
+    await startAndExplore("c5");
     executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "c5" });
 
     expect(() =>
@@ -229,6 +229,141 @@ describe("executeReconstructComplete", () => {
     expect(() =>
       executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "nope" }),
     ).toThrow(/session not found/);
+  });
+
+  // PR #241 review C-3 fix: lifecycle gate
+  it("coordinator failure event 후 complete → 거부 (lifecycle gate)", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: "c-fail-1",
+    });
+    // Manually simulate a failed coordinator cycle by writing state with a
+    // failure event. Using the helper would also work but inline construction
+    // is clearer for this gate test.
+    const root = join(tmpRoot, "c-fail-1");
+    const stateBefore = JSON.parse(
+      readFileSync(join(root, "reconstruct-state.json"), "utf-8"),
+    );
+    const stateWithFailure = {
+      ...stateBefore,
+      current_state: "exploring",
+      explore_invocations: 1,
+      events: [
+        {
+          type: "coordinator_failed_alpha",
+          emitted_at: "2026-04-27T20:00:00Z",
+          detail: "alpha kind=failed",
+        },
+      ],
+    };
+    writeFileSync(
+      join(root, "reconstruct-state.json"),
+      JSON.stringify(stateWithFailure, null, 2),
+      "utf-8",
+    );
+
+    expect(() =>
+      executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "c-fail-1" }),
+    ).toThrow(/explore cycle to be successful.*coordinator_failed_alpha/);
+  });
+
+  it("coordinator_completed event 후 complete → 정상 진행", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: "c-ok-1",
+    });
+    const root = join(tmpRoot, "c-ok-1");
+    const stateBefore = JSON.parse(
+      readFileSync(join(root, "reconstruct-state.json"), "utf-8"),
+    );
+    const stateOk = {
+      ...stateBefore,
+      current_state: "exploring",
+      explore_invocations: 1,
+      events: [
+        {
+          type: "coordinator_completed",
+          emitted_at: "2026-04-27T20:00:00Z",
+          detail: "element_updates_count=1, write_intent_inference_to_raw_yml=true",
+        },
+      ],
+    };
+    writeFileSync(
+      join(root, "reconstruct-state.json"),
+      JSON.stringify(stateOk, null, 2),
+      "utf-8",
+    );
+
+    const result = executeReconstructComplete({
+      sessionsDir: tmpRoot,
+      sessionId: "c-ok-1",
+    });
+    expect(result.state.current_state).toBe("converted");
+  });
+
+  // PR #241 review round 2 UF-STRUCTURE-1 fix
+  it("config_parse_failed event 후 complete → 거부 (cycle-terminal event)", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: "c-parse-fail-1",
+    });
+    const root = join(tmpRoot, "c-parse-fail-1");
+    const stateBefore = JSON.parse(
+      readFileSync(join(root, "reconstruct-state.json"), "utf-8"),
+    );
+    const stateWithParseFailure = {
+      ...stateBefore,
+      // appendCycleTerminalEventBestEffort transitions current_state to
+      // `exploring` in real production — mirror that here so the lifecycle
+      // gate (downstream of the gathering_context check) actually fires.
+      current_state: "exploring",
+      events: [
+        {
+          type: "config_parse_failed",
+          emitted_at: "2026-04-27T20:00:00Z",
+          detail: "Failed to parse .onto/config.yml: bad indentation",
+        },
+      ],
+    };
+    writeFileSync(
+      join(root, "reconstruct-state.json"),
+      JSON.stringify(stateWithParseFailure, null, 2),
+      "utf-8",
+    );
+
+    expect(() =>
+      executeReconstructComplete({
+        sessionsDir: tmpRoot,
+        sessionId: "c-parse-fail-1",
+      }),
+    ).toThrow(/explore cycle to be successful.*config_parse_failed/);
+  });
+
+  it("placeholder mode (events 부재) → backward compat 통과", async () => {
+    // Sessions that ran without --coordinator (no coordinator events recorded)
+    // bypass the lifecycle gate — tested implicitly by the 'exploring →
+    // converted 전이' test above, but explicit-named here for clarity.
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: "c-legacy-1",
+    });
+    await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "c-legacy-1",
+    });
+    const result = executeReconstructComplete({
+      sessionsDir: tmpRoot,
+      sessionId: "c-legacy-1",
+    });
+    expect(result.state.current_state).toBe("converted");
   });
 });
 
@@ -319,7 +454,7 @@ describe("confirm (W-B-07: principal confirmation seat)", () => {
 });
 
 describe("end-to-end bounded path (review 4-step: start→explore→complete→confirm)", () => {
-  it("start → explore → complete → confirm 전체 작동", () => {
+  it("start → explore → complete → confirm 전체 작동", async () => {
     const started = executeReconstructStart({
       source: "./src",
       intent: "E2E",
@@ -328,7 +463,7 @@ describe("end-to-end bounded path (review 4-step: start→explore→complete→c
     });
     expect(started.state.current_state).toBe("gathering_context");
 
-    const explored = executeReconstructExplore({
+    const explored = await executeReconstructExplore({
       sessionsDir: tmpRoot,
       sessionId: "e2e",
     });

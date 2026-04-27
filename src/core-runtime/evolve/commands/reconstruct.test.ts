@@ -115,10 +115,10 @@ describe("executeReconstructExplore", () => {
     });
   }
 
-  it("gathering_context → exploring 전이 + invocation 증가", () => {
+  it("gathering_context → exploring 전이 + invocation 증가", async () => {
     startFixture("e1");
 
-    const result = executeReconstructExplore({
+    const result = await executeReconstructExplore({
       sessionsDir: tmpRoot,
       sessionId: "e1",
     });
@@ -128,46 +128,46 @@ describe("executeReconstructExplore", () => {
     expect(result.state.explore_invocations).toBe(1);
   });
 
-  it("여러 번 호출 시 invocations 누적", () => {
+  it("여러 번 호출 시 invocations 누적", async () => {
     startFixture("e2");
 
-    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
-    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
-    const result = executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
+    await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
+    await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
+    const result = await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e2" });
 
     expect(result.state.explore_invocations).toBe(3);
   });
 
-  it("존재하지 않는 session id 는 에러", () => {
-    expect(() =>
+  it("존재하지 않는 session id 는 에러", async () => {
+    await expect(
       executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "nope" }),
-    ).toThrow(/session not found/);
+    ).rejects.toThrow(/session not found/);
   });
 
-  it("converted 이후 explore 는 에러", () => {
+  it("converted 이후 explore 는 에러", async () => {
     startFixture("e3");
-    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e3" });
+    await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e3" });
     executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "e3" });
 
-    expect(() =>
+    await expect(
       executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "e3" }),
-    ).toThrow(/already converted/);
+    ).rejects.toThrow(/already converted/);
   });
 });
 
 describe("executeReconstructComplete", () => {
-  function startAndExplore(id: string) {
+  async function startAndExplore(id: string) {
     executeReconstructStart({
       source: "./src",
       intent: "t",
       sessionsDir: tmpRoot,
       sessionId: id,
     });
-    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: id });
+    await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: id });
   }
 
-  it("exploring → converted 전이 + ontology-draft.md 생성", () => {
-    startAndExplore("c1");
+  it("exploring → converted 전이 + ontology-draft.md 생성", async () => {
+    await startAndExplore("c1");
 
     const result = executeReconstructComplete({
       sessionsDir: tmpRoot,
@@ -180,9 +180,9 @@ describe("executeReconstructComplete", () => {
     expect(existsSync(result.state.ontology_draft_path!)).toBe(true);
   });
 
-  it("draft 파일에 source/intent/invocations 가 포함된다", () => {
-    startAndExplore("c2");
-    executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "c2" });
+  it("draft 파일에 source/intent/invocations 가 포함된다", async () => {
+    await startAndExplore("c2");
+    await executeReconstructExplore({ sessionsDir: tmpRoot, sessionId: "c2" });
 
     executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "c2" });
 
@@ -192,8 +192,8 @@ describe("executeReconstructComplete", () => {
     expect(draft).toContain("explore invocations: 2");
   });
 
-  it("Principal 검증 경로: complete 는 principal_review_status = requested", () => {
-    startAndExplore("c3");
+  it("Principal 검증 경로: complete 는 principal_review_status = requested", async () => {
+    await startAndExplore("c3");
 
     const result = executeReconstructComplete({
       sessionsDir: tmpRoot,
@@ -216,8 +216,8 @@ describe("executeReconstructComplete", () => {
     ).toThrow(/requires at least one explore/);
   });
 
-  it("이미 converted 된 session 재 complete 는 에러", () => {
-    startAndExplore("c5");
+  it("이미 converted 된 session 재 complete 는 에러", async () => {
+    await startAndExplore("c5");
     executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "c5" });
 
     expect(() =>
@@ -319,7 +319,7 @@ describe("confirm (W-B-07: principal confirmation seat)", () => {
 });
 
 describe("end-to-end bounded path (review 4-step: start→explore→complete→confirm)", () => {
-  it("start → explore → complete → confirm 전체 작동", () => {
+  it("start → explore → complete → confirm 전체 작동", async () => {
     const started = executeReconstructStart({
       source: "./src",
       intent: "E2E",
@@ -328,7 +328,7 @@ describe("end-to-end bounded path (review 4-step: start→explore→complete→c
     });
     expect(started.state.current_state).toBe("gathering_context");
 
-    const explored = executeReconstructExplore({
+    const explored = await executeReconstructExplore({
       sessionsDir: tmpRoot,
       sessionId: "e2e",
     });

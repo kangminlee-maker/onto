@@ -40,6 +40,7 @@ export const EXCLUDED_PACKAGE_SCRIPTS: readonly string[] = [
   "lint:output-language-boundary",
   "generate:catalog",
   "check:catalog-drift",
+  "check:handler-exports",
   "test:e2e",
   "test:e2e:promote",
   "test:e2e:start-review-session",

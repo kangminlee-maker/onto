@@ -1,10 +1,12 @@
 /**
- * Tests — preboot-dispatch-deriver.test.ts (P1-3).
+ * Tests — preboot-dispatch-deriver.test.ts (P2-A — RFC-1 §4.1.2 thin shim).
  *
  * Stage 1 (unit + determinism):
  *   - derivePrebootDispatch is deterministic.
  *   - Output round-trips through TS segment marker extraction.
- *   - Body lists the catalog's preboot CliRealization invocations.
+ *   - buildMetaDispatchTable + buildPublicDispatchTable produce sorted catalog-derived tables.
+ *   - Emitted body is a thin shim — static imports `dispatchPrebootCore` +
+ *     emits static dispatch table literals + forwards to core.
  *   - snapshotMode env gate enforced.
  *
  * Stage 2 (diff-0):
@@ -20,7 +22,8 @@ import { describe, expect, it } from "vitest";
 import { COMMAND_CATALOG } from "../../src/core-runtime/cli/command-catalog.js";
 import {
   PREBOOT_DISPATCH_EMISSION_PATH,
-  collectPrebootCliInvocations,
+  buildMetaDispatchTable,
+  buildPublicDispatchTable,
   deriveAllPrebootDispatch,
   derivePrebootDispatch,
   renderPrebootDispatchBody,
@@ -34,17 +37,39 @@ const PREBOOT_DISPATCH_ABS = path.resolve(REPO_ROOT, PREBOOT_DISPATCH_EMISSION_P
 const SHOULD_UPDATE = process.env.UPDATE_SNAPSHOT === "1";
 
 describe("Stage 1 — preboot-dispatch-deriver unit + determinism", () => {
-  it("collectPrebootCliInvocations returns sorted unique cli-backed preboot invocations", () => {
-    const list = collectPrebootCliInvocations(COMMAND_CATALOG);
+  it("buildMetaDispatchTable indexes MetaEntry cli_dispatch by name (sorted)", () => {
+    const table = buildMetaDispatchTable(COMMAND_CATALOG);
+    expect(Object.keys(table)).toContain("help");
+    expect(Object.keys(table)).toContain("version");
+    // Sorted ascending key order (used for deterministic emit).
+    const keys = Object.keys(table);
+    const sorted = [...keys].sort();
+    expect(keys).toEqual(sorted);
+    // P2-A — help/version 의 cli_dispatch 가 meta-handlers.ts 를 가리킴.
+    expect(table["help"]).toEqual({
+      handler_module: "src/core-runtime/cli/meta-handlers.ts",
+      handler_export: "onHelp",
+    });
+    expect(table["version"]).toEqual({
+      handler_module: "src/core-runtime/cli/meta-handlers.ts",
+      handler_export: "onVersion",
+    });
+  });
+
+  it("buildPublicDispatchTable indexes preboot PublicEntry cli realizations (canonical only, no aliases)", () => {
+    const table = buildPublicDispatchTable(COMMAND_CATALOG);
     // Catalog has info/config/install as cli-backed preboot entries.
-    expect(list).toContain("info");
-    expect(list).toContain("config");
-    expect(list).toContain("install");
+    expect(Object.keys(table)).toContain("info");
+    expect(Object.keys(table)).toContain("config");
+    expect(Object.keys(table)).toContain("install");
     // Sorted ascending.
-    const sorted = [...list].sort();
-    expect(list).toEqual(sorted);
-    // No duplicates.
-    expect(new Set(list).size).toBe(list.length);
+    const keys = Object.keys(table);
+    const sorted = [...keys].sort();
+    expect(keys).toEqual(sorted);
+    // P2-A — preboot publics still delegate to cli.ts main (no handler_export
+    // override). post_boot per-entry handler diversification = future seam.
+    expect(table["info"]?.handler_module).toBe("src/cli.ts");
+    expect(table["info"]?.handler_export).toBeUndefined();
   });
 
   it("derivePrebootDispatch is deterministic", () => {
@@ -53,15 +78,25 @@ describe("Stage 1 — preboot-dispatch-deriver unit + determinism", () => {
     expect(a).toBe(b);
   });
 
-  it("emitted body declares dispatchPreboot + dynamic-imports ONTO_HELP_TEXT (no static cli.ts dep)", () => {
+  it("emitted body is a thin shim — static-imports dispatchPrebootCore + emits static tables + forwards", () => {
     const body = renderPrebootDispatchBody(COMMAND_CATALOG, "deadbeef".repeat(8));
+    // Thin shim: dispatchPreboot exported with PrebootRouting signature.
     expect(body).toContain("export async function dispatchPreboot");
-    // Dynamic import — preboot must not pull cli.ts into the static module
-    // graph (P1-3 review UF-DEPENDENCY-PREBOOT-REVERSE-IMPORT).
-    expect(body).toContain('await import("../../cli.js")');
-    // No top-level static import of ONTO_HELP_TEXT.
-    expect(body).not.toMatch(/^import\s+\{\s*ONTO_HELP_TEXT\s*\}/m);
-    expect(body).toContain("readOntoVersion");
+    expect(body).toContain("routing: PrebootRouting");
+    // Static import of dispatchPrebootCore (preboot must not pull cli.ts into
+    // the static module graph — P1-3 review UF-DEPENDENCY-PREBOOT-REVERSE-IMPORT.
+    // dispatch-preboot-core.ts itself uses dynamic import for the actual handler).
+    expect(body).toContain('from "./dispatch-preboot-core.js"');
+    expect(body).toContain("dispatchPrebootCore");
+    // Static dispatch tables baked in (catalog-derived).
+    expect(body).toContain("META_DISPATCH_TABLE");
+    expect(body).toContain("PUBLIC_DISPATCH_TABLE");
+    // Forwards to core with both tables.
+    expect(body).toMatch(/return dispatchPrebootCore\(routing,\s*argv,\s*META_DISPATCH_TABLE,\s*PUBLIC_DISPATCH_TABLE\)/);
+    // No hardcoded MetaEntry inline branches (RFC-1 §4.1.2 — Contract A/B/C
+    // 본체는 dispatch-preboot-core.ts 의 dispatchPrebootCore 안).
+    expect(body).not.toContain('invocation === "--help"');
+    expect(body).not.toContain('invocation === "--version"');
   });
 
   it("emitted body wires assertPrebootDispatchDeriveHash entry guard", () => {

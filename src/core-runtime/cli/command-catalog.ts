@@ -702,7 +702,11 @@ export const COMMAND_CATALOG: CommandCatalog = {
       kind: "meta",
       name: "help",
       phase: "preboot",
-      cli_dispatch: CLI_HANDLER,
+      // P2-A: meta dispatch decomposition — handler 본문이 meta-handlers.ts 에 거주
+      cli_dispatch: {
+        handler_module: "src/core-runtime/cli/meta-handlers.ts",
+        handler_export: "onHelp",
+      },
       default_for: "bare_onto",
       description: "Show usage and command list.",
       realizations: [
@@ -714,7 +718,11 @@ export const COMMAND_CATALOG: CommandCatalog = {
       kind: "meta",
       name: "version",
       phase: "preboot",
-      cli_dispatch: CLI_HANDLER,
+      // P2-A: meta dispatch decomposition — handler 본문이 meta-handlers.ts 에 거주
+      cli_dispatch: {
+        handler_module: "src/core-runtime/cli/meta-handlers.ts",
+        handler_export: "onVersion",
+      },
       description: "Show onto version.",
       realizations: [
         { kind: "long_flag", invocation: "--version" },

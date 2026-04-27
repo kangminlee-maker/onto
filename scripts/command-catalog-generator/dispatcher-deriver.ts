@@ -47,8 +47,12 @@ import {
   wrapTypeScriptSegmentMarker,
 } from "./marker.js";
 
-/** Bumped when dispatcher emit rules change. Cascade-invalidates the marker. */
-export const DERIVE_SCHEMA_VERSION = "1";
+/** Bumped when dispatcher emit rules change. Cascade-invalidates the marker.
+ * P2-A: 1→2 — meta routing forwards `{ meta_name: target.name }`,
+ * public preboot routing forwards `{ public_invocation: arg }` (Contract A discriminator).
+ * Dead `target === undefined && arg === BARE_ONTO_SENTINEL` branch removed
+ * (NORMALIZED honors `default_for: "bare_onto"` so unreachable). */
+export const DERIVE_SCHEMA_VERSION = "2";
 
 const TARGET_ID = "dispatcher";
 const MARKER_SOURCE_REF = "src/core-runtime/cli/command-catalog.ts";
@@ -155,11 +159,9 @@ export async function dispatch(argv: readonly string[]): Promise<number> {
   const arg = argv[0] ?? BARE_ONTO_SENTINEL;
   const target = NORMALIZED.get(arg);
   if (target === undefined) {
-    if (arg === BARE_ONTO_SENTINEL) {
-      // No default_for=bare_onto in the catalog — fall through to preboot help.
-      const { dispatchPreboot } = await import("./preboot-dispatch.js");
-      return dispatchPreboot(BARE_ONTO_SENTINEL, argv);
-    }
+    // Unknown subcommand — including bare-onto when no MetaEntry has
+    // \`default_for: "bare_onto"\` (catalog-driven default; current catalog
+    // declares help as default so this branch is unreachable for sentinel).
     process.stderr.write(
       \`[onto] Unknown subcommand: "\${arg}". Run \\\`onto --help\\\` for the command list.\\n\`,
     );
@@ -182,16 +184,26 @@ export async function dispatch(argv: readonly string[]): Promise<number> {
     return 1;
   }
   // MetaEntry (help/version) is always preboot by schema; route directly.
-  // For bare-onto sentinel we forward the full argv (already empty by definition).
+  // P2-A: forward routing object \`{ meta_name: target.name }\` (Contract A
+  // discriminator) — chosen meta identity preserved across dispatcher boundary.
+  // For bare-onto sentinel we forward the original argv (already empty by definition).
   if (target.entry_kind === "meta") {
     const { dispatchPreboot } = await import("./preboot-dispatch.js");
-    return dispatchPreboot(arg, arg === BARE_ONTO_SENTINEL ? argv : argv.slice(1));
+    return dispatchPreboot(
+      { meta_name: target.name },
+      arg === BARE_ONTO_SENTINEL ? argv : argv.slice(1),
+    );
   }
   // PublicEntry cli realization — phase derived from PHASE_MAP at emit time.
+  // P2-A: preboot path forwards \`{ public_invocation: arg }\` (Contract A
+  // discriminator). post_boot path delegates to cli.ts main unchanged.
   const phase = PHASE_MAP[arg] ?? "post_boot";
   if (phase === "preboot") {
     const { dispatchPreboot } = await import("./preboot-dispatch.js");
-    return dispatchPreboot(arg, argv.slice(1));
+    return dispatchPreboot(
+      { public_invocation: arg },
+      argv.slice(1),
+    );
   }
   // post_boot — delegate to cli.ts main with full argv (subcommand at front).
   const { main } = await import("../../cli.js");

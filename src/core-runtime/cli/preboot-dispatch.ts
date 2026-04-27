@@ -1,19 +1,17 @@
-// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=0342f42196b6e30536517f8ae56b1fd7c677cb5f8977a075f3a108aaa204c00b
+// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=c86f4897e4730c3a108afbfe73a51c2381c758f8778b597a1f1fee1ee94cc951
 /**
- * Preboot dispatcher — derived artifact (P1-3 emit; bin/onto routes preboot phase here via dispatch()).
+ * Preboot dispatcher — derived artifact (P2-A — RFC-1 §4.1.2 thin shim).
  *
- * Owns MetaEntry handling inline (`--help` / `-h` / bare-`onto` and
- * `--version` / `-v`). Delegates other preboot PublicEntry to cli.ts
- * `main()`, which keeps its existing handler switch and bootstrap logic
- * (Q3(A) — handoff 20260425-phase-1-3-resume.md §5).
+ * Authority seat: this file = production single authority. catalog-derived
+ * static META_DISPATCH_TABLE / PUBLIC_DISPATCH_TABLE baked-in. thin shim —
+ * forwards to underlying `dispatchPrebootCore` (hand-written, catalog-independent).
  *
  * Module load runs `assertPrebootDispatchDeriveHash()` (mirror of dispatcher.ts
  * §3.5 guard) so a stale preboot-dispatch.ts fails fast even if dispatcher.ts
  * itself is current. `ONTO_ALLOW_STALE_DISPATCHER=1` bypass mirrors dispatcher.
  *
- * Imports of cli.ts (`ONTO_HELP_TEXT`, `main`) are dynamic — preboot must
- * not pull cli.ts into the module load graph just to emit a help string
- * (avoids the dependency reversal flagged in P1-3 review UF-DEPENDENCY-PREBOOT-REVERSE-IMPORT).
+ * test seam: `dispatch-preboot-core.test.ts` 가 dispatchPrebootCore 직접 import
+ * + bogus tables 주입 (non-authoritative test hook — RFC-1 §6.1.1).
  *
  * To regenerate: `npm run generate:catalog -- --target=preboot-dispatch`.
  * Direct edits will be overwritten and fail the P1-4 CI drift check.
@@ -26,21 +24,41 @@ import {
   formatBypassWarning,
   formatMismatchError,
 } from "./derive-hash-guard.js";
-import { readOntoVersion } from "../release-channel/release-channel.js";
+import {
+  dispatchPrebootCore,
+  type MetaDispatchTable,
+  type PrebootRouting,
+  type PublicDispatchTable,
+} from "./dispatch-preboot-core.js";
 
-const BARE_ONTO_SENTINEL = "<<bare>>";
-
-const EXPECTED_DERIVE_HASH = "0342f42196b6e30536517f8ae56b1fd7c677cb5f8977a075f3a108aaa204c00b";
-const DERIVE_SCHEMA_VERSION = "1";
+const EXPECTED_DERIVE_HASH = "c86f4897e4730c3a108afbfe73a51c2381c758f8778b597a1f1fee1ee94cc951";
+const DERIVE_SCHEMA_VERSION = "2";
 const TARGET_ID = "preboot-dispatch";
 const BYPASS_ENV_VAR = "ONTO_ALLOW_STALE_DISPATCHER";
 
-/** Cli-backed preboot invocations (catalog-derived at emit time). */
-const PREBOOT_PUBLIC_INVOCATIONS: ReadonlySet<string> = new Set([
-  "config",
-  "info",
-  "install",
-]);
+/** Static dispatch tables — catalog-derived at emit time. */
+const META_DISPATCH_TABLE: MetaDispatchTable = {
+    "help": {
+      handler_module: "src/core-runtime/cli/meta-handlers.ts",
+      handler_export: "onHelp",
+    },
+    "version": {
+      handler_module: "src/core-runtime/cli/meta-handlers.ts",
+      handler_export: "onVersion",
+    },
+  };
+
+const PUBLIC_DISPATCH_TABLE: PublicDispatchTable = {
+    "config": {
+      handler_module: "src/cli.ts",
+    },
+    "info": {
+      handler_module: "src/cli.ts",
+    },
+    "install": {
+      handler_module: "src/cli.ts",
+    },
+  };
 
 function assertPrebootDispatchDeriveHash(): void {
   const actual = computeTargetDeriveHash(TARGET_ID, COMMAND_CATALOG, DERIVE_SCHEMA_VERSION);
@@ -69,33 +87,14 @@ function assertPrebootDispatchDeriveHash(): void {
 
 assertPrebootDispatchDeriveHash();
 
+/**
+ * Thin shim — forwards to dispatchPrebootCore with the static tables.
+ * Production single authority seat (RFC-1 §4.1.2). signature mirrors core.
+ */
 export async function dispatchPreboot(
-  invocation: string,
+  routing: PrebootRouting,
   argv: readonly string[],
 ): Promise<number> {
-  if (
-    invocation === "--help" ||
-    invocation === "-h" ||
-    invocation === BARE_ONTO_SENTINEL
-  ) {
-    // Dynamic import: preboot must not statically depend on cli.ts.
-    const { ONTO_HELP_TEXT } = await import("../../cli.js");
-    console.log(ONTO_HELP_TEXT);
-    return 0;
-  }
-  if (invocation === "--version" || invocation === "-v") {
-    const version = await readOntoVersion();
-    console.log(`onto-core ${version}`);
-    return 0;
-  }
-  if (PREBOOT_PUBLIC_INVOCATIONS.has(invocation)) {
-    // Delegate to cli.ts main with the full forwarded argv (subcommand at front).
-    const { main } = await import("../../cli.js");
-    return main([invocation, ...argv]);
-  }
-  process.stderr.write(
-    `[onto] preboot-dispatch: no handler for invocation "${invocation}".\n`,
-  );
-  return 1;
+  return dispatchPrebootCore(routing, argv, META_DISPATCH_TABLE, PUBLIC_DISPATCH_TABLE);
 }
 // <<< END GENERATED

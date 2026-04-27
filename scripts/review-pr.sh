@@ -14,10 +14,12 @@
 #     have no informational value if user-decided per call; LLM/operator
 #     would just re-derive the same value every time.
 #   - CHOICE (user-controllable): model_id, effort, provider. These
-#     directly affect review *outcome quality* — a higher-quality model
-#     or deeper effort produces a more thorough review at higher cost.
-#     The principal's better-outcome judgment SHOULD be respected per
-#     call. Reverts PR #188 hard-pin over-correction.
+#     affect review behavior along multiple axes — model capability,
+#     reasoning depth (effort: low/medium/high/xhigh), and provider rail
+#     (capability semantics, billing source, runtime authority,
+#     availability). The principal's better-outcome / cost / authority
+#     judgment SHOULD be respected per call. Reverts PR #188 hard-pin
+#     over-correction.
 #
 # Usage:
 #   bash scripts/review-pr.sh [--model <id>] [--effort <level>]
@@ -29,9 +31,17 @@
 #   diverged do not blame each other for mainline drift.
 #
 #   Override priority (high → low):
-#     1. CLI flag       (--model gpt-5.5 / --effort xhigh / --provider codex)
+#     1. CLI flag       (--model <id> / --effort <level> / --provider <name>)
 #     2. env variable   (REVIEW_PR_MODEL / REVIEW_PR_EFFORT / REVIEW_PR_PROVIDER)
-#     3. script default (DEFAULT_* below — codex / gpt-5.4 / high)
+#     3. script default (DEFAULT_PROVIDER / DEFAULT_MODEL_ID /
+#                        DEFAULT_EFFORT below — script body is the single
+#                        source of truth for the actual default values;
+#                        consult there rather than this prose to avoid drift)
+#
+#   Valid --effort values: low | medium | high | xhigh (enforced).
+#   --model and --provider are intentionally free-form so future model_ids
+#   and provider rails can be tried without wrapper edits — empty values are
+#   rejected; YAML emission is escape-safe.
 #
 #   The actual values used are recorded in INTENT (review-record's
 #   intent field, retrospective grep) AND emitted as a STDERR banner
@@ -86,23 +96,47 @@ PROVIDER_OVERRIDE=""
 REF=""
 
 print_help() {
-  sed -n '2,49p' "$0" | sed 's/^#\{0,1\}//'
+  # Print everything from line 2 up to (but not including) the first
+  # `set -euo pipefail` line — that line is the body boundary, so the
+  # header section is whatever precedes it. Dynamic boundary so help
+  # output stays accurate as the header grows; PR #243 round 1 review
+  # C2 fix replaces a fragile hard-coded `2,49p` range.
+  awk 'NR==1 {next} /^set -euo/ {exit} {print}' "$0" | sed 's/^#\{0,1\}//'
   exit 0
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --model)
-      [[ $# -ge 2 ]] || { echo "ERROR: --model requires a value" >&2; exit 2; }
+      [[ $# -ge 2 && -n "$2" ]] || { echo "ERROR: --model requires a non-empty value" >&2; exit 2; }
       MODEL_ID_OVERRIDE="$2"; shift 2;;
     --effort)
-      [[ $# -ge 2 ]] || { echo "ERROR: --effort requires a value" >&2; exit 2; }
+      [[ $# -ge 2 && -n "$2" ]] || { echo "ERROR: --effort requires a non-empty value" >&2; exit 2; }
       EFFORT_OVERRIDE="$2"; shift 2;;
     --provider)
-      [[ $# -ge 2 ]] || { echo "ERROR: --provider requires a value" >&2; exit 2; }
+      [[ $# -ge 2 && -n "$2" ]] || { echo "ERROR: --provider requires a non-empty value" >&2; exit 2; }
       PROVIDER_OVERRIDE="$2"; shift 2;;
     -h|--help) print_help;;
-    --) shift; break;;
+    --)
+      # POSIX end-of-flags marker. Optional positional REF may follow;
+      # extra positionals beyond REF are an error so callers do not
+      # accidentally feed garbage into git ref parsing. PR #243 round 1
+      # review C1 fix (post-`--` arg was previously silently ignored,
+      # producing a misleading default REF=main...HEAD).
+      shift
+      if [[ $# -gt 0 ]]; then
+        [[ -z "${REF}" ]] || {
+          echo "ERROR: REF already set to '${REF}'; got extra positional after '--': '$1'" >&2
+          exit 2
+        }
+        REF="$1"
+        shift
+        [[ $# -eq 0 ]] || {
+          echo "ERROR: extra positional args after '--': $*" >&2
+          exit 2
+        }
+      fi
+      break;;
     -*) echo "ERROR: unknown flag: $1 (see --help)" >&2; exit 2;;
     *)
       [[ -z "${REF}" ]] || { echo "ERROR: REF already set to '${REF}'; got extra positional '$1'" >&2; exit 2; }
@@ -196,17 +230,45 @@ PROVIDER="${PROVIDER_OVERRIDE:-${REVIEW_PR_PROVIDER:-${DEFAULT_PROVIDER}}}"
 MODEL_ID="${MODEL_ID_OVERRIDE:-${REVIEW_PR_MODEL:-${DEFAULT_MODEL_ID}}}"
 EFFORT="${EFFORT_OVERRIDE:-${REVIEW_PR_EFFORT:-${DEFAULT_EFFORT}}}"
 
+# Validate effort against the canonical vocabulary (codex CLI accepts
+# only this set). model/provider are intentionally free-form so future
+# identifiers / provider rails do not require wrapper edits — empty
+# values were already rejected at the flag-parsing site (round 1 CC1).
+# PR #243 round 1 recommendation — make valid effort levels enforced.
+case "$EFFORT" in
+  low|medium|high|xhigh) ;;
+  *)
+    echo "ERROR: invalid effort '$EFFORT' (must be one of: low, medium, high, xhigh)" >&2
+    exit 2
+    ;;
+esac
+
+# YAML-safe scalar emission. PR #243 round 1 review CC1 fix — raw
+# interpolation of user-supplied identifiers into inline YAML can break
+# parsing if a value contains `:`, `"`, `\`, or whitespace edge-cases.
+# Double-quoted scalars + backslash + double-quote escape cover the
+# common cases without pulling in a YAML library for a 6-line emit.
+yaml_quote() {
+  local v="$1"
+  v="${v//\\/\\\\}"
+  v="${v//\"/\\\"}"
+  printf '"%s"' "$v"
+}
+PROVIDER_Q="$(yaml_quote "$PROVIDER")"
+MODEL_ID_Q="$(yaml_quote "$MODEL_ID")"
+EFFORT_Q="$(yaml_quote "$EFFORT")"
+
 cat > "${REVIEW_DIR}/.onto/config.yml" <<EOF
 review:
   teamlead:
     model:
-      provider: ${PROVIDER}
-      model_id: ${MODEL_ID}
-      effort: ${EFFORT}
+      provider: ${PROVIDER_Q}
+      model_id: ${MODEL_ID_Q}
+      effort: ${EFFORT_Q}
   subagent:
-    provider: ${PROVIDER}
-    model_id: ${MODEL_ID}
-    effort: ${EFFORT}
+    provider: ${PROVIDER_Q}
+    model_id: ${MODEL_ID_Q}
+    effort: ${EFFORT_Q}
 review_mode: full
 EOF
 

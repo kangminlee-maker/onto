@@ -52,11 +52,33 @@ export interface DomainRef {
   excerpt: string; // ≤ 100 chars
 }
 
+/**
+ * `proposed_*` field origin enum (review C-PROV-01 — overload disambiguation).
+ *
+ * Step 3 §3.6 r2 C-5 option A: `populate_stage2_rationale` (Hook γ Reviewer)
+ * 이 brand-new intent_inference 를 emit 시 `proposed_by` field 가
+ * `"rationale-reviewer"` 로 set. 즉 `proposed_*` field 는 actor-neutral 한
+ * "최초 generation 시점" 의미 — Hook α 가 generated 시 proposer, Hook γ 가
+ * stage2 신규 entity 에 대해 generated 시 reviewer.
+ *
+ * Field 이름 `proposed_*` 의 misnomer 는 spec backward compat 으로 유지 —
+ * downstream consumer 는 `proposed_by` enum value 로 origin 식별.
+ */
+export type ProposedByOrigin = "rationale-proposer" | "rationale-reviewer";
+
 export interface IntentInferenceProvenance {
-  // session-level provenance (Step 2 §3.6 + Step 1 §4.4)
-  proposed_at: string; // ISO 8601 UTC
-  proposed_by: "rationale-proposer";
-  proposer_contract_version: string; // e.g. "1.0"
+  // ── generation-origin provenance (actor-neutral semantic, review C-PROV-01) ──
+  // proposed_at = 최초 generation 시점 (Hook α emission 또는 Hook γ
+  //               populate_stage2_rationale emission 시점)
+  // proposed_by = generation 의 actor: rationale-proposer (Hook α) 또는
+  //               rationale-reviewer (Hook γ populate_stage2_rationale)
+  // proposer_contract_version = origin actor 의 contract version 의 value.
+  //               name 의 misnomer 는 backward compat 으로 유지 — origin
+  //               식별은 proposed_by 로.
+  // 본 3 field 의 actor-neutral 해석은 Step 3 §3.6 r2 C-5 option A canonical.
+  proposed_at: string; // ISO 8601 UTC — generation 시점
+  proposed_by: ProposedByOrigin;
+  proposer_contract_version: string; // origin actor 의 contract version
   manifest_schema_version: string;
   domain_manifest_version: string;
   domain_manifest_hash: string; // version_hash

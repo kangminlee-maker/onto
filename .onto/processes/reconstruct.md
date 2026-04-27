@@ -977,7 +977,7 @@ patch:
 The ontology is updated each round at `{project}/.onto/builds/{session ID}/wip.yml`.
 Delta originals are saved at `{project}/.onto/builds/{session ID}/deltas/d-{round}-{seq}.yml`.
 
-<!-- runtime-mirror-of: step-2-protocol §6.2 §6.3 §6.3.1 + step-3-protocol §6.2 §6.3 + step-4-integration §3.6 §4.3 -->
+<!-- runtime-mirror-of: step-2-rationale-proposer §6.2 §6.3 §6.3.1 + step-3-rationale-reviewer §6.2 §6.3 + step-4-integration §3.6 §4.3 -->
 
 ```yaml
 # wip.yml — updated each round

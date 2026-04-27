@@ -20,7 +20,7 @@ LLM agent 호출을 대신.
 | W-ID | scope | 책임 module |
 |---|---|---|
 | W-A-101 | wip.yml schema mirror — Step 1 §4 + Step 2/3/4 wip 변경 통합. authority seat (`reconstruct.md §wip.yml schema`) update | (no new runtime module — type-only) |
-| W-A-102 | mirror marker final coherence — `canonical-mirror-of` (W-A-80~87) + `runtime-mirror-of` (W-A-88~104) 양 scope cross-cutting verify | (audit pass, no runtime change) |
+| W-A-102 | mirror marker final coherence — `canonical-mirror-of` (W-A-80~87) + `runtime-mirror-of` (W-A-88~104) 양 scope cross-cutting verify | (audit + 1 fix: W-A-101 marker prefix `step-{2,3}-protocol` → `step-{2,3}-rationale-{proposer,reviewer}` 정합. INTEGRATION.md 는 integration narrative — marker 의무 없음 명시) |
 | W-A-103 | dogfood off switches — `.onto/config.yml` reconstruct dogfood disable. §14.6 4 점 (off 가능 / 들어내기 / govern friendly / 본질 ≠ dogfood) 검증 | config schema |
 | **W-A-104** | **E2E smoke** — full v1 cycle: `onto domain init` (W-A-95/96) → reconstruct (Hook α/γ/δ) → Phase 3 → Phase 3.5 → raw.yml save. **Runtime Coordinator 의 production wiring 이 본 W-ID 안에서 자리잡음.** mock LLM dispatcher 로 actual prompt 호출 회피, runtime flow 만 검증 | new E2E test module + Coordinator wiring |
 

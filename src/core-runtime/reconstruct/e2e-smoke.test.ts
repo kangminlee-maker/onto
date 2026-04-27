@@ -5,13 +5,20 @@
 // (Proposer / Reviewer) replace actual prompt invocations; runtime flow
 // (state transitions + invariants) is the only thing under test.
 //
-// 3 cycle:
+// 9 cycle (r1: 3 → r2 +6 = 9, codex review fix-up coverage 확장):
 //   1. happy path (v1 mode, all 3 dogfood switches ON)
 //   2. v0 fallback (all switches OFF — §14.6 invariant 1 검증)
 //   3. dependency invariant violation (phase3_rationale_review on while
 //      v1_inference off — §8.3 inter-switch consistency 검증)
+//   4. action variation — reject / modify / defer (reviewed source)
+//   5. source-state variation — gap / domain_pack_incomplete / domain_scope_miss
+//      × provide_rationale / mark_acceptable_gap / accept / override
+//   6. global_reply == "see below" (sweep skip + batch_actions cover-all)
+//   7. invalid input — phase_3_5_input_invalid / phase_3_5_input_incomplete
+//   8. §14.6 invariant 2 (들어내기 용이) — switch off 시 hook 호출 0회 (spy)
+//   9. §14.6 invariant 3 (govern reader 친화) — meta-only audit query 5종
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   RECONSTRUCT_DOGFOOD_DEFAULTS,
   checkSwitchInvariants,
@@ -28,8 +35,10 @@ import {
 import { runHookGamma } from "./hook-gamma.js";
 import { runHookDelta, type PendingElement } from "./hook-delta.js";
 import {
+  actionToTerminal,
   type Phase3UserResponses,
   runPhase35,
+  validatePhase35Input,
 } from "./phase-3-5-runtime.js";
 import { buildPhase3SnapshotDocument } from "./phase3-snapshot-write.js";
 import type { ProposerDirective } from "./proposer-directive-types.js";
@@ -523,6 +532,318 @@ describe("§14.6 invariant 4점 — cycle-level verification", () => {
     };
     expect(validateRawMetaInvariants(metaWithRecovery, null).ok).toBe(true);
     expect(validateRawMetaInvariants(metaWithout, null).ok).toBe(true);
+  });
+});
+
+// =============================================================================
+// Cycle 4 — action variation (reject / modify / defer on reviewed source)
+// =============================================================================
+
+describe("E2E smoke — Cycle 4: action variation (reject / modify / defer)", () => {
+  it("runPhase35 applies reject / modify / defer to reviewed elements", () => {
+    const inferences = buildPostGammaInferences();
+    const responses: Phase3UserResponses = {
+      received_at: FIXED_NOW.toISOString(),
+      global_reply: "confirmed",
+      rationale_decisions: [
+        { element_id: "E1", action: "reject", decided_at: FIXED_NOW.toISOString() },
+        {
+          element_id: "E2",
+          action: "modify",
+          principal_provided_rationale: {
+            inferred_meaning: "revised meaning",
+            justification: "principal-provided",
+          },
+          decided_at: FIXED_NOW.toISOString(),
+        },
+        { element_id: "E3", action: "defer", decided_at: FIXED_NOW.toISOString() },
+      ],
+      batch_actions: [],
+    };
+    const snapshot = buildPhase3SnapshotDocument({
+      session_id: SESSION_ID,
+      written_at: FIXED_NOW.toISOString(),
+      intentInferences: inferences,
+    });
+    const result = runPhase35({
+      responses,
+      currentInferences: inferences,
+      judgedAt: FIXED_NOW.toISOString(),
+      snapshot,
+      renderedElementIds: new Set(["E1", "E2", "E3"]),
+      throttledOutAddressableIds: new Set(),
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.elementUpdates.get("E1")?.rationale_state).toBe("principal_rejected");
+    expect(result.elementUpdates.get("E2")?.rationale_state).toBe("principal_modified");
+    // applyToElement (modify) overwrites inferred_meaning + justification —
+    // implementation 은 element-level `principal_provided_rationale` field 를
+    // 별도 persist 하지 않고 inferred_meaning/justification 에 overwrite.
+    // Step 4 §3.6.1 canonical seat (`element-level principal_provided_rationale`)
+    // 와의 partial drift — backlog finding, 본 cycle 은 implementation 동작 검증.
+    expect(result.elementUpdates.get("E2")?.inferred_meaning).toBe("revised meaning");
+    expect(result.elementUpdates.get("E2")?.justification).toBe("principal-provided");
+    expect(result.elementUpdates.get("E3")?.rationale_state).toBe("principal_deferred");
+  });
+});
+
+// =============================================================================
+// Cycle 5 — source-state variation (gap / scope_miss / pack_incomplete actions)
+// =============================================================================
+
+describe("E2E smoke — Cycle 5: source-state × action matrix (Step 4 §3.1)", () => {
+  it.each([
+    ["gap", "provide_rationale", "principal_modified"],
+    ["gap", "mark_acceptable_gap", "principal_accepted_gap"],
+    ["domain_scope_miss", "accept", "principal_confirmed_scope_miss"],
+    ["domain_scope_miss", "override", "principal_modified"],
+    ["domain_pack_incomplete", "provide_rationale", "principal_modified"],
+    ["domain_pack_incomplete", "mark_acceptable_gap", "principal_accepted_gap"],
+    ["empty", "provide_rationale", "principal_modified"],
+    ["empty", "mark_acceptable_gap", "principal_accepted_gap"],
+  ] as const)("actionToTerminal(%s, %s) = %s", (source, action, expected) => {
+    expect(actionToTerminal(action, source)).toBe(expected);
+  });
+
+  it.each([
+    ["reviewed", "override"],
+    ["proposed", "override"],
+    ["domain_scope_miss", "modify"],
+    ["domain_scope_miss", "reject"],
+  ] as const)("actionToTerminal(%s, %s) = null (invalid combo)", (source, action) => {
+    expect(actionToTerminal(action, source)).toBeNull();
+  });
+});
+
+// =============================================================================
+// Cycle 6 — global_reply == "see below" (sweep skip + batch cover-all)
+// =============================================================================
+
+describe(`E2E smoke — Cycle 6: global_reply == "see below" + batch action cover-all`, () => {
+  it("batch_actions cover all 3 reviewed → principal_accepted, no carry_forward", () => {
+    const inferences = buildPostGammaInferences();
+    const responses: Phase3UserResponses = {
+      received_at: FIXED_NOW.toISOString(),
+      global_reply: "see below",
+      rationale_decisions: [],
+      batch_actions: [
+        {
+          action: "accept",
+          target_group: {
+            kind: "rationale_state",
+            rationale_state: "reviewed",
+          },
+          target_element_ids: ["E1", "E2", "E3"],
+          decided_at: FIXED_NOW.toISOString(),
+        },
+      ],
+    };
+    const snapshot = buildPhase3SnapshotDocument({
+      session_id: SESSION_ID,
+      written_at: FIXED_NOW.toISOString(),
+      intentInferences: inferences,
+    });
+    const result = runPhase35({
+      responses,
+      currentInferences: inferences,
+      judgedAt: FIXED_NOW.toISOString(),
+      snapshot,
+      renderedElementIds: new Set(["E1", "E2", "E3"]),
+      throttledOutAddressableIds: new Set(),
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    for (const id of ["E1", "E2", "E3"]) {
+      expect(result.elementUpdates.get(id)?.rationale_state).toBe("principal_accepted");
+      // sweep skipped → no carry_forward_from
+      expect(result.elementUpdates.get(id)?.provenance.carry_forward_from).toBeFalsy();
+    }
+  });
+});
+
+// =============================================================================
+// Cycle 7 — invalid input rejection (phase_3_5_input_*)
+// =============================================================================
+
+describe("E2E smoke — Cycle 7: validatePhase35Input rejects invalid input", () => {
+  it("empty element_id → phase_3_5_input_invalid", () => {
+    const inferences = buildPostGammaInferences();
+    const responses: Phase3UserResponses = {
+      received_at: FIXED_NOW.toISOString(),
+      global_reply: "confirmed",
+      rationale_decisions: [
+        { element_id: "", action: "accept", decided_at: FIXED_NOW.toISOString() },
+      ],
+      batch_actions: [],
+    };
+    const snapshot = buildPhase3SnapshotDocument({
+      session_id: SESSION_ID,
+      written_at: FIXED_NOW.toISOString(),
+      intentInferences: inferences,
+    });
+    const result = validatePhase35Input({
+      responses,
+      currentInferences: inferences,
+      snapshot,
+      renderedElementIds: new Set(["E1", "E2", "E3"]),
+      throttledOutAddressableIds: new Set(),
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("phase_3_5_input_invalid");
+  });
+
+  // implementation 은 see-below check 를 *throttledOutAddressableIds 에 들어 있는*
+  // element 의 미address 만 잡는다 (phase-3-5-runtime.ts validatePhase35Input
+  // §3.6 see-below block). Step 4 §3.6 r4 spec ("모든 pending 미address 면
+  // incomplete") 과의 partial drift — implementation 은 throttled-out scope
+  // 만 검증. 본 cycle 은 implementation 의 동작 (throttled-out 미address) 을 검증
+  // 하고, 전체 pending unaddressed 의 incomplete trigger 는 backlog finding.
+  it(`see-below + unaddressed throttled-out element → phase_3_5_input_incomplete`, () => {
+    const inferences = buildPostGammaInferences();
+    const responses: Phase3UserResponses = {
+      received_at: FIXED_NOW.toISOString(),
+      global_reply: "see below",
+      rationale_decisions: [
+        { element_id: "E1", action: "accept", decided_at: FIXED_NOW.toISOString() },
+        // E2 throttled_out + addressable 인데 미 address → incomplete
+      ],
+      batch_actions: [],
+    };
+    const snapshot = buildPhase3SnapshotDocument({
+      session_id: SESSION_ID,
+      written_at: FIXED_NOW.toISOString(),
+      intentInferences: inferences,
+    });
+    const result = validatePhase35Input({
+      responses,
+      currentInferences: inferences,
+      snapshot,
+      renderedElementIds: new Set(["E1", "E2", "E3"]),
+      throttledOutAddressableIds: new Set(["E2"]),
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("phase_3_5_input_incomplete");
+  });
+});
+
+// =============================================================================
+// Cycle 8 — §14.6 invariant 2 (들어내기 용이): switch off → hook 호출 0회
+// =============================================================================
+
+describe("E2E smoke — Cycle 8: §14.6 invariant 2 (switch off → hook 호출 0회 spy)", () => {
+  it("inference_mode=none + Hook α: spawnProposer NEVER called", async () => {
+    const proposerSpy = vi.fn(async () => {
+      throw new Error("must not be called");
+    });
+    const result = await runHookAlpha(
+      {
+        meta: {
+          stage_transition_state: "pre_alpha",
+          stage_transition_retry_count: 0,
+          inference_mode: "none",
+          stage: 1,
+        },
+        entityList: makeStage1Entities(),
+        manifest: makeManifest(),
+        injectedFiles: [],
+        sessionId: SESSION_ID,
+        runtimeVersion: RUNTIME_VERSION,
+        proposerContractVersion: PROPOSER_CONTRACT_VERSION,
+      },
+      {
+        spawnProposer: proposerSpy,
+        now: () => FIXED_NOW,
+        systemPurpose: "invariant-2",
+      },
+    );
+    expect(result.kind).toBe("skipped");
+    expect(proposerSpy).toHaveBeenCalledTimes(0);
+  });
+
+  it("alpha_skipped propagates → Hook γ: spawnReviewer NEVER called", async () => {
+    const reviewerSpy = vi.fn(async () => {
+      throw new Error("must not be called");
+    });
+    const result = await runHookGamma(
+      {
+        meta: {
+          step2c_review_state: "pre_gamma",
+          step2c_review_retry_count: 0,
+          inference_mode: "none",
+          stage_transition_state: "alpha_skipped",
+        },
+        elementInferences: new Map(),
+        manifest: {
+          manifest_schema_version: "1.0",
+          domain_manifest_version: "1.0.0",
+          version_hash: "noop",
+          quality_tier: "full",
+          referenced_files: [],
+        },
+        injectedFiles: [],
+        wipSnapshotHash: "noop",
+        domainFilesContentHash: "noop",
+      },
+      { spawnReviewer: reviewerSpy },
+    );
+    expect(result.kind).toBe("skipped");
+    expect(reviewerSpy).toHaveBeenCalledTimes(0);
+  });
+});
+
+// =============================================================================
+// Cycle 9 — §14.6 invariant 3 (govern reader 친화): meta-only audit query 5종
+// =============================================================================
+
+describe("E2E smoke — Cycle 9: §14.6 invariant 3 (govern reader 가 meta block 만으로 audit)", () => {
+  // govern reader 가 raw.yml.meta 한 block 만으로 5 가지 audit 질문에 답할 수
+  // 있어야 한다 — element-level intent_inference block 부재 / 존재 모두에서
+  // distinguish 가능. 본 cycle 은 meta block 의 *self-contained audit surface*
+  // 를 검증.
+
+  it("audit Q1: v0 vs v1 mode (inference_mode)", () => {
+    expect(buildV0RawMeta().inference_mode).toBe("none");
+    expect(buildHappyPathRawMeta().inference_mode).toBe("full");
+  });
+
+  it("audit Q2: manifest semver discontinuity (recovery_from_malformed)", () => {
+    const recovered: RawMetaExtensionsV1 = {
+      ...buildV0RawMeta(),
+      manifest_recovery_from_malformed: true,
+    };
+    expect(recovered.manifest_recovery_from_malformed).toBe(true);
+    expect(buildHappyPathRawMeta().manifest_recovery_from_malformed).toBe(false);
+  });
+
+  it("audit Q3: reviewer degraded path (rationale_review_degraded)", () => {
+    const degraded: RawMetaExtensionsV1 = {
+      ...buildHappyPathRawMeta(),
+      rationale_review_degraded: true,
+      rationale_reviewer_failures_streak: 2,
+    };
+    expect(degraded.rationale_review_degraded).toBe(true);
+    expect(degraded.rationale_reviewer_failures_streak).toBe(2);
+  });
+
+  it("audit Q4: domain pack quality tier (domain_quality_tier)", () => {
+    expect(buildHappyPathRawMeta().domain_quality_tier).toBe("full");
+    const partial: RawMetaExtensionsV1 = {
+      ...buildHappyPathRawMeta(),
+      degraded_reason: "pack_optional_missing",
+      inference_mode: "degraded",
+      domain_quality_tier: "partial",
+    };
+    expect(validateRawMetaInvariants(partial, "partial").ok).toBe(true);
+  });
+
+  it("audit Q5: manifest version + hash trace", () => {
+    const meta = buildHappyPathRawMeta();
+    expect(meta.domain_manifest_version).toBe("1.0.0");
+    expect(meta.domain_manifest_hash).toMatch(/^deadbeef/);
+    expect(meta.manifest_schema_version).toBe("1.0");
   });
 });
 

@@ -169,12 +169,49 @@ describe("dispatchPrebootCore — Layer 1 defense + Contract C", () => {
       );
       expect(code).toBe(0);
       // onHelp prints ONTO_HELP_TEXT — should contain Subcommands.
-      expect(stdoutCapture.join("")).toContain("Subcommands:");
+      const out = stdoutCapture.join("");
+      expect(out).toContain("Subcommands:");
+      // R2-§8-PR-1: default view excludes deprecated rows.
+      expect(out).not.toContain("[DEPRECATED");
     } finally {
       stdoutSpy.mockRestore();
       consoleSpy.mockRestore();
     }
     // Suppress unused-var TS warning for captured.
     void captured;
+  });
+
+  // R2-§8-PR-1 — `--include-deprecated` modifier opts into the all-view.
+  it("meta_name=help with --include-deprecated → ONTO_HELP_TEXT_ALL (deprecated rows shown)", async () => {
+    const stdoutCapture: string[] = [];
+    const stdoutSpy = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation((chunk: unknown) => {
+        stdoutCapture.push(String(chunk));
+        return true;
+      });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation((m) => {
+      stdoutCapture.push(String(m));
+    });
+    try {
+      const code = await dispatchPrebootCore(
+        { meta_name: "help" },
+        ["--include-deprecated"],
+        {
+          help: {
+            handler_module: "src/core-runtime/cli/meta-handlers.ts",
+            handler_export: "onHelp",
+          },
+        },
+        {},
+      );
+      expect(code).toBe(0);
+      const out = stdoutCapture.join("");
+      expect(out).toContain("Subcommands:");
+      expect(out).toContain("[DEPRECATED");
+    } finally {
+      stdoutSpy.mockRestore();
+      consoleSpy.mockRestore();
+    }
   });
 });

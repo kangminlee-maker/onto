@@ -45,8 +45,17 @@ const STATIC_HEADER: readonly string[] = [
   "Subcommands:",
 ];
 
-/** Static suffix block. Options/Installation sections are not catalog-derived. */
-const STATIC_FOOTER: readonly string[] = [
+/**
+ * Static suffix blocks. Options/Installation sections are not catalog-derived.
+ *
+ * The footer is view-conditional (R2-§8-PR-1): the default view advertises
+ * `--include-deprecated` so users can discover the flag, while the all-view
+ * (already showing deprecated rows) omits the redundant advertisement. The
+ * `--help, -h` line itself stays view-agnostic — it tells the same story in
+ * either view, so we never have to claim "active subcommands only" while
+ * deprecated rows are visibly present.
+ */
+const STATIC_FOOTER_OPTIONS_HEAD: readonly string[] = [
   "",
   "Options:",
   "  --onto-home <path>         Override onto installation directory",
@@ -55,6 +64,13 @@ const STATIC_FOOTER: readonly string[] = [
   "  --allow-onto-init          Allow .onto/ creation in new projects (non-interactive)",
   "  --version, -v              Show version",
   "  --help, -h                 Show this help",
+];
+
+/** Default-view-only flag advertisement (R2-§8-PR-1). */
+const FLAG_LINE_INCLUDE_DEPRECATED =
+  "  --include-deprecated       With --help: also list deprecated subcommands";
+
+const STATIC_FOOTER_INSTALL: readonly string[] = [
   "",
   "Installation:",
   "  npm install -g onto-core   Global install (onto command everywhere)",
@@ -87,35 +103,77 @@ function formatSubcommandLine(entry: PublicEntry, cliInvocation: string): string
   return `  ${padded}${deprecation}${entry.description}`;
 }
 
+export type BuildHelpOptions = {
+  /**
+   * Include deprecated PublicCliEntry rows. Default `false` — `bin/onto --help`
+   * shows only active subcommands; `bin/onto --help --include-deprecated`
+   * (R2-§8-PR-1) opts in to seeing deprecated rows with their `[DEPRECATED ...]`
+   * marker.
+   */
+  includeDeprecated?: boolean;
+};
+
 /** Build the subcommand block (catalog-derived). */
-export function buildSubcommandLines(catalog: CommandCatalog): string[] {
+export function buildSubcommandLines(
+  catalog: CommandCatalog,
+  opts: BuildHelpOptions = {},
+): string[] {
+  const includeDeprecated = opts.includeDeprecated ?? false;
   const out: string[] = [];
   for (const entry of catalog.entries) {
     if (entry.kind !== "public") continue;
     const cli = pickCliRealization(entry);
     if (cli === undefined) continue; // slash-only entries not in `onto` CLI
+    if (!includeDeprecated && entry.deprecated_since !== undefined) continue;
     out.push(formatSubcommandLine(entry, cli.invocation));
   }
   return out;
 }
 
-export function buildHelpLines(catalog: CommandCatalog): string[] {
-  return [...STATIC_HEADER, ...buildSubcommandLines(catalog), ...STATIC_FOOTER];
+function buildStaticFooter(opts: BuildHelpOptions): string[] {
+  const includeDeprecated = opts.includeDeprecated ?? false;
+  return [
+    ...STATIC_FOOTER_OPTIONS_HEAD,
+    // All-view already shows deprecated rows — the flag advertisement is
+    // redundant noise. Default view keeps it for discoverability.
+    ...(includeDeprecated ? [] : [FLAG_LINE_INCLUDE_DEPRECATED]),
+    ...STATIC_FOOTER_INSTALL,
+  ];
+}
+
+export function buildHelpLines(
+  catalog: CommandCatalog,
+  opts: BuildHelpOptions = {},
+): string[] {
+  return [
+    ...STATIC_HEADER,
+    ...buildSubcommandLines(catalog, opts),
+    ...buildStaticFooter(opts),
+  ];
 }
 
 /**
- * Render the segment body (a TS const declaration). Each help line is
- * JSON-stringified to handle quotes / backslashes safely.
+ * Render the segment body — emits two TS const declarations:
+ *   - `ONTO_HELP_TEXT`     — default view (deprecated subcommands hidden)
+ *   - `ONTO_HELP_TEXT_ALL` — `--include-deprecated` view (all subcommands)
  *
- * The const is `export`ed (P1-3) so `preboot-dispatch.ts` can import it
- * when the catalog-derived dispatcher routes `--help`/`-h`/bare-onto to
- * the preboot path. Direct invocation of cli.ts continues to use
- * ONTO_HELP_TEXT locally as well.
+ * Both are `export`ed so `preboot-dispatch.ts` (via `meta-handlers.onHelp`)
+ * and direct `cli.ts:main` invocation can pick the right one based on argv.
+ * Each help line is JSON-stringified to handle quotes / backslashes safely.
  */
 export function renderHelpSegmentBody(catalog: CommandCatalog): string {
-  const lines = buildHelpLines(catalog);
-  const arrayLiterals = lines.map((line) => `  ${JSON.stringify(line)},`).join("\n");
-  return `export const ONTO_HELP_TEXT = [\n${arrayLiterals}\n].join("\\n");\n`;
+  const renderConst = (name: string, lines: readonly string[]): string => {
+    const arrayLiterals = lines
+      .map((line) => `  ${JSON.stringify(line)},`)
+      .join("\n");
+    return `export const ${name} = [\n${arrayLiterals}\n].join("\\n");\n`;
+  };
+  const linesDefault = buildHelpLines(catalog);
+  const linesAll = buildHelpLines(catalog, { includeDeprecated: true });
+  return (
+    renderConst("ONTO_HELP_TEXT", linesDefault) +
+    renderConst("ONTO_HELP_TEXT_ALL", linesAll)
+  );
 }
 
 export function deriveCliHelpSegment(catalog: CommandCatalog): string {

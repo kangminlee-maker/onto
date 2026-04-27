@@ -73,6 +73,24 @@ describe("dispatcher smoke (P1-3)", () => {
     expect(r.stdout).toContain("review");
   });
 
+  // R2-§8-PR-1 — production path (bin/onto → dispatcher → preboot-dispatch
+  // → meta-handlers.onHelp) for the deprecated-row filter. Default view
+  // hides deprecated rows + advertises the flag in the footer.
+  it("bin/onto --help → no [DEPRECATED] rows by default (R2-§8-PR-1)", () => {
+    const r = runOnto(["--help"]);
+    expect(r.status).toBe(0);
+    expect(r.stdout).not.toContain("[DEPRECATED");
+    expect(r.stdout).toContain("--include-deprecated");
+  });
+
+  it("bin/onto --help --include-deprecated → [DEPRECATED] rows shown (R2-§8-PR-1)", () => {
+    const r = runOnto(["--help", "--include-deprecated"]);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("[DEPRECATED");
+    // All-view footer omits the now-redundant flag advertisement.
+    expect(r.stdout).not.toMatch(/--include-deprecated\s+With --help/);
+  });
+
   it("bin/onto -h → same as --help (short flag)", () => {
     const r = runOnto(["-h"]);
     expect(r.status).toBe(0);

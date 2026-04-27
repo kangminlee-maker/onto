@@ -29,14 +29,22 @@
 
 /**
  * Help meta dispatch — prints catalog-derived help text and exits 0.
- * argv 는 사용 안 함 (현재 RFC scope) — extra flag 는 향후 확장.
+ *
+ * argv contract: tail argv (RFC-1 §4.1.2.1 Contract A) — empty for bare meta
+ * invocation (`bin/onto --help`), or flag list for modifiers
+ * (`bin/onto --help --include-deprecated`).
+ *
+ * R2-§8-PR-1: `--include-deprecated` switches to the all-view const
+ * (`ONTO_HELP_TEXT_ALL`) which includes deprecated PublicCliEntry rows with
+ * their `[DEPRECATED ...]` marker. Default is the active-only view.
  */
-export async function onHelp(_argv: readonly string[]): Promise<number> {
+export async function onHelp(argv: readonly string[]): Promise<number> {
   // ONTO_HELP_TEXT 의 cli.ts 외부 추출은 future seam (§11) — 본 RFC 에서는
   // cli.ts 의 const 그대로 access. dynamic import 로 cli.ts module evaluation
   // 발생하지만 production seat 의 single authority 는 유지.
-  const { ONTO_HELP_TEXT } = await import("../../cli.js");
-  console.log(ONTO_HELP_TEXT);
+  const { ONTO_HELP_TEXT, ONTO_HELP_TEXT_ALL } = await import("../../cli.js");
+  const includeDeprecated = argv.some((a) => a === "--include-deprecated");
+  console.log(includeDeprecated ? ONTO_HELP_TEXT_ALL : ONTO_HELP_TEXT);
   return 0;
 }
 

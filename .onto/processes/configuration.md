@@ -373,6 +373,29 @@ reconstruct:
 
 Runtime impl: `src/core-runtime/reconstruct/dogfood-switches.ts` (loader + dependency invariant check). W-A-104 E2E smoke 가 4점 invariant 를 cycle 단위로 검증.
 
+#### Review fix-up notes (PR #232 r1)
+
+**(a) `{enabled: boolean}` wrapper shape rationale (conciseness lens)**:
+- 각 switch 는 plain `boolean` 이 아닌 `{enabled: boolean}` object 로 표현. 의도된 future-extensibility — v1.1+ 에 per-switch metadata (예: `allowed_overrides`, `requires_confirmation`, `audit_log_seat`) 를 같은 object 안에 추가 가능
+- plain boolean 으로 reduce 시 첫 metadata 추가에서 schema break 발생 → wrapper 는 SDK forward-compat seat
+
+**(b) `write_intent_inference_to_raw_yml=false` 의 omit semantic (pragmatics lens)**:
+- 본 switch 가 `false` 일 때 raw.yml 의 `elements[].intent_inference` block 은 omit
+- govern reader 가 *v0 fallback* 과 *v1 mode 의 write 억제* 를 구별하는 path:
+  - `meta.inference_mode == "none"` + `intent_inference` block 부재 → **v0 fallback** (Step 4 §4.3 omit semantic, full v0 path)
+  - `meta.inference_mode ∈ {full, degraded}` + `intent_inference` block 부재 → **v1 mode 의 write 억제** (`write_intent_inference_to_raw_yml=false` 적용 결과 — wip 에는 v1 data 가 있지만 raw 에 미작성)
+- 즉 두 case 의 distinction 은 `meta.inference_mode` field 가 single source. 별도 `omit_reason` field 는 추가하지 않음 (W-A-94 raw-meta-extended-schema 의 minimal-add 원칙 보존)
+
+**(c) Silent default v1 semantic (evolution lens)**:
+- `reconstruct:` config block 부재 시 loader 는 **default v1 mode ON** 으로 fall-through (메모리 leak 방지 + dogfood self-application 자연성)
+- v0 products 가 v1 을 avoid 해야 한다면 *부재에 의존하지 말고* 위 v0 fallback block 을 explicit 선언 권장 — migration touch point 의 ambiguity 해소
+- v1.1 backlog: `reconstruct.config_required: bool` switch 도입 시 부재를 fail-explicit 으로 전환 가능 (migration window 종료 후)
+
+**(d) Production wiring gap 의도된 deferral (structure + dependency lens, 9/9 consensus)**:
+- 현 stage 에서 `loadReconstructDogfoodSwitches()` + `checkSwitchInvariants()` 는 helper 만 — production Runtime Coordinator 에 `.onto/config.yml` read + invariant rejection edge 가 wire 되지 않은 상태
+- W-A-104 의 mock dispatcher 패턴이 *wiring contract 의 spec* 정의 (test = production wire shape 의 contract)
+- 실제 Coordinator class / bootstrap path 의 wire 작업은 Track B 다음 commit 묶음 (또는 reconstruct v1 production 진입 시점) 에서 별도 scope. backlog 명시
+
 ## 5. 사용 예시 — 시나리오별 minimum config
 
 ### 5.1 Claude Code 세션 (권장 기본)

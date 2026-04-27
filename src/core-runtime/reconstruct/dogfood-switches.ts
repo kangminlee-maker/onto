@@ -53,8 +53,29 @@ export type SwitchInvariantResult = SwitchInvariantOk | SwitchInvariantFailed;
 /**
  * Load dogfood switches from raw `.onto/config.yml` `reconstruct:` block.
  *
- * Missing fields fall back to defaults. Any provided value is type-coerced to
- * boolean — non-boolean values throw (caller must validate config shape upstream).
+ * Behavior contract (review fix-up — logic lens consensus):
+ *   - Missing fields (entire block, individual switch entry, or `enabled` sub-key)
+ *     fall back to RECONSTRUCT_DOGFOOD_DEFAULTS (v1 mode ON).
+ *   - Provided values must be the exact expected shape:
+ *       root: object (not array, not scalar) — non-object root throws TypeError.
+ *       switch entry: object containing optional `enabled` boolean.
+ *       `enabled`: boolean — non-boolean values throw TypeError (NO implicit
+ *       coercion). Callers feeding raw YAML must validate the boolean shape
+ *       upstream or accept the throw as a config shape error.
+ *
+ * Wrapper shape rationale (review fix-up — conciseness lens):
+ *   - Each switch is `{ enabled: boolean }` rather than plain `boolean` to
+ *     reserve the same object as a future-extensible seat for v1.1+ per-switch
+ *     metadata (e.g. `allowed_overrides`, `requires_confirmation`, `audit_log_seat`).
+ *     Reducing to plain boolean would require a schema break on first such
+ *     extension; the wrapper is intentional SDK forward-compat.
+ *
+ * Silent-default semantic (review fix-up — evolution lens):
+ *   - Absent `reconstruct:` config block defaults to v1 mode ON (this loader's
+ *     primary fall-through path). v0 products that must avoid v1 should declare
+ *     the v0 fallback block explicitly in `.onto/config.yml` rather than rely
+ *     on absence. A v1.1 backlog item (`reconstruct.config_required: bool`)
+ *     can flip absence to fail-explicit when the migration window closes.
  */
 export function loadReconstructDogfoodSwitches(
   raw: unknown,

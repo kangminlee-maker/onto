@@ -41,6 +41,7 @@ export const EXCLUDED_PACKAGE_SCRIPTS: readonly string[] = [
   "generate:catalog",
   "check:catalog-drift",
   "check:handler-exports",
+  "check:contract-refs",
   "test:e2e",
   "test:e2e:promote",
   "test:e2e:start-review-session",

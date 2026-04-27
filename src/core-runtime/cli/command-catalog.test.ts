@@ -17,6 +17,7 @@ import {
 } from "./command-catalog.js";
 import {
   assertCatalogVersionSupported,
+  assertContractRefsExist,
   assertDeprecationLifecycle,
   assertDocTemplateIdUnique,
   assertEntryRealizationsNonEmpty,
@@ -1336,5 +1337,109 @@ describe("COMMAND_CATALOG (R2-PR-3 schema split)", () => {
         expect("phase" in e).toBe(true);
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// R2-PR-4 (RFC-2 §4.5): contract_ref shared validator
+// ---------------------------------------------------------------------------
+
+describe("assertContractRefsExist (R2-PR-4 shared validator)", () => {
+  it("happy: all contract_ref valid → pass", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "x",
+        phase: "post_boot",
+        doc_template_id: "x",
+        description: "x",
+        contract_ref: ".onto/processes/x.md",
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "x",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+    ]);
+    expect(() =>
+      assertContractRefsExist(catalog, () => true),
+    ).not.toThrow();
+  });
+  it("broken: contract_ref missing → throw with entry identity + path", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "x",
+        phase: "post_boot",
+        doc_template_id: "x",
+        description: "x",
+        contract_ref: ".onto/processes/missing.md",
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "x",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+    ]);
+    expect(() =>
+      assertContractRefsExist(catalog, () => false),
+    ).toThrow(/PublicEntry "x".*\.onto\/processes\/missing\.md.*does not exist/s);
+  });
+  it("multiple broken: all listed in error", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "x",
+        phase: "post_boot",
+        doc_template_id: "x",
+        description: "x",
+        contract_ref: ".onto/processes/x.md",
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "x",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+      {
+        kind: "public",
+        identity: "y",
+        phase: "post_boot",
+        doc_template_id: "y",
+        description: "y",
+        contract_ref: ".onto/processes/y.md",
+        realizations: [
+          {
+            kind: "cli",
+            invocation: "y",
+            cli_dispatch: { handler_module: "src/cli.ts" },
+          },
+        ],
+      },
+    ]);
+    expect(() =>
+      assertContractRefsExist(catalog, () => false),
+    ).toThrow(/2 broken reference\(s\).*"x".*"y"/s);
+  });
+  it("no contract_ref → skip (no throw)", () => {
+    const catalog = makeCatalog([cliEntry({ identity: "x" })]);
+    expect(() =>
+      assertContractRefsExist(catalog, () => false),
+    ).not.toThrow();
+  });
+  it("real catalog — all contract_ref files exist", async () => {
+    // canonical real-fs invocation (matches scripts/check-contract-refs.ts)
+    const fs = await import("node:fs");
+    const pathMod = await import("node:path");
+    expect(() =>
+      assertContractRefsExist(COMMAND_CATALOG, (relPath: string) =>
+        fs.existsSync(pathMod.resolve(process.cwd(), relPath)),
+      ),
+    ).not.toThrow();
   });
 });

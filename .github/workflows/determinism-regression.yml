@@ -28,6 +28,7 @@ on:
     paths:
       - 'src/core-runtime/cli/command-catalog.ts'
       - 'src/core-runtime/cli/command-catalog-helpers.ts'
+      - 'src/core-runtime/cli/command-catalog.test.ts'
       - 'src/core-runtime/cli/dispatcher.ts'
       - 'src/core-runtime/cli/preboot-dispatch.ts'
       - 'src/core-runtime/cli/dispatch-preboot-core.ts'
@@ -37,10 +38,12 @@ on:
       - 'src/cli.ts'
       - 'scripts/check-catalog-drift.ts'
       - 'scripts/check-handler-exports.ts'
+      - 'scripts/check-contract-refs.ts'
       - 'scripts/generate-command-catalog-derived.ts'
       - 'scripts/command-catalog-generator/**'
       - 'src/core-runtime/cli/command-catalog-templates/**'
       - '.onto/commands/**'
+      - '.onto/processes/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/determinism-regression.yml'
@@ -66,3 +69,9 @@ jobs:
       # 차단하는 게 깨끗한 진단 (catalog 형식 OK 후 handler 검증).
       - name: Verify catalog handler_export references resolve
         run: npm run check:handler-exports
+
+      # R2-PR-4 (RFC-2 §4.5): contract_ref 파일 존재 검증. catalog 의 PublicEntry
+      # contract_ref 가 .onto/processes/*.md 에 실제 존재하는지. broken ref 가
+      # silent 로 markdown-deriver 까지 전파되는 것을 PR 진입에서 차단.
+      - name: Verify catalog contract_ref files exist
+        run: npm run check:contract-refs

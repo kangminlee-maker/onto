@@ -447,6 +447,25 @@ export function executeReconstructComplete(
     throw new Error(`[reconstruct] session already converted: ${options.sessionId}`);
   }
 
+  // PR #241 review C-3 fix (lifecycle gate): when the session has run any
+  // coordinator cycle (events array is populated), the *most recent*
+  // coordinator event must be `coordinator_completed` — otherwise the cycle
+  // halted (config_malformed / invariant_violation / failed_alpha / failed_gamma
+  // / failed_phase35) and the session has not produced a finalizable state.
+  // Sessions that ran in placeholder mode (no coordinator events) bypass
+  // this gate for backward compat.
+  const coordinatorEvents = (state.events ?? []).filter((e) =>
+    e.type.startsWith("coordinator_") || e.type === "config_malformed",
+  );
+  if (coordinatorEvents.length > 0) {
+    const last = coordinatorEvents[coordinatorEvents.length - 1]!;
+    if (last.type !== "coordinator_completed") {
+      throw new Error(
+        `[reconstruct] complete requires the most recent coordinator cycle to be successful — last event was "${last.type}"${last.detail ? ` (${last.detail})` : ""}. Re-run \`onto reconstruct explore\` until a coordinator_completed cycle is recorded, then retry complete.`,
+      );
+    }
+  }
+
   const now = (options.now ?? nowIso)();
   const draftPath = join(root, "ontology-draft.md");
 

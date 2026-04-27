@@ -110,9 +110,12 @@ describe("writeRawYml — happy path (writeIntentInferenceToRawYml=true)", () =>
     );
   });
 
-  it("includes principal_provided_rationale field when set on element", () => {
+  it("includes nested principal_provided_rationale (under intent_inference) when set", () => {
+    // C-1 fix: ppr is a *nested field* of intent_inference (single canonical
+    // seat per PR #236), never a top-level Element field. Writer emits it as
+    // part of intent_inference when present.
     const el = makeElement(true);
-    el.principal_provided_rationale = {
+    el.intent_inference!.principal_provided_rationale = {
       inferred_meaning: "Principal-supplied meaning",
       justification: "Principal-supplied justification",
     };
@@ -123,7 +126,8 @@ describe("writeRawYml — happy path (writeIntentInferenceToRawYml=true)", () =>
       writeIntentInferenceToRawYml: true,
     });
     const parsed = yaml.parse(readFileSync(result.path, "utf-8"));
-    expect(parsed.elements[0].principal_provided_rationale).toEqual({
+    expect(parsed.elements[0].principal_provided_rationale).toBeUndefined();
+    expect(parsed.elements[0].intent_inference.principal_provided_rationale).toEqual({
       inferred_meaning: "Principal-supplied meaning",
       justification: "Principal-supplied justification",
     });
@@ -145,9 +149,12 @@ describe("writeRawYml — omit semantic (writeIntentInferenceToRawYml=false)", (
     expect(parsed.meta.inference_mode).toBe("full");
   });
 
-  it("omits principal_provided_rationale field", () => {
+  it("omits nested principal_provided_rationale via single intent_inference gate", () => {
+    // C-1 fix: ppr is nested inside intent_inference, so dropping
+    // intent_inference also drops ppr — no separate flag needed, no
+    // dual-authority drift surface.
     const el = makeElement(true);
-    el.principal_provided_rationale = {
+    el.intent_inference!.principal_provided_rationale = {
       inferred_meaning: "Should be omitted",
       justification: "Should be omitted",
     };
@@ -158,6 +165,7 @@ describe("writeRawYml — omit semantic (writeIntentInferenceToRawYml=false)", (
       writeIntentInferenceToRawYml: false,
     });
     const parsed = yaml.parse(readFileSync(result.path, "utf-8"));
+    expect(parsed.elements[0].intent_inference).toBeUndefined();
     expect(parsed.elements[0].principal_provided_rationale).toBeUndefined();
   });
 

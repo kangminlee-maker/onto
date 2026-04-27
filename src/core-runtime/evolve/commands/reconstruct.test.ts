@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdirSync, rmSync, readFileSync, existsSync } from "node:fs";
+import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -229,6 +229,101 @@ describe("executeReconstructComplete", () => {
     expect(() =>
       executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "nope" }),
     ).toThrow(/session not found/);
+  });
+
+  // PR #241 review C-3 fix: lifecycle gate
+  it("coordinator failure event 후 complete → 거부 (lifecycle gate)", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: "c-fail-1",
+    });
+    // Manually simulate a failed coordinator cycle by writing state with a
+    // failure event. Using the helper would also work but inline construction
+    // is clearer for this gate test.
+    const root = join(tmpRoot, "c-fail-1");
+    const stateBefore = JSON.parse(
+      readFileSync(join(root, "reconstruct-state.json"), "utf-8"),
+    );
+    const stateWithFailure = {
+      ...stateBefore,
+      current_state: "exploring",
+      explore_invocations: 1,
+      events: [
+        {
+          type: "coordinator_failed_alpha",
+          emitted_at: "2026-04-27T20:00:00Z",
+          detail: "alpha kind=failed",
+        },
+      ],
+    };
+    writeFileSync(
+      join(root, "reconstruct-state.json"),
+      JSON.stringify(stateWithFailure, null, 2),
+      "utf-8",
+    );
+
+    expect(() =>
+      executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "c-fail-1" }),
+    ).toThrow(/coordinator cycle to be successful.*coordinator_failed_alpha/);
+  });
+
+  it("coordinator_completed event 후 complete → 정상 진행", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: "c-ok-1",
+    });
+    const root = join(tmpRoot, "c-ok-1");
+    const stateBefore = JSON.parse(
+      readFileSync(join(root, "reconstruct-state.json"), "utf-8"),
+    );
+    const stateOk = {
+      ...stateBefore,
+      current_state: "exploring",
+      explore_invocations: 1,
+      events: [
+        {
+          type: "coordinator_completed",
+          emitted_at: "2026-04-27T20:00:00Z",
+          detail: "element_updates_count=1, write_intent_inference_to_raw_yml=true",
+        },
+      ],
+    };
+    writeFileSync(
+      join(root, "reconstruct-state.json"),
+      JSON.stringify(stateOk, null, 2),
+      "utf-8",
+    );
+
+    const result = executeReconstructComplete({
+      sessionsDir: tmpRoot,
+      sessionId: "c-ok-1",
+    });
+    expect(result.state.current_state).toBe("converted");
+  });
+
+  it("placeholder mode (events 부재) → backward compat 통과", async () => {
+    // Sessions that ran without --coordinator (no coordinator events recorded)
+    // bypass the lifecycle gate — tested implicitly by the 'exploring →
+    // converted 전이' test above, but explicit-named here for clarity.
+    executeReconstructStart({
+      source: "./src",
+      intent: "t",
+      sessionsDir: tmpRoot,
+      sessionId: "c-legacy-1",
+    });
+    await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "c-legacy-1",
+    });
+    const result = executeReconstructComplete({
+      sessionsDir: tmpRoot,
+      sessionId: "c-legacy-1",
+    });
+    expect(result.state.current_state).toBe("converted");
   });
 });
 

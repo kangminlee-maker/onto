@@ -42,10 +42,13 @@ git checkout -b track-b/entities-scanner
 `.onto/processes/reconstruct.md` (1636 줄) 의 §"Phase 1: Integral Exploration Loop":
 - §1.1 Stage 1, Round 0: Initial Structure Exploration (line 589)
 - §1.2 Round N: Iterative Loop (line 619)
-- 각 round 가 Explorer agent 의 LLM call — entity / enum / property / relation / code_mapping facts 발견
-- patch format (lens 가 entity certainty reclassification 요청)
-- convergence detection
-- module_inventory 관리 (Phase 0.5 / Round 0)
+- §"Explorer Profiles by Source Type" (line 146) — codebase / spreadsheet / database / document profile 별 분기
+
+**Stage 1 fact space** (reconstruct.md spec 전체):
+- `entity` — 본 PR scope (codebase 의 type / class / module 단위)
+- `enum` / `property` / `relation` / `code_mapping` — **본 PR 밖 (follow-up commit)**
+
+본 PR 의 narrowing: *Stage 1 fact space 의 entity 만*. 나머지 4 fact_type 은 Round N iterative loop 와 함께 후속 commit 진입 (§3 참조).
 
 ### 2.2 본 commit 이 채워야 할 capability
 
@@ -61,7 +64,7 @@ const stubEntity: HookAlphaEntityInput = {
 };
 
 // 본 commit 후 (real scanner)
-const entities = await runStage1Scanner({
+const entities = await runStage1RoundZero({
   source: session.source,
   intent: session.intent,
   // ... explorer config from .onto/config.yml
@@ -70,44 +73,58 @@ const entities = await runStage1Scanner({
 
 ### 2.3 결정 영역 — scanner architecture
 
-#### Option α — single-shot LLM scanner
+#### Option α — single-shot Round 0 only
 
-- Explorer agent 가 1회 LLM call 로 source 분석 → entity_list 산출
-- 단순 + 빠름
-- 본 PR scope 적합 (Phase 1 의 Round N iterative loop 미구현)
+- Explorer agent 가 1회 LLM call 로 source 분석 → entity_list 산출 (Phase 1 §1.1 Round 0 만)
+- 본 PR scope. 단순 + 빠름.
+- iterative loop (Round N) 는 follow-up commit
 
-#### Option β — iterative loop (spec 정확)
+#### Option β — iterative loop (Round 0 → Round N)
 
 - Round 0 → Round N (convergence detection) 의 multi-round LLM call
 - spec 정확 (reconstruct.md §1.1 + §1.2)
-- 큰 scope (~1500-2500 lines) — multi-week PR
+- 큰 scope (~1500-2500 lines) — 별도 multi-week PR
 
-#### Option γ — hybrid
+**권고**: **Option α** — 본 PR boundary 가 "Round 0 single-shot scanner 가 real entities 를 produce" 까지. iterative loop + convergence detection + module_inventory 관리는 follow-up commit.
 
-- Round 0 만 구현 (initial structure exploration), iterative loop 는 follow-up
-- 본 commit 이 *Round 0 single-shot* — 후속 commit 이 iterative loop wire
-- Option α 의 단순성 + Option β 의 spec 정확 진화 path
+> **Note** (PR #241 review C-2 conciseness fix): 이전 handoff revision 에 Option α / γ 가 별도 옵션으로 표기되었으나, *본 PR 의 stated boundary 아래 두 옵션은 same path* (Round 0 single-shot only) — Option γ ("hybrid") 는 spurious distinction. 단일 옵션 (Option α) 로 collapse.
 
-**권고**: **Option γ** — Round 0 만 본 commit. iterative loop + convergence detection 은 다음 commit (별도 PR). 본 commit 의 boundary = "Stage 1 Round 0 single-shot scanner 가 real entities 를 produce".
+### 2.4 본 PR scope (Option α — Round 0 single-shot)
 
-### 2.4 본 PR scope (권고: Option γ Round 0)
-
-#### 신설 module
+#### 신설 module — single Round 0 entry naming
 
 - `src/core-runtime/reconstruct/explorer/stage1-scanner.ts` (~300-500 lines)
-  - `runStage1RoundZero(input, deps)` — Explorer LLM call + entity_list parse
+  - **`runStage1RoundZero(input, deps)`** (canonical entry name — 본 PR 안에서 다른 이름 절대 사용 금지)
   - `parseExplorerDirective(yaml)` — YAML output → typed entity_list
   - `validateStage1Output(entities, ...)` — id uniqueness + type enum + certainty enum 검증
 - `src/core-runtime/reconstruct/explorer/spawn-explorer.ts` (~200-300 lines)
   - `makeCodexExplorer(config)` — codex subprocess factory (review/spawn-proposer pattern)
   - `makeMockExplorer(entities)` — pre-canned entity_list (test / fixture)
-  - prompt builder (Phase 1 §1.1 protocol contract reference)
+  - prompt builder (Phase 1 §1.1 Round 0 protocol contract reference; entity fact_type만 명시)
+
+#### Source-profile seam (PR #241 review C-2 evolution fix)
+
+본 PR 의 entry 가 *codebase profile only* 임을 architecture-level 로 보장:
+
+```typescript
+// stage1-scanner.ts header
+export type SourceProfileKind = "codebase";  // | "spreadsheet" | "database" | "document" — follow-up
+
+export interface Stage1RoundZeroInput {
+  profile: SourceProfileKind;  // 본 PR 은 "codebase" 만 accept
+  source: string;
+  intent: string;
+}
+```
+
+향후 다른 profile 진입 시 `Stage1RoundZeroInput.profile` 의 union 확장 + profile 별 prompt builder 분기 → 본 entry 의 caller (handleReconstructCli) 변경 0. 즉 *seam 이 type-level 에 미리 자리잡음*.
 
 #### handleReconstructCli wire 갱신
 
 - `buildExploreCoordinatorOptions` 안에서 stub entity 대체:
   ```typescript
   const entities = await runStage1RoundZero({
+    profile: "codebase",
     source: session.source,
     intent: session.intent,
   }, { spawnExplorer });
@@ -116,10 +133,21 @@ const entities = await runStage1Scanner({
 
 #### test
 
-- `stage1-scanner.test.ts` (~200 lines): Round 0 entry / Explorer directive parse / validator / fixture-based assertions
+- `stage1-scanner.test.ts` (~200 lines): Round 0 entry / Explorer directive parse / validator / fixture-based assertions / non-codebase profile 거부 (type-level guard)
 - `spawn-explorer.test.ts` (~100 lines): mock factory + prompt builder snapshot
 
 **총 ~800-1200 lines, 3-5 시간 추정**.
+
+#### Out-of-scope (follow-up commits, 명시 ledger)
+
+다음 항목은 본 PR 머지 후 별도 commit / PR 진입:
+1. **iterative loop (Round N)**: convergence detection + module_inventory 관리 + uncovered_modules 추적
+2. **Stage 1 fact space 확장**: enum / property / relation / code_mapping fact_types
+3. **Source-profile 확장**: spreadsheet / database / document profile 추가 (Stage1RoundZeroInput.profile union 확장 + 각 profile prompt builder)
+4. **Stage 1 → Stage 2 transition**: Hook α invocation 이후 Stage 2 behavior exploration entry
+5. **raw-yml-writer ↔ complete step 통합**: PR #241 review C-3 deferred 항목 — entities scanner PR 안에서 동시 처리 권고 (§4.3 참조)
+
+각 항목은 *본 handoff doc 의 후속 handoff doc* 으로 분리. ownership 은 항목별 명시 follow-up — 본 doc 머지 시점에 single ledger로 추적.
 
 ## 3. iterative loop (Round N) 의 follow-up scope
 

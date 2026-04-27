@@ -1,6 +1,8 @@
 # reconstruct/ — Integration scope
 
-> Resolves review CC-INTEGRATION-01 (PR #226 round1, structure + coverage lenses).
+> Resolves review CC-INTEGRATION-01 (PR #226 round1, structure + coverage)
+> and PR #227 round1 review consensus #2 (orphan production paths — structure +
+> dependency + pragmatics + coverage 4 lens).
 
 ## Current scope (Track B phase 3, PRs #225 / #226 / #227)
 
@@ -41,6 +43,33 @@ review 가 지적한 다음 영역은 본 디렉토리의 unit test scope 밖:
   `runHookAlpha` 와 Hook γ 의 `runHookGamma` 가 "single-shot" invocation
   으로 design. retry/degraded/abort 의 orchestration 은 caller 책임. W-A-104
   E2E 가 cover.
+
+## PR-γ (#227) review-fixed gaps
+
+PR #227 round1 review (session `20260427-4d4bab17`) 가 두 highest-priority
+blocker 와 추가 4 finding 을 지적. fix 결과:
+
+- **Phase 3.5 validation closure** (consensus, structure + coverage + axiology
+  + pragmatics) — `runPhase35` 에 fail-closed validation 통합. invalid input
+  은 apply/sweep 진입 차단 → discriminated union return.
+- **failure-code production wiring orphan** (consensus, structure + dependency
+  + pragmatics + coverage) — 본 INTEGRATION.md 에서 phase 4 W-A-104 wiring
+  scope 명시 (해소 = scope-by-declaration, PR-β 와 동일 패턴).
+- **`config_schema_invalid` recovery text dangling reference** (consensus,
+  logic + pragmatics) — interactive recovery 가 self-contained "without
+  --config" path 로 변경.
+- **canonical failure-code authority duplication** (consensus, evolution +
+  conciseness) — failure-codes.ts 가 single seat. test fixture 가 별도 source
+  으로 보일 risk 는 v1.1 backlog (test 가 production code 의 source-of-truth
+  를 import 하는 형태로 refactor).
+- **`principal_confirmed_scope_miss` terminal semantics** (conditional
+  consensus, semantics + conciseness vs structure + dependency) — PR-β
+  UF-LOGIC-02 fix (Hook δ comment) 와 동일 dual-scope 명시 적용. terminal
+  set 안에 들어있지만 §3.1 matrix 가 추가 action 허용 — terminal 정의의
+  spec-intentional dual scope.
+
+남은 single-lens UF (semantics: FailureOrigin rename, evolution: Phase 3.5
+state logic 분산) 는 v1.1 refactor backlog.
 
 ## Provenance — review 결과의 commit trail
 

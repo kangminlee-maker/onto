@@ -1,4 +1,4 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=75bb84088d055196e84caeab8a732730dcb1ad3f6f53a8db47ebbdb78f2291e1 -->
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=9f5ae79ff98b43ac7a34f487016d9ba3d17f3a9957c46d8ffff51f9c49eaa43b -->
 
 # Onto Transform
 

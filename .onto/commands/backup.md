@@ -1,4 +1,4 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=c5272105bc76f3df69b86e419027eb9fb76afd0a6f52687d8691a82e4abdb1f4 -->
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=551c00323b69c12ce1f054bb59ff31a520b1f6f98e496da612a838a9bf8fd4e6 -->
 
 # Data Backup
 

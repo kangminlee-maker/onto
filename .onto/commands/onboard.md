@@ -1,4 +1,4 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=96bbe483e1c07110fd511a352612f4f9dc863edd9bf4caab189ad3f32c8617a8 -->
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=bbe429ada934f63ceb630568d07b6611e01c4713788f4cbc86a55bdeccaa2351 -->
 
 # Project Onboard
 

@@ -25,6 +25,7 @@ import {
   assertNoAliasCollision,
   assertNoRuntimeScriptCollision,
   assertPromptBodyRefInManagedTree,
+  assertPublicCliEntryHasCliRealization,
   assertReservedNamespaceUnused,
   assertRuntimeScriptsReferenceExists,
   assertSuccessorReferenceExists,
@@ -1231,7 +1232,7 @@ describe("COMMAND_CATALOG (R2-PR-2)", () => {
       (e) => e.kind === "public" && e.identity === "build",
     );
     expect(build).toBeDefined();
-    if (build?.kind === "public") {
+    if (build?.kind === "public" && "historical_no_executor" in build) {
       expect(build.historical_no_executor).toBe(true);
     }
   });
@@ -1241,8 +1242,98 @@ describe("COMMAND_CATALOG (R2-PR-2)", () => {
         (entry) => entry.kind === "public" && entry.identity === id,
       );
       expect(e).toBeDefined();
-      if (e?.kind === "public") {
+      if (e?.kind === "public" && "historical_no_executor" in e) {
         expect(e.historical_no_executor).toBeUndefined();
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// R2-PR-3 (RFC-2 §4.4): Schema split + assertPublicCliEntryHasCliRealization
+// ---------------------------------------------------------------------------
+
+describe("assertPublicCliEntryHasCliRealization (R2-PR-3 canonical invariant)", () => {
+  it("PublicCliEntry without cli realization → throw", () => {
+    // PublicCliEntry discriminator = phase. realizations 가 cli 부재 시 throw.
+    // (slash 만 있는 array literal — type-level 은 PublicCliEntry 로 narrowing 못 막음 →
+    // validator 가 canonical owner)
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "x",
+        phase: "post_boot",
+        doc_template_id: "x",
+        description: "x",
+        realizations: [
+          {
+            kind: "slash",
+            invocation: "/onto:x",
+            prompt_body_ref: ".onto/commands/x.md",
+          },
+        ],
+      } as CatalogEntry,
+    ]);
+    expect(() => assertPublicCliEntryHasCliRealization(catalog)).toThrow(
+      /PublicCliEntry "x" has phase but no CliRealization/,
+    );
+  });
+  it("PublicCliEntry with cli realization → pass", () => {
+    const catalog = makeCatalog([
+      cliEntry({ identity: "info" }),
+    ]);
+    expect(() => assertPublicCliEntryHasCliRealization(catalog)).not.toThrow();
+  });
+  it("PublicSlashOnlyEntry (phase 부재) → skip (invariant 무관)", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "feedback",
+        doc_template_id: "feedback",
+        description: "x",
+        realizations: [
+          {
+            kind: "slash",
+            invocation: "/onto:feedback",
+            prompt_body_ref: ".onto/commands/feedback.md",
+          },
+        ],
+      },
+    ]);
+    expect(() => assertPublicCliEntryHasCliRealization(catalog)).not.toThrow();
+  });
+});
+
+describe("COMMAND_CATALOG (R2-PR-3 schema split)", () => {
+  it("7 slash-only entries have no phase field", () => {
+    const slashOnlyIds = [
+      "feedback",
+      "backup",
+      "restore",
+      "transform",
+      "create-domain",
+      "onboard",
+      "promote-domain",
+    ];
+    for (const id of slashOnlyIds) {
+      const e = COMMAND_CATALOG.entries.find(
+        (entry) => entry.kind === "public" && entry.identity === id,
+      );
+      expect(e).toBeDefined();
+      if (e?.kind === "public") {
+        expect("phase" in e).toBe(false);
+      }
+    }
+  });
+  it("PublicCliEntry entries have phase field", () => {
+    const cliEntryIds = ["info", "config", "install", "review", "build"];
+    for (const id of cliEntryIds) {
+      const e = COMMAND_CATALOG.entries.find(
+        (entry) => entry.kind === "public" && entry.identity === id,
+      );
+      expect(e).toBeDefined();
+      if (e?.kind === "public") {
+        expect("phase" in e).toBe(true);
       }
     }
   });

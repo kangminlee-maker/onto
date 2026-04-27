@@ -2,45 +2,69 @@
 #
 # review-pr.sh — PR review via codex-main-subprocess + full 9-lens.
 #
-# Deterministic wrapper. The purpose is to remove LLM-level command
-# assembly (diff generation, env unset list, config block, executor
-# paths, flag choices) that is otherwise error-prone on every run
-# (e.g. `--no-watch` accidentally inherited from smoke-script copy).
-# The subject principal only picks a git ref range; everything else
-# is fixed here.
+# Deterministic wrapper. The purpose is to remove LLM-level ASSEMBLY
+# (diff generation, env unset list, config block, executor paths, flag
+# choices) that is otherwise error-prone on every run (e.g. `--no-watch`
+# accidentally inherited from smoke-script copy). The subject principal
+# picks a git ref range; everything else is wired here.
+#
+# Assembly vs choice — boundary clarification (2026-04-28 redesign):
+#   - ASSEMBLY (always wrapper-internal): topology selection, env unset
+#     list, diff generation, executor path, watcher-spawn flags. These
+#     have no informational value if user-decided per call; LLM/operator
+#     would just re-derive the same value every time.
+#   - CHOICE (user-controllable): model_id, effort, provider. These
+#     directly affect review *outcome quality* — a higher-quality model
+#     or deeper effort produces a more thorough review at higher cost.
+#     The principal's better-outcome judgment SHOULD be respected per
+#     call. Reverts PR #188 hard-pin over-correction.
 #
 # Usage:
-#   bash scripts/review-pr.sh [GIT_REF_RANGE]
+#   bash scripts/review-pr.sh [--model <id>] [--effort <level>]
+#                              [--provider <name>] [GIT_REF_RANGE]
 #
 #   GIT_REF_RANGE defaults to `main...HEAD` (three-dot, symmetric).
 #   This mirrors GitHub's PR diff semantics: changes on the right-hand
 #   side (HEAD) since its merge-base with main, so branches that
 #   diverged do not blame each other for mainline drift.
 #
-#   Explicit examples:
-#     bash scripts/review-pr.sh main...HEAD        # default
-#     bash scripts/review-pr.sh main...feat/xyz    # review feat/xyz as PR
-#     bash scripts/review-pr.sh HEAD~3..HEAD       # last 3 commits (two-dot)
+#   Override priority (high → low):
+#     1. CLI flag       (--model gpt-5.5 / --effort xhigh / --provider codex)
+#     2. env variable   (REVIEW_PR_MODEL / REVIEW_PR_EFFORT / REVIEW_PR_PROVIDER)
+#     3. script default (DEFAULT_* below — codex / gpt-5.4 / high)
 #
-# Fixed behaviour (not overridable here — edit the script if you
-# truly need a different setup rather than ad-hoc assembly):
+#   The actual values used are recorded in INTENT (review-record's
+#   intent field, retrospective grep) AND emitted as a STDERR banner
+#   (operator-visible at invocation time). Both reflect post-override
+#   values so audit is accurate regardless of override path used.
+#
+#   Explicit examples:
+#     bash scripts/review-pr.sh                       # all defaults
+#     bash scripts/review-pr.sh main...feat/xyz       # explicit ref
+#     bash scripts/review-pr.sh --model gpt-5.5       # better model
+#     bash scripts/review-pr.sh --effort xhigh        # deeper reasoning
+#     REVIEW_PR_MODEL=gpt-5.5 bash scripts/review-pr.sh
+#     bash scripts/review-pr.sh --model gpt-5.5 --effort xhigh main...feat/xyz
+#
+# Wrapper-internal (NOT overridable here — these are assembly, not choice):
 #   - Topology:         codex-nested-subprocess
-#                       (teamlead is an external codex spawn, NOT host main —
-#                        deterministic across machines. CODEX_THREAD_ID set,
-#                        CLAUDE* unset → non-handoff path so review-invoke
-#                        reaches the watcher call site too.)
+#                       (teamlead is an external codex spawn, NOT host main.
+#                        CODEX_THREAD_ID set, CLAUDE* unset → non-handoff path
+#                        so review-invoke reaches the watcher call site too.)
 #   - Review mode:      full (9 lens)
-#   - Teamlead:         codex / gpt-5.4 / high  (axis-block pinned)
-#   - Subagent:         codex / gpt-5.4 / high  (axis-block pinned)
-#   - Model rationale:  pinning model_id + effort removes machine-local default
-#                       drift — same wrapper invocation = same model on any
-#                       reviewer's machine. Mirrors this repo's tracked
-#                       .onto/config.yml (PR #187, dogfooding consistency).
 #   - Watcher:          ENABLED (iTerm2 / tmux / Apple Terminal auto-detected)
 #   - Project root:     isolated tmp (config.yml + target diff only)
 #   - Onto home:        this repo (authority / roles / lens registry)
 #   - Session artifact: preserved on success so round1/*.md + synthesis.md
 #                       remain inspectable
+#
+# Why explicit defaults (not host-codex fall-through):
+#   Host codex CLI's default model varies across machines (~/.codex/config.toml,
+#   ChatGPT subscription tier, codex CLI version). Falling through silently
+#   would mean reviewer A and reviewer B get different review results without
+#   either knowing why. The wrapper writes provider/model/effort EXPLICITLY
+#   into the inline config.yml so the chosen values are visible + recorded —
+#   regardless of whether they came from CLI flag, env, or script default.
 #
 # Prereqs:
 #   - codex binary on PATH + ~/.codex/auth.json
@@ -52,7 +76,40 @@
 
 set -euo pipefail
 
-REF="${1:-main...HEAD}"
+# ── Argument parsing ─────────────────────────────────────────────────────────
+# Override slots accept CLI flags first; resolution against env + defaults
+# happens after the prereq + workspace setup (line 135 area) so a single
+# resolution path produces all consumed values.
+MODEL_ID_OVERRIDE=""
+EFFORT_OVERRIDE=""
+PROVIDER_OVERRIDE=""
+REF=""
+
+print_help() {
+  sed -n '2,49p' "$0" | sed 's/^#\{0,1\}//'
+  exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --model)
+      [[ $# -ge 2 ]] || { echo "ERROR: --model requires a value" >&2; exit 2; }
+      MODEL_ID_OVERRIDE="$2"; shift 2;;
+    --effort)
+      [[ $# -ge 2 ]] || { echo "ERROR: --effort requires a value" >&2; exit 2; }
+      EFFORT_OVERRIDE="$2"; shift 2;;
+    --provider)
+      [[ $# -ge 2 ]] || { echo "ERROR: --provider requires a value" >&2; exit 2; }
+      PROVIDER_OVERRIDE="$2"; shift 2;;
+    -h|--help) print_help;;
+    --) shift; break;;
+    -*) echo "ERROR: unknown flag: $1 (see --help)" >&2; exit 2;;
+    *)
+      [[ -z "${REF}" ]] || { echo "ERROR: REF already set to '${REF}'; got extra positional '$1'" >&2; exit 2; }
+      REF="$1"; shift;;
+  esac
+done
+REF="${REF:-main...HEAD}"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
 # Shared host-environment sanitizer. PR #185 follow-up #5 — keeps the
@@ -126,43 +183,47 @@ DIFF_BYTES=$(wc -c < "${DIFF_FILE}" | tr -d " ")
 DIFF_LINES=$(wc -l < "${DIFF_FILE}" | tr -d " ")
 echo "target diff: ${DIFF_BYTES} bytes, ${DIFF_LINES} lines (${REF})" >&2
 
-# Pinned model/effort (PR #188 deterministic refinement). Both teamlead
-# and subagent are external codex spawns with fixed model_id + effort,
-# so the wrapper produces the same review on any reviewer's machine
-# regardless of host codex env defaults. Topology resolves to
-# codex-nested-subprocess. Single source of truth for these values is
-# this repo's tracked `.onto/config.yml` (kept in sync intentionally).
-PIN_PROVIDER="codex"
-PIN_MODEL_ID="gpt-5.4"
-PIN_EFFORT="high"
+# ── Model / effort / provider resolution ───────────────────────────────────
+# Defaults are written EXPLICITLY into the inline config.yml so host codex
+# defaults (which silently drift across machines / subscription tiers / CLI
+# versions) never participate. Override priority: CLI flag > env > default.
+# The wrapper records the *resolved* values in INTENT + STDERR banner.
+DEFAULT_PROVIDER="codex"
+DEFAULT_MODEL_ID="gpt-5.4"
+DEFAULT_EFFORT="high"
+
+PROVIDER="${PROVIDER_OVERRIDE:-${REVIEW_PR_PROVIDER:-${DEFAULT_PROVIDER}}}"
+MODEL_ID="${MODEL_ID_OVERRIDE:-${REVIEW_PR_MODEL:-${DEFAULT_MODEL_ID}}}"
+EFFORT="${EFFORT_OVERRIDE:-${REVIEW_PR_EFFORT:-${DEFAULT_EFFORT}}}"
 
 cat > "${REVIEW_DIR}/.onto/config.yml" <<EOF
 review:
   teamlead:
     model:
-      provider: ${PIN_PROVIDER}
-      model_id: ${PIN_MODEL_ID}
-      effort: ${PIN_EFFORT}
+      provider: ${PROVIDER}
+      model_id: ${MODEL_ID}
+      effort: ${EFFORT}
   subagent:
-    provider: ${PIN_PROVIDER}
-    model_id: ${PIN_MODEL_ID}
-    effort: ${PIN_EFFORT}
+    provider: ${PROVIDER}
+    model_id: ${MODEL_ID}
+    effort: ${EFFORT}
 review_mode: full
 EOF
 
 # Commit sha / intent for traceability in review-record. Record the
 # right-hand ref actually being reviewed (not unconditional HEAD) so
 # the metadata is meaningful when REF is e.g. `main...feat/xyz` and
-# HEAD is on a different branch. INTENT also embeds the pinned
+# HEAD is on a different branch. INTENT also embeds the resolved
 # model/effort so review-record's intent field carries the model
-# identity for retrospective grep / cost analysis.
+# identity for retrospective grep / cost analysis — same shape
+# regardless of whether the value came from CLI / env / default.
 COMMIT_SHA="$(git -C "${REPO_ROOT}" rev-parse --short "${RIGHT_REF}")"
-INTENT="PR review (${REF} @ ${COMMIT_SHA}, ${PIN_PROVIDER}/${PIN_MODEL_ID}/${PIN_EFFORT})"
+INTENT="PR review (${REF} @ ${COMMIT_SHA}, ${PROVIDER}/${MODEL_ID}/${EFFORT})"
 
 # STDERR banner — same model/effort visible at invocation time for
 # the operator (no need to wait for review-record). Independent from
 # INTENT (record vs operational visibility serve different consumers).
-echo "model pin: ${PIN_PROVIDER}/${PIN_MODEL_ID}/${PIN_EFFORT}" >&2
+echo "model: ${PROVIDER}/${MODEL_ID}/${EFFORT}" >&2
 
 # ── Execute ────────────────────────────────────────────────────────────────
 # NOTE: --no-watch is DELIBERATELY ABSENT so the live watcher pane spawns

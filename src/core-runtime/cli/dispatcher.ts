@@ -1,4 +1,4 @@
-// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=737864bee018d0d03f3b6f89812f12c82cc62e8911e355b94158b2d20001c308
+// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=79dd63f80e7bcd2d739a7f00aa363755c0917c90866fb71ccdca1c55fe16718c
 /**
  * Command dispatcher — derived artifact (P1-3 CLI subcommand dispatch authority).
  *
@@ -23,8 +23,11 @@
 
 import { pathToFileURL } from "node:url";
 import { computeTargetDeriveHash } from "./catalog-hash.js";
-import { getNormalizedInvocationSet } from "./command-catalog-helpers.js";
-import { COMMAND_CATALOG } from "./command-catalog.js";
+import {
+  getLifecycleAction,
+  getNormalizedInvocationSet,
+} from "./command-catalog-helpers.js";
+import { COMMAND_CATALOG, CURRENT_RUNTIME_VERSION } from "./command-catalog.js";
 import {
   checkDeriveHash,
   formatBypassWarning,
@@ -34,8 +37,8 @@ import {
 const NORMALIZED = getNormalizedInvocationSet(COMMAND_CATALOG);
 const BARE_ONTO_SENTINEL = "<<bare>>";
 
-const EXPECTED_DERIVE_HASH = "737864bee018d0d03f3b6f89812f12c82cc62e8911e355b94158b2d20001c308";
-const DERIVE_SCHEMA_VERSION = "4";
+const EXPECTED_DERIVE_HASH = "79dd63f80e7bcd2d739a7f00aa363755c0917c90866fb71ccdca1c55fe16718c";
+const DERIVE_SCHEMA_VERSION = "5";
 const TARGET_ID = "dispatcher";
 const BYPASS_ENV_VAR = "ONTO_ALLOW_STALE_DISPATCHER";
 
@@ -120,6 +123,23 @@ export async function dispatch(argv: readonly string[]): Promise<number> {
       { meta_name: target.name },
       arg === BARE_ONTO_SENTINEL ? argv : argv.slice(1),
     );
+  }
+  // R2-PR-2 (RFC-2 §4.2.1): lifecycle policy interception — PublicEntry 진입 시
+  // catalog 의 deprecated_since / removed_in / historical_no_executor 에 따라
+  // (notice + return 1) 또는 (notice + 정상 dispatch). cli.ts main 위임 전에
+  // intercept (pre-delegation ordering — dispatcher behavior test 가 owner).
+  const publicEntry = COMMAND_CATALOG.entries.find(
+    (e) => e.kind === "public" && e.identity === target.identity,
+  );
+  if (publicEntry !== undefined && publicEntry.kind === "public") {
+    const action = getLifecycleAction(publicEntry, CURRENT_RUNTIME_VERSION);
+    if (action.kind === "notice_then_exit") {
+      process.stderr.write(action.notice);
+      return 1;
+    }
+    if (action.kind === "notice_then_continue") {
+      process.stderr.write(action.notice);
+    }
   }
   // PublicEntry cli realization — phase derived from PHASE_MAP at emit time.
   // P2-B: canonical lookup — alias 가 들어와도 NORMALIZED 가 canonical 보유.

@@ -59,8 +59,11 @@ import {
  * 한 entry 의 다수 cli invocation 이 같은 phase 에 등록 — multi-CLI 도입 시
  * silent misroute 차단 (RFC-1 §4.3). 다른 entry 와의 invocation 충돌은
  * NORMALIZED 가 이미 catch — 본 변경은 deriver-time defense-in-depth.
+ * R2-PR-2: 4→5 — PublicEntry cli realization 진입 시 lifecycle policy
+ * interception (notice + exit before cli.ts main 위임). historical_no_executor
+ * catalog field + getLifecycleAction helper 가 owner (RFC-2 §4.2.1).
  */
-export const DERIVE_SCHEMA_VERSION = "4";
+export const DERIVE_SCHEMA_VERSION = "5";
 
 const TARGET_ID = "dispatcher";
 const MARKER_SOURCE_REF = "src/core-runtime/cli/command-catalog.ts";
@@ -137,8 +140,11 @@ function renderDispatcherBody(catalog: CommandCatalog, hash: string): string {
 
 import { pathToFileURL } from "node:url";
 import { computeTargetDeriveHash } from "./catalog-hash.js";
-import { getNormalizedInvocationSet } from "./command-catalog-helpers.js";
-import { COMMAND_CATALOG } from "./command-catalog.js";
+import {
+  getLifecycleAction,
+  getNormalizedInvocationSet,
+} from "./command-catalog-helpers.js";
+import { COMMAND_CATALOG, CURRENT_RUNTIME_VERSION } from "./command-catalog.js";
 import {
   checkDeriveHash,
   formatBypassWarning,
@@ -220,6 +226,23 @@ export async function dispatch(argv: readonly string[]): Promise<number> {
       { meta_name: target.name },
       arg === BARE_ONTO_SENTINEL ? argv : argv.slice(1),
     );
+  }
+  // R2-PR-2 (RFC-2 §4.2.1): lifecycle policy interception — PublicEntry 진입 시
+  // catalog 의 deprecated_since / removed_in / historical_no_executor 에 따라
+  // (notice + return 1) 또는 (notice + 정상 dispatch). cli.ts main 위임 전에
+  // intercept (pre-delegation ordering — dispatcher behavior test 가 owner).
+  const publicEntry = COMMAND_CATALOG.entries.find(
+    (e) => e.kind === "public" && e.identity === target.identity,
+  );
+  if (publicEntry !== undefined && publicEntry.kind === "public") {
+    const action = getLifecycleAction(publicEntry, CURRENT_RUNTIME_VERSION);
+    if (action.kind === "notice_then_exit") {
+      process.stderr.write(action.notice);
+      return 1;
+    }
+    if (action.kind === "notice_then_continue") {
+      process.stderr.write(action.notice);
+    }
   }
   // PublicEntry cli realization — phase derived from PHASE_MAP at emit time.
   // P2-B: canonical lookup — alias 가 들어와도 NORMALIZED 가 canonical 보유.

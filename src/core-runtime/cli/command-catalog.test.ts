@@ -20,6 +20,7 @@ import {
   assertDeprecationLifecycle,
   assertDocTemplateIdUnique,
   assertEntryRealizationsNonEmpty,
+  assertHistoricalNoExecutorBidirectional,
   assertMetaNameRegistered,
   assertNoAliasCollision,
   assertNoRuntimeScriptCollision,
@@ -27,6 +28,10 @@ import {
   assertReservedNamespaceUnused,
   assertRuntimeScriptsReferenceExists,
   assertSuccessorReferenceExists,
+  extractCliMainNonPlaceholderCases,
+  getCliExecutorAvailability,
+  getEntryLifecycleState,
+  getLifecycleAction,
   getNormalizedInvocationSet,
   validateCatalog,
 } from "./command-catalog-helpers.js";
@@ -900,5 +905,345 @@ describe("getNormalizedInvocationSet — same identity, different realizations",
     expect(set.has("/onto:review")).toBe(true);
     expect(set.has("review")).toBe(true);
     expect(set.size).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// R2-PR-2 (RFC-2 §4.2): Lifecycle policy helpers
+// ---------------------------------------------------------------------------
+
+const cliEntry = (overrides: Partial<{
+  identity: string;
+  phase: "preboot" | "post_boot";
+  deprecated_since: string;
+  removed_in: string;
+  successor: string;
+  historical_no_executor: boolean;
+  invocation: string;
+}> = {}): CatalogEntry => {
+  const e = {
+    kind: "public" as const,
+    identity: overrides.identity ?? "x",
+    phase: overrides.phase ?? "post_boot",
+    doc_template_id: overrides.identity ?? "x",
+    description: "x",
+    realizations: [
+      {
+        kind: "cli" as const,
+        invocation: overrides.invocation ?? overrides.identity ?? "x",
+        cli_dispatch: { handler_module: "src/cli.ts" },
+      },
+    ],
+  };
+  if (overrides.deprecated_since !== undefined) (e as { deprecated_since?: string }).deprecated_since = overrides.deprecated_since;
+  if (overrides.removed_in !== undefined) (e as { removed_in?: string }).removed_in = overrides.removed_in;
+  if (overrides.successor !== undefined) (e as { successor?: string }).successor = overrides.successor;
+  if (overrides.historical_no_executor !== undefined) (e as { historical_no_executor?: boolean }).historical_no_executor = overrides.historical_no_executor;
+  return e;
+};
+
+describe("getCliExecutorAvailability", () => {
+  it("historical_no_executor: true → intentionally_absent", () => {
+    const e = cliEntry({ historical_no_executor: true, deprecated_since: "0.2.0" });
+    if (e.kind !== "public") throw new Error("test setup");
+    expect(getCliExecutorAvailability(e)).toBe("intentionally_absent");
+  });
+  it("historical_no_executor: false → present", () => {
+    const e = cliEntry({ historical_no_executor: false });
+    if (e.kind !== "public") throw new Error("test setup");
+    expect(getCliExecutorAvailability(e)).toBe("present");
+  });
+  it("historical_no_executor: undefined (default) → present", () => {
+    const e = cliEntry({});
+    if (e.kind !== "public") throw new Error("test setup");
+    expect(getCliExecutorAvailability(e)).toBe("present");
+  });
+});
+
+describe("getEntryLifecycleState (4 state matrix)", () => {
+  it("active — no deprecated_since", () => {
+    const e = cliEntry({});
+    if (e.kind !== "public") throw new Error("test setup");
+    expect(getEntryLifecycleState(e, "0.2.2", "present")).toBe("active");
+  });
+  it("deprecated_with_executor — deprecated_since + present", () => {
+    const e = cliEntry({ deprecated_since: "0.2.0" });
+    if (e.kind !== "public") throw new Error("test setup");
+    expect(getEntryLifecycleState(e, "0.2.2", "present")).toBe("deprecated_with_executor");
+  });
+  it("deprecated_historical_no_executor — deprecated_since + intentionally_absent", () => {
+    const e = cliEntry({ deprecated_since: "0.2.0", historical_no_executor: true });
+    if (e.kind !== "public") throw new Error("test setup");
+    expect(getEntryLifecycleState(e, "0.2.2", "intentionally_absent")).toBe(
+      "deprecated_historical_no_executor",
+    );
+  });
+  it("removed_at_or_past_cutover — current >= removed_in", () => {
+    const e = cliEntry({ deprecated_since: "0.2.0", removed_in: "0.3.0" });
+    if (e.kind !== "public") throw new Error("test setup");
+    expect(getEntryLifecycleState(e, "0.3.0", "present")).toBe("removed_at_or_past_cutover");
+    expect(getEntryLifecycleState(e, "0.4.0", "present")).toBe("removed_at_or_past_cutover");
+    expect(getEntryLifecycleState(e, "0.2.5", "present")).toBe("deprecated_with_executor");
+  });
+});
+
+describe("getLifecycleAction (3 action kinds + notice content)", () => {
+  it("active → continue (no notice)", () => {
+    const e = cliEntry({});
+    if (e.kind !== "public") throw new Error("test setup");
+    const action = getLifecycleAction(e, "0.2.2");
+    expect(action.kind).toBe("continue");
+  });
+  it("deprecated_with_executor → notice_then_continue + successor in notice", () => {
+    const e = cliEntry({ deprecated_since: "0.2.0", successor: "promote" });
+    if (e.kind !== "public") throw new Error("test setup");
+    const action = getLifecycleAction(e, "0.2.2");
+    expect(action.kind).toBe("notice_then_continue");
+    if (action.kind !== "notice_then_continue") throw new Error("type narrow");
+    expect(action.notice).toContain("deprecated since 0.2.0");
+    expect(action.notice).toContain("Use 'promote' instead");
+  });
+  it("deprecated_with_executor without successor → notice without 'Use'", () => {
+    const e = cliEntry({ deprecated_since: "0.2.0" });
+    if (e.kind !== "public") throw new Error("test setup");
+    const action = getLifecycleAction(e, "0.2.2");
+    expect(action.kind).toBe("notice_then_continue");
+    if (action.kind !== "notice_then_continue") throw new Error("type narrow");
+    expect(action.notice).toContain("deprecated since 0.2.0");
+    expect(action.notice).not.toContain("Use '");
+  });
+  it("deprecated_historical_no_executor → notice_then_exit", () => {
+    const e = cliEntry({
+      deprecated_since: "0.2.0",
+      successor: "reconstruct",
+      historical_no_executor: true,
+    });
+    if (e.kind !== "public") throw new Error("test setup");
+    const action = getLifecycleAction(e, "0.2.2");
+    expect(action.kind).toBe("notice_then_exit");
+    if (action.kind !== "notice_then_exit") throw new Error("type narrow");
+    expect(action.notice).toContain("deprecated since 0.2.0");
+    expect(action.notice).toContain("Use 'reconstruct' instead");
+  });
+  it("removed_at_or_past_cutover → notice_then_exit (defensive — build-time should prevent)", () => {
+    const e = cliEntry({ deprecated_since: "0.2.0", removed_in: "0.3.0" });
+    if (e.kind !== "public") throw new Error("test setup");
+    const action = getLifecycleAction(e, "0.3.0");
+    expect(action.kind).toBe("notice_then_exit");
+    if (action.kind !== "notice_then_exit") throw new Error("type narrow");
+    expect(action.notice).toContain("removed in 0.3.0");
+    expect(action.notice).toContain("defensive");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// assertDeprecationLifecycle — version cutover + fail-closed prerelease
+// ---------------------------------------------------------------------------
+
+describe("assertDeprecationLifecycle (R2-PR-2 cutover)", () => {
+  it("throws when current >= removed_in", () => {
+    const catalog = makeCatalog([
+      cliEntry({ identity: "x", deprecated_since: "0.2.0", removed_in: "0.3.0" }),
+    ]);
+    expect(() => assertDeprecationLifecycle(catalog, "0.3.0")).toThrow(
+      /removed_in="0\.3\.0".*current version="0\.3\.0".*Remove from catalog/s,
+    );
+    expect(() => assertDeprecationLifecycle(catalog, "0.4.0")).toThrow(
+      /Remove from catalog/,
+    );
+  });
+  it("passes when current < removed_in", () => {
+    const catalog = makeCatalog([
+      cliEntry({ identity: "x", deprecated_since: "0.2.0", removed_in: "0.3.0" }),
+    ]);
+    expect(() => assertDeprecationLifecycle(catalog, "0.2.5")).not.toThrow();
+  });
+  it("fail-closed prerelease: current version with prerelease string → throw", () => {
+    const catalog = makeCatalog([
+      cliEntry({ identity: "x", deprecated_since: "0.2.0", removed_in: "0.3.0" }),
+    ]);
+    expect(() => assertDeprecationLifecycle(catalog, "0.3.0-rc.1")).toThrow(
+      /unsupported version "0\.3\.0-rc\.1".*lifecycle gate gap/s,
+    );
+  });
+  it("fail-closed prerelease: removed_in with prerelease string → throw", () => {
+    const catalog = makeCatalog([
+      cliEntry({ identity: "x", deprecated_since: "0.2.0", removed_in: "0.3.0-rc.1" }),
+    ]);
+    expect(() => assertDeprecationLifecycle(catalog, "0.2.5")).toThrow(
+      /unsupported version "0\.3\.0-rc\.1"/,
+    );
+  });
+  it("currentVersion not provided — version cutover skip (legacy compat)", () => {
+    const catalog = makeCatalog([
+      cliEntry({ identity: "x", deprecated_since: "0.2.0", removed_in: "0.3.0" }),
+    ]);
+    expect(() => assertDeprecationLifecycle(catalog)).not.toThrow();
+  });
+  it("all-kind enforcement: RuntimeScriptEntry with removed_in → throw", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "runtime_script",
+        name: "review:x",
+        script_path: "src/foo.ts",
+        invoker: "tsx",
+        description: "x",
+        deprecated_since: "0.2.0",
+        removed_in: "0.3.0",
+      },
+    ]);
+    expect(() => assertDeprecationLifecycle(catalog, "0.3.0")).toThrow(
+      /Remove from catalog/,
+    );
+  });
+  it("all-kind enforcement: MetaEntry with removed_in → throw", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "meta",
+        name: "help",
+        phase: "preboot",
+        cli_dispatch: { handler_module: "src/cli.ts" },
+        description: "x",
+        realizations: [{ kind: "long_flag", invocation: "--help" }],
+        deprecated_since: "0.2.0",
+        removed_in: "0.3.0",
+      },
+    ]);
+    expect(() => assertDeprecationLifecycle(catalog, "0.3.0")).toThrow(
+      /Remove from catalog/,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// assertHistoricalNoExecutorBidirectional (R2-PR-2 v7 — 4+1 conditions)
+// ---------------------------------------------------------------------------
+
+describe("assertHistoricalNoExecutorBidirectional", () => {
+  it("(1) historical_no_executor: true on slash-only entry → throw", () => {
+    const catalog = makeCatalog([
+      {
+        kind: "public",
+        identity: "x",
+        phase: "post_boot",
+        doc_template_id: "x",
+        description: "x",
+        deprecated_since: "0.2.0",
+        historical_no_executor: true,
+        realizations: [
+          {
+            kind: "slash",
+            invocation: "/onto:x",
+            prompt_body_ref: ".onto/commands/x.md",
+          },
+        ],
+      },
+    ]);
+    expect(() =>
+      assertHistoricalNoExecutorBidirectional(catalog, new Set()),
+    ).toThrow(/no CliRealization.*requires cli realization/s);
+  });
+  it("(2) historical_no_executor: true without deprecated_since → throw", () => {
+    const catalog = makeCatalog([
+      cliEntry({ identity: "x", historical_no_executor: true }),
+    ]);
+    expect(() =>
+      assertHistoricalNoExecutorBidirectional(catalog, new Set()),
+    ).toThrow(/no deprecated_since.*must be deprecated/s);
+  });
+  it("(3) historical_no_executor: true + cli.ts case present → throw (owner conflict)", () => {
+    const catalog = makeCatalog([
+      cliEntry({
+        identity: "x",
+        deprecated_since: "0.2.0",
+        historical_no_executor: true,
+      }),
+    ]);
+    expect(() =>
+      assertHistoricalNoExecutorBidirectional(catalog, new Set(["x"])),
+    ).toThrow(/case "x" with non-placeholder body.*Either remove the case/s);
+  });
+  it("(4) cli realization without cli.ts case → throw (orphan or placeholder body)", () => {
+    const catalog = makeCatalog([
+      cliEntry({ identity: "x" }),
+    ]);
+    expect(() =>
+      assertHistoricalNoExecutorBidirectional(catalog, new Set()),
+    ).toThrow(/no non-placeholder case.*add the executor body/s);
+  });
+  it("happy: historical_no_executor: true + cli realization + deprecated + cli.ts case absent → pass", () => {
+    const catalog = makeCatalog([
+      cliEntry({
+        identity: "build",
+        deprecated_since: "0.2.0",
+        successor: "reconstruct",
+        historical_no_executor: true,
+      }),
+    ]);
+    expect(() =>
+      assertHistoricalNoExecutorBidirectional(catalog, new Set(["info", "config"])),
+    ).not.toThrow();
+  });
+  it("happy: historical_no_executor: false + cli.ts case present → pass", () => {
+    const catalog = makeCatalog([cliEntry({ identity: "info" })]);
+    expect(() =>
+      assertHistoricalNoExecutorBidirectional(catalog, new Set(["info"])),
+    ).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractCliMainNonPlaceholderCases (R2-PR-2)
+// ---------------------------------------------------------------------------
+
+describe("extractCliMainNonPlaceholderCases", () => {
+  it("extracts case names from main switch", () => {
+    const source = `
+import x from "y";
+export async function main(argv: string[]): Promise<number> {
+  switch (argv[0]) {
+    case "info": return 0;
+    case "config": {
+      return 0;
+    }
+    case "install": return 0;
+  }
+  return 1;
+}
+`;
+    const cases = extractCliMainNonPlaceholderCases(source);
+    expect(cases.has("info")).toBe(true);
+    expect(cases.has("config")).toBe(true);
+    expect(cases.has("install")).toBe(true);
+  });
+  it("returns empty set when main function not found", () => {
+    expect(extractCliMainNonPlaceholderCases("// no main").size).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Real catalog R2-PR-2 verification
+// ---------------------------------------------------------------------------
+
+describe("COMMAND_CATALOG (R2-PR-2)", () => {
+  it("build entry has historical_no_executor: true", () => {
+    const build = COMMAND_CATALOG.entries.find(
+      (e) => e.kind === "public" && e.identity === "build",
+    );
+    expect(build).toBeDefined();
+    if (build?.kind === "public") {
+      expect(build.historical_no_executor).toBe(true);
+    }
+  });
+  it("reclassify-insights / migrate-session-roots have historical_no_executor unset (default)", () => {
+    for (const id of ["reclassify-insights", "migrate-session-roots"]) {
+      const e = COMMAND_CATALOG.entries.find(
+        (entry) => entry.kind === "public" && entry.identity === id,
+      );
+      expect(e).toBeDefined();
+      if (e?.kind === "public") {
+        expect(e.historical_no_executor).toBeUndefined();
+      }
+    }
   });
 });

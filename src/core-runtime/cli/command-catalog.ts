@@ -32,13 +32,48 @@
  *   integration · P1-4 CI drift workflow (next).
  */
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import {
   CATALOG_VERSION_HISTORY as _CATALOG_VERSION_HISTORY,
   CURRENT_CATALOG_VERSION as _CURRENT_CATALOG_VERSION,
   META_NAME_REGISTRY as _META_NAME_REGISTRY,
   type RegisteredMetaName as _RegisteredMetaName,
 } from "./catalog-meta.js";
-import { validateCatalog } from "./command-catalog-helpers.js";
+import {
+  extractCliMainNonPlaceholderCases,
+  validateCatalog,
+} from "./command-catalog-helpers.js";
+
+/**
+ * R2-PR-2 (RFC-2 §4.2.3): module-load 시 fs read 로 currentVersion (package.json)
+ * + cliMainCases (cli.ts) 추출 → validateCatalog 에 전달. fs 가 사용 불가한 환경
+ * (예: bundled — fileURLToPath 실패) 에서는 skip — 미설정 시 두 invariant skip.
+ */
+function loadValidateOptions(): {
+  currentVersion?: string;
+  cliMainCases?: ReadonlySet<string>;
+} {
+  try {
+    const here = fileURLToPath(import.meta.url);
+    // src/core-runtime/cli/command-catalog.ts → ../../../ 가 repo root
+    const repoRoot = path.resolve(path.dirname(here), "../../..");
+    const pkgPath = path.join(repoRoot, "package.json");
+    const cliPath = path.join(repoRoot, "src", "cli.ts");
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { version?: string };
+    const cliSource = readFileSync(cliPath, "utf8");
+    const out: { currentVersion?: string; cliMainCases?: ReadonlySet<string> } = {
+      cliMainCases: extractCliMainNonPlaceholderCases(cliSource),
+    };
+    if (typeof pkg.version === "string") out.currentVersion = pkg.version;
+    return out;
+  } catch {
+    // dist build 또는 node_modules import 시 위치 추정 실패 가능 — invariant skip.
+    // build-time CI 가 별도 보장 (npm run check:catalog-drift 등).
+    return {};
+  }
+}
 
 // Re-export catalog metadata under their historical names so existing callers
 // that import these from `command-catalog.js` keep working. P1-3: moved to
@@ -106,6 +141,13 @@ export type PublicEntry = Common & {
    * future seam). NORMALIZED 에 alias key 로 등록되며 canonical_cli_invocation
    * 으로 dispatcher 가 변환 후 forward (silent no-op 차단). */
   aliases?: readonly string[];
+  /** R2-PR-2 (RFC-2 §4.2.1): deprecated PublicCliEntry 가 historical/informational
+   * compatibility 를 위해 catalog 에 보존되되 executor dispatch 가 의도적으로 부재함.
+   * true 시: cli realization 보유 + deprecated_since 설정 + cli.ts main case 부재 (또는
+   * 본문이 placeholder) — dispatcher 가 lifecycle policy 분기에서 intercept (cli.ts
+   * main 위임 전 notice + return 1). default false. R2-PR-3 schema split 후
+   * PublicCliEntry 로 자동 narrowing. 검증: assertHistoricalNoExecutorBidirectional. */
+  historical_no_executor?: boolean;
 };
 
 export type RuntimeScriptEntry = Common & {
@@ -489,6 +531,7 @@ export const COMMAND_CATALOG: CommandCatalog = {
       description: "Build ontology — superseded by reconstruct.",
       deprecated_since: "0.2.0",
       successor: "reconstruct",
+      historical_no_executor: true,
       realizations: [{ kind: "cli", invocation: "build", cli_dispatch: CLI_HANDLER }],
     },
 
@@ -742,4 +785,14 @@ export const COMMAND_CATALOG: CommandCatalog = {
 // Auto-validate at module load (design doc §4.6)
 // ---------------------------------------------------------------------------
 
-validateCatalog(COMMAND_CATALOG);
+const _validateOptions = loadValidateOptions();
+
+/**
+ * R2-PR-2 (RFC-2 §4.2.1): runtime version (package.json) cached at module load.
+ * dispatcher 의 lifecycle policy interception 에서 사용. fs 위치 추정 실패 시
+ * "0.0.0" fallback (lifecycle cutover 비활성 — module-load validateCatalog 도
+ * 동일 fallback 으로 invariant skip).
+ */
+export const CURRENT_RUNTIME_VERSION = _validateOptions.currentVersion ?? "0.0.0";
+
+validateCatalog(COMMAND_CATALOG, _validateOptions);

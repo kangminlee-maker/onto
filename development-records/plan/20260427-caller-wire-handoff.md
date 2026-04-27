@@ -233,6 +233,20 @@ review 의 host runtime 결정 (`resolveExecutionPlan` + `resolveExecutionTopolo
 
 ## 8. Lifecycle
 
-- **Active**: 다음 세션 entry 시 본 doc 첫 read. caller wire 결정 + 머지까지
-- **Superseded**: caller wire PR 머지 시 status `active` → `superseded-by-pr-NNN`. 본 doc 는 development-records/plan/ 에 archive 유지
-- **Memory pointer**: `project_caller_wire_handoff.md` (신설 권고) 가 본 doc 의 pointer
+- **Status**: `superseded-by-pr-241` (squash merged 2026-04-27 evening, main `946733d`)
+- **Outcome**:
+  - 7 commit on track-b/caller-wire-commit (squash):
+    - `6498003` spawn modules (codex + mock factories, ~580 lines)
+    - `1076ad8` raw-yml-writer + omit semantic test (~395 lines)
+    - `6a86e21` handleReconstructCli explore wire (~580 lines)
+    - `e2dc107` UF-COVERAGE-2 failure variant tests
+    - `1669cc8` entities scanner handoff doc (Session 2 entry)
+    - `41a1282` round 1 consensus fix (C-1 + C-2 + C-3)
+    - `b2f79fd` round 2 critical fix (UF-DEPENDENCY-1 ESM/CommonJS + UF-STRUCTURE-1 config_parse_failed event)
+  - reconstruct/ + evolve/ 47 file / **843 test pass** (회귀 0)
+  - **2 review round** (round 1 → C-1+C-2+C-3 fix → round 2 → critical only fix). round 3 차단 (PR #232 5-round divergence pattern 회피)
+  - **synthesis retry** (LLM stochasticity 측정 — core finding stable, cluster shape stochastic)
+- **Resolved memories**: project_post_pr232_backlog.md 의 P0 A1/A2 PARTIAL → DONE (caller wire 가 4 항목 모두 처리). project_pr236_uf_backlog.md 의 P3 (UF-EVOLUTION-1 + UF-COVERAGE-2) → RESOLVED.
+- **Deferred follow-up**: project_pr241_round2_backlog.md (14 deferred — 분류 A 는 Session 2 entities scanner PR 시 자연 해소, 분류 B 는 별도 small follow-up, 분류 C 는 informational)
+- **Memory pointer**: project_caller_wire_handoff.md (SUPERSEDED) → project_entities_scanner_handoff.md (Session 2 entry, ACTIVE)
+- **Archive**: 본 doc 는 development-records/plan/ 에 archive 유지 (변경 안 함)

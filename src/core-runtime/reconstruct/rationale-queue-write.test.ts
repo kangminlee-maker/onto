@@ -177,6 +177,42 @@ describe("buildRationaleQueueDocument (W-A-91)", () => {
     });
   });
 
+  it("preserves Hook δ grouping_kind + grouping_key_value (review UF-PRAGMATICS-02)", () => {
+    const inferences = new Map<string, IntentInference>();
+    inferences.set("E1", { rationale_state: "domain_pack_incomplete", provenance: provenance() });
+    const result: HookDeltaResult = {
+      entries: [
+        {
+          element_id: "E1",
+          render_bucket: "group_sample",
+          priority_score: 10010,
+          rationale_state: "domain_pack_incomplete",
+          confidence: null,
+          gate_count: 1,
+          grouping_kind: "pack_missing_area",
+          grouping_key_value: { manifest_ref: "concepts.md", heading: "## A" },
+        },
+      ],
+      rendered_count: 1,
+      throttled_out_count: 0,
+      total_pending_count: 1,
+      gate_count_histogram: { "1": 1 },
+      rationale_review_degraded: false,
+    };
+    const doc = buildRationaleQueueDocument({
+      session_id: "S",
+      written_at: "t",
+      hookDeltaResult: result,
+      intentInferences: inferences,
+    });
+    const entry = doc.entries[0]!;
+    expect(entry.grouping_kind).toBe("pack_missing_area");
+    expect(entry.grouping_key_value).toEqual({
+      manifest_ref: "concepts.md",
+      heading: "## A",
+    });
+  });
+
   it("present=true for blank inference (rationale_state=empty), distinguishing from missing (review UF-PRAGMATICS-01)", () => {
     const inferences = new Map<string, IntentInference>();
     inferences.set("E1", {

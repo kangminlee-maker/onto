@@ -15,7 +15,11 @@ import * as fs from "node:fs";
 import { join } from "node:path";
 import { stringify as yamlStringify } from "yaml";
 
-import type { HookDeltaResult, RenderEntry } from "./hook-delta.js";
+import type {
+  GroupingKind,
+  HookDeltaResult,
+  RenderEntry,
+} from "./hook-delta.js";
 import type { IntentInference } from "./wip-element-types.js";
 
 export const RATIONALE_QUEUE_SCHEMA_VERSION = "1.1" as const;
@@ -47,6 +51,11 @@ export interface RationaleQueueEntry {
   rationale_state: string;
   confidence: "low" | "medium" | "high" | null;
   gate_count: number;
+  /** Hook δ 의 §3.4.1 grouping decision (review UF-PRAGMATICS-02). null
+   *  for ungroupable entries (e.g. priority-top individual without group key). */
+  grouping_kind: GroupingKind | null;
+  /** Resolved grouping key value when grouping_kind != null. omitted otherwise. */
+  grouping_key_value?: NonNullable<RenderEntry["grouping_key_value"]>;
   intent_inference_snapshot: IntentInferenceSnapshot;
 }
 
@@ -81,17 +90,25 @@ export function buildRationaleQueueDocument(
   input: RationaleQueueBuildInput,
 ): RationaleQueueDocument {
   const entries: RationaleQueueEntry[] = input.hookDeltaResult.entries.map(
-    (e) => ({
-      element_id: e.element_id,
-      render_bucket: e.render_bucket,
-      priority_score: e.priority_score,
-      rationale_state: e.rationale_state,
-      confidence: e.confidence,
-      gate_count: e.gate_count,
-      intent_inference_snapshot: snapshotInference(
-        input.intentInferences.get(e.element_id),
-      ),
-    }),
+    (e) => {
+      const entry: RationaleQueueEntry = {
+        element_id: e.element_id,
+        render_bucket: e.render_bucket,
+        priority_score: e.priority_score,
+        rationale_state: e.rationale_state,
+        confidence: e.confidence,
+        gate_count: e.gate_count,
+        grouping_kind: e.grouping_kind,
+        intent_inference_snapshot: snapshotInference(
+          input.intentInferences.get(e.element_id),
+        ),
+      };
+      // Hook δ §3.4.1 grouping_key_value preserved when present (UF-PRAGMATICS-02)
+      if (e.grouping_key_value !== undefined) {
+        entry.grouping_key_value = e.grouping_key_value;
+      }
+      return entry;
+    },
   );
 
   return {

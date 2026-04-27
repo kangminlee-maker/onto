@@ -36,6 +36,16 @@ import { buildPhase3SnapshotDocument } from "../../reconstruct/phase3-snapshot-w
 // at production runtime invocation. Spawn modules are small + side-effect-free
 // at import time, so paying the load cost on every handler import is
 // negligible compared to the production-break risk.
+import {
+  makeCodexExplorer,
+  makeMockExplorer,
+  type SpawnExplorer,
+} from "../../reconstruct/explorer/spawn-explorer.js";
+import type { Stage1ExplorerDirective } from "../../reconstruct/explorer/stage1-directive-types.js";
+import {
+  runStage1RoundZero,
+  Stage1ScannerError,
+} from "../../reconstruct/explorer/stage1-scanner.js";
 import { makeCodexProposer } from "../../reconstruct/spawn-proposer.js";
 import { makeCodexReviewer } from "../../reconstruct/spawn-reviewer.js";
 
@@ -69,6 +79,8 @@ export interface ReconstructSessionEvent {
     | "config_absent_default_v1_applied"
     | "config_malformed"
     | "config_parse_failed"
+    | "stage1_scanner_failed"
+    | "wire_build_failed"
     | "coordinator_invariant_violation"
     | "coordinator_failed_alpha"
     | "coordinator_failed_gamma"
@@ -458,14 +470,22 @@ export function executeReconstructComplete(
 
   // PR #241 review C-3 fix (lifecycle gate): when the session has run any
   // cycle-terminal explore attempt (events array contains coordinator_* or
-  // config_malformed / config_parse_failed), the *most recent* such event
-  // must be `coordinator_completed` — otherwise the cycle halted and the
-  // session has not produced a finalizable state.
+  // config_malformed / config_parse_failed / stage1_scanner_failed /
+  // wire_build_failed), the *most recent* such event must be
+  // `coordinator_completed` — otherwise the cycle halted and the session
+  // has not produced a finalizable state.
   //
   // PR #241 review round 2 UF-STRUCTURE-1 fix: config_parse_failed (raised
   // by the explore handler when `.onto/config.yml` parse throws *before*
-  // executeReconstructExplore runs) is now also a cycle-terminal event,
-  // so a parse failure correctly blocks subsequent complete invocations.
+  // executeReconstructExplore runs) is a cycle-terminal event, so a parse
+  // failure correctly blocks subsequent complete invocations.
+  //
+  // PR #242 review round 1 conditional consensus fix: Stage 1 scanner
+  // failures (Stage1ScannerError) and other wire-build failures
+  // (manifest reader / unforeseen wiring) get distinct cycle-terminal
+  // event types (stage1_scanner_failed / wire_build_failed) instead of
+  // the catch-all config_parse_failed — preserves typed metadata for
+  // post-hoc audit while still blocking complete on any wire failure.
   //
   // config_absent_default_v1_applied is *not* cycle-terminal — it is an
   // informational audit signal emitted alongside a successful cycle.
@@ -474,7 +494,9 @@ export function executeReconstructComplete(
   const cycleTerminalEvents = (state.events ?? []).filter((e) =>
     e.type.startsWith("coordinator_") ||
     e.type === "config_malformed" ||
-    e.type === "config_parse_failed",
+    e.type === "config_parse_failed" ||
+    e.type === "stage1_scanner_failed" ||
+    e.type === "wire_build_failed",
   );
   if (cycleTerminalEvents.length > 0) {
     const last = cycleTerminalEvents[cycleTerminalEvents.length - 1]!;
@@ -666,12 +688,12 @@ function appendCycleTerminalEventBestEffort(
  *   - Phase 3 inputs are empty (coordinator's switch-gating handles the
  *     v0/v1 propagation; UI-driven user response is a future concern).
  */
-function buildExploreCoordinatorOptions(args: {
+async function buildExploreCoordinatorOptions(args: {
   projectRoot: string;
   sessionsDir: string;
   sessionId: string;
   useMock: boolean;
-}): ReconstructExploreCoordinatorOptions {
+}): Promise<ReconstructExploreCoordinatorOptions> {
   const root = sessionRoot(args.sessionsDir, args.sessionId);
   const session = readState(root);
 
@@ -694,17 +716,37 @@ function buildExploreCoordinatorOptions(args: {
     ? buildMockSpawnDeps()
     : buildCodexSpawnDeps({ projectRoot: args.projectRoot, configRaw });
 
-  // 3. Stub Stage 1 entities (1 placeholder — real scanner is follow-up)
-  const stubEntity: HookAlphaEntityInput = {
-    id: "STUB-001",
-    type: "entity",
-    name: "Placeholder",
-    definition: `Stub entity for session ${args.sessionId} (real Stage 1 scanner is a follow-up commit).`,
-    certainty: "ambiguous",
-    source: { locations: [session.source] },
-    relations_summary: [],
-  };
+  const runtimeVersion = "v1.0.0-caller-wire";
 
+  // 3. Stage 1 Round 0 entities — real scanner replaces the prior stub
+  //    fixture (PR #241 STUB-001). Mock mode synthesizes a deterministic
+  //    minimal directive (1 entity / 1 module) so `--mock` callers exercise
+  //    the same wiring path without paying LLM cost.
+  const spawnExplorer: SpawnExplorer = args.useMock
+    ? buildMockExplorerSpawn({
+        sessionId: args.sessionId,
+        source: session.source,
+        runtimeVersion,
+      })
+    : buildCodexExplorerSpawn({
+        projectRoot: args.projectRoot,
+        configRaw,
+      });
+
+  const stage1Result = await runStage1RoundZero(
+    {
+      profile: "codebase",
+      source: session.source,
+      intent: session.intent,
+      sessionId: args.sessionId,
+      runtimeVersion,
+    },
+    { spawnExplorer },
+  );
+
+  // 4. Stub manifest — Stage 1 scanner produces entities, not the domain
+  //    manifest (which is sourced from the per-domain pack reader, a separate
+  //    follow-up commit). Manifest stays a placeholder until that reader lands.
   const stubManifest: HookAlphaManifestInput = {
     manifest_schema_version: "1.0",
     domain_name: "stub-domain",
@@ -714,7 +756,7 @@ function buildExploreCoordinatorOptions(args: {
     referenced_files: [],
   };
 
-  // 4. Phase 3 inputs — empty (caller / UI builds real responses in future).
+  // 5. Phase 3 inputs — empty (caller / UI builds real responses in future).
   //
   // UF-EVOLUTION-1 (caller responsibility on v0 fallback): When the resolved
   // switches set inference_mode = "none" (full v0 fallback), the cycle's
@@ -735,7 +777,7 @@ function buildExploreCoordinatorOptions(args: {
 
   return {
     configRaw,
-    entityList: [stubEntity],
+    entityList: stage1Result.entities,
     manifest: stubManifest,
     injectedFiles: [],
     proposerContractVersion: "1.0",
@@ -746,9 +788,94 @@ function buildExploreCoordinatorOptions(args: {
     renderedElementIds: new Set(),
     throttledOutAddressableIds: new Set(),
     deps,
-    runtimeVersion: "v1.0.0-caller-wire",
+    runtimeVersion,
     stage: 1,
   };
+}
+
+/**
+ * Build the codex-backed Stage 1 explorer spawn factory. Reuses the same
+ * codex config (model / reasoningEffort) extracted by buildCodexSpawnDeps —
+ * the explorer runs in the same codex subprocess profile as proposer/reviewer
+ * for transport consistency.
+ */
+function buildCodexExplorerSpawn(args: {
+  projectRoot: string;
+  configRaw: unknown;
+}): SpawnExplorer {
+  const codexConfig = extractCodexConfig(args.configRaw);
+  return makeCodexExplorer({
+    projectRoot: args.projectRoot,
+    sandboxMode: "read-only",
+    ...(codexConfig.model !== undefined ? { model: codexConfig.model } : {}),
+    ...(codexConfig.effort !== undefined
+      ? { reasoningEffort: codexConfig.effort }
+      : {}),
+  });
+}
+
+/**
+ * Sentinel timestamp used in mock explorer provenance so two `--mock`
+ * invocations of the same wrapper produce byte-identical directive
+ * fixtures (post-PR242 review round 1 axiology UF — mock determinism).
+ *
+ * Epoch anchor (Unix 0) signals at a glance that this is a fixture
+ * timestamp, not an audit-meaningful one. Tests that need wall-clock
+ * timestamps inject `exploredAt` explicitly.
+ */
+const MOCK_EXPLORER_EXPLORED_AT_SENTINEL = "1970-01-01T00:00:00.000Z";
+
+/**
+ * Build a deterministic mock Stage 1 explorer spawn for `--mock` mode.
+ * Emits a single synthetic entity bound to the session's source path so
+ * downstream coordinator wiring exercises the same pipeline as production.
+ *
+ * Determinism contract: with the same `sessionId` + `source` +
+ * `runtimeVersion` + `exploredAt` (default sentinel), the emitted
+ * directive is byte-identical across invocations. Audit-meaningful
+ * timestamping happens at the review-record / session-event level —
+ * that is where wall-clock observation belongs.
+ */
+function buildMockExplorerSpawn(args: {
+  sessionId: string;
+  source: string;
+  runtimeVersion: string;
+  /** Override the sentinel for tests that assert on actual wall-clock
+   *  semantics. Production callers leave undefined → sentinel applied. */
+  exploredAt?: string;
+}): SpawnExplorer {
+  const directive: Stage1ExplorerDirective = {
+    profile: "codebase",
+    entities: [
+      {
+        id: "MOCK-E1",
+        type: "entity",
+        name: "MockPlaceholder",
+        definition: `Mock entity for session ${args.sessionId} (--mock flag — no LLM invoked).`,
+        certainty: "ambiguous",
+        source: { locations: [args.source] },
+        relations_summary: [],
+        module_id: "MOCK-M1",
+      },
+    ],
+    module_inventory: [
+      {
+        module_id: "MOCK-M1",
+        module_path: args.source,
+        description: "mock module (--mock flag)",
+      },
+    ],
+    provenance: {
+      explored_at: args.exploredAt ?? MOCK_EXPLORER_EXPLORED_AT_SENTINEL,
+      explored_by: "stage1-explorer",
+      explorer_contract_version: "1.0",
+      session_id: args.sessionId,
+      runtime_version: args.runtimeVersion,
+      input_chunks: 1,
+      truncated_fields: [],
+    },
+  };
+  return makeMockExplorer(directive);
 }
 
 /**
@@ -991,27 +1118,59 @@ export async function handleReconstructCli(
         | undefined;
       if (!noCoordinator) {
         try {
-          coordinatorOptions = buildExploreCoordinatorOptions({
+          coordinatorOptions = await buildExploreCoordinatorOptions({
             projectRoot,
             sessionsDir,
             sessionId,
             useMock,
           });
         } catch (error) {
-          // PR #241 review round 2 UF-STRUCTURE-1 fix: config parse failures
-          // (and other pre-coordinator wire-build failures) MUST be appended
+          // PR #241 review round 2 UF-STRUCTURE-1 + PR #242 review round 1
+          // conditional consensus fix: wire-build failures MUST be appended
           // to state.events so that (a) the lifecycle gate in
           // executeReconstructComplete sees the failure and refuses to
           // finalize, and (b) audit / govern reader has the same observable
           // surface as coordinator-level failures.
           //
+          // Failure taxonomy (3 cycle-terminal event types — distinct
+          // post-hoc audit surfaces):
+          //   stage1_scanner_failed — Stage1ScannerError instance. Detail
+          //     preserves typed `stage` ("spawn"|"validation") + optional
+          //     validator `code` for retrospective grep / dispatch.
+          //   config_parse_failed   — `.onto/config.yml` YAML parse throw
+          //     (recognized by the wrapping error message). PR #241 had
+          //     this as catch-all; narrowed here to just parse failure.
+          //   wire_build_failed     — anything else thrown during wire
+          //     build (manifest reader / spawn dep build / unforeseen).
+          //     Distinct so audit does not mistake it for config parse.
+          //
+          // Detection uses `instanceof` for Stage1ScannerError (the class
+          // is imported at top-level — string-based `error.name` matching
+          // was fragile against bundler renames; PR #242 review pragmatics
+          // finding addressed).
+          //
           // Append is best-effort: if the session state itself is unreadable
           // (e.g. invalid sessionId) we fall through to the original error
           // path without state mutation. The original throw message is still
           // surfaced via console.error.
-          const detail = error instanceof Error ? error.message : String(error);
+          let detail: string;
+          let eventType: ReconstructSessionEvent["type"];
+          if (error instanceof Stage1ScannerError) {
+            eventType = "stage1_scanner_failed";
+            const codeSuffix = error.code ? ` (${error.code})` : "";
+            detail = `${error.stage}${codeSuffix}: ${error.message}`;
+          } else if (
+            error instanceof Error &&
+            error.message.startsWith("[onto] Failed to parse .onto/config.yml")
+          ) {
+            eventType = "config_parse_failed";
+            detail = error.message;
+          } else {
+            eventType = "wire_build_failed";
+            detail = error instanceof Error ? error.message : String(error);
+          }
           appendCycleTerminalEventBestEffort(sessionsDir, sessionId, {
-            type: "config_parse_failed",
+            type: eventType,
             emitted_at: new Date().toISOString(),
             detail,
           });

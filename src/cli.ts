@@ -15,7 +15,7 @@ import {
   readSingleOptionValueFromArgv,
 } from "./core-runtime/review/review-artifact-utils.js";
 
-// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=01fbd5a6b98ef8da5567e439667285c30fb5227a7c9553f86c50705f4931d201
+// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=2cf8221f4d3337a53d1e3c22f39e0f32fc2551a464c1572b97ca932c76e835bf
 export const ONTO_HELP_TEXT = [
   "Usage: onto <subcommand> [options]",
   "",
@@ -770,14 +770,6 @@ export async function main(argvOverride?: readonly string[]): Promise<number> {
       );
       return handleInstallCli(ontoHome, subcommandArgv);
     }
-
-    case "learn":
-    case "build":
-    case "ask":
-      console.error(
-        `[onto] Subcommand '${subcommand}' is not yet implemented in global CLI.`,
-      );
-      return 1;
 
     case "--version":
     case "-v": {

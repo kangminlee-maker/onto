@@ -20,6 +20,7 @@ import {
 } from "./catalog-meta.js";
 import type {
   CatalogEntry,
+  CliRealization,
   CommandCatalog,
 } from "./command-catalog.js";
 
@@ -38,11 +39,23 @@ const MANAGED_TREE_RELATIVE = ".onto/commands/";
 // DispatchTarget + NormalizedInvocationSet (design doc §4.7)
 // ---------------------------------------------------------------------------
 
+/**
+ * P2-B (RFC-1 §4.2.1 — type-level invariant): `canonical_cli_invocation`
+ * 은 CLI realization 한정. slash / patterned_slash target 에는 미부여.
+ * meta target 도 별 axis (cli realization 없음). dispatcher 의 access 자체가
+ * 컴파일 시점에 강제됨 — alias key 도 canonical_cli_invocation 보유.
+ */
 export type DispatchTarget =
   | {
       entry_kind: "public";
       identity: string;
-      realization_kind: "slash" | "cli" | "patterned_slash";
+      realization_kind: "cli";
+      canonical_cli_invocation: string;
+    }
+  | {
+      entry_kind: "public";
+      identity: string;
+      realization_kind: "slash" | "patterned_slash";
     }
   | {
       entry_kind: "meta";
@@ -77,12 +90,24 @@ export function getNormalizedInvocationSet(
   for (const entry of catalog.entries) {
     if (entry.kind === "public") {
       const identity = entry.identity;
+      // P2-B: collect cli realizations once for canonical lookup + alias invariant.
+      const cliRealizations = entry.realizations.filter(
+        (r): r is CliRealization => r.kind === "cli",
+      );
+
       for (const r of entry.realizations) {
-        if (r.kind === "slash" || r.kind === "cli") {
+        if (r.kind === "cli") {
           addOrThrow(set, r.invocation, {
             entry_kind: "public",
             identity,
-            realization_kind: r.kind,
+            realization_kind: "cli",
+            canonical_cli_invocation: r.invocation,
+          });
+        } else if (r.kind === "slash") {
+          addOrThrow(set, r.invocation, {
+            entry_kind: "public",
+            identity,
+            realization_kind: "slash",
           });
         } else {
           // patterned_slash: expand parameter_set
@@ -94,9 +119,34 @@ export function getNormalizedInvocationSet(
             addOrThrow(set, expanded, {
               entry_kind: "public",
               identity,
-              realization_kind: r.kind,
+              realization_kind: "patterned_slash",
             });
           }
+        }
+      }
+
+      // P2-B (RFC-1 §4.2.1): aliases NORMALIZED projection — single-cli only.
+      if (entry.aliases !== undefined && entry.aliases.length > 0) {
+        if (cliRealizations.length === 0) {
+          throw new Error(
+            `Aliases on PublicEntry "${identity}" require ≥1 CliRealization. ` +
+              `Slash-only entries cannot carry aliases (RFC-1 §4.2.2).`,
+          );
+        }
+        if (cliRealizations.length > 1) {
+          throw new Error(
+            `Aliases on multi-CLI PublicEntry "${identity}" not supported in this RFC scope. ` +
+              `Canonical resolution requires explicit canonical declaration — future seam (RFC-1 §11).`,
+          );
+        }
+        const canonical = cliRealizations[0]!.invocation;
+        for (const alias of entry.aliases) {
+          addOrThrow(set, alias, {
+            entry_kind: "public",
+            identity,
+            realization_kind: "cli",
+            canonical_cli_invocation: canonical,
+          });
         }
       }
     } else if (entry.kind === "meta") {
@@ -113,8 +163,12 @@ export function getNormalizedInvocationSet(
           name: entry.name,
         });
       }
+      // P2-B: meta entry 의 aliases 는 schema 에 부재 (Common.aliases 가
+      // PublicEntry 로 이전 후). 추가 alternate invocation 은 long_flag /
+      // short_flag realization 으로 표현 (RFC-1 §4.2.2).
     }
-    // RuntimeScriptEntry: outside normalized invocation set (design §4.7)
+    // RuntimeScriptEntry: outside normalized invocation set (design §4.7).
+    // aliases schema 도 부재 (PublicEntry-only).
   }
 
   return set;
@@ -313,21 +367,58 @@ export function assertEntryRealizationsNonEmpty(catalog: CommandCatalog): void {
 }
 
 // ---------------------------------------------------------------------------
-// Alias collision (design doc §4.3 — Common.aliases union)
+// Alias collision (RFC-1 §4.2.2 — alias ↔ 전체 invocation namespace cross-check)
 // ---------------------------------------------------------------------------
 
+/**
+ * P2-B (RFC-1 §4.2.2): alias collision check 가 alias ↔ alias 만이 아니라
+ * 전체 invocation namespace (cli / slash / meta long_flag/short_flag + alias)
+ * cross-check. NORMALIZED 가 invocation 충돌은 catch 하지만, alias 도입 시점에
+ * 명시적 invariant 로 사용자에게 명확한 error 메시지 제공.
+ *
+ * 또한 PublicEntry 한정 invariant 검증 — slash-only / multi-cli alias 는
+ * getNormalizedInvocationSet 에서 throw (above), 본 함수는 alias 자체의
+ * collision 만 검사.
+ */
 export function assertNoAliasCollision(catalog: CommandCatalog): void {
-  const seen = new Map<string, string>();
+  // 1. invocation namespace 수집 — alias 와 충돌 검사 대상.
+  const invocationOwners = new Map<string, string>();
   for (const entry of catalog.entries) {
-    if (!entry.aliases) continue;
+    if (entry.kind === "public") {
+      for (const r of entry.realizations) {
+        const inv = r.kind === "patterned_slash" ? r.invocation_pattern : r.invocation;
+        invocationOwners.set(inv, entryName(entry));
+      }
+    } else if (entry.kind === "meta") {
+      for (const r of entry.realizations) {
+        invocationOwners.set(r.invocation, entryName(entry));
+      }
+    }
+  }
+
+  // 2. alias 검사 — PublicEntry 한정 (Common 에서 이전 후 schema-narrow).
+  const aliasOwners = new Map<string, string>();
+  for (const entry of catalog.entries) {
+    if (entry.kind !== "public") continue;
+    if (entry.aliases === undefined) continue;
     for (const alias of entry.aliases) {
-      if (seen.has(alias)) {
+      // alias ↔ 다른 entry 의 invocation 충돌
+      const invocationOwner = invocationOwners.get(alias);
+      if (invocationOwner !== undefined && invocationOwner !== entryName(entry)) {
         throw new Error(
-          `Alias collision: "${alias}" claimed by both ` +
-            `"${seen.get(alias)}" and "${entryName(entry)}".`,
+          `Alias collision: "${alias}" (alias of "${entryName(entry)}") collides ` +
+            `with invocation owned by "${invocationOwner}".`,
         );
       }
-      seen.set(alias, entryName(entry));
+      // alias ↔ 다른 alias 충돌
+      const aliasOwner = aliasOwners.get(alias);
+      if (aliasOwner !== undefined) {
+        throw new Error(
+          `Alias collision: "${alias}" claimed by both ` +
+            `"${aliasOwner}" and "${entryName(entry)}".`,
+        );
+      }
+      aliasOwners.set(alias, entryName(entry));
     }
   }
 }

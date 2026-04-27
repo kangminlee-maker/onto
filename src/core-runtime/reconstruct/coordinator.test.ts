@@ -2,7 +2,8 @@
 //
 // Coordinator switch-gating + invariant-halt behavior tests.
 //
-// Cycle coverage (4 mode + audit signal + spy verification + C-2 malformed):
+// Cycle coverage (4 mode + audit signal + spy verification + C-2 malformed +
+// failure variants):
 //   1. full v1 (all switches on)        → α + γ + δ + Phase 3.5 invoked
 //   2. v1 without review                → α + δ + Phase 3.5 invoked, γ skipped_by_switch
 //   3. v0 fallback (all switches off)   → α self-skips (inference_mode=none),
@@ -13,6 +14,9 @@
 //   7. config_malformed (review C-2)    → array root / scalar root → halt with
 //                                          kind="config_malformed"; onConfigAbsent
 //                                          NOT fired; no Hook invocation
+//   8. failed_alpha (UF-COVERAGE-2)     → spawnProposer throws → kind="failed_alpha"
+//   9. failed_gamma (UF-COVERAGE-2)     → spawnReviewer throws → kind="failed_gamma"
+//  10. failed_phase35 (UF-COVERAGE-2)   → invalid input → kind="failed_phase35"
 
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -469,5 +473,103 @@ describe("runReconstructCoordinator — Cycle 7: config_malformed halt (C-2)", (
     expect(result.kind).toBe("config_malformed");
     if (result.kind !== "config_malformed") return;
     expect(result.detail).toMatch(/number/);
+  });
+});
+
+// =============================================================================
+// Cycle 8 — failed_alpha (UF-COVERAGE-2)
+// =============================================================================
+
+describe("runReconstructCoordinator — Cycle 8: failed_alpha (UF-COVERAGE-2)", () => {
+  it("spawnProposer throws → kind=failed_alpha; γ/δ NOT invoked", async () => {
+    const reviewerSpy = vi.fn(makeMockReviewer());
+    const result = await runReconstructCoordinator(
+      makeInput(),
+      makeDeps({
+        spawnProposer: async () => {
+          throw new Error("simulated proposer subprocess failure");
+        },
+        spawnReviewer: reviewerSpy,
+      }),
+    );
+    expect(result.kind).toBe("failed_alpha");
+    if (result.kind !== "failed_alpha") return;
+    expect(result.alpha.kind).toBe("failed");
+    if (result.alpha.kind === "failed") {
+      expect(result.alpha.reject.code).toBe("spawn_failure");
+      expect(result.alpha.reject.detail).toMatch(/simulated proposer/);
+    }
+    // Cascade halt — γ MUST NOT be invoked when α failed
+    expect(reviewerSpy).toHaveBeenCalledTimes(0);
+    // switches snapshot still exposed for caller branch
+    expect(result.switches.v1_inference.enabled).toBe(true);
+  });
+});
+
+// =============================================================================
+// Cycle 9 — failed_gamma (UF-COVERAGE-2)
+// =============================================================================
+
+describe("runReconstructCoordinator — Cycle 9: failed_gamma (UF-COVERAGE-2)", () => {
+  it("spawnReviewer throws → kind=failed_gamma; α completed visible in result", async () => {
+    const result = await runReconstructCoordinator(
+      makeInput(),
+      makeDeps({
+        spawnReviewer: async () => {
+          throw new Error("simulated reviewer subprocess failure");
+        },
+      }),
+    );
+    expect(result.kind).toBe("failed_gamma");
+    if (result.kind !== "failed_gamma") return;
+    // α completed normally before γ failure — caller can branch on alpha state
+    expect(result.alpha.kind).toBe("completed");
+    expect(result.gamma.kind).toBe("failed");
+    if (result.gamma.kind === "failed") {
+      expect(result.gamma.reject.code).toBe("spawn_failure");
+      expect(result.gamma.reject.detail).toMatch(/simulated reviewer/);
+    }
+  });
+});
+
+// =============================================================================
+// Cycle 10 — failed_phase35 (UF-COVERAGE-2)
+// =============================================================================
+
+describe("runReconstructCoordinator — Cycle 10: failed_phase35 (UF-COVERAGE-2)", () => {
+  it("validation fail (action invalid for source) → kind=failed_phase35", async () => {
+    // Hook γ marks E1 as confirmed (rationale_state stays "reviewed"). Then
+    // phase3 user response tries `provide_rationale` action — only valid for
+    // {gap, domain_pack_incomplete, empty} sources, NOT for "reviewed". This
+    // triggers validatePhase35Input → phase_3_5_input_invalid.
+    const input = makeInput({
+      phase3Responses: {
+        received_at: FIXED_NOW.toISOString(),
+        global_reply: "confirmed",
+        rationale_decisions: [
+          {
+            element_id: "E1",
+            action: "provide_rationale",
+            principal_provided_rationale: {
+              inferred_meaning: "x",
+              justification: "y",
+            },
+            decided_at: FIXED_NOW.toISOString(),
+          },
+        ],
+        batch_actions: [],
+      },
+    });
+    const result = await runReconstructCoordinator(input, makeDeps());
+    expect(result.kind).toBe("failed_phase35");
+    if (result.kind !== "failed_phase35") return;
+    expect(result.phase35Failure.validationFailure.ok).toBe(false);
+    expect(result.phase35Failure.validationFailure.code).toBe(
+      "phase_3_5_input_invalid",
+    );
+    // α + γ ran successfully before phase 3.5 caught the bad input
+    expect(result.alpha.kind).toBe("completed");
+    expect(result.gamma.kind).toBe("completed");
+    expect(result.delta).not.toBeNull();
   });
 });

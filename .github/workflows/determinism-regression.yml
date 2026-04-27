@@ -30,10 +30,13 @@ on:
       - 'src/core-runtime/cli/command-catalog-helpers.ts'
       - 'src/core-runtime/cli/dispatcher.ts'
       - 'src/core-runtime/cli/preboot-dispatch.ts'
+      - 'src/core-runtime/cli/dispatch-preboot-core.ts'
+      - 'src/core-runtime/cli/meta-handlers.ts'
       - 'src/core-runtime/cli/catalog-hash.ts'
       - 'src/core-runtime/cli/derive-hash-guard.ts'
       - 'src/cli.ts'
       - 'scripts/check-catalog-drift.ts'
+      - 'scripts/check-handler-exports.ts'
       - 'scripts/generate-command-catalog-derived.ts'
       - 'scripts/command-catalog-generator/**'
       - 'src/core-runtime/cli/command-catalog-templates/**'
@@ -57,3 +60,9 @@ jobs:
 
       - name: Verify catalog ↔ derived artifacts are in sync
         run: npm run check:catalog-drift
+
+      # P2-A canonical gate (RFC-1 §6.1 Layer 0): handler_module fs 존재 +
+      # handler_export 함수 형 검증. drift 통과 후 실행 — drift 가 우선 fail
+      # 차단하는 게 깨끗한 진단 (catalog 형식 OK 후 handler 검증).
+      - name: Verify catalog handler_export references resolve
+        run: npm run check:handler-exports

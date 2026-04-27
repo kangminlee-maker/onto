@@ -15,7 +15,7 @@ import {
   readSingleOptionValueFromArgv,
 } from "./core-runtime/review/review-artifact-utils.js";
 
-// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=8c76847aedc1b5cf802f0491c1311e296cb1f261ecc4f5eed270148abe764827
+// >>> GENERATED FROM CATALOG — do not edit; edit src/core-runtime/cli/command-catalog.ts instead. derive-hash=5e2421cbd1c6e8759d9fc638164c1bc1329b7a7393973c0ff05aa216794f98e3
 export const ONTO_HELP_TEXT = [
   "Usage: onto <subcommand> [options]",
   "",

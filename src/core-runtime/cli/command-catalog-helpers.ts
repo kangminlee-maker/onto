@@ -557,6 +557,36 @@ export function assertHistoricalNoExecutorBidirectional(
 }
 
 /**
+ * R2-PR-4 (RFC-2 §4.5.2): contract_ref 파일 존재 검증 — single validator owner
+ * (multi-invocation paths). vitest test + standalone CI script + future
+ * invocations 모두 본 함수 호출 — invariant duplication 회피.
+ *
+ * fsAccessor: testability — vitest 가 mock fs 주입 가능. CI script 는 production
+ * fs.existsSync 주입.
+ */
+export function assertContractRefsExist(
+  catalog: CommandCatalog,
+  fsAccessor: (relPath: string) => boolean,
+): void {
+  const failures: string[] = [];
+  for (const entry of catalog.entries) {
+    if (entry.kind !== "public") continue;
+    if (entry.contract_ref === undefined) continue;
+    if (!fsAccessor(entry.contract_ref)) {
+      failures.push(
+        `PublicEntry "${entry.identity}": contract_ref="${entry.contract_ref}" does not exist`,
+      );
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(
+      `contract_ref invariant violation — ${failures.length} broken reference(s):\n  - ` +
+        failures.join("\n  - "),
+    );
+  }
+}
+
+/**
  * R2-PR-3 (RFC-2 §4.4.3 v5): PublicCliEntry 의 ontology canonical invariant —
  * "has at least one CLI realization". type-level discriminator (`phase` field) 가
  * fast-fail 하지만 catalog 의 array literal 에 cli realization 부재 시 type 만으로

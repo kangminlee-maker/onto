@@ -232,7 +232,14 @@ export type CommandCatalog = {
 //   `/onto:{subdir}:{name}` (e.g., learn/promote.md → /onto:learn:promote)
 //
 // File existence assertions (handler_module, prompt_body_ref, contract_ref,
-// script_path) are build-time tests per design §4.3 — validation 추가는 후속.
+// script_path):
+//   - handler_module + handler_export → scripts/check-handler-exports.ts
+//     (RFC-1 P2-A Layer 0 canonical gate)
+//   - contract_ref → scripts/check-contract-refs.ts + assertContractRefsExist
+//     (RFC-2 R2-PR-4 — shared validator + CI gate, RFC-2 §4.5)
+//   - prompt_body_ref → assertPromptBodyRefInManagedTree (resolution-only,
+//     fs.existsSync 미수행 — module-load overhead 회피, build-time test 별도)
+//   - script_path → 별 build-time test (현 시점 부재 — future scope)
 // ---------------------------------------------------------------------------
 
 const CLI_HANDLER = { handler_module: "src/cli.ts" } as const;

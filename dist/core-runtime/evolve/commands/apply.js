@@ -246,15 +246,25 @@ function handleCommitDesignDoc(paths, action, projectRoot) {
     });
     if (!startResult.success)
         return { success: false, reason: wrapGateError(startResult.reason) };
-    // ── Step 3-4: file move + git commit ──
+    // ── Step 3-4: file move + path-bound git commit ──
+    //
+    // post-round 2 fix-up (UF-AX-1): `git commit -m '<msg>' -- <relDestPath>` 로
+    // path-bind 하여 미리 staged 된 unrelated change 가 우리 commit 에 섞이지 않도록
+    // 함. `git add <path>` + `git commit -- <path>` 조합은 *해당 path 만* commit
+    // 으로 들어가는 것을 보장 (`-- <path>` 가 pathspec 으로 작동).
     if (!existsSync(destDir)) {
         mkdirSync(destDir, { recursive: true });
     }
     writeFileSync(destPath, content, "utf-8");
     const commitMessage = action.commitMessage ?? `docs(evolve): ${state.title}`;
+    let commitSha;
     try {
         execFileSync("git", ["add", relDestPath], { cwd: projectRoot, stdio: "pipe" });
-        execFileSync("git", ["commit", "-m", commitMessage], { cwd: projectRoot, stdio: "pipe" });
+        execFileSync("git", ["commit", "-m", commitMessage, "--", relDestPath], { cwd: projectRoot, stdio: "pipe" });
+        commitSha = execFileSync("git", ["rev-parse", "HEAD"], {
+            cwd: projectRoot,
+            encoding: "utf-8",
+        }).trim();
     }
     catch (err) {
         // git 실패 → dest 롤백, source 보존. apply.started 는 ledger 에 남으나
@@ -268,10 +278,7 @@ function handleCommitDesignDoc(paths, action, projectRoot) {
             reason: `git commit 실패: ${errMsg} (apply.started 는 ledger 에 기록됨 — 재시도 가능)`,
         };
     }
-    // ── Step 5: source unlink (commit 이후만 안전) ──
-    if (existsSync(sourcePath))
-        unlinkSync(sourcePath);
-    // ── Step 6: optional push + PR ──
+    // ── Step 5: optional push + PR ──
     let prUrl;
     let pushPrWarning;
     if (action.pushPr) {
@@ -292,26 +299,46 @@ function handleCommitDesignDoc(paths, action, projectRoot) {
             pushPrWarning = `push/PR 생성 실패 (commit 은 성공): ${errMsg}`;
         }
     }
-    // ── Step 7: emit apply.completed with structured process_artifact ──
+    // ── Step 6: emit apply.completed with structured process_artifact ──
+    //
+    // post-round 2 fix-up (UF-CONC-1): result 는 process_artifact 의 stable summary
+    // 로만 기능 — destination_path 의 중복 storage 방지. structured payload 가 SSOT.
+    const processArtifact = {
+        source_path: relative(projectRoot, sourcePath),
+        source_hash: sourceHash,
+        destination_path: relDestPath,
+        destination_hash: sourceHash,
+        commit_message: commitMessage,
+        commit_sha: commitSha,
+        ...(prUrl ? { pr_url: prUrl } : {}),
+    };
     const completeResult = appendScopeEvent(paths, {
         type: "apply.completed",
         actor: "agent",
         payload: {
-            result: `design doc committed at ${relDestPath}`,
-            process_artifact: {
-                source_path: relative(projectRoot, sourcePath),
-                source_hash: sourceHash,
-                destination_path: relDestPath,
-                destination_hash: sourceHash,
-                commit_message: commitMessage,
-                ...(prUrl ? { pr_url: prUrl } : {}),
-            },
+            result: `design doc committed (sha=${commitSha.slice(0, 7)})`,
+            process_artifact: processArtifact,
         },
     });
-    if (!completeResult.success)
-        return { success: false, reason: wrapGateError(completeResult.reason) };
+    if (!completeResult.success) {
+        // post-round 2 fix-up (NEW-CONS-3): apply.completed append 실패 시 git commit 은
+        // 이미 성공했지만 ledger 가 모름. source 는 *아직 unlink 되지 않은 상태* 이므로
+        // 재진입 시 destination 충돌 → 사용자에게 명시적 진단 노출 → 수동 복구 가능.
+        return {
+            success: false,
+            reason: wrapGateError(`${completeResult.reason} — git commit 은 ${commitSha.slice(0, 7)} 로 성공했으나 ledger 기록 실패. ledger 와 git 정합 후 재진입 필요.`),
+        };
+    }
     refreshScopeMd(paths, completeResult.state);
-    const messageParts = [`Design doc 이 ${relDestPath} 로 commit 되었습니다.`];
+    // ── Step 7: source unlink (apply.completed durable record 후만 안전) ──
+    //
+    // post-round 2 fix-up (NEW-CONS-3): 이전 ordering 은 git commit 후 source 를
+    // 즉시 unlink → apply.completed append 실패 시 ledger 미기록 + source 소실
+    // 의 disconnected state. unlink 를 *apply.completed durable 후* 로 이동 →
+    // ledger 실패 시 source 가 recovery anchor 로 보존됨.
+    if (existsSync(sourcePath))
+        unlinkSync(sourcePath);
+    const messageParts = [`Design doc 이 ${relDestPath} 로 commit 되었습니다 (sha=${commitSha.slice(0, 7)}).`];
     if (prUrl)
         messageParts.push(`PR: ${prUrl}`);
     if (pushPrWarning)
@@ -324,6 +351,7 @@ function handleCommitDesignDoc(paths, action, projectRoot) {
             destinationPath: relDestPath,
             destinationHash: sourceHash,
             commitMessage,
+            commitSha,
             ...(prUrl ? { prUrl } : {}),
             ...(pushPrWarning ? { pushPrWarning } : {}),
         },

@@ -372,4 +372,69 @@ describe("executeApply — commit_design_doc (process mode)", () => {
     if (result.success) return;
     expect(result.reason).toMatch(/apply\.started 가 기록된 상태에서만/);
   });
+
+  // ─── post-round 2 review (NEW-CONS-1): Rule 5g process_artifact invariant ───
+  it("process apply.completed without process_artifact is rejected (gate-guard Rule 5g)", () => {
+    // Process scope at surface_confirmed with apply.started already recorded —
+    // but apply.completed payload missing process_artifact (commit_design_doc 우회 시도)
+    const paths = setupSurfaceConfirmedProcessScope(tmpDir, "SC-PROC-RULE5G-001");
+
+    // 먼저 apply.started 기록 (Rule 5f 통과)
+    const startedResult = appendScopeEvent(paths, {
+      type: "apply.started",
+      actor: "agent",
+      payload: { build_spec_hash: "" },
+    });
+    expect(startedResult.success).toBe(true);
+
+    // process_artifact 없이 apply.completed 시도 → Rule 5g rejection
+    const completedResult = appendScopeEvent(paths, {
+      type: "apply.completed",
+      actor: "agent",
+      payload: { result: "bypass commit_design_doc" },
+    });
+    expect(completedResult.success).toBe(false);
+    if (completedResult.success) return;
+    expect(completedResult.reason).toMatch(/process_artifact .* 모두 기록되어야 합니다/);
+  });
+
+  // ─── post-round 2 review (UF-AX-1): commit SHA in process_artifact ───
+  it("commit_design_doc records commit SHA in process_artifact + path-bound commit", () => {
+    setupGitRepo(tmpDir);
+
+    // Pre-stage an unrelated change to verify path-binding (commit 에 포함되면 안 됨)
+    writeFileSync(join(tmpDir, "unrelated.txt"), "should not be committed by us\n", "utf-8");
+    execFileSync("git", ["add", "unrelated.txt"], { cwd: tmpDir });
+
+    const paths = setupSurfaceConfirmedProcessScope(tmpDir, "SC-PROC-UFAX1-001", { title: "path bind verify" });
+    writeDesignDocDraft(paths);
+
+    const result = executeApply(paths, { type: "commit_design_doc" }, { projectRoot: tmpDir });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    // process_artifact 의 commit_sha 가 채워졌는가
+    const completedEvent = readEvents(paths.events).find(e => e.type === "apply.completed");
+    expect(completedEvent).toBeDefined();
+    const completedPayload = completedEvent!.payload as { process_artifact?: { commit_sha?: string } };
+    expect(completedPayload.process_artifact?.commit_sha).toBeDefined();
+    expect(completedPayload.process_artifact!.commit_sha).toMatch(/^[0-9a-f]{40}$/);
+
+    // git log 의 HEAD commit 이 우리가 기록한 SHA 와 동일
+    const headSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: tmpDir, encoding: "utf-8" }).trim();
+    expect(completedPayload.process_artifact!.commit_sha).toBe(headSha);
+
+    // Path-bind 검증: HEAD commit 이 unrelated.txt 를 *포함하지 않음*
+    const filesInCommit = execFileSync(
+      "git",
+      ["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
+      { cwd: tmpDir, encoding: "utf-8" },
+    ).trim().split("\n");
+    expect(filesInCommit).toContain(`development-records/evolve/${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-path-bind-verify.md`);
+    expect(filesInCommit).not.toContain("unrelated.txt");
+
+    // unrelated.txt 는 여전히 staged 상태 (우리 commit 영향 받지 않음)
+    const stagedFiles = execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: tmpDir, encoding: "utf-8" }).trim();
+    expect(stagedFiles).toContain("unrelated.txt");
+  });
 });

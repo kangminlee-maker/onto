@@ -530,6 +530,9 @@ export interface ApplyStartedPayload {
 // post-PR #246 R1 review (CONS-2 9/9 consensus): process mode 의 apply 결과를
 // 자유 문자열로 carry 하지 않고 구조화. process_artifact 는 process scope
 // 에서만 채워지며, code-product (experience/interface) 는 result 만 사용.
+//
+// post-round 2 fix-up (UF-AX-1): commit_sha 추가 — git commit 의 path-bound
+// SHA 를 ledger 에 기록해 git custody chain 추적 가능.
 export interface ApplyCompletedPayload {
   result: string;
   process_artifact?: {
@@ -538,6 +541,7 @@ export interface ApplyCompletedPayload {
     destination_path: string;
     destination_hash: string;
     commit_message: string;
+    commit_sha: string;
     pr_url?: string;
   };
 }

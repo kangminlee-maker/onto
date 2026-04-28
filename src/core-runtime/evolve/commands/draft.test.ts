@@ -194,4 +194,114 @@ describe("executeDraft", () => {
     const state = reduce(readEvents(paths.events));
     expect(state.current_state).toBe("target_locked");
   });
+
+  // ─── PR #216 §3.1.0 Phase B Step 2: process mode handleCompile 분기 ───
+  // F-15 (compile cryptic 예외) 의 root cause 였던 entry_mode 분기 부재 해소.
+  // process mode 는 compile 단계 skip — surface 가 design-doc markdown 이라
+  // build-spec / delta-set / brownfield-detail 같은 code-product artifact 가
+  // 무의미. Phase B Step 3-6 (apply 의 process 분기 등) 은 별도 commit.
+  it("process mode + compile → fail-close with skip message (no compile invoked)", () => {
+    const paths = createScope(tmpDir, "SC-PROCESS-001");
+    // entry_mode="process" 로 scope 시작 (post-PR #216 §3.1.0 wiring)
+    appendScopeEvent(paths, {
+      type: "scope.created",
+      actor: "user",
+      payload: { title: "Process Test", description: "process scope test", entry_mode: "process" },
+    });
+    appendScopeEvent(paths, {
+      type: "grounding.started",
+      actor: "system",
+      payload: { sources: [{ type: "add-dir", path_or_url: "/test" }] },
+    });
+    appendScopeEvent(paths, {
+      type: "grounding.completed",
+      actor: "system",
+      payload: { snapshot_revision: 1, source_hashes: { "add-dir:/test": "h1" }, perspective_summary: { experience: 1, code: 0, policy: 1 } },
+    });
+    appendScopeEvent(paths, {
+      type: "align.proposed",
+      actor: "system",
+      payload: { packet_path: "build/align-packet.md", packet_hash: "h", snapshot_revision: 1 },
+    });
+    appendScopeEvent(paths, {
+      type: "align.locked",
+      actor: "user",
+      payload: { locked_direction: "test", locked_scope_boundaries: { in: ["a"], out: ["b"] }, locked_in_out: true },
+    });
+    // surface → confirm → target_locked 까지 정상 진행 (process mode 도 동일)
+    executeDraft({ paths, action: { type: "generate_surface", surfacePath: "surface/design-doc-draft.md", surfaceHash: "sf1", snapshotRevision: 1 } });
+    executeDraft({ paths, action: { type: "confirm_surface", surfacePath: "surface/design-doc-draft.md", surfaceHash: "sf1" } });
+    executeDraft({ paths, action: { type: "record_constraint", constraintPayload: {
+      constraint_id: "CST-001", perspective: "policy", summary: "test", severity: "required",
+      discovery_stage: "draft_phase2", decision_owner: "product_owner",
+      impact_if_ignored: "fails", source_refs: [{ source: "test.md", detail: "d" }],
+    } } });
+    executeDraft({ paths, action: { type: "record_decision", decisionPayload: {
+      constraint_id: "CST-001", decision: "inject", selected_option: "fix",
+      decision_owner: "product_owner", rationale: "필수",
+    } } });
+    executeDraft({ paths, action: { type: "lock_target" } });
+
+    const state = reduce(readEvents(paths.events));
+    expect(state.entry_mode).toBe("process");
+    expect(state.current_state).toBe("target_locked");
+
+    // 핵심 단언: compile action 은 process mode 에서 skip + fail-close.
+    // CompileInput 은 어떤 stub 도 무방 — 분기 자체가 input 검증 전에 결정.
+    const compileResult = executeDraft({
+      paths,
+      action: {
+        type: "compile",
+        compileInput: {} as never, // 실제로 사용 안 됨 — 분기에서 early return
+      },
+    });
+    expect(compileResult.success).toBe(false);
+    if (compileResult.success) return;
+    expect(compileResult.reason).toMatch(/process mode 에선 compile 이 생략/);
+
+    // compile 이 실제로 호출 안 됐으므로 compile.started / compile.completed
+    // event 가 새로 기록되지 않음을 단언 (ledger pristine).
+    const events = readEvents(paths.events);
+    expect(events.find((e) => e.type === "compile.started")).toBeUndefined();
+    expect(events.find((e) => e.type === "compile.completed")).toBeUndefined();
+  });
+
+  it("process mode generate_surface guide 메시지 — design-doc-draft.md 안내", () => {
+    const paths = createScope(tmpDir, "SC-PROCESS-002");
+    appendScopeEvent(paths, {
+      type: "scope.created",
+      actor: "user",
+      payload: { title: "Process Test 2", description: "guide test", entry_mode: "process" },
+    });
+    appendScopeEvent(paths, {
+      type: "grounding.started",
+      actor: "system",
+      payload: { sources: [{ type: "add-dir", path_or_url: "/test" }] },
+    });
+    appendScopeEvent(paths, {
+      type: "grounding.completed",
+      actor: "system",
+      payload: { snapshot_revision: 1, source_hashes: { "add-dir:/test": "h1" }, perspective_summary: { experience: 1, code: 0, policy: 1 } },
+    });
+    appendScopeEvent(paths, {
+      type: "align.proposed",
+      actor: "system",
+      payload: { packet_path: "build/align-packet.md", packet_hash: "h", snapshot_revision: 1 },
+    });
+    appendScopeEvent(paths, {
+      type: "align.locked",
+      actor: "user",
+      payload: { locked_direction: "process", locked_scope_boundaries: { in: ["doc"], out: ["code"] }, locked_in_out: true },
+    });
+
+    const result = executeDraft({
+      paths,
+      action: { type: "generate_surface", surfacePath: "surface/design-doc-draft.md", surfaceHash: "sf-proc", snapshotRevision: 1 },
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    // 가이드 메시지가 process mode 의 design-doc 경로를 가리켜야 함
+    // (이전엔 interface fallback 으로 contract-diff 안내가 잘못 노출됐을 영역)
+    expect(result.message).toMatch(/design-doc-draft\.md/);
+  });
 });

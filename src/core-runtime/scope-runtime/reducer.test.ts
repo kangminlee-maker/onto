@@ -882,3 +882,59 @@ describe("reducer — prd_review_completed", () => {
     expect(reduce(events).prd_review_completed).toBe(false);
   });
 });
+
+// ─── PR #246 review (conditional consensus, 5-lens convergence) ───
+// post-PR #246 review fix-up: legacy process scope artifact 의 entry_mode
+// normalization. pre-PR #246 의 process scope 는 entry_mode="experience" +
+// description "[scope_kind:process]" 워크어라운드로 기록됨. 새 strict routing
+// 에서 이 legacy 가 interface fallback 으로 떨어지는 issue 를 reduce-time
+// normalization 으로 해소.
+
+describe("reducer — legacy process scope normalization (PR #246 fix-up)", () => {
+  beforeEach(() => resetRev());
+
+  it("[scope_kind:process] tag + entry_mode=experience → entry_mode 가 process 로 normalize", () => {
+    const events: Event[] = [
+      evt("scope.created", null, "draft", {
+        title: "Legacy Process Scope",
+        description: "[scope_kind:process] authority_sources:3",
+        entry_mode: "experience",
+      }),
+    ];
+    expect(reduce(events).entry_mode).toBe("process");
+  });
+
+  it("description 에 tag 없으면 entry_mode=experience 그대로 (false-positive 방지)", () => {
+    const events: Event[] = [
+      evt("scope.created", null, "draft", {
+        title: "Pure UI Scope",
+        description: "experience scope, no process tag here",
+        entry_mode: "experience",
+      }),
+    ];
+    expect(reduce(events).entry_mode).toBe("experience");
+  });
+
+  it("entry_mode 이 이미 process 면 normalization 무영향 (idempotent)", () => {
+    const events: Event[] = [
+      evt("scope.created", null, "draft", {
+        title: "Modern Process Scope",
+        description: "[scope_kind:process] authority_sources:5",
+        entry_mode: "process",
+      }),
+    ];
+    expect(reduce(events).entry_mode).toBe("process");
+  });
+
+  it("entry_mode=interface 는 tag 가 있어도 unchanged (interface 가 더 명시적)", () => {
+    const events: Event[] = [
+      evt("scope.created", null, "draft", {
+        title: "Mixed",
+        description: "[scope_kind:process] but actually interface",
+        entry_mode: "interface",
+      }),
+    ];
+    // experience → process 만 normalize. interface 는 명시 의도라 보존.
+    expect(reduce(events).entry_mode).toBe("interface");
+  });
+});

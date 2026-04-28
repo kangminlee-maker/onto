@@ -81,7 +81,23 @@ export function reduce(events: Event[]): ScopeState {
         scope_id = evt.scope_id;
         title = p.title;
         description = p.description;
+        // post-PR #246 review (conditional consensus, 5-lens convergence):
+        // pre-PR #246 의 process scope artifact 는 entry_mode 가 "experience"
+        // 로 기록 + description 에 [scope_kind:process] 워크어라운드 tag 가
+        // 박혀있다 (start.ts:864 의 옛 형식). 새 strict routing 에서 이 legacy
+        // artifact 는 routing 미스 (interface fallback) — 본 normalization 은
+        // legacy tag 가 발견되면 entry_mode 를 "process" 로 reduce-time
+        // 보정. 신규 scope 에는 영향 없음 (start.ts 가 이미 "process" 로 직접
+        // 기록). 향후 legacy artifact 가 모두 사라지면 (또는 명시 cleanup
+        // PR 진행 시) 본 normalization 도 제거 가능.
         entry_mode = p.entry_mode;
+        if (
+          entry_mode === "experience" &&
+          typeof description === "string" &&
+          description.includes("[scope_kind:process]")
+        ) {
+          entry_mode = "process";
+        }
         break;
       }
 

@@ -470,3 +470,72 @@ describe("ScanSkipped integration (ETag cache hit)", () => {
     scanTarballSpy.mockRestore();
   });
 });
+
+describe("executeStart — Path D: Process mode entry (PR #246/#247 wiring)", () => {
+  it("creates process scope end-to-end with entry_mode='process' persisted in events and state", async () => {
+    const ontoDir = join(projectDir, ".onto");
+    mkdirSync(ontoDir, { recursive: true });
+    writeFileSync(
+      join(ontoDir, "test-authority.md"),
+      "# Test Authority\n\n## A1\n\n테스트 권위 규칙.\n",
+    );
+
+    const result = await executeStart({
+      rawInput: "Process design test target",
+      projectRoot: projectDir,
+      scopesDir,
+      projectName: "process-test",
+      entryMode: "process",
+      authoritySources: [
+        { path: ".onto/test-authority.md", rank: 1, description: "test authority" },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.action).toBe("process_scope_created");
+
+    const events = readEvents(result.paths.events);
+    const scopeCreated = events.find(e => e.type === "scope.created");
+    expect(scopeCreated).toBeDefined();
+    const payload = scopeCreated!.payload as { entry_mode?: string; description?: string };
+
+    // Canonical authority — typed `entry_mode` is the SSOT for process-kind classification.
+    expect(payload.entry_mode).toBe("process");
+
+    // Legacy backward-compat — `[scope_kind:process]` tag in description is retained
+    // for older scope artifacts (PR #246 §3.1.0 wiring decision). The tag is *derived*
+    // from the typed entry_mode and must NOT be treated as an independent authority.
+    expect(payload.description).toContain("[scope_kind:process]");
+
+    const state = reduce(events);
+    expect(state.entry_mode).toBe("process");
+
+    const types = events.map(e => e.type);
+    expect(types).toContain("grounding.started");
+    expect(types).toContain("grounding.completed");
+  });
+
+  it("fails closed when entry_mode='process' is invoked with empty authority sources", async () => {
+    const { readdirSync } = await import("node:fs");
+
+    const result = await executeStart({
+      rawInput: "no authority",
+      projectRoot: projectDir,
+      scopesDir,
+      projectName: "process-empty",
+      entryMode: "process",
+      authoritySources: [],
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.step).toBe("authority_discovery");
+
+    // Side-effect absence — fail-close must not partially materialize scope state.
+    // Authority-discovery failure happens BEFORE createScope, so scopesDir stays empty
+    // and no events/snapshots can leak into the filesystem.
+    const scopeDirs = readdirSync(scopesDir);
+    expect(scopeDirs).toEqual([]);
+  });
+});

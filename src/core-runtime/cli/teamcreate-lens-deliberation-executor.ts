@@ -103,16 +103,29 @@ export interface LensPrimaryOutput {
  *
  * The pair is unordered (deliberation is symmetric); for filesystem and
  * trace stability, the pair directory name is constructed from
- * lexicographically sorted lens IDs (see `deliberationArtifactPath`).
+ * lexicographically sorted lens IDs + `id` (see `deliberationArtifactPath`).
+ *
+ * `id` is the per-conflict slug. Synthesize 1차 emits a stable identifier
+ * per conflict so that the same lens pair with multiple conflicts does
+ * not collapse into a single artifact path. Format: free-form, must be
+ * filesystem-safe (no path separators). Recommended pattern:
+ * `<lens-pair-axis>-<sequence>` (e.g. `naming-1`, `narrowing-2`).
  */
 export interface ConflictingLensPair {
+  /**
+   * Stable per-conflict identifier within a single review session. MUST be
+   * unique among the `conflicting_pairs` of a single Synthesize 1차 output
+   * and MUST be filesystem-safe (no `/` / `\\`). Without this field, two
+   * conflicts on the same lens pair would alias to the same artifact path.
+   */
+  id: string;
   lens_a: LensPrimaryOutput;
   lens_b: LensPrimaryOutput;
   /**
    * Section / area where the conflict surfaced. Free-form string from
    * Synthesize 1차 frontmatter (e.g. "structure-section-3", "axiology
    * vs conciseness — naming"). Passed verbatim into peer prompts as
-   * conflict context.
+   * conflict context. NOT used for path uniqueness — that is `id`.
    */
   target_section: string;
   /**
@@ -131,17 +144,32 @@ export interface LensDeliberationInput {
    * Empty array → no deliberation needed; `runLensAgentDeliberation`
    * returns an empty plan and the coordinator advances directly to
    * final synthesis (the Synthesize 1차 output is already the final).
+   *
+   * **Invariant**: when `expected_status === "needed"`, this array MUST
+   * be non-empty. An empty list under `needed` signals a wiring defect
+   * (Synthesize 1차 emitted `deliberation_status: needed` but the
+   * conflicting_pairs were all unresolvable, malformed, or absent) and
+   * `runLensAgentDeliberation` will throw.
    */
   conflicting_pairs: ConflictingLensPair[];
   /**
    * Directory under which peer artifacts are written:
-   *   <deliberation_dir>/<lens-A-id>--<lens-B-id>/<authoring-lens>-deliberation.md
+   *   <deliberation_dir>/<sorted-a>--<sorted-b>/<conflict-id>/<authoring-lens>-deliberation.md
    *
    * The pair directory uses lexicographically sorted lens IDs to ensure
    * `(A,B)` and `(B,A)` resolve to the same directory regardless of
-   * which lens is listed as `lens_a` in the input.
+   * which lens is listed as `lens_a` in the input. The `<conflict-id>`
+   * subdirectory ensures that multiple conflicts on the same lens pair
+   * do not collide.
    */
   deliberation_dir: string;
+  /**
+   * Synthesize 1차 frontmatter `deliberation_status` carried as a
+   * boundary invariant. Optional; when set, `runLensAgentDeliberation`
+   * fail-fasts on (status="needed", conflicting_pairs=[]) — the silent
+   * collapse path. Caller (coordinator) is the natural source.
+   */
+  expected_status?: "needed" | "not_needed";
 }
 
 /**
@@ -149,14 +177,19 @@ export interface LensDeliberationInput {
  *
  * For each conflicting pair the plan emits **two** steps — one per lens
  * — so each lens can write its own deliberation reply about the same
- * pair. This is symmetric peer-to-peer; no teamlead-as-arbiter step is
- * inserted.
+ * pair. This is **symmetric peer-to-peer with parallel replies**: each
+ * lens reads only the peer's *primary output* and authors a reply
+ * independently. The plan does NOT model sequential reply-to-reply
+ * (lens-a-reply-after-lens-b-reply); that would be a multi-round
+ * extension and is currently out of scope for Option E.
  */
 export interface PeerDeliberationStep {
   /** Lens authoring this deliberation reply. */
   lens_id: string;
   /** The peer lens this reply is responding to. */
   peer_lens_id: string;
+  /** Per-conflict stable id (see `ConflictingLensPair.id`). */
+  conflict_id: string;
   /** Free-form conflict-area label from the originating ConflictingLensPair. */
   target_section: string;
   /** Prompt text the coordinator sends via SendMessage. */
@@ -304,18 +337,29 @@ export function buildPeerDeliberationPrompt(args: {
 /**
  * Compute the path for a peer deliberation artifact.
  *
- * Pair directory name = lexicographically sorted "<a>--<b>" so the same
- * pair always resolves to the same directory regardless of input order.
+ * Path shape: `<dir>/<sorted-a>--<sorted-b>/<conflict_id>/<authoring>-deliberation.md`
+ *
+ * - Pair directory name = lexicographically sorted "<a>--<b>" so the same
+ *   pair always resolves to the same directory regardless of input order.
+ * - `<conflict_id>` subdirectory keeps multiple conflicts on the same
+ *   lens pair from colliding into a single file path.
+ *
  * Pure function — tests can assert without filesystem side effects.
  */
 export function deliberationArtifactPath(
   deliberation_dir: string,
   lens_a: string,
   lens_b: string,
+  conflict_id: string,
   authoring_lens: string,
 ): string {
   const [first, second] = [lens_a, lens_b].sort();
-  return path.join(deliberation_dir, `${first}--${second}`, `${authoring_lens}-deliberation.md`);
+  return path.join(
+    deliberation_dir,
+    `${first}--${second}`,
+    conflict_id,
+    `${authoring_lens}-deliberation.md`,
+  );
 }
 
 /**
@@ -326,10 +370,17 @@ export async function writeDeliberationArtifact(
   deliberation_dir: string,
   lens_a: string,
   lens_b: string,
+  conflict_id: string,
   authoring_lens: string,
   content: string,
 ): Promise<string> {
-  const filePath = deliberationArtifactPath(deliberation_dir, lens_a, lens_b, authoring_lens);
+  const filePath = deliberationArtifactPath(
+    deliberation_dir,
+    lens_a,
+    lens_b,
+    conflict_id,
+    authoring_lens,
+  );
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, content, "utf8");
   return filePath;
@@ -342,9 +393,16 @@ export async function readDeliberationArtifact(
   deliberation_dir: string,
   lens_a: string,
   lens_b: string,
+  conflict_id: string,
   authoring_lens: string,
 ): Promise<string> {
-  const filePath = deliberationArtifactPath(deliberation_dir, lens_a, lens_b, authoring_lens);
+  const filePath = deliberationArtifactPath(
+    deliberation_dir,
+    lens_a,
+    lens_b,
+    conflict_id,
+    authoring_lens,
+  );
   return fs.readFile(filePath, "utf8");
 }
 
@@ -362,6 +420,7 @@ export async function readDeliberationArtifact(
 export interface Synthesize1FrontmatterDeliberationFields {
   deliberation_status?: "needed" | "not_needed" | "performed" | "required_but_unperformed";
   conflicting_pairs?: Array<{
+    id: string;
     lens_a: string;
     lens_b: string;
     target_section: string;
@@ -370,39 +429,104 @@ export interface Synthesize1FrontmatterDeliberationFields {
 }
 
 /**
+ * Reason an entry was skipped during extraction.
+ */
+export type SkippedConflictReason =
+  | "unknown_lens_id"
+  | "missing_id"
+  | "duplicate_id"
+  | "missing_field";
+
+export interface SkippedConflictEntry {
+  /** Original entry from frontmatter (verbatim). */
+  entry: {
+    id?: string;
+    lens_a?: string;
+    lens_b?: string;
+    target_section?: string;
+    summary?: string;
+  };
+  reason: SkippedConflictReason;
+  detail: string;
+}
+
+export interface ExtractConflictingPairsResult {
+  resolved: ConflictingLensPair[];
+  skipped: SkippedConflictEntry[];
+}
+
+/**
  * Resolve the conflicting-pair entries from the Synthesize 1차 frontmatter
  * into `ConflictingLensPair` objects keyed to the actual primary outputs
  * on disk.
  *
- * `primary_outputs_by_lens_id` provides the lookup from lens_id (string)
- * to its primary `LensPrimaryOutput` object. A pair referencing an
- * unknown lens_id is skipped (the caller should treat this as a wiring
- * defect, not a routine no-op).
+ * Returns BOTH the resolved pairs and a list of skipped entries with
+ * reasons (unknown lens_id, missing id, duplicate id, missing required
+ * field). Caller (coordinator) is the natural place to decide whether
+ * `skipped.length > 0 && deliberation_status === "needed"` is a fail-fast
+ * condition or a degraded-but-proceedable state.
  *
- * Empty / absent `conflicting_pairs` field → empty array. This is the
- * primary signal "no deliberation needed" — the caller advances directly
- * to final.
+ * Empty / absent `conflicting_pairs` field → `{ resolved: [], skipped: [] }`.
+ * That alone is not a defect — only `deliberation_status: needed` paired
+ * with all-skipped/all-empty resolution is.
  */
 export function extractConflictingPairsFromSynthesize1(
   frontmatter: Synthesize1FrontmatterDeliberationFields | null | undefined,
   primary_outputs_by_lens_id: Map<string, LensPrimaryOutput>,
-): ConflictingLensPair[] {
+): ExtractConflictingPairsResult {
   if (!frontmatter || !Array.isArray(frontmatter.conflicting_pairs)) {
-    return [];
+    return { resolved: [], skipped: [] };
   }
-  const out: ConflictingLensPair[] = [];
+  const resolved: ConflictingLensPair[] = [];
+  const skipped: SkippedConflictEntry[] = [];
+  const seenIds = new Set<string>();
+
   for (const entry of frontmatter.conflicting_pairs) {
+    if (typeof entry.id !== "string" || entry.id.length === 0) {
+      skipped.push({ entry, reason: "missing_id", detail: "id field absent or empty" });
+      continue;
+    }
+    if (seenIds.has(entry.id)) {
+      skipped.push({
+        entry,
+        reason: "duplicate_id",
+        detail: `id "${entry.id}" already used by an earlier entry`,
+      });
+      continue;
+    }
+    if (
+      typeof entry.lens_a !== "string" ||
+      typeof entry.lens_b !== "string" ||
+      typeof entry.target_section !== "string" ||
+      typeof entry.summary !== "string"
+    ) {
+      skipped.push({
+        entry,
+        reason: "missing_field",
+        detail: "one of lens_a / lens_b / target_section / summary is not a string",
+      });
+      continue;
+    }
     const a = primary_outputs_by_lens_id.get(entry.lens_a);
     const b = primary_outputs_by_lens_id.get(entry.lens_b);
-    if (!a || !b) continue;
-    out.push({
+    if (!a || !b) {
+      skipped.push({
+        entry,
+        reason: "unknown_lens_id",
+        detail: `lens_a="${entry.lens_a}" or lens_b="${entry.lens_b}" not found in primary outputs`,
+      });
+      continue;
+    }
+    seenIds.add(entry.id);
+    resolved.push({
+      id: entry.id,
       lens_a: a,
       lens_b: b,
       target_section: entry.target_section,
       summary: entry.summary,
     });
   }
-  return out;
+  return { resolved, skipped };
 }
 
 // ---------------------------------------------------------------------------
@@ -414,6 +538,8 @@ export interface Disagreement {
   source_lens_id: string;
   /** The peer lens this disagreement was directed at. */
   peer_lens_id: string;
+  /** Per-conflict stable id (from `ConflictingLensPair.id`). */
+  conflict_id: string;
   /** Conflict-area label carried over from the originating ConflictingLensPair. */
   target_section: string;
   /** Free-form title pulled from the "이견 항목" heading. */
@@ -432,6 +558,7 @@ const ITEM_PREFIX = /^-\s+\*\*이견\s*항목\*\*\s*:\s*(.+?)\s*$/;
 export interface PeerArtifactEntry {
   source_lens_id: string;
   peer_lens_id: string;
+  conflict_id: string;
   target_section: string;
   /** Markdown content of the artifact authored by `source_lens_id`. */
   content: string;
@@ -458,6 +585,7 @@ export function extractDisagreementsFromPeerArtifacts(
       out.push({
         source_lens_id: artifact.source_lens_id,
         peer_lens_id: artifact.peer_lens_id,
+        conflict_id: artifact.conflict_id,
         target_section: artifact.target_section,
         title: item.title,
         body: item.body,
@@ -511,9 +639,18 @@ function splitDisagreementItems(section: string): Array<{ title: string; body: s
 
 /**
  * Construct a peer-to-peer deliberation plan from a list of conflicting
- * pairs. Each pair emits two steps (one per lens), so a single conflict
- * produces a symmetric pair of replies. Step ordering is stable: pairs
- * follow input order, and within a pair `lens_a` precedes `lens_b`.
+ * pairs.
+ *
+ * **Symmetric parallel replies — not sequential reply-to-reply**: each
+ * pair emits two steps (one per lens), and each step's prompt embeds
+ * only the *peer's primary output* (not the peer's reply). The two
+ * lenses author independently in parallel; neither sees the other's
+ * deliberation reply within this round. Sequential reply-to-reply (a
+ * lens reading another lens's reply and replying back) would be a
+ * multi-round extension and is out of scope for current Option E.
+ *
+ * Step ordering is stable: pairs follow input order, and within a pair
+ * `lens_a` precedes `lens_b`.
  *
  * Empty `conflicting_pairs` → empty plan (no-conflict path).
  */
@@ -534,12 +671,14 @@ export function buildDeliberationPlan(
       steps.push({
         lens_id: own.lens_id,
         peer_lens_id: peer.lens_id,
+        conflict_id: pair.id,
         target_section: pair.target_section,
         prompt: promptBuilder(own, peer, pair),
         artifact_path: deliberationArtifactPath(
           input.deliberation_dir,
           pair.lens_a.lens_id,
           pair.lens_b.lens_id,
+          pair.id,
           own.lens_id,
         ),
       });
@@ -583,6 +722,28 @@ export async function runLensAgentDeliberation(
   args: RunDeliberationArgs,
 ): Promise<DeliberationPlan> {
   requireDeliberationOptIn(args.ontoConfig, args.env ?? process.env);
+
+  // Boundary invariant — silent-collapse guard.
+  // When the caller signals that Synthesize 1차 emitted
+  // `deliberation_status: needed`, the conflicting_pairs list MUST be
+  // non-empty. An empty list under `needed` means upstream resolution
+  // dropped every entry (unknown lens IDs / missing fields / duplicate
+  // ids) and proceeding silently would erase a deliberation step the
+  // synthesize output explicitly required. Fail fast with a message
+  // pointing at the upstream resolver.
+  if (
+    args.input.expected_status === "needed" &&
+    args.input.conflicting_pairs.length === 0
+  ) {
+    throw new Error(
+      "deliberation invariant violated — `expected_status: \"needed\"` was " +
+        "asserted but `conflicting_pairs` is empty. This indicates the " +
+        "Synthesize 1차 frontmatter declared `deliberation_status: needed` " +
+        "yet no conflicting_pairs entries survived resolution (see " +
+        "`extractConflictingPairsFromSynthesize1` skipped reasons). " +
+        "Investigate the upstream resolver before re-dispatching.",
+    );
+  }
 
   if (args.input.conflicting_pairs.length === 0) {
     return { steps: [], all_artifact_paths: [] };

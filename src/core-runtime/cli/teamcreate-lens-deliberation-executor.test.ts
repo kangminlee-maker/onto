@@ -20,30 +20,27 @@ import {
 
 // ---------------------------------------------------------------------------
 // These tests assert the Option E (2026-04-29) deliberation protocol
-// invariants:
+// invariants, including the C1/C2/R1 fix-up for the xhigh round-1 review:
 //
-// (1) Triple opt-in is enforced at module boundary — missing any of
-//     CLAUDECODE, CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS, or
-//     config.lens_agent_teams_mode throws DeliberationOptInError with
-//     the missing items enumerated.
+// (1) Triple opt-in is enforced at module boundary.
 // (2) Peer prompt embeds peer's primary output + target_section +
-//     conflict_summary, declares the required response section
-//     headings, and asks for an own-lens reply scoped to the conflict.
-// (3) Artifact paths are deterministic AND order-independent: the same
-//     pair of lens IDs maps to the same directory regardless of which
-//     lens is `lens_a` in the input.
+//     conflict_summary.
+// (3) Artifact paths are deterministic AND order-independent AND
+//     **per-conflict unique** (C1) — the same lens pair with multiple
+//     conflicts must NOT collide on a single path.
 // (4) Read/write round-trip preserves content.
-// (5) extractConflictingPairsFromSynthesize1 reads frontmatter and
-//     resolves lens IDs to their LensPrimaryOutput entries; unknown
-//     lens IDs are skipped (wiring defect signal).
-// (6) extractDisagreementsFromPeerArtifacts finds "## 지속적 이견"
-//     sections, parses "- **이견 항목**:" entries, and carries
-//     (source, peer, target_section) trio onto each Disagreement.
-// (7) buildDeliberationPlan emits 2 steps per conflicting pair (one
-//     per lens) in stable order. Empty pairs → empty plan.
-// (8) runLensAgentDeliberation produces an empty plan when no
-//     conflicts and a populated plan otherwise; reads each unique
-//     primary output once.
+// (5) extractConflictingPairsFromSynthesize1 returns `{resolved, skipped}`,
+//     records skip reasons (unknown lens id / missing id / duplicate id /
+//     missing field), and never silently drops malformed entries.
+// (6) extractDisagreementsFromPeerArtifacts carries (source, peer,
+//     conflict_id, target_section) onto each Disagreement.
+// (7) buildDeliberationPlan emits 2 steps per conflicting pair (parallel
+//     symmetric replies — R1) and propagates conflict_id to each step.
+// (8) runLensAgentDeliberation:
+//       - empty pairs + no expected_status → empty plan (no-conflict path)
+//       - empty pairs + expected_status="needed" → throws (C2 silent
+//         collapse guard)
+//       - non-empty pairs → reads each unique primary once, populates plan.
 // ---------------------------------------------------------------------------
 
 const PRIMARY_OUTPUTS: LensPrimaryOutput[] = [
@@ -53,6 +50,7 @@ const PRIMARY_OUTPUTS: LensPrimaryOutput[] = [
 ];
 
 function pairFromIds(
+  id: string,
   a_id: string,
   b_id: string,
   target_section: string,
@@ -61,7 +59,7 @@ function pairFromIds(
   const a = PRIMARY_OUTPUTS.find((p) => p.lens_id === a_id);
   const b = PRIMARY_OUTPUTS.find((p) => p.lens_id === b_id);
   if (!a || !b) throw new Error("test fixture lens_id missing");
-  return { lens_a: a, lens_b: b, target_section, summary };
+  return { id, lens_a: a, lens_b: b, target_section, summary };
 }
 
 // ---------------------------------------------------------------------------
@@ -174,23 +172,32 @@ describe("buildPeerDeliberationPrompt", () => {
 // ---------------------------------------------------------------------------
 
 describe("deliberationArtifactPath", () => {
-  it("computes pair directory from sorted lens ids", () => {
-    const p = deliberationArtifactPath("/sess/delib", "logic", "axiology", "logic");
-    expect(p).toBe(path.join("/sess/delib", "axiology--logic", "logic-deliberation.md"));
+  it("computes pair directory from sorted lens ids and includes conflict_id subdir", () => {
+    const p = deliberationArtifactPath("/sess/delib", "logic", "axiology", "narrowing-1", "logic");
+    expect(p).toBe(
+      path.join("/sess/delib", "axiology--logic", "narrowing-1", "logic-deliberation.md"),
+    );
   });
 
   it("is order-independent: (a,b) and (b,a) resolve to the same directory", () => {
-    const ab = deliberationArtifactPath("/sess/delib", "logic", "axiology", "axiology");
-    const ba = deliberationArtifactPath("/sess/delib", "axiology", "logic", "axiology");
+    const ab = deliberationArtifactPath("/sess/delib", "logic", "axiology", "c1", "axiology");
+    const ba = deliberationArtifactPath("/sess/delib", "axiology", "logic", "c1", "axiology");
     expect(ab).toBe(ba);
   });
 
-  it("authoring lens determines the file name within the pair directory", () => {
-    const fromA = deliberationArtifactPath("/sess/delib", "logic", "axiology", "logic");
-    const fromB = deliberationArtifactPath("/sess/delib", "logic", "axiology", "axiology");
+  it("authoring lens determines the file name within the conflict directory", () => {
+    const fromA = deliberationArtifactPath("/sess/delib", "logic", "axiology", "c1", "logic");
+    const fromB = deliberationArtifactPath("/sess/delib", "logic", "axiology", "c1", "axiology");
     expect(path.dirname(fromA)).toBe(path.dirname(fromB));
     expect(path.basename(fromA)).toBe("logic-deliberation.md");
     expect(path.basename(fromB)).toBe("axiology-deliberation.md");
+  });
+
+  it("C1: same lens pair with different conflict_ids resolves to distinct paths", () => {
+    const p1 = deliberationArtifactPath("/sess/delib", "logic", "axiology", "c1", "logic");
+    const p2 = deliberationArtifactPath("/sess/delib", "logic", "axiology", "c2", "logic");
+    expect(p1).not.toBe(p2);
+    expect(path.dirname(p1)).not.toBe(path.dirname(p2));
   });
 });
 
@@ -214,13 +221,20 @@ describe("write/read deliberation artifact round-trip", () => {
       tmpDir,
       "logic",
       "axiology",
+      "narrowing-1",
       "logic",
       "## 합의 가능 지점\n내용\n",
     );
     expect(written).toBe(
-      deliberationArtifactPath(tmpDir, "logic", "axiology", "logic"),
+      deliberationArtifactPath(tmpDir, "logic", "axiology", "narrowing-1", "logic"),
     );
-    const back = await readDeliberationArtifact(tmpDir, "logic", "axiology", "logic");
+    const back = await readDeliberationArtifact(
+      tmpDir,
+      "logic",
+      "axiology",
+      "narrowing-1",
+      "logic",
+    );
     expect(back).toBe("## 합의 가능 지점\n내용\n");
   });
 });
@@ -232,32 +246,39 @@ describe("write/read deliberation artifact round-trip", () => {
 describe("extractConflictingPairsFromSynthesize1", () => {
   const lookup = new Map(PRIMARY_OUTPUTS.map((p) => [p.lens_id, p]));
 
-  it("returns empty array for null/undefined frontmatter", () => {
-    expect(extractConflictingPairsFromSynthesize1(null, lookup)).toEqual([]);
-    expect(extractConflictingPairsFromSynthesize1(undefined, lookup)).toEqual([]);
+  it("returns empty resolved + empty skipped for null/undefined frontmatter", () => {
+    expect(extractConflictingPairsFromSynthesize1(null, lookup)).toEqual({
+      resolved: [],
+      skipped: [],
+    });
+    expect(extractConflictingPairsFromSynthesize1(undefined, lookup)).toEqual({
+      resolved: [],
+      skipped: [],
+    });
   });
 
-  it("returns empty array when conflicting_pairs absent or empty", () => {
+  it("returns empty resolved + empty skipped when conflicting_pairs absent or empty", () => {
     expect(
       extractConflictingPairsFromSynthesize1(
         { deliberation_status: "not_needed" },
         lookup,
       ),
-    ).toEqual([]);
+    ).toEqual({ resolved: [], skipped: [] });
     expect(
       extractConflictingPairsFromSynthesize1(
         { conflicting_pairs: [] },
         lookup,
       ),
-    ).toEqual([]);
+    ).toEqual({ resolved: [], skipped: [] });
   });
 
-  it("resolves lens ids to LensPrimaryOutput entries", () => {
-    const pairs = extractConflictingPairsFromSynthesize1(
+  it("resolves entries with valid id + lens ids + fields", () => {
+    const out = extractConflictingPairsFromSynthesize1(
       {
         deliberation_status: "needed",
         conflicting_pairs: [
           {
+            id: "narrowing-1",
             lens_a: "logic",
             lens_b: "axiology",
             target_section: "structure-section-3",
@@ -267,25 +288,72 @@ describe("extractConflictingPairsFromSynthesize1", () => {
       },
       lookup,
     );
-    expect(pairs).toHaveLength(1);
-    expect(pairs[0]!.lens_a.lens_id).toBe("logic");
-    expect(pairs[0]!.lens_a.output_path).toBe("/tmp/fake/round0/logic.md");
-    expect(pairs[0]!.lens_b.lens_id).toBe("axiology");
-    expect(pairs[0]!.target_section).toBe("structure-section-3");
+    expect(out.resolved).toHaveLength(1);
+    expect(out.skipped).toHaveLength(0);
+    expect(out.resolved[0]!.id).toBe("narrowing-1");
+    expect(out.resolved[0]!.lens_a.lens_id).toBe("logic");
+    expect(out.resolved[0]!.lens_b.lens_id).toBe("axiology");
   });
 
-  it("skips entries whose lens_id is unknown (wiring defect)", () => {
-    const pairs = extractConflictingPairsFromSynthesize1(
+  it("skips entries with unknown lens_id and records reason", () => {
+    const out = extractConflictingPairsFromSynthesize1(
       {
         conflicting_pairs: [
-          { lens_a: "logic", lens_b: "unknown-lens", target_section: "x", summary: "y" },
-          { lens_a: "logic", lens_b: "pragmatics", target_section: "n", summary: "m" },
+          { id: "c1", lens_a: "logic", lens_b: "unknown-lens", target_section: "x", summary: "y" },
+          { id: "c2", lens_a: "logic", lens_b: "pragmatics", target_section: "n", summary: "m" },
         ],
       },
       lookup,
     );
-    expect(pairs).toHaveLength(1);
-    expect(pairs[0]!.lens_b.lens_id).toBe("pragmatics");
+    expect(out.resolved).toHaveLength(1);
+    expect(out.resolved[0]!.id).toBe("c2");
+    expect(out.skipped).toHaveLength(1);
+    expect(out.skipped[0]!.reason).toBe("unknown_lens_id");
+  });
+
+  it("skips entries with missing id and records reason", () => {
+    const out = extractConflictingPairsFromSynthesize1(
+      {
+        conflicting_pairs: [
+          // @ts-expect-error — deliberately omitting id to exercise validation
+          { lens_a: "logic", lens_b: "axiology", target_section: "x", summary: "y" },
+        ],
+      },
+      lookup,
+    );
+    expect(out.resolved).toHaveLength(0);
+    expect(out.skipped).toHaveLength(1);
+    expect(out.skipped[0]!.reason).toBe("missing_id");
+  });
+
+  it("skips entries with duplicate id and records reason", () => {
+    const out = extractConflictingPairsFromSynthesize1(
+      {
+        conflicting_pairs: [
+          { id: "dup", lens_a: "logic", lens_b: "axiology", target_section: "x", summary: "y" },
+          { id: "dup", lens_a: "logic", lens_b: "pragmatics", target_section: "x", summary: "y" },
+        ],
+      },
+      lookup,
+    );
+    expect(out.resolved).toHaveLength(1);
+    expect(out.skipped).toHaveLength(1);
+    expect(out.skipped[0]!.reason).toBe("duplicate_id");
+  });
+
+  it("skips entries with missing field and records reason", () => {
+    const out = extractConflictingPairsFromSynthesize1(
+      {
+        conflicting_pairs: [
+          // @ts-expect-error — deliberately omitting target_section
+          { id: "c1", lens_a: "logic", lens_b: "axiology", summary: "y" },
+        ],
+      },
+      lookup,
+    );
+    expect(out.resolved).toHaveLength(0);
+    expect(out.skipped).toHaveLength(1);
+    expect(out.skipped[0]!.reason).toBe("missing_field");
   });
 });
 
@@ -294,11 +362,12 @@ describe("extractConflictingPairsFromSynthesize1", () => {
 // ---------------------------------------------------------------------------
 
 describe("extractDisagreementsFromPeerArtifacts", () => {
-  it("parses 지속적 이견 section and carries (source, peer, target) trio", () => {
+  it("parses 지속적 이견 section and carries (source, peer, conflict_id, target) trio", () => {
     const artifacts: PeerArtifactEntry[] = [
       {
         source_lens_id: "logic",
         peer_lens_id: "axiology",
+        conflict_id: "narrowing-1",
         target_section: "structure-section-3",
         content: [
           "## 합의 가능 지점",
@@ -319,10 +388,9 @@ describe("extractDisagreementsFromPeerArtifacts", () => {
     expect(out).toHaveLength(1);
     expect(out[0]!.source_lens_id).toBe("logic");
     expect(out[0]!.peer_lens_id).toBe("axiology");
+    expect(out[0]!.conflict_id).toBe("narrowing-1");
     expect(out[0]!.target_section).toBe("structure-section-3");
     expect(out[0]!.title).toBe("타입 좁히기 우선");
-    expect(out[0]!.body).toContain("logic");
-    expect(out[0]!.body).toContain("axiology");
   });
 
   it("tolerates English heading variant", () => {
@@ -330,6 +398,7 @@ describe("extractDisagreementsFromPeerArtifacts", () => {
       {
         source_lens_id: "x",
         peer_lens_id: "y",
+        conflict_id: "c1",
         target_section: "z",
         content: [
           "## Persistent Disagreements",
@@ -346,6 +415,7 @@ describe("extractDisagreementsFromPeerArtifacts", () => {
       {
         source_lens_id: "x",
         peer_lens_id: "y",
+        conflict_id: "c1",
         target_section: "z",
         content: "## 합의 가능 지점\n전부 합의\n",
       },
@@ -368,43 +438,61 @@ describe("buildDeliberationPlan", () => {
     expect(plan.all_artifact_paths).toEqual([]);
   });
 
-  it("emits 2 steps per pair (one per lens) in stable order", () => {
+  it("emits 2 steps per pair (parallel symmetric replies) with conflict_id propagated", () => {
     const plan = buildDeliberationPlan(
       {
         conflicting_pairs: [
-          pairFromIds("logic", "axiology", "structure-section-3", "summary 1"),
-          pairFromIds("pragmatics", "logic", "naming-area", "summary 2"),
+          pairFromIds("c1", "logic", "axiology", "structure-section-3", "summary 1"),
+          pairFromIds("c2", "pragmatics", "logic", "naming-area", "summary 2"),
         ],
         deliberation_dir: "/sess/delib",
       },
       (own, peer, pair) =>
-        `prompt|${own.lens_id}|${peer.lens_id}|${pair.target_section}`,
+        `prompt|${own.lens_id}|${peer.lens_id}|${pair.id}|${pair.target_section}`,
     );
     expect(plan.steps).toHaveLength(4);
-    expect(plan.steps[0]).toMatchObject({ lens_id: "logic", peer_lens_id: "axiology" });
-    expect(plan.steps[1]).toMatchObject({ lens_id: "axiology", peer_lens_id: "logic" });
-    expect(plan.steps[2]).toMatchObject({ lens_id: "pragmatics", peer_lens_id: "logic" });
-    expect(plan.steps[3]).toMatchObject({ lens_id: "logic", peer_lens_id: "pragmatics" });
-    expect(plan.steps[0]!.target_section).toBe("structure-section-3");
-    expect(plan.steps[2]!.target_section).toBe("naming-area");
+    expect(plan.steps[0]).toMatchObject({
+      lens_id: "logic",
+      peer_lens_id: "axiology",
+      conflict_id: "c1",
+    });
+    expect(plan.steps[1]).toMatchObject({
+      lens_id: "axiology",
+      peer_lens_id: "logic",
+      conflict_id: "c1",
+    });
+    expect(plan.steps[2]).toMatchObject({
+      lens_id: "pragmatics",
+      peer_lens_id: "logic",
+      conflict_id: "c2",
+    });
+    expect(plan.steps[3]).toMatchObject({
+      lens_id: "logic",
+      peer_lens_id: "pragmatics",
+      conflict_id: "c2",
+    });
   });
 
-  it("artifact_path uses sorted pair directory", () => {
+  it("C1: same lens pair with multiple conflicts produces distinct artifact paths", () => {
     const plan = buildDeliberationPlan(
       {
         conflicting_pairs: [
-          pairFromIds("logic", "axiology", "x", "y"),
+          pairFromIds("c1", "logic", "axiology", "structure-section-3", "summary 1"),
+          pairFromIds("c2", "logic", "axiology", "naming-area", "summary 2"),
         ],
         deliberation_dir: "/sess/delib",
       },
       () => "<prompt>",
     );
-    expect(path.dirname(plan.steps[0]!.artifact_path)).toBe(
-      path.join("/sess/delib", "axiology--logic"),
-    );
-    expect(path.dirname(plan.steps[1]!.artifact_path)).toBe(
-      path.join("/sess/delib", "axiology--logic"),
-    );
+    expect(plan.steps).toHaveLength(4);
+    const paths = plan.steps.map((s) => s.artifact_path);
+    // All 4 paths are distinct — no two conflicts on the same pair collide.
+    expect(new Set(paths).size).toBe(4);
+    // First two share pair dir but diverge on conflict_id subdir.
+    expect(path.dirname(plan.steps[0]!.artifact_path)).toContain("axiology--logic");
+    expect(path.dirname(plan.steps[0]!.artifact_path)).toContain("c1");
+    expect(path.dirname(plan.steps[2]!.artifact_path)).toContain("axiology--logic");
+    expect(path.dirname(plan.steps[2]!.artifact_path)).toContain("c2");
   });
 });
 
@@ -418,7 +506,7 @@ describe("runLensAgentDeliberation", () => {
     CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "1",
   };
 
-  it("returns empty plan when no conflicts (no LLM calls, no artifacts)", async () => {
+  it("returns empty plan when no conflicts (no expected_status, no LLM calls)", async () => {
     const plan = await runLensAgentDeliberation({
       ontoConfig: { lens_agent_teams_mode: true },
       input: { conflicting_pairs: [], deliberation_dir: "/sess/delib" },
@@ -426,6 +514,33 @@ describe("runLensAgentDeliberation", () => {
     });
     expect(plan.steps).toEqual([]);
     expect(plan.all_artifact_paths).toEqual([]);
+  });
+
+  it("returns empty plan when expected_status='not_needed' and no conflicts", async () => {
+    const plan = await runLensAgentDeliberation({
+      ontoConfig: { lens_agent_teams_mode: true },
+      input: {
+        conflicting_pairs: [],
+        deliberation_dir: "/sess/delib",
+        expected_status: "not_needed",
+      },
+      env,
+    });
+    expect(plan.steps).toEqual([]);
+  });
+
+  it("C2: throws when expected_status='needed' but conflicting_pairs is empty (silent collapse guard)", async () => {
+    await expect(
+      runLensAgentDeliberation({
+        ontoConfig: { lens_agent_teams_mode: true },
+        input: {
+          conflicting_pairs: [],
+          deliberation_dir: "/sess/delib",
+          expected_status: "needed",
+        },
+        env,
+      }),
+    ).rejects.toThrow(/silent.*collapse|invariant|needed.*empty/i);
   });
 
   it("reads each unique primary output once + emits a populated plan", async () => {
@@ -438,10 +553,11 @@ describe("runLensAgentDeliberation", () => {
       ontoConfig: { lens_agent_teams_mode: true },
       input: {
         conflicting_pairs: [
-          pairFromIds("logic", "axiology", "section-3", "narrowing vs value"),
-          pairFromIds("axiology", "logic", "section-5", "another conflict"),
+          pairFromIds("c1", "logic", "axiology", "section-3", "narrowing vs value"),
+          pairFromIds("c2", "axiology", "logic", "section-5", "another conflict"),
         ],
         deliberation_dir: "/sess/delib",
+        expected_status: "needed",
       },
       env,
       readPrimary: async (p) => {
@@ -449,13 +565,11 @@ describe("runLensAgentDeliberation", () => {
         return fakeContents[p] ?? "";
       },
     });
-    // Only 2 unique paths even though logic+axiology appear twice as a pair
     expect(reads.sort()).toEqual([
       "/tmp/fake/round0/axiology.md",
       "/tmp/fake/round0/logic.md",
     ]);
     expect(plan.steps).toHaveLength(4);
-    // First step prompt embeds peer's primary content
     expect(plan.steps[0]!.prompt).toContain("axiology primary");
   });
 
@@ -464,7 +578,7 @@ describe("runLensAgentDeliberation", () => {
       runLensAgentDeliberation({
         ontoConfig: {},
         input: {
-          conflicting_pairs: [pairFromIds("logic", "axiology", "x", "y")],
+          conflicting_pairs: [pairFromIds("c1", "logic", "axiology", "x", "y")],
           deliberation_dir: "/sess/delib",
         },
         env,

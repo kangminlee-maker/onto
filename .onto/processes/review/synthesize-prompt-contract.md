@@ -116,7 +116,8 @@ Synthesize 내부 추론 언어 (deliberation reasoning, adjudication basis) 도
 ---
 deliberation_status: not_needed | needed | performed | required_but_unperformed
 conflicting_pairs:                          # only when deliberation_status=needed (Option E peer-to-peer path)
-  - lens_a: <lens_id>
+  - id: <unique-slug-within-this-output>     # filesystem-safe; required so the same lens pair with multiple conflicts does not collide on a single artifact path
+    lens_a: <lens_id>
     lens_b: <lens_id>
     target_section: <free-form section/area label>
     summary: <≤240 chars one-paragraph summary of the conflict>
@@ -148,8 +149,10 @@ Synthesize 는 두 가지 path 로 호출될 수 있다:
 **`conflicting_pairs` 필드 규칙**:
 
 - `deliberation_status=needed` 일 때만 non-empty array 로 emit. 다른 모든 값에서는 absent 또는 empty.
-- 각 entry 는 `lens_a`, `lens_b`, `target_section`, `summary` 4 field 를 모두 가진다. `target_section` 은 자유 문자열 (예: `"structure-section-3"`, `"axiology vs conciseness — naming"`). `summary` 는 한 단락 요약 (≤240 자 권장).
-- pair 는 unordered — `(A,B)` 와 `(B,A)` 는 의미상 동일. 디렉터리 path 는 lexicographically sorted lens_id 로 정규화 (`<sorted-a>--<sorted-b>/`).
+- 각 entry 는 `id`, `lens_a`, `lens_b`, `target_section`, `summary` 5 field 를 모두 가진다. `target_section` 은 자유 문자열 (예: `"structure-section-3"`, `"axiology vs conciseness — naming"`). `summary` 는 한 단락 요약 (≤240 자 권장).
+- `id` 는 본 output 내에서 unique 한 슬러그 (filesystem-safe). **같은 lens pair 에 여러 conflict 가 존재하는 경우** 각 entry 가 distinct artifact 경로를 갖도록 보장하는 핵심 field. 권장 패턴: `<axis-or-section-slug>-<sequence>` (예: `naming-1`, `narrowing-2`).
+- pair 는 unordered — `(A,B)` 와 `(B,A)` 는 의미상 동일. 디렉터리 path 는 lexicographically sorted lens_id 로 정규화한 뒤 `id` subdirectory 로 분리 (`<sorted-a>--<sorted-b>/<id>/`).
+- 동일 `id` 가 두 entry 에 등장하거나, `id` / 필수 field 가 누락된 entry 는 resolver (`extractConflictingPairsFromSynthesize1`) 가 skip 하고 reason 을 기록한다. caller (coordinator) 는 `deliberation_status: needed` + 모든 entry skip 시 fail-fast 해야 한다 (silent collapse 방지).
 
 ### 5.2 Participation completeness (IA-2)
 
@@ -328,7 +331,7 @@ deliberation artifact 의 위상은 path 별로 다르다.
 
 **Option E peer-to-peer path**:
 - Synthesize 1차 결과: `synthesis.md` (1차 출력, frontmatter `deliberation_status: needed` + `conflicting_pairs`)
-- Peer round 결과: `<deliberation_dir>/<sorted-a>--<sorted-b>/<authoring_lens>-deliberation.md` 형태의 per-pair-per-authoring-lens artifact (sorted pair directory naming 은 `teamcreate-lens-deliberation-executor.deliberationArtifactPath` 로 정규화)
+- Peer round 결과: `<deliberation_dir>/<sorted-a>--<sorted-b>/<conflict-id>/<authoring_lens>-deliberation.md` 형태의 per-pair-per-conflict-per-authoring-lens artifact (sorted pair directory + `<id>` subdirectory 가 `teamcreate-lens-deliberation-executor.deliberationArtifactPath` 의 path uniqueness 정규화)
 - Synthesize 2차 결과: 최종 `synthesis.md` (frontmatter `deliberation_status: performed`)
 
 **Legacy `{session_root}/deliberation.md`**: cc-teams-lens-agent-deliberation 이전 (PR-D 시기) 의 single-file deliberation artifact. Option E 진입 후에는 `<deliberation_dir>/<sorted-pair>/...` 디렉터리 구조가 정본이며, 단일 `deliberation.md` 는 *legacy compatibility* 영역.

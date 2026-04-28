@@ -1,6 +1,7 @@
 import type { ScopeState, VerdictLogEntry } from "../../scope-runtime/types.js";
 import { isPolicyChangeRequired } from "../../scope-runtime/types.js";
 import { MAX_COMPILE_RETRIES } from "../../scope-runtime/constants.js";
+import { getEntryModeRouting } from "../entry-mode-routing.js";
 
 /**
  * Render scope.md — the current status view of a scope.
@@ -187,20 +188,11 @@ function formatNextAction(state: ScopeState): string {
     case "align_proposed":
       return "Align Packet을 읽고 방향과 범위를 확정하세요 (승인/수정/거절/재스캔 중 선택)";
     case "align_locked":
-      // post-PR #246 review consensus #3 (3-lens convergence): process mode
-      // 도 "screen design" 으로 인도되는 mismatch 해소 — entry_mode 별 3-way.
-      return state.entry_mode === "experience"
-        ? "방향이 확정되었습니다. 화면 설계를 시작하세요 (`/draft`를 실행하세요)"
-        : state.entry_mode === "process"
-          ? "방향이 확정되었습니다. design doc 작성을 시작하세요 (`/draft`를 실행하세요)"
-          : "방향이 확정되었습니다. API 명세 설계를 시작하세요 (`/draft`를 실행하세요)";
+      // post-PR #246 R2 (mode-routing centralization): 3-way ternary 가
+      // entry-mode-routing 모듈로 위임됨. mode 추가 시 본 case 자동 대응.
+      return getEntryModeRouting(state.entry_mode).nextActionAlignLocked;
     case "surface_iterating":
-      // post-PR #216 §3.1.0: process mode 추가로 3-way ternary.
-      return state.entry_mode === "experience"
-        ? "mockup을 확인하세요 (`cd surface/preview && npm run dev`). 수정이 필요하면 피드백을, 맞으면 '확정합니다'라고 말씀하세요"
-        : state.entry_mode === "process"
-          ? "design doc 을 확인하세요 (`surface/design-doc-draft.md`). 수정이 필요하면 피드백을, 맞으면 '확정합니다'라고 말씀하세요"
-          : "API 명세를 확인하세요 (`surface/contract-diff/`). 수정이 필요하면 피드백을, 맞으면 '확정합니다'라고 말씀하세요";
+      return getEntryModeRouting(state.entry_mode).nextActionSurfaceIterating;
     case "surface_confirmed":
       return state.constraint_pool.summary.undecided > 0
         ? `${state.constraint_pool.summary.undecided}건의 제약 사항에 대해 결정이 필요합니다. 각 항목의 선택지를 검토하고 결정하세요`

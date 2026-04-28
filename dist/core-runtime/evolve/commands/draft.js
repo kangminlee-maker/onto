@@ -19,6 +19,7 @@ import { appendScopeEvent } from "../../scope-runtime/event-pipeline.js";
 import { renderDraftPacket } from "../renderers/draft-packet.js";
 import { wrapGateError } from "./error-messages.js";
 import { refreshScopeMd, slugifyTitle } from "./shared.js";
+import { getEntryModeRouting } from "../entry-mode-routing.js";
 import { contentHash } from "../../scope-runtime/hash.js";
 import { compile } from "../adapters/code-product/compile/compile.js";
 // ─── Main ───
@@ -50,15 +51,16 @@ function handleGenerateSurface(paths, state, action) {
     if (state.current_state !== "align_locked") {
         return { success: false, reason: `Surface 생성은 align_locked 상태에서만 가능합니다. 현재: ${state.current_state}` };
     }
-    // post-PR #246 R1 (Phase B Step 3): process mode 의 surface 는 design-doc
-    // markdown 골격이며 결정적이므로 runtime 이 직접 작성. experience/interface
-    // 는 agent 가 surface 산출물을 작성하고 path/hash 를 인자로 전달하지만,
-    // process 는 frontmatter 가 표준이라 caller-provided path/hash 를 무시하고
-    // 본 함수가 design-doc-draft.md 를 직접 생성. 본문은 후속 step 에서 채움.
+    // post-PR #246 R2 (mode-routing centralization): runtime-written skeleton
+    // 여부와 surface 경로 lookup 을 entry-mode-routing 모듈로 위임. 이전엔
+    // `state.entry_mode === "process"` 분기 + hard-coded "design-doc-draft.md"
+    // 가 본 함수에 박혀있었고, 향후 mode 추가 시 이 함수 + scope-md.ts +
+    // compile.ts 동시 편집 강제. routing lookup 으로 단일 SSOT.
+    const routing = getEntryModeRouting(state.entry_mode);
     let surfacePath = action.surfacePath;
     let surfaceHash = action.surfaceHash;
-    if (state.entry_mode === "process") {
-        const skeletonPath = join(paths.surface, "design-doc-draft.md");
+    if (routing.hasRuntimeWrittenSkeleton) {
+        const skeletonPath = join(paths.surface, routing.surfaceSubpath);
         const skeleton = renderProcessDesignDocSkeleton(state);
         writeFileSync(skeletonPath, skeleton, "utf-8");
         surfacePath = skeletonPath;
@@ -77,17 +79,10 @@ function handleGenerateSurface(paths, state, action) {
     if (!result.success)
         return { success: false, reason: wrapGateError(result.reason) };
     refreshScopeMd(paths, result.state);
-    // post-PR #216 §3.1.0: process mode 의 surface 는 design-doc markdown.
-    // experience (UI mockup) / interface (API 명세) / process (design doc) 3-way.
-    const guide = state.entry_mode === "experience"
-        ? "`cd surface/preview && npm run dev`로 mockup을 확인하세요."
-        : state.entry_mode === "process"
-            ? "`surface/design-doc-draft.md`의 design 문서를 확인하세요."
-            : "`surface/contract-diff/`의 API 명세를 확인하세요.";
     return {
         success: true,
         nextState: "surface_iterating",
-        message: `Surface가 생성되었습니다. ${guide} 수정이 필요하면 피드백을 주세요. 이 모습이 맞으면 '확정합니다'라고 말씀해 주세요.`,
+        message: `Surface가 생성되었습니다. ${routing.guideMessageAfterGeneration} 수정이 필요하면 피드백을 주세요. 이 모습이 맞으면 '확정합니다'라고 말씀해 주세요.`,
     };
 }
 // post-PR #246 R1 (Phase B Step 3): process scope 의 design-doc-draft.md 를

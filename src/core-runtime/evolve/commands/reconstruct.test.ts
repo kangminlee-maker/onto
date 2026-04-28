@@ -711,6 +711,8 @@ function makeFullV0Config(): unknown {
   };
 }
 
+const RAW_REVIEWER_CV = "1.0";
+
 function makeCoordinatorOptions(args: {
   configRaw: unknown;
   manifestTier?: "full" | "partial" | "minimal";
@@ -723,6 +725,7 @@ function makeCoordinatorOptions(args: {
     manifest: makeStubManifest(args.manifestTier),
     injectedFiles: [],
     proposerContractVersion: RAW_PROPOSER_CV,
+    reviewerContractVersion: RAW_REVIEWER_CV,
     wipSnapshotHash: "wip" + "0".repeat(61),
     domainFilesContentHash: "dom" + "0".repeat(61),
     phase3Responses: {
@@ -846,8 +849,67 @@ describe("raw-yml integration (post-Phase 3.5 writer wire)", () => {
     );
 
     expect(existsSync(join(tmpRoot, "raw-bad", "raw.yml"))).toBe(false);
-    // Cycle itself stayed `completed` — invariant guard is post-cycle.
+    // The Phase 3.5 pipeline still recorded its own success (the
+    // `coordinator_completed` event remains for audit), but post-PR244
+    // consensus #2 fail-close: artifact failure is now cycle-terminal and
+    // blocks `complete`. See the dedicated fail-close test below.
     expect(events.find((e) => e.type === "coordinator_completed")).toBeDefined();
+  });
+
+  it("raw_yml_meta_invariant_violation event blocks complete (fail-close)", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "fail-close",
+      sessionsDir: tmpRoot,
+      sessionId: "raw-fc-1",
+    });
+
+    await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "raw-fc-1",
+      coordinator: makeCoordinatorOptions({
+        configRaw: makeFullV1Config(),
+        requestedInferenceMode: "full",
+        manifestTier: "minimal",
+      }),
+    });
+
+    // Fail-close: complete must reject because the most recent cycle-terminal
+    // event is `raw_yml_meta_invariant_violation`, not `coordinator_completed`.
+    expect(() =>
+      executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "raw-fc-1" }),
+    ).toThrow(/explore cycle to be successful.*raw_yml_meta_invariant_violation/);
+  });
+
+  it("reviewer contract version flows from coord opts (no literal in compose)", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "reviewer-cv",
+      sessionsDir: tmpRoot,
+      sessionId: "raw-cv",
+    });
+
+    // Override the SSOT to a sentinel value the literal "1.0" would never
+    // accidentally produce — the meta must reflect the override exactly.
+    const coord = makeCoordinatorOptions({
+      configRaw: makeFullV1Config(),
+      requestedInferenceMode: "degraded",
+      manifestTier: "minimal",
+    });
+    coord.reviewerContractVersion = "9.9-sentinel";
+
+    await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "raw-cv",
+      coordinator: coord,
+    });
+
+    const rawPath = join(tmpRoot, "raw-cv", "raw.yml");
+    expect(existsSync(rawPath)).toBe(true);
+    const parsed = yaml.parse(readFileSync(rawPath, "utf-8"));
+    expect(parsed.meta.rationale_reviewer_contract_version).toBe(
+      "9.9-sentinel",
+    );
   });
 
   it("coordinator failure (failed_alpha) → no raw_yml_* events emitted", async () => {
@@ -959,6 +1021,30 @@ describe("composeRawMetaForCycle (unit)", () => {
     expect(meta.rationale_proposer_contract_version).toBeNull();
     expect(meta.rationale_reviewer_contract_version).toBeNull();
     expect(meta.rationale_review_degraded).toBe(false);
+  });
+
+  it("v1 degraded with non-minimal manifest — degraded_reason=null (heuristic narrowed; validator rejects)", () => {
+    // Post-PR244 review consensus #3: the prior `pack_optional_missing`
+    // fallback for non-minimal degraded mode was removed. Composer returns
+    // null, validator rejects (degraded mode requires non-null
+    // degraded_reason), and the wire surfaces the gap as
+    // raw_yml_meta_invariant_violation rather than a misleading heuristic.
+    const meta = composeRawMetaForCycle({
+      result: makeFakeCompletedResult({
+        v1On: true,
+        alphaCompleted: true,
+        gammaCompleted: true,
+      }),
+      manifest: makeStubManifest("partial"),
+      coord: makeCoordinatorOptions({
+        configRaw: makeFullV1Config(),
+        requestedInferenceMode: "degraded",
+        manifestTier: "partial",
+      }),
+    });
+
+    expect(meta.inference_mode).toBe("degraded");
+    expect(meta.degraded_reason).toBeNull();
   });
 
   it("v1 degraded with minimal manifest — degraded_reason=pack_tier_minimal", () => {

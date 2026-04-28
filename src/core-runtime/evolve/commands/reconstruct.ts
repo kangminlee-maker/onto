@@ -87,13 +87,15 @@ export type ReconstructBoundedState =
  *     CoordinatorResult variants.
  *   - coordinator_completed — full v1 cycle completed; element_updates_count
  *     captured for audit.
- *   - raw_yml_written / raw_yml_meta_invariant_violation / raw_yml_write_failed
- *     — post-completion artifact-status events emitted from the raw.yml writer
- *     wire (this commit). NOT cycle-terminal — the lifecycle gate in
- *     executeReconstructComplete keeps allowing complete after a successful
- *     cycle even if writer-side artifact production failed (gate filter omits
- *     these prefixes by design). detail captures the writer's path / failure
- *     code so post-hoc audit can reconstruct what happened without rerunning.
+ *   - raw_yml_written — informational success event (raw.yml persisted to
+ *     disk after a successful Phase 3.5 cycle). NOT cycle-terminal: the
+ *     underlying `coordinator_completed` is the canonical cycle-success signal.
+ *   - raw_yml_meta_invariant_violation / raw_yml_write_failed — cycle-terminal
+ *     artifact-failure events (PR #244 review consensus #2 fail-close fix).
+ *     The lifecycle gate in executeReconstructComplete blocks complete on
+ *     either of these so the system never advances to principal-verification
+ *     without a valid raw.yml on disk. detail captures the validator code /
+ *     filesystem error so post-hoc audit can reconstruct what halted.
  */
 export interface ReconstructSessionEvent {
   type:
@@ -182,6 +184,16 @@ export interface ReconstructExploreCoordinatorOptions {
   manifest: HookAlphaManifestInput;
   injectedFiles: string[];
   proposerContractVersion: string;
+  /** Reviewer contract version — caller-side SSOT for the version that
+   *  spawn-reviewer's prompt enforces. Symmetric to `proposerContractVersion`
+   *  (post-PR244 review consensus #1 fix — previously a literal in
+   *  `buildCodexSpawnDeps` + `composeRawMetaForCycle`, drift-prone). The
+   *  value flows through three sinks that must agree on the same string:
+   *    1. `buildCodexSpawnDeps` → `makeCodexReviewer({reviewerContractVersion})`
+   *    2. mock spawn deps → reviewer provenance fixture
+   *    3. `composeRawMetaForCycle` → `meta.rationale_reviewer_contract_version`
+   *  Caller (e.g. `buildExploreCoordinatorOptions`) owns the literal. */
+  reviewerContractVersion: string;
   /** runtime-computed canonical hashes for Hook γ */
   wipSnapshotHash: string;
   domainFilesContentHash: string;
@@ -295,12 +307,20 @@ export function composeRawMetaForCycle(args: {
   const domainQualityTier: DomainQualityTier | null =
     inferenceMode === "none" ? null : manifest.quality_tier;
 
+  // §4.2 invariant matrix — `pack_tier_minimal` is the only degraded_reason
+  // we can derive *correctly* from manifest tier alone (minimal-tier manifest
+  // forces this). Other degraded reasons (`pack_optional_missing` /
+  // `pack_quality_floor`) require knowledge of which optional packs were
+  // missing or which floor was breached — that signal lives in the Hook α
+  // downgrade pipeline, which is not yet wired through to here. Returning
+  // `null` for non-minimal degraded mode is the honest position: the
+  // §4.2 validator will reject (degraded mode requires non-null
+  // degraded_reason), surfacing as `raw_yml_meta_invariant_violation`
+  // rather than a misleading heuristic. Post-PR244 review consensus #3
+  // narrowed away from the prior `pack_optional_missing` fallback.
   let degradedReason: DegradedReason | null = null;
-  if (inferenceMode === "degraded") {
-    degradedReason =
-      manifest.quality_tier === "minimal"
-        ? "pack_tier_minimal"
-        : "pack_optional_missing";
+  if (inferenceMode === "degraded" && manifest.quality_tier === "minimal") {
+    degradedReason = "pack_tier_minimal";
   }
 
   const fallbackReason: FallbackReason | null =
@@ -328,7 +348,9 @@ export function composeRawMetaForCycle(args: {
     manifest_recovery_from_malformed: false,
     rationale_review_degraded: rationaleReviewDegraded,
     rationale_reviewer_failures_streak: 0,
-    rationale_reviewer_contract_version: gammaCompleted ? "1.0" : null,
+    rationale_reviewer_contract_version: gammaCompleted
+      ? coord.reviewerContractVersion
+      : null,
     rationale_proposer_contract_version:
       result.alpha.kind === "completed" ? coord.proposerContractVersion : null,
     pack_missing_areas: packMissingAreas,
@@ -551,11 +573,16 @@ export async function executeReconstructExplore(
         // meta against §4.2 invariants *before* writing — invalid meta would
         // poison the govern reader's "v0 fallback vs v1 write-suppressed"
         // distinction (which is read from meta.inference_mode). On invariant
-        // failure or filesystem error, emit a typed audit event but do NOT
-        // collapse the cycle: the coordinator's `completed` outcome stands
-        // (Phase 3.5 succeeded), only artifact production was unable to
-        // persist. lifecycle gate filter intentionally omits raw_yml_*
-        // prefixes so complete still proceeds.
+        // failure or filesystem error, emit a typed cycle-terminal event:
+        // post-PR244 consensus #2 fail-close fix makes
+        // `raw_yml_meta_invariant_violation` / `raw_yml_write_failed` block
+        // the downstream `complete` gate. The `coordinator_completed` event
+        // is still recorded (Phase 3.5 itself succeeded), but the lifecycle
+        // gate now picks the *latest* cycle-terminal event, so a failed
+        // artifact write halts the session until the principal re-runs
+        // explore. The `coordinator_completed` event remains useful for
+        // audit (it shows the pipeline reached Phase 3.5) without granting
+        // permission to proceed.
         const meta = composeRawMetaForCycle({
           result,
           manifest: coord.manifest,
@@ -686,12 +713,24 @@ export function executeReconstructComplete(
   // informational audit signal emitted alongside a successful cycle.
   // Sessions that ran in placeholder mode (no cycle events at all) bypass
   // this gate for backward compat.
+  //
+  // PR #244 review consensus #2 (axiology high-severity) fix: artifact
+  // production failure is now cycle-terminal — `raw_yml_meta_invariant_violation`
+  // and `raw_yml_write_failed` count as cycle failures so `complete` cannot
+  // proceed without a valid raw.yml on disk. govern reader / principal
+  // verification both consume raw.yml as the canonical artifact, so a
+  // "completed" cycle without raw.yml violates the artifact-truth premise.
+  // `raw_yml_written` (success) is intentionally excluded from the filter:
+  // it is *informational* alongside the underlying `coordinator_completed`
+  // (the actual cycle success signal); only the failure variants gate.
   const cycleTerminalEvents = (state.events ?? []).filter((e) =>
     e.type.startsWith("coordinator_") ||
     e.type === "config_malformed" ||
     e.type === "config_parse_failed" ||
     e.type === "stage1_scanner_failed" ||
-    e.type === "wire_build_failed",
+    e.type === "wire_build_failed" ||
+    e.type === "raw_yml_meta_invariant_violation" ||
+    e.type === "raw_yml_write_failed",
   );
   if (cycleTerminalEvents.length > 0) {
     const last = cycleTerminalEvents[cycleTerminalEvents.length - 1]!;
@@ -906,10 +945,19 @@ async function buildExploreCoordinatorOptions(args: {
     }
   }
 
-  // 2. Build spawn deps — codex (production) or mock (--mock flag)
+  // 2. Build spawn deps — codex (production) or mock (--mock flag).
+  //    Reviewer + proposer contract versions are caller-owned SSOT (post-PR244
+  //    review consensus #1) so the spawn factories and the raw-meta composer
+  //    cannot drift on the same field.
+  const proposerContractVersion = "1.0";
+  const reviewerContractVersion = "1.0";
   const deps: CoordinatorDeps = args.useMock
-    ? buildMockSpawnDeps()
-    : buildCodexSpawnDeps({ projectRoot: args.projectRoot, configRaw });
+    ? buildMockSpawnDeps({ reviewerContractVersion })
+    : buildCodexSpawnDeps({
+        projectRoot: args.projectRoot,
+        configRaw,
+        reviewerContractVersion,
+      });
 
   const runtimeVersion = "v1.0.0-caller-wire";
 
@@ -975,7 +1023,8 @@ async function buildExploreCoordinatorOptions(args: {
     entityList: stage1Result.entities,
     manifest: stubManifest,
     injectedFiles: [],
-    proposerContractVersion: "1.0",
+    proposerContractVersion,
+    reviewerContractVersion,
     wipSnapshotHash: "stub-wip-snapshot-hash",
     domainFilesContentHash: "stub-domain-files-content-hash",
     phase3Responses: emptyPhase3Responses,
@@ -1088,8 +1137,14 @@ function buildMockExplorerSpawn(args: {
  * Never invokes any LLM. The mock proposer emits a single proposal with
  * outcome=`gap` (pre-canned shape; real LLM 호출 부재이므로 inferred meaning
  * 산출 불가 → gap 이 가장 honest fixture). Reviewer returns confirm.
+ *
+ * `reviewerContractVersion` flows in from the caller (post-PR244 review
+ * consensus #1) so the mock provenance fixture, the codex factory binding,
+ * and the composed raw-meta all reference the same string.
  */
-function buildMockSpawnDeps(): CoordinatorDeps {
+function buildMockSpawnDeps(args: {
+  reviewerContractVersion: string;
+}): CoordinatorDeps {
   return {
     spawnProposer: async (input) => ({
       proposals: input.entityList.map((e) => ({
@@ -1118,7 +1173,7 @@ function buildMockSpawnDeps(): CoordinatorDeps {
       provenance: {
         reviewed_at: new Date().toISOString(),
         reviewed_by: "rationale-reviewer" as const,
-        reviewer_contract_version: "1.0",
+        reviewer_contract_version: args.reviewerContractVersion,
         manifest_schema_version: "1.0",
         domain_manifest_version: "1.0.0",
         domain_manifest_hash: "stub" + "0".repeat(60),
@@ -1158,6 +1213,7 @@ function buildMockSpawnDeps(): CoordinatorDeps {
 function buildCodexSpawnDeps(args: {
   projectRoot: string;
   configRaw: unknown;
+  reviewerContractVersion: string;
 }): CoordinatorDeps {
   // makeCodexProposer / makeCodexReviewer are imported statically at module
   // top (PR #241 review round 2 UF-DEPENDENCY-1 fix — was lazy `require()`
@@ -1192,7 +1248,7 @@ function buildCodexSpawnDeps(args: {
     ...(codexConfig.effort !== undefined
       ? { reasoningEffort: codexConfig.effort }
       : {}),
-    reviewerContractVersion: "1.0",
+    reviewerContractVersion: args.reviewerContractVersion,
     buildValidatorInput: (input) => ({
       elementInferences: input.elementInferences,
       manifestReferencedFiles: input.manifest.referenced_files.map((f) => f.path),

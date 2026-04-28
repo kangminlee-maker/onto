@@ -23,6 +23,18 @@ source_refs:
     claude_code: AskUserQuestion (Claude Code 내장)
     codex_cli: request_user_input (Codex v0.106.0+, Plan Mode 권장)
   codex_release_ref: https://github.com/openai/codex/releases/tag/rust-v0.106.0
+acknowledges_subsequent_decisions:
+  - "PR #243 (2026-04-28 머지, squash 0c70680) — scripts/review-pr.sh 의 wrapper-side deterministic + provider allowlist (codex/anthropic/openai/litellm) + assembly vs choice distinction. 본 design 의 §3~§5 (runtime-side interactive) 는 PR #243 의 wrapper-side 결정 위에 layered 하게 작동 — wrapper 가 \"무엇이 결정 영역인가\" 를 정의하고, runtime interactive 가 \"그 결정을 어떻게 묻는가\" 를 정의함. 충돌 없음."
+  - "PR #186/#187/#188 (2026-04-22 머지) — configuration.md axis block 등재 / .onto/config.yml dogfooding tracked + allowlist single-file / review-pr.sh model+effort hard-pin (이후 PR #243 가 hard-pin 만 revert). 본 design 의 §6 (machine-local 전환) 은 PR #187 의 tracked dogfooding 결정과 직접 충돌 — 아래 section_6_status 참조."
+section_6_status:
+  conflict_with: "PR #187 (.onto/config.yml tracked + dogfooding ground truth)"
+  trigger_for_activation: "1+인 협업 진입 (현재 1인 작업 환경에서는 PR #187 우세)"
+  effect: "Phase A 진입 시 PR #187 의 dogfooding 결정을 명시적으로 reverse 하는 별도 PR 필요. 그 시점에 dogfooding 정합 + 1+인 협업 진입 여부 재평가."
+  not_blocking: "§3~§5 (Phase B interactive runtime) 는 §6 결정과 독립적으로 진입 가능 — config 저장 위치가 tracked 이든 machine-local 이든 interactive 선택 흐름은 동일."
+phase_independence:
+  - "Phase B (interactive runtime, §3~§5, §7~§8) 는 Phase A (machine-local, §6) 없이도 작동 가능 — config 가 어디에 살든 AskUserQuestion / request_user_input 흐름은 동일."
+  - "Phase A trigger (1+인 협업 진입) 와 Phase B trigger (PR #243 wrapper 정합 + interactive UX 우선순위) 가 분리됨."
+  - "본 design 의 main 진입은 binding decision 이 아니며 (status: design-draft), 각 Phase implementation 은 별도 PR + 별도 결정 시점."
 ---
 
 # Review 실행방식 Interactive 선택 — 설계안

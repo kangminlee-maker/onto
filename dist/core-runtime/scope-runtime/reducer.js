@@ -37,6 +37,11 @@ export function reduce(events) {
     const feedback_history = [];
     let pre_apply_completed = false;
     let prd_review_completed = false;
+    // post-PR #246 R1 review (CONS-1): apply.started 후 apply.completed 미기록
+    // 상태. gate-guard 가 apply.completed 의 선행 apply.started 를 강제할 때
+    // 참조. backward 전이 (redirect / gap_found) 시 false 로 reset — 이전
+    // started 는 새 cycle 과 무관.
+    let apply_started_pending = false;
     let exploration_progress;
     let latest_revision = 0;
     for (const evt of events) {
@@ -49,7 +54,21 @@ export function reduce(events) {
                 scope_id = evt.scope_id;
                 title = p.title;
                 description = p.description;
+                // post-PR #246 review (conditional consensus, 5-lens convergence):
+                // pre-PR #246 의 process scope artifact 는 entry_mode 가 "experience"
+                // 로 기록 + description 에 [scope_kind:process] 워크어라운드 tag 가
+                // 박혀있다 (start.ts:864 의 옛 형식). 새 strict routing 에서 이 legacy
+                // artifact 는 routing 미스 (interface fallback) — 본 normalization 은
+                // legacy tag 가 발견되면 entry_mode 를 "process" 로 reduce-time
+                // 보정. 신규 scope 에는 영향 없음 (start.ts 가 이미 "process" 로 직접
+                // 기록). 향후 legacy artifact 가 모두 사라지면 (또는 명시 cleanup
+                // PR 진행 시) 본 normalization 도 제거 가능.
                 entry_mode = p.entry_mode;
+                if (entry_mode === "experience" &&
+                    typeof description === "string" &&
+                    description.includes("[scope_kind:process]")) {
+                    entry_mode = "process";
+                }
                 break;
             }
             // ── Redirect (backward) ──
@@ -58,6 +77,7 @@ export function reduce(events) {
                 last_backward_reason = p.reason;
                 pre_apply_completed = false;
                 prd_review_completed = false;
+                apply_started_pending = false;
                 // exploring → grounded: exploration_progress 초기화.
                 // exploration-log.md(파일)는 보존되므로 맥락 소실 없음.
                 if (exploration_progress && !exploration_progress.completed_at) {
@@ -70,6 +90,7 @@ export function reduce(events) {
                 last_backward_reason = p.reason;
                 pre_apply_completed = false;
                 prd_review_completed = false;
+                apply_started_pending = false;
                 break;
             }
             case "surface.change_required": {
@@ -151,6 +172,18 @@ export function reduce(events) {
                 retry_count_compile++;
                 pre_apply_completed = false;
                 prd_review_completed = false;
+                apply_started_pending = false;
+                break;
+            // ── Apply lifecycle (CONS-1 lineage tracking) ──
+            case "apply.started":
+                apply_started_pending = true;
+                break;
+            case "apply.completed":
+                apply_started_pending = false;
+                break;
+            case "apply.decision_gap_found":
+                // backward 전이 (constraints_resolved 로) 시 다시 새 apply 가 필요.
+                apply_started_pending = false;
                 break;
             case "compile.completed": {
                 const cp = evt.payload;
@@ -291,6 +324,7 @@ export function reduce(events) {
         feedback_history,
         pre_apply_completed,
         prd_review_completed,
+        apply_started_pending,
         exploration_progress,
         latest_revision,
     };

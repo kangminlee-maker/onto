@@ -31,6 +31,7 @@ function makeState(overrides: Partial<ScopeState> = {}): ScopeState {
     snapshot_revision: 0,
     pre_apply_completed: false,
     prd_review_completed: false,
+    apply_started_pending: false,
     verdict_log: [],
     feedback_history: [],
     latest_revision: 0,

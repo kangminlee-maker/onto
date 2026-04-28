@@ -242,6 +242,20 @@ export function validateEvent(
     };
   }
 
+  // ── Rule 5f: apply.completed lifecycle lineage — preceding apply.started 필수 ──
+  //
+  // post-PR #246 R1 review (CONS-1 9/9 consensus): state machine 이 surface_confirmed
+  // / compiled 양쪽에서 apply.completed 를 forward 로 허용하므로, naïve caller 가
+  // apply.started 없이 곧장 apply.completed 를 emit 하면 ledger 상에 lifecycle
+  // 시작점이 없는 채로 state 가 applied 로 진입할 수 있다. lifecycle marker
+  // (state.apply_started_pending) 으로 직전 apply.started 의 존재를 보장.
+  if (eventType === "apply.completed" && !state.apply_started_pending) {
+    return {
+      allowed: false,
+      reason: "Apply gate: apply.completed 는 직전 apply.started 가 기록된 상태에서만 가능합니다. 먼저 apply.started 이벤트를 기록하세요.",
+    };
+  }
+
   // ── Rule 5b: Compile retry limit ──
   if (
     eventType === "compile.started" &&

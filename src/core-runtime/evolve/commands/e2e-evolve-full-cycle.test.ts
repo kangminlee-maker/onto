@@ -14,6 +14,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { execFileSync } from "node:child_process";
 import { createScope } from "../../scope-runtime/scope-manager.js";
 import { appendScopeEvent } from "../../scope-runtime/event-pipeline.js";
 import { readEvents } from "../../scope-runtime/event-store.js";
@@ -236,6 +237,14 @@ describe("evolve full cycle E2E", () => {
   // 에서 곧장 commit_design_doc 으로 apply.started/completed 가 emit 되어
   // applied 로 전이.
   it("process mode 단축 lifecycle: surface_confirmed → applied (compile skip)", () => {
+    // post-review fix-up CONS-3: skipGit 제거 — real git repo 사용
+    execFileSync("git", ["init", "--quiet"], { cwd: tmpDir });
+    execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: tmpDir });
+    execFileSync("git", ["config", "user.name", "Test User"], { cwd: tmpDir });
+    writeFileSync(join(tmpDir, "README.md"), "init\n", "utf-8");
+    execFileSync("git", ["add", "README.md"], { cwd: tmpDir });
+    execFileSync("git", ["commit", "-m", "init", "--quiet"], { cwd: tmpDir });
+
     const paths = createScope(tmpDir, "E2E-PROCESS-001");
 
     appendScopeEvent(paths, {
@@ -293,7 +302,7 @@ describe("evolve full cycle E2E", () => {
     // commit_design_doc — compile / target_locked / pre-apply / PRD review 모두 우회
     const commitResult = executeApply(
       paths,
-      { type: "commit_design_doc", skipGit: true, slug: "process-e2e" },
+      { type: "commit_design_doc" },
       { projectRoot: tmpDir },
     );
     expect(commitResult.success).toBe(true);

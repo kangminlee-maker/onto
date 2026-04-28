@@ -32,6 +32,7 @@ function makeState(pool) {
         stale: false, compile_ready: true, convergence_blocked: false,
         revision_count_align: 0, revision_count_surface: 0, retry_count_compile: 0,
         snapshot_revision: 0, pre_apply_completed: false, prd_review_completed: false,
+        apply_started_pending: false,
         verdict_log: [], feedback_history: [], latest_revision: 0,
     };
 }

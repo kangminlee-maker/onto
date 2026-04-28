@@ -48,19 +48,22 @@ export type ApplyAction =
       results: ValidationItemResult[];
       actualPlanHash: string;
     }
-  // post-PR #246 R1 (Phase B Step 4): process mode 의 apply.
-  // surface_confirmed (design-doc 작성 완료) 에서 곧장 호출되어 design-doc-draft.md
+  // post-PR #246 R1 (Phase B Step 4 + post-review fix-up): process mode 의 apply.
+  // surface_confirmed (design-doc 작성 완료) 에서 곧장 호출되어 confirmed surface
   // 를 development-records/evolve/{YYYYMMDD}-{slug}.md 로 이동 + git commit.
-  // pushPr=true 일 때 git push + gh pr create. skipGit=true 는 unit test 용.
+  // pushPr=true 일 때 git push + gh pr create.
+  //
+  // post-review fix-up (CONS-3 9/9 consensus): 이전엔 skipGit / destinationDir /
+  // slug 가 public action state 였으나 *canonical artifact 경로 약화* 로 지적.
+  // 모두 제거 — destination 은 항상 projectRoot/development-records/evolve,
+  // slug 는 항상 state.title 에서 derive (단일 SSOT). 테스트는 git init 으로
+  // 격리된 repo 를 만들어 사용 (real git).
   | {
       type: "commit_design_doc";
       commitMessage?: string;
       pushPr?: boolean;
       prTitle?: string;
       prBody?: string;
-      destinationDir?: string;
-      slug?: string;
-      skipGit?: boolean;
     };
 
 // ─── Output ───
@@ -258,14 +261,32 @@ function handleCompleteValidation(
   };
 }
 
-// post-PR #246 R1 (Phase B Step 4): process mode 의 apply 분기.
+// post-PR #246 R1 (Phase B Step 4 + 9/9 lens consensus 4 fix-up):
+// process mode 의 apply 분기.
 //
-// 흐름:
-// 1. entry_mode === "process" + current_state === "surface_confirmed" 검증
-// 2. paths.surface/design-doc-draft.md → development-records/evolve/{date}-{slug}.md 로 이동
-// 3. git add + git commit (skipGit=true 면 생략 — unit test 용)
-// 4. pushPr=true 면 git push + gh pr create
-// 5. apply.started + apply.completed 이벤트 emit (state: surface_confirmed → applied)
+// Lifecycle ordering (CONS-1):
+//   1. validate (entry_mode + state + surface_path 존재)
+//   2. emit apply.started — durable evidence 가 *side effect 보다 먼저*. side
+//      effect 후 ledger append 가 실패해도 apply.started 는 이미 기록되어 있어
+//      재진입 시 apply_started_pending=true 로 진단 가능.
+//   3. write dest file (source 는 보존 — rollback 용)
+//   4. git add + git commit (real git always — skipGit 같은 escape hatch 없음)
+//   5. on commit failure: rollback dest, return failure (apply.started 는
+//      ledger 에 남음. caller 가 재시도 시 self-transition 이라 무해, 또는
+//      backward redirect 이벤트로 lifecycle reset 가능)
+//   6. unlink source (commit 후에만 안전)
+//   7. optional push + gh pr create (실패 시 warning, commit 은 보존)
+//   8. emit apply.completed with structured process_artifact payload
+//
+// Surface identity (CONS-4): hard-coded `design-doc-draft.md` 대신 confirmed
+//   surface_path 를 state 에서 읽음.
+//
+// Slug SSOT (CONS-2): destination filename 은 항상 state.title 에서 derive —
+//   `--slug` 같은 override 없음. functional_area (frontmatter) 와 destination
+//   filename 이 동일 helper (slugifyTitle) 로 produce 되어 drift 불가능.
+//
+// Escape hatches (CONS-3): skipGit / destinationDir 모두 제거. test 는
+//   `git init` 으로 격리된 tmp repo 를 만들어 사용.
 //
 // design 문서 출처: development-records/evolve/20260425-evolve-planning-extension.md §3.4
 function handleCommitDesignDoc(
@@ -276,6 +297,7 @@ function handleCommitDesignDoc(
   const events = readEvents(paths.events);
   const state = reduce(events);
 
+  // ── Step 1: precondition validation ──
   if (state.entry_mode !== "process") {
     return {
       success: false,
@@ -290,90 +312,113 @@ function handleCommitDesignDoc(
     };
   }
 
-  const sourcePath = join(paths.surface, "design-doc-draft.md");
+  const sourcePath = state.surface_path;
+  if (!sourcePath) {
+    return {
+      success: false,
+      reason: "confirmed surface_path 가 state 에 없습니다. surface.confirmed 이벤트가 final_surface_path 와 함께 기록됐는지 확인하세요.",
+    };
+  }
   if (!existsSync(sourcePath)) {
     return {
       success: false,
-      reason: `design-doc-draft.md 가 존재하지 않습니다: ${sourcePath}. draft generate_surface 로 골격을 생성한 뒤 본문을 작성하세요.`,
+      reason: `confirmed surface 파일이 존재하지 않습니다: ${sourcePath}. draft generate_surface → confirm_surface 흐름을 다시 확인하세요.`,
     };
   }
   const content = readFileSync(sourcePath, "utf-8");
+  const sourceHash = contentHash(content);
 
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const slug = action.slug ?? slugifyTitle(state.title);
-  const destDir = action.destinationDir ?? join(projectRoot, "development-records", "evolve");
+  const slug = slugifyTitle(state.title);
+  const destDir = join(projectRoot, "development-records", "evolve");
   const destPath = join(destDir, `${today}-${slug}.md`);
+  const relDestPath = relative(projectRoot, destPath);
 
   if (existsSync(destPath)) {
     return {
       success: false,
-      reason: `대상 경로에 이미 파일이 존재합니다: ${destPath}. --slug 옵션으로 충돌을 회피하세요.`,
+      reason: `대상 경로에 이미 파일이 존재합니다: ${relDestPath}. scope title 을 변경하거나 destination 을 비운 후 다시 시도하세요.`,
     };
   }
 
+  // ── Step 2: emit apply.started BEFORE side effects (CONS-1 ordering) ──
+  const startResult = appendScopeEvent(paths, {
+    type: "apply.started",
+    actor: "agent",
+    // post-review fix-up (CONS-2): build_spec_hash 는 code-product 전용 의미.
+    // process mode 는 build-spec 산출물이 없으므로 빈 문자열로 lineage 만 표기.
+    // 실제 design-doc artifact metadata 는 apply.completed 의 process_artifact
+    // 에서 구조화 payload 로 carry.
+    payload: { build_spec_hash: "" },
+  });
+  if (!startResult.success) return { success: false, reason: wrapGateError(startResult.reason) };
+
+  // ── Step 3-4: file move + git commit ──
   if (!existsSync(destDir)) {
     mkdirSync(destDir, { recursive: true });
   }
   writeFileSync(destPath, content, "utf-8");
 
   const commitMessage = action.commitMessage ?? `docs(evolve): ${state.title}`;
-  const relDestPath = relative(projectRoot, destPath);
 
+  try {
+    execFileSync("git", ["add", relDestPath], { cwd: projectRoot, stdio: "pipe" });
+    execFileSync("git", ["commit", "-m", commitMessage], { cwd: projectRoot, stdio: "pipe" });
+  } catch (err) {
+    // git 실패 → dest 롤백, source 보존. apply.started 는 ledger 에 남으나
+    // caller 가 재시도하면 새 apply.started 가 자기-전이로 추가되거나, 또는
+    // 다른 backward 이벤트로 lifecycle 정리 가능.
+    if (existsSync(destPath)) unlinkSync(destPath);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      reason: `git commit 실패: ${errMsg} (apply.started 는 ledger 에 기록됨 — 재시도 가능)`,
+    };
+  }
+
+  // ── Step 5: source unlink (commit 이후만 안전) ──
+  if (existsSync(sourcePath)) unlinkSync(sourcePath);
+
+  // ── Step 6: optional push + PR ──
   let prUrl: string | undefined;
   let pushPrWarning: string | undefined;
-
-  if (!action.skipGit) {
+  if (action.pushPr) {
     try {
-      execFileSync("git", ["add", relDestPath], { cwd: projectRoot, stdio: "pipe" });
-      execFileSync("git", ["commit", "-m", commitMessage], { cwd: projectRoot, stdio: "pipe" });
+      const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+        cwd: projectRoot,
+        encoding: "utf-8",
+      }).trim();
+      execFileSync("git", ["push", "origin", branch], { cwd: projectRoot, stdio: "pipe" });
+      const prTitle = action.prTitle ?? commitMessage;
+      const prBody = action.prBody ?? `Auto-generated by onto evolve apply (process mode).\n\nScope: ${state.scope_id}\nTitle: ${state.title}`;
+      const prResult = execFileSync(
+        "gh",
+        ["pr", "create", "--title", prTitle, "--body", prBody],
+        { cwd: projectRoot, encoding: "utf-8" },
+      );
+      prUrl = prResult.trim();
     } catch (err) {
-      // git commit 실패 시 dest 파일 롤백 (source 는 그대로 유지)
-      if (existsSync(destPath)) unlinkSync(destPath);
+      // commit 은 이미 성공 — push/PR 실패는 warning. 사용자가 수동 진행 가능.
       const errMsg = err instanceof Error ? err.message : String(err);
-      return {
-        success: false,
-        reason: `git commit 실패: ${errMsg}`,
-      };
-    }
-
-    if (action.pushPr) {
-      try {
-        const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
-          cwd: projectRoot,
-          encoding: "utf-8",
-        }).trim();
-        execFileSync("git", ["push", "origin", branch], { cwd: projectRoot, stdio: "pipe" });
-        const prTitle = action.prTitle ?? commitMessage;
-        const prBody = action.prBody ?? `Auto-generated by onto evolve apply (process mode).\n\nScope: ${state.scope_id}\nTitle: ${state.title}`;
-        const prResult = execFileSync(
-          "gh",
-          ["pr", "create", "--title", prTitle, "--body", prBody],
-          { cwd: projectRoot, encoding: "utf-8" },
-        );
-        prUrl = prResult.trim();
-      } catch (err) {
-        // commit 은 이미 성공했으므로 push/PR 실패는 warning 으로 보고. 사용자가 수동 진행 가능.
-        const errMsg = err instanceof Error ? err.message : String(err);
-        pushPrWarning = `push/PR 생성 실패 (commit 은 성공): ${errMsg}`;
-      }
+      pushPrWarning = `push/PR 생성 실패 (commit 은 성공): ${errMsg}`;
     }
   }
 
-  // source 제거 — git commit 이후 (또는 skipGit 모드) 에서만 안전.
-  if (existsSync(sourcePath)) unlinkSync(sourcePath);
-
-  // 이벤트 emit: apply.started + apply.completed
-  const startResult = appendScopeEvent(paths, {
-    type: "apply.started",
-    actor: "agent",
-    payload: { build_spec_hash: contentHash(content) },
-  });
-  if (!startResult.success) return { success: false, reason: wrapGateError(startResult.reason) };
-
+  // ── Step 7: emit apply.completed with structured process_artifact ──
   const completeResult = appendScopeEvent(paths, {
     type: "apply.completed",
     actor: "agent",
-    payload: { result: `design doc committed at ${relDestPath}` },
+    payload: {
+      result: `design doc committed at ${relDestPath}`,
+      process_artifact: {
+        source_path: relative(projectRoot, sourcePath),
+        source_hash: sourceHash,
+        destination_path: relDestPath,
+        destination_hash: sourceHash,
+        commit_message: commitMessage,
+        ...(prUrl ? { pr_url: prUrl } : {}),
+      },
+    },
   });
   if (!completeResult.success) return { success: false, reason: wrapGateError(completeResult.reason) };
   refreshScopeMd(paths, completeResult.state);
@@ -388,6 +433,7 @@ function handleCommitDesignDoc(
     message: messageParts.join(" "),
     data: {
       destinationPath: relDestPath,
+      destinationHash: sourceHash,
       commitMessage,
       ...(prUrl ? { prUrl } : {}),
       ...(pushPrWarning ? { pushPrWarning } : {}),

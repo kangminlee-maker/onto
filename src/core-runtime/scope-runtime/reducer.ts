@@ -66,6 +66,11 @@ export function reduce(events: Event[]): ScopeState {
   const feedback_history: FeedbackClassifiedPayload[] = [];
   let pre_apply_completed = false;
   let prd_review_completed = false;
+  // post-PR #246 R1 review (CONS-1): apply.started 후 apply.completed 미기록
+  // 상태. gate-guard 가 apply.completed 의 선행 apply.started 를 강제할 때
+  // 참조. backward 전이 (redirect / gap_found) 시 false 로 reset — 이전
+  // started 는 새 cycle 과 무관.
+  let apply_started_pending = false;
   let exploration_progress: ScopeState["exploration_progress"];
 
   let latest_revision = 0;
@@ -107,6 +112,7 @@ export function reduce(events: Event[]): ScopeState {
         last_backward_reason = p.reason;
         pre_apply_completed = false;
         prd_review_completed = false;
+        apply_started_pending = false;
         // exploring → grounded: exploration_progress 초기화.
         // exploration-log.md(파일)는 보존되므로 맥락 소실 없음.
         if (exploration_progress && !exploration_progress.completed_at) {
@@ -120,6 +126,7 @@ export function reduce(events: Event[]): ScopeState {
         last_backward_reason = p.reason;
         pre_apply_completed = false;
         prd_review_completed = false;
+        apply_started_pending = false;
         break;
       }
 
@@ -212,6 +219,21 @@ export function reduce(events: Event[]): ScopeState {
         retry_count_compile++;
         pre_apply_completed = false;
         prd_review_completed = false;
+        apply_started_pending = false;
+        break;
+
+      // ── Apply lifecycle (CONS-1 lineage tracking) ──
+      case "apply.started":
+        apply_started_pending = true;
+        break;
+
+      case "apply.completed":
+        apply_started_pending = false;
+        break;
+
+      case "apply.decision_gap_found":
+        // backward 전이 (constraints_resolved 로) 시 다시 새 apply 가 필요.
+        apply_started_pending = false;
         break;
 
       case "compile.completed": {
@@ -366,6 +388,7 @@ export function reduce(events: Event[]): ScopeState {
     feedback_history,
     pre_apply_completed,
     prd_review_completed,
+    apply_started_pending,
     exploration_progress,
     latest_revision,
   };

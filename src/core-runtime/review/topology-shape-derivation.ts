@@ -53,8 +53,14 @@ import type {
  *   - `main-teams_native`   : TeamCreate wrapping as teamlead (Claude only);
  *                             native lens spawn inside the team.
  *   - `main-teams_foreign`  : TeamCreate wrapping; foreign-provider lens.
+
  *   - `main-teams_a2a`      : TeamCreate wrapping; native lens + lens-to-lens
- *                             SendMessage deliberation channel active.
+ *                             SendMessage deliberation channel active. Maps
+ *                             to topology `cc-teams-lens-agent-deliberation`
+ *                             (Option E peer-to-peer model: 10 flat-sibling
+ *                             TeamCreates, conditional peer round when
+ *                             Synthesize 1차 emits `deliberation_status:
+ *                             needed` + `conflicting_pairs`).
  *   - `ext-teamlead_native` : external process (currently codex) as teamlead;
  *                             that process's native subagent (nested codex).
  */

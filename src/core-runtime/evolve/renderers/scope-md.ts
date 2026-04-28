@@ -187,7 +187,13 @@ function formatNextAction(state: ScopeState): string {
     case "align_proposed":
       return "Align Packet을 읽고 방향과 범위를 확정하세요 (승인/수정/거절/재스캔 중 선택)";
     case "align_locked":
-      return "방향이 확정되었습니다. 화면 설계를 시작하세요 (`/draft`를 실행하세요)";
+      // post-PR #246 review consensus #3 (3-lens convergence): process mode
+      // 도 "screen design" 으로 인도되는 mismatch 해소 — entry_mode 별 3-way.
+      return state.entry_mode === "experience"
+        ? "방향이 확정되었습니다. 화면 설계를 시작하세요 (`/draft`를 실행하세요)"
+        : state.entry_mode === "process"
+          ? "방향이 확정되었습니다. design doc 작성을 시작하세요 (`/draft`를 실행하세요)"
+          : "방향이 확정되었습니다. API 명세 설계를 시작하세요 (`/draft`를 실행하세요)";
     case "surface_iterating":
       // post-PR #216 §3.1.0: process mode 추가로 3-way ternary.
       return state.entry_mode === "experience"

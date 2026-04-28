@@ -348,13 +348,16 @@ function handleCompile(
   // process scope 의 산출물은 design-doc markdown 이며 build-spec / delta-set
   // / brownfield-detail 같은 code-product compile artifact 가 무의미.
   // F-15 (compile cryptic 예외) 의 직접 root cause — entry_mode 분기 부재.
-  // 향후 §3.4 의 apply 분기가 design doc 을 development-records/evolve/ 로
-  // 이동하는 path 를 책임 (별도 commit).
+  //
+  // post-PR #246 review (axiology HIGH + 5-lens consensus): 이전 메시지가
+  // "apply 로 진행하세요" 로 미존재 분기를 가리켜 사용자를 dead-end 로 인도
+  // (Phase B Step 3-6 별도 PR 미진행). 메시지를 *현재 가능한* path 로 정직
+  // 하게 변경 — 자동 apply 분기는 후속 PR 의 별도 진입점으로 추가 예정 명시.
   if (state.entry_mode === "process") {
     return {
       success: false,
       reason: wrapGateError(
-        "process mode 에선 compile 이 생략됩니다. design doc 작성을 마치고 `apply` 로 진행하세요.",
+        "process mode 에선 compile 이 생략됩니다. design doc 작성을 마쳤으면 `development-records/evolve/<file>.md` 로 수동 커밋하세요 (자동 apply 분기는 후속 PR 에서 추가).",
       ),
     };
   }

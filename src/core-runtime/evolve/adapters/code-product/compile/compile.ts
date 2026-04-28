@@ -9,6 +9,7 @@ import {
 } from "../../../../scope-runtime/types.js";
 import { contentHash } from "../../../../scope-runtime/hash.js";
 import { makeId } from "../../../../scope-runtime/id.js";
+import { getEntryModeRouting } from "../../../entry-mode-routing.js";
 import {
   compileDefense,
   type BuildSpecData,
@@ -436,8 +437,10 @@ function renderSection1(state: ScopeState): string[] {
 
 function renderSection2(state: ScopeState, surfaceSummary: string): string[] {
   const lines: string[] = [];
-  const surfaceDir = state.surface_path ??
-    (state.entry_mode === "experience" ? "surface/preview/" : "surface/contract-diff/");
+  // post-PR #246 R2 (mode-routing centralization): hard-coded surface label
+  // fallback 을 routing lookup 으로 위임. process mode 는 본 함수에 도달
+  // 하지 않지만 (compile skip 분기) defensive 하게 routing 으로.
+  const surfaceDir = state.surface_path ?? getEntryModeRouting(state.entry_mode).surfaceLabel;
 
   lines.push("## 2. Confirmed Surface");
   lines.push("");

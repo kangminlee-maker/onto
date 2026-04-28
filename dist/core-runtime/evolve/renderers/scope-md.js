@@ -1,5 +1,6 @@
 import { isPolicyChangeRequired } from "../../scope-runtime/types.js";
 import { MAX_COMPILE_RETRIES } from "../../scope-runtime/constants.js";
+import { getEntryModeRouting } from "../entry-mode-routing.js";
 /**
  * Render scope.md — the current status view of a scope.
  *
@@ -168,11 +169,11 @@ function formatNextAction(state) {
         case "align_proposed":
             return "Align Packet을 읽고 방향과 범위를 확정하세요 (승인/수정/거절/재스캔 중 선택)";
         case "align_locked":
-            return "방향이 확정되었습니다. 화면 설계를 시작하세요 (`/draft`를 실행하세요)";
+            // post-PR #246 R2 (mode-routing centralization): 3-way ternary 가
+            // entry-mode-routing 모듈로 위임됨. mode 추가 시 본 case 자동 대응.
+            return getEntryModeRouting(state.entry_mode).nextActionAlignLocked;
         case "surface_iterating":
-            return state.entry_mode === "experience"
-                ? "mockup을 확인하세요 (`cd surface/preview && npm run dev`). 수정이 필요하면 피드백을, 맞으면 '확정합니다'라고 말씀하세요"
-                : "API 명세를 확인하세요 (`surface/contract-diff/`). 수정이 필요하면 피드백을, 맞으면 '확정합니다'라고 말씀하세요";
+            return getEntryModeRouting(state.entry_mode).nextActionSurfaceIterating;
         case "surface_confirmed":
             return state.constraint_pool.summary.undecided > 0
                 ? `${state.constraint_pool.summary.undecided}건의 제약 사항에 대해 결정이 필요합니다. 각 항목의 선택지를 검토하고 결정하세요`

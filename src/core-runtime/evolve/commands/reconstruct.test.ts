@@ -2,13 +2,27 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import yaml from "yaml";
 import {
   executeReconstructStart,
   executeReconstructExplore,
   executeReconstructComplete,
   executeReconstructConfirm,
+  composeRawMetaForCycle,
+  composeRawElementsForCycle,
 } from "./reconstruct.js";
-import type { ReconstructSessionState } from "./reconstruct.js";
+import type {
+  ReconstructExploreCoordinatorOptions,
+  ReconstructSessionState,
+} from "./reconstruct.js";
+import type { CoordinatorDeps, CoordinatorResult } from "../../reconstruct/coordinator.js";
+import type { ProposerDirective } from "../../reconstruct/proposer-directive-types.js";
+import type { ReviewerDirective } from "../../reconstruct/reviewer-directive-types.js";
+import type {
+  HookAlphaEntityInput,
+  HookAlphaManifestInput,
+} from "../../reconstruct/hook-alpha.js";
+import type { IntentInference } from "../../reconstruct/wip-element-types.js";
 
 let tmpRoot: string;
 
@@ -564,5 +578,446 @@ describe("end-to-end bounded path (review 4-step: start→explore→complete→c
     expect(persisted.principal_review_status).toBe("passed");
     expect(persisted.explore_invocations).toBe(1);
     expect(persisted.ontology_draft_path).not.toBeNull();
+  });
+});
+
+// =============================================================================
+// raw-yml integration (post-PR242 follow-up)
+//
+// Verifies the post-Phase 3.5 writer wire — coordinator's `completed` cycle
+// must produce a `raw.yml` artifact at the session root with §4.2-valid meta,
+// or emit a typed audit event on validation/FS failure.
+//
+// Coverage:
+//   1. v0 fallback (all switches off) — meta.inference_mode="none" +
+//      fallback_reason="user_flag", elements without intent_inference block.
+//   2. v1 degraded (manifest tier=minimal forces degraded mode) — meta.
+//      inference_mode="degraded" + degraded_reason="pack_tier_minimal",
+//      element-level intent_inference block included.
+//   3. composeRawMetaForCycle — direct unit verification for v0 + v1 paths.
+//   4. raw_yml_meta_invariant_violation event — surfaces when
+//      requestedInferenceMode + manifest tier disagree (full + minimal).
+//   5. coordinator failure (e.g. failed_alpha) — no raw_yml_* event emitted.
+// =============================================================================
+
+const FIXED_NOW_RAW = new Date("2026-04-28T12:00:00Z");
+const RAW_RUNTIME_VERSION = "v1.0.0-test";
+const RAW_PROPOSER_CV = "1.0";
+
+function makeStubManifest(
+  qualityTier: "full" | "partial" | "minimal" = "minimal",
+): HookAlphaManifestInput {
+  return {
+    manifest_schema_version: "1.0",
+    domain_name: "stub-domain",
+    domain_manifest_version: "1.0.0",
+    version_hash: "stub" + "0".repeat(60),
+    quality_tier: qualityTier,
+    referenced_files: [],
+  };
+}
+
+function makeStubEntity(): HookAlphaEntityInput {
+  return {
+    id: "E1",
+    type: "entity",
+    name: "Order",
+    definition: "An order placed by a customer",
+    certainty: "observed",
+    source: { locations: ["src/order.ts:10"] },
+    relations_summary: [],
+  };
+}
+
+function makeMockProposer(): () => Promise<ProposerDirective> {
+  // outcome=`gap` matches the stub manifest's empty `referenced_files` —
+  // any `domain_refs` would trigger `hallucinated_manifest_ref` reject.
+  // `state_reason` mandatory per §3.3 r5.
+  return async () => ({
+    proposals: [
+      {
+        target_element_id: "E1",
+        outcome: "gap" as const,
+        state_reason: "mock spawn — no LLM invoked (test fixture)",
+      },
+    ],
+    provenance: {
+      proposed_at: FIXED_NOW_RAW.toISOString(),
+      proposed_by: "rationale-proposer",
+      proposer_contract_version: RAW_PROPOSER_CV,
+      manifest_schema_version: "1.0",
+      domain_manifest_version: "1.0.0",
+      domain_manifest_hash: "stub" + "0".repeat(60),
+      domain_quality_tier: "minimal",
+      session_id: "raw-test",
+      runtime_version: RAW_RUNTIME_VERSION,
+      input_chunks: 1,
+      truncated_fields: [],
+      effective_injected_files: [],
+    },
+  });
+}
+
+function makeMockReviewer(): () => Promise<ReviewerDirective> {
+  return async () => ({
+    updates: [{ target_element_id: "E1", operation: "confirm" as const }],
+    provenance: {
+      reviewed_at: FIXED_NOW_RAW.toISOString(),
+      reviewed_by: "rationale-reviewer",
+      reviewer_contract_version: "1.0",
+      manifest_schema_version: "1.0",
+      domain_manifest_version: "1.0.0",
+      domain_manifest_hash: "stub" + "0".repeat(60),
+      domain_quality_tier: "minimal",
+      session_id: "raw-test",
+      runtime_version: RAW_RUNTIME_VERSION,
+      wip_snapshot_hash: "wip" + "0".repeat(61),
+      domain_files_content_hash: "dom" + "0".repeat(61),
+      hash_algorithm: "yaml@2.8.2 + sha256",
+      input_chunks: 1,
+      truncated_fields: [],
+      effective_injected_files: [],
+    },
+  });
+}
+
+function makeMockDeps(overrides: Partial<CoordinatorDeps> = {}): CoordinatorDeps {
+  return {
+    spawnProposer: makeMockProposer(),
+    spawnReviewer: makeMockReviewer(),
+    now: () => FIXED_NOW_RAW,
+    systemPurpose: "raw-yml-integration-test",
+    ...overrides,
+  };
+}
+
+function makeFullV1Config(): unknown {
+  return {
+    reconstruct: {
+      v1_inference: { enabled: true },
+      phase3_rationale_review: { enabled: true },
+      write_intent_inference_to_raw_yml: { enabled: true },
+    },
+  };
+}
+
+function makeFullV0Config(): unknown {
+  return {
+    reconstruct: {
+      v1_inference: { enabled: false },
+      phase3_rationale_review: { enabled: false },
+      write_intent_inference_to_raw_yml: { enabled: false },
+    },
+  };
+}
+
+function makeCoordinatorOptions(args: {
+  configRaw: unknown;
+  manifestTier?: "full" | "partial" | "minimal";
+  requestedInferenceMode?: "full" | "degraded";
+  deps?: CoordinatorDeps;
+}): ReconstructExploreCoordinatorOptions {
+  return {
+    configRaw: args.configRaw,
+    entityList: [makeStubEntity()],
+    manifest: makeStubManifest(args.manifestTier),
+    injectedFiles: [],
+    proposerContractVersion: RAW_PROPOSER_CV,
+    wipSnapshotHash: "wip" + "0".repeat(61),
+    domainFilesContentHash: "dom" + "0".repeat(61),
+    phase3Responses: {
+      received_at: FIXED_NOW_RAW.toISOString(),
+      global_reply: "confirmed",
+      rationale_decisions: [],
+      batch_actions: [],
+    },
+    phase3JudgedAt: FIXED_NOW_RAW.toISOString(),
+    renderedElementIds: new Set(),
+    throttledOutAddressableIds: new Set(),
+    deps: args.deps ?? makeMockDeps(),
+    runtimeVersion: RAW_RUNTIME_VERSION,
+    stage: 1,
+    ...(args.requestedInferenceMode !== undefined
+      ? { requestedInferenceMode: args.requestedInferenceMode }
+      : {}),
+  };
+}
+
+describe("raw-yml integration (post-Phase 3.5 writer wire)", () => {
+  it("v0 fallback cycle → raw.yml written + raw_yml_written event + element-level intent_inference omitted", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "raw-yml v0 path",
+      sessionsDir: tmpRoot,
+      sessionId: "raw-v0",
+    });
+
+    const result = await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "raw-v0",
+      coordinator: makeCoordinatorOptions({ configRaw: makeFullV0Config() }),
+    });
+
+    expect(result.coordinator_result?.kind).toBe("completed");
+
+    const events = result.state.events ?? [];
+    const writtenEvent = events.find((e) => e.type === "raw_yml_written");
+    expect(writtenEvent).toBeDefined();
+    expect(writtenEvent?.detail).toMatch(/element_count=1/);
+    expect(writtenEvent?.detail).toMatch(/intent_inference_included=false/);
+
+    const rawPath = join(tmpRoot, "raw-v0", "raw.yml");
+    expect(existsSync(rawPath)).toBe(true);
+    const parsed = yaml.parse(readFileSync(rawPath, "utf-8"));
+    expect(parsed.meta.inference_mode).toBe("none");
+    expect(parsed.meta.fallback_reason).toBe("user_flag");
+    expect(parsed.meta.domain_quality_tier).toBeNull();
+    expect(parsed.elements).toHaveLength(1);
+    expect(parsed.elements[0].id).toBe("E1");
+    expect(parsed.elements[0].intent_inference).toBeUndefined();
+  });
+
+  it("v1 degraded cycle (minimal manifest) → raw.yml written + element-level intent_inference included", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "raw-yml v1 degraded",
+      sessionsDir: tmpRoot,
+      sessionId: "raw-v1",
+    });
+
+    const result = await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "raw-v1",
+      coordinator: makeCoordinatorOptions({
+        configRaw: makeFullV1Config(),
+        requestedInferenceMode: "degraded",
+        manifestTier: "minimal",
+      }),
+    });
+
+    expect(result.coordinator_result?.kind).toBe("completed");
+
+    const events = result.state.events ?? [];
+    const writtenEvent = events.find((e) => e.type === "raw_yml_written");
+    expect(writtenEvent).toBeDefined();
+    expect(writtenEvent?.detail).toMatch(/intent_inference_included=true/);
+
+    const rawPath = join(tmpRoot, "raw-v1", "raw.yml");
+    expect(existsSync(rawPath)).toBe(true);
+    const parsed = yaml.parse(readFileSync(rawPath, "utf-8"));
+    expect(parsed.meta.inference_mode).toBe("degraded");
+    expect(parsed.meta.degraded_reason).toBe("pack_tier_minimal");
+    expect(parsed.meta.fallback_reason).toBeNull();
+    expect(parsed.meta.domain_quality_tier).toBe("minimal");
+    expect(parsed.elements[0].intent_inference).toBeDefined();
+  });
+
+  it("requestedInferenceMode='full' with minimal manifest → raw_yml_meta_invariant_violation event, no raw.yml file", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "raw-yml invariant fail",
+      sessionsDir: tmpRoot,
+      sessionId: "raw-bad",
+    });
+
+    const result = await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "raw-bad",
+      coordinator: makeCoordinatorOptions({
+        configRaw: makeFullV1Config(),
+        requestedInferenceMode: "full",
+        manifestTier: "minimal",
+      }),
+    });
+
+    expect(result.coordinator_result?.kind).toBe("completed");
+
+    const events = result.state.events ?? [];
+    const violation = events.find(
+      (e) => e.type === "raw_yml_meta_invariant_violation",
+    );
+    expect(violation).toBeDefined();
+    // Validator's `full` branch fires first: domain_quality_tier matches the
+    // manifest tier (minimal), so the top-level mismatch guard skips, but the
+    // `inference_mode=full requires domain_quality_tier="full"` check rejects.
+    expect(violation?.detail).toContain("raw_yml_meta_invariant_violation");
+    expect(violation?.detail).toMatch(
+      /inference_mode=full requires domain_quality_tier="full"/,
+    );
+
+    expect(existsSync(join(tmpRoot, "raw-bad", "raw.yml"))).toBe(false);
+    // Cycle itself stayed `completed` — invariant guard is post-cycle.
+    expect(events.find((e) => e.type === "coordinator_completed")).toBeDefined();
+  });
+
+  it("coordinator failure (failed_alpha) → no raw_yml_* events emitted", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "raw-yml failed cycle",
+      sessionsDir: tmpRoot,
+      sessionId: "raw-fail",
+    });
+
+    const failingDeps = makeMockDeps({
+      spawnProposer: async () => {
+        throw new Error("simulated proposer failure");
+      },
+    });
+
+    const result = await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "raw-fail",
+      coordinator: makeCoordinatorOptions({
+        configRaw: makeFullV1Config(),
+        requestedInferenceMode: "degraded",
+        manifestTier: "minimal",
+        deps: failingDeps,
+      }),
+    });
+
+    expect(result.coordinator_result?.kind).toBe("failed_alpha");
+
+    const events = result.state.events ?? [];
+    expect(events.some((e) => e.type.startsWith("raw_yml_"))).toBe(false);
+    expect(existsSync(join(tmpRoot, "raw-fail", "raw.yml"))).toBe(false);
+  });
+
+  it("placeholder mode (no coordinator) → no raw.yml file written", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "placeholder",
+      sessionsDir: tmpRoot,
+      sessionId: "raw-placeholder",
+    });
+
+    await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "raw-placeholder",
+    });
+
+    expect(existsSync(join(tmpRoot, "raw-placeholder", "raw.yml"))).toBe(false);
+  });
+});
+
+describe("composeRawMetaForCycle (unit)", () => {
+  function makeFakeCompletedResult(args: {
+    v1On: boolean;
+    alphaCompleted: boolean;
+    gammaCompleted: boolean;
+  }): Extract<CoordinatorResult, { kind: "completed" }> {
+    const switches = {
+      v1_inference: Object.freeze({ enabled: args.v1On }),
+      phase3_rationale_review: Object.freeze({ enabled: args.v1On }),
+      write_intent_inference_to_raw_yml: Object.freeze({ enabled: args.v1On }),
+    };
+    return {
+      kind: "completed",
+      switches,
+      alpha: args.alphaCompleted
+        ? {
+            kind: "completed",
+            nextState: "alpha_completed",
+            setMetaStage: 2,
+            elementUpdates: new Map<string, IntentInference>(),
+            packMissingAreas: [],
+            warnings: [],
+          }
+        : { kind: "skipped", nextState: "alpha_skipped", setMetaStage: 2 },
+      gamma: args.gammaCompleted
+        ? {
+            kind: "completed",
+            nextState: "gamma_completed",
+            elementUpdates: new Map<string, IntentInference>(),
+            warnings: [],
+          }
+        : { kind: "skipped_by_switch", reason: "phase3_rationale_review_disabled" },
+      delta: null,
+      phase35: {
+        ok: true,
+        elementUpdates: new Map<string, IntentInference>(),
+        excludedFromSweep: new Set<string>(),
+      },
+      writeIntentInferenceToRawYml: args.v1On,
+    };
+  }
+
+  it("v0 fallback — inference_mode=none, fallback_reason=user_flag, contract versions null", () => {
+    const meta = composeRawMetaForCycle({
+      result: makeFakeCompletedResult({
+        v1On: false,
+        alphaCompleted: false,
+        gammaCompleted: false,
+      }),
+      manifest: makeStubManifest("minimal"),
+      coord: makeCoordinatorOptions({ configRaw: makeFullV0Config() }),
+    });
+
+    expect(meta.inference_mode).toBe("none");
+    expect(meta.fallback_reason).toBe("user_flag");
+    expect(meta.degraded_reason).toBeNull();
+    expect(meta.domain_quality_tier).toBeNull();
+    expect(meta.rationale_proposer_contract_version).toBeNull();
+    expect(meta.rationale_reviewer_contract_version).toBeNull();
+    expect(meta.rationale_review_degraded).toBe(false);
+  });
+
+  it("v1 degraded with minimal manifest — degraded_reason=pack_tier_minimal", () => {
+    const meta = composeRawMetaForCycle({
+      result: makeFakeCompletedResult({
+        v1On: true,
+        alphaCompleted: true,
+        gammaCompleted: true,
+      }),
+      manifest: makeStubManifest("minimal"),
+      coord: makeCoordinatorOptions({
+        configRaw: makeFullV1Config(),
+        requestedInferenceMode: "degraded",
+      }),
+    });
+
+    expect(meta.inference_mode).toBe("degraded");
+    expect(meta.degraded_reason).toBe("pack_tier_minimal");
+    expect(meta.fallback_reason).toBeNull();
+    expect(meta.domain_quality_tier).toBe("minimal");
+    expect(meta.rationale_proposer_contract_version).toBe(RAW_PROPOSER_CV);
+    expect(meta.rationale_reviewer_contract_version).toBe("1.0");
+    expect(meta.step2c_review_state).toBe("completed");
+  });
+});
+
+describe("composeRawElementsForCycle (unit)", () => {
+  it("attaches intent_inference when elementUpdates has entry; omits otherwise", () => {
+    const inf: IntentInference = {
+      rationale_state: "principal_accepted",
+      provenance: {
+        proposed_at: FIXED_NOW_RAW.toISOString(),
+        proposed_by: "rationale-proposer",
+        proposer_contract_version: "1.0",
+        manifest_schema_version: "1.0",
+        domain_manifest_version: "1.0.0",
+        domain_manifest_hash: "stub" + "0".repeat(60),
+        domain_quality_tier: "minimal",
+        session_id: "raw-test",
+        runtime_version: RAW_RUNTIME_VERSION,
+        input_chunks: 1,
+        truncated_fields: [],
+        effective_injected_files: [],
+        gate_count: 1,
+      },
+    };
+    const updates = new Map<string, IntentInference>([["E1", inf]]);
+    const elements = composeRawElementsForCycle(
+      [
+        makeStubEntity(),
+        { ...makeStubEntity(), id: "E2", name: "Customer" },
+      ],
+      updates,
+    );
+
+    expect(elements).toHaveLength(2);
+    expect(elements[0]?.id).toBe("E1");
+    expect(elements[0]?.intent_inference).toBe(inf);
+    expect(elements[1]?.id).toBe("E2");
+    expect(elements[1]?.intent_inference).toBeUndefined();
   });
 });

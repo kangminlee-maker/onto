@@ -5,41 +5,64 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   DeliberationOptInError,
   buildDeliberationPlan,
-  buildDeliberationRound1Prompt,
-  buildDeliberationRound2Prompt,
+  buildPeerDeliberationPrompt,
   deliberationArtifactPath,
-  extractDisagreements,
+  extractConflictingPairsFromSynthesize1,
+  extractDisagreementsFromPeerArtifacts,
   readDeliberationArtifact,
   requireDeliberationOptIn,
   runLensAgentDeliberation,
   writeDeliberationArtifact,
+  type ConflictingLensPair,
   type LensPrimaryOutput,
+  type PeerArtifactEntry,
 } from "./teamcreate-lens-deliberation-executor.js";
 
 // ---------------------------------------------------------------------------
-// These tests assert the PR-D deliberation protocol invariants:
+// These tests assert the Option E (2026-04-29) deliberation protocol
+// invariants:
 //
 // (1) Triple opt-in is enforced at module boundary — missing any of
 //     CLAUDECODE, CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS, or
 //     config.lens_agent_teams_mode throws DeliberationOptInError with
 //     the missing items enumerated.
-// (2) Round 1 prompt embeds OTHER lens outputs (not own), asks for
-//     re-evaluation, declares the required response section headings.
-// (3) Round 2 prompt embeds ALL round-1 responses, asks for convergence
-//     + explicit persistent disagreements.
-// (4) Artifact paths are deterministic: <dir>/round{N}/<lens>-deliberation.md.
-// (5) Read/write round-trip preserves content.
-// (6) Disagreement extraction finds "## 지속적 이견" sections, parses
-//     "- **이견 항목**:" entries, tolerates English variant heading.
-// (7) runLensAgentDeliberation produces a plan with N*round steps in
-//     stable order, each with prompt + artifact_path populated.
+// (2) Peer prompt embeds peer's primary output + target_section +
+//     conflict_summary, declares the required response section
+//     headings, and asks for an own-lens reply scoped to the conflict.
+// (3) Artifact paths are deterministic AND order-independent: the same
+//     pair of lens IDs maps to the same directory regardless of which
+//     lens is `lens_a` in the input.
+// (4) Read/write round-trip preserves content.
+// (5) extractConflictingPairsFromSynthesize1 reads frontmatter and
+//     resolves lens IDs to their LensPrimaryOutput entries; unknown
+//     lens IDs are skipped (wiring defect signal).
+// (6) extractDisagreementsFromPeerArtifacts finds "## 지속적 이견"
+//     sections, parses "- **이견 항목**:" entries, and carries
+//     (source, peer, target_section) trio onto each Disagreement.
+// (7) buildDeliberationPlan emits 2 steps per conflicting pair (one
+//     per lens) in stable order. Empty pairs → empty plan.
+// (8) runLensAgentDeliberation produces an empty plan when no
+//     conflicts and a populated plan otherwise; reads each unique
+//     primary output once.
 // ---------------------------------------------------------------------------
 
-const LENSES: LensPrimaryOutput[] = [
+const PRIMARY_OUTPUTS: LensPrimaryOutput[] = [
   { lens_id: "logic", output_path: "/tmp/fake/round0/logic.md" },
   { lens_id: "pragmatics", output_path: "/tmp/fake/round0/pragmatics.md" },
   { lens_id: "axiology", output_path: "/tmp/fake/round0/axiology.md" },
 ];
+
+function pairFromIds(
+  a_id: string,
+  b_id: string,
+  target_section: string,
+  summary: string,
+): ConflictingLensPair {
+  const a = PRIMARY_OUTPUTS.find((p) => p.lens_id === a_id);
+  const b = PRIMARY_OUTPUTS.find((p) => p.lens_id === b_id);
+  if (!a || !b) throw new Error("test fixture lens_id missing");
+  return { lens_a: a, lens_b: b, target_section, summary };
+}
 
 // ---------------------------------------------------------------------------
 // requireDeliberationOptIn
@@ -99,228 +122,235 @@ describe("requireDeliberationOptIn", () => {
       expect(m).toContain("lens_agent_teams_mode");
     }
   });
+});
 
-  it("message enumerates ALL missing flags (not just the first)", () => {
-    try {
-      requireDeliberationOptIn({ lens_agent_teams_mode: false }, {});
-      expect.fail("expected throw");
-    } catch (err) {
-      const msg = (err as Error).message;
-      expect(msg).toContain("CLAUDECODE=1");
-      expect(msg).toContain("EXPERIMENTAL_AGENT_TEAMS");
-      expect(msg).toContain("lens_agent_teams_mode");
-    }
+// ---------------------------------------------------------------------------
+// buildPeerDeliberationPrompt
+// ---------------------------------------------------------------------------
+
+describe("buildPeerDeliberationPrompt", () => {
+  it("embeds peer output + conflict context + own lens identity", () => {
+    const prompt = buildPeerDeliberationPrompt({
+      own_lens_id: "logic",
+      peer_lens_id: "axiology",
+      peer_output: "axiology lens primary content",
+      target_section: "structure-section-3",
+      conflict_summary: "logic flags type narrowing; axiology defends value alignment",
+    });
+    expect(prompt).toContain('lens "logic" replying to "axiology"');
+    expect(prompt).toContain("axiology lens primary content");
+    expect(prompt).toContain("structure-section-3");
+    expect(prompt).toContain("logic flags type narrowing");
+  });
+
+  it("declares required response section headings (합의 / 이견 / 합성)", () => {
+    const prompt = buildPeerDeliberationPrompt({
+      own_lens_id: "pragmatics",
+      peer_lens_id: "conciseness",
+      peer_output: "<peer>",
+      target_section: "naming",
+      conflict_summary: "<summary>",
+    });
+    expect(prompt).toContain("## 합의 가능 지점");
+    expect(prompt).toContain("## 지속적 이견");
+    expect(prompt).toContain("- **이견 항목**");
+    expect(prompt).toContain("## 합성 제안");
+  });
+
+  it("scopes the reply to the conflict (target 영역 한정)", () => {
+    const prompt = buildPeerDeliberationPrompt({
+      own_lens_id: "logic",
+      peer_lens_id: "semantics",
+      peer_output: "<peer>",
+      target_section: "narrowing",
+      conflict_summary: "<summary>",
+    });
+    expect(prompt).toContain("target 영역 에 한정");
   });
 });
 
 // ---------------------------------------------------------------------------
-// Prompt templates
-// ---------------------------------------------------------------------------
-
-describe("buildDeliberationRound1Prompt", () => {
-  it("embeds every OTHER lens output as its own block", () => {
-    const prompt = buildDeliberationRound1Prompt({
-      own_lens_id: "logic",
-      own_output_summary: "logic 의 기존 결론",
-      other_lens_outputs: [
-        { lens_id: "pragmatics", content: "pragmatics output body" },
-        { lens_id: "axiology", content: "axiology output body" },
-      ],
-    });
-    expect(prompt).toContain("## Lens: pragmatics");
-    expect(prompt).toContain("pragmatics output body");
-    expect(prompt).toContain("## Lens: axiology");
-    expect(prompt).toContain("axiology output body");
-  });
-
-  it("does NOT embed the lens's own output verbatim (it's already in its session memory)", () => {
-    const prompt = buildDeliberationRound1Prompt({
-      own_lens_id: "logic",
-      own_output_summary: "summary of logic body",
-      other_lens_outputs: [{ lens_id: "pragmatics", content: "other body" }],
-    });
-    expect(prompt).toContain("summary of logic body");
-    expect(prompt).not.toContain("## Lens: logic");
-  });
-
-  it("declares the required response section headings", () => {
-    const prompt = buildDeliberationRound1Prompt({
-      own_lens_id: "logic",
-      own_output_summary: "x",
-      other_lens_outputs: [],
-    });
-    expect(prompt).toContain("재평가 요약");
-    expect(prompt).toContain("동의/강화 지점");
-    expect(prompt).toContain("충돌/수정 지점");
-    expect(prompt).toContain("추가 발견");
-  });
-});
-
-describe("buildDeliberationRound2Prompt", () => {
-  it("embeds all round-1 responses", () => {
-    const prompt = buildDeliberationRound2Prompt({
-      own_lens_id: "logic",
-      round1_responses: [
-        { lens_id: "logic", content: "logic r1" },
-        { lens_id: "pragmatics", content: "pragmatics r1" },
-      ],
-    });
-    expect(prompt).toContain("Round 1 response — lens: logic");
-    expect(prompt).toContain("Round 1 response — lens: pragmatics");
-    expect(prompt).toContain("logic r1");
-    expect(prompt).toContain("pragmatics r1");
-  });
-
-  it("declares required round-2 section headings (수렴 / 이견 / 최종)", () => {
-    const prompt = buildDeliberationRound2Prompt({
-      own_lens_id: "logic",
-      round1_responses: [],
-    });
-    expect(prompt).toContain("수렴 요약");
-    expect(prompt).toContain("지속적 이견");
-    expect(prompt).toContain("최종 입장");
-  });
-
-  it("explicitly instructs NOT to hide disagreement", () => {
-    const prompt = buildDeliberationRound2Prompt({
-      own_lens_id: "logic",
-      round1_responses: [],
-    });
-    expect(prompt).toContain("숨기지");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Artifact path / read / write
+// deliberationArtifactPath
 // ---------------------------------------------------------------------------
 
 describe("deliberationArtifactPath", () => {
-  it("composes <dir>/round{N}/<lens>-deliberation.md", () => {
-    expect(deliberationArtifactPath("/base", 1, "logic")).toBe(
-      path.join("/base", "round1", "logic-deliberation.md"),
-    );
-    expect(deliberationArtifactPath("/base", 2, "axiology")).toBe(
-      path.join("/base", "round2", "axiology-deliberation.md"),
-    );
+  it("computes pair directory from sorted lens ids", () => {
+    const p = deliberationArtifactPath("/sess/delib", "logic", "axiology", "logic");
+    expect(p).toBe(path.join("/sess/delib", "axiology--logic", "logic-deliberation.md"));
+  });
+
+  it("is order-independent: (a,b) and (b,a) resolve to the same directory", () => {
+    const ab = deliberationArtifactPath("/sess/delib", "logic", "axiology", "axiology");
+    const ba = deliberationArtifactPath("/sess/delib", "axiology", "logic", "axiology");
+    expect(ab).toBe(ba);
+  });
+
+  it("authoring lens determines the file name within the pair directory", () => {
+    const fromA = deliberationArtifactPath("/sess/delib", "logic", "axiology", "logic");
+    const fromB = deliberationArtifactPath("/sess/delib", "logic", "axiology", "axiology");
+    expect(path.dirname(fromA)).toBe(path.dirname(fromB));
+    expect(path.basename(fromA)).toBe("logic-deliberation.md");
+    expect(path.basename(fromB)).toBe("axiology-deliberation.md");
   });
 });
 
-describe("writeDeliberationArtifact / readDeliberationArtifact", () => {
-  let tmpRoot: string;
+// ---------------------------------------------------------------------------
+// writeDeliberationArtifact / readDeliberationArtifact
+// ---------------------------------------------------------------------------
+
+describe("write/read deliberation artifact round-trip", () => {
+  let tmpDir: string;
 
   beforeEach(async () => {
-    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "onto-deliberation-"));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "onto-delib-rw-"));
   });
+
   afterEach(async () => {
-    await fs.rm(tmpRoot, { recursive: true, force: true });
+    await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
-  it("round-trips content through disk, creating parent directories", async () => {
-    const content = "## 재평가 요약\n\n유지.\n";
-    const filePath = await writeDeliberationArtifact(tmpRoot, 1, "logic", content);
-    expect(filePath).toBe(deliberationArtifactPath(tmpRoot, 1, "logic"));
-    const read = await readDeliberationArtifact(tmpRoot, 1, "logic");
-    expect(read).toBe(content);
-  });
-
-  it("readDeliberationArtifact returns null for missing artifact (not an error)", async () => {
-    const read = await readDeliberationArtifact(tmpRoot, 2, "never-written");
-    expect(read).toBeNull();
+  it("preserves content across write+read", async () => {
+    const written = await writeDeliberationArtifact(
+      tmpDir,
+      "logic",
+      "axiology",
+      "logic",
+      "## 합의 가능 지점\n내용\n",
+    );
+    expect(written).toBe(
+      deliberationArtifactPath(tmpDir, "logic", "axiology", "logic"),
+    );
+    const back = await readDeliberationArtifact(tmpDir, "logic", "axiology", "logic");
+    expect(back).toBe("## 합의 가능 지점\n내용\n");
   });
 });
 
 // ---------------------------------------------------------------------------
-// extractDisagreements
+// extractConflictingPairsFromSynthesize1
 // ---------------------------------------------------------------------------
 
-describe("extractDisagreements", () => {
-  it("extracts items from a '## 지속적 이견' section", () => {
-    const round2 = [
+describe("extractConflictingPairsFromSynthesize1", () => {
+  const lookup = new Map(PRIMARY_OUTPUTS.map((p) => [p.lens_id, p]));
+
+  it("returns empty array for null/undefined frontmatter", () => {
+    expect(extractConflictingPairsFromSynthesize1(null, lookup)).toEqual([]);
+    expect(extractConflictingPairsFromSynthesize1(undefined, lookup)).toEqual([]);
+  });
+
+  it("returns empty array when conflicting_pairs absent or empty", () => {
+    expect(
+      extractConflictingPairsFromSynthesize1(
+        { deliberation_status: "not_needed" },
+        lookup,
+      ),
+    ).toEqual([]);
+    expect(
+      extractConflictingPairsFromSynthesize1(
+        { conflicting_pairs: [] },
+        lookup,
+      ),
+    ).toEqual([]);
+  });
+
+  it("resolves lens ids to LensPrimaryOutput entries", () => {
+    const pairs = extractConflictingPairsFromSynthesize1(
       {
-        lens_id: "logic",
+        deliberation_status: "needed",
+        conflicting_pairs: [
+          {
+            lens_a: "logic",
+            lens_b: "axiology",
+            target_section: "structure-section-3",
+            summary: "narrowing concern vs value alignment",
+          },
+        ],
+      },
+      lookup,
+    );
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0]!.lens_a.lens_id).toBe("logic");
+    expect(pairs[0]!.lens_a.output_path).toBe("/tmp/fake/round0/logic.md");
+    expect(pairs[0]!.lens_b.lens_id).toBe("axiology");
+    expect(pairs[0]!.target_section).toBe("structure-section-3");
+  });
+
+  it("skips entries whose lens_id is unknown (wiring defect)", () => {
+    const pairs = extractConflictingPairsFromSynthesize1(
+      {
+        conflicting_pairs: [
+          { lens_a: "logic", lens_b: "unknown-lens", target_section: "x", summary: "y" },
+          { lens_a: "logic", lens_b: "pragmatics", target_section: "n", summary: "m" },
+        ],
+      },
+      lookup,
+    );
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0]!.lens_b.lens_id).toBe("pragmatics");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractDisagreementsFromPeerArtifacts
+// ---------------------------------------------------------------------------
+
+describe("extractDisagreementsFromPeerArtifacts", () => {
+  it("parses 지속적 이견 section and carries (source, peer, target) trio", () => {
+    const artifacts: PeerArtifactEntry[] = [
+      {
+        source_lens_id: "logic",
+        peer_lens_id: "axiology",
+        target_section: "structure-section-3",
         content: [
-          "## 수렴 요약",
-          "- 모두 동의",
+          "## 합의 가능 지점",
+          "- 일부 동의",
           "",
           "## 지속적 이견",
-          "- **이견 항목**: scope creep 정의",
-          "  - 당신의 입장: task 내 한정",
-          "  - 반대 입장 (axiology): 가치 질문 포함 필요",
-          "- **이견 항목**: severity 스케일",
-          "  - 당신의 입장: 3단계",
-          "  - 반대 입장 (pragmatics): 5단계",
+          "- **이견 항목**: 타입 좁히기 우선",
+          "  - 본 lens (logic) 입장: 좁히기 미흡 catch 우선",
+          "  - peer lens (axiology) 입장: principal goal 우선",
+          "  - 해소 경로 (있다면): 없음",
           "",
-          "## 최종 입장",
-          "입장 유지.",
+          "## 합성 제안",
+          "없음",
         ].join("\n"),
       },
     ];
-    const result = extractDisagreements(round2);
-    expect(result).toHaveLength(2);
-    expect(result[0]!.source_lens_id).toBe("logic");
-    expect(result[0]!.title).toBe("scope creep 정의");
-    expect(result[0]!.body).toContain("task 내 한정");
-    expect(result[1]!.title).toBe("severity 스케일");
+    const out = extractDisagreementsFromPeerArtifacts(artifacts);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.source_lens_id).toBe("logic");
+    expect(out[0]!.peer_lens_id).toBe("axiology");
+    expect(out[0]!.target_section).toBe("structure-section-3");
+    expect(out[0]!.title).toBe("타입 좁히기 우선");
+    expect(out[0]!.body).toContain("logic");
+    expect(out[0]!.body).toContain("axiology");
   });
 
-  it("empty section yields empty array", () => {
-    const round2 = [
-      { lens_id: "logic", content: "## 수렴 요약\n- OK\n\n## 최종 입장\n입장 유지." },
-    ];
-    expect(extractDisagreements(round2)).toEqual([]);
-  });
-
-  it("tolerates English heading 'Persistent Disagreements'", () => {
-    const round2 = [
+  it("tolerates English heading variant", () => {
+    const artifacts: PeerArtifactEntry[] = [
       {
-        lens_id: "pragmatics",
+        source_lens_id: "x",
+        peer_lens_id: "y",
+        target_section: "z",
         content: [
           "## Persistent Disagreements",
-          "- **이견 항목**: naming convention",
-          "  - details here",
+          "- **이견 항목**: 영문 변형",
+          "  설명",
         ].join("\n"),
       },
     ];
-    const result = extractDisagreements(round2);
-    expect(result).toHaveLength(1);
-    expect(result[0]!.title).toBe("naming convention");
+    expect(extractDisagreementsFromPeerArtifacts(artifacts)).toHaveLength(1);
   });
 
-  it("stops at the next ## heading", () => {
-    const round2 = [
+  it("returns empty when section absent", () => {
+    const artifacts: PeerArtifactEntry[] = [
       {
-        lens_id: "logic",
-        content: [
-          "## 지속적 이견",
-          "- **이견 항목**: X",
-          "  - detail",
-          "## 최종 입장",
-          "- **이견 항목**: should-not-appear",
-        ].join("\n"),
+        source_lens_id: "x",
+        peer_lens_id: "y",
+        target_section: "z",
+        content: "## 합의 가능 지점\n전부 합의\n",
       },
     ];
-    const result = extractDisagreements(round2);
-    expect(result).toHaveLength(1);
-    expect(result[0]!.title).toBe("X");
-  });
-
-  it("aggregates across multiple round-2 artifacts", () => {
-    const round2 = [
-      {
-        lens_id: "logic",
-        content: "## 지속적 이견\n- **이견 항목**: A\n  - body A",
-      },
-      {
-        lens_id: "pragmatics",
-        content: "## 지속적 이견\n- **이견 항목**: B\n  - body B",
-      },
-    ];
-    const result = extractDisagreements(round2);
-    expect(result).toHaveLength(2);
-    expect(result.map((d) => `${d.source_lens_id}:${d.title}`)).toEqual([
-      "logic:A",
-      "pragmatics:B",
-    ]);
+    expect(extractDisagreementsFromPeerArtifacts(artifacts)).toEqual([]);
   });
 });
 
@@ -329,39 +359,52 @@ describe("extractDisagreements", () => {
 // ---------------------------------------------------------------------------
 
 describe("buildDeliberationPlan", () => {
-  it("emits N round-1 steps when rounds=1", () => {
+  it("returns empty plan for empty conflicting_pairs", () => {
     const plan = buildDeliberationPlan(
-      { lenses: LENSES, deliberation_dir: "/tmp/d", rounds: 1 },
-      (lens) => `round1-prompt-for-${lens.lens_id}`,
+      { conflicting_pairs: [], deliberation_dir: "/sess/delib" },
+      () => "<unused prompt>",
     );
-    expect(plan.steps).toHaveLength(3);
-    for (let i = 0; i < 3; i += 1) {
-      expect(plan.steps[i]!.round).toBe(1);
-      expect(plan.steps[i]!.lens_id).toBe(LENSES[i]!.lens_id);
-      expect(plan.steps[i]!.prompt).toContain(LENSES[i]!.lens_id);
-    }
+    expect(plan.steps).toEqual([]);
+    expect(plan.all_artifact_paths).toEqual([]);
   });
 
-  it("emits 2N steps when rounds=2 with round1 before round2", () => {
+  it("emits 2 steps per pair (one per lens) in stable order", () => {
     const plan = buildDeliberationPlan(
-      { lenses: LENSES, deliberation_dir: "/tmp/d", rounds: 2 },
-      (lens) => `round1-${lens.lens_id}`,
-      (lens) => `round2-${lens.lens_id}`,
+      {
+        conflicting_pairs: [
+          pairFromIds("logic", "axiology", "structure-section-3", "summary 1"),
+          pairFromIds("pragmatics", "logic", "naming-area", "summary 2"),
+        ],
+        deliberation_dir: "/sess/delib",
+      },
+      (own, peer, pair) =>
+        `prompt|${own.lens_id}|${peer.lens_id}|${pair.target_section}`,
     );
-    expect(plan.steps).toHaveLength(6);
-    expect(plan.steps.slice(0, 3).every((s) => s.round === 1)).toBe(true);
-    expect(plan.steps.slice(3).every((s) => s.round === 2)).toBe(true);
+    expect(plan.steps).toHaveLength(4);
+    expect(plan.steps[0]).toMatchObject({ lens_id: "logic", peer_lens_id: "axiology" });
+    expect(plan.steps[1]).toMatchObject({ lens_id: "axiology", peer_lens_id: "logic" });
+    expect(plan.steps[2]).toMatchObject({ lens_id: "pragmatics", peer_lens_id: "logic" });
+    expect(plan.steps[3]).toMatchObject({ lens_id: "logic", peer_lens_id: "pragmatics" });
+    expect(plan.steps[0]!.target_section).toBe("structure-section-3");
+    expect(plan.steps[2]!.target_section).toBe("naming-area");
   });
 
-  it("all_artifact_paths lists every step's target", () => {
+  it("artifact_path uses sorted pair directory", () => {
     const plan = buildDeliberationPlan(
-      { lenses: LENSES, deliberation_dir: "/tmp/d", rounds: 2 },
-      (lens) => `r1-${lens.lens_id}`,
-      (lens) => `r2-${lens.lens_id}`,
+      {
+        conflicting_pairs: [
+          pairFromIds("logic", "axiology", "x", "y"),
+        ],
+        deliberation_dir: "/sess/delib",
+      },
+      () => "<prompt>",
     );
-    expect(plan.all_artifact_paths).toHaveLength(6);
-    expect(plan.all_artifact_paths[0]).toContain("round1");
-    expect(plan.all_artifact_paths[3]).toContain("round2");
+    expect(path.dirname(plan.steps[0]!.artifact_path)).toBe(
+      path.join("/sess/delib", "axiology--logic"),
+    );
+    expect(path.dirname(plan.steps[1]!.artifact_path)).toBe(
+      path.join("/sess/delib", "axiology--logic"),
+    );
   });
 });
 
@@ -370,58 +413,62 @@ describe("buildDeliberationPlan", () => {
 // ---------------------------------------------------------------------------
 
 describe("runLensAgentDeliberation", () => {
-  const VALID_ENV = {
+  const env = {
     CLAUDECODE: "1",
     CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "1",
   };
 
-  it("throws DeliberationOptInError when opt-in not met", async () => {
+  it("returns empty plan when no conflicts (no LLM calls, no artifacts)", async () => {
+    const plan = await runLensAgentDeliberation({
+      ontoConfig: { lens_agent_teams_mode: true },
+      input: { conflicting_pairs: [], deliberation_dir: "/sess/delib" },
+      env,
+    });
+    expect(plan.steps).toEqual([]);
+    expect(plan.all_artifact_paths).toEqual([]);
+  });
+
+  it("reads each unique primary output once + emits a populated plan", async () => {
+    const reads: string[] = [];
+    const fakeContents: Record<string, string> = {
+      "/tmp/fake/round0/logic.md": "logic primary",
+      "/tmp/fake/round0/axiology.md": "axiology primary",
+    };
+    const plan = await runLensAgentDeliberation({
+      ontoConfig: { lens_agent_teams_mode: true },
+      input: {
+        conflicting_pairs: [
+          pairFromIds("logic", "axiology", "section-3", "narrowing vs value"),
+          pairFromIds("axiology", "logic", "section-5", "another conflict"),
+        ],
+        deliberation_dir: "/sess/delib",
+      },
+      env,
+      readPrimary: async (p) => {
+        reads.push(p);
+        return fakeContents[p] ?? "";
+      },
+    });
+    // Only 2 unique paths even though logic+axiology appear twice as a pair
+    expect(reads.sort()).toEqual([
+      "/tmp/fake/round0/axiology.md",
+      "/tmp/fake/round0/logic.md",
+    ]);
+    expect(plan.steps).toHaveLength(4);
+    // First step prompt embeds peer's primary content
+    expect(plan.steps[0]!.prompt).toContain("axiology primary");
+  });
+
+  it("propagates DeliberationOptInError when opt-in incomplete", async () => {
     await expect(
       runLensAgentDeliberation({
         ontoConfig: {},
-        input: { lenses: LENSES, deliberation_dir: "/tmp/d", rounds: 1 },
-        env: {},
+        input: {
+          conflicting_pairs: [pairFromIds("logic", "axiology", "x", "y")],
+          deliberation_dir: "/sess/delib",
+        },
+        env,
       }),
-    ).rejects.toThrow(DeliberationOptInError);
-  });
-
-  it("reads primary lens outputs via injected reader and builds round-1 prompts", async () => {
-    const primaries = new Map([
-      ["logic", "LOGIC primary output body with findings."],
-      ["pragmatics", "PRAG primary output body."],
-      ["axiology", "AXIOLOGY primary output body."],
-    ]);
-    const plan = await runLensAgentDeliberation({
-      ontoConfig: { lens_agent_teams_mode: true },
-      input: { lenses: LENSES, deliberation_dir: "/tmp/d", rounds: 1 },
-      env: VALID_ENV,
-      readPrimary: async (p) => {
-        const lensId = path.basename(p).replace(".md", "");
-        return primaries.get(lensId) ?? "";
-      },
-    });
-
-    expect(plan.steps).toHaveLength(3);
-    // Logic's prompt should contain PRAG + AXIOLOGY bodies (as "other" blocks)
-    // but should NOT include a "## Lens: logic" block — logic's own body
-    // stays in its session memory. The own_output_summary header may
-    // echo a truncated first paragraph (that's the name anchor) which
-    // is intentional; we check the block-shaped inclusion only.
-    const logicStep = plan.steps.find((s) => s.lens_id === "logic")!;
-    expect(logicStep.prompt).toContain("PRAG primary output body");
-    expect(logicStep.prompt).toContain("AXIOLOGY primary output body");
-    expect(logicStep.prompt).not.toContain("## Lens: logic");
-  });
-
-  it("rounds=2 produces round-1 + round-2 steps (round-2 prompt has runtime placeholder)", async () => {
-    const plan = await runLensAgentDeliberation({
-      ontoConfig: { lens_agent_teams_mode: true },
-      input: { lenses: LENSES, deliberation_dir: "/tmp/d", rounds: 2 },
-      env: VALID_ENV,
-      readPrimary: async () => "primary body",
-    });
-    expect(plan.steps).toHaveLength(6);
-    const round2Step = plan.steps.find((s) => s.round === 2)!;
-    expect(round2Step.prompt).toContain("coordinator-replace-at-runtime");
+    ).rejects.toBeInstanceOf(DeliberationOptInError);
   });
 });

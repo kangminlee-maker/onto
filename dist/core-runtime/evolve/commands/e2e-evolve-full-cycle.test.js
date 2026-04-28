@@ -13,6 +13,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { execFileSync } from "node:child_process";
 import { createScope } from "../../scope-runtime/scope-manager.js";
 import { appendScopeEvent } from "../../scope-runtime/event-pipeline.js";
 import { readEvents } from "../../scope-runtime/event-store.js";
@@ -204,5 +205,88 @@ describe("evolve full cycle E2E", () => {
         expect(eventTypes).toContain("apply.completed");
         expect(eventTypes).toContain("validation.completed");
         expect(eventTypes).toContain("scope.closed");
+    });
+    // ─── PR #246 R1 (Phase B Step 6): process mode 의 단축 lifecycle E2E ───
+    //
+    // 검증 시나리오:
+    //   draft → grounded → align_proposed → align_locked →
+    //   surface_iterating → surface_confirmed → applied (compile/target_locked skip)
+    //
+    // process mode 는 design-doc 산출 use case 라 code-product 의
+    // constraint→target_locked→compile 단계를 거치지 않음. surface_confirmed
+    // 에서 곧장 commit_design_doc 으로 apply.started/completed 가 emit 되어
+    // applied 로 전이.
+    it("process mode 단축 lifecycle: surface_confirmed → applied (compile skip)", () => {
+        // post-review fix-up CONS-3: skipGit 제거 — real git repo 사용
+        execFileSync("git", ["init", "--quiet"], { cwd: tmpDir });
+        execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: tmpDir });
+        execFileSync("git", ["config", "user.name", "Test User"], { cwd: tmpDir });
+        writeFileSync(join(tmpDir, "README.md"), "init\n", "utf-8");
+        execFileSync("git", ["add", "README.md"], { cwd: tmpDir });
+        execFileSync("git", ["commit", "-m", "init", "--quiet"], { cwd: tmpDir });
+        const paths = createScope(tmpDir, "E2E-PROCESS-001");
+        appendScopeEvent(paths, {
+            type: "scope.created",
+            actor: "user",
+            payload: { title: "process e2e", description: "process mode short cycle", entry_mode: "process" },
+        });
+        appendScopeEvent(paths, {
+            type: "grounding.started",
+            actor: "system",
+            payload: { sources: [{ type: "add-dir", path_or_url: "/test-design" }] },
+        });
+        appendScopeEvent(paths, {
+            type: "grounding.completed",
+            actor: "system",
+            payload: { snapshot_revision: 1, source_hashes: { "add-dir:/test-design": "h1" }, perspective_summary: { experience: 0, code: 0, policy: 1 } },
+        });
+        appendScopeEvent(paths, {
+            type: "align.proposed",
+            actor: "system",
+            payload: { packet_path: "build/align-packet.md", packet_hash: "ap1", snapshot_revision: 1 },
+        });
+        const alignResult = executeAlign({
+            paths,
+            verdict: { type: "approve", direction: "design 작성", scope_in: ["doc"], scope_out: ["code"] },
+        });
+        expect(alignResult.success).toBe(true);
+        // Surface 생성 (process mode → runtime 이 design-doc-draft.md 골격 작성)
+        const genResult = executeDraft({
+            paths,
+            action: { type: "generate_surface", surfacePath: "ignored", surfaceHash: "ignored", snapshotRevision: 1 },
+        });
+        expect(genResult.success).toBe(true);
+        // surface 가 process mode 에선 design-doc-draft.md 가 paths.surface 안에 작성됨
+        // (caller path 무시)
+        // Surface 확정 — 본문은 agent (테스트에선 file 이미 작성됨) 이 채운 상태로 가정
+        const confirmResult = executeDraft({
+            paths,
+            action: {
+                type: "confirm_surface",
+                surfacePath: join(paths.surface, "design-doc-draft.md"),
+                surfaceHash: "sf-process",
+            },
+        });
+        expect(confirmResult.success).toBe(true);
+        let state = reduce(readEvents(paths.events));
+        expect(state.current_state).toBe("surface_confirmed");
+        expect(state.entry_mode).toBe("process");
+        // commit_design_doc — compile / target_locked / pre-apply / PRD review 모두 우회
+        const commitResult = executeApply(paths, { type: "commit_design_doc" }, { projectRoot: tmpDir });
+        expect(commitResult.success).toBe(true);
+        if (!commitResult.success)
+            return;
+        expect(commitResult.nextState).toBe("applied");
+        state = reduce(readEvents(paths.events));
+        expect(state.current_state).toBe("applied");
+        // 단축 lifecycle 단언: code-product 전용 이벤트 미발생
+        const eventTypes = readEvents(paths.events).map(e => e.type);
+        expect(eventTypes).not.toContain("target.locked");
+        expect(eventTypes).not.toContain("compile.started");
+        expect(eventTypes).not.toContain("compile.completed");
+        // 단축 path 의 핵심 이벤트 발생
+        expect(eventTypes).toContain("surface.confirmed");
+        expect(eventTypes).toContain("apply.started");
+        expect(eventTypes).toContain("apply.completed");
     });
 });

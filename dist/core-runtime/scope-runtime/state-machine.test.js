@@ -252,6 +252,20 @@ describe("state-machine — transition events exhaustive", () => {
             next: "surface_confirmed",
             kind: "self",
         },
+        // post-PR #246 R1 (Phase B Step 4): process mode 의 apply 진입 경로.
+        // gate-guard 가 entry_mode === "process" 검사로 code-product 를 차단.
+        {
+            state: "surface_confirmed",
+            event: "apply.started",
+            next: "surface_confirmed",
+            kind: "self",
+        },
+        {
+            state: "surface_confirmed",
+            event: "apply.completed",
+            next: "applied",
+            kind: "forward",
+        },
         // constraints_resolved
         {
             state: "constraints_resolved",

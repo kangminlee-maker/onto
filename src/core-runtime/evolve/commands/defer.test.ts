@@ -30,7 +30,11 @@ function setupValidated(scopeId: string) {
   appendScopeEvent(paths, { type: "target.locked", actor: "system", payload: { surface_hash: "sf1", constraint_decisions: [{ constraint_id: "CST-001", decision: "inject" }] } });
   appendScopeEvent(paths, { type: "compile.started", actor: "system", payload: { snapshot_revision: 1, surface_hash: "sf1" } });
   appendScopeEvent(paths, { type: "compile.completed", actor: "system", payload: { build_spec_path: "build/build-spec.md", build_spec_hash: "bs1", brownfield_detail_path: "build/brownfield-detail.md", brownfield_detail_hash: "bf1", delta_set_path: "build/delta-set.json", delta_set_hash: "ds1", validation_plan_path: "build/validation-plan.md", validation_plan_hash: "vp1" } });
-  appendScopeEvent(paths, { type: "apply.started", actor: "agent", payload: { build_spec_hash: "bs1" } });
+  // post-review fix-up CONS-1: lifecycle gates (Rule 5a/5c/5d) + Rule 5f
+  // 의 apply.started → apply.completed lineage 보장.
+  appendScopeEvent(paths, { type: "pre_apply.review_completed", actor: "agent", payload: { verdict: "pass", findings: [] } });
+  appendScopeEvent(paths, { type: "prd.review_completed", actor: "agent", payload: { verdict: "pass", perspectives: ["prd_logic"], findings: [] } });
+  appendScopeEvent(paths, { type: "apply.started", actor: "agent", payload: { build_spec_hash: "bs1" } }, { apply_enabled: true });
   appendScopeEvent(paths, { type: "apply.completed", actor: "agent", payload: { result: "success" } });
   appendScopeEvent(paths, { type: "validation.started", actor: "agent", payload: { validation_plan_hash: "vp1" } });
   appendScopeEvent(paths, { type: "validation.completed", actor: "agent", payload: { result: "pass", pass_count: 1, fail_count: 0, items: [{ val_id: "VAL-001", related_cst: "CST-001", result: "pass", detail: "확인 완료" }] } });

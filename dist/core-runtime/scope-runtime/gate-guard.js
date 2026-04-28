@@ -144,25 +144,79 @@ export function validateEvent(state, newEvent, options) {
         };
     }
     // ── Rule 5a: Apply gate — requires apply_enabled in .sprint-kit.yaml ──
-    if (eventType === "apply.started" && options?.apply_enabled !== true) {
+    // post-PR #246 R1 (Phase B Step 4): process entry mode 는 코드 변경이 없으므로
+    // .sprint-kit.yaml apply_enabled 게이트 적용 대상이 아님.
+    if (eventType === "apply.started" && state.entry_mode !== "process" && options?.apply_enabled !== true) {
         return {
             allowed: false,
             reason: "Apply gate: apply 단계를 실행하려면 .sprint-kit.yaml에 apply_enabled: true를 추가하세요.",
         };
     }
     // ── Rule 5c: Pre-Apply Review gate — apply requires pre_apply.review_completed ──
-    if (eventType === "apply.started" && !state.pre_apply_completed) {
+    // post-PR #246 R1: process mode 는 code-product brownfield/policy/logic 점검이
+    // 무의미하므로 Pre-Apply Review 게이트 미적용.
+    if (eventType === "apply.started" && state.entry_mode !== "process" && !state.pre_apply_completed) {
         return {
             allowed: false,
             reason: "Apply gate: Pre-Apply Review가 완료되어야 합니다. pre_apply.review_completed 이벤트가 먼저 기록되어야 합니다.",
         };
     }
     // ── Rule 5d: PRD Review gate — apply requires prd.review_completed ──
-    if (eventType === "apply.started" && !state.prd_review_completed) {
+    // post-PR #246 R1: process mode 는 code-product 다관점 리뷰가 무의미.
+    if (eventType === "apply.started" && state.entry_mode !== "process" && !state.prd_review_completed) {
         return {
             allowed: false,
             reason: "Apply gate: PRD 다관점 리뷰가 완료되어야 합니다. prd.review_completed 이벤트가 먼저 기록되어야 합니다.",
         };
+    }
+    // ── Rule 5e: Process apply scope — apply.started/completed from surface_confirmed
+    //              requires entry_mode === "process" (code-product 는 compile 경유) ──
+    if ((eventType === "apply.started" || eventType === "apply.completed") &&
+        state.current_state === "surface_confirmed" &&
+        state.entry_mode !== "process") {
+        return {
+            allowed: false,
+            reason: `Apply gate: surface_confirmed 에서 apply 진입은 process entry mode 만 가능합니다. 현재 entry_mode=${state.entry_mode} 는 compile 단계를 거쳐야 합니다.`,
+        };
+    }
+    // ── Rule 5f: apply.completed lifecycle lineage — preceding apply.started 필수 ──
+    //
+    // post-PR #246 R1 review (CONS-1 9/9 consensus): state machine 이 surface_confirmed
+    // / compiled 양쪽에서 apply.completed 를 forward 로 허용하므로, naïve caller 가
+    // apply.started 없이 곧장 apply.completed 를 emit 하면 ledger 상에 lifecycle
+    // 시작점이 없는 채로 state 가 applied 로 진입할 수 있다. lifecycle marker
+    // (state.apply_started_pending) 으로 직전 apply.started 의 존재를 보장.
+    if (eventType === "apply.completed" && !state.apply_started_pending) {
+        return {
+            allowed: false,
+            reason: "Apply gate: apply.completed 는 직전 apply.started 가 기록된 상태에서만 가능합니다. 먼저 apply.started 이벤트를 기록하세요.",
+        };
+    }
+    // ── Rule 5g: process scope apply.completed 는 process_artifact 필수 ──
+    //
+    // post-round 2 review (NEW-CONS-1 9/9 consensus): process mode 가 surface_confirmed
+    // 에서 apply.completed 로 advance 가능한데, 단순히 apply.started 가 선행됐다는
+    // 것만으론 *commit_design_doc 의 invariant* (design doc 이 development-records
+    // 에 commit 됐고 git custody chain 이 닫혔음) 가 보장되지 않는다. naïve caller
+    // 가 commit_design_doc 우회로 process scope 를 applied 로 advance 시킬 수
+    // 있는 영역. payload 의 process_artifact 가 채워진 경우만 허용 → commit_design_doc
+    // 만이 process scope 의 apply 경로가 됨.
+    if (eventType === "apply.completed" &&
+        state.current_state === "surface_confirmed" &&
+        state.entry_mode === "process") {
+        const payload = newEvent.payload;
+        const artifact = payload.process_artifact;
+        if (!artifact ||
+            typeof artifact.source_path !== "string" ||
+            typeof artifact.destination_path !== "string" ||
+            typeof artifact.destination_hash !== "string" ||
+            typeof artifact.commit_message !== "string" ||
+            typeof artifact.commit_sha !== "string") {
+            return {
+                allowed: false,
+                reason: "Apply gate: process scope 의 apply.completed 는 process_artifact (source_path / destination_path / destination_hash / commit_message / commit_sha) 가 모두 기록되어야 합니다. commit_design_doc action 으로 호출하세요.",
+            };
+        }
     }
     // ── Rule 5b: Compile retry limit ──
     if (eventType === "compile.started" &&

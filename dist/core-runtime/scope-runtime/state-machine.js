@@ -79,6 +79,12 @@ const MATRIX = {
         },
         "redirect.to_align": { next: "align_proposed", kind: "backward" },
         "snapshot.marked_stale": { next: "surface_confirmed", kind: "self" },
+        // post-PR #246 R1 (Phase B Step 4): process entry mode 는 compile 단계를
+        // skip 하므로 surface_confirmed 에서 곧장 apply 단계로 진입. gate-guard
+        // 의 entry_mode 검사로 code-product (experience/interface) 가 이 경로를
+        // 사용하지 못하도록 차단됨.
+        "apply.started": { next: "surface_confirmed", kind: "self" },
+        "apply.completed": { next: "applied", kind: "forward" },
     },
     // ── constraints_resolved ──
     constraints_resolved: {

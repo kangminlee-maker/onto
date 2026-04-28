@@ -164,8 +164,11 @@ export type FeedbackClassification =
 export type EntryMode = "experience" | "interface" | "process";
 
 // ─── Surface Type ───
-
-export type SurfaceType = "experience" | "interface";
+//
+// post-PR #246 R1 review (CONS-4 9/9 consensus): SurfaceType 이 2-enum 이라
+// process scope 의 surface.generated 가 "interface" 로 잘못 기록되거나
+// `as any` 캐스팅을 강요받음. EntryMode 의 3-enum 과 정렬.
+export type SurfaceType = "experience" | "interface" | "process";
 
 // ─── Source Type ───
 
@@ -524,8 +527,23 @@ export interface ApplyStartedPayload {
   build_spec_hash: string;
 }
 
+// post-PR #246 R1 review (CONS-2 9/9 consensus): process mode 의 apply 결과를
+// 자유 문자열로 carry 하지 않고 구조화. process_artifact 는 process scope
+// 에서만 채워지며, code-product (experience/interface) 는 result 만 사용.
+//
+// post-round 2 fix-up (UF-AX-1): commit_sha 추가 — git commit 의 path-bound
+// SHA 를 ledger 에 기록해 git custody chain 추적 가능.
 export interface ApplyCompletedPayload {
   result: string;
+  process_artifact?: {
+    source_path: string;
+    source_hash: string;
+    destination_path: string;
+    destination_hash: string;
+    commit_message: string;
+    commit_sha: string;
+    pr_url?: string;
+  };
 }
 
 export interface ApplyDecisionGapFoundPayload {
@@ -842,6 +860,10 @@ export interface ScopeState {
   feedback_history: FeedbackClassifiedPayload[];
   pre_apply_completed: boolean;
   prd_review_completed: boolean;
+  // post-PR #246 R1 review (CONS-1 9/9 consensus): apply.started 후 아직
+  // apply.completed 가 기록되지 않은 상태. gate-guard 가 apply.completed 에
+  // 선행 apply.started 를 요구할 때 참조 — direct out-of-order advancement 차단.
+  apply_started_pending: boolean;
   exploration_progress?: undefined | {
     current_phase: number;
     current_phase_name: string;

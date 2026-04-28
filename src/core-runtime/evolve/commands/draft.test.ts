@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, mkdirSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { executeDraft } from "./draft.js";
@@ -264,6 +264,64 @@ describe("executeDraft", () => {
     const events = readEvents(paths.events);
     expect(events.find((e) => e.type === "compile.started")).toBeUndefined();
     expect(events.find((e) => e.type === "compile.completed")).toBeUndefined();
+  });
+
+  // ─── PR #246 R1 (Phase B Step 3): process mode generate_surface 가
+  // design-doc-draft.md 골격 파일을 실제 작성 ───
+  it("process mode generate_surface — design-doc-draft.md 골격 파일이 작성됨", () => {
+    const paths = createScope(tmpDir, "SC-PROCESS-SKEL-001");
+    appendScopeEvent(paths, {
+      type: "scope.created",
+      actor: "user",
+      payload: { title: "Phase B Step 3 Skeleton", description: "process mode skeleton write", entry_mode: "process" },
+    });
+    appendScopeEvent(paths, {
+      type: "grounding.started",
+      actor: "system",
+      payload: { sources: [{ type: "add-dir", path_or_url: "/test" }] },
+    });
+    appendScopeEvent(paths, {
+      type: "grounding.completed",
+      actor: "system",
+      payload: { snapshot_revision: 1, source_hashes: { "add-dir:/test": "h1" }, perspective_summary: { experience: 1, code: 0, policy: 1 } },
+    });
+    appendScopeEvent(paths, {
+      type: "align.proposed",
+      actor: "system",
+      payload: { packet_path: "build/align-packet.md", packet_hash: "h", snapshot_revision: 1 },
+    });
+    appendScopeEvent(paths, {
+      type: "align.locked",
+      actor: "user",
+      payload: { locked_direction: "Phase B Step 3 의 process 분기 골격 작성 검증", locked_scope_boundaries: { in: ["doc"], out: ["code"] }, locked_in_out: true },
+    });
+
+    // caller 가 surfacePath/surfaceHash 를 어떻게 넘기든 process mode 는
+    // runtime 이 design-doc-draft.md 를 직접 작성하므로 무시됨.
+    const result = executeDraft({
+      paths,
+      action: { type: "generate_surface", surfacePath: "ignored", surfaceHash: "ignored", snapshotRevision: 1 },
+    });
+    expect(result.success).toBe(true);
+
+    // 핵심 단언: skeleton 파일이 실제 작성됐는가
+    const skeletonPath = join(paths.surface, "design-doc-draft.md");
+    expect(existsSync(skeletonPath)).toBe(true);
+
+    const content = readFileSync(skeletonPath, "utf-8");
+    // frontmatter 의 표준 필드 확인
+    expect(content).toMatch(/^---\n/);
+    expect(content).toMatch(/as_of: \d{4}-\d{2}-\d{2}/);
+    expect(content).toMatch(/status: design-draft/);
+    expect(content).toMatch(/functional_area: phase-b-step-3-skeleton/);
+    expect(content).toMatch(/purpose: \|/);
+    expect(content).toContain("Phase B Step 3 의 process 분기");
+    // 본문 권장 4 섹션 확인
+    expect(content).toContain("# Phase B Step 3 Skeleton");
+    expect(content).toContain("## 1. 배경");
+    expect(content).toContain("## 2. 설계 영역");
+    expect(content).toContain("## 3. Phase 계획");
+    expect(content).toContain("## 4. Success criteria");
   });
 
   it("process mode generate_surface guide 메시지 — design-doc-draft.md 안내", () => {

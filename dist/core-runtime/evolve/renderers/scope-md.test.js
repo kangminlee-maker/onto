@@ -27,6 +27,7 @@ function makeState(overrides = {}) {
         snapshot_revision: 0,
         pre_apply_completed: false,
         prd_review_completed: false,
+        apply_started_pending: false,
         verdict_log: [],
         feedback_history: [],
         latest_revision: 0,
@@ -108,6 +109,31 @@ describe("scope-md — next action", () => {
     it("closed → scope terminated", () => {
         const md = renderScopeMd(makeState({ current_state: "closed" }));
         expect(md).toContain("종료");
+    });
+    // ─── PR #246 review consensus #3 (3-lens convergence): align_locked
+    // next-action 도 entry_mode 별 분기. 이전엔 "화면 설계" 만 노출 (process /
+    // interface 도 동일 메시지) — process scope 사용자가 mismatched 안내 받음.
+    it("align_locked × experience → 화면 설계 안내", () => {
+        const md = renderScopeMd(makeState({
+            current_state: "align_locked",
+            entry_mode: "experience",
+        }));
+        expect(md).toContain("화면 설계를 시작하세요");
+    });
+    it("align_locked × process → design doc 작성 안내", () => {
+        const md = renderScopeMd(makeState({
+            current_state: "align_locked",
+            entry_mode: "process",
+        }));
+        expect(md).toContain("design doc 작성을 시작하세요");
+        expect(md).not.toContain("화면 설계를 시작하세요");
+    });
+    it("align_locked × interface → API 명세 설계 안내", () => {
+        const md = renderScopeMd(makeState({
+            current_state: "align_locked",
+            entry_mode: "interface",
+        }));
+        expect(md).toContain("API 명세 설계를 시작하세요");
     });
 });
 // ─── Blockers ───

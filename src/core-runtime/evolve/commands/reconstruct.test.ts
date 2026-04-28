@@ -711,6 +711,27 @@ function makeFullV0Config(): unknown {
   };
 }
 
+/**
+ * v1 inference + γ review on, but the third switch
+ * (`write_intent_inference_to_raw_yml`) is off — i.e., raw.yml is still
+ * written, only its element-level `intent_inference` block serialization
+ * is suppressed. Valid per dogfood-switches invariants — only the
+ * `*_requires_v1_inference` direction is enforced. Used by R3 coverage.
+ *
+ * Naming note (post-PR245 review fix): an earlier name suggested raw.yml
+ * writing as a whole was disabled, which is misleading — only the
+ * intent_inference projection inside raw.yml is dropped.
+ */
+function makeWriteIntentInferenceOffConfig(): unknown {
+  return {
+    reconstruct: {
+      v1_inference: { enabled: true },
+      phase3_rationale_review: { enabled: true },
+      write_intent_inference_to_raw_yml: { enabled: false },
+    },
+  };
+}
+
 const RAW_REVIEWER_CV = "1.0";
 
 function makeCoordinatorOptions(args: {
@@ -959,6 +980,149 @@ describe("raw-yml integration (post-Phase 3.5 writer wire)", () => {
 
     expect(existsSync(join(tmpRoot, "raw-placeholder", "raw.yml"))).toBe(false);
   });
+
+  // ─── PR #244 review recommendation R1 ───
+  // full-mode write coverage. Production wiring currently hard-pins
+  // requestedInferenceMode="degraded" because the manifest reader is a stub
+  // ("minimal" tier). Once a real reader lands and a `full`-tier manifest
+  // becomes reachable, this asserts the §4.2 valid combination — full mode
+  // with full quality tier — produces a clean raw.yml without invariant
+  // failure. Test-only fixture (manifestTier="full") drives the path now.
+  it("v1 full mode × full-tier manifest → raw.yml written + inference_mode=full + intent_inference included", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "raw-yml full mode",
+      sessionsDir: tmpRoot,
+      sessionId: "raw-full",
+    });
+
+    const result = await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "raw-full",
+      coordinator: makeCoordinatorOptions({
+        configRaw: makeFullV1Config(),
+        requestedInferenceMode: "full",
+        manifestTier: "full",
+      }),
+    });
+
+    expect(result.coordinator_result?.kind).toBe("completed");
+
+    const events = result.state.events ?? [];
+    expect(events.find((e) => e.type === "raw_yml_written")).toBeDefined();
+    expect(events.find((e) => e.type === "raw_yml_meta_invariant_violation"))
+      .toBeUndefined();
+
+    const rawPath = join(tmpRoot, "raw-full", "raw.yml");
+    expect(existsSync(rawPath)).toBe(true);
+    const parsed = yaml.parse(readFileSync(rawPath, "utf-8"));
+    expect(parsed.meta.inference_mode).toBe("full");
+    expect(parsed.meta.degraded_reason).toBeNull();
+    expect(parsed.meta.fallback_reason).toBeNull();
+    expect(parsed.meta.domain_quality_tier).toBe("full");
+    expect(parsed.elements[0].intent_inference).toBeDefined();
+  });
+
+  // ─── PR #244 review recommendation R2 ───
+  // FS write failure simulation. Pre-creating an empty directory at the
+  // writer's finalPath forces `renameSync(tmp, final)` to fail (POSIX
+  // rename of a regular file onto a directory). The wire catches the
+  // throw, emits raw_yml_write_failed, and post-PR244 fail-close makes
+  // the lifecycle gate reject the subsequent `complete` invocation —
+  // verifying not just the audit event but the *intended lifecycle
+  // outcome* (review recommendation explicit ask).
+  it("FS write failure (renameSync on pre-existing directory) → raw_yml_write_failed event + complete blocked", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "FS fail",
+      sessionsDir: tmpRoot,
+      sessionId: "raw-fs-fail",
+    });
+
+    // Pre-create directory at the writer's intended final path so
+    // renameSync errors out (EISDIR / ENOTEMPTY across POSIX flavors).
+    mkdirSync(join(tmpRoot, "raw-fs-fail", "raw.yml"));
+
+    const result = await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "raw-fs-fail",
+      coordinator: makeCoordinatorOptions({
+        configRaw: makeFullV1Config(),
+        requestedInferenceMode: "degraded",
+        manifestTier: "minimal",
+      }),
+    });
+
+    expect(result.coordinator_result?.kind).toBe("completed");
+
+    const events = result.state.events ?? [];
+    const failEvent = events.find((e) => e.type === "raw_yml_write_failed");
+    expect(failEvent).toBeDefined();
+    expect(failEvent?.detail).toBeDefined();
+    expect(failEvent!.detail!.length).toBeGreaterThan(0);
+
+    // No `raw.yml` regular file (the path is a directory we pre-created).
+    // The pre-existing directory remains in place since rename failed.
+    // Complete must reject because the latest cycle-terminal event is
+    // raw_yml_write_failed (post-PR244 fail-close).
+    expect(() =>
+      executeReconstructComplete({ sessionsDir: tmpRoot, sessionId: "raw-fs-fail" }),
+    ).toThrow(/explore cycle to be successful.*raw_yml_write_failed/);
+  });
+
+  // ─── PR #244 review recommendation R3 ───
+  // Mixed-switch coverage — narrowly scoped to the
+  // `write_intent_inference_to_raw_yml` switch toggle while v1_inference
+  // and phase3_rationale_review remain enabled. dogfood-switches
+  // invariants permit this combination (only `*_requires_v1_inference`
+  // is enforced). Result: raw.yml is still written + meta records
+  // degraded mode normally + every element drops its intent_inference
+  // block (writer's omit gate). Broader §4.11 partial-mode permutation
+  // coverage (which spans inference_mode × manifest_tier × switch
+  // combinations) is left to a future table-driven test pass —
+  // post-PR245 review coverage-lens recommendation, deferred as
+  // architectural follow-up.
+  it("v1 on × write_intent_inference off → raw.yml written but every element drops intent_inference", async () => {
+    executeReconstructStart({
+      source: "./src",
+      intent: "mixed switch",
+      sessionsDir: tmpRoot,
+      sessionId: "raw-mixed",
+    });
+
+    const result = await executeReconstructExplore({
+      sessionsDir: tmpRoot,
+      sessionId: "raw-mixed",
+      coordinator: makeCoordinatorOptions({
+        configRaw: makeWriteIntentInferenceOffConfig(),
+        requestedInferenceMode: "degraded",
+        manifestTier: "minimal",
+      }),
+    });
+
+    expect(result.coordinator_result?.kind).toBe("completed");
+    if (result.coordinator_result?.kind === "completed") {
+      expect(result.coordinator_result.writeIntentInferenceToRawYml).toBe(false);
+    }
+
+    const events = result.state.events ?? [];
+    const written = events.find((e) => e.type === "raw_yml_written");
+    expect(written).toBeDefined();
+    expect(written?.detail).toMatch(/intent_inference_included=false/);
+
+    const rawPath = join(tmpRoot, "raw-mixed", "raw.yml");
+    expect(existsSync(rawPath)).toBe(true);
+    const parsed = yaml.parse(readFileSync(rawPath, "utf-8"));
+    // meta still records degraded mode (cycle ran in v1).
+    expect(parsed.meta.inference_mode).toBe("degraded");
+    // element-level intent_inference omitted by the writer's gate —
+    // assert across every element rather than just the first, so a
+    // future fixture extension automatically broadens the assertion.
+    expect(parsed.elements.length).toBeGreaterThan(0);
+    for (const el of parsed.elements) {
+      expect(el.intent_inference).toBeUndefined();
+    }
+  });
 });
 
 describe("composeRawMetaForCycle (unit)", () => {
@@ -1068,6 +1232,48 @@ describe("composeRawMetaForCycle (unit)", () => {
     expect(meta.rationale_proposer_contract_version).toBe(RAW_PROPOSER_CV);
     expect(meta.rationale_reviewer_contract_version).toBe("1.0");
     expect(meta.step2c_review_state).toBe("completed");
+  });
+
+  // ─── PR #244 review recommendation R4 ───
+  // Reviewer contract metadata regression — drift detection. The PR #244
+  // fix-up replaced a literal "1.0" in composeRawMetaForCycle with a read
+  // through coord.reviewerContractVersion. This regression test pins the
+  // SSOT path: two compositions with different reviewerContractVersion
+  // values must produce two different meta values with no cross-leak.
+  // Catches any future change that re-introduces a literal or short-
+  // circuits the lookup against a default.
+  it("regression — reviewer contract version flows pairwise (drift detector)", () => {
+    const result = makeFakeCompletedResult({
+      v1On: true,
+      alphaCompleted: true,
+      gammaCompleted: true,
+    });
+    const manifest = makeStubManifest("minimal");
+
+    const coordA = makeCoordinatorOptions({
+      configRaw: makeFullV1Config(),
+      requestedInferenceMode: "degraded",
+      manifestTier: "minimal",
+    });
+    coordA.reviewerContractVersion = "1.0";
+
+    const coordB = makeCoordinatorOptions({
+      configRaw: makeFullV1Config(),
+      requestedInferenceMode: "degraded",
+      manifestTier: "minimal",
+    });
+    coordB.reviewerContractVersion = "2.0-experiment";
+
+    const metaA = composeRawMetaForCycle({ result, manifest, coord: coordA });
+    const metaB = composeRawMetaForCycle({ result, manifest, coord: coordB });
+
+    // The two literal equalities pin distinct values and are sufficient
+    // — any literal regression collapses both sides to the same string,
+    // which invalidates one of these two asserts. A separate inequality
+    // assertion would be entailed by these two and add no signal
+    // (post-PR245 conciseness review).
+    expect(metaA.rationale_reviewer_contract_version).toBe("1.0");
+    expect(metaB.rationale_reviewer_contract_version).toBe("2.0-experiment");
   });
 });
 

@@ -853,15 +853,18 @@ async function handleProcessStart(
   const scopeId = input.scopeId ?? generateScopeId(input.scopesDir, projectName);
   const paths = createScope(input.scopesDir, scopeId);
 
-  // Record scope.created — use "experience" as entry_mode for state machine compatibility
-  // The actual scope kind is recorded in the description for downstream consumers
+  // post-PR #216 §3.1.0 진단: 이전엔 entry_mode 가 "experience" 로 기록되고
+  // [scope_kind:process] description 으로만 process 표기 — type-level 정합 부재.
+  // EntryMode union 에 "process" 가 추가되며 정식 entry_mode 로 기록.
+  // description 의 [scope_kind:process] tag 는 backward compat 위해 유지
+  // (기존 scope artifact 가 아직 옛 형식일 수 있음).
   const createResult = appendScopeEvent(paths, {
     type: "scope.created",
     actor: "user",
     payload: {
       title: input.rawInput || "Process Design",
       description: `[scope_kind:process] authority_sources:${authoritySources.length}`,
-      entry_mode: "experience",
+      entry_mode: "process",
     },
   });
 

@@ -189,9 +189,12 @@ function formatNextAction(state: ScopeState): string {
     case "align_locked":
       return "방향이 확정되었습니다. 화면 설계를 시작하세요 (`/draft`를 실행하세요)";
     case "surface_iterating":
+      // post-PR #216 §3.1.0: process mode 추가로 3-way ternary.
       return state.entry_mode === "experience"
         ? "mockup을 확인하세요 (`cd surface/preview && npm run dev`). 수정이 필요하면 피드백을, 맞으면 '확정합니다'라고 말씀하세요"
-        : "API 명세를 확인하세요 (`surface/contract-diff/`). 수정이 필요하면 피드백을, 맞으면 '확정합니다'라고 말씀하세요";
+        : state.entry_mode === "process"
+          ? "design doc 을 확인하세요 (`surface/design-doc-draft.md`). 수정이 필요하면 피드백을, 맞으면 '확정합니다'라고 말씀하세요"
+          : "API 명세를 확인하세요 (`surface/contract-diff/`). 수정이 필요하면 피드백을, 맞으면 '확정합니다'라고 말씀하세요";
     case "surface_confirmed":
       return state.constraint_pool.summary.undecided > 0
         ? `${state.constraint_pool.summary.undecided}건의 제약 사항에 대해 결정이 필요합니다. 각 항목의 선택지를 검토하고 결정하세요`

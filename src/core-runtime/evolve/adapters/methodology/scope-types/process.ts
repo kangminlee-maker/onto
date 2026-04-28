@@ -31,14 +31,16 @@ export interface ProcessScopeConfig {
 
 export interface ProcessScopeDefaults {
   perspectives: string[];
-  entry_mode: "experience";
+  entry_mode: "process";
   surface_type: "markdown";
 }
 
 export const processScopeDefaults: ProcessScopeDefaults = {
   /** Derived from adapter.ts — single source of truth for methodology capabilities. */
   perspectives: methodologyAdapter.perspectives,
-  entry_mode: "experience",
+  // post-PR #216 §3.1.0 진단: 이전엔 "experience" 로 fallback (state machine
+  // compatibility 워크어라운드). EntryMode 가 3-enum 으로 확장되며 정합 회복.
+  entry_mode: "process",
   surface_type: "markdown",
 };
 

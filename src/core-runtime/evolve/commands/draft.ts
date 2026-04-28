@@ -112,9 +112,14 @@ function handleGenerateSurface(
   if (!result.success) return { success: false, reason: wrapGateError(result.reason) };
   refreshScopeMd(paths, result.state);
 
-  const guide = state.entry_mode === "experience"
-    ? "`cd surface/preview && npm run dev`로 mockup을 확인하세요."
-    : "`surface/contract-diff/`의 API 명세를 확인하세요.";
+  // post-PR #216 §3.1.0: process mode 의 surface 는 design-doc markdown.
+  // experience (UI mockup) / interface (API 명세) / process (design doc) 3-way.
+  const guide =
+    state.entry_mode === "experience"
+      ? "`cd surface/preview && npm run dev`로 mockup을 확인하세요."
+      : state.entry_mode === "process"
+        ? "`surface/design-doc-draft.md`의 design 문서를 확인하세요."
+        : "`surface/contract-diff/`의 API 명세를 확인하세요.";
 
   return {
     success: true,
@@ -339,6 +344,21 @@ function handleCompile(
   state: ScopeState,
   action: DraftAction & { type: "compile" },
 ): DraftOutput {
+  // post-PR #216 §3.1.0 / Phase B Step 2: process mode 는 compile 단계 skip.
+  // process scope 의 산출물은 design-doc markdown 이며 build-spec / delta-set
+  // / brownfield-detail 같은 code-product compile artifact 가 무의미.
+  // F-15 (compile cryptic 예외) 의 직접 root cause — entry_mode 분기 부재.
+  // 향후 §3.4 의 apply 분기가 design doc 을 development-records/evolve/ 로
+  // 이동하는 path 를 책임 (별도 commit).
+  if (state.entry_mode === "process") {
+    return {
+      success: false,
+      reason: wrapGateError(
+        "process mode 에선 compile 이 생략됩니다. design doc 작성을 마치고 `apply` 로 진행하세요.",
+      ),
+    };
+  }
+
   // Execute compile FIRST (before recording compile.started)
   // This prevents orphaned compile.started events in the event stream on failure.
   const compileResult = compile(action.compileInput);

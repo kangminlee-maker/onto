@@ -157,7 +157,11 @@ export type FeedbackClassification =
 
 // ─── Entry Mode ───
 
-export type EntryMode = "experience" | "interface";
+// post-PR #216 진단: "process" 가 §3.1.0 의 wiring 완성 path. CLI (cli.ts:110)
+// 가 이미 3-enum 으로 받지만 type 은 2-enum 이라 mismatch 가 있던 영역.
+// 추가된 "process" 는 methodology adapter (scope-types/process.ts) 와 매핑되며,
+// draft.ts:handleCompile 에서 compile skip 분기로 routing.
+export type EntryMode = "experience" | "interface" | "process";
 
 // ─── Surface Type ───
 

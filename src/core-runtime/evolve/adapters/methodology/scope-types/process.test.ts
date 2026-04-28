@@ -8,7 +8,10 @@ import {
 describe("process scope type", () => {
   it("has correct defaults", () => {
     expect(processScopeDefaults.perspectives).toContain("authority-consistency");
-    expect(processScopeDefaults.entry_mode).toBe("experience");
+    // post-PR #216 §3.1.0 wiring 완성: process scope 의 default entry_mode 가
+    // EntryMode 3-enum 의 "process" 로 정합. 이전엔 state machine compatibility
+    // 워크어라운드로 "experience" 였음 (PR #244 직후까지의 buggy state).
+    expect(processScopeDefaults.entry_mode).toBe("process");
     expect(processScopeDefaults.surface_type).toBe("markdown");
   });
 

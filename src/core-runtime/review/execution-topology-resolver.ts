@@ -159,6 +159,21 @@ type TopologyMetadata = Omit<ExecutionTopology, "plan_trace">;
  * `max_concurrent_lenses` adjustment only. Other fields are immutable.
  */
 export const TOPOLOGY_CATALOG: Record<TopologyId, TopologyMetadata> = {
+  // cc-teams-lens-agent-deliberation: Option E peer-to-peer deliberation.
+  //
+  // Spawn model: main session creates 10 *flat-sibling* TeamCreate sessions
+  // (1 teamlead + 9 lens). TeamCreate cannot recurse — every TeamCreate is
+  // a direct child of main session. The "team" relationship between teamlead
+  // and lenses is a logical collaboration via SendMessage, not a nested
+  // membership. The `lens_spawn_mechanism: "claude-teamcreate-member"` value
+  // is therefore a logical-membership label (peer in the deliberation team),
+  // not a physical nested-spawn marker. (Naming refinement — e.g.
+  // `claude-teamcreate-sibling` — is a separate follow-up PR.)
+  //
+  // Lifecycle: all 10 TeamCreate sessions remain persistent across Round 0
+  // → Synthesize 1차 → optional peer round → optional Synthesize 2차.
+  // Terminating any TeamCreate after Round 0 forecloses the optional peer
+  // round.
   "cc-teams-lens-agent-deliberation": {
     id: "cc-teams-lens-agent-deliberation",
     teamlead_location: "claude-teamcreate",

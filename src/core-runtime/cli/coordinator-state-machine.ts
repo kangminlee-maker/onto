@@ -380,27 +380,47 @@ export async function coordinatorNext(
     }
 
     case "awaiting_synthesize_dispatch": {
-      // ── Deliberation note ──
+      // ── Deliberation note (Option E 정정 2026-04-29) ──
       //
-      // synthesize-prompt-contract.md §5.1 defines three values for
+      // synthesize-prompt-contract.md §5.1 defines four values for
       // `deliberation_status`:
-      //   - not_needed              → lens 간 disagreement 없음
-      //   - performed               → synthesize 가 in-process deliberation
-      //                               수행 + Deliberation Decision 기록 완료
+      //   - not_needed              → lens 간 disagreement 없음 (단일 호출
+      //                               종료, 두 path 공통)
+      //   - needed                  → Synthesize 1차 가 conflicting_pairs 를
+      //                               식별 + frontmatter 에 emit. Option E
+      //                               peer-to-peer path 의 1차 unique value.
+      //                               Coordinator 는 peer A2A round 후
+      //                               Synthesize 2차 호출 책임.
+      //   - performed               → deliberation 이 수행되어 resolution 이
+      //                               기록된 경우. (a) in-process path:
+      //                               §6.2 절차 후, (b) Option E path:
+      //                               §6.3 의 Synthesize 2차 후.
       //   - required_but_unperformed → synthesize task 자체가 실패했을 때
       //                               record assembler 가 부여하는 failure
       //                               marker. synthesize output 에는 이 값이
       //                               나타나지 않아야 함.
       //
-      // Deliberation 은 synthesize 단계 *내부* 에서 수행되는 canonical
-      // 설계이며, external deliberation agent 는 존재하지 않는다. 즉
-      // `awaiting_deliberation` state 는 일반 flow 에서 도달하지 않는다
-      // (해당 case 의 throw 는 설계 상 invariant 위반 감지용 guard).
+      // Deliberation path 는 topology 의 `deliberation_channel` 값에 의해
+      // 결정된다:
+      //   - `synthesizer-only` → in-process path (synthesize 단일 호출 안에서
+      //                          deliberation 수행). 본 코드 path 는 현재
+      //                          모든 활성 topology 의 default.
+      //   - `sendmessage-a2a` → Option E peer-to-peer path (Synthesize 1차
+      //                         → coordinator 가 peer A2A round dispatch →
+      //                         Synthesize 2차). 현재 cc-teams-lens-agent-
+      //                         deliberation topology 만 사용. 활성화 시
+      //                         coordinator 는 `deliberation_status: needed`
+      //                         를 보면 awaiting_deliberation 으로 전이하여
+      //                         peer round 를 dispatch 한 후 다시 synthesize
+      //                         (2차) 를 호출하도록 이 step 을 확장해야 한다.
+      //                         현재 구현은 1차 single-call 영역만 다루며,
+      //                         2차 hook 은 후속 PR 의 영역.
       //
       // 여기서의 책임은 synthesize output 의 frontmatter 가 비정상 값
       // (`required_but_unperformed`) 이면 completing 으로 진행하지 않고
-      // fail-fast 하는 것. 이전에는 이 step 이 생략되어 있어, synthesize
-      // task 실패가 completed 로 silent-advance 될 risk 가 있었다.
+      // fail-fast 하는 것. `needed` 는 Option E 1차 의 정상 종결 marker 이며
+      // (Synthesize 2차 hook 이 wired 된 후에는) completing 이 아닌
+      // awaiting_deliberation 으로 전이되어야 한다.
 
       try {
         // Record auto state entry in memory (not flushed — crash-safe)
@@ -560,19 +580,39 @@ export async function coordinatorNext(
     }
 
     case "awaiting_deliberation": {
-      // Design invariant guard — this state is unreachable in the canonical
-      // review flow. Deliberation is performed in-process by synthesize
-      // (see synthesize-prompt-contract.md §5 / §6), which emits
-      // `deliberation_status: performed` in its frontmatter. No external
-      // deliberation agent is dispatched. Reaching this state indicates
-      // an upstream wiring defect (e.g., a transition emitted
-      // `awaiting_deliberation` without a corresponding agent contract).
+      // Reachable only on the Option E peer-to-peer path
+      // (`deliberation_channel: sendmessage-a2a`, currently
+      // cc-teams-lens-agent-deliberation topology). The intended flow:
+      //
+      //   awaiting_synthesize_dispatch (1차)
+      //     → frontmatter emits `deliberation_status: needed`
+      //     → awaiting_deliberation
+      //     → peer A2A round dispatched per
+      //       teamcreate-lens-deliberation-executor.runLensAgentDeliberation
+      //     → awaiting_synthesize_dispatch (2차)
+      //     → frontmatter emits `deliberation_status: performed`
+      //     → completing
+      //
+      // The peer round dispatch + 2차 invocation hook are deferred to
+      // a follow-up PR (Option E activation). The current codebase locks
+      // in only the spec — types, prompts, plan builder, contract docs —
+      // and does NOT yet wire `awaiting_deliberation` to a coordinator
+      // step. Reaching this state in production therefore still signals
+      // an unfinished hook, not a wiring defect; the throw remains in
+      // place until activation is implemented.
+      //
+      // For in-process path (`deliberation_channel: synthesizer-only`),
+      // deliberation is folded into the single synthesize call and this
+      // state is never entered.
       throw new Error(
-        "awaiting_deliberation is unreachable under the canonical review " +
-          "flow — synthesize performs in-process deliberation and emits " +
-          "`deliberation_status: performed`. No external deliberation agent " +
-          "exists. Reaching this state signals an upstream transition " +
-          "wiring defect; investigate the caller that emitted the transition.",
+        "awaiting_deliberation reached but Option E peer-to-peer dispatch " +
+          "hook is not yet wired. The spec is locked in (see " +
+          "synthesize-prompt-contract.md §6.3 + " +
+          "teamcreate-lens-deliberation-executor.ts), but coordinator " +
+          "orchestration of the peer round + Synthesize 2차 invocation " +
+          "is deferred to a follow-up PR. For in-process deliberation " +
+          "(`deliberation_channel: synthesizer-only`), this state is " +
+          "unreachable by design.",
       );
     }
 

@@ -114,7 +114,13 @@ Synthesize 내부 추론 언어 (deliberation reasoning, adjudication basis) 도
 
 ```yaml
 ---
-deliberation_status: not_needed | performed
+deliberation_status: not_needed | needed | performed | required_but_unperformed
+conflicting_pairs:                          # only when deliberation_status=needed (Option E peer-to-peer path)
+  - id: <unique-slug-within-this-output>     # filesystem-safe; required so the same lens pair with multiple conflicts does not collide on a single artifact path
+    lens_a: <lens_id>
+    lens_b: <lens_id>
+    target_section: <free-form section/area label>
+    summary: <≤240 chars one-paragraph summary of the conflict>
 participation:
   expected_lenses: [<lens_id>, ...]         # binding 이 active 로 선언한 lens id 목록
   received_lenses: [<lens_id>, ...]         # output 을 성공적으로 산출한 lens id
@@ -126,9 +132,27 @@ participation:
 
 ### 5.1 `deliberation_status` 값 규칙
 
-- `not_needed`: lens 간 disagreement가 없는 경우.
-- `performed`: synthesize가 §6에 따라 in-process deliberation을 수행하고 resolution을 기록한 경우.
-- `required_but_unperformed`: synthesize 출력에서는 사용하지 않는다. 이 값은 runner가 synthesize task 자체의 실패를 감지했을 때만 record assembler가 부여하는 failure marker다.
+Synthesize 는 두 가지 path 로 호출될 수 있다:
+
+- **Synthesize 1차** (always): Round 0 lens 출력을 통합 + 충돌 식별
+- **Synthesize 2차** (conditional): peer-to-peer A2A deliberation 후 최종 통합 (Option E peer-to-peer path 에서만)
+
+값별 의미:
+
+- `not_needed`: lens 간 disagreement 가 없는 경우. Synthesize 1차 결과가 곧 최종이며 추가 deliberation 단계 불필요.
+- `needed`: Synthesize 1차 가 충돌을 식별하고 `conflicting_pairs` 를 emit 한 경우 (Option E peer-to-peer path). Coordinator 는 peer-to-peer SendMessage A2A round 를 dispatch 한 후 Synthesize 2차 를 호출해야 한다. 본 값은 Synthesize 1차 의 *unique value* 다.
+- `performed`: deliberation 이 수행된 경우. 두 path 가 가능:
+  - **In-process path** (non-cc-teams 호스트): Synthesize 1차 가 §6 에 따라 in-process deliberation 을 수행하고 resolution 을 기록한 경우. (단일 호출 — Synthesize 2차 없음)
+  - **Cross-process path (Option E peer-to-peer)**: Synthesize 1차 가 `needed` 를 emit → peer round 진행 → Synthesize 2차 가 peer artifact 를 흡수하고 final resolution 을 기록한 경우.
+- `required_but_unperformed`: synthesize 출력에서는 사용하지 않는다. 이 값은 runner 가 synthesize task 자체의 실패를 감지했을 때만 record assembler 가 부여하는 failure marker 다.
+
+**`conflicting_pairs` 필드 규칙**:
+
+- `deliberation_status=needed` 일 때만 non-empty array 로 emit. 다른 모든 값에서는 absent 또는 empty.
+- 각 entry 는 `id`, `lens_a`, `lens_b`, `target_section`, `summary` 5 field 를 모두 가진다. `target_section` 은 자유 문자열 (예: `"structure-section-3"`, `"axiology vs conciseness — naming"`). `summary` 는 한 단락 요약 (≤240 자 권장).
+- `id` 는 본 output 내에서 unique 한 슬러그 (filesystem-safe). **같은 lens pair 에 여러 conflict 가 존재하는 경우** 각 entry 가 distinct artifact 경로를 갖도록 보장하는 핵심 field. 권장 패턴: `<axis-or-section-slug>-<sequence>` (예: `naming-1`, `narrowing-2`).
+- pair 는 unordered — `(A,B)` 와 `(B,A)` 는 의미상 동일. 디렉터리 path 는 lexicographically sorted lens_id 로 정규화한 뒤 `id` subdirectory 로 분리 (`<sorted-a>--<sorted-b>/<id>/`).
+- 동일 `id` 가 두 entry 에 등장하거나, `id` / 필수 field 가 누락된 entry 는 resolver (`extractConflictingPairsFromSynthesize1`) 가 skip 하고 reason 을 기록한다. caller (coordinator) 는 `deliberation_status: needed` + 모든 entry skip 시 fail-fast 해야 한다 (silent collapse 방지).
 
 ### 5.2 Participation completeness (IA-2)
 
@@ -248,10 +272,10 @@ aggregate primary artifact는
 
 Review 실행 realization은 deliberation 수행 경로에 따라 두 부류로 나뉜다.
 
-- **Cross-process deliberation**: Agent Teams 계열. teammate 간 SendMessage 채널이 존재하므로 contested point를 relevant lens teammate에게 다시 돌려 cross-process deliberation을 수행한다. 결과는 별도 `deliberation.md`에 기록될 수 있다.
-- **In-process deliberation**: cross-process lens-to-lens 메시징 채널이 없는 realization (`subagent` fallback, `subagent + codex`). synthesize가 모든 lens 결과 + materialized input을 이미 scope에 쥐고 있으므로 synthesize 자신이 deliberation actor로 in-process 수행한다.
+- **Cross-process deliberation (Option E peer-to-peer)**: `cc-teams-lens-agent-deliberation` topology. lens agents 가 persistent flat-sibling TeamCreate 로 살아있고, 충돌 시 충돌-한정 lens 끼리 직접 SendMessage A2A 로 peer-to-peer deliberation 을 수행한다. Synthesize 가 두 번 호출된다 (1차 = 식별, 2차 = 통합). Coordinator 는 §6.3 의 분기 절차를 따른다.
+- **In-process deliberation (fallback)**: cross-process lens-to-lens 메시징 채널이 없는 realization (`subagent` fallback, `subagent + codex`, 그리고 `cc-teams-agent-subagent` 등 `deliberation_channel: synthesizer-only` 인 모든 topology). synthesize 가 모든 lens 결과 + materialized input 을 이미 scope 에 쥐고 있으므로 synthesize 자신이 deliberation actor 로 단일 호출 안에서 수행한다.
 
-본 계약 §6.2는 in-process deliberation 경로의 절차를 고정한다. cross-process 경로는 `process.md`의 Agent Teams Step 4가 별도 authority다.
+본 계약 §6.2 는 in-process deliberation 경로의 절차를 고정한다. §6.3 은 cross-process Option E 경로의 1차/2차 분기 절차를 고정한다. 두 path 의 선택은 `topology.deliberation_channel` 값에 의해 결정 (sendmessage-a2a → §6.3, synthesizer-only → §6.2).
 
 ### 6.2 In-process deliberation 수행 절차
 
@@ -265,25 +289,54 @@ synthesize는 in-process deliberation 경로에서 deliberation actor다. 수행
 6. evidence가 부족하여 resolution을 도출할 수 없는 경우, 그 사유를 `Deliberation Decision`에 기록한다 (그 자체가 수행 결과로 간주된다 — `deliberation_status: performed`)
 7. 하나 이상의 lens 출력이 degraded 상태인 경우에도 나머지 입력으로 위 절차를 수행한다. 결여된 입력이 특정 contested point의 resolution에 핵심적이면 6단계(evidence 부족 기록)로 처리한다
 
-### 6.3 frontmatter `deliberation_status`
+### 6.3 Cross-process Option E 1차/2차 분기 절차
 
-§5가 `deliberation_status` 값 enum의 SSOT다. 본 §6.3은 그 enum의 사용 규칙(언제 어느 값을 emit하는가)만 다루며 enum을 재정의하지 않는다.
+cross-process peer-to-peer deliberation (`deliberation_channel: sendmessage-a2a`) 경로에서 synthesize 는 두 번 호출된다.
 
-- `not_needed`: lens 간 contested point가 식별되지 않은 경우. 이 케이스에서도 `Deliberation Decision` 섹션은 contract §5 item 10에 따라 필수 섹션이며, 최소 `"no contested points"` 또는 동등한 명시적 서술을 기록한다
-- `performed`: §6.2 절차를 수행한 경우 (resolution 도출 또는 명시적 evidence-부족 기록 포함)
+**Synthesize 1차** — lens 통합 + 충돌 식별:
 
-synthesize는 자신의 출력에서 `required_but_unperformed`를 emit하지 않는다. 이 값은 synthesize task 자체의 실패를 runner/record assembler가 감지했을 때만 부여되는 failure marker다.
+1. lens 결과 전체에서 contested point 를 식별 (§6.2 step 1 와 동일 기준)
+2. contested point 가 *없는 경우*: 단일 호출로 종료. `deliberation_status: not_needed`, `Deliberation Decision` 섹션에 `"no contested points"` 명시.
+3. contested point 가 *있는 경우*: `deliberation_status: needed` + frontmatter 에 `conflicting_pairs` array 채움. 각 pair 는 `lens_a / lens_b / target_section / summary` 4-field. Synthesize 1차 의 `Deliberation Decision` 섹션은 contested point 의 *원 입장 보존* 만 수행하며 *resolution 은 미기록* (Synthesize 2차 의 책임).
 
-### 6.4 `deliberation.md` artifact 위상
+**Coordinator** 는 Synthesize 1차 의 `deliberation_status` 를 읽고:
+- `not_needed` → final 로 종료, Synthesize 2차 호출하지 않음.
+- `needed` → `conflicting_pairs` 를 input 으로 peer-to-peer A2A round dispatch (`teamcreate-lens-deliberation-executor` 모듈의 `runLensAgentDeliberation` plan 을 따름). 각 pair 는 2 step (lens_a → lens_b reply, lens_b → lens_a reply) 으로 deliberation. peer artifact 는 `<deliberation_dir>/<sorted-pair>/<authoring_lens>-deliberation.md` 에 기록.
 
-`{session_root}/deliberation.md`는 cross-process deliberation 경로 (Agent Teams Step 4)에서만 산출되는 artifact다. in-process deliberation 경로에서는 별도 파일을 산출하지 않으며, `synthesis.md` frontmatter와 Deliberation Decision 섹션이 유일한 authoritative source다. 따라서:
+**Synthesize 2차** — peer artifact 흡수 + final:
 
-- in-process 경로 실행 결과: `synthesis.md` frontmatter `deliberation_status` + `Deliberation Decision` 섹션이 primary
-- cross-process 경로 실행 결과: `deliberation.md` 존재가 `performed`의 primary signal이 될 수 있음
+1. Synthesize 1차 출력 + 모든 peer artifact (sorted pair dir) 를 input 으로 read
+2. 각 contested point 에 대해 peer artifact 의 합의/이견/합성 응답을 evidence 로 종합
+3. resolution 을 `Deliberation Decision` 섹션에 contested point 별로 기록 (§6.2 step 4-5 와 동일 형식)
+4. evidence 가 부족하여 resolution 을 도출할 수 없는 경우, 그 사유를 `Deliberation Decision` 에 기록 (§6.2 step 6 와 동일 처리)
+5. `deliberation_status: performed` 로 emit, `conflicting_pairs` field 는 emit 하지 않음 (1차 의 unique signal)
 
-cross-process 경로에서도 `synthesis.md` frontmatter는 §5에 따라 의무이며 `deliberation_status` 값은 `performed`로 설정한다 — `deliberation.md`는 그 위에 더해지는 supplementary primary signal이지 frontmatter 의무를 면제하는 대체 채널이 아니다.
+### 6.4 frontmatter `deliberation_status` 사용 규칙
 
-record assembler는 이 두 채널을 정합하게 해석해야 하며, 상세 규칙은 `.onto/processes/review/record-contract.md`가 정한다.
+§5 가 `deliberation_status` 값 enum 의 SSOT 다. 본 §6.4 는 그 enum 의 사용 규칙 (언제 어느 값을 emit 하는가) 만 다루며 enum 을 재정의하지 않는다.
+
+| 값 | emit 시점 | path |
+|---|---|---|
+| `not_needed` | contested point 가 식별되지 않은 경우. `Deliberation Decision` 섹션은 §5 item 10 에 따라 필수 (최소 `"no contested points"` 명시) | 두 path 공통 (Synthesize 1차 단독 호출 시) |
+| `needed` | Synthesize 1차 가 contested point 를 식별 + `conflicting_pairs` 를 emit. **본 값은 Synthesize 1차 의 unique value** | Option E peer-to-peer path 의 1차 출력 |
+| `performed` | deliberation 이 수행되어 resolution 이 기록된 경우 | (a) in-process: §6.2 절차 수행 후, (b) Option E: §6.3 의 Synthesize 2차 후 |
+| `required_but_unperformed` | synthesize 출력에서 emit 하지 않음. runner / record assembler 가 synthesize task 자체의 실패를 감지했을 때만 부여하는 failure marker | — |
+
+### 6.5 Deliberation artifact 위상
+
+deliberation artifact 의 위상은 path 별로 다르다.
+
+**In-process path**:
+- 별도 artifact 파일을 산출하지 않는다. `synthesis.md` frontmatter + Deliberation Decision 섹션이 유일한 authoritative source.
+
+**Option E peer-to-peer path**:
+- Synthesize 1차 결과: `synthesis.md` (1차 출력, frontmatter `deliberation_status: needed` + `conflicting_pairs`)
+- Peer round 결과: `<deliberation_dir>/<sorted-a>--<sorted-b>/<conflict-id>/<authoring_lens>-deliberation.md` 형태의 per-pair-per-conflict-per-authoring-lens artifact (sorted pair directory + `<id>` subdirectory 가 `teamcreate-lens-deliberation-executor.deliberationArtifactPath` 의 path uniqueness 정규화)
+- Synthesize 2차 결과: 최종 `synthesis.md` (frontmatter `deliberation_status: performed`)
+
+**Legacy `{session_root}/deliberation.md`**: cc-teams-lens-agent-deliberation 이전 (PR-D 시기) 의 single-file deliberation artifact. Option E 진입 후에는 `<deliberation_dir>/<sorted-pair>/...` 디렉터리 구조가 정본이며, 단일 `deliberation.md` 는 *legacy compatibility* 영역.
+
+record assembler 는 두 path 의 artifact 를 정합하게 해석해야 하며, 상세 규칙은 `.onto/processes/review/record-contract.md` 가 정한다.
 
 ---
 
@@ -307,8 +360,10 @@ Principal-facing translation happens at the Runtime Coordinator's render seat
 [Task Directives]
 - Read all lens result files and the materialized input.
 - Preserve consensus and original lens positions in Disagreement.
-- When lens findings disagree, perform in-process deliberation per §6 and record per-contested-point resolutions in Deliberation Decision.
-- Set frontmatter deliberation_status to `not_needed` (no contention) or `performed` (deliberation executed).
+- Path selection (set by coordinator via {synthesize_pass} = first | second | inprocess):
+  - `inprocess`: when topology.deliberation_channel = synthesizer-only. Perform in-process deliberation per §6.2 and record per-contested-point resolutions in Deliberation Decision. Emit `deliberation_status: not_needed` (no contention) or `performed`.
+  - `first` (Option E peer-to-peer 1차): when topology.deliberation_channel = sendmessage-a2a and no peer artifacts yet. Identify contested points per §6.3; if found, emit `deliberation_status: needed` + populate frontmatter `conflicting_pairs`. Do NOT record resolutions (that is the second-pass job). If none, emit `deliberation_status: not_needed` and finalize as a single-pass run.
+  - `second` (Option E peer-to-peer 2차): when peer artifacts exist under {deliberation_dir}. Read all peer artifacts in addition to lens primary outputs. Synthesize resolutions in Deliberation Decision per §6.3 step 2-4. Emit `deliberation_status: performed`. Do NOT emit `conflicting_pairs` (that is the first-pass unique field).
 - Write the final synthesis output to {synthesis_output_path}.
 ```
 

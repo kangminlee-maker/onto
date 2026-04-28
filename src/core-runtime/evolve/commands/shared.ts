@@ -24,3 +24,19 @@ export function refreshScopeMd(paths: ScopePaths, state?: ScopeState): void {
   const md = renderScopeMd(s);
   writeFileSync(paths.scopeMd, md, "utf-8");
 }
+
+/**
+ * Slugify a scope title for use in process-mode artifacts:
+ * - design-doc-draft.md frontmatter `functional_area`
+ * - apply destination filename `{YYYYMMDD}-{slug}.md`
+ *
+ * Both consumers must produce the same slug so the design doc's metadata
+ * and the committed filename stay aligned.
+ */
+export function slugifyTitle(title: string): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug.length > 0 ? slug : "design-draft";
+}

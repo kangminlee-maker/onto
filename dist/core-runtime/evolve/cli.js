@@ -49,6 +49,14 @@ export async function handleEvolveCli(ontoHome, argv) {
                 "  --reason <text>             Defer reason (required for defer)",
                 "  --resume-condition <text>   Condition under which scope resumes (required for defer)",
                 "",
+                "apply (process mode) flags:",
+                "  --action commit-design-doc  Commit the design-doc-draft.md to development-records/evolve/",
+                "  --commit-message <msg>      git commit message (default: 'docs(evolve): <title>')",
+                "  --push-pr                   git push + gh pr create after commit",
+                "  --pr-title <title>          Pull request title (default: commit message)",
+                "  --pr-body <body>            Pull request body",
+                "  --slug <slug>               Override destination filename slug",
+                "",
                 "propose-align UX contract:",
                 "  Agent (Claude Code session / LLM) conducts dialog with Principal using",
                 "  selection-based choices + natural-language fallback, consolidates answers",
@@ -215,15 +223,38 @@ async function handleEvolveApply(argv) {
     const paths = resolveScopePathsFromArgv(argv);
     if (!paths)
         return 1;
-    const jsonInput = readOption(argv, "json");
-    if (!jsonInput) {
-        console.error("[onto] evolve apply requires --json '<action-object>'.");
-        console.error("Example: --json '{\"type\":\"start_apply\",\"buildSpecHash\":\"...\"}'");
-        return 1;
-    }
     const projectRoot = readOption(argv, "project-root") ?? process.cwd();
     const { executeApply } = await import("./commands/apply.js");
-    const action = JSON.parse(jsonInput);
+    // post-PR #246 R1 (Phase B Step 5): process mode 의 commit_design_doc 은
+    // 인간 사용자가 직접 호출하기 적합하도록 top-level flag 도 받음.
+    // 다른 action 들은 기존 --json 인터페이스 유지.
+    const actionFlag = readOption(argv, "action");
+    let action;
+    if (actionFlag === "commit-design-doc") {
+        const commitMessage = readOption(argv, "commit-message");
+        const pushPr = argv.includes("--push-pr");
+        const prTitle = readOption(argv, "pr-title");
+        const prBody = readOption(argv, "pr-body");
+        const slug = readOption(argv, "slug");
+        action = {
+            type: "commit_design_doc",
+            ...(commitMessage !== undefined ? { commitMessage } : {}),
+            ...(pushPr ? { pushPr: true } : {}),
+            ...(prTitle !== undefined ? { prTitle } : {}),
+            ...(prBody !== undefined ? { prBody } : {}),
+            ...(slug !== undefined ? { slug } : {}),
+        };
+    }
+    else {
+        const jsonInput = readOption(argv, "json");
+        if (!jsonInput) {
+            console.error("[onto] evolve apply requires --json '<action-object>' or --action commit-design-doc.");
+            console.error("Example: --json '{\"type\":\"start_apply\",\"buildSpecHash\":\"...\"}'");
+            console.error("Or:      --action commit-design-doc [--commit-message '...'] [--push-pr] [--pr-title '...'] [--pr-body '...'] [--slug '...']");
+            return 1;
+        }
+        action = JSON.parse(jsonInput);
+    }
     const result = executeApply(paths, action, { projectRoot });
     console.log(JSON.stringify(result, null, 2));
     return result.success ? 0 : 1;

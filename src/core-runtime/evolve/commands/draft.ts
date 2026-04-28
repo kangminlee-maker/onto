@@ -19,7 +19,7 @@ import { reduce } from "../../scope-runtime/reducer.js";
 import { appendScopeEvent } from "../../scope-runtime/event-pipeline.js";
 import { renderDraftPacket } from "../renderers/draft-packet.js";
 import { wrapGateError } from "./error-messages.js";
-import { refreshScopeMd } from "./shared.js";
+import { refreshScopeMd, slugifyTitle } from "./shared.js";
 import { contentHash } from "../../scope-runtime/hash.js";
 import { compile, type CompileInput, type CompileSuccess } from "../adapters/code-product/compile/compile.js";
 import type { DefenseViolation } from "../adapters/code-product/compile/compile-defense.js";
@@ -98,13 +98,28 @@ function handleGenerateSurface(
     return { success: false, reason: `Surface 생성은 align_locked 상태에서만 가능합니다. 현재: ${state.current_state}` };
   }
 
+  // post-PR #246 R1 (Phase B Step 3): process mode 의 surface 는 design-doc
+  // markdown 골격이며 결정적이므로 runtime 이 직접 작성. experience/interface
+  // 는 agent 가 surface 산출물을 작성하고 path/hash 를 인자로 전달하지만,
+  // process 는 frontmatter 가 표준이라 caller-provided path/hash 를 무시하고
+  // 본 함수가 design-doc-draft.md 를 직접 생성. 본문은 후속 step 에서 채움.
+  let surfacePath = action.surfacePath;
+  let surfaceHash = action.surfaceHash;
+  if (state.entry_mode === "process") {
+    const skeletonPath = join(paths.surface, "design-doc-draft.md");
+    const skeleton = renderProcessDesignDocSkeleton(state);
+    writeFileSync(skeletonPath, skeleton, "utf-8");
+    surfacePath = skeletonPath;
+    surfaceHash = contentHash(skeleton);
+  }
+
   const result = appendScopeEvent(paths, {
     type: "surface.generated",
     actor: "system",
     payload: {
       surface_type: state.entry_mode,
-      surface_path: action.surfacePath,
-      content_hash: action.surfaceHash,
+      surface_path: surfacePath,
+      content_hash: surfaceHash,
       based_on_snapshot: action.snapshotRevision,
     },
   });
@@ -126,6 +141,42 @@ function handleGenerateSurface(
     nextState: "surface_iterating",
     message: `Surface가 생성되었습니다. ${guide} 수정이 필요하면 피드백을 주세요. 이 모습이 맞으면 '확정합니다'라고 말씀해 주세요.`,
   };
+}
+
+// post-PR #246 R1 (Phase B Step 3): process scope 의 design-doc-draft.md 를
+// 생성하는 helper. design 문서 표준 frontmatter (as_of/status/functional_area/
+// purpose) + 권장 4 섹션 (배경/설계 영역/Phase 계획/Success criteria) 골격을
+// 출력. 본문은 agent (LLM/사람) 가 surface_iterating 단계에서 채움.
+function renderProcessDesignDocSkeleton(state: ScopeState): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const slug = slugifyTitle(state.title);
+  const purpose = state.direction?.trim() || "TBD - 본문에서 작성";
+  return `---
+as_of: ${today}
+status: design-draft
+functional_area: ${slug}
+purpose: |
+  ${purpose.split("\n").join("\n  ")}
+---
+
+# ${state.title}
+
+## 1. 배경
+
+<!-- 동기와 문제 정의를 작성하세요. -->
+
+## 2. 설계 영역
+
+<!-- 핵심 설계 결정과 근거를 작성하세요. -->
+
+## 3. Phase 계획
+
+<!-- 단계별 구현 계획을 작성하세요. -->
+
+## 4. Success criteria
+
+<!-- 검증 기준을 작성하세요. -->
+`;
 }
 
 function handleApplyFeedback(
@@ -349,15 +400,14 @@ function handleCompile(
   // / brownfield-detail 같은 code-product compile artifact 가 무의미.
   // F-15 (compile cryptic 예외) 의 직접 root cause — entry_mode 분기 부재.
   //
-  // post-PR #246 review (axiology HIGH + 5-lens consensus): 이전 메시지가
-  // "apply 로 진행하세요" 로 미존재 분기를 가리켜 사용자를 dead-end 로 인도
-  // (Phase B Step 3-6 별도 PR 미진행). 메시지를 *현재 가능한* path 로 정직
-  // 하게 변경 — 자동 apply 분기는 후속 PR 의 별도 진입점으로 추가 예정 명시.
+  // post-PR #246 R1 (Phase B Step 4): apply 분기가 생기면서 메시지가 가리킬
+  // *실재* path 가 존재. 이전 honest 표기 ("후속 PR 에서 추가") 가 R1 머지
+  // 시점부터 stale 이므로 현재 사용자가 따라갈 수 있는 경로를 안내.
   if (state.entry_mode === "process") {
     return {
       success: false,
       reason: wrapGateError(
-        "process mode 에선 compile 이 생략됩니다. design doc 작성을 마쳤으면 `development-records/evolve/<file>.md` 로 수동 커밋하세요 (자동 apply 분기는 후속 PR 에서 추가).",
+        "process mode 에선 compile 이 생략됩니다. design doc 작성을 마쳤으면 `onto evolve apply --scope-id <id> --action commit-design-doc` 로 development-records/evolve/ 에 commit 하세요.",
       ),
     };
   }

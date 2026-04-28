@@ -144,24 +144,39 @@ export function validateEvent(state, newEvent, options) {
         };
     }
     // ── Rule 5a: Apply gate — requires apply_enabled in .sprint-kit.yaml ──
-    if (eventType === "apply.started" && options?.apply_enabled !== true) {
+    // post-PR #246 R1 (Phase B Step 4): process entry mode 는 코드 변경이 없으므로
+    // .sprint-kit.yaml apply_enabled 게이트 적용 대상이 아님.
+    if (eventType === "apply.started" && state.entry_mode !== "process" && options?.apply_enabled !== true) {
         return {
             allowed: false,
             reason: "Apply gate: apply 단계를 실행하려면 .sprint-kit.yaml에 apply_enabled: true를 추가하세요.",
         };
     }
     // ── Rule 5c: Pre-Apply Review gate — apply requires pre_apply.review_completed ──
-    if (eventType === "apply.started" && !state.pre_apply_completed) {
+    // post-PR #246 R1: process mode 는 code-product brownfield/policy/logic 점검이
+    // 무의미하므로 Pre-Apply Review 게이트 미적용.
+    if (eventType === "apply.started" && state.entry_mode !== "process" && !state.pre_apply_completed) {
         return {
             allowed: false,
             reason: "Apply gate: Pre-Apply Review가 완료되어야 합니다. pre_apply.review_completed 이벤트가 먼저 기록되어야 합니다.",
         };
     }
     // ── Rule 5d: PRD Review gate — apply requires prd.review_completed ──
-    if (eventType === "apply.started" && !state.prd_review_completed) {
+    // post-PR #246 R1: process mode 는 code-product 다관점 리뷰가 무의미.
+    if (eventType === "apply.started" && state.entry_mode !== "process" && !state.prd_review_completed) {
         return {
             allowed: false,
             reason: "Apply gate: PRD 다관점 리뷰가 완료되어야 합니다. prd.review_completed 이벤트가 먼저 기록되어야 합니다.",
+        };
+    }
+    // ── Rule 5e: Process apply scope — apply.started/completed from surface_confirmed
+    //              requires entry_mode === "process" (code-product 는 compile 경유) ──
+    if ((eventType === "apply.started" || eventType === "apply.completed") &&
+        state.current_state === "surface_confirmed" &&
+        state.entry_mode !== "process") {
+        return {
+            allowed: false,
+            reason: `Apply gate: surface_confirmed 에서 apply 진입은 process entry mode 만 가능합니다. 현재 entry_mode=${state.entry_mode} 는 compile 단계를 거쳐야 합니다.`,
         };
     }
     // ── Rule 5b: Compile retry limit ──

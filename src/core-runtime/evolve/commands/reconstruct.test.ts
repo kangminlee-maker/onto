@@ -712,12 +712,17 @@ function makeFullV0Config(): unknown {
 }
 
 /**
- * v1 inference + γ review on, but raw-yml intent serialization off.
- * Valid per dogfood-switches invariants — only `*_requires_v1_inference`
- * dependencies are enforced; the inverse direction (v1 on, raw-yml off)
- * is permitted. Used by R3 mixed-switch coverage.
+ * v1 inference + γ review on, but the third switch
+ * (`write_intent_inference_to_raw_yml`) is off — i.e., raw.yml is still
+ * written, only its element-level `intent_inference` block serialization
+ * is suppressed. Valid per dogfood-switches invariants — only the
+ * `*_requires_v1_inference` direction is enforced. Used by R3 coverage.
+ *
+ * Naming note (post-PR245 review fix): an earlier name suggested raw.yml
+ * writing as a whole was disabled, which is misleading — only the
+ * intent_inference projection inside raw.yml is dropped.
  */
-function makeV1WithoutRawYmlWriteConfig(): unknown {
+function makeWriteIntentInferenceOffConfig(): unknown {
   return {
     reconstruct: {
       v1_inference: { enabled: true },
@@ -1066,13 +1071,18 @@ describe("raw-yml integration (post-Phase 3.5 writer wire)", () => {
   });
 
   // ─── PR #244 review recommendation R3 ───
-  // Mixed-switch coverage: v1 inference + γ review on, but raw-yml
-  // intent serialization off. dogfood-switches invariants permit this
-  // combination (only `*_requires_v1_inference` is enforced). Result:
-  // raw.yml is written but element-level intent_inference is omitted
-  // by the writer (writeIntentInferenceToRawYml=false from coordinator
-  // result). Mirror seat for §4.11 partial-mode permutation.
-  it("v1 on × write_intent_inference off → raw.yml written but intent_inference omitted at element level", async () => {
+  // Mixed-switch coverage — narrowly scoped to the
+  // `write_intent_inference_to_raw_yml` switch toggle while v1_inference
+  // and phase3_rationale_review remain enabled. dogfood-switches
+  // invariants permit this combination (only `*_requires_v1_inference`
+  // is enforced). Result: raw.yml is still written + meta records
+  // degraded mode normally + every element drops its intent_inference
+  // block (writer's omit gate). Broader §4.11 partial-mode permutation
+  // coverage (which spans inference_mode × manifest_tier × switch
+  // combinations) is left to a future table-driven test pass —
+  // post-PR245 review coverage-lens recommendation, deferred as
+  // architectural follow-up.
+  it("v1 on × write_intent_inference off → raw.yml written but every element drops intent_inference", async () => {
     executeReconstructStart({
       source: "./src",
       intent: "mixed switch",
@@ -1084,7 +1094,7 @@ describe("raw-yml integration (post-Phase 3.5 writer wire)", () => {
       sessionsDir: tmpRoot,
       sessionId: "raw-mixed",
       coordinator: makeCoordinatorOptions({
-        configRaw: makeV1WithoutRawYmlWriteConfig(),
+        configRaw: makeWriteIntentInferenceOffConfig(),
         requestedInferenceMode: "degraded",
         manifestTier: "minimal",
       }),
@@ -1105,8 +1115,13 @@ describe("raw-yml integration (post-Phase 3.5 writer wire)", () => {
     const parsed = yaml.parse(readFileSync(rawPath, "utf-8"));
     // meta still records degraded mode (cycle ran in v1).
     expect(parsed.meta.inference_mode).toBe("degraded");
-    // element-level intent_inference omitted by the writer's gate.
-    expect(parsed.elements[0].intent_inference).toBeUndefined();
+    // element-level intent_inference omitted by the writer's gate —
+    // assert across every element rather than just the first, so a
+    // future fixture extension automatically broadens the assertion.
+    expect(parsed.elements.length).toBeGreaterThan(0);
+    for (const el of parsed.elements) {
+      expect(el.intent_inference).toBeUndefined();
+    }
   });
 });
 
@@ -1252,13 +1267,13 @@ describe("composeRawMetaForCycle (unit)", () => {
     const metaA = composeRawMetaForCycle({ result, manifest, coord: coordA });
     const metaB = composeRawMetaForCycle({ result, manifest, coord: coordB });
 
+    // The two literal equalities pin distinct values and are sufficient
+    // — any literal regression collapses both sides to the same string,
+    // which invalidates one of these two asserts. A separate inequality
+    // assertion would be entailed by these two and add no signal
+    // (post-PR245 conciseness review).
     expect(metaA.rationale_reviewer_contract_version).toBe("1.0");
     expect(metaB.rationale_reviewer_contract_version).toBe("2.0-experiment");
-    // Pairwise: they differ. If a literal regression were re-introduced,
-    // both would equal the literal and this assertion would catch it.
-    expect(metaA.rationale_reviewer_contract_version).not.toBe(
-      metaB.rationale_reviewer_contract_version,
-    );
   });
 });
 

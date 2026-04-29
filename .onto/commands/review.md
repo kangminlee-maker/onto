@@ -1,4 +1,4 @@
-<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=a08ac5b2f77f21c7624c5f387c6f3cef802220c341a94c50d4b56d1e9ed636f5 -->
+<!-- GENERATED from src/core-runtime/cli/command-catalog.ts. Edit catalog or template, then run `npm run generate:catalog`. derive-hash=f5bb7bebcab67293b0b216d9eb1ef611981a9f5951eb448812e295c62ae59f2e -->
 
 # Onto Review (9-Lens Review + Synthesize)
 
@@ -28,6 +28,196 @@ Internal bounded path:
    - lens execution must be parallel by default
    - if the realization has a concurrency limit, use bounded parallel dispatch and backfill freed slots with the next pending lens
 5. `npm run review:complete-session -- --project-root {project} --session-root "{session_root}" --request-text "{original user request}"`
+
+## Interactive runtime selection (Phase B-2)
+
+> **2026-04-29 canonical update** — Phase B-2 of `development-records/evolve/
+> 20260425-review-execution-interactive-selection.md`. Detection-signals
+> v1 (PR #251, contract `.onto/processes/review/detection-signals-
+> contract.md`) provides the L1 raw inputs; this section defines how the
+> host prose composes those inputs with `review-config-validator.ts`
+> into a 4-branch decision and (when applicable) an interactive selection
+> chain.
+
+### Step 1 — gather detection signals
+
+Before any runtime dispatch, the host prose collects a v1 detection
+signal JSON. This is a pure-read CLI surface that emits the JSON to
+stdout and exits 0 without starting a session:
+
+```
+onto review --emit-detection-signals [--project-root <path>]
+```
+
+Schema (11 leaf fields, L1 raw detection only — see contract §3.1):
+
+```jsonc
+{
+  "schema_version": "v1",
+  "host_detected": "claude-code" | "codex" | "standalone",
+  "claude_code_teams_env_set": boolean,
+  "codex": { "binary_on_path": boolean, "auth_file_present": boolean },
+  "litellm_base_url_set": boolean,
+  "credentials": {
+    "env_has_anthropic_api_key": boolean,
+    "env_has_openai_api_key": boolean,
+    "codex_auth_has_openai_api_key": boolean
+  },
+  "review_block_declared": boolean,
+  "config_parse_error": string | null
+}
+```
+
+Every field is a single observable fact. The host prose composes the
+4-branch decision in Step 2 — schema does NOT carry the decision itself
+(see contract §3.0, "Layer L1 vs L2").
+
+### Step 2 — compose the 4-branch decision
+
+The host prose enters one of four branches. Inputs are the detection
+signal JSON above PLUS, when needed, a separate `review-config-
+validator.ts` call. Drift detection is Phase B-N and not yet wired —
+v1 cannot drive the (3) drift branch on its own (the placeholder
+`drift_reason` field was removed in PR #251 round 3 to avoid
+versioning policy violation).
+
+| Branch | Entry condition | Action |
+|---|---|---|
+| **(1) first-run interactive** | `config_parse_error == null` AND `review_block_declared == false` AND interactive environment | Run the chain in Step 3, persist to `.onto/config.yml` per Q-Persist, then dispatch under the axis block. |
+| **(2) subsequent run reminder** | `review_block_declared == true` AND `validateReviewConfig()` passes AND no drift detected | Emit a 1-line STDERR reminder of the active axes, then dispatch under the axis block. |
+| **(3) drift re-selection** | `review_block_declared == true` AND drift detected (Phase B-N — not active under Phase B-1) | Show drift cause, then re-enter the Step 3 chain with the option to overwrite. |
+| **(4) non-interactive fail-fast** | `config_parse_error != null` OR (`review_block_declared == false` AND interactive unavailable) | Print a clear error and exit. Do NOT silently fall through to a degraded path. |
+
+`config_parse_error` precedence: when non-null, branch (4) regardless
+of `review_block_declared`. Two non-null cases (contract §3.2):
+- YAML parser threw — message starts with `Failed to parse YAML:`
+- Root parsed but is not a plain object (scalar / null / array) —
+  message starts with `Config root is not a YAML object:`
+
+Both cases mean "config exists but is unusable", which is fix-the-file,
+not first-run.
+
+### Step 3 — host adapter for the interactive chain
+
+The 4-question chain lives in host prose, not in TS runtime. The
+actual input tool is host-specific; the prose stays neutral and the
+host agent maps the abstract action ("ask the subject for a choice")
+to its native tool:
+
+| Host | Tool | Min version / mode |
+|---|---|---|
+| Claude Code | `AskUserQuestion` | Built-in, always available; called from the slash command. |
+| Codex CLI | `request_user_input` | Codex `>= 0.106.0`. **Plan Mode is the default path**; Default Mode had silent-failure reports through v0.121.0 — opt-in only after local verification. |
+| Plain terminal (no host LLM) | — | Branch (1) is unreachable — fall back to branch (4) fail-fast. |
+
+The minimum-version guard: when invoked under Codex CLI, parse `codex
+--version`. If `< 0.106.0`, halt the chain with an upgrade message
+(`npm install -g @openai/codex@latest`) before reaching Q-Teamlead.
+
+### Step 4 — the 4 questions
+
+One question per call (each answer narrows the next question's option
+set, so they cannot be batched). Skip rules at the top.
+
+**Skip rules**:
+- `Q-Teamlead == "external codex subprocess"` → skip Q-Subagent (subagent
+  is fixed to `codex`).
+- `Q-Subagent == "main-native"` → skip Q-Effort (host-managed).
+
+**Q-Teamlead** — "where should the teamlead run?"
+
+| Option | Available when |
+|---|---|
+| `main` (host session, recommended) | `host_detected == "claude-code"` OR `host_detected == "codex"` |
+| `external codex subprocess` | `codex.binary_on_path && codex.auth_file_present` |
+
+If neither is available (plain terminal + no codex), guide before
+fail-fast: "Re-run inside Claude Code, OR install codex CLI."
+
+**Q-Subagent** — "what runs each lens?"
+
+Filtered by Q-Teamlead and the credential signals:
+
+| Option | Available when |
+|---|---|
+| `main-native` (host's native subagent, recommended) | Q-Teamlead = `main` |
+| `codex` | `codex.binary_on_path && codex.auth_file_present` |
+| `anthropic` | `credentials.env_has_anthropic_api_key` |
+| `openai` | `credentials.env_has_openai_api_key OR credentials.codex_auth_has_openai_api_key` |
+| `litellm` | `litellm_base_url_set` (or `llm_base_url` set in config) |
+
+Q-Teamlead = `external codex subprocess` fixes Q-Subagent to `codex`
+(skip).
+
+**Q-Effort** — "reasoning effort level?"
+
+Domain depends on Q-Subagent's provider:
+
+| Provider | Domain | Recommended |
+|---|---|---|
+| `main-native` | (skip — host-managed) | — |
+| `codex` | `minimal` \| `low` \| `medium` \| `high` \| `xhigh` | `high` |
+| `anthropic` | thinking budget preset: `off` \| `standard` \| `high` | `high` |
+| `openai` | `low` \| `medium` \| `high` | `high` |
+| `litellm` | provider pass-through (model-specific subset) | — |
+
+**Q-Persist** — "how to use this choice?"
+
+| Option | Effect |
+|---|---|
+| 1. **Use this run only** (default, reversible) | No config change. Pass the choice through `ONTO_REVIEW_CONFIG_OVERRIDE` env or per-axis CLI flags for this invocation only. |
+| 2. **Save (set as default)** | `npm run onboard:write-review-block -- .onto/config.yml '<json>'`. On the **drift re-selection** branch, this option's label is "Save (overwrite existing)". |
+
+Cancel path: when the host's input tool returns `Other → cancel`,
+abort the review immediately. The next invocation re-enters from the
+same question. Persisted config is never modified by a cancel.
+
+### Step 5 — CLI override surface (per-axis flags)
+
+Each axis exposes a flag for one-shot override without entering the
+chain. `--save-choice` paired with any of these persists the same
+choice to the axis block. `--reselect` ignores the saved config and
+forces the chain to re-run.
+
+| Flag | Axis | Example |
+|---|---|---|
+| `--teamlead <main\|codex>` | A. Teamlead | `--teamlead codex` |
+| `--subagent-provider <name>` | B. Subagent provider | `--subagent-provider codex` |
+| `--subagent-model <id>` | B. model_id | `--subagent-model gpt-5.4` |
+| `--effort <value>` | F. Effort (provider domain) | `--effort high` |
+| `--max-concurrent-lenses <n>` | C. Concurrency | `--max-concurrent-lenses 6` |
+| `--lens-deliberation <mode>` | E. Deliberation | `--lens-deliberation sendmessage-a2a` |
+| `--save-choice` | Persist toggle | (paired with above) |
+| `--reselect` | Ignore saved config and re-run the chain | (no value) |
+
+`--codex` is preserved as backward-compat shorthand for `--teamlead
+main --subagent-provider codex`.
+
+### Step 6 — non-interactive behavior (CI / background agents)
+
+When `AskUserQuestion` / `request_user_input` is unreachable (CI, bg
+agent, headless CLI without TTY):
+
+- `review_block_declared == true` AND no drift → dispatch normally
+  (same as branch 2).
+- `review_block_declared == false` → fail-fast. Message:
+  ```
+  [review] .onto/config.yml has no review block.
+           Run /onto:review once in an interactive environment to
+           pick and save axes, OR pass per-axis flags
+           (--teamlead ... --subagent-provider ... --effort ...)
+           explicitly.
+           Example: .onto/config.yml.example
+  ```
+- `config_parse_error != null` → fail-fast with the parser error and
+  fix-the-file guidance.
+
+The pre-Phase-B-2 "silent main_native degrade" path is the explicit
+non-goal of this design — every fall-through must surface a single
+visible message so the principal sees which decision the runtime
+made (or could not make).
+
+---
 
 ## Execution path selection
 

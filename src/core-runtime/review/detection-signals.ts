@@ -39,7 +39,7 @@
 import {
   detectAnthropicApiKey,
   detectCodexAuthFile,
-  detectCodexBinaryAvailable,
+  detectCodexBinary,
   detectHostRuntimeCategory,
   detectLiteLlmEndpoint,
   detectOpenAiApiKey,
@@ -166,7 +166,7 @@ export function gatherDetectionSignals(
     host: toUserFacingHost(hostCategory),
     teams_env: detectTeamsEnv(),
     codex: {
-      binary: detectCodexBinaryAvailable(),
+      binary: detectCodexBinary(),
       auth: detectCodexAuthFile(),
     },
     litellm_endpoint: detectLiteLlmEndpoint(),

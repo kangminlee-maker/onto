@@ -35,6 +35,7 @@ const HOST_ENV_VARS = [
 
 let savedEnv: Record<string, string | undefined> = {};
 let isolatedHome: string;
+const trackedTempDirs: string[] = [];
 
 function isolateEnv(): void {
   savedEnv = {};
@@ -62,6 +63,12 @@ function restoreEnv(): void {
   }
   if (isolatedHome && fs.existsSync(isolatedHome)) {
     fs.rmSync(isolatedHome, { recursive: true, force: true });
+  }
+  while (trackedTempDirs.length > 0) {
+    const dir = trackedTempDirs.pop()!;
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   }
 }
 
@@ -136,22 +143,61 @@ describe("gatherDetectionSignals — teams_env (TeamCreate gate)", () => {
   });
 });
 
-describe("gatherDetectionSignals — codex {binary, auth} probes", () => {
-  it("binary=false when PATH lacks codex (test runner state)", () => {
-    expect(gatherDetectionSignals().codex.binary).toBe(false);
-  });
+describe("gatherDetectionSignals — codex {binary, auth} 4-cell matrix", () => {
+  // PR #251 round 2 review C1+C2: codex.binary must be PATH-only (NOT
+  // binary AND auth). All four corners of the {binary, auth} matrix
+  // must be reachable, especially binary=true / auth=false ("Codex
+  // installed but unauthenticated") which prior to round 2 was unreachable
+  // because the emit went through the legacy combined helper.
 
-  it("auth=false when ~/.codex/auth.json absent (isolated HOME)", () => {
-    expect(gatherDetectionSignals().codex.auth).toBe(false);
-  });
+  /** Plant a fake `codex` executable in a fresh PATH dir; returns dir path. */
+  function plantFakeCodexBinary(): string {
+    const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "onto-fake-codex-bin-"));
+    trackedTempDirs.push(binDir);
+    const codexPath = path.join(binDir, "codex");
+    fs.writeFileSync(codexPath, "#!/usr/bin/env bash\nexit 0\n", { mode: 0o755 });
+    process.env.PATH = binDir;
+    return binDir;
+  }
 
-  it("auth=true when ~/.codex/auth.json exists, independent of binary", () => {
+  /** Plant ~/.codex/auth.json in the isolated HOME. */
+  function plantCodexAuthFile(): void {
     fs.mkdirSync(path.join(isolatedHome, ".codex"), { recursive: true });
     fs.writeFileSync(path.join(isolatedHome, ".codex", "auth.json"), "{}", "utf8");
+  }
+
+  // FF: nothing planted — the default isolated state.
+  it("FF: binary=false, auth=false (no codex artifacts)", () => {
     const signals = gatherDetectionSignals();
-    expect(signals.codex.auth).toBe(true);
-    // binary still false: PATH is empty.
     expect(signals.codex.binary).toBe(false);
+    expect(signals.codex.auth).toBe(false);
+  });
+
+  // FT: auth file present, binary missing — "uninstalled but residual auth".
+  it("FT: binary=false, auth=true (auth file alone)", () => {
+    plantCodexAuthFile();
+    const signals = gatherDetectionSignals();
+    expect(signals.codex.binary).toBe(false);
+    expect(signals.codex.auth).toBe(true);
+  });
+
+  // TF: binary on PATH, no auth — "Codex installed but unauthenticated".
+  // Pre-round-2 this state was unreachable (emit forced binary=false when
+  // auth was missing). Asserting both axes ensures the new emit is honest.
+  it("TF: binary=true, auth=false (installed but unauthenticated — round 2 critical case)", () => {
+    plantFakeCodexBinary();
+    const signals = gatherDetectionSignals();
+    expect(signals.codex.binary).toBe(true);
+    expect(signals.codex.auth).toBe(false);
+  });
+
+  // TT: both present — fully usable codex.
+  it("TT: binary=true, auth=true (fully usable)", () => {
+    plantFakeCodexBinary();
+    plantCodexAuthFile();
+    const signals = gatherDetectionSignals();
+    expect(signals.codex.binary).toBe(true);
+    expect(signals.codex.auth).toBe(true);
   });
 });
 

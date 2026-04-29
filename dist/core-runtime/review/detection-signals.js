@@ -35,7 +35,7 @@
  * `schema_version` literal lets the host prose branch on capability
  * additively without breaking existing consumers.
  */
-import { detectAnthropicApiKey, detectCodexAuthFile, detectCodexBinaryAvailable, detectHostRuntimeCategory, detectLiteLlmEndpoint, detectOpenAiApiKey, detectTeamsEnv, } from "../discovery/host-detection.js";
+import { detectAnthropicApiKey, detectCodexAuthFile, detectCodexBinary, detectHostRuntimeCategory, detectLiteLlmEndpoint, detectOpenAiApiKey, detectTeamsEnv, } from "../discovery/host-detection.js";
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ export function gatherDetectionSignals(config = {}) {
         host: toUserFacingHost(hostCategory),
         teams_env: detectTeamsEnv(),
         codex: {
-            binary: detectCodexBinaryAvailable(),
+            binary: detectCodexBinary(),
             auth: detectCodexAuthFile(),
         },
         litellm_endpoint: detectLiteLlmEndpoint(),

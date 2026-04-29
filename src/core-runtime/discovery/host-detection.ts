@@ -179,10 +179,38 @@ export function detectCodexAuthFile(): boolean {
 }
 
 /**
+ * True when the codex executable is on PATH (file-presence only).
+ *
+ * Distinct from `detectCodexBinaryAvailable`, which is the legacy
+ * "binary AND auth" availability check used by callers who need to know
+ * whether codex can actually run a task end-to-end. This helper exposes
+ * the PATH-only fact so detection-signals.ts can emit `codex.binary` and
+ * `codex.auth` as independent capability axes — letting host prose
+ * distinguish "binary installed but unauthenticated" from "binary
+ * missing entirely". (PR #251 round 2 review C1+C2.)
+ */
+export function detectCodexBinary(): boolean {
+  const pathEnv = process.env.PATH ?? "";
+  for (const dir of pathEnv.split(path.delimiter)) {
+    if (!dir) continue;
+    if (fsSync.existsSync(path.join(dir, "codex"))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * True when codex binary is on PATH AND ~/.codex/auth.json exists.
  *
  * Replaces the legacy `detectCodexAvailable()` from review-invoke.ts.
  * Both conditions must hold — auth.json alone or binary alone is insufficient.
+ *
+ * Used by callers who need a single availability boolean ("can codex
+ * actually run?"): review-invoke / detect-review-axes / execution-plan-
+ * resolver / host capability matrix. detection-signals.ts deliberately
+ * does NOT use this — it emits the two facts independently via
+ * `detectCodexBinary` + `detectCodexAuthFile`.
  */
 export function detectCodexBinaryAvailable(): boolean {
   const pathEnv = process.env.PATH ?? "";

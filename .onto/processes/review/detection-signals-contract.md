@@ -33,7 +33,7 @@ Phase B-1 host prose 는 (2)/(3) 분기를 본 schema 만으로 결정하려 시
 | Runtime emit seat | `src/core-runtime/cli/review-invoke.ts:runReviewInvokeCli` (early-exit 분기) |
 | Gather seat | `src/core-runtime/review/detection-signals.ts:gatherDetectionSignals` |
 | Format seat | `src/core-runtime/review/detection-signals.ts:formatDetectionSignalsJson` |
-| Predicate SSOT | `src/core-runtime/discovery/host-detection.ts` 의 8 detect\* helpers (`detectAnthropicApiKey`, `detectCodexAuthFile`, `detectCodexBinaryAvailable`, `detectHostRuntimeCategory`, `detectLiteLlmEndpoint`, `detectOpenAiApiKey`, `detectTeamsEnv`, plus the category enum). detection-signals.ts 는 local probe 를 두지 않고 모든 fact 를 위 모듈에 위임한다 (PR #251 review C2). |
+| Predicate SSOT | `src/core-runtime/discovery/host-detection.ts` 의 9 detect\* helpers (`detectAnthropicApiKey`, `detectCodexAuthFile`, `detectCodexBinary` PATH-only, `detectCodexBinaryAvailable` 결합, `detectHostRuntimeCategory`, `detectLiteLlmEndpoint`, `detectOpenAiApiKey`, `detectTeamsEnv`, plus the category enum). detection-signals.ts 는 local probe 를 두지 않고 모든 fact 를 위 모듈에 위임하며, `codex.binary` 는 PATH-only `detectCodexBinary` 를 사용하고 결합 helper 는 사용하지 않는다 (PR #251 round 1 C2 + round 2 C1+C2). |
 | Test SSOT | `src/core-runtime/review/detection-signals.test.ts` |
 
 ---
@@ -66,12 +66,12 @@ Phase B-1 host prose 는 (2)/(3) 분기를 본 schema 만으로 결정하려 시
 | `schema_version` | `"v1"` 리터럴. host prose 는 이 값으로 capability branching. | 본 contract |
 | `host` | **관측된 runtime fact**. 환경 신호 (CLAUDECODE / CODEX_THREAD_ID / codex binary / 부재) 로만 결정. `ontoConfig.host_runtime` override 는 본 field 에 영향 주지 않음 — override 는 downstream resolver (execution-profile / review-invoke handoff) 의 영역. (PR #251 review C3). | `detectHostRuntimeCategory({})` ("claude" → "claude-code") |
 | `teams_env` | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` 정확 매칭. TeamCreate 활성화 가능 여부. | `detectTeamsEnv` |
-| `codex.binary` | PATH 위 codex 실행 파일 존재. | `detectCodexBinaryAvailable` 의 PATH 검사 sub-step |
-| `codex.auth` | `~/.codex/auth.json` 파일 존재. binary 와 독립 (binary 부재 + auth 존재 = 업그레이드 안내 신호). 본 field 는 file presence 만 의미하며 자격증명의 valid/usable 여부는 검증하지 않음. | `detectCodexAuthFile` |
+| `codex.binary` | PATH 위 codex 실행 파일 존재 — **PATH-only**. auth.json 존재 여부와 독립. (legacy `detectCodexBinaryAvailable` 은 binary AND auth 결합인데, 본 schema 는 두 fact 를 분리 노출해야 host prose 가 "binary 있음 + auth 없음" 케이스를 재인증 안내로 분기 가능 — PR #251 round 2 review C1+C2). | `detectCodexBinary` |
+| `codex.auth` | `~/.codex/auth.json` 파일 존재. binary 와 독립 (binary 부재 + auth 존재 = 업그레이드 안내 신호; binary 존재 + auth 부재 = 재인증 안내 신호). 본 field 는 file presence 만 의미하며 자격증명의 valid/usable 여부는 검증하지 않음. | `detectCodexAuthFile` |
 | `litellm_endpoint` | `LITELLM_BASE_URL` env 존재. | `detectLiteLlmEndpoint` |
 | `credentials.anthropic` | `ANTHROPIC_API_KEY` env 존재. | `detectAnthropicApiKey` |
 | `credentials.openai` | `OPENAI_API_KEY` env OR `~/.codex/auth.json:OPENAI_API_KEY` 존재. | `detectOpenAiApiKey` |
-| `review_block_present` | `ontoConfig.review` 가 non-null object — 즉 "axis block 이 등재되었는가" 만 답한다. 등재된 block 의 well-formedness / validity 는 검증하지 않음. host prose 는 본 field 가 true 일 때 dispatch 직전에 `review-config-validator.ts` 를 별도 단계로 호출해 validity 를 검증한다 (PR #251 review C1). | `typeof === "object" && !== null` |
+| `review_block_present` | `ontoConfig.review` 가 non-null object — 즉 "axis block 이 등재되었는가" 만 답한다. 등재된 block 의 well-formedness / validity 는 검증하지 않음. host prose 는 본 field 가 true 일 때 dispatch 직전에 `review-config-validator.ts` 를 별도 단계로 호출해 validity 를 검증한다 (PR #251 round 1 review C1). **`review_block_present=false` 는 두 케이스를 합친다**: (i) `.onto/config.yml` 자체가 없거나 `review:` block 미등재, (ii) `readOntoConfig` 가 YAML parse 실패로 빈 config fallback (이때 STDERR `[onto] Warning: ... is not a valid YAML object` 출력). host prose 는 fail-fast vs first-run 결정을 본 field 만으로 내리기 전에 parse error 의 STDERR 를 별도 단계에서 surface 해야 한다 (PR #251 round 2 review CC2). | `typeof === "object" && !== null` |
 | `drift_reason` | Phase B-1: 항상 `null`. **null 의 의미는 "drift 가 검증되지 않았다" 이지 "drift 가 없다" 가 아님** — host prose 는 본 field 만으로 drift-vs-no-drift 분기를 결정해서는 안 된다 (PR #251 review CC1). Phase B-N: drift checker 도입 시 `validateReviewConfig` pass + `checkRequirements` fail 사유 string 으로 populate. | reservation |
 
 ### 3.2 Field 순서 보증

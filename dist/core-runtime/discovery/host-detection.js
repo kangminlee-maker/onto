@@ -93,10 +93,67 @@ export function detectCodexEnvSignal() {
     return false;
 }
 /**
+ * True when CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS env var is exactly "1".
+ *
+ * This is a stricter probe than `detectClaudeCodeEnvSignal` — the latter
+ * reports "any of three Claude env vars present" for host *category*
+ * detection, while this one is the specific TeamCreate activation gate.
+ * Detection signals (review/detection-signals.ts) use this directly to
+ * expose `teams_env` boolean to the host prose.
+ */
+export function detectTeamsEnv() {
+    return process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === "1";
+}
+/**
+ * True when ~/.codex/auth.json exists (binary-independent file probe).
+ *
+ * Distinct from `detectCodexBinaryAvailable`, which requires BOTH the
+ * codex binary on PATH AND the auth.json file. Splitting the auth file
+ * probe out lets callers (e.g., detection-signals.ts) report
+ * `codex.binary` and `codex.auth` independently — useful when the binary
+ * is missing but auth artifacts exist (signals "user had codex installed
+ * before" → upgrade guidance), or vice versa.
+ *
+ * Naming caveat (deferred to a follow-up): this only checks file
+ * presence, not whether the credentials inside are valid/usable.
+ */
+export function detectCodexAuthFile() {
+    const authPath = path.join(os.homedir(), ".codex", "auth.json");
+    return fsSync.existsSync(authPath);
+}
+/**
+ * True when the codex executable is on PATH (file-presence only).
+ *
+ * Distinct from `detectCodexBinaryAvailable`, which is the legacy
+ * "binary AND auth" availability check used by callers who need to know
+ * whether codex can actually run a task end-to-end. This helper exposes
+ * the PATH-only fact so detection-signals.ts can emit `codex.binary` and
+ * `codex.auth` as independent capability axes — letting host prose
+ * distinguish "binary installed but unauthenticated" from "binary
+ * missing entirely". (PR #251 round 2 review C1+C2.)
+ */
+export function detectCodexBinary() {
+    const pathEnv = process.env.PATH ?? "";
+    for (const dir of pathEnv.split(path.delimiter)) {
+        if (!dir)
+            continue;
+        if (fsSync.existsSync(path.join(dir, "codex"))) {
+            return true;
+        }
+    }
+    return false;
+}
+/**
  * True when codex binary is on PATH AND ~/.codex/auth.json exists.
  *
  * Replaces the legacy `detectCodexAvailable()` from review-invoke.ts.
  * Both conditions must hold — auth.json alone or binary alone is insufficient.
+ *
+ * Used by callers who need a single availability boolean ("can codex
+ * actually run?"): review-invoke / detect-review-axes / execution-plan-
+ * resolver / host capability matrix. detection-signals.ts deliberately
+ * does NOT use this — it emits the two facts independently via
+ * `detectCodexBinary` + `detectCodexAuthFile`.
  */
 export function detectCodexBinaryAvailable() {
     const pathEnv = process.env.PATH ?? "";
@@ -119,14 +176,24 @@ export function detectAnthropicApiKey() {
     return Boolean(process.env[ENV_ANTHROPIC_API_KEY]);
 }
 /**
- * True when an OpenAI-compatible API key is reachable.
+ * True when `process.env.OPENAI_API_KEY` is set (env source only).
  *
- * Checks both OPENAI_API_KEY env var and the OPENAI_API_KEY field inside
- * ~/.codex/auth.json (codex API-key mode places the key there).
+ * Single-source raw fact. Use `detectCodexAuthOpenAiKey` separately if
+ * you need the auth.json source. The legacy union helper
+ * `detectOpenAiApiKey` is preserved for callers that intentionally want
+ * "reachable from any source" semantics. (PR #251 round 4 review C2.)
  */
-export function detectOpenAiApiKey() {
-    if (process.env[ENV_OPENAI_API_KEY])
-        return true;
+export function detectOpenAiEnvKey() {
+    return Boolean(process.env[ENV_OPENAI_API_KEY]);
+}
+/**
+ * True when `~/.codex/auth.json` contains a non-empty `OPENAI_API_KEY`
+ * field (codex API-key mode places the key there).
+ *
+ * Single-source raw fact. Returns false on file absence or JSON parse
+ * failure. (PR #251 round 4 review C2.)
+ */
+export function detectCodexAuthOpenAiKey() {
     const authPath = path.join(os.homedir(), ".codex", "auth.json");
     if (!fsSync.existsSync(authPath))
         return false;
@@ -138,6 +205,18 @@ export function detectOpenAiApiKey() {
     catch {
         return false;
     }
+}
+/**
+ * True when an OpenAI-compatible API key is reachable from any source.
+ *
+ * Union of `detectOpenAiEnvKey` and `detectCodexAuthOpenAiKey`. Used by
+ * callers ("can OpenAI be used at all?") who do not need to distinguish
+ * the source (`install/detect.ts` capability scan, host capability
+ * matrix). detection-signals.ts deliberately does NOT use this — it
+ * emits the two source facts independently per L1 honesty.
+ */
+export function detectOpenAiApiKey() {
+    return detectOpenAiEnvKey() || detectCodexAuthOpenAiKey();
 }
 /** True when LITELLM_BASE_URL env var is set. */
 export function detectLiteLlmEndpoint() {

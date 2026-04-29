@@ -16,6 +16,7 @@ import { resolveOntoHome } from "../discovery/onto-home.js";
 import { resolveConfigChain } from "../discovery/config-chain.js";
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
+import { formatDetectionSignalsJson, gatherDetectionSignals, readConfigWithParseHealth, } from "../review/detection-signals.js";
 import { resolveExecutionPlan } from "../review/execution-plan-resolver.js";
 import { resolveExecutionTopology, } from "../review/execution-topology-resolver.js";
 import { hasStandaloneLensExecutor, mapTopologyToExecutorConfig, toCoordinatorTopologyDescriptor, } from "./topology-executor-mapping.js";
@@ -82,7 +83,13 @@ const KNOWN_INVOKE_ONLY_OPTION_NAMES = [
     "reasoning-effort",
     "domain",
 ];
-const KNOWN_INVOKE_ONLY_FLAG_NAMES = ["codex", "prepare-only", "no-watch", "no-domain"];
+const KNOWN_INVOKE_ONLY_FLAG_NAMES = [
+    "codex",
+    "prepare-only",
+    "no-watch",
+    "no-domain",
+    "emit-detection-signals",
+];
 function requireString(value, optionName) {
     if (typeof value !== "string" || value.length === 0) {
         throw new Error(`Missing required option --${optionName}`);
@@ -1325,6 +1332,13 @@ async function resolveReviewInvokeSetup(argv) {
     let ontoHome;
     try {
         ontoHome = resolveOntoHome(ontoHomeFlag);
+        // Activation/Execution Determinism Redesign B4: propagate ONTO_HOME to
+        // process.env so spawned children (lens + synthesize executors in
+        // run-review-prompt-execution.ts:invokeExecutor) inherit the same
+        // install. Without this, `npm run review:invoke` bypasses the global
+        // `onto` CLI (which sets process.env.ONTO_HOME at src/cli.ts:667) and
+        // the synthesize-spawn guard throws.
+        process.env.ONTO_HOME = ontoHome;
     }
     catch {
         // When invoked via npm run (legacy path), onto home resolution from
@@ -1395,6 +1409,27 @@ export async function reviewPrepareOnly(argv) {
     };
 }
 export async function runReviewInvokeCli(argv) {
+    // Phase B-1 (interactive runtime detection signals, design-draft §3.1):
+    // when `--emit-detection-signals` is present, skip the full review setup
+    // pipeline (which mutates ONTO_HOME, validates targets, resolves
+    // execution profile, etc.) and emit only the v1 detection signal JSON.
+    //
+    // Why early: the host prose calls this BEFORE deciding to launch a real
+    // review session, so the runtime must respond as a pure read — no env
+    // mutation, no target requirement, no profile derivation.
+    if (hasOptionFlag(argv, "emit-detection-signals")) {
+        const projectRoot = path.resolve(readSingleOptionValueFromArgv(argv, "project-root") ?? ".");
+        // Use the parse-health-aware reader instead of `readOntoConfig`,
+        // which warns-and-falls-through on parse failure (correct for
+        // dispatch, lossy for detection). The parse error string flows
+        // into the v1 `config_parse_error` field so host prose can
+        // distinguish "user has not configured yet" from "user's config
+        // is broken" — see contract §3.1.
+        const read = await readConfigWithParseHealth(projectRoot);
+        const signals = gatherDetectionSignals(read);
+        process.stdout.write(`${formatDetectionSignalsJson(signals)}\n`);
+        return 0;
+    }
     const prepareOnly = hasOptionFlag(argv, "prepare-only");
     const explicitCodex = hasOptionFlag(argv, "codex");
     const setup = await resolveReviewInvokeSetup(argv);

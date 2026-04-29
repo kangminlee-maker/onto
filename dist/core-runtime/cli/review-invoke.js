@@ -16,7 +16,7 @@ import { resolveOntoHome } from "../discovery/onto-home.js";
 import { resolveConfigChain } from "../discovery/config-chain.js";
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
-import { formatDetectionSignalsJson, gatherDetectionSignals, } from "../review/detection-signals.js";
+import { formatDetectionSignalsJson, gatherDetectionSignals, readConfigWithParseHealth, } from "../review/detection-signals.js";
 import { resolveExecutionPlan } from "../review/execution-plan-resolver.js";
 import { resolveExecutionTopology, } from "../review/execution-topology-resolver.js";
 import { hasStandaloneLensExecutor, mapTopologyToExecutorConfig, toCoordinatorTopologyDescriptor, } from "./topology-executor-mapping.js";
@@ -1419,8 +1419,14 @@ export async function runReviewInvokeCli(argv) {
     // mutation, no target requirement, no profile derivation.
     if (hasOptionFlag(argv, "emit-detection-signals")) {
         const projectRoot = path.resolve(readSingleOptionValueFromArgv(argv, "project-root") ?? ".");
-        const ontoConfig = await readOntoConfig(projectRoot);
-        const signals = gatherDetectionSignals(ontoConfig);
+        // Use the parse-health-aware reader instead of `readOntoConfig`,
+        // which warns-and-falls-through on parse failure (correct for
+        // dispatch, lossy for detection). The parse error string flows
+        // into the v1 `config_parse_error` field so host prose can
+        // distinguish "user has not configured yet" from "user's config
+        // is broken" — see contract §3.1.
+        const read = await readConfigWithParseHealth(projectRoot);
+        const signals = gatherDetectionSignals(read);
         process.stdout.write(`${formatDetectionSignalsJson(signals)}\n`);
         return 0;
     }

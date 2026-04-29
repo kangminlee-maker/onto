@@ -32,6 +32,7 @@ import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
 import {
   formatDetectionSignalsJson,
   gatherDetectionSignals,
+  readConfigWithParseHealth,
 } from "../review/detection-signals.js";
 import { resolveExecutionPlan } from "../review/execution-plan-resolver.js";
 import {
@@ -2008,8 +2009,14 @@ export async function runReviewInvokeCli(argv: string[]): Promise<number> {
     const projectRoot = path.resolve(
       readSingleOptionValueFromArgv(argv, "project-root") ?? ".",
     );
-    const ontoConfig = await readOntoConfig(projectRoot);
-    const signals = gatherDetectionSignals(ontoConfig);
+    // Use the parse-health-aware reader instead of `readOntoConfig`,
+    // which warns-and-falls-through on parse failure (correct for
+    // dispatch, lossy for detection). The parse error string flows
+    // into the v1 `config_parse_error` field so host prose can
+    // distinguish "user has not configured yet" from "user's config
+    // is broken" — see contract §3.1.
+    const read = await readConfigWithParseHealth(projectRoot);
+    const signals = gatherDetectionSignals(read);
     process.stdout.write(`${formatDetectionSignalsJson(signals)}\n`);
     return 0;
   }

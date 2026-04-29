@@ -64,13 +64,15 @@ export async function readConfigWithParseHealth(projectRoot) {
     }
     try {
         const raw = await readYamlDocument(configPath);
-        if (raw === null || typeof raw !== "object") {
-            // Parsed successfully but the root is a scalar / null. Per
-            // PR #251 round 4 review CC1, this case must NOT collapse into
-            // first-run absence (which is `parseError: null` + empty config
-            // when the file simply does not exist). Emit a distinct parse
-            // error string so host prose treats it as fail-fast like a
-            // genuine YAML parse failure.
+        if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+            // Parsed successfully but the root is not a plain object —
+            // either scalar / null (PR #251 round 4 CC1) or an array
+            // (round 5 dependency unique). YAML arrays slip past
+            // `typeof === "object"` because of JS history, so we add an
+            // explicit `Array.isArray` check. None of these shapes can
+            // hold a `review:` block, so they must NOT collapse into
+            // first-run absence — emit a distinct parseError so host
+            // prose treats them as fail-fast.
             return {
                 rawConfig: {},
                 parseError: `Config root is not a YAML object: ${configPath}`,

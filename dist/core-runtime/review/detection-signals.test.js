@@ -167,6 +167,19 @@ describe("gatherDetectionSignals — codex {binary_on_path, auth_file_present} 4
         expect(signals.codex.binary_on_path).toBe(true);
         expect(signals.codex.auth_file_present).toBe(true);
     });
+    it("non-executable codex file on PATH still emits binary_on_path=true (file-presence only contract; PR #251 round 5 C4)", () => {
+        // The contract defines binary_on_path as file-presence ONLY —
+        // executability/permission is intentionally NOT checked. A
+        // codex-named file with mode 0o644 still flips the field true,
+        // and host prose must not infer "Codex can run" from this signal
+        // alone. This test locks the file-presence-only contract against
+        // future drift toward executability checks.
+        const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "onto-fake-codex-bin-"));
+        trackedTempDirs.push(binDir);
+        fs.writeFileSync(path.join(binDir, "codex"), "not-an-executable", { mode: 0o644 });
+        process.env.PATH = binDir;
+        expect(gatherDetectionSignals().codex.binary_on_path).toBe(true);
+    });
 });
 describe("gatherDetectionSignals — credentials (3 source-prefixed fields, PR #251 round 4 C2)", () => {
     it("env_has_anthropic_api_key reflects ANTHROPIC_API_KEY presence", () => {
@@ -288,6 +301,17 @@ describe("readConfigWithParseHealth — parse-health capture", () => {
     });
     it("YAML null root (e.g. empty file) also flagged as non-object", async () => {
         const root = makeProjectRootWith("");
+        const read = await readConfigWithParseHealth(root);
+        expect(read.rawConfig).toEqual({});
+        expect(read.parseError).toMatch(/^Config root is not a YAML object/);
+    });
+    it("YAML array root (sequence) flagged as non-object — Array.isArray guard (PR #251 round 5)", async () => {
+        // YAML sequences slip past `typeof === "object"` because JavaScript
+        // reports arrays as object. Without the explicit Array.isArray
+        // check this would emit `rawConfig: [...]` + `parseError: null`,
+        // letting an array root masquerade as first-run absence. The guard
+        // forces it into fail-fast like other non-object roots.
+        const root = makeProjectRootWith("- one\n- two\n- three\n");
         const read = await readConfigWithParseHealth(root);
         expect(read.rawConfig).toEqual({});
         expect(read.parseError).toMatch(/^Config root is not a YAML object/);

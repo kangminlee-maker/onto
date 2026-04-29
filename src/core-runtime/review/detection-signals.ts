@@ -122,17 +122,20 @@ export interface DetectionSignalsV1 {
    */
   review_block_declared: boolean;
   /**
-   * Non-null when `.onto/config.yml` failed to parse as YAML. The
-   * string is the parser error message. Null when parse succeeded
-   * OR when the file is absent (file-absent is reported through
-   * `review_block_declared=false`, not through this field).
+   * Non-null when `.onto/config.yml` is unusable as a config object.
+   * The contract canonical definition is in
+   * `detection-signals-contract.md` §3.2; this jsdoc is a short
+   * referent only — see the contract for the full spec.
    *
-   * Why: `readOntoConfig` warn-and-fall-through behavior previously
-   * collapsed parse failure into "no review block", which made
-   * `review_block_declared=false` ambiguous between "user has not
-   * configured yet" and "user's config is broken". The host prose
-   * needs to distinguish these — the first is first-run interactive,
-   * the second is fail-fast with a fix-the-file message.
+   * Two non-null cases:
+   *   - YAML parser threw (message starts with "Failed to parse YAML:")
+   *   - YAML parsed but root is not a plain object: scalar, null, or
+   *     array (message starts with "Config root is not a YAML object:")
+   *
+   * Two null cases:
+   *   - File absent (this is reported through `review_block_declared
+   *     =false` instead — file-absent is first-run, not fail-fast)
+   *   - Root parsed as a plain object successfully
    */
   config_parse_error: string | null;
 }
@@ -168,13 +171,15 @@ export async function readConfigWithParseHealth(
   }
   try {
     const raw = await readYamlDocument<unknown>(configPath);
-    if (raw === null || typeof raw !== "object") {
-      // Parsed successfully but the root is a scalar / null. Per
-      // PR #251 round 4 review CC1, this case must NOT collapse into
-      // first-run absence (which is `parseError: null` + empty config
-      // when the file simply does not exist). Emit a distinct parse
-      // error string so host prose treats it as fail-fast like a
-      // genuine YAML parse failure.
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+      // Parsed successfully but the root is not a plain object —
+      // either scalar / null (PR #251 round 4 CC1) or an array
+      // (round 5 dependency unique). YAML arrays slip past
+      // `typeof === "object"` because of JS history, so we add an
+      // explicit `Array.isArray` check. None of these shapes can
+      // hold a `review:` block, so they must NOT collapse into
+      // first-run absence — emit a distinct parseError so host
+      // prose treats them as fail-fast.
       return {
         rawConfig: {},
         parseError: `Config root is not a YAML object: ${configPath}`,

@@ -233,13 +233,25 @@ export function detectAnthropicApiKey(): boolean {
 }
 
 /**
- * True when an OpenAI-compatible API key is reachable.
+ * True when `process.env.OPENAI_API_KEY` is set (env source only).
  *
- * Checks both OPENAI_API_KEY env var and the OPENAI_API_KEY field inside
- * ~/.codex/auth.json (codex API-key mode places the key there).
+ * Single-source raw fact. Use `detectCodexAuthOpenAiKey` separately if
+ * you need the auth.json source. The legacy union helper
+ * `detectOpenAiApiKey` is preserved for callers that intentionally want
+ * "reachable from any source" semantics. (PR #251 round 4 review C2.)
  */
-export function detectOpenAiApiKey(): boolean {
-  if (process.env[ENV_OPENAI_API_KEY]) return true;
+export function detectOpenAiEnvKey(): boolean {
+  return Boolean(process.env[ENV_OPENAI_API_KEY]);
+}
+
+/**
+ * True when `~/.codex/auth.json` contains a non-empty `OPENAI_API_KEY`
+ * field (codex API-key mode places the key there).
+ *
+ * Single-source raw fact. Returns false on file absence or JSON parse
+ * failure. (PR #251 round 4 review C2.)
+ */
+export function detectCodexAuthOpenAiKey(): boolean {
   const authPath = path.join(os.homedir(), ".codex", "auth.json");
   if (!fsSync.existsSync(authPath)) return false;
   try {
@@ -249,6 +261,19 @@ export function detectOpenAiApiKey(): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * True when an OpenAI-compatible API key is reachable from any source.
+ *
+ * Union of `detectOpenAiEnvKey` and `detectCodexAuthOpenAiKey`. Used by
+ * callers ("can OpenAI be used at all?") who do not need to distinguish
+ * the source (`install/detect.ts` capability scan, host capability
+ * matrix). detection-signals.ts deliberately does NOT use this — it
+ * emits the two source facts independently per L1 honesty.
+ */
+export function detectOpenAiApiKey(): boolean {
+  return detectOpenAiEnvKey() || detectCodexAuthOpenAiKey();
 }
 
 /** True when LITELLM_BASE_URL env var is set. */

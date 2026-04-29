@@ -207,27 +207,51 @@ describe("gatherDetectionSignals — codex {binary_on_path, auth_file_present} 4
   });
 });
 
-describe("gatherDetectionSignals — credentials + litellm", () => {
-  it("anthropic_api_key_set reflects ANTHROPIC_API_KEY presence", () => {
-    expect(gatherDetectionSignals().credentials.anthropic_api_key_set).toBe(false);
+describe("gatherDetectionSignals — credentials (3 source-prefixed fields, PR #251 round 4 C2)", () => {
+  it("env_has_anthropic_api_key reflects ANTHROPIC_API_KEY presence", () => {
+    expect(gatherDetectionSignals().credentials.env_has_anthropic_api_key).toBe(false);
     process.env.ANTHROPIC_API_KEY = "sk-ant-test";
-    expect(gatherDetectionSignals().credentials.anthropic_api_key_set).toBe(true);
+    expect(gatherDetectionSignals().credentials.env_has_anthropic_api_key).toBe(true);
   });
 
-  it("openai_api_key_reachable reflects OPENAI_API_KEY env presence", () => {
-    expect(gatherDetectionSignals().credentials.openai_api_key_reachable).toBe(false);
-    process.env.OPENAI_API_KEY = "sk-test";
-    expect(gatherDetectionSignals().credentials.openai_api_key_reachable).toBe(true);
-  });
-
-  it("openai_api_key_reachable also reads ~/.codex/auth.json:OPENAI_API_KEY", () => {
+  it("env_has_openai_api_key reports env source ONLY (auth.json key does NOT flip it)", () => {
+    expect(gatherDetectionSignals().credentials.env_has_openai_api_key).toBe(false);
     fs.mkdirSync(path.join(isolatedHome, ".codex"), { recursive: true });
     fs.writeFileSync(
       path.join(isolatedHome, ".codex", "auth.json"),
       JSON.stringify({ OPENAI_API_KEY: "sk-from-codex-auth" }),
       "utf8",
     );
-    expect(gatherDetectionSignals().credentials.openai_api_key_reachable).toBe(true);
+    // env source false even with auth.json present.
+    expect(gatherDetectionSignals().credentials.env_has_openai_api_key).toBe(false);
+    process.env.OPENAI_API_KEY = "sk-test";
+    expect(gatherDetectionSignals().credentials.env_has_openai_api_key).toBe(true);
+  });
+
+  it("codex_auth_has_openai_api_key reports auth.json source ONLY (env key does NOT flip it)", () => {
+    expect(gatherDetectionSignals().credentials.codex_auth_has_openai_api_key).toBe(false);
+    process.env.OPENAI_API_KEY = "sk-test-env";
+    expect(gatherDetectionSignals().credentials.codex_auth_has_openai_api_key).toBe(false);
+    fs.mkdirSync(path.join(isolatedHome, ".codex"), { recursive: true });
+    fs.writeFileSync(
+      path.join(isolatedHome, ".codex", "auth.json"),
+      JSON.stringify({ OPENAI_API_KEY: "sk-from-codex-auth" }),
+      "utf8",
+    );
+    expect(gatherDetectionSignals().credentials.codex_auth_has_openai_api_key).toBe(true);
+  });
+
+  it("both openai source fields are independent — host prose composes the union itself", () => {
+    process.env.OPENAI_API_KEY = "sk-env";
+    fs.mkdirSync(path.join(isolatedHome, ".codex"), { recursive: true });
+    fs.writeFileSync(
+      path.join(isolatedHome, ".codex", "auth.json"),
+      JSON.stringify({ OPENAI_API_KEY: "sk-codex" }),
+      "utf8",
+    );
+    const signals = gatherDetectionSignals();
+    expect(signals.credentials.env_has_openai_api_key).toBe(true);
+    expect(signals.credentials.codex_auth_has_openai_api_key).toBe(true);
   });
 
   it("litellm_base_url_set reflects LITELLM_BASE_URL presence", () => {
@@ -330,11 +354,21 @@ describe("readConfigWithParseHealth — parse-health capture", () => {
     expect(read.parseError).toMatch(/^Failed to parse YAML/);
   });
 
-  it("YAML scalar (not object) → empty config + null error (parse succeeded)", async () => {
+  it("YAML scalar (parseable but not an object) → empty config + parseError set (PR #251 round 4 CC1)", async () => {
+    // Parseable scalar/null root must NOT collapse into first-run absence.
+    // Host prose treats `parseError !== null` as fail-fast like a real
+    // parse failure, distinguishing it from a genuinely missing config.
     const root = makeProjectRootWith("just-a-string\n");
     const read = await readConfigWithParseHealth(root);
     expect(read.rawConfig).toEqual({});
-    expect(read.parseError).toBeNull();
+    expect(read.parseError).toMatch(/^Config root is not a YAML object/);
+  });
+
+  it("YAML null root (e.g. empty file) also flagged as non-object", async () => {
+    const root = makeProjectRootWith("");
+    const read = await readConfigWithParseHealth(root);
+    expect(read.rawConfig).toEqual({});
+    expect(read.parseError).toMatch(/^Config root is not a YAML object/);
   });
 });
 
@@ -343,7 +377,11 @@ describe("formatDetectionSignalsJson — emission ordering", () => {
     const signals: DetectionSignalsV1 = {
       review_block_declared: true,
       config_parse_error: null,
-      credentials: { openai_api_key_reachable: true, anthropic_api_key_set: false },
+      credentials: {
+        codex_auth_has_openai_api_key: true,
+        env_has_openai_api_key: false,
+        env_has_anthropic_api_key: false,
+      },
       codex: { auth_file_present: false, binary_on_path: true },
       litellm_base_url_set: false,
       claude_code_teams_env_set: true,

@@ -45,7 +45,7 @@
  *   `--emit-detection-signals` (review-invoke.ts).
  */
 import path from "node:path";
-import { detectAnthropicApiKey, detectCodexAuthFile, detectCodexBinary, detectHostRuntimeCategory, detectLiteLlmEndpoint, detectOpenAiApiKey, detectTeamsEnv, } from "../discovery/host-detection.js";
+import { detectAnthropicApiKey, detectCodexAuthFile, detectCodexAuthOpenAiKey, detectCodexBinary, detectHostRuntimeCategory, detectLiteLlmEndpoint, detectOpenAiEnvKey, detectTeamsEnv, } from "../discovery/host-detection.js";
 import { fileExists, readYamlDocument, } from "./review-artifact-utils.js";
 /**
  * Read `.onto/config.yml` while preserving parse-health information.
@@ -65,9 +65,16 @@ export async function readConfigWithParseHealth(projectRoot) {
     try {
         const raw = await readYamlDocument(configPath);
         if (raw === null || typeof raw !== "object") {
-            // Parsed but the document was a scalar / null — treat as empty
-            // config without flagging a parse error (the YAML itself parsed).
-            return { rawConfig: {}, parseError: null };
+            // Parsed successfully but the root is a scalar / null. Per
+            // PR #251 round 4 review CC1, this case must NOT collapse into
+            // first-run absence (which is `parseError: null` + empty config
+            // when the file simply does not exist). Emit a distinct parse
+            // error string so host prose treats it as fail-fast like a
+            // genuine YAML parse failure.
+            return {
+                rawConfig: {},
+                parseError: `Config root is not a YAML object: ${configPath}`,
+            };
         }
         return { rawConfig: raw, parseError: null };
     }
@@ -132,8 +139,9 @@ export function gatherDetectionSignals(read = { rawConfig: {}, parseError: null 
         },
         litellm_base_url_set: detectLiteLlmEndpoint(),
         credentials: {
-            anthropic_api_key_set: detectAnthropicApiKey(),
-            openai_api_key_reachable: detectOpenAiApiKey(),
+            env_has_anthropic_api_key: detectAnthropicApiKey(),
+            env_has_openai_api_key: detectOpenAiEnvKey(),
+            codex_auth_has_openai_api_key: detectCodexAuthOpenAiKey(),
         },
         review_block_declared: detectReviewBlockDeclared(read.rawConfig),
         config_parse_error: read.parseError,
@@ -159,8 +167,9 @@ export function formatDetectionSignalsJson(signals) {
         },
         litellm_base_url_set: signals.litellm_base_url_set,
         credentials: {
-            anthropic_api_key_set: signals.credentials.anthropic_api_key_set,
-            openai_api_key_reachable: signals.credentials.openai_api_key_reachable,
+            env_has_anthropic_api_key: signals.credentials.env_has_anthropic_api_key,
+            env_has_openai_api_key: signals.credentials.env_has_openai_api_key,
+            codex_auth_has_openai_api_key: signals.credentials.codex_auth_has_openai_api_key,
         },
         review_block_declared: signals.review_block_declared,
         config_parse_error: signals.config_parse_error,

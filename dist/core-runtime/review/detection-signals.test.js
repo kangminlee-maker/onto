@@ -82,9 +82,18 @@ describe("gatherDetectionSignals — host mapping (claude/codex/standalone)", ()
         // No host env signals + empty PATH ⇒ standalone default.
         expect(gatherDetectionSignals().host).toBe("standalone");
     });
-    it("config.host_runtime override is honored (priority over env signals)", () => {
+    it("config.host_runtime is IGNORED — host reports observed runtime fact only", () => {
+        // PR #251 review C3 (9/9): host must reflect the actual runtime
+        // environment, not a config-level override. Even when the caller
+        // hands over an OntoConfig carrying `host_runtime: "codex"`, the
+        // signal here stays as the observed Claude session. Config-level
+        // overrides belong to downstream resolvers (execution-profile /
+        // review-invoke handoff), not to this raw runtime-fact field.
         process.env.CLAUDECODE = "1";
-        expect(gatherDetectionSignals({ host_runtime: "codex" }).host).toBe("codex");
+        const signals = gatherDetectionSignals({
+            host_runtime: "codex",
+        });
+        expect(signals.host).toBe("claude-code");
     });
 });
 describe("gatherDetectionSignals — teams_env (TeamCreate gate)", () => {

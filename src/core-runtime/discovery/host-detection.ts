@@ -148,6 +148,37 @@ export function detectCodexEnvSignal(): boolean {
 }
 
 /**
+ * True when CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS env var is exactly "1".
+ *
+ * This is a stricter probe than `detectClaudeCodeEnvSignal` — the latter
+ * reports "any of three Claude env vars present" for host *category*
+ * detection, while this one is the specific TeamCreate activation gate.
+ * Detection signals (review/detection-signals.ts) use this directly to
+ * expose `teams_env` boolean to the host prose.
+ */
+export function detectTeamsEnv(): boolean {
+  return process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === "1";
+}
+
+/**
+ * True when ~/.codex/auth.json exists (binary-independent file probe).
+ *
+ * Distinct from `detectCodexBinaryAvailable`, which requires BOTH the
+ * codex binary on PATH AND the auth.json file. Splitting the auth file
+ * probe out lets callers (e.g., detection-signals.ts) report
+ * `codex.binary` and `codex.auth` independently — useful when the binary
+ * is missing but auth artifacts exist (signals "user had codex installed
+ * before" → upgrade guidance), or vice versa.
+ *
+ * Naming caveat (deferred to a follow-up): this only checks file
+ * presence, not whether the credentials inside are valid/usable.
+ */
+export function detectCodexAuthFile(): boolean {
+  const authPath = path.join(os.homedir(), ".codex", "auth.json");
+  return fsSync.existsSync(authPath);
+}
+
+/**
  * True when codex binary is on PATH AND ~/.codex/auth.json exists.
  *
  * Replaces the legacy `detectCodexAvailable()` from review-invoke.ts.

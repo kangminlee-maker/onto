@@ -12,12 +12,19 @@
 
 Detection signals 는 onto review 실행 직전 **의사결정 입력**이다. 어떤 detection signals 가 있느냐에 따라 host prose 가 다음 중 하나를 선택한다.
 
-1. **first-run interactive flow** (review block 부재 + interactive 환경) — Q-Teamlead → Q-Subagent → Q-Effort → Q-Persist 연쇄.
-2. **subsequent run reminder** (review block 유효 + drift 없음) — STDERR 1-줄 reminder 후 그대로 dispatch.
-3. **drift 재선택** (review block 유효 + drift 감지) — drift 사유 안내 + 연쇄 재선택.
-4. **non-interactive fail-fast** — review block 부재 + interactive 불가 환경.
+1. **first-run interactive flow** (review block 미등재 + interactive 환경) — Q-Teamlead → Q-Subagent → Q-Effort → Q-Persist 연쇄.
+2. **subsequent run reminder** (review block 등재 + validity OK + drift 없음) — STDERR 1-줄 reminder 후 그대로 dispatch.
+3. **drift 재선택** (review block 등재 + drift 감지) — drift 사유 안내 + 연쇄 재선택.
+4. **non-interactive fail-fast** — review block 미등재 + interactive 불가 환경.
 
-Schema 는 host prose 가 위 4 분기 중 하나를 deterministic 하게 고를 수 있도록 minimal sufficient set 을 노출한다.
+### 1.1 Phase B-1 의 책임 경계
+
+본 v1 schema 는 위 4 분기 중 **(1) 과 (4)** 의 분기 결정에만 충분한 입력을 노출한다. 즉 `review_block_present` 가 false 이면 host prose 는 interactive 가능 여부에 따라 (1) 또는 (4) 로 진입한다. **(2) 와 (3) 의 구분 — block validity 검증 및 drift 검증 — 은 본 schema 가 직접 답하지 않는다**:
+
+- **Validity 검증**은 host prose 가 `review-config-validator.ts` 를 별도 단계로 호출해서 수행한다 — `review_block_present` 는 "axis block 이 등재되었는가" 만 답하고, "유효한가" 는 답하지 않음.
+- **Drift 검증**은 Phase B-N 에서 추가 — Phase B-1 의 `drift_reason` 은 항상 `null` 이며 그 의미는 "drift 가 검증되지 않았다" 이지 "drift 가 없다" 가 아님 (§3.1 drift_reason 항목 참조).
+
+Phase B-1 host prose 는 (2)/(3) 분기를 본 schema 만으로 결정하려 시도하지 않아야 하며, 등재된 block 에 대해 dispatch 전에 validator + drift checker (후속 Phase) 를 별도 호출하는 책임을 진다.
 
 ## 2. 위치 매트릭스
 
@@ -26,8 +33,8 @@ Schema 는 host prose 가 위 4 분기 중 하나를 deterministic 하게 고를
 | Runtime emit seat | `src/core-runtime/cli/review-invoke.ts:runReviewInvokeCli` (early-exit 분기) |
 | Gather seat | `src/core-runtime/review/detection-signals.ts:gatherDetectionSignals` |
 | Format seat | `src/core-runtime/review/detection-signals.ts:formatDetectionSignalsJson` |
-| Predicate SSOT | `src/core-runtime/discovery/host-detection.ts` 의 6 detect\* helpers |
-| Test SSOT | `src/core-runtime/review/detection-signals.test.ts` (24 케이스) |
+| Predicate SSOT | `src/core-runtime/discovery/host-detection.ts` 의 8 detect\* helpers (`detectAnthropicApiKey`, `detectCodexAuthFile`, `detectCodexBinaryAvailable`, `detectHostRuntimeCategory`, `detectLiteLlmEndpoint`, `detectOpenAiApiKey`, `detectTeamsEnv`, plus the category enum). detection-signals.ts 는 local probe 를 두지 않고 모든 fact 를 위 모듈에 위임한다 (PR #251 review C2). |
+| Test SSOT | `src/core-runtime/review/detection-signals.test.ts` |
 
 ---
 
@@ -57,15 +64,15 @@ Schema 는 host prose 가 위 4 분기 중 하나를 deterministic 하게 고를
 | Field | 정의 | 출처 |
 |---|---|---|
 | `schema_version` | `"v1"` 리터럴. host prose 는 이 값으로 capability branching. | 본 contract |
-| `host` | host prose 가 자기 도구를 매핑할 user-facing label. | `detectHostRuntimeCategory` ("claude" → "claude-code") |
-| `teams_env` | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` 정확 매칭. TeamCreate 활성화 가능 여부. | direct env probe |
+| `host` | **관측된 runtime fact**. 환경 신호 (CLAUDECODE / CODEX_THREAD_ID / codex binary / 부재) 로만 결정. `ontoConfig.host_runtime` override 는 본 field 에 영향 주지 않음 — override 는 downstream resolver (execution-profile / review-invoke handoff) 의 영역. (PR #251 review C3). | `detectHostRuntimeCategory({})` ("claude" → "claude-code") |
+| `teams_env` | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` 정확 매칭. TeamCreate 활성화 가능 여부. | `detectTeamsEnv` |
 | `codex.binary` | PATH 위 codex 실행 파일 존재. | `detectCodexBinaryAvailable` 의 PATH 검사 sub-step |
-| `codex.auth` | `~/.codex/auth.json` 존재. binary 와 독립 (binary 부재 + auth 존재 = 업그레이드 안내 신호). | `fsSync.existsSync(~/.codex/auth.json)` |
+| `codex.auth` | `~/.codex/auth.json` 파일 존재. binary 와 독립 (binary 부재 + auth 존재 = 업그레이드 안내 신호). 본 field 는 file presence 만 의미하며 자격증명의 valid/usable 여부는 검증하지 않음. | `detectCodexAuthFile` |
 | `litellm_endpoint` | `LITELLM_BASE_URL` env 존재. | `detectLiteLlmEndpoint` |
 | `credentials.anthropic` | `ANTHROPIC_API_KEY` env 존재. | `detectAnthropicApiKey` |
 | `credentials.openai` | `OPENAI_API_KEY` env OR `~/.codex/auth.json:OPENAI_API_KEY` 존재. | `detectOpenAiApiKey` |
-| `review_block_present` | `ontoConfig.review` 가 non-null object. axis block "등재" 여부 (validity 와 별개). | `typeof === "object" && !== null` |
-| `drift_reason` | Phase B-1: 항상 `null`. Phase B-N: `validateReviewConfig` pass + `checkRequirements` fail 시 사유 string. | reservation |
+| `review_block_present` | `ontoConfig.review` 가 non-null object — 즉 "axis block 이 등재되었는가" 만 답한다. 등재된 block 의 well-formedness / validity 는 검증하지 않음. host prose 는 본 field 가 true 일 때 dispatch 직전에 `review-config-validator.ts` 를 별도 단계로 호출해 validity 를 검증한다 (PR #251 review C1). | `typeof === "object" && !== null` |
+| `drift_reason` | Phase B-1: 항상 `null`. **null 의 의미는 "drift 가 검증되지 않았다" 이지 "drift 가 없다" 가 아님** — host prose 는 본 field 만으로 drift-vs-no-drift 분기를 결정해서는 안 된다 (PR #251 review CC1). Phase B-N: drift checker 도입 시 `validateReviewConfig` pass + `checkRequirements` fail 사유 string 으로 populate. | reservation |
 
 ### 3.2 Field 순서 보증
 

@@ -19,7 +19,9 @@
  *
  * # How it relates
  *
- * - Inputs: reuses six `host-detection.ts` predicates verbatim.
+ * - Inputs: every probe is delegated to `host-detection.ts`. This module
+ *   only assembles the v1 schema shape from those predicates plus a
+ *   review-block-presence check. No local fs/env probes.
  * - Output schema: pinned in
  *   `.onto/processes/review/detection-signals-contract.md` (v1).
  * - Caller: `runReviewInvokeCli` early-exit branch on
@@ -33,10 +35,7 @@
  * `schema_version` literal lets the host prose branch on capability
  * additively without breaking existing consumers.
  */
-import fsSync from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { detectAnthropicApiKey, detectCodexBinaryAvailable, detectHostRuntimeCategory, detectLiteLlmEndpoint, detectOpenAiApiKey, } from "../discovery/host-detection.js";
+import { detectAnthropicApiKey, detectCodexAuthFile, detectCodexBinaryAvailable, detectHostRuntimeCategory, detectLiteLlmEndpoint, detectOpenAiApiKey, detectTeamsEnv, } from "../discovery/host-detection.js";
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -53,28 +52,13 @@ function toUserFacingHost(category) {
     return category;
 }
 /**
- * Direct env probe for CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS.
+ * Decide whether the review axis block has been DECLARED.
  *
- * `detectClaudeCodeEnvSignal()` reports "any Claude env signal" which is
- * useful for host *category* detection but conflates three different env
- * vars. The TeamCreate gate is specifically `…_AGENT_TEAMS=1`, so we read
- * that variable directly here.
- */
-function detectTeamsEnv(env = process.env) {
-    return env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === "1";
-}
-/** ~/.codex/auth.json present (binary-independent). */
-function detectCodexAuth() {
-    const authPath = path.join(os.homedir(), ".codex", "auth.json");
-    return fsSync.existsSync(authPath);
-}
-/**
- * Decide whether the review axis block has been declared.
- *
- * Phase B-1 rule: "block present" means `ontoConfig.review` is a non-null
- * object — ANY sub-field declaration counts as "axis block adopted". A
- * stricter "block valid" check is the validator's job (review-config-
- * validator.ts), not detection.
+ * Phase B-1 rule: "block present" means `ontoConfig.review` is a
+ * non-null object — ANY sub-field declaration (or even an empty object)
+ * counts as "axis block adopted". A stricter "block valid" check is
+ * `review-config-validator.ts`'s job and is not surfaced here. The host
+ * prose decides whether/when to invoke validation as a separate step.
  */
 function detectReviewBlockPresent(config) {
     const block = config.review;
@@ -89,16 +73,25 @@ function detectReviewBlockPresent(config) {
  * Pure read: no env mutation, no I/O beyond filesystem existence checks
  * already inside host-detection predicates. Safe to invoke at the very
  * top of any CLI entry point.
+ *
+ * # Why host detection ignores config here
+ *
+ * `detectHostRuntimeCategory` accepts a `config.host_runtime` override,
+ * but this module passes an empty config so the `host` field reports
+ * the OBSERVED runtime fact only. Config-level overrides belong to the
+ * downstream resolvers (execution-profile / review-invoke handoff),
+ * not to a raw runtime-environment signal that the host prose uses to
+ * pick its own input tool.
  */
 export function gatherDetectionSignals(config = {}) {
-    const hostCategory = detectHostRuntimeCategory(config);
+    const hostCategory = detectHostRuntimeCategory({});
     return {
         schema_version: "v1",
         host: toUserFacingHost(hostCategory),
         teams_env: detectTeamsEnv(),
         codex: {
             binary: detectCodexBinaryAvailable(),
-            auth: detectCodexAuth(),
+            auth: detectCodexAuthFile(),
         },
         litellm_endpoint: detectLiteLlmEndpoint(),
         credentials: {

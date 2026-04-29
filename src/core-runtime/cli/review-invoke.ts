@@ -29,6 +29,10 @@ import { resolveOntoHome } from "../discovery/onto-home.js";
 import { resolveConfigChain, type OntoConfig } from "../discovery/config-chain.js";
 import { loadCoreLensRegistry } from "../discovery/lens-registry.js";
 import { detectCodexBinaryAvailable } from "../discovery/host-detection.js";
+import {
+  formatDetectionSignalsJson,
+  gatherDetectionSignals,
+} from "../review/detection-signals.js";
 import { resolveExecutionPlan } from "../review/execution-plan-resolver.js";
 import {
   resolveExecutionTopology,
@@ -168,7 +172,13 @@ const KNOWN_INVOKE_ONLY_OPTION_NAMES = [
   "domain",
 ] as const;
 
-const KNOWN_INVOKE_ONLY_FLAG_NAMES = ["codex", "prepare-only", "no-watch", "no-domain"] as const;
+const KNOWN_INVOKE_ONLY_FLAG_NAMES = [
+  "codex",
+  "prepare-only",
+  "no-watch",
+  "no-domain",
+  "emit-detection-signals",
+] as const;
 
 function requireString(
   value: string | undefined,
@@ -1986,6 +1996,24 @@ export async function reviewPrepareOnly(argv: string[]): Promise<PrepareOnlyResu
 }
 
 export async function runReviewInvokeCli(argv: string[]): Promise<number> {
+  // Phase B-1 (interactive runtime detection signals, design-draft §3.1):
+  // when `--emit-detection-signals` is present, skip the full review setup
+  // pipeline (which mutates ONTO_HOME, validates targets, resolves
+  // execution profile, etc.) and emit only the v1 detection signal JSON.
+  //
+  // Why early: the host prose calls this BEFORE deciding to launch a real
+  // review session, so the runtime must respond as a pure read — no env
+  // mutation, no target requirement, no profile derivation.
+  if (hasOptionFlag(argv, "emit-detection-signals")) {
+    const projectRoot = path.resolve(
+      readSingleOptionValueFromArgv(argv, "project-root") ?? ".",
+    );
+    const ontoConfig = await readOntoConfig(projectRoot);
+    const signals = gatherDetectionSignals(ontoConfig);
+    process.stdout.write(`${formatDetectionSignalsJson(signals)}\n`);
+    return 0;
+  }
+
   const prepareOnly = hasOptionFlag(argv, "prepare-only");
   const explicitCodex = hasOptionFlag(argv, "codex");
 
